@@ -51,6 +51,7 @@ import type { LlmLocale, LlmSection } from '../ai/api.js';
 import type { ConnectionEngine, DsnPrivileges, GenerateIntent, SchemaTable } from '../api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { ENRICH_SECTIONS, LOCKED_LOCALE, type EnrichIntent } from './enrichState.js';
+import { sameDbDisabledCode } from './metaPlacementRule.js';
 
 // --- steps -------------------------------------------------------------------
 
@@ -328,25 +329,28 @@ export function sameDbDisabledReason(input: {
   privileges: DsnPrivileges | null;
   sourceIsFile: boolean;
 }): string | null {
-  if (input.sourceIsFile) {
-    return t(
-      'studio:meta.sameDb.disabledFile',
-      'A schema file has no live database — choose a separate database for Adminium’s own tables.',
-    );
+  // The RULE moved to `metaPlacementRule.ts` (45-T05): first-run onboarding
+  // asks the same question and cannot read a `studio:` key. What stays here is
+  // this wizard's wording for each answer.
+  switch (sameDbDisabledCode(input)) {
+    case 'file':
+      return t(
+        'studio:meta.sameDb.disabledFile',
+        'A schema file has no live database — choose a separate database for Adminium\u2019s own tables.',
+      );
+    case 'read-only':
+      return t(
+        'studio:meta.sameDb.disabledReadOnly',
+        'Your role is read-only — Adminium never writes to this database. Choose a separate database for Adminium\u2019s own tables.',
+      );
+    case 'no-ddl':
+      return t(
+        'studio:meta.sameDb.disabledNoDdl',
+        'This role cannot run DDL — Adminium migrations need CREATE TABLE. Choose a separate database for Adminium\u2019s own tables.',
+      );
+    default:
+      return null;
   }
-  if (input.readOnly || input.privileges?.canWrite === false) {
-    return t(
-      'studio:meta.sameDb.disabledReadOnly',
-      'Your role is read-only — Adminium never writes to this database. Choose a separate database for Adminium’s own tables.',
-    );
-  }
-  if (input.privileges !== null && !input.privileges.canDDL) {
-    return t(
-      'studio:meta.sameDb.disabledNoDdl',
-      'This role cannot run DDL — Adminium migrations need CREATE TABLE. Choose a separate database for Adminium’s own tables.',
-    );
-  }
-  return null;
 }
 
 // --- adapter error remediation ---------------------------------------------------
