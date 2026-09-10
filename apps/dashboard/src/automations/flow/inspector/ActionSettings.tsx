@@ -14,10 +14,15 @@
  * server) — no more, so nothing on screen is a promise the runner cannot
  * keep, and no fewer, so no step can be saved half-configured without the
  * person seeing which box is empty.
+ *
+ * The one table picker here (Create record's target) is a searchable
+ * `Combobox` — **D25**, the same rule as the New-rule modal and the trigger
+ * inspector — and it lists ONE connection's tables, for the reason
+ * `connectionId` is a prop: see `RecordSettings`.
  */
 
-import { ChipInput, Input, Select, Textarea } from '@adminium/ui';
-import type { ReactNode } from 'react';
+import { ChipInput, Combobox, Input, Select, Textarea } from '@adminium/ui';
+import { useId, type ReactNode } from 'react';
 
 import { t } from '../../../i18n/t.js';
 import type { SourceTable, Sources } from '../../api.js';
@@ -29,6 +34,13 @@ export interface ActionSettingsProps {
   sources: Sources | null;
   /** The record this rule is about — the source of "this record's column". */
   table: SourceTable | null;
+  /**
+   * The connection every write of this rule lands in — the TRIGGER's.
+   * `runner.ts`'s `openSource` opens the connection of the record the run is
+   * about and `record-write.ts` resolves `action.table` inside it, so a table
+   * from any other connection is one this step could never write.
+   */
+  connectionId: string | null;
   onChange: (patch: Partial<Action>) => void;
 }
 
@@ -209,13 +221,19 @@ function RecordSettings({
   action,
   sources,
   table,
+  connectionId,
   onChange,
 }: ActionSettingsProps & {
   action: Extract<Action, { kind: 'record.create' } | { kind: 'record.update' }>;
 }): ReactNode {
+  const fieldId = useId();
   const isCreate = action.kind === 'record.create';
-  const tables = sources?.connections.flatMap((connection) => connection.tables) ?? [];
-  const target = isCreate ? tables.find((row) => row.id === action.table) : table;
+  // See `connectionId` on the props: the write lands in the trigger's
+  // connection, so those are the tables — this used to flatten every
+  // connection's and offer rows the runner could never resolve.
+  const written =
+    sources?.connections.find((row) => row.id === connectionId) ?? sources?.connections[0] ?? null;
+  const target = isCreate ? (written?.tables.find((row) => row.id === action.table) ?? null) : table;
   const columns = (target?.columns ?? []).filter((column) => !column.pii);
   const entries = Object.entries(action.values);
 
@@ -235,23 +253,22 @@ function RecordSettings({
       }
     >
       {isCreate ? (
-        <Field label={t('automations:rec.table', 'Table')}>
-          <Select
-            value={action.table ?? ''}
-            onChange={(event) => {
-              onChange({ table: event.target.value === '' ? null : event.target.value, values: {} } as Partial<Action>);
+        <Field label={t('automations:rec.table', 'Table')} htmlFor={`${fieldId}-table`}>
+          <Combobox
+            id={`${fieldId}-table`}
+            value={action.table === null || action.table === '' ? null : action.table}
+            onValueChange={(next) => {
+              if (next === null || next === '') return;
+              // The values are columns of the OLD table: keeping them would
+              // write names the new one does not have.
+              onChange({ table: next, values: {} } as Partial<Action>);
             }}
-            data-testid="rec-table"
-          >
-            <option value="">{t('automations:rec.table', 'Table')}</option>
-            {tables
+            options={(written?.tables ?? [])
               .filter((row) => row.canCreate)
-              .map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.label}
-                </option>
-              ))}
-          </Select>
+              .map((row) => ({ value: row.id, label: row.label }))}
+            placeholder={t('automations:modal.tablePlaceholder', 'Search tables…')}
+            emptyText={t('automations:modal.tableEmpty', 'No matching table')}
+          />
         </Field>
       ) : null}
 

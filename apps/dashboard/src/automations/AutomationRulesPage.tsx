@@ -40,7 +40,7 @@ import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { useAppToasts } from '../pages/toasts.js';
 import { automationIcon } from './icons.js';
-import { automationsApi, type RuleView, type SourceTable } from './api.js';
+import { automationsApi, tableForTrigger, type RuleView, type SourceTable } from './api.js';
 import { invalidateRules, rulesQuery, rulesStatsQuery, sourcesQuery } from './queries.js';
 import { FlowBuilder } from './flow/FlowBuilder.js';
 import { StepInspector } from './flow/StepInspector.js';
@@ -128,12 +128,10 @@ export function AutomationRulesPage(): ReactNode {
   const graph: Graph | null = dirty ? draft.graph : (selected?.graph ?? null);
   const trigger: Trigger | null = dirty ? draft.trigger : (selected?.trigger ?? null);
 
-  const table: SourceTable | null = useMemo(() => {
-    if (trigger === null || sources.data === undefined) return null;
-    const id = trigger.kind === 'record' ? trigger.table : (trigger.forEach?.table ?? null);
-    if (id === null) return null;
-    return sources.data.connections.flatMap((connection) => connection.tables).find((row) => row.id === id) ?? null;
-  }, [trigger, sources.data]);
+  const table: SourceTable | null = useMemo(
+    () => tableForTrigger(sources.data ?? null, trigger),
+    [trigger, sources.data],
+  );
 
   // --- draft plumbing (D11) -------------------------------------------------
 

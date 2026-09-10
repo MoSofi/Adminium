@@ -12,7 +12,30 @@
 
 import type { ReactNode } from 'react';
 
-export function Field({ label, children }: { label: string; children: ReactNode }): ReactNode {
+export function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  /**
+   * Set it for a COMPOSITE control (`Combobox`), which a wrapping `<label>`
+   * cannot name: the same id goes on the control, the way `FormField` wires
+   * one. A plain `<input>`/`<select>` needs none — the wrapper names it.
+   */
+  htmlFor?: string | undefined;
+  children: ReactNode;
+}): ReactNode {
+  if (htmlFor !== undefined) {
+    return (
+      <div className="block">
+        <label htmlFor={htmlFor} className="mb-1.5 block text-[11.5px] font-bold">
+          {label}
+        </label>
+        {children}
+      </div>
+    );
+  }
   return (
     <label className="block">
       <span className="mb-1.5 block text-[11.5px] font-bold">{label}</span>

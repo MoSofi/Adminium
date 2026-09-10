@@ -20,16 +20,32 @@
  * --- FILL F1 / F4: what "When" offers ------------------------------------
  *
  * The comp lists domain events ("A user signs up"). Adminium observes record
- * writes and a clock, so the list is "A record is created in {table}" per
- * readable table, plus "On a schedule" — prefixed with the connection's name
- * when there is more than one (41 R7's rule).
+ * writes and a clock, so the vocabulary is a record event per readable table
+ * plus "On a schedule".
+ *
+ * --- DEPARTURE D25: two controls, not one --------------------------------
+ *
+ * The comp draws ONE select for "When (trigger)". Spelled as a single list
+ * that is the cartesian product of {created, updated, deleted} × every
+ * readable table, it is 3n options long — Northwind alone is 39 and a real
+ * schema is hundreds — so the trigger somebody came here to pick cannot be
+ * found. It splits the way the trigger inspector already splits it
+ * (`flow/inspector/TriggerSettings.tsx`): a four-option `Select` for the
+ * event, then — for the three record events only — a `Combobox` for the
+ * table, which is the searchable control the design system reserves for
+ * exactly this case ("kept native for plain forms — searchable/rich cases
+ * are `Combobox`", `Select.tsx`). §4.1's row for comp 55 asked for a
+ * Combobox here and the first build shipped a `Select`; this is that
+ * correction too. Field chrome, order and copy stay the comp's own, and F4's
+ * "{connection} · {table}" prefix still applies with several connections.
  */
 
-import { Input, Modal, ModalBody, ModalFooter, ModalHeader, Select, Switch } from '@adminium/ui';
-import { useState, type ReactNode } from 'react';
+import { Combobox, Input, Modal, ModalBody, ModalFooter, ModalHeader, Select, Switch } from '@adminium/ui';
+import { useId, useState, type ReactNode } from 'react';
 
 import { t } from '../../i18n/t.js';
 import { automationIcon } from '../icons.js';
+import { watchesFor } from '../api.js';
 import type { Sources } from '../api.js';
 import type { Graph, RecordEvent, Trigger } from '../model/graph.js';
 import { ACTION_STEPS } from '../model/vocabulary.js';
@@ -59,10 +75,16 @@ const EVENT_WORD: Record<RecordEvent, { key: string; fallback: string }> = {
   deleted: { key: 'automations:event.deleted', fallback: 'deleted' },
 };
 
-const TRIGGER_LABEL: Record<RecordEvent, { key: string; fallback: string }> = {
-  created: { key: 'automations:modal.trigger.created', fallback: 'A record is created in {table}' },
-  updated: { key: 'automations:modal.trigger.updated', fallback: 'A record is updated in {table}' },
-  deleted: { key: 'automations:modal.trigger.deleted', fallback: 'A record is deleted in {table}' },
+/** What the first dropdown offers (D25): the event, never the table. */
+type TriggerKind = RecordEvent | 'schedule';
+
+const KINDS: TriggerKind[] = [...EVENTS, 'schedule'];
+
+const KIND_LABEL: Record<TriggerKind, { key: string; fallback: string }> = {
+  created: { key: 'automations:modal.trigger.recordCreated', fallback: 'A record is created' },
+  updated: { key: 'automations:modal.trigger.recordUpdated', fallback: 'A record is updated' },
+  deleted: { key: 'automations:modal.trigger.recordDeleted', fallback: 'A record is deleted' },
+  schedule: { key: 'automations:modal.trigger.schedule', fallback: 'On a schedule' },
 };
 
 const EMAIL_LABEL = { key: 'automations:pick.email', fallback: 'Send email' } as const;
@@ -76,40 +98,42 @@ const ACTION_LABEL: Record<string, { key: string; fallback: string }> = {
   slack: { key: 'automations:pick.slack', fallback: 'Slack message' },
 };
 
-/** `record:cnx:table:created` / `schedule:cnx` — one string per option. */
-function parseTriggerValue(value: string, sources: Sources | null): Trigger | null {
-  const parts = value.split('|');
-  if (parts[0] === 'schedule') {
+/** The two controls, back into one trigger. `tableValue` is `<cnx>|<table>`. */
+function buildTrigger(kind: TriggerKind, tableValue: string, sources: Sources | null): Trigger | null {
+  if (kind === 'schedule') {
     return {
       kind: 'schedule',
-      connectionId: parts[1] ?? sources?.connections[0]?.id ?? null,
+      connectionId: sources?.connections[0]?.id ?? null,
       schedule: { kind: 'interval', everyMinutes: '15' },
     };
   }
-  if (parts[0] === 'record' && parts[1] !== undefined && parts[2] !== undefined) {
-    const table = sources?.connections
-      .find((connection) => connection.id === parts[1])
-      ?.tables.find((row) => row.id === parts[2]);
-    return {
-      kind: 'record',
-      event: (parts[3] ?? 'created') as RecordEvent,
-      connectionId: parts[1],
-      table: parts[2],
-      watch: table?.watch.created !== null && table?.watch.created !== undefined,
-    };
-  }
-  return null;
+  const [connectionId, tableId] = tableValue.split('|');
+  if (connectionId === undefined || tableId === undefined || tableId === '') return null;
+  const connection = sources?.connections.find((row) => row.id === connectionId);
+  return {
+    kind: 'record',
+    event: kind,
+    connectionId,
+    table: tableId,
+    watch: watchesFor(kind, connection?.tables.find((row) => row.id === tableId)),
+  };
 }
 
 export function NewRuleModal({ open, sources, onClose, onCreate, onDone }: NewRuleModalProps): ReactNode {
+  const fieldId = useId();
+  const tableId = `${fieldId}-table`;
   const [name, setName] = useState('');
-  const [triggerValue, setTriggerValue] = useState('');
+  const [kind, setKind] = useState<TriggerKind | ''>('');
+  // Kept across a change of event: created → updated is the same table.
+  const [tableValue, setTableValue] = useState('');
   const [actionKey, setActionKey] = useState('email');
   const [enable, setEnable] = useState(true);
   const [done, setDone] = useState<{ enabled: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const several = (sources?.connections.length ?? 0) > 1;
+  const needsTable = kind !== '' && kind !== 'schedule';
+  const ready = name.trim() !== '' && kind !== '' && (!needsTable || tableValue !== '');
   const Check = automationIcon('check');
   const Plus = automationIcon('plus');
   const Workflow = automationIcon('workflow');
@@ -117,13 +141,15 @@ export function NewRuleModal({ open, sources, onClose, onCreate, onDone }: NewRu
   const close = (): void => {
     setDone(null);
     setName('');
-    setTriggerValue('');
+    setKind('');
+    setTableValue('');
     setEnable(true);
     onClose();
   };
 
   async function submit(): Promise<void> {
-    const trigger = parseTriggerValue(triggerValue, sources);
+    if (kind === '') return;
+    const trigger = buildTrigger(kind, tableValue, sources);
     if (trigger === null || name.trim() === '') return;
     const definition = ACTION_STEPS.find((step) => step.key === actionKey) ?? ACTION_STEPS[0];
     if (definition === undefined) return;
@@ -201,39 +227,55 @@ export function NewRuleModal({ open, sources, onClose, onCreate, onDone }: NewRu
                 {t('automations:modal.when', 'When (trigger)')}
               </span>
               <Select
-                value={triggerValue}
+                value={kind}
                 onChange={(event) => {
-                  setTriggerValue(event.target.value);
+                  setKind(event.target.value as TriggerKind | '');
                 }}
                 data-testid="new-rule-trigger"
               >
                 <option value="">{t('automations:modal.when', 'When (trigger)')}</option>
-                {(sources?.connections ?? []).flatMap((connection) =>
-                  connection.tables
-                    .filter((table) => table.canRead)
-                    .flatMap((table) =>
-                      EVENTS.map((event) => (
-                        <option
-                          key={`${connection.id}|${table.id}|${event}`}
-                          value={`record|${connection.id}|${table.id}|${event}`}
-                        >
-                          {t(TRIGGER_LABEL[event].key, TRIGGER_LABEL[event].fallback, {
-                            table: several
-                              ? t('automations:modal.connection', '{connection} · {table}', {
-                                  connection: connection.name,
-                                  table: table.label,
-                                })
-                              : table.label,
-                          })}
-                        </option>
-                      )),
-                    ),
-                )}
-                <option value={`schedule|${sources?.connections[0]?.id ?? ''}`}>
-                  {t('automations:modal.trigger.schedule', 'On a schedule')}
-                </option>
+                {KINDS.map((option) => (
+                  <option key={option} value={option}>
+                    {t(KIND_LABEL[option].key, KIND_LABEL[option].fallback)}
+                  </option>
+                ))}
               </Select>
             </label>
+
+            {needsTable ? (
+              <div data-testid="new-rule-table">
+                {/* A composite widget cannot be named by wrapping it in the
+                    label: the name goes on its input by id, the way
+                    `FormField` wires one. */}
+                <label htmlFor={tableId} className="mb-1.5 block text-xs font-semibold">
+                  {t('automations:trig.table', 'Table')}
+                </label>
+                <Combobox
+                  id={tableId}
+                  value={tableValue === '' ? null : tableValue}
+                  onValueChange={(next) => {
+                    setTableValue(next ?? '');
+                  }}
+                  options={(sources?.connections ?? []).flatMap((connection) =>
+                    connection.tables
+                      .filter((table) => table.canRead)
+                      .map((table) => ({
+                        value: `${connection.id}|${table.id}`,
+                        // FILL F4 — one connection lists its tables bare;
+                        // several prefix the connection's name (41 R7).
+                        label: several
+                          ? t('automations:modal.connection', '{connection} · {table}', {
+                              connection: connection.name,
+                              table: table.label,
+                            })
+                          : table.label,
+                      })),
+                  )}
+                  placeholder={t('automations:modal.tablePlaceholder', 'Search tables…')}
+                  emptyText={t('automations:modal.tableEmpty', 'No matching table')}
+                />
+              </div>
+            ) : null}
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold">
@@ -284,7 +326,7 @@ export function NewRuleModal({ open, sources, onClose, onCreate, onDone }: NewRu
             </button>
             <button
               type="button"
-              disabled={busy || name.trim() === '' || triggerValue === ''}
+              disabled={busy || !ready}
               onClick={() => {
                 void submit();
               }}

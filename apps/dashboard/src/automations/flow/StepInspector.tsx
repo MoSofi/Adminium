@@ -42,6 +42,7 @@ import type { ReactNode } from 'react';
 
 import { t } from '../../i18n/t.js';
 import { automationIcon } from '../icons.js';
+import { connectionForTrigger } from '../api.js';
 import type { SourceColumn, SourceTable, Sources } from '../api.js';
 import type { Action, Condition, FlowNode } from '../model/graph.js';
 import { KIND_META, iconForNode } from '../model/vocabulary.js';
@@ -129,7 +130,10 @@ export function StepInspector(props: StepInspectorProps): ReactNode {
           <ConditionCard
             condition={node.condition}
             columns={columns}
-            tables={props.sources?.connections.flatMap((connection) => connection.tables) ?? []}
+            // The rule's OWN connection: `related-count.ts` counts inside the
+            // view of the connection the event came from, so a table from
+            // any other one throws "unknown table" at run time.
+            tables={connectionForTrigger(props.sources, props.trigger)?.tables ?? []}
             onChange={props.onCondition}
           />
         ) : null}
@@ -200,6 +204,7 @@ export function StepInspector(props: StepInspectorProps): ReactNode {
             action={node.action}
             sources={props.sources}
             table={props.table}
+            connectionId={props.trigger.connectionId}
             onChange={props.onAction}
           />
         ) : null}

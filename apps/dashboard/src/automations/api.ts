@@ -11,7 +11,7 @@
  */
 
 import { api } from '../app/api.js';
-import type { Graph, Trigger } from './model/graph.js';
+import type { Graph, RecordEvent, Trigger } from './model/graph.js';
 import type { RunStatus } from './model/vocabulary.js';
 
 const BASE = '/api/v1/automations';
@@ -83,7 +83,22 @@ export interface SourceTable {
   /** Which column the poller could watch, per event (D4); null = cannot. */
   watch: { created: string | null; updated: string | null };
   columns: SourceColumn[];
+  /**
+   * Tables whose rows point at this one — 34 §3.7 step 3's collection picker.
+   *
+   * Already filtered by the server to edges a document mapping can store; see
+   * `apps/server/src/connections/child-tables.ts` for why that filter is the
+   * pipeline's join rule rather than a preference.
+   */
+  children: SourceChildTable[];
   pageSlug: string | null;
+}
+
+export interface SourceChildTable {
+  table: string;
+  column: string;
+  /** The engine called it line items — an ordering hint, never a selection. */
+  lineItems: boolean;
 }
 
 export interface SourceConnection {
@@ -98,6 +113,56 @@ export interface Sources {
   connections: SourceConnection[];
   templates: { key: string; name: string }[];
   roles: { id: string; name: string }[];
+}
+
+/**
+ * Whether the poller could follow THIS event on this table (42 D4).
+ *
+ * The column differs per event — a table can carry `updated_at` and no
+ * creation stamp — and a delete has no watcher at all, so the answer is not
+ * `watch.created` for all three. Lives here, beside the `watch` shape it
+ * reads, because both places that pick a table (the New-rule modal and the
+ * trigger inspector) have to give the same answer.
+ */
+export function watchesFor(event: RecordEvent, table: SourceTable | undefined | null): boolean {
+  if (event === 'created') return (table?.watch.created ?? null) !== null;
+  if (event === 'updated') return (table?.watch.updated ?? null) !== null;
+  return false;
+}
+
+/**
+ * The connection a rule reads and writes: its OWN, never "the first one that
+ * happens to have a table with this id".
+ *
+ * A schedule's `connectionId` may be null (a bare tick has no record); the
+ * pickers that can set it fall back to the first connection, so this does
+ * too, and the two agree about which tables a scan could reach.
+ */
+export function connectionForTrigger(
+  sources: Sources | null,
+  trigger: Trigger | null,
+): SourceConnection | null {
+  if (sources === null || trigger === null) return null;
+  return (
+    sources.connections.find((row) => row.id === trigger.connectionId) ??
+    sources.connections[0] ??
+    null
+  );
+}
+
+/**
+ * The table a rule is about — the record trigger's, or a schedule's for-each
+ * scan target — resolved INSIDE that rule's connection.
+ *
+ * Two connections can hold the same `schema.table`, and a flat search across
+ * all of them returns whichever came first: the inspector would then show one
+ * connection's columns for the other connection's rows.
+ */
+export function tableForTrigger(sources: Sources | null, trigger: Trigger | null): SourceTable | null {
+  if (trigger === null) return null;
+  const id = trigger.kind === 'record' ? trigger.table : (trigger.forEach?.table ?? null);
+  if (id === null || id === '') return null;
+  return connectionForTrigger(sources, trigger)?.tables.find((row) => row.id === id) ?? null;
 }
 
 // --- stats ------------------------------------------------------------------

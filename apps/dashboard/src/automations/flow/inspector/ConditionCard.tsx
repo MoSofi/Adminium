@@ -20,8 +20,8 @@
  * nonsense and the relative ones have nothing to compare against.
  */
 
-import { Input, Select } from '@adminium/ui';
-import type { ReactNode } from 'react';
+import { Combobox, Input, Select } from '@adminium/ui';
+import { useId, type ReactNode } from 'react';
 
 import { t } from '../../../i18n/t.js';
 import type { SourceColumn, SourceTable } from '../../api.js';
@@ -40,7 +40,12 @@ export interface ConditionCardProps {
   condition: Condition;
   /** The columns of the record this condition is about. */
   columns: readonly SourceColumn[];
-  /** Every table the connections offer — the count form's first select. */
+  /**
+   * The tables of the rule's OWN connection — the count form's first field.
+   * Not every connection's: `related-count.ts` counts inside the view of the
+   * connection the event came from (`register.ts` `countRelated`), so a
+   * table from another one is a run-time "unknown table".
+   */
   tables: readonly SourceTable[];
   onChange: (condition: Condition) => void;
 }
@@ -191,30 +196,29 @@ function CountForm({
   tables,
   onChange,
 }: ConditionCardProps): ReactNode {
+  const tableId = `${useId()}-count-table`;
   if (!('count' in condition.left)) return null;
   const count = condition.left.count;
   const counted = tables.find((table) => table.id === count.table);
   return (
     <div className="flex flex-col gap-2.5">
-      <Row label={t('automations:insp.countOf', 'Count of')}>
-        <Select
-          value={count.table}
-          aria-label={t('automations:insp.countOf', 'Count of')}
-          onChange={(event) => {
+      {/* Searchable, like every other table picker in this feature (D25). */}
+      <Row label={t('automations:insp.countOf', 'Count of')} htmlFor={tableId}>
+        <Combobox
+          id={tableId}
+          value={count.table === '' ? null : count.table}
+          onValueChange={(next) => {
+            if (next === null || next === '') return;
             onChange({
               ...condition,
-              left: { count: { ...count, table: event.target.value, matchColumn: '' } },
+              // The match column named the OLD table's columns.
+              left: { count: { ...count, table: next, matchColumn: '' } },
             });
           }}
-          data-testid="cond-count-table"
-        >
-          <option value="">{t('automations:rec.table', 'Table')}</option>
-          {tables.map((table) => (
-            <option key={table.id} value={table.id}>
-              {table.label}
-            </option>
-          ))}
-        </Select>
+          options={tables.map((table) => ({ value: table.id, label: table.label }))}
+          placeholder={t('automations:modal.tablePlaceholder', 'Search tables…')}
+          emptyText={t('automations:modal.tableEmpty', 'No matching table')}
+        />
       </Row>
       <Row label={t('automations:insp.where', 'where')}>
         <Select
@@ -254,7 +258,26 @@ function CountForm({
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }): ReactNode {
+function Row({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  /** For a COMPOSITE control (`Combobox`), which a wrapping label cannot name. */
+  htmlFor?: string | undefined;
+  children: ReactNode;
+}): ReactNode {
+  if (htmlFor !== undefined) {
+    return (
+      <div className="block">
+        <label htmlFor={htmlFor} className="mb-1 block text-[11px] text-fg-subtle">
+          {label}
+        </label>
+        {children}
+      </div>
+    );
+  }
   return (
     <label className="block">
       <span className="mb-1 block text-[11px] text-fg-subtle">{label}</span>
