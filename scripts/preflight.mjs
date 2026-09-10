@@ -60,7 +60,8 @@
  * Usage:
  *   pnpm preflight              the full local-runnable set (what `verify` +
  *                               `dep-graph` cover, minus the service legs)
- *   pnpm preflight --quick      the fast gates only: spdx, lint, typecheck
+ *   pnpm preflight --quick      the fast gates only: spdx, tailwind utilities,
+ *                               lint, typecheck
  *   pnpm preflight --with-a11y  adds the axe sweep (slow: needs a built ui)
  *   pnpm preflight --with-e2e   adds the sqlite e2e leg (slowest; needs dists)
  *   pnpm preflight --list       print the plan and exit
@@ -84,6 +85,16 @@ const listOnly = argv.has('--list');
  */
 const STEPS = [
   { id: 'check-spdx', cmd: 'pnpm run check-spdx', why: 'every tracked source file declares AGPL-3.0-only', tier: 'quick' },
+  {
+    // In `quick` because it costs under a second and catches something no other
+    // gate here can see: tsc and eslint do not read the inside of a string, so
+    // an undefined Tailwind utility compiles to nothing and ships looking
+    // deliberate. Thirty such call sites were found on 2026-09-10.
+    id: 'check-tailwind-utilities',
+    cmd: 'pnpm run check-tailwind-utilities',
+    why: 'every className names a utility that actually compiles (no silently-inert classes)',
+    tier: 'quick',
+  },
   {
     // Split out of the `turbo` step below so `--quick` is what its name says.
     // Same tasks, so turbo's cache makes the full run pay for them only once.

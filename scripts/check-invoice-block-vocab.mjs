@@ -49,8 +49,29 @@ const customTypes = readList(MODEL, 'CUSTOM_TYPES', /type: '([^']+)'/g);
 const dashboard = [...builtins, ...customTypes.map((type) => `custom.${type}`)].sort();
 
 const copies = [
-  // The add-on renderer (34e) vendors the same file; sibling checkout, optional until it exists.
-  { label: 'add-on renderer', file: path.resolve(root, '..', 'add-ons', 'packages', 'invoices', 'src', 'block-vocabulary.json'), optional: true },
+  /*
+   * The add-on renderer (34e), which shipped on 2026-09-10 — so this row is no
+   * longer optional, and the header's instruction to drop the flag "the day it
+   * ships" is done.
+   *
+   * It is a SIBLING CHECKOUT, not a workspace: `add-ons` is its own repository
+   * and CI for this repo may not have it on disk. An absent sibling is a NOTE;
+   * a present-but-different copy is a PROBLEM. Silence about a copy that
+   * exists and disagrees is the failure this gate was written for.
+   *
+   * NOTE WHAT THIS DOES AND DOES NOT PROVE. It holds the twenty-seven KINDS
+   * equal across the trees. It does not claim the add-on DRAWS all of them —
+   * it draws nine, and `packages/invoices/src/render/drawn.ts` lists the
+   * eighteen it does not, with `vocabulary.test.ts` there asserting that every
+   * kind is in exactly one of the two lists. A kind added here that nobody
+   * classifies over there turns that suite red.
+   */
+  {
+    label: 'add-on renderer',
+    file: path.resolve(root, '..', 'add-ons', 'packages', 'invoices', 'src', 'block-vocabulary.json'),
+    optional: false,
+    sibling: true,
+  },
 ];
 
 const problems = [];
@@ -79,7 +100,12 @@ for (const kind of builtins) {
 let present = 1;
 for (const copy of copies) {
   if (!fs.existsSync(copy.file)) {
-    (copy.optional ? notes : problems).push(`${copy.label}: no copy at ${copy.file}${copy.optional ? ' (not created yet — 34e)' : ''}`);
+    const missingSibling = copy.sibling === true;
+    (copy.optional || missingSibling ? notes : problems).push(
+      `${copy.label}: no copy at ${copy.file}` +
+        (missingSibling ? ' (sibling repository not checked out — not a failure)' : '') +
+        (copy.optional ? ' (not created yet — 34e)' : ''),
+    );
     continue;
   }
   present += 1;

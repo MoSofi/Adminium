@@ -38,8 +38,23 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TRUTH = { label: 'dashboard', file: path.join(root, 'apps/dashboard/src/invoices/model/money-fixture.json') };
 const COPIES = [
   { label: 'server', file: path.join(root, 'apps/server/src/invoices/money-fixture.json'), optional: false },
-  // The add-on renderer (34e) vendors the same file; sibling checkout, optional until it exists.
-  { label: 'add-on renderer', file: path.resolve(root, '..', 'add-ons', 'packages', 'invoices', 'src', 'money-fixture.json'), optional: true },
+  /*
+   * The add-on renderer (34e), which shipped on 2026-09-10 — so this row is no
+   * longer optional, and the header's instruction to drop the flag "the day it
+   * ships" is done.
+   *
+   * It is a SIBLING CHECKOUT, not a workspace: `add-ons` is its own repository
+   * and CI for this repo may not have it on disk. That is the one thing the
+   * flag was also buying, and it is bought back below instead — an absent
+   * sibling is a NOTE, a present-but-different one is a PROBLEM. Silence about
+   * a copy that exists and disagrees is the failure this gate was written for.
+   */
+  {
+    label: 'add-on renderer',
+    file: path.resolve(root, '..', 'add-ons', 'packages', 'invoices', 'src', 'money-fixture.json'),
+    optional: false,
+    sibling: true,
+  },
 ];
 
 const problems = [];
@@ -67,7 +82,12 @@ let present = 1;
 for (const copy of COPIES) {
   const rel = path.relative(root, copy.file);
   if (!fs.existsSync(copy.file)) {
-    (copy.optional ? notes : problems).push(`${copy.label}: no copy at ${rel}${copy.optional ? ' (not created yet — 34e)' : ''}`);
+    const missingSibling = copy.sibling === true;
+    (copy.optional || missingSibling ? notes : problems).push(
+      `${copy.label}: no copy at ${rel}` +
+        (missingSibling ? ' (sibling repository not checked out — not a failure)' : '') +
+        (copy.optional ? ' (not created yet — 34e)' : ''),
+    );
     continue;
   }
   present += 1;
