@@ -1,0 +1,325 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * A source row + a profile's mapping → the `DocumentSubject` a provider draws
+ * from (34-invoices-add-on.md §3.7, D20; 34-T11).
+ *
+ * ─── THE SUBJECT IS THE ONLY DOOR ──────────────────────────────────────────
+ *
+ * A provider gets VALUES and nothing else: no database handle, no connection,
+ * no clock. Everything it will ever know about this document is assembled
+ * here, once, and then frozen into the register row (25 D12) so the document
+ * stays what it was after the source row is edited or deleted.
+ *
+ * That is also why this file, and not the provider, does the coercion. The
+ * wire law is integer minor units and basis points; a database column holds
+ * `12.34` as a decimal, a string, or a driver-specific numeric object
+ * depending on the dialect and the driver. Leaving that to seven providers
+ * would mean seven roundings.
+ *
+ * ─── MONEY IS COERCED THROUGH STRINGS, NEVER THROUGH A FLOAT ───────────────
+ *
+ * `12.34 * 100` is `1233.9999999999998`. Every money value therefore goes
+ * through its decimal TEXT — which is what `pg` hands back for `numeric`
+ * anyway — and is split on the decimal mark rather than multiplied. A value
+ * that arrives as a JavaScript number is stringified first, which is exact
+ * for every amount a currency can express.
+ */
+
+import type { RecordRef } from '@adminium/meta';
+
+/** One slot's source, as the profile records it. */
+export type SlotMapping =
+  | { column: string }
+  | { ref: string; column: string }
+  | {
+      collection: {
+        table: string;
+        fkColumn: string;
+        columns: Record<string, string>;
+      };
+    };
+
+export interface ProfileMapping {
+  [slotId: string]: SlotMapping;
+}
+
+/** What the outline says a slot is, so this file knows how to coerce it. */
+export type SlotType =
+  | 'text'
+  | 'text[]'
+  | 'date'
+  | 'email'
+  | 'money'
+  | 'percent'
+  | 'currency'
+  | 'number'
+  | 'collection';
+
+export interface SubjectSlot {
+  id: string;
+  type: SlotType;
+  required: boolean;
+  columns?: readonly { id: string; type: SlotType }[];
+}
+
+const DECIMAL = /^([+−-]?)(\d*)(?:[.,](\d*))?$/;
+
+/**
+ * Decimal text → integer minor units, by string arithmetic.
+ *
+ * A third decimal rounds half away from zero, which is the same rule
+ * `money.ts` uses in all three trees that compute a total — so a value the
+ * pipeline coerces and a value a person typed reach the provider identically.
+ */
+export function toMinorUnits(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const text = typeof value === 'string' ? value : String(value);
+  const match = DECIMAL.exec(text.trim().replace(/[\s_']/g, ''));
+  if (match === null) return null;
+  const [, sign, whole = '', frac = ''] = match;
+  if (whole === '' && frac === '') return null;
+  const digits = (frac + '000').slice(0, 3);
+  const minor =
+    Number(whole === '' ? '0' : whole) * 100 +
+    Number(digits.slice(0, 2)) +
+    (Number(digits[2]) >= 5 ? 1 : 0);
+  if (!Number.isFinite(minor)) return null;
+  return sign === '-' || sign === '−' ? -minor : minor;
+}
+
+/**
+ * A percentage → basis points. `20` → 2000, `7.5` → 750.
+ *
+ * THE SAME FUNCTION AS `toMinorUnits`, deliberately, and named separately so
+ * a caller reads the intent rather than the arithmetic. Both are "decimal text
+ * to integer hundredths": a currency's minor unit is a hundredth of a major
+ * one, and a basis point is a hundredth of a percent. Writing the second one
+ * out again would be a second place to get the third-decimal rounding right.
+ */
+export function toBasisPoints(value: unknown): number | null {
+  return toMinorUnits(value);
+}
+
+function toText(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'object') return '';
+  return String(value);
+}
+
+function toLines(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(toText).filter((line) => line !== '');
+  const text = toText(value);
+  return text === '' ? [] : text.split('\n').filter((line) => line !== '');
+}
+
+/** An ISO day, however the driver spelled the column. */
+function toDate(value: unknown): string {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  const text = toText(value);
+  return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
+}
+
+/** Coerce one value to what the wire law says a slot of this type carries. */
+export function coerceSlot(type: SlotType, value: unknown): unknown {
+  switch (type) {
+    case 'money':
+      return toMinorUnits(value);
+    case 'percent':
+      return toBasisPoints(value);
+    case 'number': {
+      const numeric = typeof value === 'number' ? value : Number(toText(value));
+      return Number.isFinite(numeric) ? numeric : null;
+    }
+    case 'text[]':
+      return toLines(value);
+    case 'date':
+      return toDate(value);
+    case 'collection':
+      // Rows are coerced column by column by the caller; a collection slot
+      // itself never holds a scalar.
+      return null;
+    default:
+      return toText(value);
+  }
+}
+
+export interface SubjectInput {
+  slots: readonly SubjectSlot[];
+  mapping: ProfileMapping;
+  /** The source row, already unmasked and read with the caller's grants. */
+  row: Readonly<Record<string, unknown>>;
+  /** Child rows per collection slot id, already fetched by the caller. */
+  collections?: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
+  /** Values a lookup across a foreign key resolved to, keyed `<ref>.<column>`. */
+  lookups?: Readonly<Record<string, unknown>>;
+  /**
+   * Typed per-profile values — §3.7 step 4's "entered here, not read from your
+   * data", stored as `options.literals` on the profile.
+   *
+   * They are NOT part of `mapping`, and the difference is the point: `mapping`
+   * says which columns are read, and a value typed into the editor is read
+   * from nothing. Keeping them apart is what lets a screen show a bound field
+   * as its column name and a typed one as its value, so an operator can see
+   * which half of a document is live (O20).
+   */
+  values?: Readonly<Record<string, unknown>>;
+  /**
+   * Collection rows a caller supplies OUTRIGHT, keyed by the slot's own column
+   * ids — a request-shaped intent (D15), which has no source table to read.
+   *
+   * Distinct from `collections`, which holds CHILD ROWS keyed by their source
+   * columns and is meaningless without a mapping to translate them. Folding the
+   * two together would mean guessing which naming a caller used, and guessing
+   * wrong draws a line-items table full of blanks.
+   */
+  collectionValues?: Readonly<
+    Record<string, readonly Readonly<Record<string, unknown>>[]>
+  >;
+  now: { iso: string; timezone: string };
+  locale: string;
+  currency: string;
+  business: { name: string; lines: readonly string[]; logoDataUrl?: string };
+  entity: RecordRef | null;
+  number: string | null;
+}
+
+export interface BuiltSubject {
+  subject: {
+    now: { iso: string; timezone: string };
+    locale: string;
+    currency: string;
+    business: { name: string; lines: readonly string[]; logoDataUrl?: string };
+    entity: RecordRef | null;
+    number: string | null;
+    fields: Record<string, unknown>;
+    collections: Record<string, readonly Readonly<Record<string, unknown>>[]>;
+  };
+  /** Required slots with no mapping and no value — the operator's to fix. */
+  missing: readonly string[];
+}
+
+/**
+ * Build the subject, and report what the mapping did not cover.
+ *
+ * MISSING IS REPORTED, NOT THROWN. The caller is the render job, which turns
+ * it into a `failed` register row naming the slots — a document that could not
+ * be made is a fact worth recording, and an exception here would leave the
+ * operator with a job error and no row to look at.
+ */
+export function buildSubject(input: SubjectInput): BuiltSubject {
+  const fields: Record<string, unknown> = {};
+  const collections: Record<string, readonly Readonly<Record<string, unknown>>[]> = {};
+  const missing: string[] = [];
+
+  for (const slot of input.slots) {
+    const mapped = input.mapping[slot.id];
+
+    if (slot.type === 'collection') {
+      /*
+       * An UNMAPPED collection contributes nothing — not a list of rows with
+       * only their ids in them, which is what a version of this loop that
+       * skipped the check produced. That would have drawn a line-items table
+       * with the right number of blank rows: worse than an absent block,
+       * because it looks like data.
+       */
+      if (mapped === undefined || !('collection' in mapped)) {
+        // Supplied outright? Then it is already in the slot's own column ids
+        // and needs only the same coercion a mapped row gets.
+        const given = input.collectionValues?.[slot.id];
+        if (given !== undefined && given.length > 0) {
+          collections[slot.id] = given.map((row) => {
+            const out: Record<string, unknown> = {};
+            for (const column of slot.columns ?? []) {
+              if (row[column.id] === undefined) continue;
+              out[column.id] = coerceSlot(column.type, row[column.id]);
+            }
+            return out;
+          });
+          continue;
+        }
+        collections[slot.id] = [];
+        if (slot.required) missing.push(slot.id);
+        continue;
+      }
+      const rows = input.collections?.[slot.id] ?? [];
+      const columns = slot.columns ?? [];
+      collections[slot.id] = rows.map((row) => {
+        const out: Record<string, unknown> = {};
+        // `id` is carried through when the child rows have one, so a renderer
+        // can key its lines stably without minting anything (25 D12).
+        if (row.id !== undefined) out.id = toText(row.id);
+        for (const column of columns) {
+          const source = mapped.collection.columns[column.id];
+          if (source === undefined) continue;
+          out[column.id] = coerceSlot(column.type, row[source]);
+        }
+        return out;
+      });
+      continue;
+    }
+
+    if (mapped === undefined) {
+      /*
+       * A TYPED VALUE stands in for a column (§3.7 step 4). It is consulted
+       * only where nothing is mapped, which makes "authored or mapped, never
+       * both" (O20) true here rather than merely promised by the editor: a
+       * profile carrying both — an older mapping whose literal was left behind
+       * when a column was chosen — draws the live column, not the stale
+       * constant.
+       *
+       * It goes through the SAME coercion as a column, so `"20"` typed into a
+       * percent slot becomes 2000 basis points exactly as `20` read out of a
+       * numeric column would. A literal that skipped it would be the one value
+       * in the subject not written in the wire law.
+       */
+      const typed = input.values?.[slot.id];
+      if (typed !== undefined && typed !== null && typed !== '') {
+        const value = coerceSlot(slot.type, typed);
+        if (value !== null && value !== '') {
+          fields[slot.id] = value;
+          continue;
+        }
+      }
+      if (slot.required) missing.push(slot.id);
+      continue;
+    }
+
+    const raw =
+      'column' in mapped && !('ref' in mapped)
+        ? input.row[mapped.column]
+        : 'ref' in mapped
+          ? input.lookups?.[`${mapped.ref}.${mapped.column}`]
+          : undefined;
+
+    const value = coerceSlot(slot.type, raw);
+    if (slot.required && (value === null || value === '' )) {
+      missing.push(slot.id);
+      continue;
+    }
+    fields[slot.id] = value;
+  }
+
+  return {
+    subject: {
+      now: input.now,
+      locale: input.locale,
+      currency: input.currency,
+      business: input.business,
+      entity: input.entity,
+      number: input.number,
+      fields,
+      collections,
+    },
+    missing,
+  };
+}
+
+/** Every table a profile's mapping reads — what the routes resolve grants over. */
+export function mappedTables(mapping: ProfileMapping, base: string): readonly string[] {
+  const tables = new Set<string>([base]);
+  for (const mapped of Object.values(mapping)) {
+    if ('collection' in mapped) tables.add(mapped.collection.table);
+  }
+  return [...tables];
+}
