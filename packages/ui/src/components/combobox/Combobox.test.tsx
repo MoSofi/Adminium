@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FormField } from '../form-field/index.js';
+import { Modal, ModalBody } from '../modal/index.js';
 import { Combobox } from './Combobox.js';
 
 const options = [
@@ -129,6 +130,38 @@ describe('Combobox', () => {
     const describedBy = input.getAttribute('aria-describedby');
     expect(describedBy).toBeTruthy();
     expect(document.getElementById(describedBy ?? '')?.textContent).toBe('Required');
+  });
+
+  /**
+   * A `Modal` is a Radix dialog, and Radix locks background scroll with
+   * `react-remove-scroll`: the lock cancels every `wheel`/`touchmove` that
+   * reaches `document` from outside the dialog panel, and this panel is
+   * portalled beside it. Without the panel's own handler the list could be
+   * dragged by its scrollbar but not scrolled by wheel or trackpad.
+   */
+  it('the panel scrolls by wheel inside a modal, where a scroll lock is active', async () => {
+    const user = userEvent.setup();
+    render(
+      <Modal open>
+        <ModalBody>
+          <Combobox aria-label="Timezone" options={options} emptyText="No matches" />
+        </ModalBody>
+      </Modal>,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Timezone' }));
+    const listbox = await screen.findByRole('listbox');
+
+    const wheel = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    listbox.dispatchEvent(wheel);
+    expect(wheel.defaultPrevented).toBe(false);
+
+    // …and the lock is genuinely on: the same event outside the dialog is.
+    const outside = document.createElement('div');
+    document.body.append(outside);
+    const blocked = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    outside.dispatchEvent(blocked);
+    expect(blocked.defaultPrevented).toBe(true);
+    outside.remove();
   });
 
   it('is inert when disabled', async () => {

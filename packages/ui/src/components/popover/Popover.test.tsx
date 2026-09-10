@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { Modal, ModalBody } from '../modal/index.js';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from './Popover.js';
 
 function renderPopover(props: { onOpenChange?: (open: boolean) => void } = {}) {
@@ -61,5 +62,60 @@ describe('Popover', () => {
     await user.clear(input);
     await user.type(input, 'Churned');
     expect((input as HTMLInputElement).value).toBe('Churned');
+  });
+
+  /** The `DropdownMenuContent` case, verbatim — see the note there. */
+  it('the panel keeps its wheel inside a modal, where a scroll lock is active', async () => {
+    const user = userEvent.setup();
+    render(
+      <Modal open>
+        <ModalBody>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button">Open panel</button>
+            </PopoverTrigger>
+            <PopoverContent aria-label="Rename view">
+              <input aria-label="View name" defaultValue="Active" />
+            </PopoverContent>
+          </Popover>
+        </ModalBody>
+      </Modal>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Open panel' }));
+    const panel = await screen.findByRole('dialog', { name: 'Rename view' });
+
+    const wheel = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    panel.dispatchEvent(wheel);
+    expect(wheel.defaultPrevented).toBe(false);
+
+    const outside = document.createElement('div');
+    document.body.append(outside);
+    const blocked = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    outside.dispatchEvent(blocked);
+    expect(blocked.defaultPrevented).toBe(true);
+    outside.remove();
+  });
+
+  it('still hands the panel node to a forwarded ref', async () => {
+    const user = userEvent.setup();
+    const seen: (HTMLElement | null)[] = [];
+    render(
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button">Open panel</button>
+        </PopoverTrigger>
+        <PopoverContent
+          aria-label="Rename view"
+          ref={(node) => {
+            seen.push(node);
+          }}
+        >
+          <input aria-label="View name" defaultValue="Active" />
+        </PopoverContent>
+      </Popover>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Open panel' }));
+    const panel = await screen.findByRole('dialog', { name: 'Rename view' });
+    expect(seen).toContain(panel);
   });
 });

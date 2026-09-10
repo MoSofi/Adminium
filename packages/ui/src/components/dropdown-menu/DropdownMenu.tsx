@@ -3,6 +3,7 @@ import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check } from 'lucide-react';
 import type * as React from 'react';
 
+import { useScrollLockBypass } from '../../hooks/useScrollLockBypass.js';
 import { cn } from '../../lib/cn.js';
 
 /** Root — controls open state (`open`/`onOpenChange`/`defaultOpen`). */
@@ -24,13 +25,19 @@ export type DropdownMenuContentProps = Omit<
  * (research/design-system.md §3 Tier 3). Rendered in a portal; typeahead,
  * arrow-key roving and Esc/outside dismissal are Radix built-ins.
  */
-export function DropdownMenuContent({ className, sideOffset = 6, ...props }: DropdownMenuContentProps) {
+export function DropdownMenuContent({ className, sideOffset = 6, ref, ...props }: DropdownMenuContentProps) {
+  // The panel is portalled beside a dialog, not inside it, so a dialog's
+  // scroll lock would cancel every wheel over it. Nothing here scrolls today
+  // — this is what makes a `max-h-… overflow-y-auto` menu work when one
+  // arrives, instead of silently being dead to the wheel.
+  const setPanel = useScrollLockBypass<HTMLDivElement>(ref);
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
+        ref={setPanel}
         sideOffset={sideOffset}
         className={cn(
-          'z-50 min-w-[190px] rounded-lg border border-border bg-surface p-1 shadow-menu ',
+          'z-50 min-w-[190px] overscroll-contain rounded-lg border border-border bg-surface p-1 shadow-menu ',
           'animate-[nb-pop_.16s_cubic-bezier(.2,.7,.3,1)]',
           className,
         )}

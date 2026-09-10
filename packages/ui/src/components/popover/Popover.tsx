@@ -2,6 +2,7 @@
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import type * as React from 'react';
 
+import { useScrollLockBypass } from '../../hooks/useScrollLockBypass.js';
 import { cn } from '../../lib/cn.js';
 
 /** Root — controls open state (`open`/`onOpenChange`/`defaultOpen`). */
@@ -27,14 +28,19 @@ export type PopoverContentProps = Omit<
  * Focus is moved into the panel and trapped by Radix; Esc/outside-click
  * dismiss and return focus to the trigger.
  */
-export function PopoverContent({ className, sideOffset = 6, align = 'center', ...props }: PopoverContentProps) {
+export function PopoverContent({ className, sideOffset = 6, align = 'center', ref, ...props }: PopoverContentProps) {
+  // See `DropdownMenuContent`: the panel is portalled beside a dialog, so a
+  // dialog's scroll lock would cancel every wheel over it. Nothing here
+  // scrolls today; this is what makes a scrollable panel work when one lands.
+  const setPanel = useScrollLockBypass<HTMLDivElement>(ref);
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
+        ref={setPanel}
         sideOffset={sideOffset}
         align={align}
         className={cn(
-          'z-50 w-[280px] rounded-lg border border-border bg-surface p-3.5 shadow-menu outline-none ',
+          'z-50 w-[280px] overscroll-contain rounded-lg border border-border bg-surface p-3.5 shadow-menu outline-none ',
           'animate-[nb-pop_.16s_cubic-bezier(.2,.7,.3,1)]',
           className,
         )}

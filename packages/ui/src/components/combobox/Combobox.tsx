@@ -4,6 +4,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import type * as React from 'react';
 
+import { useScrollLockBypass } from '../../hooks/useScrollLockBypass.js';
 import { cn } from '../../lib/cn.js';
 
 export interface ComboboxOption {
@@ -61,6 +62,10 @@ const defaultFilter = (option: ComboboxOption, query: string): boolean =>
  * the input keeps focus (`role="combobox"`, `aria-expanded`,
  * `aria-activedescendant`); ↑/↓ move the active option, ↵ selects, Esc
  * closes, Tab/outside-click dismisses.
+ *
+ * The panel carries `useScrollLockBypass` and the list `overscroll-contain`:
+ * without them a dialog's scroll lock cancels every wheel and trackpad swipe
+ * over this list. The hook explains why.
  */
 export function Combobox({
   options,
@@ -84,6 +89,7 @@ export function Combobox({
   const listboxId = `${inputId}-listbox`;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const setPanel = useScrollLockBypass<HTMLDivElement>();
 
   const [internalValue, setInternalValue] = useState<string | null>(defaultValue ?? null);
   const selectedValue = value !== undefined ? value : internalValue;
@@ -214,6 +220,7 @@ export function Combobox({
         </PopoverPrimitive.Anchor>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Content
+            ref={setPanel}
             sideOffset={5}
             align="start"
             onOpenAutoFocus={(event: Event) => event.preventDefault()}
@@ -226,7 +233,7 @@ export function Combobox({
               'animate-[nb-pop_.16s_cubic-bezier(.2,.7,.3,1)]',
             )}
           >
-            <div role="listbox" id={listboxId} className="nb-scroll max-h-[260px] overflow-y-auto">
+            <div role="listbox" id={listboxId} className="nb-scroll max-h-[260px] overflow-y-auto overscroll-contain">
               {filtered.map((option, index) => {
                 const selected = option.value === selectedValue;
                 const active = index === activeIndex;

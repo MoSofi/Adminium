@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { Modal, ModalBody } from '../modal/index.js';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -89,5 +90,66 @@ describe('DropdownMenu', () => {
     expect(destructive.hasAttribute('data-destructive')).toBe(true);
     expect(destructive.className).toContain('text-danger');
     expect(screen.getByRole('menuitem', { name: 'Export' }).getAttribute('data-disabled')).not.toBeNull();
+  });
+
+  /**
+   * A `Modal` is a Radix dialog, and Radix locks background scroll with
+   * `react-remove-scroll`: the lock cancels every `wheel`/`touchmove` that
+   * reaches `document` from outside the dialog panel, and this panel is
+   * portalled beside it. Nothing in the menu scrolls today — the guard is
+   * what keeps a scrollable one from arriving dead to the wheel.
+   */
+  it('the panel keeps its wheel inside a modal, where a scroll lock is active', async () => {
+    const user = userEvent.setup();
+    render(
+      <Modal open>
+        <ModalBody>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button">Actions</button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem>Edit</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </ModalBody>
+      </Modal>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    const panel = await screen.findByRole('menu');
+
+    const wheel = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    panel.dispatchEvent(wheel);
+    expect(wheel.defaultPrevented).toBe(false);
+
+    // …and the lock is genuinely on: the same event outside the dialog is.
+    const outside = document.createElement('div');
+    document.body.append(outside);
+    const blocked = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    outside.dispatchEvent(blocked);
+    expect(blocked.defaultPrevented).toBe(true);
+    outside.remove();
+  });
+
+  it('still hands the panel node to a forwarded ref', async () => {
+    const user = userEvent.setup();
+    const seen: (HTMLElement | null)[] = [];
+    render(
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button">Actions</button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          ref={(node) => {
+            seen.push(node);
+          }}
+        >
+          <DropdownMenuItem>Edit</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    const panel = await screen.findByRole('menu');
+    expect(seen).toContain(panel);
   });
 });
