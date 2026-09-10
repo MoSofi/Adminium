@@ -39,6 +39,7 @@ import type { OnMetaRelocated } from '../meta/relocate.js';
 import { openMetaStore, type MetaStoreHandle } from '../meta/store.js';
 import { loadAllowedVocabularies } from './allowlist.js';
 import { CliError } from './exit.js';
+import { defaultDataDir } from './data-dir.js';
 import { resolveStaticRoot } from './static-root.js';
 import { discoverSurfaces, resolveSurfacesDir } from './surfaces-root.js';
 
@@ -84,6 +85,18 @@ export function loadCliEnv(
       ? {}
       : { ADMINIUM_BRIDGE_ORIGINS: overrides.bridgeOrigins }),
   };
+
+  // Nobody named a data directory, so choose one that suits WHERE this was run
+  // rather than dropping `./data` into whatever the shell's working directory
+  // happened to be (`data-dir.ts` has the reasoning). Applied here and not as a
+  // schema default because only the CLI knows it is the front door a person
+  // typed at: `loadEnv()` in a container, in the Electron shell or in an
+  // embedding host keeps the plain `./data` — and all three pass the variable
+  // explicitly anyway. Empty counts as unset, exactly as `emptyToUndefined`
+  // treats it one line below.
+  if (merged.ADMINIUM_DATA_DIR === undefined || merged.ADMINIUM_DATA_DIR === '') {
+    merged.ADMINIUM_DATA_DIR = defaultDataDir();
+  }
 
   const result = envSchema.safeParse(merged);
   if (result.success) return result.data;
@@ -299,7 +312,7 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
       'ADMINIUM_STATIC_ROOT has no index.html — it was ignored',
     );
   }
-  await app.listen({ port: env.PORT, host: env.HOST });
+  await listenOrClose(app, env);
   installSignalShutdown(app);
   return {
     url: displayUrl(env.HOST, env.PORT),
@@ -348,6 +361,58 @@ let shutdownTarget: AdminiumServer | null = null;
 /** Re-point the signal handlers after the server has been rebuilt. */
 export function setShutdownTarget(app: AdminiumServer): void {
   shutdownTarget = app;
+}
+
+/** The subset of a Fastify instance {@link listenOrClose} touches. */
+interface Listenable {
+  listen(opts: { port: number; host: string }): Promise<unknown>;
+  close(): Promise<unknown>;
+}
+
+/**
+ * Listen — and close the app if the bind fails.
+ *
+ * THE BUG THIS EXISTS FOR. By the time `listen` is called, `composeServer`'s
+ * `onReady` hook has already started the job worker and the cron scheduler
+ * (`jobs/register.ts`). If the bind then throws, nothing ever closes them:
+ * `installSignalShutdown` is one line further down and never runs, so not even
+ * Ctrl-C fires the `onClose` hooks — and the caller's own cleanup makes it
+ * worse, because `commands/init.ts` answers a failed start with `if (!started)
+ * await runtime.close()`, which destroys the Kysely instance those two timers
+ * are still polling.
+ *
+ * The result is the symptom the note on `installSignalShutdown` describes, from
+ * a path that note did not cover: `job poll failed — driver has already been
+ * destroyed`, with a full stack, once a second, forever, in a process that
+ * never exits. Observed on a fresh `npx` install whose port was already taken.
+ */
+export async function listenOrClose(app: Listenable, env: Pick<Env, 'PORT' | 'HOST'>): Promise<void> {
+  try {
+    await app.listen({ port: env.PORT, host: env.HOST });
+  } catch (cause) {
+    // Best-effort: a close that itself fails must not replace the reason the
+    // caller actually needs to see.
+    await app.close().catch(() => undefined);
+    throw listenError(cause, env);
+  }
+}
+
+/** A bind failure an operator can act on, rather than a raw errno stack. */
+function listenError(cause: unknown, env: Pick<Env, 'PORT' | 'HOST'>): unknown {
+  const code = typeof cause === 'object' && cause !== null ? (cause as { code?: unknown }).code : undefined;
+  if (code === 'EADDRINUSE') {
+    return new CliError(`Port ${String(env.PORT)} is already in use.`, {
+      hint:
+        `Something is already listening on ${env.HOST}:${String(env.PORT)} — another Adminium, most likely.\n` +
+        '  Stop it, or start this one somewhere else:  --port <n>  (or PORT=<n>)',
+    });
+  }
+  if (code === 'EACCES') {
+    return new CliError(`Port ${String(env.PORT)} needs elevated privileges.`, {
+      hint: 'Ports below 1024 are privileged. Pick one above it: --port 4600',
+    });
+  }
+  return cause;
 }
 
 export function installSignalShutdown(

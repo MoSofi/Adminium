@@ -96,7 +96,12 @@ export const generatePromptCommand: Command = {
       describe: 'Write the prompt here (chunked runs get <name>.<n>.<ext>)',
       defaultDescription: 'print to stdout',
     },
-    'data-dir': { type: 'string', placeholder: '<path>', describe: 'Data directory' },
+    'data-dir': {
+      type: 'string',
+      placeholder: '<path>',
+      describe: 'Data directory',
+      defaultDescription: 'ADMINIUM_DATA_DIR, else ./data or ~/.adminium',
+    },
     'meta-url': { type: 'string', placeholder: '<dsn>', describe: 'Meta store DSN' },
   },
 

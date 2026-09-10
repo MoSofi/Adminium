@@ -18,8 +18,10 @@ import {
   usersRepo,
   type MetaDb,
 } from '@adminium/meta';
+import { symbols as pinoSymbols } from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildLogger } from '../src/app.js';
 import { hashPassword } from '../src/auth/passwords.js';
 import { composeServer, TELEMETRY_SCHEDULE_NAME } from '../src/compose.js';
 import { ADAPTER_PACKAGES } from '../src/connections/register-adapters.js';
@@ -445,6 +447,36 @@ describe('packaging', () => {
     // The adapters must resolve from the server too — the wizard offers all 3.
     expect(pkg.dependencies).toHaveProperty('@adminium/adapter-mysql');
     expect(pkg.dependencies).toHaveProperty('@adminium/adapter-sqlite');
+  });
+
+  it('declares the pino-pretty transport as a RUNTIME dependency', async () => {
+    // The bug: `buildLogger` turns pretty logging on for dev + a TTY, which is
+    // every human install — NODE_ENV is unset under `npx`. pino loads the
+    // target by name in a worker, so tsc, dependency-cruiser and the bundler
+    // all see nothing, and it sat in devDependencies through 0.2.5. The
+    // published CLI therefore threw `unable to determine transport target for
+    // "pino-pretty"` the moment the wizard booted the server (and `adminium
+    // start` never started), while the monorepo — where a devDependency is
+    // installed like any other — stayed green.
+    const pkg = (await import('../package.json', { with: { type: 'json' } })).default as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    expect(pkg.dependencies).toHaveProperty('pino-pretty');
+    expect(pkg.devDependencies).not.toHaveProperty('pino-pretty');
+  });
+
+  it('builds the pretty logger the shipped CLI asks for', async () => {
+    // What the suite missed: every other buildLogger test passes
+    // `pretty: false`, so nothing ever constructed the transport that the
+    // product constructs on every interactive boot.
+    const log = buildLogger(makeEnv(), { pretty: true });
+    expect(typeof log.info).toBe('function');
+    // The transport is a worker thread; end it, or the pool outlives the test.
+    const stream = (log as unknown as Record<symbol, { end?: () => void } | undefined>)[
+      pinoSymbols.streamSym
+    ];
+    stream?.end?.();
   });
 
   it('ships the vocabulary snapshot in the published tarball', async () => {

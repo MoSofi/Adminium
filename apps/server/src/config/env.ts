@@ -125,6 +125,17 @@ export const envSchema = z.object({
   AWS_ACCESS_KEY_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   AWS_SECRET_ACCESS_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   ADMINIUM_META_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  /**
+   * Files, exports, backups, add-on packages, the §7.2 bootstrap file and the
+   * §3.1 embedded meta store.
+   *
+   * `./data` is the default for an EMBEDDED boot — a container, the Electron
+   * shell, a host importing `loadEnv()` — and all of those pass the variable
+   * explicitly anyway. A CLI run with the variable unset resolves its own
+   * default first (`cli/data-dir.ts`): beside a project, `./data` as ever;
+   * launched from a shell in nobody's project, `~/.adminium`, so the instance
+   * is still there when the next command runs one directory over.
+   */
   ADMINIUM_DATA_DIR: z.preprocess(emptyToUndefined, z.string().default('./data')),
   ADMINIUM_LOG_LEVEL: z.preprocess(emptyToUndefined, z.enum(LOG_LEVELS).default('info')),
   /**
@@ -449,7 +460,7 @@ const ENV_HINTS: Record<string, string> = {
   HOST: 'bind address, e.g. 0.0.0.0 or 127.0.0.1',
   ADMINIUM_META_URL: 'optional meta-store DSN: postgres://, mysql://, or sqlite:<path>',
   ADMINIUM_DATA_DIR:
-    'writable directory for files, exports, backups, and add-on packages (default ./data)',
+    'writable directory for files, exports, backups, and add-on packages (default ./data beside a project, otherwise ~/.adminium)',
   ADMINIUM_STORAGE_URL:
     'optional first-boot storage destination: s3://<bucket>?endpoint=&region=&accessKey=&secretKey=, webdav://<user>:<pass>@<host>/<path>, or file:///abs/path',
   AWS_ENDPOINT_URL_S3: 'S3-compatible endpoint (set by `fly storage create`; read only by the first-boot storage seed)',

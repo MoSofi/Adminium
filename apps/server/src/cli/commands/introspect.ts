@@ -51,7 +51,12 @@ export const introspectCommand: Command = {
       describe: 'Introspection budget in milliseconds',
       defaultDescription: '30000',
     },
-    'data-dir': { type: 'string', placeholder: '<path>', describe: 'Data directory' },
+    'data-dir': {
+      type: 'string',
+      placeholder: '<path>',
+      describe: 'Data directory',
+      defaultDescription: 'ADMINIUM_DATA_DIR, else ./data or ~/.adminium',
+    },
     'meta-url': { type: 'string', placeholder: '<dsn>', describe: 'Meta store DSN' },
   },
 

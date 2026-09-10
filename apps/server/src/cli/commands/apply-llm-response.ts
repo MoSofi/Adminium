@@ -108,7 +108,12 @@ export const applyLlmResponseCommand: Command = {
       defaultDescription: String(DEFAULT_YES_ABOVE),
     },
     'dry-run': { type: 'boolean', describe: 'Validate and print the diff; write nothing' },
-    'data-dir': { type: 'string', placeholder: '<path>', describe: 'Data directory' },
+    'data-dir': {
+      type: 'string',
+      placeholder: '<path>',
+      describe: 'Data directory',
+      defaultDescription: 'ADMINIUM_DATA_DIR, else ./data or ~/.adminium',
+    },
     'meta-url': { type: 'string', placeholder: '<dsn>', describe: 'Meta store DSN' },
   },
 

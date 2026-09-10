@@ -46,7 +46,12 @@ export const importZipCommand: Command = {
       describe: 'Validate and report without writing',
       defaultDescription: 'off',
     },
-    'data-dir': { type: 'string', placeholder: '<path>', describe: 'Data directory' },
+    'data-dir': {
+      type: 'string',
+      placeholder: '<path>',
+      describe: 'Data directory',
+      defaultDescription: 'ADMINIUM_DATA_DIR, else ./data or ~/.adminium',
+    },
     'meta-url': { type: 'string', placeholder: '<dsn>', describe: 'Meta store DSN' },
   },
 

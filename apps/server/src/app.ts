@@ -8,6 +8,7 @@
  * wave 2 (01-architecture.md §8.1 gates arrive with it).
  */
 import { randomBytes } from 'node:crypto';
+import { createRequire } from 'node:module';
 
 import { fastify, type FastifyBaseLogger, type FastifyError, type FastifyRequest } from 'fastify';
 import { pino, type DestinationStream, type Logger, type LoggerOptions } from 'pino';
@@ -97,10 +98,37 @@ function serializeRequest(request: FastifyRequest): Record<string, unknown> {
   };
 }
 
+/**
+ * Is `pino-pretty` reachable from here?
+ *
+ * pino resolves a transport target by NAME against its CALLERS (`lib/transport.js`
+ * `fixTarget`), and this module is the caller — so asking `createRequire` the
+ * question here is the question pino is about to ask, one line before it can
+ * answer it by throwing `unable to determine transport target for "pino-pretty"`
+ * and taking the boot with it. That is not hypothetical: package.json's
+ * `//dependencies` note records the release where it shipped as a devDependency
+ * and no human install could start a server.
+ *
+ * Declaring the dependency is the fix; this is the belt, for the trees a
+ * package.json cannot reach (a pruned install, a bundled resource directory).
+ * A missing log FORMATTER must not be able to stop a server from booting — it
+ * costs the operator prettier lines, and nothing else.
+ */
+function canResolvePinoPretty(): boolean {
+  try {
+    createRequire(import.meta.url).resolve('pino-pretty');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Structured pino logger: level from env, §1.3 redaction, pretty in dev. */
 export function buildLogger(env: Env, opts: BuildLoggerOptions = {}): Logger {
+  // `&&`, so the resolve only runs when something actually wants pretty.
   const pretty =
-    opts.pretty ?? (process.env.NODE_ENV !== 'production' && Boolean(process.stdout.isTTY));
+    (opts.pretty ?? (process.env.NODE_ENV !== 'production' && Boolean(process.stdout.isTTY))) &&
+    canResolvePinoPretty();
   const options: LoggerOptions = {
     level: env.ADMINIUM_LOG_LEVEL,
     redact: { paths: [...REDACT_PATHS], censor: '[REDACTED]' },

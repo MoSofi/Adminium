@@ -48,6 +48,7 @@ import { maskDsn, MetaPlacementError } from '../../connections/dsn.js';
 import { embeddedMetaWarning, metaEngineFromUrl, metaUrlCryptoFromSecret } from '../../meta/store.js';
 import { boolFlag, numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
+import { tildify } from '../data-dir.js';
 import { createRelocationHost } from '../relocation-host.js';
 import { CliError, EXIT_OK } from '../exit.js';
 import type { CliIo, SelectChoice, Style } from '../io.js';
@@ -180,7 +181,7 @@ async function askMetaPlacement(io: CliIo, dataDir: string): Promise<MetaChoice>
 
   const index = await io.select('Where should that state live?', [
     {
-      label: `In a file, right here (${dataDir}/meta.db)`,
+      label: `In a file on this machine (${tildify(dataDir)}/meta.db)`,
       hint: 'Nothing to set up. Right for trying Adminium out, or a single instance.',
     },
     {
@@ -341,7 +342,12 @@ export const initCommand: Command = {
       describe: 'Server log level once it starts',
       defaultDescription: 'ADMINIUM_LOG_LEVEL, else warn',
     },
-    'data-dir': { type: 'string', placeholder: '<path>', describe: 'Data directory' },
+    'data-dir': {
+      type: 'string',
+      placeholder: '<path>',
+      describe: 'Data directory',
+      defaultDescription: 'ADMINIUM_DATA_DIR, else ./data or ~/.adminium',
+    },
     'meta-url': { type: 'string', placeholder: '<dsn>', describe: 'Meta store DSN (skips the meta question)' },
     name: { type: 'string', placeholder: '<name>', describe: 'Connection name', defaultDescription: 'prompted' },
   },

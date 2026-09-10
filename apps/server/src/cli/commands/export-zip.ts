@@ -66,7 +66,12 @@ export const exportZipCommand: Command = {
       describe: 'Include encrypted DSNs and provider keys in the bundle',
       defaultDescription: 'off',
     },
-    'data-dir': { type: 'string', placeholder: '<path>', describe: 'Data directory' },
+    'data-dir': {
+      type: 'string',
+      placeholder: '<path>',
+      describe: 'Data directory',
+      defaultDescription: 'ADMINIUM_DATA_DIR, else ./data or ~/.adminium',
+    },
     'meta-url': { type: 'string', placeholder: '<dsn>', describe: 'Meta store DSN' },
   },
 

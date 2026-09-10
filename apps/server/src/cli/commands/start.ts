@@ -83,7 +83,7 @@ export const startCommand: Command = {
       type: 'string',
       placeholder: '<path>',
       describe: 'Data directory',
-      defaultDescription: 'ADMINIUM_DATA_DIR or ./data',
+      defaultDescription: 'ADMINIUM_DATA_DIR, else ./data or ~/.adminium',
     },
     'log-level': {
       type: 'string',
