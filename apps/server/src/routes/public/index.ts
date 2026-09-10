@@ -25,8 +25,11 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import type { MetaDb, RecordRef } from '@adminium/meta';
+import type { DocumentRow, MetaDb, RecordRef } from '@adminium/meta';
 import {
+  documentProfilesRepo,
+  filesRepo,
+  documentsRepo,
   auditRepo,
   overridesRepo,
   connectionTenantConfig,
@@ -46,7 +49,7 @@ import { SnapshotView } from '../../crud/identifiers.js';
 import { runList } from '../../crud/list.js';
 import { compileFilter, parseWhereParam } from '../../crud/filters.js';
 import { createPublicKeyResolver, type ResolvedKey } from '../../public-api/resolve.js';
-import { publicConfigOf } from '../../public-api/scope.js';
+import { publicConfigOf, type CompiledResource } from '../../public-api/scope.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import {
@@ -67,6 +70,9 @@ import { insertRow } from '../data/index.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { emitRecordEvent } from '../../crud/after-record-write.js';
 import { audited } from '../../audit/coverage.js';
+import { emailDocument } from '../../documents/deliver.js';
+import { renderDocument, renderIntent, type RenderDeps } from '../../documents/render.js';
+import type { FileStore } from '../../files/store.js';
 import {
   PUBLIC_ERROR_CODES,
   publicClaimBody,
@@ -79,6 +85,11 @@ import {
   publicRecordReply,
   publicRefParams,
   publicWriteBody,
+  publicDocumentParams,
+  publicDocumentReply,
+  publicDocumentRenderBody,
+  publicDocumentsQuery,
+  publicDocumentsReply,
 } from './schema.js';
 import type { PublicErrorCode } from './schema.js';
 import { createPublicRateLimiter, type PublicLimit, type PublicRateLimiter } from '../../public-api/limiter.js';
@@ -92,6 +103,15 @@ export interface PublicRoutesDeps {
   isEnabled: () => Promise<boolean>;
   /** Injectable for tests; a fresh limiter otherwise. */
   limiter?: PublicRateLimiter | undefined;
+  /**
+   * The document pipeline (34 §7.6). Absent = this build cannot draw
+   * documents, and every `/public/documents*` route says so with the same
+   * refusal a key without the flag gets — a deployment's capabilities are not
+   * a stranger's business.
+   */
+  documents?: RenderDeps | undefined;
+  /** Where a document's bytes are read from, for the content route. */
+  storage?: FileStore | undefined;
 }
 
 /**
@@ -965,6 +985,373 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         });
         await auditWrite(request, ok, 'public.claim', { ref: claim.ref });
         return reply.send({ data: { session: minted.token, expiresAt } });
+      },
+    );
+
+
+    /* ------------------------------------------------------------ documents */
+    /*
+     * 34 §7.6. Five routes, and every one of them names a gate — the route-table
+     * test asserts exactly that, because this server has no ambient auth hook
+     * and a `/public/*` route without a gate serves the operator's data to
+     * anybody who asks.
+     *
+     * ─── WHAT A CLAIM REACHES ─────────────────────────────────────────────
+     *
+     * Two ways a document is the caller's: its own `claim` matches the session
+     * (an intent they asked for), or its ENTITY is a row their claim reaches (an
+     * invoice the operator drew for their order). Both are checked against the
+     * session, never against anything in the request — and a document that is
+     * neither answers 404, the same answer as one that does not exist.
+     */
+    app.options('/public/documents', { schema: { hide: true } }, preflight);
+    app.options('/public/documents/render', { schema: { hide: true } }, preflight);
+    app.options('/public/documents/:id', { schema: { hide: true } }, preflight);
+    app.options('/public/documents/:id/content', { schema: { hide: true } }, preflight);
+    app.options('/public/documents/:id/email', { schema: { hide: true } }, preflight);
+
+    /** The register row, if this session may see it. Null is the 404. */
+    const visibleDocument = async (
+      ok: { key: ResolvedKey; session: PublicSessionContext | null },
+      id: string,
+    ): Promise<DocumentRow | null> => {
+      const session = ok.session;
+      if (session === null) return null;
+      const row = await documentsRepo(meta).findById(id);
+      if (row === null) return null;
+
+      // Its own claim: the intent this caller asked for.
+      if (
+        row.claim !== null &&
+        row.claim.column === session.grant.column &&
+        String(row.claim.value) === String(session.grant.value)
+      ) {
+        return row;
+      }
+
+      /*
+       * Or a row their claim reaches. The document names a TABLE; the scope
+       * names refs. Finding the ref for that table is what lets the EXISTING
+       * predicate do the deciding — the scope's mandatory narrowing AND the
+       * session's claim, exactly as `GET /public/records/:ref` composes them.
+       * A second, weaker rule about who owns a row, written here, is how the
+       * two would come to disagree.
+       */
+      if (row.entityTable === null || row.entity === null) return null;
+      let resource: CompiledResource | undefined;
+      for (const candidate of ok.key.scope.byRef.values()) {
+        if (candidate.table === row.entityTable) resource = candidate;
+      }
+      if (resource === undefined || !resource.actions.has('read')) return null;
+      const claim = claimPredicateFor(resource, session);
+      if (!claim.reachable) return null;
+
+      const view = await viewFor(ok.key.connectionId);
+      if (view === null) return null;
+      let table;
+      try {
+        table = view.table(resource.table);
+      } catch {
+        return null;
+      }
+      let handle;
+      try {
+        handle = await manager.data(ok.key.connectionId);
+      } catch {
+        return null;
+      }
+
+      /*
+       * The row's own key ANDed into the mandatory predicate rather than into
+       * `where`: `where` is the caller's half and is checked against the
+       * scope's `filterable` set, and a primary key need not be filterable for
+       * the server to ask about it.
+       */
+      const pk = row.entity.pk;
+      const byPk = table.primaryKey.map((column) => ({
+        column,
+        op: 'eq' as const,
+        value: pk[column],
+      }));
+      const result = await runList({
+        db: handle.db,
+        view,
+        table,
+        params: { limit: 1, offset: 0, count: 'none' },
+        canReadPii: false,
+        dialect: handle.dialect,
+        mandatory:
+          combinePredicates(
+            combinePredicates(resource.mandatory, claim.predicate),
+            byPk.length === 1 ? byPk[0]! : { and: byPk },
+          ) ?? undefined,
+        exposeColumns: [...table.primaryKey],
+        searchColumns: [],
+      });
+      return result.data.length > 0 ? row : null;
+    };
+
+    const documentView = (row: DocumentRow) => ({
+      id: row.id,
+      kind: row.kind,
+      number: row.number,
+      status: row.status,
+      delivery: row.delivery,
+      format: row.format,
+      locale: row.locale,
+      createdAt: row.createdAt,
+      hasContent: row.fileId !== null || row.htmlFileId !== null,
+    });
+
+
+    /**
+     * The door (D15). Two shapes: draw from a row this claim reaches, or draw
+     * from values the caller sends.
+     *
+     * The flag is checked BEFORE the shape, and its refusal is the same
+     * `PUBLIC_REF_NOT_FOUND` an unknown resource gets: whether a deployment
+     * can draw documents at all is not something a stranger holding a
+     * publishable key gets to enumerate.
+     */
+    app.post(
+      '/public/documents/render',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          body: publicDocumentRenderBody,
+          response: {
+            201: publicDocumentReply,
+            400: publicErrorReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-write');
+        if (ok === null) return reply;
+        if (!ok.key.scope.documents.create || deps.documents === undefined) {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        }
+
+        const body = request.body;
+        if ('profileId' in body) {
+          /*
+           * The PERSISTED shape. The claim must reach the row before anything
+           * is drawn — a caller who cannot read a row must not be able to make
+           * a document out of it, which would be a read through a side door.
+           */
+          const found = await resolveResource(request, reply, ok, body.ref, 'read');
+          if (found === null) return reply;
+          const profile = await documentProfilesRepo(meta).findById(body.profileId);
+          if (profile === null || profile.table !== found.resource.table || !profile.enabled) {
+            return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+          }
+          const recordId = parseRecordId(found.table, String(body.id));
+          const row = await runList({
+            db: found.db,
+            view: found.view,
+            table: found.table,
+            params: { limit: 1, offset: 0, count: 'none' },
+            canReadPii: false,
+            dialect: found.dialect,
+            mandatory:
+              combinePredicates(
+                found.predicate,
+                found.table.primaryKey.length === 1
+                  ? { column: found.table.primaryKey[0]!, op: 'eq', value: recordId[found.table.primaryKey[0]!] }
+                  : { and: found.table.primaryKey.map((c) => ({ column: c, op: 'eq' as const, value: recordId[c] })) },
+              ) ?? undefined,
+            exposeColumns: [...found.table.primaryKey],
+            searchColumns: [],
+          });
+          if (row.data.length === 0) {
+            return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+          }
+
+          /*
+           * NO DELAY. The 60-second window exists so a person can take back a
+           * write they made in the dashboard; a public caller pressing "send me
+           * a copy" is asking for the thing itself, and waiting a minute to
+           * start would be inexplicable (§7.11 checks this).
+           */
+          const outcome = await renderDocument(deps.documents, {
+            profileId: profile.id,
+            pk: recordId,
+            actorKind: 'api-key',
+            ...(body.locale === undefined ? {} : { locale: body.locale }),
+          });
+          if (outcome.status !== 'rendered') {
+            return fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'The document could not be drawn.');
+          }
+          return reply.code(201).send({ data: documentView(outcome.document) });
+        }
+
+        /*
+         * The INLINE shape. Everything the caller sends is a value; everything
+         * that makes the document the OPERATOR's — the letterhead, the clock,
+         * the currency, the number — is stamped by `renderIntent`, and the row
+         * comes out `pending-review` so nothing is emailed unattended.
+         */
+        const claim =
+          ok.session === null
+            ? undefined
+            : { column: ok.session.grant.column, value: String(ok.session.grant.value) };
+        const outcome = await renderIntent(deps.documents, {
+          kind: body.kind,
+          ...(body.locale === undefined ? {} : { locale: body.locale }),
+          fields: body.fields,
+          collections: body.collections,
+          connectionId: ok.key.connectionId,
+          ...(claim === undefined ? {} : { claim }),
+          actorKind: 'api-key',
+        });
+        if (outcome.status !== 'rendered') {
+          return fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'The document could not be drawn.');
+        }
+        return reply.code(201).send({ data: documentView(outcome.document) });
+      },
+    );
+
+    app.get(
+      '/public/documents',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: {
+          querystring: publicDocumentsQuery,
+          response: {
+            200: publicDocumentsReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        if (ok.session === null) {
+          // No session, no claim, nothing visible. Same answer as absence.
+          return reply.send({ data: [] });
+        }
+        const rows = await documentsRepo(meta).list({ limit: 50 });
+        const visible = [];
+        for (const row of rows) {
+          const seen = await visibleDocument(ok, row.id);
+          if (seen !== null) visible.push(documentView(seen));
+        }
+        return reply.send({ data: visible });
+      },
+    );
+
+    app.get(
+      '/public/documents/:id',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: {
+          params: publicDocumentParams,
+          response: {
+            200: publicDocumentReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        const row = await visibleDocument(ok, request.params.id);
+        if (row === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        return reply.send({ data: documentView(row) });
+      },
+    );
+
+    app.get(
+      '/public/documents/:id/content',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: {
+          params: publicDocumentParams,
+          response: {
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        const row = await visibleDocument(ok, request.params.id);
+        const fileId = row === null ? null : (row.fileId ?? row.htmlFileId);
+        if (row === null || fileId === null || deps.storage === undefined) {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        }
+        const file = await filesRepo(meta).findById(fileId);
+        if (file === null || file.deletedAt !== null) {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        }
+        const stream = await deps.storage.read(file);
+        /*
+         * ATTACHMENT and nosniff, always. The bytes are HTML an add-on drew; a
+         * browser that rendered them inline on this origin would be running a
+         * third party's markup with the operator's cookies in scope.
+         */
+        reply.header('Content-Type', file.mime);
+        reply.header('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
+        reply.header('X-Content-Type-Options', 'nosniff');
+        // The typed reply describes the ERROR shapes only; bytes leave through
+        // the raw send, the way the staff content route does it.
+        return reply.send(stream as unknown as never);
+      },
+    );
+
+    app.post(
+      '/public/documents/:id/email',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          params: publicDocumentParams,
+          response: {
+            200: publicDocumentReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-write');
+        if (ok === null) return reply;
+        if (!ok.key.scope.documents.create) {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        }
+        const row = await visibleDocument(ok, request.params.id);
+        if (row === null || row.status !== 'rendered') {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        }
+        /*
+         * TO THE CLAIM'S OWN ADDRESS, never to one in the request (§7.6). This
+         * route is a caller asking for their own copy — the ONLY thing it can
+         * decide is whether, and the address is whatever the session was bound
+         * to when it was claimed.
+         */
+        const to = String(ok.session!.grant.value);
+        if (!to.includes('@')) {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        }
+        const delivery = await emailDocument(
+          { meta, runtime: deps.documents?.runtime ?? (() => null), logger: request.log },
+          { document: row, profile: null, to },
+        );
+        return reply.send({ data: { ...documentView(row), delivery } });
       },
     );
 

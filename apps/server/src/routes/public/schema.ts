@@ -13,6 +13,7 @@
  * the wire to translate later — and it avoids serving translation bundles to
  * anonymous callers, which `routes/i18n/index.ts` refuses in writing.
  */
+import { publicDocumentRequestSchema } from '@adminium/add-on-contracts';
 import { z } from 'zod';
 
 /** Mirrors `recordListQuery` (routes/data/schema.ts), narrowed per D5. */
@@ -153,3 +154,60 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_UPSTREAM_UNAVAILABLE',
 ] as const;
 export type PublicErrorCode = (typeof PUBLIC_ERROR_CODES)[number];
+
+// --- documents (34-invoices-add-on.md §7.6; 34-T20) --------------------------
+
+/**
+ * `POST /public/documents/render`.
+ *
+ * Two shapes, one route. `{profileId, ref, id}` draws from a PERSISTED row the
+ * caller's claim already reaches; the inline form draws from values it sends.
+ * Both refuse anything the server stamps itself — `business`, `now`,
+ * `currency`, `entity`, `number` — which is what stops the door being a way to
+ * put a stranger's text under the operator's letterhead (D15, 0.3 trap 17).
+ */
+export const publicDocumentRenderBody = z.union([
+  z
+    .object({
+      profileId: z.string().min(1).max(40),
+      /** The resource the row lives on, so the claim can be checked. */
+      ref: z.string().min(1).max(80),
+      id: z.union([z.string().max(200), z.number()]),
+      locale: z.string().min(2).max(35).optional(),
+    })
+    .strict(),
+  publicDocumentRequestSchema,
+]);
+
+export const publicDocumentsQuery = z.object({
+  ref: z.string().min(1).max(80).optional(),
+  id: z.union([z.string().max(200), z.number()]).optional(),
+});
+
+export const publicDocumentParams = z.object({ id: z.string().min(1).max(40) });
+
+/**
+ * What a claimed caller may see of their own document.
+ *
+ * NOT the subject. A document's frozen subject carries every mapped table's
+ * values, including ones the operator never meant a customer to read — the
+ * staff route redacts it per grant (D16) and there is no equivalent grant here.
+ * What a customer needs is what it is, when, and where the bytes are.
+ */
+export const publicDocumentReply = z.object({
+  data: z.object({
+    id: z.string(),
+    kind: z.string(),
+    number: z.string().nullable(),
+    status: z.string(),
+    delivery: z.string().nullable(),
+    format: z.string(),
+    locale: z.string(),
+    createdAt: z.number(),
+    hasContent: z.boolean(),
+  }),
+});
+
+export const publicDocumentsReply = z.object({
+  data: z.array(publicDocumentReply.shape.data),
+});

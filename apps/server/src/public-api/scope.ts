@@ -203,6 +203,19 @@ export const publicScopeDocumentSchema = z
       })
       .strict()
       .optional(),
+    /**
+     * May this key ASK for a document to be drawn (34 §7.6, D15)?
+     *
+     * Default off, and off is the only safe default: a publishable key ships in
+     * the page bundle by design, so with this on, anybody holding it can put
+     * text in front of the operator's letterhead. What keeps that from being an
+     * email relay is the other half of D15 — the drawn row's `delivery` starts
+     * `pending-review` and a person settles it.
+     */
+    documents: z
+      .object({ create: z.boolean().default(false) })
+      .strict()
+      .optional(),
     resources: z.array(resourceSchema).min(1),
   })
   .strict();
@@ -254,6 +267,8 @@ export interface CompiledScope {
   /** ISO-4217, when the scope serves money. */
   currency: string | null;
   claim: PublicScopeDocument['claim'] | null;
+  /** 34 §7.6's door, already defaulted — the request path reads one boolean. */
+  documents: { create: boolean };
   byRef: ReadonlyMap<string, CompiledResource>;
 }
 
@@ -619,6 +634,25 @@ export function compileScope(
   }
 
   /*
+   * 34 §7.6 — the document door is a CUSTOMER-side affordance and nothing else.
+   *
+   * A staff-side key belongs to a person Adminium can authenticate, and the
+   * staff surfaces already have `POST /api/v1/documents/render` behind a real
+   * session and a real grant. Offering the same thing through a publishable key
+   * would be a second, weaker door into the same pipeline — one whose whole
+   * defence is that a human settles what comes out of it (D15), which is
+   * ceremony when the caller is already a known user.
+   */
+  if (doc.documents?.create === true && doc.side === 'staff') {
+    issues.push({
+      code: 'SCOPE_DOCUMENTS_STAFF_SIDE',
+      message:
+        'documents.create is a customer-side flag — a staff surface draws documents through the ' +
+        'authenticated API',
+    });
+  }
+
+  /*
    * D11/D17 — the tier rule, enforced here rather than documented. A `lookup`
    * claim is possession-of-a-reference; the pilot's own model app matched on a
    * mobile number and a date of birth, both low-entropy personal data, against
@@ -697,6 +731,9 @@ export function compileScope(
     // — a scope exposing no money needs no currency.
     currency: doc.currency ?? inherited?.currency ?? null,
     claim: doc.claim ?? null,
+    // Defaulted HERE so the request path reads one boolean rather than three
+    // levels of optional, and so "absent" and "false" cannot mean two things.
+    documents: { create: doc.documents?.create ?? false },
     byRef,
   };
 }
@@ -726,6 +763,12 @@ export function publicConfigOf(scope: CompiledScope): {
   timezone: string;
   currency: string | null;
   claim: { strategy: ClaimStrategy; ref: string; match: string[] } | null;
+  /**
+   * 34 §7.6. A capability, not a rule about rows — the page needs to know
+   * whether it may offer "email me a copy" at all, and hiding that would make
+   * it discover the refusal by being refused.
+   */
+  documents: { create: boolean };
   refs: Record<string, { actions: PublicAction[]; expose: string[]; filterable: string[]; searchable: string[]; orderable: string[]; writable: string[]; limit: number }>;
 } {
   const refs: Record<string, ReturnType<typeof projectResource>> = {};
@@ -738,6 +781,7 @@ export function publicConfigOf(scope: CompiledScope): {
     claim: scope.claim
       ? { strategy: scope.claim.strategy, ref: scope.claim.ref, match: [...scope.claim.match] }
       : null,
+    documents: { create: scope.documents.create },
     refs,
   };
 }
