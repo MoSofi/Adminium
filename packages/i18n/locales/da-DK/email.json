@@ -800,5 +800,14 @@
     "name": "Teaminvitation",
     "notice": "Denne invitation virker kun én gang og udløber om {expiresInDays} dage. Hvis du ikke forventede den, kan du ignorere denne e-mail.",
     "subject": "Du er blevet inviteret til {appName}"
+  },
+  "documentReady": {
+    "name": "Bilag klar",
+    "subject": "Dit {kind} {number} fra {business}",
+    "heading": "Dit {kind} er klar",
+    "body": "{business} har tegnet {kind} {number} til dig. Det er vedhæftet denne e-mail.",
+    "button": "Åbn online",
+    "footer": "Du modtager denne e-mail, fordi {business} tegnede dette bilag til dig.",
+    "attachment": "Bilaget"
   }
 }

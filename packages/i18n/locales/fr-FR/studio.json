@@ -1156,6 +1156,11 @@
       "payments": "Paiements",
       "email": "E-mail",
       "data": "Données"
+    },
+    "settings": {
+      "title": "Réglages",
+      "save": "Enregistrer les réglages",
+      "badJson": "Ce n’est pas du JSON valide ; rien n’a été enregistré."
     }
   },
   "pages": {
@@ -1753,5 +1758,77 @@
       "schema": "Fichiers de schéma importés",
       "archive": "Lots archivés du journal d’audit"
     }
+  },
+  "documents": {
+    "title": "Correspondances de documents",
+    "intro": "Une correspondance indique quelles colonnes de quelle table font une sorte de document, ce qui le déclenche et où il va.",
+    "noProvider": "Aucun add-on installé ne peut encore établir de documents. Installez-en un depuis Add-ons et les correspondances possibles apparaîtront ici.",
+    "newFrom": "Nouvelle correspondance pour :",
+    "empty": "Aucune correspondance pour l’instant.",
+    "name": "Nommer cette correspondance",
+    "pickTable": "Choisir une table…",
+    "delete": "Supprimer",
+    "disabled": "désactivée",
+    "save": "Enregistrer la correspondance",
+    "cancel": "Annuler",
+    "prefix": "Préfixe de numéro",
+    "unbound": "Reste à remplir : {slots}",
+    "step": {
+      "kind": "Sorte",
+      "table": "Connexion et table",
+      "mapping": "Ce qui remplit chaque champ",
+      "trigger": "Ce qui le déclenche",
+      "delivery": "Où il va",
+      "mappingHelp": "Chaque champ lit une colonne, ou prend une valeur que vous saisissez ici.",
+      "render": "Essayer sur une ligne"
+    },
+    "trigger": {
+      "manual": "Uniquement à la demande",
+      "manualShort": "à la demande",
+      "created": "Quand une ligne est ajoutée",
+      "updated": "Quand une ligne change",
+      "noteTitle": "Ce qui compte comme changement",
+      "note": "Les lignes venues d’un import ou écrites directement dans la base ne déclenchent rien — seules les écritures passant par Adminium le font."
+    },
+    "delivery": {
+      "stored": "Conservé sur la fiche, toujours.",
+      "email": "Envoyer à",
+      "noEmail": "À personne — garder sur la fiche",
+      "noEmailSlot": "Ce type de document n'a pas de champ d'adresse : il ne peut pas être envoyé.",
+      "noSmtp": "Aucun serveur e-mail n'est configuré pour cet Adminium, rien ne peut donc être envoyé. Configurez-en un dans Studio → Paramètres → E-mail."
+    },
+    "grants": {
+      "title": "Vous n’avez pas accès à tout cela",
+      "refused": "Cette correspondance lit {tables}, que vous n’avez pas le droit de lire. Les documents qui en viennent échoueront pour vous."
+    },
+    "slot": {
+      "unmapped": "Non rempli",
+      "byDefault": "Rempli par Adminium",
+      "pii": "données masquées",
+      "typed": "Une valeur que je saisis",
+      "typedValue": "Valeur pour {slot}",
+      "typedHint": "Saisie ici, non lue dans vos données — chaque document de cette correspondance reçoit la même valeur.",
+      "noLines": "Aucune ligne",
+      "looksLikeLines": "ressemble à des lignes",
+      "noChildren": "Rien dans votre base ne pointe vers cette table : il n'y a donc aucune ligne à dessiner. Un document a besoin d'une table enfant avec une clé étrangère vers celle-ci.",
+      "lineColumns": "Ce qui remplit chaque colonne d'une ligne",
+      "lineColumnOf": "{column} de chaque ligne"
+    },
+    "edit": "Modifier",
+    "render": {
+      "saveFirst": "Enregistrez d'abord la correspondance. Un document se dessine à partir d'une correspondance enregistrée : vous verrez ce qu'elle donne avant tout le monde.",
+      "intro": "Dessinez-en un maintenant, à partir d'une ligne de votre choix. Rien n'est envoyé nulle part — il reste sur la fiche comme les autres.",
+      "search": "Rechercher des lignes",
+      "noRows": "Aucune ligne à dessiner pour l'instant.",
+      "pick": "Dessiner celle-ci",
+      "pending": "Dessin en cours…",
+      "ready": "Dessiné.",
+      "failedRow": "Rien n'a été dessiné : {reason}",
+      "open": "Ouvrir",
+      "slowTitle": "Toujours rien",
+      "slow": "Aucun document n'est encore apparu. Il attend peut-être son tour, ou cette installation n'exécute aucune tâche de fond — rien ne sera dessiné tant qu'elle ne le fait pas."
+    },
+    "connectionLabel": "Connexion",
+    "tableLabel": "Table"
   }
 }

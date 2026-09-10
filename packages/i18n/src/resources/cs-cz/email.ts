@@ -810,5 +810,14 @@ export default {
     "name": "Pozvánka do týmu",
     "notice": "Tato pozvánka funguje jen jednou a její platnost vyprší po {expiresInDays} dnech. Pokud jste ji nečekali, můžete tento e-mail ignorovat.",
     "subject": "Byli jste pozváni do pracovního prostoru {appName}"
+  },
+  "documentReady": {
+    "name": "Doklad připraven",
+    "subject": "Váš {kind} {number} od {business}",
+    "heading": "Váš {kind} je připraven",
+    "body": "{business} pro vás nakreslil {kind} {number}. Je přiložen k tomuto e-mailu.",
+    "button": "Otevřít online",
+    "footer": "Tento e-mail dostáváte, protože {business} pro vás nakreslil tento doklad.",
+    "attachment": "Doklad"
   }
 } as const;

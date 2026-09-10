@@ -230,6 +230,7 @@
     "timezone": "时区",
     "forEach": "对以下表的每条记录",
     "forEachWhere": "其中",
+    "noTable": "不选表 — 每个周期运行一次",
     "once": "每条记录仅一次",
     "onceBody": "已匹配过的记录不会再次运行",
     "timeSaved": "每次运行节省的时间",
@@ -303,12 +304,14 @@
     "savedBody": "完成它的步骤后再启用。",
     "done": "完成",
     "trigger": {
-      "created": "{table} 中创建了一条记录",
-      "updated": "{table} 中更新了一条记录",
-      "deleted": "{table} 中删除了一条记录",
+      "recordCreated": "创建了一条记录",
+      "recordUpdated": "更新了一条记录",
+      "recordDeleted": "删除了一条记录",
       "schedule": "按计划"
     },
-    "connection": "{connection} · {table}"
+    "connection": "{connection} · {table}",
+    "tablePlaceholder": "搜索表…",
+    "tableEmpty": "没有匹配的表"
   },
   "logs": {
     "title": "工作流日志",
@@ -383,7 +386,13 @@
     "undone": "在运行前被撤销",
     "gone": "记录已不存在",
     "ruleOff": "等待期间规则被关闭",
-    "skipped": "—"
+    "skipped": "—",
+    "document": {
+      "ok": "已绘制单据 · {number}",
+      "skipped": "未绘制单据 · {reason}",
+      "would": "将绘制 {kind} · {name}",
+      "off": "映射已关闭 · {name}"
+    }
   },
   "dur": {
     "ms": "{ms} 毫秒",

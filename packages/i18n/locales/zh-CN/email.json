@@ -800,5 +800,14 @@
     "name": "团队邀请",
     "notice": "此邀请只能使用一次，并将在 {expiresInDays} 天后失效。如果你并未预期会收到它，可以忽略这封邮件。",
     "subject": "你受邀加入 {appName}"
+  },
+  "documentReady": {
+    "name": "单据已就绪",
+    "subject": "来自 {business} 的{kind} {number}",
+    "heading": "你的{kind}已就绪",
+    "body": "{business} 为你绘制了{kind} {number}，已作为附件随本邮件发送。",
+    "button": "在线打开",
+    "footer": "你收到这封邮件，是因为 {business} 为你绘制了这份单据。",
+    "attachment": "单据"
   }
 }

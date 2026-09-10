@@ -800,5 +800,14 @@
     "name": "Team-Einladung",
     "notice": "Diese Einladung funktioniert nur ein einziges Mal und läuft in {expiresInDays} Tagen ab. Wenn Sie sie nicht erwartet haben, können Sie diese E-Mail ignorieren.",
     "subject": "Sie wurden zu {appName} eingeladen"
+  },
+  "documentReady": {
+    "name": "Beleg fertig",
+    "subject": "Ihr {kind} {number} von {business}",
+    "heading": "Ihr {kind} ist fertig",
+    "body": "{business} hat {kind} {number} für Sie gezeichnet. Er hängt dieser E-Mail an.",
+    "button": "Online öffnen",
+    "footer": "Sie erhalten diese E-Mail, weil {business} diesen Beleg für Sie gezeichnet hat.",
+    "attachment": "Der Beleg"
   }
 }

@@ -29,6 +29,14 @@ const NAMESPACES = [
   'dataio',
   'files',
   'reportBuilder',
+  /*
+   * `onboarding` (45-T08). This list is the LAST hand-kept one: `meta.mjs` and
+   * `gen-resources.mjs` both read the directory, and `src/resources/
+   * namespaces.ts` was updated with the namespace — so a shipped bundle the
+   * tracker DID track looked orphaned to this gate alone, which is the failure
+   * `meta.mjs`'s own header warns about from the other direction.
+   */
+  'onboarding',
 ] as const;
 const TARGETS = LOCALES.filter((l) => l.id !== 'en_US');
 

@@ -240,6 +240,7 @@ export default {
     "timezone": "Tidszone",
     "forEach": "For hver post i",
     "forEachWhere": "hvor",
+    "noTable": "Ingen tabel — én kørsel pr. tik",
     "once": "Én gang pr. post",
     "onceBody": "En post, der har passet før, køres ikke igen",
     "timeSaved": "Sparet tid pr. kørsel",
@@ -313,12 +314,14 @@ export default {
     "savedBody": "Færdiggør dens trin, og slå den så til.",
     "done": "Færdig",
     "trigger": {
-      "created": "En post oprettes i {table}",
-      "updated": "En post opdateres i {table}",
-      "deleted": "En post slettes i {table}",
+      "recordCreated": "En post oprettes",
+      "recordUpdated": "En post opdateres",
+      "recordDeleted": "En post slettes",
       "schedule": "Efter en tidsplan"
     },
-    "connection": "{connection} · {table}"
+    "connection": "{connection} · {table}",
+    "tablePlaceholder": "Søg i tabeller…",
+    "tableEmpty": "Ingen matchende tabel"
   },
   "logs": {
     "title": "Arbejdsgangslog",
@@ -393,7 +396,13 @@ export default {
     "undone": "Fortrudt, før den kørte",
     "gone": "Posten findes ikke længere",
     "ruleOff": "Reglen blev slået fra under ventetiden",
-    "skipped": "—"
+    "skipped": "—",
+    "document": {
+      "ok": "bilag tegnet · {number}",
+      "skipped": "intet bilag tegnet · {reason}",
+      "would": "Ville tegne {kind} · {name}",
+      "off": "tilknytning er slået fra · {name}"
+    }
   },
   "dur": {
     "ms": "{ms} ms",

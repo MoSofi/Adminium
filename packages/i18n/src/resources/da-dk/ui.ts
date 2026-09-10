@@ -1837,5 +1837,21 @@ export default {
       "stepConversion": "{pct}% fortsætter",
       "overallConversion": "{pct}% samlet"
     }
+  },
+  "documents": {
+    "panel": {
+      "title": "Bilag",
+      "empty": "Der er endnu ikke tegnet noget bilag til denne række.",
+      "unnumbered": "Uden nummer",
+      "voided": "annulleret",
+      "failed": "kunne ikke tegnes",
+      "redacted": "dette må I ikke læse",
+      "download": "Hent",
+      "print": "Udskriv"
+    },
+    "make": {
+      "label": "Lav et bilag",
+      "one": "Lav {name}"
+    }
   }
 } as const;

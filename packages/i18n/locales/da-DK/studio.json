@@ -1156,6 +1156,11 @@
       "payments": "Betalinger",
       "email": "E-mail",
       "data": "Data"
+    },
+    "settings": {
+      "title": "Indstillinger",
+      "save": "Gem indstillinger",
+      "badJson": "Det er ikke gyldig JSON, så intet blev gemt."
     }
   },
   "pages": {
@@ -1753,5 +1758,77 @@
       "schema": "Importerede skemafiler",
       "archive": "Arkiverede batches fra auditloggen"
     }
+  },
+  "documents": {
+    "title": "Bilagstilknytninger",
+    "intro": "En tilknytning siger, hvilke kolonner i hvilken tabel der udgør én slags bilag, hvad der tegner det, og hvor det går hen.",
+    "noProvider": "Intet installeret add-on kan endnu tegne bilag. Installér et under Add-ons, så vises de mulige tilknytninger her.",
+    "newFrom": "Ny tilknytning til:",
+    "empty": "Ingen tilknytninger endnu.",
+    "name": "Navngiv denne tilknytning",
+    "pickTable": "Vælg en tabel…",
+    "delete": "Slet",
+    "disabled": "slået fra",
+    "save": "Gem tilknytning",
+    "cancel": "Annullér",
+    "prefix": "Nummerforstavelse",
+    "unbound": "Mangler stadig: {slots}",
+    "step": {
+      "kind": "Slags",
+      "table": "Forbindelse og tabel",
+      "mapping": "Hvad der udfylder hvert felt",
+      "trigger": "Hvad der tegner det",
+      "delivery": "Hvor det går hen",
+      "mappingHelp": "Hvert felt læser en kolonne — eller tager en værdi, du skriver her.",
+      "render": "Prøv den på en række"
+    },
+    "trigger": {
+      "manual": "Kun når nogen beder om det",
+      "manualShort": "på anmodning",
+      "created": "Når en række kommer til",
+      "updated": "Når en række ændres",
+      "noteTitle": "Hvad der tæller som en ændring",
+      "note": "Rækker fra en import eller skrevet direkte i databasen tegner intet — kun skrivninger gennem Adminium gør."
+    },
+    "delivery": {
+      "stored": "Bliver altid på posten.",
+      "email": "Send til",
+      "noEmail": "Ingen — behold det på posten",
+      "noEmailSlot": "Denne bilagstype har ikke noget adressefelt og kan derfor ikke sendes.",
+      "noSmtp": "Dette Adminium har endnu ingen e-mailserver, så der kan ikke sendes noget. Opsæt en under Studio → Indstillinger → E-mail."
+    },
+    "grants": {
+      "title": "I må ikke læse det hele",
+      "refused": "Denne tilknytning læser {tables}, som I ikke må læse. Bilag herfra vil fejle for jer."
+    },
+    "slot": {
+      "unmapped": "Ikke udfyldt",
+      "byDefault": "Udfyldes af Adminium",
+      "pii": "skjulte data",
+      "typed": "En værdi, jeg skriver",
+      "typedValue": "Værdi for {slot}",
+      "typedHint": "Skrevet her, ikke læst fra dine data — hvert bilag fra denne tilknytning får den samme værdi.",
+      "noLines": "Ingen linjer",
+      "looksLikeLines": "ligner linjer",
+      "noChildren": "Intet i din database peger på denne tabel, så der er ingen linjer at tegne. Et bilag har brug for en underordnet tabel med en fremmednøgle tilbage til denne.",
+      "lineColumns": "Hvad der udfylder hver kolonne i en linje",
+      "lineColumnOf": "{column} for hver linje"
+    },
+    "edit": "Rediger",
+    "render": {
+      "saveFirst": "Gem tilknytningen først. Et bilag tegnes ud fra en gemt, så du kan se, hvad den laver, før andre gør.",
+      "intro": "Tegn et nu, ud fra en række, du vælger. Intet sendes nogen steder hen — det bliver på posten som alle andre.",
+      "search": "Søg i rækker",
+      "noRows": "Ingen rækker at tegne ud fra endnu.",
+      "pick": "Tegn denne",
+      "pending": "Tegner…",
+      "ready": "Tegnet.",
+      "failedRow": "Der blev ikke tegnet noget: {reason}",
+      "open": "Åbn",
+      "slowTitle": "Stadig ingenting",
+      "slow": "Der er endnu ikke dukket et bilag op. Det venter måske på tur, eller denne installation kører ingen baggrundsopgaver — der tegnes ikke noget, før den gør."
+    },
+    "connectionLabel": "Forbindelse",
+    "tableLabel": "Tabel"
   }
 }

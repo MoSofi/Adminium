@@ -230,6 +230,7 @@
     "timezone": "Fuseau horaire",
     "forEach": "Pour chaque enregistrement de",
     "forEachWhere": "où",
+    "noTable": "Aucune table — une exécution par tick",
     "once": "Une fois par enregistrement",
     "onceBody": "Un enregistrement déjà traité ne l'est pas de nouveau",
     "timeSaved": "Temps gagné par exécution",
@@ -303,12 +304,14 @@
     "savedBody": "Terminez ses étapes, puis activez-la.",
     "done": "Terminé",
     "trigger": {
-      "created": "Un enregistrement est créé dans {table}",
-      "updated": "Un enregistrement est mis à jour dans {table}",
-      "deleted": "Un enregistrement est supprimé dans {table}",
+      "recordCreated": "Un enregistrement est créé",
+      "recordUpdated": "Un enregistrement est mis à jour",
+      "recordDeleted": "Un enregistrement est supprimé",
       "schedule": "Selon un calendrier"
     },
-    "connection": "{connection} · {table}"
+    "connection": "{connection} · {table}",
+    "tablePlaceholder": "Rechercher une table…",
+    "tableEmpty": "Aucune table correspondante"
   },
   "logs": {
     "title": "Journaux des flux",
@@ -383,7 +386,13 @@
     "undone": "Annulé avant son exécution",
     "gone": "L'enregistrement n'existe plus",
     "ruleOff": "La règle a été désactivée pendant l'attente",
-    "skipped": "—"
+    "skipped": "—",
+    "document": {
+      "ok": "document établi · {number}",
+      "skipped": "aucun document établi · {reason}",
+      "would": "Établirait {kind} · {name}",
+      "off": "correspondance désactivée · {name}"
+    }
   },
   "dur": {
     "ms": "{ms} ms",

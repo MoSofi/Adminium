@@ -240,6 +240,7 @@ export default {
     "timezone": "Zeitzone",
     "forEach": "Für jeden Datensatz aus",
     "forEachWhere": "wobei",
+    "noTable": "Keine Tabelle — ein Lauf pro Tick",
     "once": "Einmal pro Datensatz",
     "onceBody": "Ein Datensatz, der bereits zutraf, läuft nicht erneut",
     "timeSaved": "Gesparte Zeit pro Lauf",
@@ -313,12 +314,14 @@ export default {
     "savedBody": "Schließen Sie die Schritte ab und schalten Sie sie dann ein.",
     "done": "Fertig",
     "trigger": {
-      "created": "Ein Datensatz wird in {table} angelegt",
-      "updated": "Ein Datensatz wird in {table} aktualisiert",
-      "deleted": "Ein Datensatz wird in {table} gelöscht",
+      "recordCreated": "Ein Datensatz wird angelegt",
+      "recordUpdated": "Ein Datensatz wird aktualisiert",
+      "recordDeleted": "Ein Datensatz wird gelöscht",
       "schedule": "Nach Zeitplan"
     },
-    "connection": "{connection} · {table}"
+    "connection": "{connection} · {table}",
+    "tablePlaceholder": "Tabellen durchsuchen…",
+    "tableEmpty": "Keine passende Tabelle"
   },
   "logs": {
     "title": "Ablaufprotokolle",
@@ -393,7 +396,13 @@ export default {
     "undone": "Vor dem Lauf rückgängig gemacht",
     "gone": "Datensatz existiert nicht mehr",
     "ruleOff": "Regel wurde während des Wartens ausgeschaltet",
-    "skipped": "—"
+    "skipped": "—",
+    "document": {
+      "ok": "Beleg gezeichnet · {number}",
+      "skipped": "kein Beleg gezeichnet · {reason}",
+      "would": "Würde {kind} zeichnen · {name}",
+      "off": "Zuordnung ist ausgeschaltet · {name}"
+    }
   },
   "dur": {
     "ms": "{ms} ms",

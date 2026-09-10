@@ -1156,6 +1156,11 @@
       "payments": "支付",
       "email": "邮件",
       "data": "数据"
+    },
+    "settings": {
+      "title": "设置",
+      "save": "保存设置",
+      "badJson": "这不是有效的 JSON，因此未保存。"
     }
   },
   "pages": {
@@ -1753,5 +1758,77 @@
       "schema": "导入的架构文件",
       "archive": "归档的审计日志批次"
     }
+  },
+  "documents": {
+    "title": "单据映射",
+    "intro": "一条映射说明哪张表的哪些列构成一种单据、由什么触发，以及去往何处。",
+    "noProvider": "尚无已安装的插件可以绘制单据。请先在“插件”中安装一个，可用的映射就会出现在这里。",
+    "newFrom": "新建映射：",
+    "empty": "尚无映射。",
+    "name": "为这条映射命名",
+    "pickTable": "选择一张表…",
+    "delete": "删除",
+    "disabled": "已关闭",
+    "save": "保存映射",
+    "cancel": "取消",
+    "prefix": "编号前缀",
+    "unbound": "仍需填写：{slots}",
+    "step": {
+      "kind": "类型",
+      "table": "连接与表",
+      "mapping": "各字段由什么填充",
+      "trigger": "由什么触发",
+      "delivery": "去往何处",
+      "mappingHelp": "每个字段读取一列，或者取用你在此填写的值。",
+      "render": "在一行数据上试试"
+    },
+    "trigger": {
+      "manual": "仅在有人请求时",
+      "manualShort": "按请求",
+      "created": "新增一行时",
+      "updated": "某行变更时",
+      "noteTitle": "什么算作变更",
+      "note": "通过导入添加的行、或直接写入数据库的行不会触发任何绘制——只有经由 Adminium 的写入才会。"
+    },
+    "delivery": {
+      "stored": "始终留在记录上。",
+      "email": "发送给",
+      "noEmail": "不发送——只留在记录上",
+      "noEmailSlot": "这种单据没有地址字段，因此无法发送。",
+      "noSmtp": "这套 Adminium 还没有设置邮件服务器，因此无法发送。请在 Studio → 设置 → 邮件中设置一个。"
+    },
+    "grants": {
+      "title": "你无权阅读其中全部",
+      "refused": "这条映射会读取 {tables}，而你无权阅读。由它生成的单据对你会失败。"
+    },
+    "slot": {
+      "unmapped": "不填充",
+      "byDefault": "由 Adminium 填充",
+      "pii": "隐藏数据",
+      "typed": "我填写的值",
+      "typedValue": "{slot} 的值",
+      "typedHint": "在此填写，不从你的数据中读取——这条映射生成的每份单据都取同一个值。",
+      "noLines": "没有明细",
+      "looksLikeLines": "看起来像明细",
+      "noChildren": "你的数据库中没有任何表指向这张表，因此没有明细可绘制。单据需要一张带外键指回本表的子表。",
+      "lineColumns": "每一条明细的各列由什么填充",
+      "lineColumnOf": "每条明细的 {column}"
+    },
+    "edit": "编辑",
+    "render": {
+      "saveFirst": "请先保存映射。单据是从已保存的映射绘制的，这样你能先于他人看到结果。",
+      "intro": "现在就从你选的一行数据绘制一份。不会发送到任何地方——它像其他单据一样留在记录上。",
+      "search": "搜索数据行",
+      "noRows": "还没有可供绘制的数据行。",
+      "pick": "绘制这一行",
+      "pending": "正在绘制…",
+      "ready": "已绘制。",
+      "failedRow": "没有绘制出来：{reason}",
+      "open": "打开",
+      "slowTitle": "仍然没有",
+      "slow": "还没有单据出现。它可能仍在排队，也可能这套安装没有运行后台任务——不运行就不会绘制。"
+    },
+    "connectionLabel": "连接",
+    "tableLabel": "表"
   }
 }

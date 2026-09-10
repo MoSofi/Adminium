@@ -1166,6 +1166,11 @@ export default {
       "payments": "付款",
       "email": "郵件",
       "data": "資料"
+    },
+    "settings": {
+      "title": "設定",
+      "save": "儲存設定",
+      "badJson": "這不是有效的 JSON，因此未儲存。"
     }
   },
   "pages": {
@@ -1763,5 +1768,77 @@ export default {
       "schema": "匯入的結構描述檔案",
       "archive": "已封存的稽核記錄批次"
     }
+  },
+  "documents": {
+    "title": "單據對應",
+    "intro": "一條對應說明哪張表的哪些欄位構成一種單據、由什麼觸發，以及去往何處。",
+    "noProvider": "尚無已安裝的外掛可以繪製單據。請先在「外掛」中安裝一個，可用的對應就會出現在這裡。",
+    "newFrom": "新增對應：",
+    "empty": "尚無對應。",
+    "name": "為這條對應命名",
+    "pickTable": "選擇一張表…",
+    "delete": "刪除",
+    "disabled": "已關閉",
+    "save": "儲存對應",
+    "cancel": "取消",
+    "prefix": "編號前綴",
+    "unbound": "仍需填寫：{slots}",
+    "step": {
+      "kind": "類型",
+      "table": "連線與表",
+      "mapping": "各欄位由什麼填入",
+      "trigger": "由什麼觸發",
+      "delivery": "去往何處",
+      "mappingHelp": "每個單據欄位讀取一個資料欄位，或取用你在此填寫的值。",
+      "render": "在一筆資料上試試"
+    },
+    "trigger": {
+      "manual": "僅在有人要求時",
+      "manualShort": "依要求",
+      "created": "新增一列時",
+      "updated": "某列變更時",
+      "noteTitle": "什麼算作變更",
+      "note": "透過匯入新增的列、或直接寫入資料庫的列不會觸發任何繪製——只有經由 Adminium 的寫入才會。"
+    },
+    "delivery": {
+      "stored": "始終留在記錄上。",
+      "email": "寄送給",
+      "noEmail": "不寄送——只留在記錄上",
+      "noEmailSlot": "這種單據沒有地址欄位，因此無法寄送。",
+      "noSmtp": "這套 Adminium 還沒有設定郵件伺服器，因此無法寄送。請在 Studio → 設定 → 郵件中設定一個。"
+    },
+    "grants": {
+      "title": "你無權閱讀其中全部",
+      "refused": "這條對應會讀取 {tables}，而你無權閱讀。由它產生的單據對你會失敗。"
+    },
+    "slot": {
+      "unmapped": "不填入",
+      "byDefault": "由 Adminium 填入",
+      "pii": "隱藏資料",
+      "typed": "我填寫的值",
+      "typedValue": "{slot} 的值",
+      "typedHint": "在此填寫，不從你的資料中讀取——這條對應產生的每份單據都取同一個值。",
+      "noLines": "沒有明細",
+      "looksLikeLines": "看起來像明細",
+      "noChildren": "你的資料庫中沒有任何表指向這張表，因此沒有明細可繪製。單據需要一張帶外鍵指回本表的子表。",
+      "lineColumns": "每一筆明細的各欄位由什麼填入",
+      "lineColumnOf": "每筆明細的 {column}"
+    },
+    "edit": "編輯",
+    "render": {
+      "saveFirst": "請先儲存對應。單據是從已儲存的對應繪製的，這樣你能比其他人先看到結果。",
+      "intro": "現在就從你選的一筆資料繪製一份。不會送往任何地方——它像其他單據一樣留在記錄上。",
+      "search": "搜尋資料",
+      "noRows": "還沒有可供繪製的資料。",
+      "pick": "繪製這一筆",
+      "pending": "正在繪製…",
+      "ready": "已繪製。",
+      "failedRow": "沒有繪製出來：{reason}",
+      "open": "開啟",
+      "slowTitle": "仍然沒有",
+      "slow": "還沒有單據出現。它可能仍在排隊，也可能這套安裝沒有執行背景工作——沒有執行就不會繪製。"
+    },
+    "connectionLabel": "連線",
+    "tableLabel": "表"
   }
 } as const;

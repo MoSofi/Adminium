@@ -17,6 +17,7 @@ import dataio from './en-us/dataio.js';
 import email from './en-us/email.js';
 import files from './en-us/files.js';
 import invoices from './en-us/invoices.js';
+import onboarding from './en-us/onboarding.js';
 import reportBuilder from './en-us/reportBuilder.js';
 import studio from './en-us/studio.js';
 
@@ -43,4 +44,5 @@ export const EN_US_RESOURCES: Record<Namespace, ResourceBundle> = {
   dataio,
   files,
   reportBuilder,
+  onboarding,
 };

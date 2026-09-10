@@ -1837,5 +1837,21 @@ export default {
       "stepConversion": "{pct}% poursuivent",
       "overallConversion": "{pct}% au total"
     }
+  },
+  "documents": {
+    "panel": {
+      "title": "Documents",
+      "empty": "Aucun document n’a encore été établi pour cet enregistrement.",
+      "unnumbered": "Sans numéro",
+      "voided": "annulé",
+      "failed": "n’a pas pu être établi",
+      "redacted": "vous n’avez pas le droit de le lire",
+      "download": "Télécharger",
+      "print": "Imprimer"
+    },
+    "make": {
+      "label": "Établir un document",
+      "one": "Établir {name}"
+    }
   }
 } as const;

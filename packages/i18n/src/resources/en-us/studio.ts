@@ -1166,6 +1166,11 @@ export default {
       "payments": "Payments",
       "email": "Email",
       "data": "Data"
+    },
+    "settings": {
+      "title": "Settings",
+      "save": "Save settings",
+      "badJson": "That is not valid JSON, so it was not saved."
     }
   },
   "pages": {
@@ -1763,5 +1768,77 @@ export default {
       "schema": "Imported schema files",
       "archive": "Archived audit batches"
     }
+  },
+  "documents": {
+    "title": "Document mappings",
+    "intro": "A mapping says which columns of which table make one kind of document, what draws it, and where it goes.",
+    "noProvider": "No installed add-on can draw documents yet. Install one from Add-ons, and the mappings you can make will appear here.",
+    "newFrom": "New mapping for:",
+    "empty": "No mappings yet.",
+    "name": "Name this mapping",
+    "pickTable": "Choose a table…",
+    "delete": "Delete",
+    "disabled": "switched off",
+    "save": "Save mapping",
+    "cancel": "Cancel",
+    "prefix": "Number prefix",
+    "unbound": "Still to fill: {slots}",
+    "step": {
+      "kind": "Kind",
+      "table": "Connection and table",
+      "mapping": "What fills each field",
+      "trigger": "What draws it",
+      "delivery": "Where it goes",
+      "mappingHelp": "Each field reads a column, or takes a value you type here.",
+      "render": "Try it on a row"
+    },
+    "trigger": {
+      "manual": "Only when somebody asks",
+      "manualShort": "on request",
+      "created": "When a row is added",
+      "updated": "When a row changes",
+      "noteTitle": "What counts as a change",
+      "note": "Rows added by an import or written straight into the database do not draw anything — only writes through Adminium do."
+    },
+    "delivery": {
+      "stored": "Kept on the record, always.",
+      "email": "Email it to",
+      "noEmail": "Nobody — keep it on the record",
+      "noEmailSlot": "This kind of document has no address field, so it cannot be emailed.",
+      "noSmtp": "This Adminium has no email server set up yet, so nothing can be sent. Set one up in Studio → Settings → Email."
+    },
+    "grants": {
+      "title": "You cannot read all of this",
+      "refused": "This mapping reads {tables}, which you may not read. Documents from it will fail for you."
+    },
+    "slot": {
+      "unmapped": "Not filled",
+      "byDefault": "Filled by Adminium",
+      "pii": "hidden data",
+      "typed": "A value I type",
+      "typedValue": "Value for {slot}",
+      "typedHint": "Entered here, not read from your data — every document from this mapping gets the same value.",
+      "noLines": "No lines",
+      "looksLikeLines": "looks like lines",
+      "noChildren": "Nothing in your database points at this table, so there are no lines to draw. A document needs a child table with a foreign key back to this one.",
+      "lineColumns": "What fills each column of a line",
+      "lineColumnOf": "{column} of each line"
+    },
+    "edit": "Edit",
+    "render": {
+      "saveFirst": "Save the mapping first. A document is drawn from a saved one, so you can see what it makes before anybody else does.",
+      "intro": "Draw one now, from a row you choose. Nothing is sent anywhere — it is kept on the record like any other.",
+      "search": "Search rows",
+      "noRows": "No rows to draw from yet.",
+      "pick": "Draw this one",
+      "pending": "Drawing…",
+      "ready": "Drawn.",
+      "failedRow": "It did not draw: {reason}",
+      "open": "Open it",
+      "slowTitle": "Still nothing",
+      "slow": "No document has appeared yet. It may still be waiting its turn, or this installation may not be running background jobs — nothing draws until it does."
+    },
+    "connectionLabel": "Connection",
+    "tableLabel": "Table"
   }
 } as const;

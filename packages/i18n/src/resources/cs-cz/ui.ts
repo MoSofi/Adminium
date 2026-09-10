@@ -1837,5 +1837,21 @@ export default {
       "stepConversion": "{pct}% pokračuje",
       "overallConversion": "{pct}% celkem"
     }
+  },
+  "documents": {
+    "panel": {
+      "title": "Doklady",
+      "empty": "K tomuto záznamu zatím nebyl nakreslen žádný doklad.",
+      "unnumbered": "Bez čísla",
+      "voided": "stornováno",
+      "failed": "nepodařilo se nakreslit",
+      "redacted": "tento nesmíte číst",
+      "download": "Stáhnout",
+      "print": "Tisk"
+    },
+    "make": {
+      "label": "Vytvořit doklad",
+      "one": "Vytvořit {name}"
+    }
   }
 } as const;

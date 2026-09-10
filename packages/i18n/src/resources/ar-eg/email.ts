@@ -810,5 +810,14 @@ export default {
     "name": "دعوة الفريق",
     "notice": "تعمل هذه الدعوة مرة واحدة فقط وتنتهي صلاحيتها خلال {expiresInDays} يوم. إذا لم تكن تتوقّعها، فيمكنك تجاهل هذه الرسالة.",
     "subject": "تمت دعوتك إلى {appName}"
+  },
+  "documentReady": {
+    "name": "المستند جاهز",
+    "subject": "{kind} {number} من {business}",
+    "heading": "{kind} الخاص بك جاهز",
+    "body": "رسم {business} لك {kind} {number}. وهو مرفق بهذه الرسالة.",
+    "button": "افتحه على الإنترنت",
+    "footer": "تصلك هذه الرسالة لأن {business} رسم لك هذا المستند.",
+    "attachment": "المستند"
   }
 } as const;

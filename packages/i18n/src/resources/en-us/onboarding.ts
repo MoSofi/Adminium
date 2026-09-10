@@ -1,0 +1,169 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/en-US/onboarding.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "account": {
+    "body": "The first administrator. This happens once, and you stay signed in afterwards.",
+    "confirm": "Confirm password",
+    "email": "Email",
+    "label": "Your account",
+    "name": "Your name",
+    "password": "Password",
+    "passwordHelper": "At least {min} characters.",
+    "strength": "Password strength",
+    "strengthLevels": {
+      "fair": "Fair",
+      "good": "Good",
+      "strong": "Strong",
+      "weak": "Weak"
+    },
+    "sub": "Sign in details",
+    "submit": "Create account",
+    "title": "Create your account"
+  },
+  "back": "Back",
+  "connect": {
+    "body": "Point Adminium at a data source. We read the schema and never write to it unless you ask.",
+    "bridge": {
+      "body": "It was handed over from adminium.dev. Create your account and we will open it in the connect wizard, where you can read it before anything uses it.",
+      "title": "A connection string is waiting for this instance"
+    },
+    "dsn": {
+      "helper": "Nothing leaves this browser until your account exists — then we test it.",
+      "incomplete": "Add the host and database, e.g. postgres://user@host:5432/db",
+      "invalidScheme": "Unrecognized scheme — expected postgres://, mysql://, mariadb:// or sqlite:",
+      "label": "Connection string"
+    },
+    "engine": {
+      "mysql": "MySQL / MariaDB",
+      "postgres": "PostgreSQL",
+      "sqlite": "SQLite"
+    },
+    "engineLabel": "Database engine",
+    "label": "Connect data",
+    "sub": "Link a database",
+    "title": "Connect your database"
+  },
+  "continue": "Continue",
+  "done": {
+    "connected": {
+      "reading": "Connected — Adminium is reading your schema now.",
+      "tables": "Connected · {count, plural, one {# table} other {# tables}} found."
+    },
+    "invited": "{count, plural, one {# invitation} other {# invitations}} created.",
+    "label": "All set",
+    "next": {
+      "blank": "Your workspace is ready. Add a page whenever you are — nothing was generated, exactly as you asked.",
+      "generate": "Your workspace is ready. Next we will pick the tables to include and generate your pages."
+    },
+    "storage": {
+      "local": "Adminium keeps its own data in a file on this machine.",
+      "sameDb": "Adminium keeps its own data in the database you connected.",
+      "separate": "Adminium keeps its own data in the database you gave it."
+    },
+    "sub": "Start building",
+    "title": "You’re all set! 🎉"
+  },
+  "error": {
+    "alreadyCompleted": "This instance has already been set up. Sign in with the existing admin account.",
+    "connectionFailed": "Your account was created and you are signed in — but that database could not be reached: {detail}",
+    "connectionUnknown": "the database did not answer",
+    "failed": "Setup failed. Check your connection and try again.",
+    "rejected": "The server rejected those details. Check the email and password and try again."
+  },
+  "finish": "Go to dashboard",
+  "kicker": "Step {n} of {total}",
+  "meta": {
+    "body": "Your login, the pages you generate and your saved settings. That is separate from the database you just connected, which Adminium only reads.",
+    "label": "Adminium’s data",
+    "local": {
+      "body": "Nothing to set up. Right for trying Adminium out, or for a single instance.",
+      "title": "In a file on this machine"
+    },
+    "moving": {
+      "copying": "Copying Adminium’s data across…",
+      "failed": "Could not move Adminium’s data — retry.",
+      "restarting": "Restarting onto the new database…",
+      "timeout": "Adminium moved its data but has not come back yet. It is safe in the new database — reload this page in a moment."
+    },
+    "pinned": {
+      "body": "This instance was started with its meta store configured, so there is nothing to move. You can change it later from Studio settings.",
+      "title": "Adminium’s data already has a home"
+    },
+    "sameDb": {
+      "body": "Adminium adds its own `adminium_` tables beside yours. One database to back up.",
+      "disabledFile": "A SQLite file is not a server Adminium can add its own tables to.",
+      "disabledNoDdl": "That role cannot run CREATE TABLE, which Adminium’s own migrations need.",
+      "disabledReadOnly": "That role is read-only — Adminium never writes to your database. Keep its data in a file, or give it one of its own.",
+      "noSource": "You have not connected a database yet — connect one first, or keep Adminium’s data in a file.",
+      "title": "In the database you just connected"
+    },
+    "separate": {
+      "body": "A PostgreSQL or MySQL database you provide. Right for production, or for several instances.",
+      "failed": "That database did not answer.",
+      "incomplete": "Add the host and database, e.g. postgres://user@host:5432/adminium",
+      "insufficient": "That role cannot run CREATE TABLE — Adminium’s own migrations need it.",
+      "invalidScheme": "Unrecognized scheme — expected postgres://, mysql:// or mariadb://",
+      "label": "Connection string for Adminium",
+      "ok": "Reachable, and it can create tables.",
+      "test": "Test this database",
+      "title": "In a database of its own"
+    },
+    "sub": "Where it lives",
+    "title": "Where Adminium keeps its own data"
+  },
+  "progressComplete": "{percent}% complete",
+  "progressLabel": "Setup progress",
+  "skip": "Skip",
+  "start": {
+    "body": "This only shapes the pages we generate for you. You can change any of it later, or start from nothing.",
+    "label": "Starting point",
+    "options": {
+      "analytics": {
+        "body": "Charts and tables to read. Nothing writes back.",
+        "title": "Read-only analytics"
+      },
+      "blank": {
+        "body": "Generate nothing. Connect a database and build the pages you want, one at a time.",
+        "title": "Blank canvas"
+      },
+      "crud": {
+        "body": "Tables and forms, without the dashboards.",
+        "title": "CRUD tables"
+      },
+      "fullAdmin": {
+        "body": "A page per table, with create, edit and delete.",
+        "title": "Full admin panel"
+      },
+      "support": {
+        "body": "Queues and customer detail pages first, with deletes off.",
+        "title": "Support console"
+      }
+    },
+    "sub": "Pick a shape",
+    "title": "What will you build first?"
+  },
+  "team": {
+    "body": "Invite the people you work with. You can always add more later.",
+    "copied": "Copied",
+    "copyLink": "Copy link",
+    "duplicate": "That person has already been invited.",
+    "emailLabel": "Teammate’s email",
+    "emailed": "Invitation emailed",
+    "failed": "That invitation could not be created.",
+    "invalidEmail": "Enter a valid email address.",
+    "invite": "Invite",
+    "label": "Your team",
+    "note": "Invitations without email show a link you send yourself. It is shown once — Adminium keeps only a hash of it.",
+    "placeholder": "teammate@company.com",
+    "sub": "Add people",
+    "title": "Bring your team"
+  }
+} as const;

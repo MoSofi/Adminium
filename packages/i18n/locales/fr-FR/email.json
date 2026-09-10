@@ -800,5 +800,14 @@
     "name": "Invitation à l’équipe",
     "notice": "Cette invitation ne fonctionne qu’une seule fois et expire dans {expiresInDays} jours. Si vous ne l’attendiez pas, vous pouvez ignorer cet e-mail.",
     "subject": "Vous avez reçu une invitation à rejoindre {appName}"
+  },
+  "documentReady": {
+    "name": "Document prêt",
+    "subject": "Votre {kind} {number} de {business}",
+    "heading": "Votre {kind} est prêt",
+    "body": "{business} a dessiné {kind} {number} pour vous. Il est joint à cet e-mail.",
+    "button": "Ouvrir en ligne",
+    "footer": "Vous recevez cet e-mail parce que {business} a dessiné ce document pour vous.",
+    "attachment": "Le document"
   }
 }

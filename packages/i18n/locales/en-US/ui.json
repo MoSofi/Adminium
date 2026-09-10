@@ -1827,5 +1827,21 @@
       "stepConversion": "{pct}% continue",
       "overallConversion": "{pct}% overall"
     }
+  },
+  "documents": {
+    "panel": {
+      "title": "Documents",
+      "empty": "No documents have been drawn for this record yet.",
+      "unnumbered": "Not numbered",
+      "voided": "voided",
+      "failed": "could not be drawn",
+      "redacted": "you may not read this one",
+      "download": "Download",
+      "print": "Print"
+    },
+    "make": {
+      "label": "Make a document",
+      "one": "Make {name}"
+    }
   }
 }

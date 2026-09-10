@@ -38,19 +38,20 @@ const root = path.dirname(fileURLToPath(new URL('.', import.meta.url)));
 
 const SOURCE = 'en-US';
 const TAGS = ['de-DE', 'fr-FR', 'cs-CZ', 'da-DK', 'zh-CN', 'zh-TW', 'ar-EG'];
-const NAMESPACES = [
-  'common',
-  'ui',
-  'studio',
-  'generated',
-  'errors',
-  'email',
-  'invoices',
-  'automations',
-  'dataio',
-  'files',
-  'reportBuilder',
-];
+/**
+ * Read from the canonical bundles, not from a list kept here.
+ *
+ * This was the THIRD hardcoded copy of the namespace axis (the others: the
+ * typed `NAMESPACES` in src/resources/namespaces.ts and gen-resources.mjs).
+ * A namespace missing from this one is not tracked at all — its keys never
+ * appear in a `.meta.json`, so the table reports 100% of a set that silently
+ * excludes them. `onboarding` landed that way in 45-T08.
+ */
+const NAMESPACES = fs
+  .readdirSync(path.join(root, 'locales/en-US'))
+  .filter((file) => file.endsWith('.json'))
+  .map((file) => path.basename(file, '.json'))
+  .sort();
 
 /** Namespaces that must be 100% `reviewed` before v1.0 (§3.3). */
 const GATE_STRICT = ['common', 'ui', 'errors'];
@@ -67,6 +68,9 @@ const GATE_RELAXED = {
   dataio: 0.95,
   files: 0.95,
   reportBuilder: 0.95,
+  // The first-run wizard (45-onboarding.md). Named here for the reason the
+  // note above gives: a namespace in neither list is held to nothing.
+  onboarding: 0.95,
 };
 
 /*

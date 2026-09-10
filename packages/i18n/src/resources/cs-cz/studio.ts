@@ -1166,6 +1166,11 @@ export default {
       "payments": "Platby",
       "email": "E-mail",
       "data": "Data"
+    },
+    "settings": {
+      "title": "Nastavení",
+      "save": "Uložit nastavení",
+      "badJson": "Toto není platný JSON, takže se nic neuložilo."
     }
   },
   "pages": {
@@ -1763,5 +1768,77 @@ export default {
       "schema": "Importované soubory schématu",
       "archive": "Archivované dávky auditního logu"
     }
+  },
+  "documents": {
+    "title": "Přiřazení dokladů",
+    "intro": "Přiřazení říká, které sloupce které tabulky tvoří jeden druh dokladu, co jej vyvolá a kam jde.",
+    "noProvider": "Zatím žádný nainstalovaný add-on neumí kreslit doklady. Nainstalujte jej v Add-onech a možná přiřazení se objeví zde.",
+    "newFrom": "Nové přiřazení na:",
+    "empty": "Zatím žádná přiřazení.",
+    "name": "Pojmenovat toto přiřazení",
+    "pickTable": "Vyberte tabulku…",
+    "delete": "Smazat",
+    "disabled": "vypnuto",
+    "save": "Uložit přiřazení",
+    "cancel": "Zrušit",
+    "prefix": "Předčíslí",
+    "unbound": "Ještě vyplnit: {slots}",
+    "step": {
+      "kind": "Druh",
+      "table": "Připojení a tabulka",
+      "mapping": "Co plní každé pole",
+      "trigger": "Co jej vyvolá",
+      "delivery": "Kam jde",
+      "mappingHelp": "Každé pole čte sloupec — nebo bere hodnotu, kterou zde zadáte.",
+      "render": "Vyzkoušet na řádku"
+    },
+    "trigger": {
+      "manual": "Jen na vyžádání",
+      "manualShort": "na vyžádání",
+      "created": "Když přibude řádek",
+      "updated": "Když se řádek změní",
+      "noteTitle": "Co se počítá jako změna",
+      "note": "Řádky z importu nebo zapsané rovnou do databáze nic nevyvolají — jen zápisy přes Adminium."
+    },
+    "delivery": {
+      "stored": "Zůstává vždy u záznamu.",
+      "email": "Odeslat na",
+      "noEmail": "Nikomu — jen ponechat u záznamu",
+      "noEmailSlot": "Tento druh dokladu nemá pole s adresou, a nelze jej tedy odeslat.",
+      "noSmtp": "Toto Adminium zatím nemá nastavený e-mailový server, takže nelze nic odeslat. Nastavte jej v Studio → Nastavení → E-mail."
+    },
+    "grants": {
+      "title": "Nesmíte číst všechno z toho",
+      "refused": "Toto přiřazení čte {tables}, což nesmíte číst. Doklady z něj vám budou selhávat."
+    },
+    "slot": {
+      "unmapped": "Nevyplněno",
+      "byDefault": "Vyplní Adminium",
+      "pii": "skrytá data",
+      "typed": "Hodnota, kterou zadám",
+      "typedValue": "Hodnota pro {slot}",
+      "typedHint": "Zadáno zde, nečte se z vašich dat — každý doklad z tohoto přiřazení dostane stejnou hodnotu.",
+      "noLines": "Žádné položky",
+      "looksLikeLines": "vypadá jako položky",
+      "noChildren": "Nic ve vaší databázi neukazuje na tuto tabulku, takže není co kreslit jako položky. Doklad potřebuje podřízenou tabulku s cizím klíčem zpět na tuto.",
+      "lineColumns": "Co vyplňuje každý sloupec položky",
+      "lineColumnOf": "{column} každé položky"
+    },
+    "edit": "Upravit",
+    "render": {
+      "saveFirst": "Nejprve přiřazení uložte. Doklad se kreslí z uloženého, takže uvidíte, co udělá, dřív než kdokoli jiný.",
+      "intro": "Nakreslete jeden teď, z řádku, který si vyberete. Nic se nikam neposílá — zůstane u záznamu jako každý jiný.",
+      "search": "Hledat v řádcích",
+      "noRows": "Zatím žádné řádky, ze kterých kreslit.",
+      "pick": "Nakreslit tento",
+      "pending": "Kreslí se…",
+      "ready": "Nakresleno.",
+      "failedRow": "Nic se nenakreslilo: {reason}",
+      "open": "Otevřít",
+      "slowTitle": "Stále nic",
+      "slow": "Zatím se neobjevil žádný doklad. Možná ještě čeká, nebo tato instalace neběží s úlohami na pozadí — dokud neběží, nic se nenakreslí."
+    },
+    "connectionLabel": "Připojení",
+    "tableLabel": "Tabulka"
   }
 } as const;

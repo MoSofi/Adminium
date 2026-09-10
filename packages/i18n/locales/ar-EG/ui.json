@@ -1827,5 +1827,21 @@
       "stepConversion": "{pct}% يواصلون",
       "overallConversion": "{pct}% إجمالًا"
     }
+  },
+  "documents": {
+    "panel": {
+      "title": "المستندات",
+      "empty": "لم يُرسم أي مستند لهذا السجل بعد.",
+      "unnumbered": "بلا رقم",
+      "voided": "ملغى",
+      "failed": "تعذّر رسمه",
+      "redacted": "ليس من حقك قراءة هذا",
+      "download": "تنزيل",
+      "print": "طباعة"
+    },
+    "make": {
+      "label": "إنشاء مستند",
+      "one": "إنشاء {name}"
+    }
   }
 }

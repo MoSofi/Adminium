@@ -1837,5 +1837,21 @@ export default {
       "stepConversion": "{pct} % weiter",
       "overallConversion": "{pct} % insgesamt"
     }
+  },
+  "documents": {
+    "panel": {
+      "title": "Belege",
+      "empty": "Für diesen Datensatz wurde noch kein Beleg gezeichnet.",
+      "unnumbered": "Ohne Nummer",
+      "voided": "storniert",
+      "failed": "konnte nicht gezeichnet werden",
+      "redacted": "diesen dürfen Sie nicht lesen",
+      "download": "Herunterladen",
+      "print": "Drucken"
+    },
+    "make": {
+      "label": "Beleg erstellen",
+      "one": "{name} erstellen"
+    }
   }
 } as const;

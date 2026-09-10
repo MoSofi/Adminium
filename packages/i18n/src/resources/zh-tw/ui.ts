@@ -1837,5 +1837,21 @@ export default {
       "stepConversion": "{pct}% 繼續",
       "overallConversion": "整體 {pct}%"
     }
+  },
+  "documents": {
+    "panel": {
+      "title": "單據",
+      "empty": "尚未為這筆記錄繪製任何單據。",
+      "unnumbered": "無編號",
+      "voided": "已作廢",
+      "failed": "無法繪製",
+      "redacted": "你無權閱讀這一份",
+      "download": "下載",
+      "print": "列印"
+    },
+    "make": {
+      "label": "產生單據",
+      "one": "產生{name}"
+    }
   }
 } as const;

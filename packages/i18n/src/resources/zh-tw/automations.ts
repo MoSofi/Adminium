@@ -240,6 +240,7 @@ export default {
     "timezone": "時區",
     "forEach": "對以下表格的每筆記錄",
     "forEachWhere": "其中",
+    "noTable": "不選表格 — 每個週期執行一次",
     "once": "每筆記錄僅一次",
     "onceBody": "已符合過的記錄不會再次執行",
     "timeSaved": "每次執行節省的時間",
@@ -313,12 +314,14 @@ export default {
     "savedBody": "完成它的步驟後再啟用。",
     "done": "完成",
     "trigger": {
-      "created": "{table} 中建立了一筆記錄",
-      "updated": "{table} 中更新了一筆記錄",
-      "deleted": "{table} 中刪除了一筆記錄",
+      "recordCreated": "建立了一筆記錄",
+      "recordUpdated": "更新了一筆記錄",
+      "recordDeleted": "刪除了一筆記錄",
       "schedule": "依排程"
     },
-    "connection": "{connection} · {table}"
+    "connection": "{connection} · {table}",
+    "tablePlaceholder": "搜尋表格…",
+    "tableEmpty": "沒有相符的表格"
   },
   "logs": {
     "title": "工作流程紀錄",
@@ -393,7 +396,13 @@ export default {
     "undone": "在執行前被復原",
     "gone": "記錄已不存在",
     "ruleOff": "等待期間規則被關閉",
-    "skipped": "—"
+    "skipped": "—",
+    "document": {
+      "ok": "已繪製單據 · {number}",
+      "skipped": "未繪製單據 · {reason}",
+      "would": "將繪製 {kind} · {name}",
+      "off": "對應已關閉 · {name}"
+    }
   },
   "dur": {
     "ms": "{ms} 毫秒",

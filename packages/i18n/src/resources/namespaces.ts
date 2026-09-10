@@ -25,6 +25,7 @@ export const NAMESPACES = [
   'dataio',
   'files',
   'reportBuilder',
+  'onboarding',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -87,6 +88,18 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * had been sitting in `common` since before `email.json` existed — shipping
  * server-only text in every dashboard user's boot chunk.
  *
+ * `onboarding` is the six-step first-run wizard (45-onboarding.md 45-T08): 107
+ * messages for the ONE screen an instance shows once in its life. Measured at
+ * 2.5 KiB gzipped — four times the entry ratchet's remaining headroom — for a
+ * surface no session ever returns to, which is the same bargain every namespace
+ * above it took. It is the only deferred namespace whose surface renders BEFORE
+ * anyone signs in, so `setup/onboarding/onboardingMessages.ts` awaits it under
+ * the Suspense boundary that already waits on `setup.state`. Two blocks did NOT
+ * come along: `common:setup.account.*` and `common:setup.consent.*` are read by
+ * `setup/accountValidation.ts` and `setup/TelemetryConsent.tsx`, which the
+ * DESKTOP setup host renders too — a surface that would never await this
+ * namespace.
+ *
  * The contract a deferred namespace owes: nothing outside its own surface may
  * read a key from it, and that surface must await {@link Namespace} loading
  * before it renders. See `apps/dashboard/src/studio/routes.tsx`,
@@ -105,6 +118,7 @@ export const DEFERRED_NAMESPACES = [
   'dataio',
   'files',
   'reportBuilder',
+  'onboarding',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

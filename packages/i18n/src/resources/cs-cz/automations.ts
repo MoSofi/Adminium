@@ -240,6 +240,7 @@ export default {
     "timezone": "Časové pásmo",
     "forEach": "Pro každý záznam z",
     "forEachWhere": "kde",
+    "noTable": "Žádná tabulka — jedno spuštění na tik",
     "once": "Jednou na záznam",
     "onceBody": "Záznam, který už odpovídal, se znovu nespustí",
     "timeSaved": "Ušetřený čas na běh",
@@ -313,12 +314,14 @@ export default {
     "savedBody": "Dokončete jeho kroky a pak ho zapněte.",
     "done": "Hotovo",
     "trigger": {
-      "created": "Záznam je vytvořen v {table}",
-      "updated": "Záznam je aktualizován v {table}",
-      "deleted": "Záznam je smazán v {table}",
+      "recordCreated": "Záznam je vytvořen",
+      "recordUpdated": "Záznam je aktualizován",
+      "recordDeleted": "Záznam je smazán",
       "schedule": "Podle plánu"
     },
-    "connection": "{connection} · {table}"
+    "connection": "{connection} · {table}",
+    "tablePlaceholder": "Hledat tabulky…",
+    "tableEmpty": "Žádná odpovídající tabulka"
   },
   "logs": {
     "title": "Protokoly postupů",
@@ -393,7 +396,13 @@ export default {
     "undone": "Vráceno zpět, než se spustilo",
     "gone": "Záznam už neexistuje",
     "ruleOff": "Pravidlo bylo během čekání vypnuto",
-    "skipped": "—"
+    "skipped": "—",
+    "document": {
+      "ok": "doklad nakreslen · {number}",
+      "skipped": "žádný doklad nenakreslen · {reason}",
+      "would": "Nakreslil by {kind} · {name}",
+      "off": "přiřazení je vypnuté · {name}"
+    }
   },
   "dur": {
     "ms": "{ms} ms",

@@ -1156,6 +1156,11 @@
       "payments": "Zahlungen",
       "email": "E-Mail",
       "data": "Daten"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "save": "Einstellungen speichern",
+      "badJson": "Das ist kein gültiges JSON und wurde nicht gespeichert."
     }
   },
   "pages": {
@@ -1753,5 +1758,77 @@
       "schema": "Importierte Schemadateien",
       "archive": "Archivierte Audit-Log-Stapel"
     }
+  },
+  "documents": {
+    "title": "Beleg-Zuordnungen",
+    "intro": "Eine Zuordnung sagt, welche Spalten welcher Tabelle eine Belegart ergeben, was sie auslöst und wohin sie geht.",
+    "noProvider": "Noch kann kein installiertes Add-on Belege zeichnen. Installieren Sie eines unter Add-ons, dann erscheinen hier die möglichen Zuordnungen.",
+    "newFrom": "Neue Zuordnung für:",
+    "empty": "Noch keine Zuordnungen.",
+    "name": "Diese Zuordnung benennen",
+    "pickTable": "Tabelle wählen…",
+    "delete": "Löschen",
+    "disabled": "ausgeschaltet",
+    "save": "Zuordnung speichern",
+    "cancel": "Abbrechen",
+    "prefix": "Nummernpräfix",
+    "unbound": "Noch auszufüllen: {slots}",
+    "step": {
+      "kind": "Art",
+      "table": "Verbindung und Tabelle",
+      "mapping": "Was jedes Feld füllt",
+      "trigger": "Was ihn auslöst",
+      "delivery": "Wohin er geht",
+      "mappingHelp": "Jedes Feld liest eine Spalte – oder nimmt einen Wert, den Sie hier eintragen.",
+      "render": "An einer Zeile ausprobieren"
+    },
+    "trigger": {
+      "manual": "Nur auf Anforderung",
+      "manualShort": "auf Anforderung",
+      "created": "Wenn eine Zeile hinzukommt",
+      "updated": "Wenn sich eine Zeile ändert",
+      "noteTitle": "Was als Änderung zählt",
+      "note": "Zeilen aus einem Import oder direkt in die Datenbank geschriebene Zeilen lösen nichts aus — nur Schreibvorgänge über Adminium."
+    },
+    "delivery": {
+      "stored": "Bleibt immer am Datensatz.",
+      "email": "Senden an",
+      "noEmail": "An niemanden — nur am Datensatz behalten",
+      "noEmailSlot": "Diese Belegart hat kein Adressfeld und kann daher nicht versendet werden.",
+      "noSmtp": "Für dieses Adminium ist noch kein E-Mail-Server eingerichtet, es kann also nichts versendet werden. Richten Sie einen unter Studio → Einstellungen → E-Mail ein."
+    },
+    "grants": {
+      "title": "Sie dürfen nicht alles davon lesen",
+      "refused": "Diese Zuordnung liest {tables}, was Sie nicht lesen dürfen. Belege daraus schlagen für Sie fehl."
+    },
+    "slot": {
+      "unmapped": "Nicht gefüllt",
+      "byDefault": "Von Adminium gefüllt",
+      "pii": "verborgene Daten",
+      "typed": "Ein Wert, den ich eintrage",
+      "typedValue": "Wert für {slot}",
+      "typedHint": "Hier eingetragen, nicht aus Ihren Daten gelesen – jeder Beleg aus dieser Zuordnung bekommt denselben Wert.",
+      "noLines": "Keine Positionen",
+      "looksLikeLines": "sieht nach Positionen aus",
+      "noChildren": "Nichts in Ihrer Datenbank verweist auf diese Tabelle, es gibt also keine Positionen zu zeichnen. Ein Beleg braucht eine untergeordnete Tabelle mit einem Fremdschlüssel zurück auf diese.",
+      "lineColumns": "Was jede Spalte einer Position füllt",
+      "lineColumnOf": "{column} jeder Position"
+    },
+    "edit": "Bearbeiten",
+    "render": {
+      "saveFirst": "Speichern Sie die Zuordnung zuerst. Gezeichnet wird aus einer gespeicherten – so sehen Sie das Ergebnis, bevor es jemand anderes sieht.",
+      "intro": "Zeichnen Sie jetzt einen, aus einer Zeile Ihrer Wahl. Es wird nichts versendet – er bleibt am Datensatz wie jeder andere.",
+      "search": "Zeilen durchsuchen",
+      "noRows": "Noch keine Zeilen zum Zeichnen.",
+      "pick": "Diese zeichnen",
+      "pending": "Wird gezeichnet…",
+      "ready": "Gezeichnet.",
+      "failedRow": "Es wurde nichts gezeichnet: {reason}",
+      "open": "Öffnen",
+      "slowTitle": "Immer noch nichts",
+      "slow": "Es ist noch kein Beleg erschienen. Vielleicht wartet er noch – oder diese Installation führt keine Hintergrundaufträge aus; dann wird nichts gezeichnet, bis sie es tut."
+    },
+    "connectionLabel": "Verbindung",
+    "tableLabel": "Tabelle"
   }
 }

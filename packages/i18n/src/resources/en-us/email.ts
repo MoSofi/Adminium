@@ -810,5 +810,14 @@ export default {
     "name": "Team invitation",
     "notice": "This invitation works only once and expires in {expiresInDays} days. If you weren’t expecting it, you can ignore this email.",
     "subject": "You have been invited to {appName}"
+  },
+  "documentReady": {
+    "name": "Document ready",
+    "subject": "Your {kind} {number} from {business}",
+    "heading": "Your {kind} is ready",
+    "body": "{business} has drawn {kind} {number} for you. It is attached to this email.",
+    "button": "Open it online",
+    "footer": "You are receiving this because {business} drew this document for you.",
+    "attachment": "The document"
   }
 } as const;

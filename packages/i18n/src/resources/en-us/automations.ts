@@ -240,6 +240,7 @@ export default {
     "timezone": "Timezone",
     "forEach": "For each record of",
     "forEachWhere": "where",
+    "noTable": "No table — one run per tick",
     "once": "Once per record",
     "onceBody": "A record that matched before is not run again",
     "timeSaved": "Time saved per run",
@@ -313,12 +314,14 @@ export default {
     "savedBody": "Finish its steps, then switch it on.",
     "done": "Done",
     "trigger": {
-      "created": "A record is created in {table}",
-      "updated": "A record is updated in {table}",
-      "deleted": "A record is deleted in {table}",
+      "recordCreated": "A record is created",
+      "recordUpdated": "A record is updated",
+      "recordDeleted": "A record is deleted",
       "schedule": "On a schedule"
     },
-    "connection": "{connection} · {table}"
+    "connection": "{connection} · {table}",
+    "tablePlaceholder": "Search tables…",
+    "tableEmpty": "No matching table"
   },
   "logs": {
     "title": "Workflow logs",
@@ -393,7 +396,13 @@ export default {
     "undone": "Undone before it ran",
     "gone": "Record no longer exists",
     "ruleOff": "Rule was switched off while waiting",
-    "skipped": "—"
+    "skipped": "—",
+    "document": {
+      "ok": "document drawn · {number}",
+      "skipped": "no document drawn · {reason}",
+      "would": "Would draw {kind} · {name}",
+      "off": "mapping is switched off · {name}"
+    }
   },
   "dur": {
     "ms": "{ms}ms",

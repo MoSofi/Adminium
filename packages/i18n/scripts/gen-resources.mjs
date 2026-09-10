@@ -15,19 +15,19 @@ const root = path.dirname(fileURLToPath(new URL('.', import.meta.url)));
 
 /** BCP-47 locale directory names under locales/, mirrored to kebab-lowercase dirs under src/resources/. */
 const localeTags = ['en-US', 'de-DE', 'fr-FR', 'cs-CZ', 'da-DK', 'zh-CN', 'zh-TW', 'ar-EG'];
-const namespaces = [
-  'common',
-  'ui',
-  'studio',
-  'generated',
-  'errors',
-  'email',
-  'invoices',
-  'automations',
-  'dataio',
-  'files',
-  'reportBuilder',
-];
+/**
+ * Read from the canonical bundles rather than a list kept here.
+ *
+ * This WAS a hardcoded array, a second copy of `src/resources/namespaces.ts`'s
+ * `NAMESPACES` — so adding `onboarding.json` in eight locales regenerated 88
+ * mirrors and silently skipped all eight new ones (45-T08). The JSON files are
+ * the canonical hand-authored bundles; anything else is a mirror of them.
+ */
+const namespaces = fs
+  .readdirSync(path.join(root, 'locales/en-US'))
+  .filter((file) => file.endsWith('.json'))
+  .map((file) => path.basename(file, '.json'))
+  .sort();
 
 let count = 0;
 for (const tag of localeTags) {

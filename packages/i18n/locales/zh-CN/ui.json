@@ -1827,5 +1827,21 @@
       "stepConversion": "{pct}% 继续",
       "overallConversion": "总体 {pct}%"
     }
+  },
+  "documents": {
+    "panel": {
+      "title": "单据",
+      "empty": "尚未为这条记录绘制任何单据。",
+      "unnumbered": "无编号",
+      "voided": "已作废",
+      "failed": "无法绘制",
+      "redacted": "你无权阅读这一份",
+      "download": "下载",
+      "print": "打印"
+    },
+    "make": {
+      "label": "生成单据",
+      "one": "生成{name}"
+    }
   }
 }

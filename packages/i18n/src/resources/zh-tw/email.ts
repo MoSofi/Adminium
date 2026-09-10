@@ -810,5 +810,14 @@ export default {
     "name": "團隊邀請",
     "notice": "這份邀請只能使用一次，並將於 {expiresInDays} 天後失效。如果你並未預期收到這份邀請，可以忽略這封郵件。",
     "subject": "你受邀加入 {appName}"
+  },
+  "documentReady": {
+    "name": "單據已就緒",
+    "subject": "來自 {business} 的{kind} {number}",
+    "heading": "你的{kind}已就緒",
+    "body": "{business} 為你繪製了{kind} {number}，已作為附件隨本郵件寄出。",
+    "button": "線上開啟",
+    "footer": "你收到這封郵件，是因為 {business} 為你繪製了這份單據。",
+    "attachment": "單據"
   }
 } as const;

@@ -240,6 +240,7 @@ export default {
     "timezone": "المنطقة الزمنية",
     "forEach": "لكل سجل في",
     "forEachWhere": "حيث",
+    "noTable": "بدون جدول — تشغيل واحد لكل دورة",
     "once": "مرة واحدة لكل سجل",
     "onceBody": "السجل الذي تطابق سابقًا لا يُشغَّل مرة أخرى",
     "timeSaved": "الوقت الموفَّر لكل تشغيل",
@@ -313,12 +314,14 @@ export default {
     "savedBody": "أكمل خطواتها ثم فعّلها.",
     "done": "تم",
     "trigger": {
-      "created": "يتم إنشاء سجل في {table}",
-      "updated": "يتم تحديث سجل في {table}",
-      "deleted": "يتم حذف سجل في {table}",
+      "recordCreated": "يتم إنشاء سجل",
+      "recordUpdated": "يتم تحديث سجل",
+      "recordDeleted": "يتم حذف سجل",
       "schedule": "وفق جدول زمني"
     },
-    "connection": "{connection} · {table}"
+    "connection": "{connection} · {table}",
+    "tablePlaceholder": "ابحث في الجداول…",
+    "tableEmpty": "لا يوجد جدول مطابق"
   },
   "logs": {
     "title": "سجلات سير العمل",
@@ -393,7 +396,13 @@ export default {
     "undone": "تم التراجع عنه قبل تشغيله",
     "gone": "لم يعد السجل موجودًا",
     "ruleOff": "أُوقفت القاعدة أثناء الانتظار",
-    "skipped": "—"
+    "skipped": "—",
+    "document": {
+      "ok": "رُسم المستند · {number}",
+      "skipped": "لم يُرسم مستند · {reason}",
+      "would": "سيرسم {kind} · {name}",
+      "off": "الربط موقوف · {name}"
+    }
   },
   "dur": {
     "ms": "{ms} م.ث",
