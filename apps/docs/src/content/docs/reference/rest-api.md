@@ -84,7 +84,7 @@ Thirty-one namespaces. Counts are operations, not paths.
 | Group | Ops | |
 |---|---:|---|
 | `/api/v1/about/*` | 2 | Build version, edition, and the update check |
-| `/api/v1/add-ons/*` | 17 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
+| `/api/v1/add-ons/*` | 18 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
@@ -94,6 +94,7 @@ Thirty-one namespaces. Counts are operations, not paths.
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
 | `/api/v1/connections/*` | 22 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/data/*` | 8 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
+| `/api/v1/documents/*` | 13 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
 | `/api/v1/email-runs` | 1 | Campaign sends — cancel a scheduled or running run |
 | `/api/v1/email-templates/*` | 17 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
@@ -111,7 +112,7 @@ Thirty-one namespaces. Counts are operations, not paths.
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/pages/*` | 13 | Pages and dashboards — layout, config, nav order, shared views |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
-| `/api/v1/public/*` | 6 | The scoped public API for customer- and staff-facing pages (off by default) |
+| `/api/v1/public/*` | 11 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 2 | Turn the public API on or off, and see whether this instance opted in |
 | `/api/v1/public-keys/*` | 5 | Issue, reveal, rotate and revoke the browser-safe keys your pages use |
 | `/api/v1/public-scopes/*` | 4 | Define what a public key may read — resources, columns, filters and time zone |
@@ -175,6 +176,7 @@ POST /api/v1/add-ons/{key}/connect/oauth/start
 POST /api/v1/add-ons/{key}/connect/oauth/complete
 PATCH /api/v1/add-ons/{key}
 DELETE /api/v1/add-ons/{key}
+PUT /api/v1/add-ons/{key}/settings
 ```
 
 ### `/api-keys`
@@ -284,6 +286,24 @@ GET /api/v1/data/{connectionId}/{table}/{recordId}/references
 GET /api/v1/data/{connectionId}/{table}/{recordId}
 PATCH /api/v1/data/{connectionId}/{table}/{recordId}
 DELETE /api/v1/data/{connectionId}/{table}/{recordId}
+```
+
+### `/documents`
+
+```http
+GET /api/v1/documents/kinds
+GET /api/v1/documents/providers
+GET /api/v1/documents/profiles
+POST /api/v1/documents/profiles
+PUT /api/v1/documents/profiles/{id}
+DELETE /api/v1/documents/profiles/{id}
+GET /api/v1/documents
+GET /api/v1/documents/{id}
+GET /api/v1/documents/{id}/content
+GET /api/v1/documents/{id}/print
+POST /api/v1/documents/render
+POST /api/v1/documents/{id}/void
+POST /api/v1/documents/{id}/send
 ```
 
 ### `/email-blocks`
@@ -495,6 +515,11 @@ GET /api/v1/public/records/{ref}
 POST /api/v1/public/records/{ref}
 PATCH /api/v1/public/records/{ref}/{id}
 POST /api/v1/public/claim
+POST /api/v1/public/documents/render
+GET /api/v1/public/documents
+GET /api/v1/public/documents/{id}
+GET /api/v1/public/documents/{id}/content
+POST /api/v1/public/documents/{id}/email
 DELETE /api/v1/public/session
 ```
 

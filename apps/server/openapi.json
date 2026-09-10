@@ -13983,6 +13983,34 @@
                                                     "kind": {
                                                       "type": "string",
                                                       "enum": [
+                                                        "document.render"
+                                                      ]
+                                                    },
+                                                    "profileId": {
+                                                      "default": null,
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "string",
+                                                          "maxLength": 36
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "kind",
+                                                    "profileId"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
                                                         "webhook"
                                                       ]
                                                     },
@@ -14882,6 +14910,34 @@
                                                                           "kind": {
                                                                             "type": "string",
                                                                             "enum": [
+                                                                              "document.render"
+                                                                            ]
+                                                                          },
+                                                                          "profileId": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 36
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "profileId"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      },
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
                                                                               "webhook"
                                                                             ]
                                                                           },
@@ -15623,6 +15679,34 @@
                                                                         "required": [
                                                                           "kind",
                                                                           "values"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      },
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "document.render"
+                                                                            ]
+                                                                          },
+                                                                          "profileId": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 36
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "profileId"
                                                                         ],
                                                                         "additionalProperties": false
                                                                       },
@@ -17142,6 +17226,32 @@
                                             "kind": {
                                               "type": "string",
                                               "enum": [
+                                                "document.render"
+                                              ]
+                                            },
+                                            "profileId": {
+                                              "default": null,
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "maxLength": 36
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
                                                 "webhook"
                                               ]
                                             },
@@ -17995,6 +18105,32 @@
                                                                   "kind": {
                                                                     "type": "string",
                                                                     "enum": [
+                                                                      "document.render"
+                                                                    ]
+                                                                  },
+                                                                  "profileId": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 36
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
                                                                       "webhook"
                                                                     ]
                                                                   },
@@ -18693,6 +18829,32 @@
                                                                         }
                                                                       ]
                                                                     }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "document.render"
+                                                                    ]
+                                                                  },
+                                                                  "profileId": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 36
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
                                                                   }
                                                                 },
                                                                 "required": [
@@ -20167,6 +20329,34 @@
                                               "kind": {
                                                 "type": "string",
                                                 "enum": [
+                                                  "document.render"
+                                                ]
+                                              },
+                                              "profileId": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "maxLength": 36
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "profileId"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
                                                   "webhook"
                                                 ]
                                               },
@@ -21066,6 +21256,34 @@
                                                                     "kind": {
                                                                       "type": "string",
                                                                       "enum": [
+                                                                        "document.render"
+                                                                      ]
+                                                                    },
+                                                                    "profileId": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 36
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "profileId"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
                                                                         "webhook"
                                                                       ]
                                                                     },
@@ -21816,6 +22034,34 @@
                                                                     "kind": {
                                                                       "type": "string",
                                                                       "enum": [
+                                                                        "document.render"
+                                                                      ]
+                                                                    },
+                                                                    "profileId": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 36
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "profileId"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
                                                                         "webhook"
                                                                       ]
                                                                     },
@@ -22537,6 +22783,29 @@
                                     "additionalProperties": false
                                   }
                                 },
+                                "children": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "table": {
+                                        "type": "string"
+                                      },
+                                      "column": {
+                                        "type": "string"
+                                      },
+                                      "lineItems": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "table",
+                                      "column",
+                                      "lineItems"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
                                 "pageSlug": {
                                   "anyOf": [
                                     {
@@ -22556,6 +22825,7 @@
                                 "canUpdate",
                                 "watch",
                                 "columns",
+                                "children",
                                 "pageSlug"
                               ],
                               "additionalProperties": false
@@ -23682,6 +23952,34 @@
                                               "kind": {
                                                 "type": "string",
                                                 "enum": [
+                                                  "document.render"
+                                                ]
+                                              },
+                                              "profileId": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "maxLength": 36
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "profileId"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
                                                   "webhook"
                                                 ]
                                               },
@@ -24581,6 +24879,34 @@
                                                                     "kind": {
                                                                       "type": "string",
                                                                       "enum": [
+                                                                        "document.render"
+                                                                      ]
+                                                                    },
+                                                                    "profileId": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 36
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "profileId"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
                                                                         "webhook"
                                                                       ]
                                                                     },
@@ -25322,6 +25648,34 @@
                                                                   "required": [
                                                                     "kind",
                                                                     "values"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "document.render"
+                                                                      ]
+                                                                    },
+                                                                    "profileId": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 36
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "profileId"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -26824,6 +27178,32 @@
                                             "kind": {
                                               "type": "string",
                                               "enum": [
+                                                "document.render"
+                                              ]
+                                            },
+                                            "profileId": {
+                                              "default": null,
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "maxLength": 36
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
                                                 "webhook"
                                               ]
                                             },
@@ -27677,6 +28057,32 @@
                                                                   "kind": {
                                                                     "type": "string",
                                                                     "enum": [
+                                                                      "document.render"
+                                                                    ]
+                                                                  },
+                                                                  "profileId": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 36
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
                                                                       "webhook"
                                                                     ]
                                                                   },
@@ -28375,6 +28781,32 @@
                                                                         }
                                                                       ]
                                                                     }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "document.render"
+                                                                    ]
+                                                                  },
+                                                                  "profileId": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 36
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
                                                                   }
                                                                 },
                                                                 "required": [
@@ -29854,6 +30286,34 @@
                                               "kind": {
                                                 "type": "string",
                                                 "enum": [
+                                                  "document.render"
+                                                ]
+                                              },
+                                              "profileId": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "maxLength": 36
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "profileId"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
                                                   "webhook"
                                                 ]
                                               },
@@ -30753,6 +31213,34 @@
                                                                     "kind": {
                                                                       "type": "string",
                                                                       "enum": [
+                                                                        "document.render"
+                                                                      ]
+                                                                    },
+                                                                    "profileId": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 36
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "profileId"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
                                                                         "webhook"
                                                                       ]
                                                                     },
@@ -31494,6 +31982,34 @@
                                                                   "required": [
                                                                     "kind",
                                                                     "values"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "document.render"
+                                                                      ]
+                                                                    },
+                                                                    "profileId": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 36
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "profileId"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -33114,6 +33630,34 @@
                                               "kind": {
                                                 "type": "string",
                                                 "enum": [
+                                                  "document.render"
+                                                ]
+                                              },
+                                              "profileId": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "maxLength": 36
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "profileId"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
                                                   "webhook"
                                                 ]
                                               },
@@ -34013,6 +34557,34 @@
                                                                     "kind": {
                                                                       "type": "string",
                                                                       "enum": [
+                                                                        "document.render"
+                                                                      ]
+                                                                    },
+                                                                    "profileId": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 36
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "profileId"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
                                                                         "webhook"
                                                                       ]
                                                                     },
@@ -34754,6 +35326,34 @@
                                                                   "required": [
                                                                     "kind",
                                                                     "values"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "document.render"
+                                                                      ]
+                                                                    },
+                                                                    "profileId": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 36
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "profileId"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -36253,6 +36853,32 @@
                                             "kind": {
                                               "type": "string",
                                               "enum": [
+                                                "document.render"
+                                              ]
+                                            },
+                                            "profileId": {
+                                              "default": null,
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "maxLength": 36
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
                                                 "webhook"
                                               ]
                                             },
@@ -37106,6 +37732,32 @@
                                                                   "kind": {
                                                                     "type": "string",
                                                                     "enum": [
+                                                                      "document.render"
+                                                                    ]
+                                                                  },
+                                                                  "profileId": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 36
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
                                                                       "webhook"
                                                                     ]
                                                                   },
@@ -37804,6 +38456,32 @@
                                                                         }
                                                                       ]
                                                                     }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "document.render"
+                                                                    ]
+                                                                  },
+                                                                  "profileId": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 36
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
                                                                   }
                                                                 },
                                                                 "required": [
@@ -64262,7 +64940,8 @@
                             "import",
                             "branding",
                             "schema",
-                            "archive"
+                            "archive",
+                            "document"
                           ]
                         },
                         "destinationId": {
@@ -64401,7 +65080,8 @@
                 "import",
                 "branding",
                 "schema",
-                "archive"
+                "archive",
+                "document"
               ]
             },
             "in": "query",
@@ -64547,7 +65227,8 @@
                               "import",
                               "branding",
                               "schema",
-                              "archive"
+                              "archive",
+                              "document"
                             ]
                           },
                           "destinationId": {
@@ -64786,7 +65467,8 @@
                             "import",
                             "branding",
                             "schema",
-                            "archive"
+                            "archive",
+                            "document"
                           ]
                         },
                         "destinationId": {
@@ -64968,7 +65650,8 @@
                             "import",
                             "branding",
                             "schema",
-                            "archive"
+                            "archive",
+                            "document"
                           ]
                         },
                         "destinationId": {
@@ -65130,7 +65813,8 @@
                             "import",
                             "branding",
                             "schema",
-                            "archive"
+                            "archive",
+                            "document"
                           ]
                         },
                         "destinationId": {
@@ -65314,7 +65998,8 @@
                                   "import",
                                   "branding",
                                   "schema",
-                                  "archive"
+                                  "archive",
+                                  "document"
                                 ]
                               },
                               "destinationId": {
@@ -65543,7 +66228,8 @@
                             "import",
                             "branding",
                             "schema",
-                            "archive"
+                            "archive",
+                            "document"
                           ]
                         },
                         "destinationId": {
@@ -65707,7 +66393,8 @@
                             "import",
                             "branding",
                             "schema",
-                            "archive"
+                            "archive",
+                            "document"
                           ]
                         },
                         "destinationId": {
@@ -65871,7 +66558,8 @@
                             "import",
                             "branding",
                             "schema",
-                            "archive"
+                            "archive",
+                            "document"
                           ]
                         },
                         "destinationId": {
@@ -65979,6 +66667,1421 @@
                   },
                   "required": [
                     "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/kinds": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "kinds": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "addOnKey": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          },
+                          "formats": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "paper": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "coverage": {
+                            "type": "string"
+                          },
+                          "outline": {
+                            "type": "object",
+                            "properties": {
+                              "slots": {
+                                "type": "array",
+                                "items": {}
+                              }
+                            },
+                            "required": [
+                              "slots"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "addOnKey",
+                          "kind",
+                          "label",
+                          "formats",
+                          "paper",
+                          "coverage",
+                          "outline"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "kinds"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/providers": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "installed": {
+                      "type": "boolean"
+                    },
+                    "addOnKeys": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "installed",
+                    "addOnKeys"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/profiles": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "in": "query",
+            "name": "addOnKey",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "profiles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "addOnKey": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "table": {
+                            "type": "string"
+                          },
+                          "mapping": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "options": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "trigger": {
+                            "anyOf": [
+                              {},
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "deliver": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "number"
+                          },
+                          "updatedAt": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "addOnKey",
+                          "kind",
+                          "name",
+                          "connectionId",
+                          "table",
+                          "mapping",
+                          "options",
+                          "trigger",
+                          "deliver",
+                          "enabled",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "profiles"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "addOnKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "kind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "mapping": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "options": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "trigger": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "type": "string",
+                            "enum": [
+                              "record.created",
+                              "record.updated",
+                              "record.deleted"
+                            ]
+                          },
+                          "when": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "column": {
+                                    "type": "string",
+                                    "maxLength": 128
+                                  },
+                                  "op": {
+                                    "type": "string",
+                                    "maxLength": 20
+                                  },
+                                  "value": {}
+                                },
+                                "required": [
+                                  "column",
+                                  "op",
+                                  "value"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "event"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deliver": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "addOnKey",
+                  "kind",
+                  "name",
+                  "connectionId",
+                  "table",
+                  "mapping"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "addOnKey": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "connectionId": {
+                      "type": "string"
+                    },
+                    "table": {
+                      "type": "string"
+                    },
+                    "mapping": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "options": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "trigger": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "deliver": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "addOnKey",
+                    "kind",
+                    "name",
+                    "connectionId",
+                    "table",
+                    "mapping",
+                    "options",
+                    "trigger",
+                    "deliver",
+                    "enabled",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/profiles/{id}": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "mapping": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "options": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "trigger": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "type": "string",
+                            "enum": [
+                              "record.created",
+                              "record.updated",
+                              "record.deleted"
+                            ]
+                          },
+                          "when": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "column": {
+                                    "type": "string",
+                                    "maxLength": 128
+                                  },
+                                  "op": {
+                                    "type": "string",
+                                    "maxLength": 20
+                                  },
+                                  "value": {}
+                                },
+                                "required": [
+                                  "column",
+                                  "op",
+                                  "value"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "event"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deliver": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "addOnKey": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "connectionId": {
+                      "type": "string"
+                    },
+                    "table": {
+                      "type": "string"
+                    },
+                    "mapping": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "options": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "trigger": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "deliver": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "addOnKey",
+                    "kind",
+                    "name",
+                    "connectionId",
+                    "table",
+                    "mapping",
+                    "options",
+                    "trigger",
+                    "deliver",
+                    "enabled",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "entityTable",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "entityId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "profileId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "profileId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "addOnKey": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "connectionId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "entityTable": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "entityId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "subject": {
+                            "anyOf": [
+                              {},
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "number": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "locale": {
+                            "type": "string"
+                          },
+                          "format": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "error": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "delivery": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "renderedAt": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "voidedAt": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "voidReason": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "number"
+                          },
+                          "redacted": {
+                            "type": "boolean"
+                          },
+                          "hasContent": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "profileId",
+                          "addOnKey",
+                          "kind",
+                          "connectionId",
+                          "entityTable",
+                          "entityId",
+                          "subject",
+                          "number",
+                          "locale",
+                          "format",
+                          "status",
+                          "error",
+                          "delivery",
+                          "renderedAt",
+                          "voidedAt",
+                          "voidReason",
+                          "createdAt",
+                          "redacted",
+                          "hasContent"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "documents"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "profileId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "addOnKey": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "connectionId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "entityTable": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "entityId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "subject": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "number": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "locale": {
+                      "type": "string"
+                    },
+                    "format": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "delivery": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "renderedAt": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "voidedAt": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "voidReason": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "redacted": {
+                      "type": "boolean"
+                    },
+                    "hasContent": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "profileId",
+                    "addOnKey",
+                    "kind",
+                    "connectionId",
+                    "entityTable",
+                    "entityId",
+                    "subject",
+                    "number",
+                    "locale",
+                    "format",
+                    "status",
+                    "error",
+                    "delivery",
+                    "renderedAt",
+                    "voidedAt",
+                    "voidReason",
+                    "createdAt",
+                    "redacted",
+                    "hasContent"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{id}/content": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{id}/print": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/render": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "profileId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "pk": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "locale": {
+                    "type": "string",
+                    "maxLength": 16
+                  }
+                },
+                "required": [
+                  "profileId",
+                  "pk"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jobId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{id}/void": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "default": "operator",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "profileId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "addOnKey": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "connectionId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "entityTable": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "entityId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "subject": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "number": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "locale": {
+                      "type": "string"
+                    },
+                    "format": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "delivery": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "renderedAt": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "voidedAt": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "voidReason": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "redacted": {
+                      "type": "boolean"
+                    },
+                    "hasContent": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "profileId",
+                    "addOnKey",
+                    "kind",
+                    "connectionId",
+                    "entityTable",
+                    "entityId",
+                    "subject",
+                    "number",
+                    "locale",
+                    "format",
+                    "status",
+                    "error",
+                    "delivery",
+                    "renderedAt",
+                    "voidedAt",
+                    "voidReason",
+                    "createdAt",
+                    "redacted",
+                    "hasContent"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{id}/send": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "delivery": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "delivery"
                   ],
                   "additionalProperties": false
                 }
@@ -72100,6 +74203,95 @@
                             "type": "string"
                           }
                         },
+                        "settings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "secret": {
+                                "type": "boolean"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "help": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "type",
+                              "required",
+                              "secret",
+                              "label",
+                              "help",
+                              "options"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "settingValues": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -72136,6 +74328,8 @@
                         "slots",
                         "provides",
                         "networkAllow",
+                        "settings",
+                        "settingValues",
                         "bundles"
                       ],
                       "additionalProperties": false
@@ -72281,6 +74475,95 @@
                               "type": "string"
                             }
                           },
+                          "settings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                },
+                                "label": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "key": {
+                                          "type": "string"
+                                        },
+                                        "fallback": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "fallback"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "help": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "key": {
+                                          "type": "string"
+                                        },
+                                        "fallback": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "fallback"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "options": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "type",
+                                "required",
+                                "secret",
+                                "label",
+                                "help",
+                                "options"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "settingValues": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
                           "bundles": {
                             "type": "array",
                             "items": {
@@ -72317,6 +74600,8 @@
                           "slots",
                           "provides",
                           "networkAllow",
+                          "settings",
+                          "settingValues",
                           "bundles"
                         ],
                         "additionalProperties": false
@@ -72477,6 +74762,95 @@
                             "type": "string"
                           }
                         },
+                        "settings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "secret": {
+                                "type": "boolean"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "help": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "type",
+                              "required",
+                              "secret",
+                              "label",
+                              "help",
+                              "options"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "settingValues": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -72513,6 +74887,8 @@
                         "slots",
                         "provides",
                         "networkAllow",
+                        "settings",
+                        "settingValues",
                         "bundles"
                       ],
                       "additionalProperties": false
@@ -73039,6 +75415,95 @@
                             "type": "string"
                           }
                         },
+                        "settings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "secret": {
+                                "type": "boolean"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "help": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "type",
+                              "required",
+                              "secret",
+                              "label",
+                              "help",
+                              "options"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "settingValues": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -73075,6 +75540,8 @@
                         "slots",
                         "provides",
                         "networkAllow",
+                        "settings",
+                        "settingValues",
                         "bundles"
                       ],
                       "additionalProperties": false
@@ -73355,6 +75822,95 @@
                             "type": "string"
                           }
                         },
+                        "settings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "secret": {
+                                "type": "boolean"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "help": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "type",
+                              "required",
+                              "secret",
+                              "label",
+                              "help",
+                              "options"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "settingValues": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -73391,6 +75947,8 @@
                         "slots",
                         "provides",
                         "networkAllow",
+                        "settings",
+                        "settingValues",
                         "bundles"
                       ],
                       "additionalProperties": false
@@ -73553,6 +76111,95 @@
                             "type": "string"
                           }
                         },
+                        "settings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "secret": {
+                                "type": "boolean"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "help": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "type",
+                              "required",
+                              "secret",
+                              "label",
+                              "help",
+                              "options"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "settingValues": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
                         "bundles": {
                           "type": "array",
                           "items": {
@@ -73589,6 +76236,8 @@
                         "slots",
                         "provides",
                         "networkAllow",
+                        "settings",
+                        "settingValues",
                         "bundles"
                       ],
                       "additionalProperties": false
@@ -73639,6 +76288,78 @@
                     "key",
                     "tablesKept",
                     "packageRemoved"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/settings": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "values": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "values"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "values": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "values",
+                    "updatedAt"
                   ],
                   "additionalProperties": false
                 }
@@ -79368,6 +82089,1313 @@
             }
           },
           "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/documents/render": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "profileId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                      },
+                      "ref": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "id": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      "locale": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 35
+                      }
+                    },
+                    "required": [
+                      "profileId",
+                      "ref",
+                      "id"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "locale": {
+                        "type": "string",
+                        "minLength": 2
+                      },
+                      "fields": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      },
+                      "collections": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        }
+                      },
+                      "customerEmail": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 320
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "fields",
+                      "collections"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "number": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "delivery": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "format": {
+                          "type": "string"
+                        },
+                        "locale": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "hasContent": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "number",
+                        "status",
+                        "delivery",
+                        "format",
+                        "locale",
+                        "createdAt",
+                        "hasContent"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/documents": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "query",
+            "name": "ref",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "in": "query",
+            "name": "id",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "number": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "delivery": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "format": {
+                            "type": "string"
+                          },
+                          "locale": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "number"
+                          },
+                          "hasContent": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "number",
+                          "status",
+                          "delivery",
+                          "format",
+                          "locale",
+                          "createdAt",
+                          "hasContent"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/documents/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "number": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "delivery": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "format": {
+                          "type": "string"
+                        },
+                        "locale": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "hasContent": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "number",
+                        "status",
+                        "delivery",
+                        "format",
+                        "locale",
+                        "createdAt",
+                        "hasContent"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/documents/{id}/content": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/documents/{id}/email": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "number": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "delivery": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "format": {
+                          "type": "string"
+                        },
+                        "locale": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "hasContent": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "number",
+                        "status",
+                        "delivery",
+                        "format",
+                        "locale",
+                        "createdAt",
+                        "hasContent"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
             "description": "Default Response",
             "content": {
               "application/json": {
