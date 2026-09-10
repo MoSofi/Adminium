@@ -130,6 +130,103 @@ describe('connect()', () => {
     expect(String(pools[0]!.options['options'])).toBe('-c statement_timeout=1500');
   });
 
+  describe('an `options=` already in the DSN', () => {
+    // `pg` resolves connection parameters as `Object.assign({}, config, parse(
+    // connectionString))`, so a DSN's own `options` silently outranked the one
+    // the adapter passes — and OUR session settings were the ones dropped, on
+    // every connection, with nothing logged. Measured on the wire before the
+    // fix: a DSN carrying `-c statement_timeout=60000` was all the server saw.
+    const WITH_OPTIONS = `${DSN}?options=${encodeURIComponent('-c search_path=reporting')}`;
+
+    it('is lifted out of the connection string so it cannot outrank ours', async () => {
+      const adapter = new mod.PostgresAdapter('introspect');
+      await adapter.connect({ role: 'introspect', dsn: WITH_OPTIONS } as never);
+
+      // The DSN handed to pg no longer carries it — nothing left to collide.
+      expect(String(pools[0]!.options['connectionString'])).toBe(DSN);
+      expect(String(pools[0]!.options['connectionString'])).not.toContain('options=');
+    });
+
+    it('is preserved, with our settings appended after it', async () => {
+      const adapter = new mod.PostgresAdapter('introspect');
+      await adapter.connect({ role: 'introspect', dsn: WITH_OPTIONS } as never);
+
+      // Ours go LAST: a repeated `-c key=value` resolves to the final
+      // assignment, so the session rails win a conflict while anything else the
+      // operator set still survives.
+      expect(String(pools[0]!.options['options'])).toBe(
+        '-c search_path=reporting -c statement_timeout=15000 -c lock_timeout=2s -c idle_in_transaction_session_timeout=10s',
+      );
+    });
+
+    it('loses to our value when both set the same knob', async () => {
+      const adapter = new mod.PostgresAdapter('data');
+      await adapter.connect({
+        role: 'data',
+        dsn: `${DSN}?options=${encodeURIComponent('-c statement_timeout=60000')}`,
+        statementTimeoutMs: 5,
+      } as never);
+
+      const options = String(pools[0]!.options['options']);
+      expect(options).toBe('-c statement_timeout=60000 -c statement_timeout=5');
+      expect(options.lastIndexOf('=5')).toBeGreaterThan(options.indexOf('=60000'));
+    });
+
+    it('survives the pooler downgrade — we drop ours, never theirs', async () => {
+      // A pooler refuses the operator's startup options exactly as it refuses
+      // ours. Keeping theirs means such a DSN still fails, with a hint naming
+      // `options=` as the thing to remove, instead of us quietly discarding a
+      // setting they asked for.
+      const adapter = new mod.PostgresAdapter('introspect');
+      await adapter.connect({ role: 'introspect', dsn: WITH_OPTIONS } as never);
+      let attempt = 0;
+      respond = (sql) => {
+        attempt += 1;
+        if (attempt === 1) return new Error('unsupported startup parameter in options: statement_timeout');
+        return probeOnly(sql);
+      };
+
+      await adapter.test();
+
+      expect(pools).toHaveLength(2);
+      expect(pools[1]!.options['options']).toBe('-c search_path=reporting');
+      expect(pools[1]!.queries[0]).toContain("SET LOCAL statement_timeout = '15000';");
+    });
+
+    it('leaves a DSN without one byte-for-byte', async () => {
+      await connected('introspect');
+      expect(pools[0]!.options['connectionString']).toBe(DSN);
+    });
+  });
+
+  describe('splitDsnOptions', () => {
+    it.each([
+      ['no query string at all', 'postgres://u@h/db', 'postgres://u@h/db', null],
+      [
+        'an unrelated parameter',
+        'postgres://u@h/db?sslmode=require',
+        'postgres://u@h/db?sslmode=require',
+        null,
+      ],
+      [
+        'options alongside another parameter',
+        'postgres://u@h/db?sslmode=require&options=-c%20a%3D1',
+        'postgres://u@h/db?sslmode=require',
+        '-c a=1',
+      ],
+      [
+        'a percent-encoded password',
+        'postgres://u:p%40ss@h:5432/db?options=-c%20a%3D1',
+        'postgres://u:p%40ss@h:5432/db',
+        '-c a=1',
+      ],
+      // Nothing to collide with, and rewriting it would be the riskier move.
+      ['the keyword form URL cannot parse', 'host=h dbname=db', 'host=h dbname=db', null],
+    ])('handles %s', (_label, input, expectedDsn, expectedOptions) => {
+      expect(mod.splitDsnOptions(input)).toEqual({ dsn: expectedDsn, options: expectedOptions });
+    });
+  });
+
   it('sizes the pool per role, and lets an explicit poolMax win', async () => {
     await connected('introspect');
     expect(pools[0]!.options['max']).toBe(5);

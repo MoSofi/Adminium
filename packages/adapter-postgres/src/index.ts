@@ -39,6 +39,7 @@ import {
 } from '@adminium/engine/adapter';
 
 import { toAdapterError } from './errors.js';
+import { buildSessionSettings, isPoolerStartupRejection, splitDsnOptions } from './session.js';
 import {
   interpretProbe,
   introspectPostgres,
@@ -54,49 +55,6 @@ const INTROSPECT_POOL_MAX = 5;
 const DATA_POOL_MAX = 10;
 const DEFAULT_STATEMENT_TIMEOUT_MS = 15_000;
 
-/**
- * A connection pooler refusing the startup `options` packet.
- *
- * Neon (the pooled `…-pooler.…neon.tech` host its dashboard hands you by
- * default) answers `unsupported startup parameter in options: statement_timeout`;
- * pgbouncer in transaction mode says `unsupported startup parameter: options`.
- * Matching the shared prefix covers both without pinning either vendor's exact
- * wording, and the check is deliberately on the MESSAGE — the SQLSTATE varies
- * between poolers, and Neon reports this as a plain connection failure.
- */
-const POOLER_REJECTS_STARTUP_OPTIONS = /unsupported startup parameter/i;
-
-/** Does `error` (or anything it wraps) carry the pooler's refusal? */
-export function isPoolerStartupRejection(error: unknown): boolean {
-  for (let current: unknown = error, depth = 0; current !== null && current !== undefined && depth < 5; depth += 1) {
-    const message = (current as { message?: unknown }).message;
-    if (typeof message === 'string' && POOLER_REJECTS_STARTUP_OPTIONS.test(message)) return true;
-    current = (current as { cause?: unknown }).cause;
-  }
-  return false;
-}
-
-/**
- * The 05 §4.1 session settings, in both shapes: the startup-packet form (zero
- * round trips, preferred) and the `SET LOCAL` prelude used when a pooler
- * refuses it. They are built together so the two can never drift into
- * enforcing different limits.
- */
-export function buildSessionSettings(
-  statementTimeoutMs: number,
-  introspect: boolean,
-): { startupOptions: string; prelude: string } {
-  const pairs: [string, string][] = [['statement_timeout', String(statementTimeoutMs)]];
-  if (introspect) {
-    pairs.push(['lock_timeout', '2s'], ['idle_in_transaction_session_timeout', '10s']);
-  }
-  return {
-    startupOptions: pairs.map(([k, v]) => `-c ${k}=${v}`).join(' '),
-    // Quoted values: `2s` is not a valid bare token for SET, unlike in `-c`.
-    prelude: pairs.map(([k, v]) => `SET LOCAL ${k} = '${v}';`).join(' '),
-  };
-}
-
 export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
   implements DatabaseAdapter<Role>
 {
@@ -110,6 +68,14 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
   #poolConfig: { connectionString: string; max: number } | null = null;
   /** The `-c …` string sent in the startup packet, or null once we stop trying. */
   #startupOptions: string | null = null;
+  /**
+   * An `options=` the operator put in the DSN themselves, lifted out of it by
+   * {@link splitDsnOptions}. Kept across the pooler downgrade — deliberately.
+   * A pooler refuses these exactly as it refuses ours, so leaving them in place
+   * means such a DSN still fails, with a hint naming `options=` as the thing to
+   * remove, rather than us quietly discarding a setting the operator asked for.
+   */
+  #dsnOptions: string | null = null;
   /** `SET LOCAL` prelude used instead of startup options on a pooled connection. */
   #sessionPrelude = '';
 
@@ -140,10 +106,14 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
     // ready-for-query tick as the 'connect' event, so a fire-and-forget setup
     // query would still be in the client's queue when the waiter's query is
     // pushed — pg 8.22 deprecates that (removed in pg@9). Startup options cost
-    // zero extra round trips and cannot race. Trade-offs: an explicit
-    // `options` overrides any `options=` in the user DSN (rare), and
+    // zero extra round trips and cannot race. The remaining trade-off is that
     // transaction-pooling pgbouncer rejects startup options (the previous
     // per-connection SET was equally broken there).
+    //
+    // An `options=` already in the DSN does NOT lose to the one we pass — `pg`
+    // lets the parsed connection string win, so ours were the settings being
+    // dropped. {@link splitDsnOptions} lifts theirs out of the string and
+    // {@link PostgresAdapter.#buildPool} re-joins the two in our order.
     //
     // …EXCEPT ON A CONNECTION POOLER, which refuses the startup packet outright
     // (see POOLER_REJECTS_STARTUP_OPTIONS). That is not an edge case: it is the
@@ -152,24 +122,36 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
     // the first rejection — rebuilding the pool without `options` and moving the
     // same settings into a `SET LOCAL` prelude (see {@link buildSessionSettings}).
     const settings = buildSessionSettings(statementTimeoutMs, this.role === 'introspect');
+    const split = splitDsnOptions(config.dsn);
     this.#poolConfig = {
-      connectionString: config.dsn,
+      connectionString: split.dsn,
       max: config.poolMax ?? (this.role === 'introspect' ? INTROSPECT_POOL_MAX : DATA_POOL_MAX),
     };
+    this.#dsnOptions = split.options;
     this.#startupOptions = settings.startupOptions;
     this.#sessionPrelude = settings.prelude;
     this.#pool = this.#buildPool();
     this.#closed = false;
   }
 
-  /** Open a pool, with the startup options only while {@link #startupOptions} stands. */
+  /**
+   * Open a pool, carrying the operator's own startup options plus ours — ours
+   * only while {@link #startupOptions} stands.
+   *
+   * Ours go last on purpose: repeated `-c key=value` in one `options` string
+   * resolves to the final assignment, so the session rails win a conflict while
+   * anything else the operator set (a `search_path`, say) still survives.
+   */
   #buildPool(): pg.Pool {
     if (this.#poolConfig === null) {
       throw new AdapterError('UNKNOWN', 'adapter is not connected — call connect() first');
     }
+    const options = [this.#dsnOptions, this.#startupOptions]
+      .filter((part): part is string => part !== null)
+      .join(' ');
     const pool = new pg.Pool({
       ...this.#poolConfig,
-      ...(this.#startupOptions === null ? {} : { options: this.#startupOptions }),
+      ...(options === '' ? {} : { options }),
     });
     // Surface idle-client failures as pool-level noise, not process crashes.
     pool.on('error', () => {
@@ -418,6 +400,7 @@ export {
   quoteIdentifier,
 } from './serialization.js';
 export { toAdapterError } from './errors.js';
+export { buildSessionSettings, isPoolerStartupRejection, splitDsnOptions } from './session.js';
 
 /** @deprecated M0 scaffold export; kept so early imports keep compiling. */
 export const PACKAGE_NAME = '@adminium/adapter-postgres';
