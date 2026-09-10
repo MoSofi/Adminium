@@ -15,7 +15,21 @@ import { CopyGlyph, RenameGlyph, RenameInput, TrashGlyph, type DocumentCardProps
 import { DocumentStatusPill } from './Pills.js';
 import { rowIcon, rowSub } from './model.js';
 
-const GRID = 'grid grid-cols-[minmax(0,1fr)_130px_120px_128px] gap-3 px-[18px]';
+/**
+ * The comp's four columns (215): Name · Status · Updated · Actions, at
+ * `minmax(0,1fr) 130px 120px 128px` (M11). Those fixed tracks need 450 px
+ * inside the card, which a phone does not have — at 390 px all three row
+ * actions fell outside the card's `overflow: hidden` and were unreachable
+ * (measured: 3 of 3 at 390, 2 of 3 at 430, clean from 500).
+ *
+ * The comp draws no responsive rule (E11), so below `sm` the two middle
+ * columns collapse away and the row keeps Name + Actions. The status stays
+ * readable in the gallery, which is the layout a phone opens on.
+ */
+const GRID = 'grid grid-cols-[minmax(0,1fr)_128px] gap-3 px-[18px] sm:grid-cols-[minmax(0,1fr)_130px_120px_128px]';
+
+/** Status and Updated — the two tracks that collapse below `sm`. */
+const MIDDLE = 'hidden sm:block';
 
 /** The 30 px square action of a row (comp 240-242): surface fill, not surface-2. */
 function RowAction({ label, onClick, children, testId }: { label: string; onClick: () => void; children: ReactNode; testId?: string | undefined }) {
@@ -40,8 +54,12 @@ export function ListHeader() {
   return (
     <div role="row" className={cn(GRID, 'border-b border-border bg-surface-2 py-[11px] text-[10.5px] font-bold uppercase tracking-[.05em] text-fg-subtle')}>
       <span role="columnheader">{t('reportBuilder:list.name', 'Name')}</span>
-      <span role="columnheader">{t('reportBuilder:list.status', 'Status')}</span>
-      <span role="columnheader">{t('reportBuilder:list.updated', 'Updated')}</span>
+      <span role="columnheader" className={MIDDLE}>
+        {t('reportBuilder:list.status', 'Status')}
+      </span>
+      <span role="columnheader" className={MIDDLE}>
+        {t('reportBuilder:list.updated', 'Updated')}
+      </span>
       <span role="columnheader" className="text-end">
         {t('reportBuilder:list.actions', 'Actions')}
       </span>
@@ -91,10 +109,10 @@ export function ListRow({ doc, actions, rename, updated }: ListRowProps) {
           )}
         </div>
       </div>
-      <span role="cell">
+      <span role="cell" className={MIDDLE}>
         <DocumentStatusPill status={doc.status} />
       </span>
-      <span role="cell" className="text-[12px] text-fg-muted">
+      <span role="cell" className={cn(MIDDLE, 'text-[12px] text-fg-muted')}>
         {updated ?? '—'}
       </span>
       <div role="cell" data-testid="report-row-actions" className="flex justify-end gap-[5px]">

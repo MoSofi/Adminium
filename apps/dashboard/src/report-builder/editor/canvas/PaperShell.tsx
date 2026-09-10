@@ -12,14 +12,25 @@
  * property too, because a data URL cannot be a class
  * (`adminium/no-style-prop`'s one escape hatch).
  *
- * BELOW `lg` the sheet keeps its 760 px and the CANVAS COLUMN scrolls
- * sideways around it (D18) rather than the sheet reflowing to a width the
- * comp never drew.
+ * THE SHEET NEVER COLLAPSES (D18, as ruled 2026-09-10). The comp's rule is
+ * `max-width: 760px` (692) with no minimum, so the sheet simply takes the
+ * canvas column's width — which at the `lg` breakpoint, behind the shell rail
+ * (256) plus the palette (216) and the inspector (288), leaves 208 px and cuts
+ * block content off inside `overflow: hidden` with no way to reach it
+ * (measured: a contact e-mail 45 px past the edge, a delivery rail 35 px, a
+ * table's amount column 20 px). The comp draws no responsive rule at all
+ * (E11), so this is the ruling that fills the silence: keep the comp's squeeze
+ * down to {@link SHEET_MIN} and let the CANVAS COLUMN scroll below that,
+ * rather than clip. At a comfortable width the picture is the comp's,
+ * unchanged.
  */
 import type { ReactNode } from 'react';
 import { cn } from '@adminium/ui';
 
 import type { ReportBody } from '../../model/envelope.js';
+
+/** The floor the sheet stops squeezing at; below it the canvas column scrolls (D18). */
+export const SHEET_MIN = 560;
 
 export interface PaperShellProps {
   body: ReportBody;
@@ -39,7 +50,7 @@ export function PaperShell({ body, children }: PaperShellProps) {
         '--adm-report-tint': String(body.bgTint),
       }}
       className={cn(
-        'adm-always-light relative mx-auto min-h-[600px] w-[760px] max-w-full overflow-hidden rounded-2xl border border-[#ececef] bg-white px-[38px] py-[34px] text-[#191920] shadow-card',
+        'adm-always-light relative mx-auto min-h-[600px] w-[760px] min-w-[560px] max-w-full overflow-hidden rounded-2xl border border-[#ececef] bg-white px-[38px] py-[34px] text-[#191920] shadow-card',
         hasBackground && 'bg-[image:var(--adm-report-bg)] bg-cover bg-center',
       )}
     >

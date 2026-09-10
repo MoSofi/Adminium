@@ -383,6 +383,81 @@ test.describe('the /report-builder surface (43-T13)', () => {
     await page.request.delete(`/api/v1/report-documents/${probeId}`);
   });
 
+  test('the sheet stops squeezing at its floor, and the list keeps its actions reachable', async ({ page }) => {
+    /*
+     * Both ruled 2026-09-10, after the owner found the sidebar faults and asked
+     * for a sweep of the rest of the surface.
+     *
+     * THE SHEET. The comp's rule is `max-width: 760px` with no minimum (692),
+     * so the sheet takes whatever the canvas column has — and at the `lg`
+     * breakpoint the shell rail (256) plus the palette (216) and the inspector
+     * (288) leave 208 px, which cut block content off inside the paper's
+     * `overflow: hidden`. It now floors at 560 and the COLUMN scrolls (D18).
+     *
+     * THE LIST. The comp's four fixed tracks need 450 px inside the card (M11);
+     * at 390 px all three row actions fell outside the card's `overflow:
+     * hidden` and could not be clicked. Below `sm` the two middle columns
+     * collapse away.
+     */
+    // 27-T74: `signIn` waits for the primary nav, which the shell collapses on
+    // a phone — sign in wide, then narrow.
+    await signIn(page);
+    const made = await page.request.post('/api/v1/report-documents', { data: { kind: 'template', starter: 'exec', name: 'Width probe' } });
+    expect(made.status(), await made.text()).toBe(201);
+    const probeId = ((await made.json()) as { id: string }).id;
+
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.goto(`/report-builder/${probeId}`);
+    await expect(page.getByTestId('report-paper')).toBeVisible();
+    for (const kind of KINDS) await page.locator(`[data-testid="report-palette-item"][data-kind="${kind}"]`).click();
+
+    const sheet = await page.evaluate(() => {
+      const paper = document.querySelector('[data-testid="report-paper"]');
+      const column = paper?.parentElement;
+      if (paper === null || column === undefined || column === null) return null;
+      const box = paper.getBoundingClientRect();
+      const clipped = [...paper.querySelectorAll('span, div, input, textarea, img')].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && Math.round(r.right - box.right) > 1;
+      }).length;
+      return {
+        width: Math.round(box.width),
+        columnScrolls: column.scrollWidth > column.clientWidth,
+        clipped,
+        pageScrollsX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      };
+    });
+    expect(sheet?.width, 'the sheet collapsed past its floor').toBeGreaterThanOrEqual(560);
+    expect(sheet?.clipped, 'block content is cut off inside the sheet').toBe(0);
+    expect(sheet?.columnScrolls, 'the canvas column must scroll rather than squeeze the sheet').toBe(true);
+    expect(sheet?.pageScrollsX, 'the shell itself scrolls sideways').toBe(false);
+
+    // The list on a phone: two columns, and every action still clickable.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/report-builder');
+    await expect(page.getByTestId('report-card').first()).toBeVisible();
+    await page.getByTestId('report-layout').getByRole('radio').nth(1).click();
+    await expect(page.getByTestId('report-list')).toBeVisible();
+    const list = await page.evaluate(() => {
+      const table = document.querySelector('[data-testid="report-list"]');
+      const actions = document.querySelector('[data-testid="report-row-actions"]');
+      if (table === null || actions === null) return null;
+      const box = table.getBoundingClientRect();
+      const buttons = [...actions.querySelectorAll('button')];
+      return {
+        columns: [...table.querySelectorAll('[role="columnheader"]')].filter((c) => c.getBoundingClientRect().width > 0).length,
+        cutOff: buttons.filter((b) => Math.round(b.getBoundingClientRect().right - box.right) > 1).length,
+        buttons: buttons.length,
+      };
+    });
+    expect(list?.columns, 'the two middle columns should collapse below `sm`').toBe(2);
+    expect(list?.buttons).toBe(3);
+    expect(list?.cutOff, 'row actions are cut off and cannot be clicked').toBe(0);
+
+    await page.setViewportSize({ width: 1440, height: 940 });
+    await page.request.delete(`/api/v1/report-documents/${probeId}`);
+  });
+
   test('below `lg` the inspector is a drawer and the palette is a button (D18)', async ({ page }, testInfo) => {
     await signIn(page);
     await page.setViewportSize({ width: 390, height: 900 });
