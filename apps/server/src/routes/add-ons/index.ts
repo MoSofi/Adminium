@@ -70,6 +70,8 @@ import {
   type InstallPlan,
 } from '@adminium/manifest';
 import {
+  SecretSettingRefused,
+  addOnSettingsRepo,
   auditRepo,
   manifestsRepo,
   settingsRepo,
@@ -131,6 +133,8 @@ import {
   uninstallAddOnReply,
   type AddOnDto,
   type InstallPlanDto,
+  addOnSettingsBody,
+  addOnSettingsReply,
 } from './schema.js';
 
 /** Sideload cap: the largest first-party dist is ~300 KB (32 D5's own sizing). */
@@ -160,6 +164,23 @@ export interface AddOnRoutesDeps {
   schemaTarget?: AddOnSchemaTarget | undefined;
   /** Injectable only so a test can drive an expired or unknown state. */
   oauthFlows?: OAuthFlowStore | undefined;
+  /**
+   * Rebuild the add-on runtime after install, upgrade, enable/disable and
+   * uninstall (34 §7.10, 34-T13).
+   *
+   * `runtime.ts` has claimed this since wave 26 and `compose.ts` built the
+   * state exactly once, at boot — so a provider installed at 10am was
+   * unreachable until the process restarted, and 26 D6's round trip could
+   * never have passed. Optional because a route-only test topology composes
+   * no runtime at all; absent, the routes behave as they did before.
+   */
+  rebuildRuntime?: (() => Promise<void>) | undefined;
+  /**
+   * The half of uninstall that is 34's (§7.10). Called INSIDE the uninstall
+   * handler, before the manifest row goes, so no job can be enqueued for a
+   * provider that is already gone.
+   */
+  onAddOnRemoved?: ((key: string) => Promise<void>) | undefined;
 }
 
 /** The add-on block of a validated manifest, narrowed for reading. */
@@ -266,6 +287,24 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       })),
       provides: (block.provides ?? []).map((p) => ({ contract: p.contract, version: p.version })),
       networkAllow: block.network?.allow ?? [],
+      /*
+       * The manifest's declaration, flattened for a form that has to render
+       * every variant with one component. `enum`'s options come across because
+       * only the manifest knows them; everything else the form derives from
+       * `type`.
+       */
+      settings: (manifest.settings ?? []).map((setting) => ({
+        key: setting.key,
+        type: setting.type,
+        required: setting.required ?? false,
+        secret: setting.secret ?? false,
+        label: setting.label ?? null,
+        help: (setting as { help?: { key: string; fallback: string } }).help ?? null,
+        options: setting.type === 'enum' ? [...(setting.enum ?? [])] : [],
+      })),
+      // The stored NON-SECRET half. A secret is written through connect and
+      // read back never (24 D15), so nothing here can carry one.
+      settingValues: await addOnSettingsRepo(deps.meta).valuesFor(manifest.key),
       /*
        * THE PIN, NOT THE BYTES — and one drifted file does not take the list
        * down with it.
@@ -873,6 +912,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           changes: { after: { key, from, to, pruned } },
         });
 
+        // A new version may provide a different contract, or none. Rebuilt
+        // whole, so an upgrade takes effect without a restart (§7.10).
+        await deps.rebuildRuntime?.();
+
         const after = await manifests.findByKey(key);
         return { addOn: await toDto(after!), from, to, pruned };
       },
@@ -1014,6 +1057,17 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             after: { key, version, attachTo, tables: plan.reuse.map((t) => t.ref), created },
           },
         });
+
+        /*
+         * THE REBUILD THAT MAKES 26 D6's ROUND TRIP POSSIBLE.
+         *
+         * Without it a provider installed at 10am is unreachable until the
+         * process restarts — and the round trip's `install-without-restart`
+         * step, which has been in the script since wave 26, could never have
+         * passed. `runtime.ts` has claimed this behaviour all along;
+         * `compose.ts` built the state once, at boot, and nothing rebuilt it.
+         */
+        await deps.rebuildRuntime?.();
 
         return { addOn: await toDto(installed), plan };
       },
@@ -1331,8 +1385,76 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           },
         });
 
+        // Enable/disable changes which providers resolve, so the runtime is
+        // rebuilt here too — an add-on switched off must stop rendering
+        // immediately, not at the next restart.
+        await deps.rebuildRuntime?.();
+
         const after = await manifests.findByKey(request.params.key);
         return { addOn: await toDto(after!) };
+      },
+    );
+
+    app.put(
+      '/add-ons/:key/settings',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: {
+          params: addOnKeyParams,
+          body: addOnSettingsBody,
+          response: { 200: addOnSettingsReply },
+        },
+      },
+      async (request) => {
+        /*
+         * THE NON-SECRET HALF (34 §7.9, D14). A credential goes through
+         * CONNECT, into the encrypted table; this writes the values an add-on's
+         * settings panel edits and a renderer reads back in clear.
+         *
+         * The repo refuses a key the manifest marks `secret`, which is the
+         * enforcement point — not this route. There is more than one writer
+         * (this PUT, the installer's defaults, a future import), and a rule
+         * enforced at one door is a rule with three doors.
+         */
+        const { key } = request.params;
+        const installed = await manifests.findByKey(key);
+        if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
+        const manifest = parseManifest(installed.document, installed.row.manifestKey);
+
+        let saved;
+        try {
+          saved = await addOnSettingsRepo(deps.meta).patch(
+            key,
+            request.body.values,
+            (manifest.settings ?? []).map((setting) => ({
+              key: setting.key,
+              secret: setting.secret ?? false,
+            })),
+            { updatedBy: request.user?.id ?? null },
+          );
+        } catch (error) {
+          if (error instanceof SecretSettingRefused) {
+            throw new ValidationFailedError(
+              `These settings are a credential and are set by connecting, not here: ${error.keys.join(', ')}.`,
+              { code: 'SECRET_SETTING_REFUSED', keys: error.keys },
+            );
+          }
+          throw error;
+        }
+
+        await auditRepo(deps.meta).append({
+          actorKind: 'user',
+          actorId: request.user?.id ?? null,
+          actorLabel: request.user?.email ?? 'unknown',
+          category: 'add-on',
+          action: 'add-on.settings-changed',
+          // The KEYS that moved, never the values: a settings row can hold a
+          // letterhead, an address, a customer-facing sentence.
+          changes: { after: { key, keys: Object.keys(request.body.values) } },
+        });
+
+        return { key, values: saved.values, updatedAt: saved.updatedAt };
       },
     );
 
@@ -1351,6 +1473,18 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // 24 D16 / 26 D5, in the order that makes the promise true: the meta
         // rows go (credentials with them, by cascade), and NOTHING touches the
         // data source. Tables the add-on brought stay, with their rows.
+        /*
+         * 34 §7.10's half, BEFORE the manifest row goes.
+         *
+         * Disables this add-on's document profiles and drops its settings.
+         * The ORDER is the point: a profile disabled after the manifest row
+         * had already gone would leave a window in which a write could enqueue
+         * a render for a provider that no longer exists. Documents and
+         * profiles themselves survive — 24 D16 keeps the customer's data, and
+         * a mapping is work an operator did.
+         */
+        await deps.onAddOnRemoved?.(key);
+
         await manifests.uninstall(installed.row.id);
 
         // The package directory is 32 D11's store hook. Deliberately after the
@@ -1374,6 +1508,11 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             after: { key, version: installed.row.version, packageRemoved, tablesKept: true },
           },
         });
+
+        // The runtime is rebuilt WHOLE, never patched (§7.10): a partially
+        // updated provider map is worse than a stale one, because a stale one
+        // is at least consistent with itself.
+        await deps.rebuildRuntime?.();
 
         return { key, tablesKept: true, packageRemoved };
       },

@@ -82,6 +82,40 @@ export const addOnDto = z.object({
    * was unpacked — the same hash the serve path re-checks the bytes against, so
    * what a host pins and what the server refuses to serve cannot disagree.
    */
+  /**
+   * What this add-on's settings panel is FOR — the manifest's own `settings[]`
+   * declaration, plus the non-secret values currently stored (34 §7.9).
+   *
+   * ─── Why the declaration travels with the DTO ──────────────────────────
+   *
+   * Studio's settings form used to be one hard-coded `api_key` input, which
+   * broke the moment an add-on declared two secrets — `shipping-dhl` has done
+   * since wave 4, and its connect could not be completed from the page. A form
+   * generated from the manifest fixes that class of defect rather than that
+   * one instance, and the manifest is where the declaration already lives.
+   *
+   * ─── AND WHY `values` CARRIES NO SECRET ────────────────────────────────
+   *
+   * A secret belongs in the encrypted credentials table and is written through
+   * CONNECT, never through the settings PUT. The repo refuses a key the
+   * manifest marks `secret`, and this DTO never carries one back: `values` is
+   * the non-secret half, read in clear because it IS in clear.
+   */
+  settings: z.array(
+    z.object({
+      key: z.string(),
+      type: z.string(),
+      required: z.boolean(),
+      secret: z.boolean(),
+      /** `{key, fallback}` — rendered only when the add-on's messages are registered. */
+      label: z.object({ key: z.string(), fallback: z.string() }).nullable(),
+      help: z.object({ key: z.string(), fallback: z.string() }).nullable(),
+      /** For `enum`; empty otherwise. */
+      options: z.array(z.string()),
+    }),
+  ),
+  /** The stored NON-SECRET values. Never a credential (24 D15). */
+  settingValues: z.record(z.string(), z.unknown()),
   bundles: z.array(
     z.object({
       path: z.string(),
@@ -383,3 +417,21 @@ export const completeOAuthBody = z.object({
 
 export type AddOnDto = z.infer<typeof addOnDto>;
 export type InstallPlanDto = z.infer<typeof installPlanDto>;
+
+/**
+ * `PUT /add-ons/:key/settings` — the non-secret half of an add-on's
+ * configuration (34 §7.9, D14).
+ *
+ * A PARTIAL patch, because the panel edits one field at a time and a full
+ * replace would mean every panel sending the whole object back — which is how
+ * one tab's stale copy silently reverts another's save.
+ */
+export const addOnSettingsBody = z
+  .object({ values: z.record(z.string(), z.unknown()) })
+  .strict();
+
+export const addOnSettingsReply = z.object({
+  key: addOnKey,
+  values: z.record(z.string(), z.unknown()),
+  updatedAt: z.number(),
+});

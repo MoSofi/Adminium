@@ -278,3 +278,45 @@ export function resolveProvider(
 ): ProviderEntry | null {
   return state.providers.get(key(contract, version))?.[0] ?? null;
 }
+
+/**
+ * EVERY provider of a contract, in the same deterministic order.
+ *
+ * ─── Why this exists beside `resolveProvider` and is not the same call ─────
+ *
+ * `resolveProvider` answers "give me A shipping carrier" and picks the lowest
+ * key. That is right for a host that has no opinion, and WRONG for a consumer
+ * that has one. The document pipeline has one: a profile names the add-on it
+ * was mapped against, because the mapping's slot ids belong to that
+ * provider's `describe(kind)` and mean nothing to another. Rendering an
+ * invoice profile through `barcode-labels` because it sorts first would be a
+ * silent, catastrophic answer — 34 §0.3 trap 11, named there precisely
+ * because the two calls look interchangeable.
+ *
+ * So the pipeline reads the whole list and picks by key
+ * ({@link providerByKey}), and this is also what `GET /documents/kinds` needs:
+ * the Studio editor lists every installed provider's kinds, not one of them.
+ */
+export function providersFor(
+  state: AddOnRuntimeState,
+  contract: string,
+  version: number,
+): readonly ProviderEntry[] {
+  return state.providers.get(key(contract, version)) ?? [];
+}
+
+/**
+ * The provider a PROFILE names, or null when it is no longer installed.
+ *
+ * Null rather than a fallback, and the job turns it into a `skipped` register
+ * row with an audit line. Falling back to another provider would render an
+ * invoice through whatever happened to be installed — see `providersFor`.
+ */
+export function providerByKey(
+  state: AddOnRuntimeState,
+  contract: string,
+  version: number,
+  addOnKey: string,
+): ProviderEntry | null {
+  return providersFor(state, contract, version).find((p) => p.addOnKey === addOnKey) ?? null;
+}
