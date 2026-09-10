@@ -226,4 +226,37 @@ describe('the cross-block rules (§5.3)', () => {
       expect(validateManifest({ ...DHL, key }).ok, key).toBe(false);
     }
   });
+
+  it('refuses `dashboard`, which is the stock deployment\'s own host key (34 O10)', () => {
+    // Not a route collision like the others — `dashboard` is what an add-on
+    // declaring `attaches: [{app: '*'}]` is attached UNDER on a deployment
+    // with no host app, so the consent dialog has something to enable. An app
+    // also called `dashboard` would make that attachment ambiguous.
+    expect(validateManifest({ ...DHL, key: 'dashboard' }).ok).toBe(false);
+  });
+
+  it('accepts a setting that carries help under the field, and still refuses an unknown one', () => {
+    // Every settings variant is `.strict()`, so before this rode the release
+    // a manifest writing `help` was REJECTED rather than ignored — which is
+    // why it lands with `RESERVED_KEYS` and not with the form that renders it.
+    const withHelp = {
+      ...DHL,
+      settings: [
+        {
+          key: 'paper',
+          type: 'enum',
+          enum: ['a4', 'letter'],
+          label: { key: 'x.paper', fallback: 'Paper' },
+          help: { key: 'x.paper.help', fallback: 'The size the document is drawn for.' },
+        },
+      ],
+    };
+    expect(validateManifest(withHelp).ok, JSON.stringify(validateManifest(withHelp))).toBe(true);
+
+    const withNonsense = {
+      ...withHelp,
+      settings: [{ ...withHelp.settings[0], hint: 'not a field' }],
+    };
+    expect(validateManifest(withNonsense).ok).toBe(false);
+  });
 });
