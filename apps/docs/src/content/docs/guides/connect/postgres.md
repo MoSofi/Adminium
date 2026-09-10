@@ -16,31 +16,63 @@ password (`@`, `/`, `:`).
 |---|---|
 | `sslmode` | `require` for any database that is not on localhost. `disable`, `prefer`, `require`, `verify-ca`, `verify-full`. |
 | `search_path` | Adminium introspects the schemas your role can see; it does not depend on `search_path` to find them. |
+| `options` | Passed through to the server. Adminium appends its own session settings after yours, so a `-c statement_timeout` you set here is overridden and anything else survives. A transaction pooler refuses `options` from either side — see [Pooled endpoints](#pooled-endpoints). |
 
 In the wizard you can paste a full DSN or fill host / port / user / password /
 database and let Adminium compose it.
 
-### Use the direct endpoint, not the transaction pooler
+### Pooled endpoints
 
-Adminium sets `statement_timeout` (and, on the introspection connection,
-`lock_timeout` and `idle_in_transaction_session_timeout`) in the startup packet,
-so a query can never pin a connection or hold a lock on your database.
-Transaction-pooling PgBouncer endpoints reject startup parameters outright:
+Managed Postgres shows you a **pooled** connection string first — Neon's
+`-pooler` host, Supabase's port `6543`, Fly's pgbouncer. Paste it. It works.
+
+That is worth stating plainly because the mechanism underneath is not obvious.
+Adminium sets `statement_timeout` on every connection it opens to your
+database, plus `lock_timeout` and `idle_in_transaction_session_timeout` on the
+introspection connection, so neither a slow query nor a lock wait can sit on
+your database indefinitely. It sends them in the connection's startup packet, which costs no
+extra round trip — and a transaction-pooling endpoint refuses startup
+parameters outright:
 
 ```
 08P01: unsupported startup parameter in options: statement_timeout
 ```
 
-Managed providers usually show you the **pooled** string first, so this is easy
-to hit. Reach for the direct one:
+The first time a source hits that refusal, Adminium downgrades: it reopens the
+pool without the startup parameters and re-sends the same statement with the
+settings as a `SET LOCAL` prelude instead. The cost is one discarded
+connection attempt per pool it opens — not one per query — and nothing
+surfaces in the UI.
 
-| Provider | Pooled (rejected) | Use instead |
+The limits still apply. `SET LOCAL` travels in the same protocol message as the
+statement it guards, so Postgres scopes it to that statement's implicit
+transaction: the budget is enforced on every catalog query, and it cannot leak
+onto a backend the pooler later hands to somebody else.
+
+#### The direct endpoint is still a little nicer
+
+A preference now, not a requirement — with one concrete difference worth
+knowing. Introspection keeps its full budget either way, through the prelude
+above. **Reading rows does not.** That connection speaks Postgres' extended
+query protocol, one statement per message, so there is nowhere to carry a
+prelude — and every alternative would set the timeout on a backend the pooler
+then hands to somebody else. So on a pooled endpoint your row queries run
+without a server-side `statement_timeout`; on a direct one they get it.
+
+Direct also saves a proxy hop on every query and the one discarded connection at
+startup, and Adminium's own pooling already caps concurrent connections per
+source (5 for introspection, 10 for data), so you give up little by not using
+the provider's pooler. If your platform meters connections hard enough that the
+pooler is the point, stay on it — nothing breaks.
+
+| Provider | Pooled | Direct |
 |---|---|---|
-| Neon | host ends in `-pooler`, e.g. `ep-x-123456-pooler.us-east-1.aws.neon.tech` | the same host without `-pooler` — `ep-x-123456.us-east-1.aws.neon.tech`. In the Neon console this is the "Direct connection" string. |
-| Supabase | the transaction pooler on port `6543` | the direct connection on port `5432` (or the session pooler, which does accept startup parameters). |
+| Neon | host ends in `-pooler`, e.g. `ep-x-123456-pooler.us-east-1.aws.neon.tech` | the same host without `-pooler` — `ep-x-123456.us-east-1.aws.neon.tech`. The Neon console calls this the "Direct connection" string. |
+| Supabase | the transaction pooler on port `6543` | the direct connection on port `5432`, or the session pooler, which accepts startup parameters and so never triggers the downgrade. |
 
-Adminium's own pooling already caps concurrent connections per source
-(5 for introspection, 10 for data), so you are not giving up connection reuse.
+The meta store has its own, separate answer to pooling — a pooled Postgres
+endpoint is safe for the migration lock, and MySQL behind a transaction pooler
+is not. See [Pooled endpoints](/self-hosting/meta-store/#pooled-endpoints).
 
 ## A read-only role
 
@@ -141,9 +173,11 @@ a managed provider, add it to the trusted-sources list.
 
 **`SSL connection required`** — add `?sslmode=require`.
 
-**`unsupported startup parameter in options: statement_timeout`** — you are on a
-transaction-pooling endpoint. Switch to the direct connection string:
-[Use the direct endpoint, not the transaction pooler](#use-the-direct-endpoint-not-the-transaction-pooler).
+**`unsupported startup parameter in options: statement_timeout`** — a
+transaction-pooling endpoint refusing startup parameters. Adminium retries these
+on its own (see [Pooled endpoints](#pooled-endpoints)), so reaching you means the
+retry was refused too — most often because the DSN carries its own `options=`
+parameter. Drop it, or use the direct endpoint.
 
 **Connections to `localhost` are refused** — Adminium blocks loopback DSNs by
 default, so a hosted instance cannot be talked into probing its own host. The
