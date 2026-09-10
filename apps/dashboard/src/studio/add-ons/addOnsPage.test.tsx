@@ -54,6 +54,10 @@ function makeEntry(over: Partial<CatalogEntry> = {}): CatalogEntry {
 
 function makeAddOn(over: Partial<AddOnDto> = {}): AddOnDto {
   return {
+    // The manifest's declared settings; the panel generates its form from
+    // these (34 §7.9). Empty here so existing cases are unchanged.
+    settings: [],
+    settingValues: {},
     key: 'shipping-dhl',
     name: 'DHL Shipping',
     version: '1.0.0',

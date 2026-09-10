@@ -48,7 +48,29 @@ export interface AddOnDto {
   slots: { slot: string; client: string; order: number }[];
   provides: { contract: string; version: number }[];
   networkAllow: string[];
+  /**
+   * The manifest's own `settings[]` (34 §7.9), so the panel can GENERATE its
+   * form instead of hard-coding one. That hard-coded form was a single
+   * `api_key` input, and `shipping-dhl` has declared two secrets since wave 4
+   * — its connect could not be completed from this page at all.
+   */
+  settings: AddOnSettingDeclaration[];
+  /** The stored NON-SECRET values. A credential is never read back (24 D15). */
+  settingValues: Record<string, unknown>;
   bundles: { path: string; url: string; integrity: string }[];
+}
+
+export interface AddOnSettingDeclaration {
+  key: string;
+  /** `string` | `number` | `boolean` | `enum` | `file` | `json`. */
+  type: string;
+  required: boolean;
+  /** A secret is written through CONNECT, never through the settings PUT. */
+  secret: boolean;
+  label: { key: string; fallback: string } | null;
+  help: { key: string; fallback: string } | null;
+  /** For `enum`; empty otherwise. */
+  options: string[];
 }
 
 /** Mirrors `catalogEntryDto`. */
@@ -276,4 +298,17 @@ export async function completeOAuth(
   input: { state: string; code: string },
 ): Promise<{ addOn: AddOnDto }> {
   return api.post(`/api/v1/add-ons/${key}/connect/oauth/complete`, input);
+}
+
+/**
+ * Save the non-secret half of an add-on's settings (34 §7.9, D14).
+ *
+ * A PARTIAL patch: the panel edits one field at a time, and sending the whole
+ * object back is how one tab's stale copy silently reverts another's save.
+ */
+export async function saveAddOnSettings(
+  key: string,
+  values: Record<string, unknown>,
+): Promise<{ key: string; values: Record<string, unknown>; updatedAt: number }> {
+  return await api.put(`/api/v1/add-ons/${encodeURIComponent(key)}/settings`, { values });
 }

@@ -31,7 +31,7 @@
  * the honest surface for that is the plan saying which tables are missing — not
  * a disabled button, and certainly not a "create them" action that would fail.
  */
-import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Blocks, Plug, ShieldCheck, TriangleAlert, Upload } from 'lucide-react';
 import {
@@ -49,6 +49,7 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
+  Select,
 } from '@adminium/ui';
 
 import { PageActions } from '../../shell/PageActionsProvider.js';
@@ -70,6 +71,7 @@ import {
   fetchInstallPlan,
   installAddOn,
   refreshCatalog,
+  saveAddOnSettings,
   setAddOnEnabled,
   uninstallAddOn,
   upgradeAddOn,
@@ -237,7 +239,163 @@ function ConsentDialog({
   );
 }
 
-/** The api-key connect form. Values go straight out and are never cached. */
+/**
+ * The NON-SECRET settings, generated from `manifest.settings` (34 §7.9, D14).
+ *
+ * ─── Why this is a different form from Connect ─────────────────────────────
+ *
+ * Their destinations differ, and everything else follows from that. A secret
+ * goes to the encrypted credentials table and is never read back; these go to
+ * `adminium_add_on_settings` and are read back in clear on every render — by
+ * this form, by the add-on's own panel, and by every document a renderer
+ * draws. Two destinations, two forms, and the REPO refuses a `secret` key on
+ * the settings PUT so a mistake here cannot cross them.
+ *
+ * ─── On the `dashboard` host this form IS the settings surface (D23) ───────
+ *
+ * An add-on's own `settings.add-on.panel` fill never renders in stock Adminium
+ * — that needs the dashboard slot host, which is post-v1 (§7.12). Until then
+ * this is where its settings are edited, which is exactly why it is generated
+ * rather than bespoke: it has to serve an add-on nobody has seen.
+ *
+ * ─── `json` renders as a raw editor, and that is said rather than hidden ───
+ *
+ * A structured editor for an arbitrary JSON shape is a feature of its own. In
+ * v1 the field is a textarea that refuses to save unparseable text, and the
+ * help line says so.
+ */
+function SettingsForm({ addOn, busy }: { addOn: AddOnDto; busy: boolean }) {
+  const queryClient = useQueryClient();
+  const editable = addOn.settings.filter((setting) => !setting.secret);
+  const [draft, setDraft] = useState<Record<string, unknown>>(addOn.settingValues);
+  const [invalid, setInvalid] = useState<string | null>(null);
+
+  const save = useMutation({
+    mutationFn: () => saveAddOnSettings(addOn.key, draft),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['studio', 'add-ons'] }),
+  });
+
+  if (editable.length === 0) return null;
+
+  const set = (key: string, value: unknown) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-border pt-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+        {t('studio:addOns.settings.title', 'Settings')}
+      </p>
+      {editable.map((setting) => {
+        const label =
+          setting.label === null ? setting.key : t(setting.label.key, setting.label.fallback);
+        const value = draft[setting.key];
+        return (
+          <label key={setting.key} className="flex flex-col gap-1">
+            <span className="text-sm">{label}</span>
+            {setting.type === 'boolean' ? (
+              <input
+                type="checkbox"
+                className="size-4"
+                checked={value === true}
+                aria-label={label}
+                onChange={(event) => set(setting.key, event.currentTarget.checked)}
+              />
+            ) : setting.type === 'enum' ? (
+              <Select
+                value={typeof value === 'string' ? value : ''}
+                aria-label={label}
+                onChange={(event) => set(setting.key, event.currentTarget.value)}
+              >
+                {setting.options.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            ) : setting.type === 'json' ? (
+              <textarea
+                className="min-h-20 rounded border border-border bg-bg p-2 font-mono text-xs"
+                aria-label={label}
+                defaultValue={JSON.stringify(value ?? null, null, 2)}
+                onChange={(event) => {
+                  try {
+                    set(setting.key, JSON.parse(event.currentTarget.value));
+                    setInvalid(null);
+                  } catch {
+                    // Refused rather than saved as a string: a `json` setting
+                    // read back as text would break the add-on that declared
+                    // it, silently, at render time.
+                    setInvalid(setting.key);
+                  }
+                }}
+              />
+            ) : (
+              <Input
+                type={setting.type === 'number' ? 'number' : 'text'}
+                value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
+                aria-label={label}
+                onChange={(event) =>
+                  set(
+                    setting.key,
+                    setting.type === 'number'
+                      ? Number(event.currentTarget.value)
+                      : event.currentTarget.value,
+                  )
+                }
+              />
+            )}
+            {setting.help !== null && (
+              <span className="text-xs text-fg-muted">
+                {t(setting.help.key, setting.help.fallback)}
+              </span>
+            )}
+            {setting.type === 'json' && invalid === setting.key && (
+              <span className="text-xs text-danger">
+                {t('studio:addOns.settings.badJson', 'That is not valid JSON, so it was not saved.')}
+              </span>
+            )}
+          </label>
+        );
+      })}
+      <div>
+        <Button
+          size="sm"
+          disabled={busy || save.isPending || invalid !== null}
+          onClick={() => save.mutate()}
+        >
+          {t('studio:addOns.settings.save', 'Save settings')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The connect form, GENERATED from the manifest (34 §7.9, 34-T18).
+ *
+ * ─── The defect this replaces ──────────────────────────────────────────────
+ *
+ * It used to be one hard-coded `api_key` input. `shipping-dhl` has declared
+ * TWO secrets since wave 4, and connecting it from this page was therefore
+ * impossible — not awkward, impossible: the second value had nowhere to be
+ * typed. Generating the form from `manifest.settings` fixes the class rather
+ * than the instance, and a third add-on with three secrets needs no change
+ * here at all.
+ *
+ * ─── SECRETS ONLY, and the rest go somewhere else ──────────────────────────
+ *
+ * This form is CONNECT: it collects the values marked `secret` and posts them
+ * to the encrypted credentials table. Everything else an add-on declares is
+ * ordinary configuration and is edited in `SettingsForm` below, which writes
+ * through `PUT /add-ons/:key/settings`. The two are separate because their
+ * destinations are: one is encrypted and never read back, the other is read
+ * back in clear on every render.
+ *
+ * Values are cleared on submit rather than kept for a retry — a secret sitting
+ * in component state after the request that needed it is a secret nobody
+ * decided to keep.
+ */
 function ConnectForm({
   addOn,
   busy,
@@ -249,15 +407,52 @@ function ConnectForm({
 }) {
   const [values, setValues] = useState<Record<string, string>>({});
   if (addOn.connectKind !== 'api-key') return null;
+
+  /*
+   * The declared secrets, or `api_key` when a manifest declares none. The
+   * fallback keeps every add-on that connected before this change connecting
+   * after it — `connect: 'api-key'` with no `settings` entry was the shape
+   * three of them shipped.
+   */
+  const secrets = addOn.settings.filter((setting) => setting.secret);
+  const fields =
+    secrets.length > 0
+      ? secrets
+      : [
+          {
+            key: 'api_key',
+            type: 'string',
+            required: true,
+            secret: true,
+            label: { key: 'studio:addOns.connect.apiKey', fallback: 'API key' },
+            help: null,
+            options: [],
+          },
+        ];
+
   return (
     <div className="flex flex-col gap-2">
-      <Input
-        placeholder={t('studio:addOns.connect.apiKey', 'API key')}
-        value={values['api_key'] ?? ''}
-        onChange={(event) =>
-          setValues((current) => ({ ...current, api_key: event.currentTarget.value }))
-        }
-      />
+      {fields.map((field) => (
+        <label key={field.key} className="flex flex-col gap-1">
+          <span className="text-xs text-fg-muted">
+            {field.label === null ? field.key : t(field.label.key, field.label.fallback)}
+          </span>
+          <Input
+            // `password`, so a shoulder and a screen recording see dots. The
+            // value never reaches a settings row either way, but the field it
+            // is typed into is the one place it is visible.
+            type="password"
+            autoComplete="off"
+            value={values[field.key] ?? ''}
+            onChange={(event) =>
+              setValues((current) => ({ ...current, [field.key]: event.currentTarget.value }))
+            }
+          />
+          {field.help !== null && (
+            <span className="text-xs text-fg-muted">{t(field.help.key, field.help.fallback)}</span>
+          )}
+        </label>
+      ))}
       <Button
         size="sm"
         disabled={busy}
@@ -631,6 +826,14 @@ export function AddOnsPage() {
                       }}
                     />
                   )}
+
+                  {/*
+                    * The non-secret half. Rendered whether or not the add-on
+                    * is connected — a `connect: 'none'` add-on has settings
+                    * too, and until the dashboard slot host lands (§7.12) this
+                    * is the only place they can be edited.
+                    */}
+                  <SettingsForm addOn={addOn} busy={busy} />
 
                   <div className="flex gap-2">
                     {addOn.connected && (
