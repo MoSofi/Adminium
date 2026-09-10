@@ -317,7 +317,7 @@ function InviteAcknowledgement(props: {
   onChange: (next: boolean) => void;
 }): ReactNode {
   return (
-    <div className="flex items-start gap-2.5 rounded-lg border border-warn-border bg-warn-soft p-3">
+    <div className="flex items-start gap-2.5 rounded-lg border border-warn bg-warn-soft p-3">
       <Users aria-hidden className="mt-0.5 size-4 shrink-0 text-warn" />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <p className="text-body-sm text-fg">

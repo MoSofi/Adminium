@@ -103,7 +103,7 @@ const DesktopSetupHostLazy = lazyRoute(async () => (await import('../desktop/set
  * The self-host first-run wizard runs ONCE per instance, before anybody has an
  * account, and its route guard redirects to `/login` the moment a super admin
  * exists — so on a configured install nobody can reach it and everybody was
- * downloading it anyway, on every cold load, forever. It pulls `FirstRunWizard`
+ * downloading it anyway, on every cold load, forever. It pulls the first-run wizard
  * and `TelemetryConsent` (7.0 KiB raw, attributed in the entry source map)
  * into the synchronously-loaded set to render a screen almost no session will
  * ever see: the same shape as the route bodies deferred on 2026-08-18/20/24.

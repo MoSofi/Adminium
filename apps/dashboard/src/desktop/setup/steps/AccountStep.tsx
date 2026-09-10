@@ -21,7 +21,7 @@ import { Checkbox, FormField, Input, Label, PasswordStrength } from '@adminium/u
 
 import { LocaleControl, ThemeControl } from '../../../account/prefControls.js';
 import { t } from '../../../i18n/t.js';
-import type { AccountErrors } from '../../../setup/FirstRunWizard.js';
+import type { AccountErrors } from '../../../setup/accountValidation.js';
 
 export interface AccountValues {
   name: string;

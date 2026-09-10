@@ -42,7 +42,7 @@ import { bootstrapQuery } from '../../app/bootstrap.js';
 import { useCapabilities } from '../../app/capabilities.js';
 import { t } from '../../i18n/t.js';
 import { AuthScreenLayout } from '../../auth/AuthScreenLayout.js';
-import { validateAccount, type AccountErrors } from '../../setup/FirstRunWizard.js';
+import { validateAccount, type AccountErrors } from '../../setup/accountValidation.js';
 import { createSuperAdmin, setupStateQuery } from '../../setup/setupApi.js';
 import { studioApi } from '../../studio/api.js';
 import { chooseDataDir, commitDataDir, readDataDir } from './dataDirBridge.js';
@@ -430,7 +430,7 @@ export function DesktopSetupHost(): ReactNode {
     <AuthScreenLayout documentTitle={null}>
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
-          <h1 className="text-h2 font-extrabold tracking-[-0.02em] text-fg">
+          <h1 className="text-title text-fg">
             {t('desktop.setup.title', 'Welcome to Adminium')}
           </h1>
           <p className="text-body-sm text-fg-muted">

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * First-run wizard + routing gate (M10-T04):
- *  - a fresh install routes to `/setup` from `/` and from `/login`;
- *  - the wizard creates the super admin and lands in the app;
- *  - telemetry defaults to OFF and is only sent as `true` after a deliberate flip;
- *  - the consent screen states exactly what is (and is not) sent;
- *  - a bootstrapped instance can never reach `/setup`;
- *  - a 409 (someone else finished setup first) is explained, not retried.
+ * The `/setup` route, end to end (M10-T04, rewritten by 45-T10 when the
+ * two-step wizard became six).
+ *
+ * Every guarantee the two-step wizard was pinned on still holds and is still
+ * asserted here — the routing gate, telemetry defaulting to OFF, the consent
+ * copy, the bridge hand-off, the 409 — against the wizard that replaced it.
+ * What changed is WHERE the consent is asked: three screens after the account
+ * is created, which is why the super-admin request now always carries both
+ * answers false and the opt-in rides a separate settings write.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -14,11 +16,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createQueryClient } from '../app/query.js';
-import { createAppRouter } from '../app/router.js';
-import { installTestI18n } from '../i18n/testing.js';
-import { jsonResponse, makeBootstrap } from '../test/fixtures.js';
-import { validateAccount } from './FirstRunWizard.js';
+import { createQueryClient } from '../../app/query.js';
+import { createAppRouter } from '../../app/router.js';
+import { installTestI18n } from '../../i18n/testing.js';
+import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -34,6 +35,10 @@ interface SetupCall {
   body: Record<string, unknown>;
 }
 
+interface TelemetryCall {
+  body: Record<string, unknown>;
+}
+
 interface StubOptions {
   /** Server-side setup state. */
   required: boolean;
@@ -45,6 +50,7 @@ interface StubOptions {
 
 function stubFetch(opts: StubOptions) {
   const setupCalls: SetupCall[] = [];
+  const telemetryCalls: TelemetryCall[] = [];
   let authed = opts.authed ?? false;
 
   const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
@@ -83,13 +89,27 @@ function stubFetch(opts: StubOptions) {
         }),
       );
     }
+    // Step 4 asks where the meta store lives, once a session exists.
+    if (url === '/api/v1/meta/placement' && method === 'GET') {
+      return Promise.resolve(
+        jsonResponse(200, {
+          data: { source: 'embedded', engine: 'sqlite', embedded: true, canRelocate: true, reason: null },
+        }),
+      );
+    }
+    // Step 6 writes the consent answers it just asked for.
+    if (url === '/api/v1/settings/telemetry' && method === 'PUT') {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      telemetryCalls.push({ body });
+      return Promise.resolve(jsonResponse(200, { data: body }));
+    }
     return Promise.resolve(
       jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'nope', requestId: 'req_t' } }),
     );
   });
 
   vi.stubGlobal('fetch', fetchMock);
-  return { fetchMock, setupCalls };
+  return { fetchMock, setupCalls, telemetryCalls };
 }
 
 async function renderAt(path: string, opts: StubOptions) {
@@ -118,32 +138,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('validateAccount', () => {
-  const base = { name: 'Ada', email: 'ada@adminium.test', password: 'a-long-password', confirm: 'a-long-password' };
-
-  it('accepts a well-formed account', () => {
-    expect(validateAccount(base, 10)).toEqual({});
-  });
-
-  it('rejects a malformed email', () => {
-    expect(validateAccount({ ...base, email: 'nope' }, 10).email).toBeTypeOf('string');
-  });
-
-  it('enforces the server-supplied minimum length', () => {
-    expect(validateAccount({ ...base, password: 'short', confirm: 'short' }, 10).password).toBeTypeOf('string');
-    // The floor is the server's, not a hardcoded one.
-    expect(validateAccount({ ...base, password: 'abcdefghij', confirm: 'abcdefghij' }, 24).password).toBeTypeOf('string');
-  });
-
-  it('rejects a mismatched confirmation', () => {
-    expect(validateAccount({ ...base, confirm: 'different' }, 10).confirm).toBeTypeOf('string');
-  });
-});
-
 describe('first-run routing gate', () => {
   it('routes a fresh install from / to the wizard', async () => {
     const { router } = await renderAt('/', { required: true });
-    expect(await screen.findByRole('heading', { name: 'Set up Adminium' })).toBeDefined();
+    expect(await screen.findByRole('heading', { name: 'What will you build first?' })).toBeDefined();
     expect(router.state.location.pathname).toBe('/setup');
   });
 
@@ -152,7 +150,7 @@ describe('first-run routing gate', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/setup');
     });
-    expect(screen.getByRole('heading', { name: 'Set up Adminium' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'What will you build first?' })).toBeDefined();
   });
 
   it('a bootstrapped instance cannot open the wizard — /setup redirects to /login', async () => {
@@ -160,7 +158,7 @@ describe('first-run routing gate', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/login');
     });
-    expect(screen.queryByRole('heading', { name: 'Set up Adminium' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'What will you build first?' })).toBeNull();
   });
 
   it('a bootstrapped instance still gets the normal sign-in screen', async () => {
@@ -170,29 +168,46 @@ describe('first-run routing gate', () => {
   });
 });
 
-describe('FirstRunWizard', () => {
+describe('the six-step wizard, on the route', () => {
   // FormField appends a decorative "*" to required labels, so the label's text
   // content is "Email*" — anchor the match rather than asking for exact text.
   const emailField = () => screen.getByLabelText(/^Email/);
   const passwordField = () => screen.getByLabelText(/^Password/);
   const confirmField = () => screen.getByLabelText(/^Confirm password/);
 
-  async function fillAccount(user: ReturnType<typeof userEvent.setup>) {
+  /** Steps 1 and 2 answer themselves: blank canvas, no database. */
+  async function walkToAccount(user: ReturnType<typeof userEvent.setup>) {
+    await screen.findByRole('heading', { name: 'What will you build first?' });
+    await user.click(screen.getByRole('button', { name: /Continue/ }));
+    await user.click(screen.getByRole('button', { name: /Continue/ }));
+    await screen.findByRole('heading', { name: 'Create your account' });
+  }
+
+  async function createAccount(user: ReturnType<typeof userEvent.setup>) {
     await user.type(emailField(), 'ada@adminium.test');
     await user.type(passwordField(), 'correct-horse-battery');
     await user.type(confirmField(), 'correct-horse-battery');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: /Create account/ }));
+  }
+
+  /** …then past storage and team, onto the last screen. */
+  async function walkToDone(user: ReturnType<typeof userEvent.setup>) {
+    await screen.findByRole('heading', { name: 'Where Adminium keeps its own data' });
+    await user.click(screen.getByRole('button', { name: /Continue/ }));
+    await screen.findByRole('heading', { name: 'Bring your team' });
+    await user.click(screen.getByRole('button', { name: 'Skip' }));
+    await screen.findByRole('heading', { name: /You’re all set/ });
   }
 
   it('blocks the account step on a short password and a mismatch, without calling the server', async () => {
     const user = userEvent.setup();
     const { setupCalls } = await renderAt('/setup', { required: true });
-    await screen.findByRole('heading', { name: 'Set up Adminium' });
+    await walkToAccount(user);
 
     await user.type(emailField(), 'ada@adminium.test');
     await user.type(passwordField(), 'short');
     await user.type(confirmField(), 'nope');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: /Create account/ }));
 
     expect(screen.getByText('Use at least 10 characters.')).toBeDefined();
     expect(screen.getByText('Passwords do not match.')).toBeDefined();
@@ -202,8 +217,9 @@ describe('FirstRunWizard', () => {
   it('states exactly what telemetry sends and what it never sends, with both switches OFF', async () => {
     const user = userEvent.setup();
     await renderAt('/setup', { required: true });
-    await screen.findByRole('heading', { name: 'Set up Adminium' });
-    await fillAccount(user);
+    await walkToAccount(user);
+    await createAccount(user);
+    await walkToDone(user);
 
     // Opt-in: nothing is pre-checked.
     const telemetry = await screen.findByRole('switch', { name: /Share anonymous usage data/ });
@@ -222,27 +238,63 @@ describe('FirstRunWizard', () => {
     expect(screen.getByText(/AI prompts or run contents/)).toBeDefined();
   });
 
-  it('creates the super admin with telemetry OFF when the operator does not opt in', async () => {
+  it('creates the super admin with both consents OFF — they have not been asked yet', async () => {
     const user = userEvent.setup();
-    const { setupCalls, router } = await renderAt('/setup', { required: true });
-    await screen.findByRole('heading', { name: 'Set up Adminium' });
-    await fillAccount(user);
+    const { setupCalls } = await renderAt('/setup', { required: true });
+    await walkToAccount(user);
+    await createAccount(user);
+    await screen.findByRole('heading', { name: 'Where Adminium keeps its own data' });
 
-    await user.click(await screen.findByRole('button', { name: 'Create admin account' }));
+    expect(setupCalls).toHaveLength(1);
+    expect(setupCalls[0]?.body.email).toBe('ada@adminium.test');
+    expect(setupCalls[0]?.body.consent).toEqual({ telemetry: false, updateCheck: false });
+  });
 
-    await waitFor(() => {
-      expect(setupCalls).toHaveLength(1);
-    });
-    expect(setupCalls[0]?.body).toMatchObject({
-      email: 'ada@adminium.test',
-      password: 'correct-horse-battery',
-      consent: { telemetry: false, updateCheck: false },
-    });
+  it('writes the consent answers on the way out, and lands in the app', async () => {
+    const user = userEvent.setup();
+    const { telemetryCalls, router } = await renderAt('/setup', { required: true });
+    await walkToAccount(user);
+    await createAccount(user);
+    await walkToDone(user);
+    await user.click(screen.getByRole('button', { name: /Go to dashboard/ }));
 
-    // Landed inside the app, signed in — no second trip through /login.
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/');
     });
+    expect(telemetryCalls).toHaveLength(1);
+    expect(telemetryCalls[0]?.body).toEqual({ telemetry: false, updateCheck: false });
+  });
+
+  it('sends consent: true only after the operator flips the switches', async () => {
+    const user = userEvent.setup();
+    const { telemetryCalls } = await renderAt('/setup', { required: true });
+    await walkToAccount(user);
+    await createAccount(user);
+    await walkToDone(user);
+
+    await user.click(await screen.findByRole('switch', { name: /Share anonymous usage data/ }));
+    await user.click(screen.getByRole('switch', { name: /Check for new releases/ }));
+    await user.click(screen.getByRole('button', { name: /Go to dashboard/ }));
+
+    await waitFor(() => expect(telemetryCalls).toHaveLength(1));
+    expect(telemetryCalls[0]?.body).toEqual({ telemetry: true, updateCheck: true });
+  });
+
+  it('the consent switches are keyboard-operable', async () => {
+    const user = userEvent.setup();
+    const { telemetryCalls } = await renderAt('/setup', { required: true });
+    await walkToAccount(user);
+    await createAccount(user);
+    await walkToDone(user);
+
+    const telemetry = await screen.findByRole('switch', { name: /Share anonymous usage data/ });
+    telemetry.focus();
+    await user.keyboard(' ');
+    expect(telemetry.getAttribute('aria-checked')).toBe('true');
+
+    await user.click(screen.getByRole('button', { name: /Go to dashboard/ }));
+    await waitFor(() => expect(telemetryCalls).toHaveLength(1));
+    expect(telemetryCalls[0]?.body).toEqual({ telemetry: true, updateCheck: false });
   });
 
   it('lands on the connect wizard instead when a bridge hand-off is waiting', async () => {
@@ -255,9 +307,10 @@ describe('FirstRunWizard', () => {
     try {
       const user = userEvent.setup();
       const { router } = await renderAt('/setup', { required: true });
-      await screen.findByRole('heading', { name: 'Set up Adminium' });
-      await fillAccount(user);
-      await user.click(await screen.findByRole('button', { name: 'Create admin account' }));
+      await walkToAccount(user);
+      await createAccount(user);
+      await walkToDone(user);
+      await user.click(screen.getByRole('button', { name: /Go to dashboard/ }));
 
       await waitFor(() => {
         expect(router.state.location.pathname).toBe('/studio/connect');
@@ -267,42 +320,15 @@ describe('FirstRunWizard', () => {
     }
   });
 
-  it('sends consent: true only after the operator flips the switches', async () => {
-    const user = userEvent.setup();
-    const { setupCalls } = await renderAt('/setup', { required: true });
-    await screen.findByRole('heading', { name: 'Set up Adminium' });
-    await fillAccount(user);
-
-    await user.click(await screen.findByRole('switch', { name: /Share anonymous usage data/ }));
-    await user.click(screen.getByRole('switch', { name: /Check for new releases/ }));
-    await user.click(screen.getByRole('button', { name: 'Create admin account' }));
-
-    await waitFor(() => {
-      expect(setupCalls).toHaveLength(1);
-    });
-    expect(setupCalls[0]?.body).toMatchObject({ consent: { telemetry: true, updateCheck: true } });
-  });
-
-  it('the consent switches are keyboard-operable', async () => {
-    const user = userEvent.setup();
-    await renderAt('/setup', { required: true });
-    await screen.findByRole('heading', { name: 'Set up Adminium' });
-    await fillAccount(user);
-
-    const telemetry = await screen.findByRole('switch', { name: /Share anonymous usage data/ });
-    telemetry.focus();
-    await user.keyboard(' ');
-    expect(telemetry.getAttribute('aria-checked')).toBe('true');
-  });
-
   it('explains a 409 instead of offering a retry that can never succeed', async () => {
     const user = userEvent.setup();
     await renderAt('/setup', { required: true, postStatus: 409 });
-    await screen.findByRole('heading', { name: 'Set up Adminium' });
-    await fillAccount(user);
-    await user.click(await screen.findByRole('button', { name: 'Create admin account' }));
+    await walkToAccount(user);
+    await createAccount(user);
 
     expect(await screen.findByRole('alert')).toBeDefined();
-    expect(screen.getByText(/already been set up/)).toBeDefined();
+    expect(screen.getByRole('alert').textContent ?? '').toContain('already been set up');
+    // Still on the account step: there is nothing to advance to.
+    expect(screen.getByRole('heading', { name: 'Create your account' })).toBeDefined();
   });
 });
