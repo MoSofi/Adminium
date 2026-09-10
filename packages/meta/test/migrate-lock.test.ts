@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
+import { sql, type Kysely } from 'kysely';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -34,6 +35,7 @@ import {
   initMetaDb,
   postgresInt8AsNumber,
   withMigrationLock,
+  type ColumnHelpers,
   type MetaDb,
 } from '../src/index.js';
 import { TEST_DIALECTS, postgresAdminUrl, testDatabaseName, urlWithDatabase } from './helpers/db.js';
@@ -157,14 +159,19 @@ for (const dialect of TEST_DIALECTS) {
       return pair;
     };
 
-    it('runs the body on a pinned handle and reports whether it opened a transaction', async () => {
+    it('runs the body on the locked handle and reports whether it opened a transaction', async () => {
       const { a } = await makePair();
       const seen = await withMigrationLock(a.db, { dialect: a.dialect }, async (locked, ctx) => {
         expect(locked).toBeDefined();
         return ctx.inTransaction;
       });
-      // Only SQLite's lock IS a transaction (BEGIN IMMEDIATE).
-      expect(seen).toBe(dialect.name === 'sqlite');
+      // SQLite's lock IS a transaction (BEGIN IMMEDIATE), and PostgreSQL's is
+      // one on purpose: `pg_try_advisory_xact_lock` in an explicit transaction
+      // is the only shape a transaction-mode pooler keeps on one backend. Only
+      // MySQL still locks a bare session — it has no transactional DDL to hang
+      // a transaction-scoped lock on. Flip either of the first two back to a
+      // session lock and this fails.
+      expect(seen).toBe(dialect.name !== 'mysql');
     });
 
     it('blocks a second holder while the first is inside, and warns that it is waiting', async () => {
@@ -229,5 +236,86 @@ for (const dialect of TEST_DIALECTS) {
       const { applied } = await applyMigrations(a.db, { dialect: a.dialect, lock: false });
       expect(applied).toEqual(ALL_MIGRATIONS.map((m) => m.name));
     });
+
+    /**
+     * The pooler-safety property, stated as behaviour rather than as SQL: the
+     * lock and every statement it guards are ONE transaction, so a pass that
+     * dies half way leaves nothing behind. That is what makes the PostgreSQL
+     * lock survive pgbouncer — a transaction is the unit a transaction-mode
+     * pooler pins a backend for. Restore the per-migration transactions and
+     * `lock_test_a` survives the failure, which is exactly what this catches.
+     *
+     * MySQL is the documented exception: no transactional DDL, so its first
+     * migration commits and stays.
+     */
+    it('rolls the whole pass back when a migration fails', async () => {
+      const { a } = await makePair();
+      const migrations = [
+        {
+          name: '0001_lock_test_a',
+          up: async (db: Kysely<unknown>, c: ColumnHelpers) => {
+            await db.schema
+              .createTable('lock_test_a')
+              .addColumn('id', c.str(36), (col) => col.primaryKey())
+              .execute();
+          },
+        },
+        {
+          name: '0002_lock_test_boom',
+          up: async () => {
+            throw new Error('migration blew up');
+          },
+        },
+      ];
+
+      await expect(
+        applyMigrations(a.db, { dialect: a.dialect, migrations }),
+      ).rejects.toThrow('migration blew up');
+
+      const survived = await a.db
+        .selectFrom('lock_test_a' as never)
+        .selectAll()
+        .execute()
+        .then(
+          () => true,
+          () => false,
+        );
+      expect(survived).toBe(dialect.name === 'mysql');
+    });
   });
 }
+
+/**
+ * PostgreSQL only: the lock has to be held by the very backend that runs the
+ * pass. Behind a transaction-mode pooler a session lock is held by whichever
+ * backend served the `select`, and the DDL that follows lands on another one —
+ * so "same backend" is the invariant, and `pg_locks` is where it is visible.
+ * This cannot see a pooler from here (the suite talks to Postgres directly),
+ * but it does catch the implementation slipping back to locking the pool handle
+ * instead of the transaction.
+ */
+describe.skipIf(!(TEST_DIALECTS.find((d) => d.name === 'postgres')?.available ?? false))(
+  'migration lock [postgres] backend identity',
+  () => {
+    let pair: Pair | undefined;
+
+    afterEach(async () => {
+      await pair?.destroy();
+      pair = undefined;
+    });
+
+    it('holds the advisory lock on the same backend that runs the body', async () => {
+      pair = await postgresPair();
+      const seen = await withMigrationLock(pair.a.db, { dialect: 'postgres' }, async (locked) => {
+        const { rows } = await sql<{ held: string | number }>`
+          select count(*) as held
+            from pg_locks
+           where locktype = 'advisory'
+             and pid = pg_backend_pid()
+        `.execute(locked);
+        return Number(rows[0]?.held ?? 0);
+      });
+      expect(seen).toBe(1);
+    });
+  },
+);

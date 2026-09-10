@@ -52,6 +52,7 @@ import { up as up0026 } from './0026_email_documents.js';
 import { up as up0027 } from './0027_invoice_documents.js';
 import { up as up0028 } from './0028_automations_runtime.js';
 import { up as up0029 } from './0029_dataio_files_email_namespace.js';
+import { up as up0031 } from './0031_documents.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -91,4 +92,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0028_automations_runtime', up: up0028 },
   { name: '0029_dataio_files_email_namespace', up: up0029 },
   { name: '0030_report_documents', up: up0030 },
+  { name: '0031_documents', up: up0031 },
 ];

@@ -728,6 +728,108 @@ export interface AdminiumEmailRunsTable {
  * `(topic, lang)` names one member of a language family; `position` is the
  * manager's sort key; `origin_id` is a soft ref with no FK (34 O20).
  */
+/**
+ * The operator's answer to "which columns of which table make one of these
+ * documents" (34 §3.3). Generated in Studio from the provider's own
+ * `describe(kind)`, so the slot ids inside `mapping` are the PROVIDER's
+ * vocabulary and this table never has an opinion about them.
+ */
+export interface AdminiumDocumentProfilesTable {
+  id: Id;
+  /** SOFT ref to `manifests.manifestKey` — no FK, so uninstall cannot cascade. */
+  addOnKey: string;
+  /** The provider's kind: `invoice`, `receipt`, `label-sheet`. */
+  kind: string;
+  name: string;
+  connectionId: Id;
+  /** Qualified source name, e.g. `public.orders`. */
+  table: string;
+  /** `{ slotId → {column} | {ref, column} | {collection: {...}} }`. */
+  mapping: JsonColumn;
+  /** Prefix, paper, formats, locale. */
+  options: JsonColumn;
+  /** `{event, when?}` or NULL when nothing fires this profile. */
+  trigger: JsonColumn | null;
+  /** `{store, email?, writeBack?}`. */
+  deliver: JsonColumn;
+  enabled: BoolColumn;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/**
+ * THE REGISTER: what was ISSUED, frozen (34 §3.3, 25 D12).
+ *
+ * Not `adminium_invoice_documents`, which holds what a person typed and can
+ * edit again. A row here carries the whole `subject` it was rendered from, so
+ * a document stays what it was after the source row is edited, archived or
+ * deleted — which is the only behaviour an issued document can have.
+ */
+export interface AdminiumDocumentsTable {
+  id: Id;
+  /** SET NULL, never CASCADE — a deleted profile must not unmake a document. */
+  profileId: Id | null;
+  addOnKey: string;
+  kind: string;
+  connectionId: Id | null;
+  /** The full `RecordRef`; NULL for a request-shaped intent (34 D15). */
+  entity: JsonColumn | null;
+  /** Denormalised from `entity` for the index (the 0016 pattern). */
+  entityTable: string | null;
+  entityId: string | null;
+  /** The frozen `DocumentSubject`. */
+  subject: JsonColumn;
+  /** NULL until a render succeeds and the CAS claims one (34 D11). */
+  number: string | null;
+  fileId: Id | null;
+  htmlFileId: Id | null;
+  locale: string;
+  format: string;
+  /** rendered | failed | voided | skipped */
+  status: string;
+  error: string | null;
+  /** sent | pending-review | not-sent:smtp-unconfigured | not-sent:no-email | skipped */
+  delivery: string | null;
+  sentAt: Ts | null;
+  /** Soft ref — a job row is pruned long before the document is. */
+  jobId: Id | null;
+  requestedBy: Id | null;
+  /** user | system | api-key */
+  actorKind: string;
+  /** `{column, value}`, stamped LAST for an intent row. */
+  claim: JsonColumn | null;
+  renderedAt: Ts | null;
+  voidedAt: Ts | null;
+  voidReason: string | null;
+  createdAt: Ts;
+}
+
+/**
+ * The number source, claimed by compare-and-set (34 D11). `key` is a profile
+ * id, or `<addOnKey>:<kind>:<connectionId>` for a profile-less intent.
+ */
+export interface AdminiumDocumentSequencesTable {
+  key: string;
+  next: number;
+  updatedAt: Ts;
+}
+
+/**
+ * An add-on's own NON-SECRET values — the settings panel's store.
+ *
+ * A secret never lands here: it belongs in 0021's encrypted credentials
+ * table, and the repo refuses a key the manifest marks `secret` so a mistake
+ * at the route layer cannot put one in a table read back in clear.
+ */
+export interface AdminiumAddOnSettingsTable {
+  /** SOFT ref to `manifests.manifestKey` — no FK. */
+  addOnKey: string;
+  values: JsonColumn;
+  updatedBy: Id | null;
+  updatedAt: Ts;
+}
+
 export interface AdminiumInvoiceDocumentsTable {
   id: Id;
   /** template | invoice */
@@ -1065,6 +1167,10 @@ export interface MetaDB {
   adminium_email_runs: AdminiumEmailRunsTable;
   adminium_invoice_documents: AdminiumInvoiceDocumentsTable;
   adminium_report_documents: AdminiumReportDocumentsTable;
+  adminium_document_profiles: AdminiumDocumentProfilesTable;
+  adminium_documents: AdminiumDocumentsTable;
+  adminium_document_sequences: AdminiumDocumentSequencesTable;
+  adminium_add_on_settings: AdminiumAddOnSettingsTable;
   adminium_webhooks: AdminiumWebhooksTable;
   adminium_webhook_deliveries: AdminiumWebhookDeliveriesTable;
   adminium_feature_flags: AdminiumFeatureFlagsTable;
@@ -1115,6 +1221,10 @@ export const META_TABLE_NAMES = [
   'adminium_email_runs',
   'adminium_invoice_documents',
   'adminium_report_documents',
+  'adminium_document_profiles',
+  'adminium_documents',
+  'adminium_document_sequences',
+  'adminium_add_on_settings',
   'adminium_webhooks',
   'adminium_webhook_deliveries',
   'adminium_feature_flags',

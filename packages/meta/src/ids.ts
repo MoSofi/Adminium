@@ -105,6 +105,12 @@ export const ID_PREFIXES = {
   psc: 'adminium_public_scopes',
   pss: 'adminium_public_sessions',
   pch: 'adminium_public_challenges',
+  // wave 0031 — the document render register (34 §3.3). `doc` is the register
+  // row itself and `dpf` the profile that shaped it; the sequences table has a
+  // natural key (the profile id, or a composite for a profile-less intent) and
+  // takes no prefix, as the settings and prefs tables do not.
+  doc: 'adminium_documents',
+  dpf: 'adminium_document_profiles',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

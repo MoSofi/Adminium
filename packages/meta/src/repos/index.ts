@@ -37,3 +37,7 @@ export * from './translations.js';
 export * from './manifests.js';
 export * from './automations.js';
 export * from './automation-runs.js';
+export * from './document-sequences.js';
+export * from './document-profiles.js';
+export * from './documents.js';
+export * from './add-on-settings.js';

@@ -721,6 +721,28 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
     values: automationValuesSchema.default({}),
   }),
   z.object({
+    /*
+     * DRAW A DOCUMENT (34-invoices-add-on.md §7.2 as ruled by D55).
+     *
+     * §7.2 designed a separate `adminium_record_triggers` table with its own
+     * matcher. It was not built: plan 42 had already shipped the indexed
+     * lookup, the `when` condition, the 60 s undo window, the per-row dedupe
+     * key and the delay-by-origin rule that §7.2 specified, and O4's only
+     * objection to reusing them — that `automations.manage` was still
+     * reserved — went away when 42 un-reserved it. So a document profile's
+     * trigger IS a rule, and this is the step it runs.
+     *
+     * ONE FIELD, and that is the point: everything about HOW the document is
+     * made — the mapping, the paper, the formats, the number prefix, the
+     * provider — lives on the profile, where an operator edits it in Studio
+     * with the provider's own slot labels in front of them. Copying any of it
+     * into the rule would give a document two sources of truth.
+     */
+    kind: z.literal('document.render'),
+    /** `adminium_document_profiles.id`. Null while the step is being authored. */
+    profileId: z.string().max(36).nullable().default(null),
+  }),
+  z.object({
     kind: z.literal('webhook'),
     url: z.string().max(2000).nullable().default(null),
     method: z.enum(['POST', 'PUT']).default('POST'),
@@ -1018,7 +1040,26 @@ export const importStatusSchema = z.enum(['validating', 'ready', 'running', 'suc
 
 // --- files (§3.27) --------------------------------------------------------------------------
 
-export const fileKindSchema = z.enum(['upload', 'export', 'import', 'branding', 'schema', 'archive']);
+/**
+ * What a stored file IS. `document` joined on 2026-09-10 (34 §7.3, 34-T11):
+ * the bytes a `document-render@1` provider produced for one register row.
+ *
+ * A KIND RATHER THAN A FLAG ON `export`, because the two differ in every way
+ * that matters downstream: an export is a snapshot of a query somebody ran and
+ * is disposable, while a document is a thing that was ISSUED to somebody and
+ * may have to be produced again years later. They get different retention
+ * (`retention.documentsDays`, default null — kept forever, 34 O15), different
+ * routes, and different answers to "may this be swept".
+ */
+export const fileKindSchema = z.enum([
+  'upload',
+  'export',
+  'import',
+  'branding',
+  'schema',
+  'archive',
+  'document',
+]);
 
 // --- storage destinations (37-files-and-storage.md §3.2) --------------------------------------
 

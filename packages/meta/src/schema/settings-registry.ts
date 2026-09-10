@@ -371,6 +371,20 @@ export const SETTINGS_REGISTRY = {
   // still saves, and short enough that the litter does not accumulate.
   'files.unattachedHours': def(z.number().int().min(1).max(720), 24, 'Hours an unattached upload is kept before it is moved to trash', P),
   'retention.filesTrashDays': def(z.number().int().min(1).max(365), 30, 'Days a trashed file is kept before its bytes are deleted', P),
+  /*
+   * NULL BY DEFAULT — kept forever (34 O15). Every other retention key here
+   * has a window because what it sweeps is a BYPRODUCT: a trashed file, an
+   * audit batch, an export somebody already downloaded. An issued document is
+   * not a byproduct. It went to a customer, it may be the only record of a
+   * transaction, and a product that quietly deleted one after ninety days
+   * would be destroying business records on a default nobody chose.
+   *
+   * SCOPE, because O15's own re-read narrowed it: this sweeps the REGISTER —
+   * `adminium_documents` and the bytes behind it. Authored templates
+   * (`adminium_invoice_documents`) are not expiring business records and are
+   * explicitly out of its reach.
+   */
+  'retention.documentsDays': def(z.number().int().min(1).max(3650).nullable(), null, 'Days an issued document is kept before its bytes are deleted; empty keeps them forever', P),
   // Above this, a grid cell shows the chip rather than the image. There is no
   // server-side resizing (D24/D39) — the thumbnail IS the original, rendered
   // small — so the cap is what stops a 40 px box from downloading 12 MB.

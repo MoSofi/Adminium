@@ -20,6 +20,7 @@
  */
 
 import { sql, type Selectable } from 'kysely';
+import type { z } from 'zod';
 
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
@@ -32,7 +33,16 @@ import {
 import type { AdminiumFilesTable } from '../schema/tables.js';
 import { affected, packJson, readJsonOrNull } from './util.js';
 
-export type FileKind = 'upload' | 'export' | 'import' | 'branding' | 'schema' | 'archive';
+/**
+ * DERIVED from `fileKindSchema`, not spelt out again.
+ *
+ * This was a hand-typed union of the same six words, and the two drifted the
+ * first time a seventh was added: `document` went into the schema on
+ * 2026-09-10 (34-T11) and this line still said six, so the repo's own
+ * `insert` stopped accepting a kind the validator considered valid. A union
+ * that has to be edited in two places is a union that will be edited in one.
+ */
+export type FileKind = z.infer<typeof fileKindSchema>;
 
 export interface StoredFile {
   id: string;

@@ -10,7 +10,8 @@
  *   aborts with the migration name and remedy.
  * - Unknown ledger rows (database migrated by a newer Adminium) abort with an
  *   upgrade message.
- * - Transactional per migration on PostgreSQL/SQLite (transactional DDL); on
+ * - Atomic on PostgreSQL/SQLite (transactional DDL): under the lock the whole
+ *   pass is one transaction, and an unlocked caller gets one per migration; on
  *   MySQL the ledger row is written immediately after the last statement and
  *   every DDL statement is individually re-runnable (ifNotExists guards).
  * - Serialized across processes by a per-dialect advisory lock (migrate-lock.ts)
@@ -92,9 +93,10 @@ export interface MigratorOptions {
    */
   lock?: Omit<MigrationLockOptions, 'dialect'> | false;
   /**
-   * Set when `db` is already inside a transaction the caller opened (the
-   * SQLite lock is). Suppresses the per-migration transaction: SQLite has no
-   * nested `BEGIN`, and the pass is already atomic as a whole.
+   * Set when `db` is already inside a transaction the caller opened — both the
+   * SQLite and the PostgreSQL lock are one. Suppresses the per-migration
+   * transaction: neither dialect has a nested `BEGIN`, and the pass is already
+   * atomic as a whole.
    */
   inTransaction?: boolean;
 }
@@ -171,11 +173,12 @@ async function readAndValidateLedger(
  * migrations are skipped via the ledger.
  *
  * Concurrent runners are serialized by the advisory lock (migrate-lock.ts),
- * held on one pinned connection for the whole pass — the ledger PK alone only
- * defends PostgreSQL/SQLite, where it shares a transaction with the DDL, and
- * MySQL is exactly the dialect where it does not. Pass `lock: false` to opt
- * out; a lock wait is bounded and fails with {@link MigrationLockTimeoutError}
- * rather than hanging a container boot.
+ * anchored for the whole pass to one transaction (PostgreSQL, SQLite) or one
+ * pinned connection (MySQL) — the ledger PK alone only defends
+ * PostgreSQL/SQLite, where it shares a transaction with the DDL, and MySQL is
+ * exactly the dialect where it does not. Pass `lock: false` to opt out; a lock
+ * wait is bounded and fails with {@link MigrationLockTimeoutError} rather than
+ * hanging a container boot.
  */
 export async function applyMigrations(db: Kysely<MetaDB>, options: MigratorOptions): Promise<ApplyResult> {
   // `db.connection()` cannot pin anything on a handle that is already a
@@ -220,8 +223,8 @@ async function applyMigrationsUnlocked(
     if (dialect === 'mysql' || options.inTransaction === true) {
       // MySQL: no transactional DDL, so statements are individually re-runnable
       // (ifNotExists) and the ledger row lands right after the last one.
-      // `inTransaction`: the caller already opened one (the SQLite lock does),
-      // and SQLite has no nested BEGIN.
+      // `inTransaction`: the caller already opened one (both the SQLite and the
+      // PostgreSQL lock do), and neither dialect has a nested BEGIN.
       await migration.up(db as unknown as Kysely<unknown>, c);
       await db.insertInto(LEDGER).values(ledgerRow()).execute();
     } else {
