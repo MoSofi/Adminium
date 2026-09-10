@@ -35,6 +35,11 @@
  * Usage:
  *   node scripts/release/publish-npm.mjs --dry-run   # pack to scripts/release/out/
  *   node scripts/release/publish-npm.mjs             # publish (needs npm auth)
+ *
+ * BEFORE THE REAL RUN: `node scripts/release/rehearse-npx.mjs --wizard` packs
+ * with the same --dry-run, installs the tarballs the way npx does and runs the
+ * CLI from a directory that is not this repo. A published version is immutable;
+ * that is the last cheap chance to find out the artifact is broken.
  * Env:
  *   NPM_SCOPE       target scope, default adminiumjs
  *   NPM_PROVENANCE  "1" to pass --provenance (CI with OIDC only)
