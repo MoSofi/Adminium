@@ -21,13 +21,24 @@ import { describe, expect, it } from 'vitest';
 
 import {
   describeArtworkSource,
+  describeDocumentRenderer,
   describeProductPersonalizer,
   describeShippingCarrier,
+  type DocumentRendererFixtures,
 } from '../src/testing/index.js';
-import { CarrierError, jobSpecSchema, templateSchema } from '../src/index.js';
+import {
+  CarrierError,
+  DOCUMENT_LOCALE_IDS,
+  isDocumentError,
+  jobSpecSchema,
+  localizedTextSchema,
+  outlineSlotSchema,
+  templateSchema,
+} from '../src/index.js';
 import type { Address, JobSpec, Parcel, Personalization, Template } from '../src/index.js';
 import {
   ReferenceArtworkSource,
+  ReferenceDocumentRenderer,
   ReferenceProductPersonalizer,
   ReferenceShippingCarrier,
 } from './reference-impls.js';
@@ -226,5 +237,119 @@ describe('CarrierError', () => {
     // and a UI quoting `err.carrierMessage` must not diverge.
     expect(err.message).toBe('Postcode unknown.');
     expect(err.carrierMessage).toBe('Postcode unknown.');
+  });
+});
+
+// -- document-render@1 -------------------------------------------------------
+
+/**
+ * A pinned clock, in the subject where it belongs. The suite renders twice and
+ * requires identical bytes; with the provider reading its own `Date.now()`
+ * that assertion would still pass here — the two calls are microseconds apart
+ * — and fail nowhere until a real invoice printed the wrong minute. Putting
+ * the clock in the fixture is what makes the assertion mean what it says.
+ */
+const DOCUMENT_NOW = { iso: '2026-09-10T09:15:00.000Z', timezone: 'Europe/Lisbon' };
+
+const REFERENCE_DOCUMENT_FIXTURES: DocumentRendererFixtures = {
+  settings: { footer: 'Thank you' },
+  subject: (kind) =>
+    kind.id === 'ticket'
+      ? {
+          now: DOCUMENT_NOW,
+          locale: 'en-US',
+          currency: 'EUR',
+          business: { name: 'Northwind Studio', lines: ['18 Harbour Road', 'Lisbon'] },
+          entity: null,
+          number: 'TK-0007',
+          fields: { title: 'Collection ticket', reference: 'ORD-4118' },
+          collections: {},
+        }
+      : {
+          now: DOCUMENT_NOW,
+          locale: 'en-US',
+          currency: 'EUR',
+          business: { name: 'Northwind Studio', lines: ['18 Harbour Road', 'Lisbon'] },
+          entity: {
+            connectionId: 'conn_1',
+            table: 'public.orders',
+            pk: { id: 4118 },
+            label: 'Order 4118',
+          },
+          number: 'NB-1042',
+          // Money in integer minor units, percent in basis points — the wire
+          // law the suite asserts on this very object.
+          fields: {
+            title: 'Design system audit',
+            recipientLines: ['Acme Corporation', '400 Market Street'],
+            amount: 214_500,
+            rate: 2000,
+          },
+          collections: {
+            lines: [
+              { description: 'Audit', total: 120_000 },
+              { description: 'Report', total: 94_500 },
+            ],
+          },
+        },
+};
+
+describeDocumentRenderer(new ReferenceDocumentRenderer(), REFERENCE_DOCUMENT_FIXTURES);
+
+describe('document-render@1 — the suite fails what it promises to fail', () => {
+  /*
+   * 34-T04's done-when: green against a conforming provider AND RED against
+   * one missing a locale. A conformance suite nobody has watched fail is a
+   * suite whose assertions might all be vacuous — `describeShippingCarrier`
+   * spent a release in exactly that state (`ab6314e`, see this file's header).
+   * So the negative case is executed here rather than asserted in prose: the
+   * eight-locale rule is exercised against a label with seven.
+   */
+  it('rejects a kind label missing one of the eight locales', () => {
+    const sevenOfEight = Object.fromEntries(
+      DOCUMENT_LOCALE_IDS.filter((id) => id !== 'cs-CZ').map((id) => [id, 'Note']),
+    );
+    const parsed = localizedTextSchema.safeParse(sevenOfEight);
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects a ninth locale a provider invented', () => {
+    const nine = {
+      ...Object.fromEntries(DOCUMENT_LOCALE_IDS.map((id) => [id, 'Note'])),
+      'es-ES': 'Nota',
+    };
+    expect(localizedTextSchema.safeParse(nine).success).toBe(false);
+  });
+
+  it('rejects a collection nested inside a collection', () => {
+    const nested = {
+      id: 'lines',
+      label: Object.fromEntries(DOCUMENT_LOCALE_IDS.map((id) => [id, 'Lines'])),
+      type: 'collection',
+      required: false,
+      columns: [
+        {
+          id: 'inner',
+          label: Object.fromEntries(DOCUMENT_LOCALE_IDS.map((id) => [id, 'Inner'])),
+          type: 'collection',
+          required: false,
+          columns: [],
+        },
+      ],
+    };
+    expect(outlineSlotSchema.safeParse(nested).success).toBe(false);
+  });
+
+  it('narrows a refusal without a `code in x` incantation', async () => {
+    const outcome = await new ReferenceDocumentRenderer().render({
+      kind: 'no-such-kind',
+      subject: REFERENCE_DOCUMENT_FIXTURES.subject(
+        new ReferenceDocumentRenderer().kinds()[0]!,
+      ),
+      formats: ['html'],
+      paper: 'a4',
+      settings: {},
+    });
+    expect(isDocumentError(outcome)).toBe(true);
   });
 });

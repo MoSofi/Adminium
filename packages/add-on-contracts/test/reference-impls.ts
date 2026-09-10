@@ -28,12 +28,20 @@
 
 import {
   CarrierError,
+  DOCUMENT_LOCALE_IDS,
   type Address,
   type ArtworkRef,
   type ArtworkSource,
   type AvailabilityVerdict,
+  type DocumentError,
+  type DocumentKind,
+  type DocumentOutline,
+  type DocumentRenderer,
   type FileRef,
   type JobSpec,
+  type LocalizedText,
+  type RenderInput,
+  type RenderedDocument,
   type OrderRef,
   type Parcel,
   type Personalization,
@@ -415,5 +423,305 @@ export class ReferenceProductPersonalizer implements ProductPersonalizer {
         opts.widthPx,
       ].join('|'),
     );
+  }
+}
+
+// -- document-render@1 -------------------------------------------------------
+
+/**
+ * A reference `DocumentRenderer` — two kinds, deliberately with DIFFERENT
+ * coverage, because a single-kind reference would leave half the contract
+ * unexecuted.
+ *
+ *   · `note` is `winansi` and renders both formats, so it exercises the
+ *     drawing branch for `é ß ø €` and the refusal branch for Arabic and Han;
+ *   · `ticket` is `ascii` and PDF-only, so it exercises the refusal branch for
+ *     `é ß ø €` — the case a WinAnsi-only reference could never reach, and the
+ *     one `barcode-labels` actually is (34-T06).
+ *
+ * It earns its passes the way the other three references do. The PDF is built
+ * over BYTE buffers with the cross-reference offsets collected from the buffer
+ * itself, so `parseXrefBack` walking to each object is a property of the
+ * writer rather than of a recorded answer — and a writer that computed offsets
+ * from `String.length` (34 §0.3 trap 8) fails it on the first accented
+ * character. Coverage is checked BEFORE the writer runs, so a glyph it cannot
+ * draw is a typed refusal and never a hole in the page.
+ */
+
+const WINANSI_HIGH: Readonly<Record<string, number>> = {
+  '€': 0x80, '‚': 0x82, 'ƒ': 0x83, '„': 0x84, '…': 0x85,
+  '†': 0x86, '‡': 0x87, 'ˆ': 0x88, '‰': 0x89, 'Š': 0x8a,
+  '‹': 0x8b, 'Œ': 0x8c, 'Ž': 0x8e, '‘': 0x91, '’': 0x92,
+  '“': 0x93, '”': 0x94, '•': 0x95, '–': 0x96, '—': 0x97,
+  '˜': 0x98, '™': 0x99, 'š': 0x9a, '›': 0x9b, 'œ': 0x9c,
+  'ž': 0x9e, 'Ÿ': 0x9f,
+};
+
+/** The byte WinAnsiEncoding gives this character, or `null` when it draws none. */
+function winAnsiByte(ch: string): number | null {
+  const code = ch.codePointAt(0) ?? 0;
+  if (code >= 0x20 && code <= 0x7e) return code;
+  if (code >= 0xa0 && code <= 0xff) return code;
+  const high = WINANSI_HIGH[ch];
+  return high ?? null;
+}
+
+/** Every distinct character of `text` the encoding cannot draw, in order of first appearance. */
+function undrawable(text: string, coverage: 'ascii' | 'winansi' | 'all'): string[] {
+  if (coverage === 'all') return [];
+  const dropped: string[] = [];
+  for (const ch of text) {
+    if (ch === '\n' || ch === '\r' || ch === '\t') continue;
+    const code = ch.codePointAt(0) ?? 0;
+    const ok = coverage === 'ascii' ? code >= 0x20 && code <= 0x7e : winAnsiByte(ch) !== null;
+    if (!ok && !dropped.includes(ch)) dropped.push(ch);
+  }
+  return dropped;
+}
+
+/** A PDF string literal's bytes, WinAnsi-encoded, with `(`, `)` and `\` escaped. */
+function pdfLiteralBytes(text: string): number[] {
+  const out: number[] = [0x28];
+  for (const ch of text) {
+    const byte = winAnsiByte(ch);
+    if (byte === null) continue;
+    if (byte === 0x28 || byte === 0x29 || byte === 0x5c) out.push(0x5c);
+    out.push(byte);
+  }
+  out.push(0x29);
+  return out;
+}
+
+const ASCII = (text: string): number[] => Array.from(text, (ch) => ch.charCodeAt(0) & 0xff);
+
+/**
+ * One page of left-aligned Helvetica, written straight into a byte array.
+ *
+ * The offsets in the cross-reference table are the LENGTH OF THE BUFFER at the
+ * moment each object starts, which is the only definition that stays true once
+ * a single character encodes to a byte outside ASCII.
+ */
+function referencePdf(lines: readonly string[], widthPt: number, heightPt: number): Uint8Array {
+  const stream: number[] = [];
+  stream.push(...ASCII('BT\n/F1 11 Tf\n12 TL\n'));
+  stream.push(...ASCII(`1 0 0 1 36 ${String(heightPt - 48)} Tm\n`));
+  for (const line of lines) {
+    stream.push(...pdfLiteralBytes(line));
+    stream.push(...ASCII(' Tj T*\n'));
+  }
+  stream.push(...ASCII('ET\n'));
+
+  /*
+   * THE CONTENT STREAM IS OBJECT 4 AND THE FONT IS OBJECT 5, IN THAT ORDER,
+   * AND THE ORDER IS LOAD-BEARING FOR THE CONFORMANCE SUITE.
+   *
+   * A PDF's objects may be written in any order — that is what the
+   * cross-reference table is for — and real writers routinely emit resources
+   * after the content that uses them. Here it also gives
+   * `describeDocumentRenderer`'s xref assertion its teeth: with the drawn text
+   * in the LAST object, every offset in the table precedes the first non-ASCII
+   * byte, so a writer that computed its offsets from `String.length` produces
+   * a table that is still, by luck, entirely correct. Measured on 2026-09-10:
+   * a deliberate `String.length` mutation passed the suite until an object was
+   * moved after the stream. Any multi-page document has this property for
+   * free; a one-page reference has to be arranged to have it.
+   */
+  const objects: number[][] = [
+    ASCII('<</Type/Catalog/Pages 2 0 R>>'),
+    ASCII('<</Type/Pages/Kids[3 0 R]/Count 1>>'),
+    ASCII(
+      `<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${String(widthPt)} ${String(heightPt)}]` +
+        '/Resources<</Font<</F1 5 0 R>>>>/Contents 4 0 R>>',
+    ),
+    [
+      ...ASCII(`<</Length ${String(stream.length)}>>\nstream\n`),
+      ...stream,
+      ...ASCII('\nendstream'),
+    ],
+    ASCII('<</Type/Font/Subtype/Type1/BaseFont/Helvetica/Encoding/WinAnsiEncoding>>'),
+  ];
+
+  const bytes: number[] = [...ASCII('%PDF-1.4\n')];
+  const offsets: number[] = [];
+  objects.forEach((body, at) => {
+    offsets.push(bytes.length);
+    bytes.push(...ASCII(`${String(at + 1)} 0 obj\n`), ...body, ...ASCII('\nendobj\n'));
+  });
+
+  const xref = bytes.length;
+  bytes.push(...ASCII(`xref\n0 ${String(objects.length + 1)}\n0000000000 65535 f \n`));
+  for (const offset of offsets) {
+    bytes.push(...ASCII(`${String(offset).padStart(10, '0')} 00000 n \n`));
+  }
+  bytes.push(
+    ...ASCII(
+      `trailer\n<</Size ${String(objects.length + 1)}/Root 1 0 R>>\n` +
+        `startxref\n${String(xref)}\n%%EOF\n`,
+    ),
+  );
+  return Uint8Array.from(bytes);
+}
+
+const ESCAPES: Readonly<Record<string, string>> = {
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+};
+
+const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (ch) => ESCAPES[ch] ?? ch);
+
+/** The same eight-locale word in all eight locales — a reference, not a translation exercise. */
+function everyLocale(text: string): LocalizedText {
+  return Object.fromEntries(DOCUMENT_LOCALE_IDS.map((id) => [id, text])) as LocalizedText;
+}
+
+const REFERENCE_KINDS: readonly DocumentKind[] = [
+  {
+    id: 'note',
+    label: everyLocale('Note'),
+    formats: ['html', 'pdf'],
+    paper: ['a4', 'letter'],
+    coverage: 'winansi',
+  },
+  {
+    id: 'ticket',
+    label: everyLocale('Ticket'),
+    formats: ['pdf'],
+    paper: ['receipt-80mm'],
+    coverage: 'ascii',
+  },
+];
+
+const REFERENCE_OUTLINES: Readonly<Record<string, DocumentOutline>> = {
+  note: {
+    slots: [
+      { id: 'title', label: everyLocale('Title'), type: 'text', required: true },
+      {
+        id: 'issuedAt',
+        label: everyLocale('Issued'),
+        help: everyLocale('Left empty, the moment the document is made is used.'),
+        type: 'date',
+        required: true,
+        default: 'now',
+      },
+      { id: 'recipientLines', label: everyLocale('Recipient'), type: 'text[]', required: false },
+      { id: 'amount', label: everyLocale('Amount'), type: 'money', required: false },
+      { id: 'rate', label: everyLocale('Rate'), type: 'percent', required: false },
+      {
+        id: 'lines',
+        label: everyLocale('Lines'),
+        type: 'collection',
+        required: false,
+        columns: [
+          { id: 'description', label: everyLocale('Description'), type: 'text', required: true },
+          { id: 'total', label: everyLocale('Total'), type: 'money', required: true },
+        ],
+      },
+    ],
+  },
+  ticket: {
+    slots: [
+      { id: 'title', label: everyLocale('Title'), type: 'text', required: true },
+      { id: 'reference', label: everyLocale('Reference'), type: 'text', required: true },
+    ],
+  },
+};
+
+const PAPER_PT: Readonly<Record<string, { width: number; height: number }>> = {
+  a4: { width: 595, height: 842 },
+  letter: { width: 612, height: 792 },
+  'receipt-80mm': { width: 227, height: 600 },
+};
+
+export class ReferenceDocumentRenderer implements DocumentRenderer {
+  readonly key = 'reference-documents';
+
+  kinds(): readonly DocumentKind[] {
+    return REFERENCE_KINDS;
+  }
+
+  describe(kind: string): DocumentOutline {
+    const outline = REFERENCE_OUTLINES[kind];
+    if (outline === undefined) throw new Error(`unknown document kind: ${kind}`);
+    return outline;
+  }
+
+  async render(input: RenderInput): Promise<readonly RenderedDocument[] | DocumentError> {
+    const kind = REFERENCE_KINDS.find((k) => k.id === input.kind);
+    if (kind === undefined) {
+      return { code: 'UNSUPPORTED_KIND', detail: `this add-on has no kind '${input.kind}'` };
+    }
+    const outline = this.describe(kind.id);
+
+    for (const slot of outline.slots) {
+      if (!slot.required || slot.default !== undefined) continue;
+      const value = input.subject.fields[slot.id];
+      if (value === undefined || value === null || value === '') {
+        return { code: 'MISSING_SLOT', detail: `'${slot.id}' has no value` };
+      }
+    }
+
+    const lines = this.#lines(outline, input);
+
+    const documents: RenderedDocument[] = [];
+    for (const format of input.formats) {
+      if (!kind.formats.includes(format)) continue;
+      if (format === 'html') {
+        const html =
+          '<!doctype html><html><head><meta charset="utf-8">' +
+          `<title>${escapeHtml(lines[0] ?? kind.id)}</title></head><body>` +
+          lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('') +
+          '</body></html>';
+        documents.push({
+          format: 'html',
+          filename: `${kind.id}.html`,
+          mediaType: 'text/html; charset=utf-8',
+          bytes: new TextEncoder().encode(html),
+          locale: input.subject.locale,
+          warnings: [],
+        });
+        continue;
+      }
+
+      // Coverage is checked before the writer, never inside it: a refusal has
+      // to name the glyphs, and by the time a byte has been dropped it cannot.
+      const dropped = undrawable(lines.join('\n'), kind.coverage);
+      if (dropped.length > 0) {
+        return {
+          code: 'LATIN_ONLY',
+          detail: `kind '${kind.id}' draws ${kind.coverage} only`,
+          dropped,
+        };
+      }
+      const paper = PAPER_PT[input.paper] ?? PAPER_PT.a4!;
+      documents.push({
+        format: 'pdf',
+        filename: `${kind.id}.pdf`,
+        mediaType: 'application/pdf',
+        bytes: referencePdf(lines, paper.width, paper.height),
+        locale: input.subject.locale,
+        warnings: [],
+      });
+    }
+    return documents;
+  }
+
+  /** Every drawn line, in one place, so HTML and PDF cannot drift apart. */
+  #lines(outline: DocumentOutline, input: RenderInput): string[] {
+    const { subject } = input;
+    const lines: string[] = [];
+    for (const slot of outline.slots) {
+      if (slot.type === 'collection') {
+        for (const row of subject.collections[slot.id] ?? []) {
+          const cells = (slot.columns ?? []).map((c) => String(row[c.id] ?? ''));
+          lines.push(`  ${cells.join('  ')}`);
+        }
+        continue;
+      }
+      const raw = slot.id === 'issuedAt' ? (subject.fields[slot.id] ?? subject.now.iso) : subject.fields[slot.id];
+      if (raw === undefined || raw === null) continue;
+      lines.push(`${slot.label['en-US']}: ${Array.isArray(raw) ? raw.join(', ') : String(raw)}`);
+    }
+    if (subject.number !== null) lines.push(`No. ${subject.number}`);
+    lines.push(subject.business.name, ...subject.business.lines);
+    return lines;
   }
 }

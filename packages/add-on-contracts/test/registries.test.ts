@@ -110,14 +110,19 @@ describe('slot registry', () => {
 });
 
 describe('contract registry', () => {
-  it('holds exactly three contracts, all at version 1', () => {
-    expect(CONTRACT_REGISTRY).toHaveLength(3);
+  it('holds exactly four contracts, all at version 1', () => {
+    expect(CONTRACT_REGISTRY).toHaveLength(4);
     expect(CONTRACT_REGISTRY.every((c) => c.version === 1)).toBe(true);
   });
 
-  it('carries the three wave-4 contracts and nothing else', () => {
+  it('carries the three wave-4 contracts, the one wave 6 bought, and nothing else', () => {
+    // `document-render` is 34-invoices-add-on.md's purchase (Appendix A, seven
+    // exhibits). The count above and this list move together on purpose: a
+    // contract that arrives without its name being written down here arrived
+    // without anybody deciding it should.
     expect([...CONTRACT_IDS].sort()).toEqual([
       'artwork-source',
+      'document-render',
       'product-personalizer',
       'shipping-carrier',
     ]);
