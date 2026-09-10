@@ -113,6 +113,25 @@ const sourceTableSchema = z.object({
   /** Which column the poller could watch, per event (D4); null = cannot. */
   watch: z.object({ created: z.string().nullable(), updated: z.string().nullable() }),
   columns: z.array(sourceColumnSchema),
+  /**
+   * Tables whose rows point AT this one, and the column that does it —
+   * 34 §3.7 step 3's child-table picker, seeded from foreign keys.
+   *
+   * ONLY EDGES THE PIPELINE CAN ACTUALLY JOIN appear here. `readSource` reads
+   * children with `where <fk> = row[<parent pk[0]>]`, so a composite foreign
+   * key, or one pointing at a unique column that is not the first primary-key
+   * column, cannot be expressed by the single `fkColumn` a mapping stores. The
+   * filter lives here, on the side that has the whole relation, rather than in
+   * an editor that would have to be told the pipeline's join rule to repeat it.
+   *
+   * `lineItems` carries the engine's own classification, which is a SUGGESTION
+   * for ordering and never a selection: the rule needs two foreign keys plus
+   * qty × rate numerics, so a one-FK child like `invoice_items` is not tagged
+   * and still has to be pickable.
+   */
+  children: z.array(
+    z.object({ table: z.string(), column: z.string(), lineItems: z.boolean() }),
+  ),
   /** The record page a notification would link to, when one exists. */
   pageSlug: z.string().nullable(),
 });

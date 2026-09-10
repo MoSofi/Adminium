@@ -45,6 +45,7 @@ import {
 import { audited, auditExempt } from '../../audit/coverage.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { addressableTables, childTablesFor } from '../../connections/child-tables.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import type { ResolvedTable } from '../../crud/identifiers.js';
 import { pkLabel } from '../../crud/records.js';
@@ -214,6 +215,9 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
             continue;
           }
           const pages = await pagesRepo(meta).listForConnection(connection.id);
+          // Resolved before the loop: every table's child edges are checked
+          // against the same set (`child-tables.ts` says why).
+          const offered = addressableTables(view.model);
           const tables = [];
           for (const table of view.model.tables) {
             const resolved = view.table(`${table.schema}.${table.name}`);
@@ -243,6 +247,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
                     .pii === 'email',
                 dateLike: isDateColumn(column),
               })),
+              // 34 §3.7 step 3's picker seed — only edges a mapping can store.
+              children: childTablesFor(view.model, resolved.id, offered),
               pageSlug: page?.slug ?? null,
             });
           }
