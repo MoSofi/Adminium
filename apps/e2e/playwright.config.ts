@@ -22,6 +22,8 @@ import {
   BASE_URL,
   E2E_DATABASE,
   ENGINE,
+  FIRST_RUN_BASE_URL,
+  FIRST_RUN_PORT,
   PORT,
   SEED_CONNECTION_NAME,
   storageStatePath,
@@ -61,11 +63,38 @@ export default defineConfig({
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'chromium',
+      testIgnore: /onboarding\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], storageState: storageStatePath() },
       dependencies: ['setup'],
     },
+    // The first-run wizard, on its own empty server. NO storage state and no
+    // `setup` dependency: there is no account to sign in as — creating one is
+    // what the spec is testing.
+    {
+      name: 'onboarding',
+      testMatch: /onboarding\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], baseURL: FIRST_RUN_BASE_URL, storageState: { cookies: [], origins: [] } },
+    },
   ],
-  webServer: {
+  webServer: [
+    {
+      command: 'node scripts/e2e-server.mjs',
+      url: `${FIRST_RUN_BASE_URL}/api/v1/healthz`,
+      // Never reused, even locally: a first-run server that has already been
+      // walked is no longer a first-run server, and the spec would find setup
+      // closed. A fresh boot is a fresh instance — the harness's data dir is a
+      // per-boot mkdtemp.
+      reuseExistingServer: false,
+      timeout: 240_000,
+      env: {
+        ...process.env,
+        E2E_FIRST_RUN: '1',
+        E2E_ENGINE: ENGINE,
+        E2E_PORT: String(FIRST_RUN_PORT),
+        E2E_DATABASE,
+      },
+    },
+    {
     command: 'node scripts/e2e-server.mjs',
     // /api/v1/healthz answers only once the server listens — and the boot
     // script listens only AFTER Northwind is seeded, introspected, and pages
@@ -83,5 +112,6 @@ export default defineConfig({
       E2E_CONNECTION_NAME: SEED_CONNECTION_NAME,
       E2E_DATABASE,
     },
-  },
+    },
+  ],
 });

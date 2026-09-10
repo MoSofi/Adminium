@@ -40,6 +40,18 @@ const dashboardDist = join(repoRoot, 'apps', 'dashboard', 'dist');
 
 // --- parameters (playwright.config.ts forwards these; fallbacks match tests/constants.ts) ---
 
+/**
+ * A FIRST-RUN instance: migrated, with its roles, and nothing else.
+ *
+ * The shared server seeds a super admin before it listens, which is what every
+ * other spec signs in as — and which makes `/setup` unreachable, because the
+ * route guard bounces it to `/login` the moment `setup.state.required` is
+ * false. The six-step onboarding wizard (45-onboarding.md) can therefore only
+ * be walked on a server that has NOT been bootstrapped. Same script, same
+ * seeded Northwind (the wizard needs a real DSN to type), everything after the
+ * migrations skipped. See `tests/onboarding.spec.ts`.
+ */
+const FIRST_RUN = process.env.E2E_FIRST_RUN === '1';
 const ENGINE = process.env.E2E_ENGINE ?? 'sqlite';
 const DEFAULT_PORTS = { sqlite: 4610, postgres: 4611, mysql: 4612 };
 const PORT = Number(process.env.E2E_PORT ?? DEFAULT_PORTS[ENGINE] ?? 4610);
@@ -246,17 +258,19 @@ try {
   // openRuntime deliberately does NOT bootstrap (migrate/start own that);
   // the e2e harness seeds its throwaway meta store here.
   await firstRun(runtime.metaStore.meta);
-  await createFirstSuperAdmin(runtime.metaStore.meta, {
-    email: ADMIN_EMAIL,
-    name: ADMIN_NAME,
-    passwordHash: await hashPassword(ADMIN_PASSWORD),
-  });
+  if (!FIRST_RUN) {
+    await createFirstSuperAdmin(runtime.metaStore.meta, {
+      email: ADMIN_EMAIL,
+      name: ADMIN_NAME,
+      passwordHash: await hashPassword(ADMIN_PASSWORD),
+    });
+  }
 
   // A SECOND super admin, for the files specs alone. The `api` rate bucket is
   // keyed by principal, and those specs are the expensive ones (real uploads, a
   // schema plan+apply, a create dialog) — sharing one budget with the rest of
   // the suite tipped whole runs over the ceiling. See tests/constants.ts.
-  {
+  if (!FIRST_RUN) {
     const meta = runtime.metaStore.meta;
     const superAdmin = await rolesRepo(meta).findBySlug('super-admin');
     const user = await usersRepo(meta).create({
@@ -365,6 +379,15 @@ try {
     }
   };
 
+  if (FIRST_RUN) {
+    // Nothing to sign in as, nothing to seed: the wizard is the thing under
+    // test, and it does the connecting, the inviting and the generating.
+    // SMTP is deliberately left unconfigured — a fresh install has none, which
+    // is what puts the invitation LINK on screen instead of an email.
+    await app.listen({ port: PORT, host: HOST });
+    log(`READY (first run) on http://${HOST}:${PORT} — no account, setup is open`);
+  } else {
+
   const login = await inject('POST', '/api/v1/auth/login', {
     payload: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
   });
@@ -412,6 +435,7 @@ try {
   // Ready: listen — Playwright's /api/v1/healthz probe now turns green.
   await app.listen({ port: PORT, host: HOST });
   log(`READY on http://${HOST}:${PORT} — ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+  }
 } catch (error) {
   console.error(`[e2e-server] boot failed: ${error?.stack ?? error}`);
   if (app !== null) await app.close().catch(() => {});

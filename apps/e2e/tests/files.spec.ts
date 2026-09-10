@@ -457,7 +457,15 @@ test.describe('a column-bound file — the sentence this feature exists for', ()
 
       // ── the grid draws it as a chip, not a bare link ─────────────────────
       await page.goto('/p/shippers');
-      const chip = page.locator('[data-part="cell-file"]').first();
+      /*
+       * Row 1 is the ONLY row carrying a file — the `finally` below clears its
+       * `document_url` again — so the grid must draw exactly one chip. Asserting
+       * the count is what makes the three assertions below unambiguous, and it
+       * is stronger than the `.first()` it replaces: that one would have passed
+       * just as happily if a second row had grown a chip it should not have.
+       */
+      const chip = page.locator('[data-part="cell-file"]');
+      await expect(chip).toHaveCount(1);
       await expect(chip).toBeVisible();
       await expect(chip).toContainText('e2e-contract-v2.pdf');
       // The chip links to the SAME-ORIGIN content route (D24) — never to a
@@ -779,8 +787,13 @@ test.describe('attachments create the column and the dialog uses it', () => {
       if (willCreate) {
         // D2: the SQL the operator authorises is the SQL that runs, so it is
         // on screen before anything is applied.
-        await expect(page.getByTestId('studio-pages-attachments-plan')).toBeVisible();
-        await expect(page.getByText(/add column/i).first()).toBeVisible();
+        const plan = page.getByTestId('studio-pages-attachments-plan');
+        await expect(plan).toBeVisible();
+        // Asserted ON the plan panel, not on the page. `getByText(/add column/i)`
+        // matches the section heading as well as the statement, so `.first()`
+        // could be satisfied by a panel that rendered its title and no SQL —
+        // which is the one thing D2 says has to be on screen.
+        await expect(plan).toContainText(/add column/i);
         await page.getByTestId('studio-pages-attachments-column-confirm').click();
       }
       await expect(page.getByTestId('studio-pages-attachments-bound')).toBeVisible({ timeout: 20_000 });
@@ -788,7 +801,12 @@ test.describe('attachments create the column and the dialog uses it', () => {
 
       // ── the create dialog, driven as a person drives it ───────────────────
       await page.goto('/p/shippers');
-      await page.getByRole('button', { name: /new/i }).first().click();
+      // `New row` exactly, not /new/i. PageCrud renders this CTA twice in the
+      // source — the topbar (PageCrud.tsx:841) and the empty state (:885) — but
+      // MUTUALLY EXCLUSIVELY: the empty state only exists with zero rows. The
+      // seeded grid has rows, so the topbar CTA is the only match and the loose
+      // regex that made `.first()` look necessary is what was really wrong.
+      await page.getByRole('button', { name: 'New row' }).click();
       // Everything below is scoped to the dialog: the grid behind it carries
       // column headers whose accessible names ("Sort by Company Name") match
       // the same words the form's fields do.

@@ -25,6 +25,19 @@ export const PORT = Number(process.env['E2E_PORT'] ?? DEFAULT_PORTS[ENGINE] ?? 4
 
 export const BASE_URL = `http://127.0.0.1:${String(PORT)}`;
 
+/**
+ * The FIRST-RUN instance: a second server, migrated and empty, where
+ * `setup.state.required` is still true (`scripts/e2e-server.mjs` with
+ * `E2E_FIRST_RUN=1`). The six-step onboarding wizard cannot be walked on the
+ * shared server at all — that one seeds a super admin before it listens, and
+ * the route guard bounces `/setup` to `/login` the moment setup is closed.
+ *
+ * `+20` sits clear of the engine ports (4610-4612) and of the SMTP sink and its
+ * message endpoint, which take `+100` and `+101`.
+ */
+export const FIRST_RUN_PORT = PORT + 20;
+export const FIRST_RUN_BASE_URL = `http://127.0.0.1:${String(FIRST_RUN_PORT)}`;
+
 /** Seeded super admin (created by scripts/e2e-server.mjs at boot). */
 export const ADMIN_EMAIL = 'e2e@adminium.local';
 export const ADMIN_NAME = 'E2E Admin';
