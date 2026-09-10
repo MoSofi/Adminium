@@ -14,13 +14,50 @@ const pools: FakePool[] = [];
 
 class FakePool extends EventEmitter {
   ended = false;
-  constructor(readonly options: { connectionString?: string; max?: number }) {
+  connects = 0;
+  /** Thrown by the next `connect()` only, so a retry can succeed. */
+  failNextConnect: Error | null = null;
+  constructor(readonly options: { connectionString?: string; max?: number; options?: string }) {
     super();
     pools.push(this);
+  }
+  async connect(): Promise<unknown> {
+    this.connects += 1;
+    const failure = this.failNextConnect;
+    if (failure !== null) {
+      this.failNextConnect = null;
+      throw failure;
+    }
+    return { query: async () => ({ rows: [] }), release: () => undefined };
   }
   async end(): Promise<void> {
     this.ended = true;
   }
+}
+
+/** The pooler's refusal, in the wording Neon actually sends. */
+function poolerRefusal(): Error {
+  return Object.assign(
+    new Error('unsupported startup parameter in options: statement_timeout'),
+    { code: '08P01' },
+  );
+}
+
+/**
+ * Reach the facade `createQueryEngine` hands kysely.
+ *
+ * The downgrade lives in its `connect()`, and the dialect's driver is the only
+ * caller — so driving the driver is what actually exercises it. Asserting on the
+ * constructed pool options alone would miss the rebuild entirely.
+ */
+async function acquireVia(engine: { dialect: unknown }): Promise<unknown> {
+  const driver = (
+    engine.dialect as {
+      createDriver(): { init(): Promise<void>; acquireConnection(): Promise<unknown> };
+    }
+  ).createDriver();
+  await driver.init();
+  return driver.acquireConnection();
 }
 
 vi.mock('pg', () => ({ default: { Pool: FakePool } }));
@@ -65,6 +102,96 @@ describe('createQueryEngine pool error contract', () => {
     });
     expect(() => pool.emit('error', terminated)).not.toThrow();
     expect(pool.emit('error', terminated)).toBe(true);
+  });
+
+  describe('the statement budget on the pool that reads rows', () => {
+    // This pool was built bare while the adapter's carried 05 §4.1's rails since
+    // M3, so a runaway CRUD query had no server-side bound at all.
+    it('sends the data role’s session settings', () => {
+      createQueryEngine({ role: 'data', dsn: DSN } as never);
+      expect(pools.at(0)!.options.options).toBe('-c statement_timeout=15000');
+    });
+
+    it('honours an explicit statementTimeoutMs, floored', () => {
+      createQueryEngine({ role: 'data', dsn: DSN, statementTimeoutMs: 2500.9 } as never);
+      expect(pools.at(0)!.options.options).toBe('-c statement_timeout=2500');
+    });
+
+    it('carries no introspect-only limits — it is a data connection', () => {
+      createQueryEngine(DSN);
+      const options = String(pools.at(0)!.options.options);
+      expect(options).not.toContain('lock_timeout');
+      expect(options).not.toContain('idle_in_transaction_session_timeout');
+    });
+
+    it('appends ours after an `options=` in the DSN, and strips it from the string', () => {
+      const dsn = `${DSN}?options=${encodeURIComponent('-c search_path=reporting')}`;
+      createQueryEngine({ role: 'data', dsn } as never);
+      expect(pools.at(0)!.options.connectionString).toBe(DSN);
+      expect(pools.at(0)!.options.options).toBe(
+        '-c search_path=reporting -c statement_timeout=15000',
+      );
+    });
+  });
+
+  describe('the pooler downgrade', () => {
+    it('rebuilds without our options and still hands back a connection', async () => {
+      // Without this the refusal would be a hard failure and Adminium could not
+      // read rows from a Neon database at all.
+      const engine = createQueryEngine({ role: 'data', dsn: DSN } as never);
+      pools.at(0)!.failNextConnect = poolerRefusal();
+
+      await expect(acquireVia(engine)).resolves.toBeDefined();
+
+      expect(pools).toHaveLength(2);
+      expect(pools.at(0)!.ended).toBe(true);
+      expect(pools.at(1)!.options.options).toBeUndefined();
+    });
+
+    it('keeps the operator’s own options while dropping only ours', async () => {
+      const dsn = `${DSN}?options=${encodeURIComponent('-c search_path=reporting')}`;
+      const engine = createQueryEngine({ role: 'data', dsn } as never);
+      pools.at(0)!.failNextConnect = poolerRefusal();
+
+      await acquireVia(engine);
+
+      expect(pools.at(1)!.options.options).toBe('-c search_path=reporting');
+    });
+
+    it('does not downgrade on an unrelated connection failure', async () => {
+      // A downgrade on the wrong error would silently drop the budget forever.
+      const engine = createQueryEngine({ role: 'data', dsn: DSN } as never);
+      pools.at(0)!.failNextConnect = Object.assign(new Error('password authentication failed'), {
+        code: '28P01',
+      });
+
+      await expect(acquireVia(engine)).rejects.toThrow(/password authentication/);
+      expect(pools).toHaveLength(1);
+    });
+
+    it('rebuilds once for concurrent checkouts, not once each', async () => {
+      const engine = createQueryEngine({ role: 'data', dsn: DSN } as never);
+      const first = pools.at(0)!;
+      // Both waiters see a refusal before either rebuild completes.
+      first.connect = async () => {
+        first.connects += 1;
+        throw poolerRefusal();
+      };
+
+      await Promise.all([acquireVia(engine), acquireVia(engine)]);
+
+      expect(pools).toHaveLength(2);
+    });
+
+    it('destroy() ends the rebuilt pool, not the discarded one', async () => {
+      const engine = createQueryEngine({ role: 'data', dsn: DSN } as never);
+      pools.at(0)!.failNextConnect = poolerRefusal();
+      await acquireVia(engine);
+
+      await engine.destroy();
+
+      expect(pools.at(1)!.ended).toBe(true);
+    });
   });
 
   it('rejects a missing/empty DSN instead of building an unusable pool', () => {
