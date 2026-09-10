@@ -85,6 +85,19 @@ export function isActionComplete(action: AutomationAction): boolean {
       return Object.keys(action.values).length > 0;
     case 'webhook':
       return action.url !== null && action.url.trim() !== '';
+    case 'document.render':
+      /*
+       * The ONE field. Everything else about the document — the mapping, the
+       * paper, the formats, the prefix, the provider — is the profile's, so
+       * "is this step finished" is exactly "has a mapping been chosen".
+       *
+       * That the mapping still EXISTS and is enabled is deliberately not
+       * checked here: this function decides whether a rule can be saved, and
+       * a profile deleted after the rule was written must not make the rule
+       * unsavable. The run turns a missing mapping into a skip with a reason,
+       * and the dry run says so before anybody waits for a trigger.
+       */
+      return action.profileId !== null && action.profileId !== '';
   }
 }
 
@@ -96,6 +109,14 @@ export interface ResolveContext {
   templateKeys: ReadonlySet<string>;
   blockLoopback: boolean;
 }
+
+/**
+ * What to do about it, for the three steps that need the RUN'S record and a
+ * bare schedule tick has none. `table` is null here exactly when the trigger
+ * is a schedule with no for-each scan — a record trigger always resolves one,
+ * and a scan resolves the table it scans.
+ */
+const NO_RECORD_REMEDY = 'Give the schedule a table, or trigger the rule on a record.';
 
 function tableOrThrow(ctx: ResolveContext, id: string, where: string): ResolvedTable {
   if (ctx.view === null) {
@@ -167,7 +188,10 @@ function checkAction(
       }
       if (action.to?.kind === 'field' && action.to.column !== '') {
         if (table === null) {
-          throw new ValidationFailedError(`${where}: this rule has no record to read an address from.`, {});
+          throw new ValidationFailedError(
+            `${where}: this rule has no record to read an address from. ${NO_RECORD_REMEDY}`,
+            {},
+          );
         }
         if (!table.columns.has(action.to.column)) {
           throw new ValidationFailedError(`${where}: ${table.id} has no column ${action.to.column}.`, {});
@@ -176,15 +200,44 @@ function checkAction(
       return;
     }
     case 'record.create': {
+      // Unfinished is allowed to be saved (D11), and the New-rule modal makes
+      // exactly this shape, so judge nothing until a target is named.
       if (action.table === null || action.table === '') return;
+      /*
+       * A create writes through the RUN'S OWN connection handle, and a run
+       * only has one when it is about a record (`runner.ts` `openSource`
+       * returns null without one, and `record-write.ts` `sourceOf` throws).
+       * A bare schedule tick therefore fails this step every single time —
+       * silently, until somebody reads the run log. Refused here for the same
+       * reason an update with no record is, three lines down.
+       */
+      if (table === null) {
+        throw new ValidationFailedError(
+          `${where}: a schedule with no table to scan has no connection to write through. ${NO_RECORD_REMEDY}`,
+          {},
+        );
+      }
       const target = tableOrThrow(ctx, action.table, where);
       assertNotSystem(target, where);
       checkValues(action.values, target, where);
       return;
     }
     case 'record.update': {
+      /*
+       * Unfinished first, exactly as `record.create` above — and this order is
+       * the whole point of the case. Without it the New-rule modal's own
+       * "On a schedule" + "Update field" pair, which is `values: {}`, was a
+       * 422 on a brand-new rule; D12 says it saves PAUSED and says which step
+       * is unfinished. A CONFIGURED update under a bare schedule is still a
+       * refusal: `record-write.ts` re-reads the run's record by pk, and there
+       * is none.
+       */
+      if (Object.keys(action.values).length === 0) return;
       if (table === null) {
-        throw new ValidationFailedError(`${where}: this rule has no record to update.`, {});
+        throw new ValidationFailedError(
+          `${where}: a schedule with no table to scan has no record to update. ${NO_RECORD_REMEDY}`,
+          {},
+        );
       }
       assertNotSystem(table, where);
       checkValues(action.values, table, where);

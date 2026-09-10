@@ -63,6 +63,11 @@ import {
 import { dryRunEmailAction, runEmailAction } from './actions/email.js';
 import { dryRunNotificationAction, runNotificationAction } from './actions/notification.js';
 import { dryRunWebhookAction, runWebhookAction } from './actions/webhook.js';
+import {
+  dryRunDocumentRenderAction,
+  runDocumentRenderAction,
+} from './actions/document-render.js';
+import type { RenderDeps } from '../documents/render.js';
 import { ActionFailure, type ActionContext, type ActionSource } from './actions/types.js';
 import { evaluateCondition, type ConditionContext } from './conditions.js';
 import { countRelatedRows } from './related-count.js';
@@ -81,6 +86,12 @@ export interface RunnerDeps {
   hub?: ActionContext['hub'];
   createTransport?: ActionContext['createTransport'];
   fetch?: ActionContext['fetch'];
+  /**
+   * The document pipeline, for a `document.render` step (34 §7.3, D55).
+   * Absent in a topology composed without file storage — the step then
+   * refuses with a sentence rather than throwing from inside the renderer.
+   */
+  documents?: RenderDeps | undefined;
   progress?: ((pct: number, message: string) => void) | undefined;
 }
 
@@ -178,6 +189,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     tokens: {},
     text,
     secret: deps.secret,
+    documents: deps.documents,
     ...(deps.storage === undefined ? {} : { storage: deps.storage }),
     ...(deps.hub === undefined ? {} : { hub: deps.hub }),
     ...(deps.createTransport === undefined ? {} : { createTransport: deps.createTransport }),
@@ -392,6 +404,8 @@ async function runAction(node: AutomationNode, ctx: ActionContext) {
       return runUpdateAction(node.action, ctx);
     case 'webhook':
       return runWebhookAction(node.action, ctx);
+    case 'document.render':
+      return runDocumentRenderAction(node.action, ctx);
   }
 }
 
@@ -408,6 +422,8 @@ async function dryRunAction(node: AutomationNode, ctx: ActionContext) {
       return dryRunUpdateAction(node.action, ctx);
     case 'webhook':
       return dryRunWebhookAction(node.action, ctx);
+    case 'document.render':
+      return dryRunDocumentRenderAction(node.action, ctx);
   }
 }
 

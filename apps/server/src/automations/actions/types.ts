@@ -21,6 +21,7 @@ import type { ConnectionManager, SourceDatabase } from '../../connections/manage
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
 import type { EmailTransport, SmtpConfig } from '../../email/types.js';
+import type { RenderDeps } from '../../documents/render.js';
 import type { FileStore } from '../../files/store.js';
 import type { NotificationPublisher } from '../../notifications/notify.js';
 import type { TokenMap } from '../templating.js';
@@ -61,6 +62,13 @@ export interface ActionContext {
   createTransport?: ((config: SmtpConfig) => EmailTransport) | undefined;
   /** Outbound HTTP; tests inject a stub. */
   fetch?: typeof globalThis.fetch | undefined;
+  /**
+   * The document pipeline (34 §7.3, D55) — what a `document.render` step
+   * calls. Optional for the same reason `storage` is: a topology composed
+   * without file storage has no way to write a document, and the step says so
+   * rather than throwing from inside the renderer.
+   */
+  documents?: RenderDeps | undefined;
 }
 
 export interface ActionResult {

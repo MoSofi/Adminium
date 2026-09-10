@@ -211,6 +211,35 @@ describe('42 — the automations routes', () => {
     expect(rebuilds).toBe(2);
   });
 
+  it('saves the modal\u2019s schedule + Update-field pair PAUSED, not 422 (D12)', async () => {
+    // The New-rule modal offers "Update field" beside "On a schedule" and
+    // builds `values: {}`. That combination used to be refused outright — a
+    // dead end in the create flow — because the "no record" check ran before
+    // the unfinished one.
+    const res = await post('/automations', {
+      name: 'Nightly touch-up',
+      connectionId,
+      trigger: { kind: 'schedule', connectionId, schedule: { kind: 'interval', everyMinutes: '15' } },
+      graph: {
+        version: 1,
+        nodes: [
+          { id: 'n1', kind: 'trigger', title: 'On a schedule' },
+          {
+            id: 'n2',
+            kind: 'action',
+            title: 'Update field',
+            onError: false,
+            action: { kind: 'record.update', values: {} },
+          },
+        ],
+      },
+      enabled: true,
+    });
+    expect(res.statusCode).toBe(201);
+    // Saved, paused, and honest about which step is unfinished.
+    expect(res.json()).toMatchObject({ enabled: false, valid: false, incompleteNodeId: 'n2' });
+  });
+
   it('refuses to switch an incomplete rule on, naming the step (D12)', async () => {
     const created = await post('/automations', {
       name: 'Half built',
@@ -317,6 +346,43 @@ describe('42 — the automations routes', () => {
           ],
         },
         expect: 'protected column',
+      },
+      {
+        // …and the same for an update, once it actually names a column.
+        trigger: { kind: 'schedule', connectionId, schedule: { kind: 'interval', everyMinutes: '15' } },
+        graph: {
+          version: 1,
+          nodes: [
+            { id: 'n1', kind: 'trigger', title: 'Trigger' },
+            {
+              id: 'n2',
+              kind: 'action',
+              title: 'Mark them welcomed',
+              onError: false,
+              action: { kind: 'record.update', values: { status: 'welcomed' } },
+            },
+          ],
+        },
+        expect: 'no record to update',
+      },
+      {
+        // A bare schedule tick has no record, so it has no connection handle
+        // to write through: the step would fail on every tick.
+        trigger: { kind: 'schedule', connectionId, schedule: { kind: 'interval', everyMinutes: '15' } },
+        graph: {
+          version: 1,
+          nodes: [
+            { id: 'n1', kind: 'trigger', title: 'Trigger' },
+            {
+              id: 'n2',
+              kind: 'action',
+              title: 'Log a row',
+              onError: false,
+              action: { kind: 'record.create', table: 'main.users', values: { status: 'x' } },
+            },
+          ],
+        },
+        expect: 'no connection to write through',
       },
       {
         graph: {
@@ -468,6 +534,36 @@ describe('42 — the automations routes', () => {
       (table) => table.id === 'main.users',
     );
     expect(editorUsers?.canUpdate).toBe(false);
+  });
+
+  it('names the child tables a document mapping could read, and only joinable ones', async () => {
+    /*
+     * 34 §3.7 step 3. The filter is the PIPELINE's join rule, applied here
+     * because this is the side that has the whole relation: `readSource` reads
+     * a collection with `where <fk> = row[primaryKey[0]]`, so a composite key,
+     * or one referencing a column that is not that key, cannot be expressed by
+     * the single `fkColumn` a mapping stores.
+     */
+    const res = await get('/automations/sources');
+    const body = res.json() as {
+      connections: {
+        tables: { id: string; children: { table: string; column: string; lineItems: boolean }[] }[];
+      }[];
+    };
+    const users = body.connections[0]?.tables.find((table) => table.id === 'main.users');
+    expect(users?.children).toEqual([
+      { table: 'main.offer_claims', column: 'user_id', lineItems: false },
+    ]);
+
+    // The two that were left out, named so a reader knows this is a filter and
+    // not an empty model: `appointments` points at `users` twice — once with a
+    // composite key and once at `email` rather than the primary key.
+    expect((users?.children ?? []).map((child) => child.table)).not.toContain('main.appointments');
+
+    // A table nothing points at says so with an empty list rather than by
+    // omitting the field, so the editor has one shape to read.
+    const claims = body.connections[0]?.tables.find((table) => table.id === 'main.offer_claims');
+    expect(claims?.children).toEqual([]);
   });
 
   it('lists runs newest-first in a seven-day window with the three filter counts', async () => {

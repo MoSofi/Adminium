@@ -63,6 +63,11 @@ export interface TraceText {
   hookOk(method: string, path: string, status: number, ms: number): string;
   hookFail(method: string, path: string, status: string): string;
   hookWould(method: string, url: string): string;
+  /** 34 §7.2 / D55 — the four lines a `document.render` step can write. */
+  docOk(number: string): string;
+  docSkipped(reason: string): string;
+  docWould(kind: string, name: string): string;
+  docOff(name: string): string;
   stop(): string;
   undone(): string;
   gone(): string;
@@ -89,6 +94,10 @@ export const TRACE_EN: TraceText = {
   writeWould: (pairs) => `Would set ${pairs}`,
   hookOk: (method, path, status, ms) => `${method} ${path} → ${String(status)} · ${String(ms)}ms`,
   hookFail: (method, path, status) => `${method} ${path} → ${status}`,
+  docOk: (number) => `document drawn · ${number}`,
+  docSkipped: (reason) => `no document drawn · ${reason}`,
+  docWould: (kind, name) => `Would draw ${kind} · ${name}`,
+  docOff: (name) => `mapping is switched off · ${name}`,
   hookWould: (method, url) => `Would ${method} ${url}`,
   stop: () => 'Stopped here',
   undone: () => 'Undone before it ran',

@@ -150,6 +150,28 @@ export function automationsModel(): DatabaseModel {
         from: { tableId: 'main.offer_claims', columns: ['user_id'] },
         to: { tableId: 'main.users', columns: ['id'] },
       },
+      /*
+       * Two edges the child-table picker must NOT offer (34 §3.7 step 3).
+       * The pipeline reads children with `where <fk> = row[primaryKey[0]]`, so
+       * each of these is a join a stored mapping cannot express — and a picker
+       * that offered one would fill a collection with the wrong rows and look
+       * like it worked.
+       */
+      {
+        id: 'fk_appointments_users_composite',
+        kind: 'declared-fk',
+        cardinality: 'one-to-many',
+        from: { tableId: 'main.appointments', columns: ['patient_id', 'patient_email'] },
+        to: { tableId: 'main.users', columns: ['id', 'email'] },
+      },
+      {
+        id: 'fk_appointments_users_by_email',
+        kind: 'declared-fk',
+        cardinality: 'one-to-many',
+        from: { tableId: 'main.appointments', columns: ['patient_email'] },
+        // A unique column that is NOT the primary key.
+        to: { tableId: 'main.users', columns: ['email'] },
+      },
     ],
   });
 }
