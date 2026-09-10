@@ -61,6 +61,7 @@ import { BUILTIN_LOCALE_IDS, type BuiltinLocaleId } from '@adminium/i18n';
 import { createServerI18n, type I18nInstance } from '@adminium/i18n/server';
 import {
   emailTemplatesRepo,
+  type EmailAttachment,
   type EmailCategory,
   type EmailTemplate,
   type MetaDb,
@@ -80,6 +81,12 @@ export interface BuiltinEmailTemplate {
   /** The fixed footer (39 D5). */
   footer: string;
   category: EmailCategory;
+  /**
+   * What travels with the message (39 D8). A `generated` entry names a
+   * `{{token}}` the enqueue site fills with a file id per send — which is how
+   * one stored row attaches a DIFFERENT document to every recipient.
+   */
+  attachments?: EmailAttachment[];
 }
 
 /**
@@ -92,7 +99,19 @@ export interface BuiltinEmailTemplate {
  * `./send.ts` — a key an enqueue site names but this module never seeds
  * resolves to no row, and `enqueueEmail` then quietly sends nothing.
  */
-export const BUILTIN_EMAIL_TEMPLATE_KEYS = ['password-reset', 'user-invite', 'notification'] as const;
+export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
+  'password-reset',
+  'user-invite',
+  'notification',
+  /*
+   * DEP-39: 34 §7.7 writes this key as `document.ready`. Every other template
+   * key in this file, and every one an operator sees in the Email Templates
+   * manager, is kebab-case — a single dotted key would be the odd one out in a
+   * list of four. The dot survives where it belongs: the AUDIT action really is
+   * `document.rendered`, and the i18n keys really are `email.documentReady.*`.
+   */
+  'document-ready',
+] as const;
 
 export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[number];
 
@@ -112,6 +131,14 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
   'password-reset': ['appName', 'name', 'email', 'resetUrl', 'expiresInMinutes'],
   'user-invite': ['appName', 'name', 'email', 'inviterName', 'activationUrl', 'expiresInDays'],
   notification: ['appName', 'name', 'title', 'body', 'actionUrl'],
+  /*
+   * `documentFileId` is not read by any block — it is the `generated`
+   * attachment's token, resolved by `resolveGeneratedAttachments` against the
+   * files table. It is listed here because this list is what a caller reads to
+   * know what to pass, and omitting it would send an email about a document
+   * with no document on it.
+   */
+  'document-ready': ['appName', 'kind', 'number', 'business', 'documentUrl', 'documentFileId'],
 };
 
 /**
@@ -130,6 +157,11 @@ const VAR = {
   body: '{{body}}',
   expiresInMinutes: '{{expiresInMinutes}}',
   expiresInDays: '{{expiresInDays}}',
+  kind: '{{kind}}',
+  number: '{{number}}',
+  business: '{{business}}',
+  documentUrl: '{{documentUrl}}',
+  documentFileId: '{{documentFileId}}',
 } as const;
 
 function heading(text: string): EmailTemplateBlock {
@@ -268,12 +300,84 @@ function notificationTemplate(t: Translate): BuiltinEmailTemplate {
   };
 }
 
+
+/**
+ * The document a mapping drew, on its way to the person it names (§7.7).
+ *
+ * ─── THE ATTACHMENT IS THE MESSAGE ─────────────────────────────────────────
+ *
+ * The bytes travel with it, as a `generated` attachment whose token the send
+ * fills with that document's own file id (39 D8). So one stored row serves
+ * every recipient and every document, and nothing here has to know what an
+ * invoice is.
+ *
+ * ─── AND THE BUTTON IS OPTIONAL WITHOUT BEING CONDITIONAL ──────────────────
+ *
+ * `renderButton` returns null when its url resolves to nothing, so a send that
+ * passes no `documentUrl` drops the block rather than drawing a button to
+ * nowhere. That matters because most sends have no url to give: a public
+ * claim-bound link exists only for a document a customer asked for, and an
+ * operator emailing from the record page has nothing the recipient could open.
+ */
+function documentReadyTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'document-ready',
+    name: t('email:documentReady.name', { defaultValue: 'Document ready' }),
+    subject: t('email:documentReady.subject', {
+      kind: VAR.kind,
+      number: VAR.number,
+      business: VAR.business,
+      defaultValue: 'Your {kind} {number} from {business}',
+    }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:documentReady.heading', { kind: VAR.kind, defaultValue: 'Your {kind} is ready' })),
+      paragraph(
+        'body',
+        t('email:documentReady.body', {
+          kind: VAR.kind,
+          number: VAR.number,
+          business: VAR.business,
+          defaultValue: '{business} has drawn {kind} {number} for you. It is attached to this email.',
+        }),
+      ),
+      button(t('email:documentReady.button', { defaultValue: 'Open it online' }), VAR.documentUrl),
+    ],
+    // NOT an unsubscribe line: this is a document somebody asked for or is
+    // owed, which is the definition of a transactional message. Saying "you
+    // can turn these off" would be offering something that is not on offer.
+    footer: t('email:documentReady.footer', {
+      business: VAR.business,
+      defaultValue: 'You are receiving this because {business} drew this document for you.',
+    }),
+    attachments: [
+      /*
+       * The label is what an operator sees in the attachments editor, and
+       * NOTHING substitutes it — `resolveGeneratedAttachments` reads the token
+       * and takes the filename from the file row. A `{{number}}` here would
+       * show as those literal braces, forever.
+       */
+      {
+        id: 'document',
+        kind: 'generated',
+        label: t('email:documentReady.attachment', { defaultValue: 'The document' }),
+        token: VAR.documentFileId,
+      },
+    ],
+  };
+}
+
 /**
  * Every built-in, rendered through one recipient-locale translator. Exported
  * for the seed and for tests that need the exact bytes without a database.
  */
 export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
-  return [passwordResetTemplate(t), userInviteTemplate(t), notificationTemplate(t)];
+  return [
+    passwordResetTemplate(t),
+    userInviteTemplate(t),
+    notificationTemplate(t),
+    documentReadyTemplate(t),
+  ];
 }
 
 /** A translator for one locale (no user involved — the row IS the locale). */
@@ -287,7 +391,11 @@ function sameContent(row: EmailTemplate, def: BuiltinEmailTemplate): boolean {
     row.subject === def.subject &&
     row.footer === def.footer &&
     row.category === def.category &&
-    JSON.stringify(row.blocks) === JSON.stringify(def.blocks)
+    JSON.stringify(row.blocks) === JSON.stringify(def.blocks) &&
+    // Without this a built-in that GAINED an attachment would never refresh on
+    // an existing install: the row is pristine, the content matches, and the
+    // document would be emailed with nothing attached.
+    JSON.stringify(row.attachments) === JSON.stringify(def.attachments ?? [])
   );
 }
 
@@ -319,6 +427,10 @@ export async function seedBuiltinEmailTemplates(meta: MetaDb, at: number = Date.
           blocks: def.blocks,
           footer: def.footer,
           category: def.category,
+          // Not optional the way `preheader` and `brand` are: an omitted
+          // attachment list is an empty one, and a built-in whose whole point
+          // is the file it carries would seed with nothing attached.
+          attachments: def.attachments ?? [],
           enabled: existing?.enabled ?? true,
           isBuiltinCopy: true,
           updatedBy: null,
@@ -362,7 +474,7 @@ export async function resetBuiltinEmailTemplate(
       category: def.category,
       preheader: '',
       brand: null,
-      attachments: [],
+      attachments: def.attachments ?? [],
       starter: null,
       needsTranslation: false,
       enabled: true,

@@ -114,6 +114,16 @@ export const USER_INVITE_TEMPLATE_KEY = 'user-invite';
 export const NOTIFICATION_EMAIL_TEMPLATE_KEY = 'notification';
 
 /**
+ * The document a mapping drew, on its way out (34 §7.7).
+ *
+ * Here rather than in `documents/deliver.ts` because `builtins.ts` says these
+ * constants live in this file, and `email-render.test.ts` checks that every one
+ * of them is seeded. A key the send layer can name from somewhere else is a key
+ * that gate cannot see.
+ */
+export const DOCUMENT_READY_TEMPLATE_KEY = 'document-ready';
+
+/**
  * Inline last resort for the `notification` key, used ONLY when no row exists
  * in any locale — an instance whose boot seed has not run yet, or a test
  * harness that mounts `notify` without one. `email/builtins.ts` seeds a proper

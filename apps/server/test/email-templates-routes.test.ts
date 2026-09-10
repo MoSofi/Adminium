@@ -167,7 +167,8 @@ describe('email document routes (39-T03)', () => {
     const res = await app.inject({ method: 'GET', url: '/email-templates?kind=template', headers: as(viewer) });
     expect(res.statusCode).toBe(200);
     const body = res.json() as { items: { key: string; locale: string; isBuiltin: boolean; topicLabel: string }[]; counts: { template: number; campaign: number; archived: number } };
-    expect(body.counts).toEqual({ template: 24, campaign: 0, archived: 0 });
+    // Four built-ins × eight compiled locales (34 §7.7 added `document-ready`).
+    expect(body.counts).toEqual({ template: 32, campaign: 0, archived: 0 });
     const reset = body.items.filter((i) => i.key === 'password-reset');
     expect(reset).toHaveLength(8);
     expect(reset[0]?.locale).toBe('en_US');
