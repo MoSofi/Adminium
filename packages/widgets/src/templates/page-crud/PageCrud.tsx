@@ -147,6 +147,17 @@ export interface PageCrudProps {
    */
   files?: PageCrudFiles | undefined;
   testId?: string | undefined;
+  /**
+   * EXTRA ROW ACTIONS, beside Peek (34 §7.8, 34-T16).
+   *
+   * A PASS-THROUGH and nothing more: the host decides what the action is,
+   * this component decides where it sits. `PageCrud` does not know what a
+   * document is and should not — a second consumer would otherwise mean a
+   * second prop with the same shape and a different name.
+   *
+   * ABSENT ⇒ the row ends where it always did.
+   */
+  rowActions?: ((row: Record<string, unknown>) => ReactNode) | undefined;
 }
 
 /** The host's file transport for one crud page. */
@@ -228,6 +239,7 @@ export function PageCrud({
   onEvent,
   locale,
   currency,
+  rowActions,
   labels,
   testId,
 }: PageCrudProps) {
@@ -905,14 +917,24 @@ export function PageCrud({
               onSelectedChange={changeSelection}
               onRowOpen={(row) => openRecordPage(rowIdOf(columns, row))}
               rowEnd={(row) => (
-                <IconButton
-                  size="sm"
-                  variant="ghost"
-                  label={labels?.peek ?? t('ui:templates.crud.peekAction', 'Peek')}
-                  onClick={() => setPeekId(rowIdOf(columns, row))}
-                >
-                  <Eye className="size-3.5" />
-                </IconButton>
+                <>
+                  {/*
+                    * Host row actions BESIDE Peek, before it (34 §7.8,
+                    * 34-T16). Peek stays rightmost because it is the row's
+                    * own affordance and has been in that position since the
+                    * grid shipped; an add-on's action arriving to the LEFT of
+                    * it moves nothing a person has already learned.
+                    */}
+                  {rowActions?.(row)}
+                  <IconButton
+                    size="sm"
+                    variant="ghost"
+                    label={labels?.peek ?? t('ui:templates.crud.peekAction', 'Peek')}
+                    onClick={() => setPeekId(rowIdOf(columns, row))}
+                  >
+                    <Eye className="size-3.5" />
+                  </IconButton>
+                </>
               )}
               labels={{ rowActions: t('ui:widgets.tables.dataGrid.rowActionsLabel', 'Row actions') }}
               cellContext={cellContext}

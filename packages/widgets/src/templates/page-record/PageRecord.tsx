@@ -20,7 +20,7 @@ import {
 } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { RecordForm } from '../page-crud/RecordForm.js';
 import { isDeletePreview } from '../page-crud/crud-api.js';
@@ -236,8 +236,56 @@ export interface PageRecordProps {
   onLoaded?: ((info: { hero: string }) => void) | undefined;
   locale?: string | undefined;
   currency?: string | undefined;
+  /**
+   * EXTRA PANELS the host wants on this record (34 §7.8, 34-T15).
+   *
+   * ─── Why a seam and not another typed adapter ──────────────────────────
+   *
+   * `related`, `activity` and `attachments` are each a TYPED adapter, because
+   * this component draws them: it knows what a related row is and what a
+   * dropzone does. It does not know what a document is, and it should not —
+   * the panel that lists documents belongs to whatever produced them, and a
+   * second consumer (a certificate provider, a delivery note) would otherwise
+   * mean a fourth adapter and a fifth.
+   *
+   * So this is a rendering seam. The host passes nodes; the page gives them a
+   * place and a heading and has no opinion about their contents. That is also
+   * what 30's follow-up chips need for grants-driven affordances, which is why
+   * §7.8 calls it owed regardless.
+   *
+   * ABSENT ⇒ NOTHING EXTRA RENDERS, exactly like the three adapters above. A
+   * deployment with no `document-render` provider installed passes nothing and
+   * the page is what it always was.
+   */
+  panels?: readonly PageRecordPanel[] | undefined;
+  /**
+   * EXTRA TOPBAR ACTIONS — the "Make ▾" menu's home (34 §7.8).
+   *
+   * Same seam, different place: the host owns what the action does, this
+   * component owns where it sits. Rendered beside Edit and Delete and after
+   * them, so a destructive action never moves under somebody's cursor because
+   * an add-on was installed.
+   */
+  actions?: readonly PageRecordAction[] | undefined;
   labels?: PageRecordLabels | undefined;
   testId?: string | undefined;
+}
+
+/** One host-supplied panel. `id` is a React key and a test handle, nothing more. */
+export interface PageRecordPanel {
+  id: string;
+  /** Already translated by the host — this component has no bundle for it. */
+  title: string;
+  /** Rendered inside the page's own panel chrome, so it matches the rest. */
+  content: ReactNode;
+}
+
+/** One host-supplied topbar action. */
+export interface PageRecordAction {
+  id: string;
+  /** Already translated by the host. */
+  label: string;
+  content: ReactNode;
 }
 
 function isNotFound(reason: unknown): boolean {
@@ -875,6 +923,8 @@ export function PageRecord({
   attachments,
   canAttach = false,
   maxFileBytes,
+  panels,
+  actions,
   onEvent,
   onDeleted,
   onMissing,
@@ -1088,7 +1138,7 @@ export function PageRecord({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-            <h2 className="min-w-0 truncate text-h2 text-fg">{hero}</h2>
+            <h2 className="min-w-0 truncate text-title text-fg">{hero}</h2>
             {statusColumn !== undefined && (
               <CellValue column={statusColumn} row={record} context={cellContext} />
             )}
@@ -1108,8 +1158,20 @@ export function PageRecord({
             )}
           </div>
         </div>
-        {(showEdit || showDelete) && (
+        {(showEdit || showDelete || (actions !== undefined && actions.length > 0)) && (
           <div className="flex shrink-0 items-center gap-1.5">
+            {/*
+              * Host actions FIRST, then Edit, then Delete — and the order is
+              * the point rather than a preference. Delete stays last, where it
+              * has always been: a destructive control that moves because an
+              * add-on was installed is a control somebody clicks by muscle
+              * memory and means to have clicked something else.
+              */}
+            {actions?.map((action) => (
+              <span key={action.id} data-testid={`record-action-${action.id}`}>
+                {action.content}
+              </span>
+            ))}
             {showEdit && (
               <Button size="sm" variant="secondary" iconLeft={<Pencil />} onClick={() => setEditOpen(true)}>
                 {labels?.edit ?? t('ui:action.edit', 'Edit')}
@@ -1212,6 +1274,28 @@ export function PageRecord({
             </TabsContent>
           )}
         </Tabs>
+      )}
+
+      {/*
+        * HOST-SUPPLIED PANELS (34 §7.8, 34-T15).
+        *
+        * BELOW the tabs rather than inside them, and that is the decision worth
+        * recording. A tab hides its contents until somebody clicks it, and the
+        * first thing a host wants here is "which documents exist for this row"
+        * — a fact somebody should see without hunting for it. It is also the
+        * honest place for content this component knows nothing about: a tab
+        * strip is a navigation model, and adding an unknown number of unknown
+        * tabs to one turns a stable row of three into a scrolling list.
+        */}
+      {panels !== undefined && panels.length > 0 && (
+        <div className="flex flex-col gap-4" data-testid="record-host-panels">
+          {panels.map((panel) => (
+            <section key={panel.id} data-testid={`record-panel-${panel.id}`}>
+              <h2 className="mb-2 text-sm font-medium text-fg-muted">{panel.title}</h2>
+              {panel.content}
+            </section>
+          ))}
+        </div>
       )}
 
       {/* Edit — the existing generated-form flow (D4). */}
