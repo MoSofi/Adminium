@@ -122,6 +122,15 @@ export interface PublicConfig {
    */
   currency: string | null;
   claim: { strategy: 'lookup' | 'email-code' | 'external'; ref: string; match: string[] } | null;
+  /**
+   * 34 §7.6. Whether this key may ask for a document to be drawn.
+   *
+   * A capability, so a page can decide whether to OFFER "email me a copy"
+   * rather than discovering the refusal by being refused. Optional on the type
+   * because a server older than 34d does not send it, and an app compiled
+   * against this client must keep working against one.
+   */
+  documents?: { create: boolean };
   refs: Record<string, PublicRefConfig>;
 }
 
@@ -160,6 +169,57 @@ export interface PublicClientOptions {
   fetch?: typeof fetch;
 }
 
+/** One drawn document, as a claimed visitor may see it. */
+export interface PublicDocument {
+  id: string;
+  kind: string;
+  number: string | null;
+  status: string;
+  /**
+   * `pending-review` on an intent the visitor asked for: D15 says nothing is
+   * emailed unattended, so a page should say "we will send this shortly"
+   * rather than "sent".
+   */
+  delivery: string | null;
+  format: string;
+  locale: string;
+  createdAt: number;
+  hasContent: boolean;
+}
+
+export interface PublicDocuments {
+  /** Every document this claim reaches. Empty without a claim, never an error. */
+  list: (signal?: AbortSignal) => Promise<PublicDocument[]>;
+  get: (id: string, signal?: AbortSignal) => Promise<PublicDocument>;
+  /**
+   * Ask for one to be drawn — from a row this claim reaches, or from values.
+   *
+   * The VALUES form never sets the letterhead, the clock, the currency or the
+   * number: the server stamps all four, which is what stops the door being a
+   * way to put a stranger's text under the operator's name.
+   */
+  render: (
+    input:
+      | { profileId: string; ref: string; id: string | number; locale?: string }
+      | {
+          kind: string;
+          locale?: string;
+          fields: Record<string, unknown>;
+          collections: Record<string, Record<string, unknown>[]>;
+        },
+  ) => Promise<PublicDocument>;
+  /**
+   * Send a copy to the address this session was claimed with.
+   *
+   * Takes NO address, and that is the point: the visitor decides whether, never
+   * where. An address in the request would make this a way to send somebody
+   * else's document anywhere.
+   */
+  email: (id: string) => Promise<PublicDocument>;
+  /** The same-origin bytes URL — an `<a download>`, never an `<iframe>`. */
+  contentUrl: (id: string) => string;
+}
+
 /* --------------------------------------------------------------- client */
 
 const SESSION_HEADER = 'x-adminium-public-session';
@@ -176,6 +236,15 @@ export interface PublicClient {
   signOut: () => Promise<void>;
   /** Is a claim session currently held? */
   isClaimed: () => boolean;
+  /**
+   * The documents this visitor may see and ask for (34 §7.6, 34-T21).
+   *
+   * Every verb here needs a CLAIM: a document belongs either to the intent the
+   * visitor asked for or to a row their claim reaches, and an unclaimed caller
+   * sees an empty list rather than a refusal. `render` additionally needs the
+   * key's `documents.create` flag, which `config()` reports.
+   */
+  documents: PublicDocuments;
   /**
    * Assert the live scope carries what this app needs.
    *
@@ -366,6 +435,54 @@ export function createPublicClient(
             'Widen it in Studio → Public API, or stop reading these.',
         );
       }
+    },
+
+    documents: {
+      async list(signal?: AbortSignal) {
+        const init: RequestInit = {};
+        if (signal !== undefined) init.signal = signal;
+        const out = await request<{ data: PublicDocument[] }>('/api/v1/public/documents', init);
+        return out.data;
+      },
+
+      async get(id: string, signal?: AbortSignal) {
+        const init: RequestInit = {};
+        if (signal !== undefined) init.signal = signal;
+        const out = await request<{ data: PublicDocument }>(
+          `/api/v1/public/documents/${encodeURIComponent(id)}`,
+          init,
+        );
+        return out.data;
+      },
+
+      async render(input) {
+        const out = await request<{ data: PublicDocument }>('/api/v1/public/documents/render', {
+          method: 'POST',
+          body: JSON.stringify(input),
+        });
+        return out.data;
+      },
+
+      async email(id: string) {
+        // No body. The address is the session's, and there is nothing else to
+        // decide — see the interface.
+        const out = await request<{ data: PublicDocument }>(
+          `/api/v1/public/documents/${encodeURIComponent(id)}/email`,
+          { method: 'POST' },
+        );
+        return out.data;
+      },
+
+      contentUrl(id: string) {
+        /*
+         * A URL rather than the bytes, because the browser fetches this one:
+         * the response is `attachment` + `nosniff` and belongs in a link, not
+         * in memory. It carries no key — the route reads the session header,
+         * which a plain navigation does NOT send, so this is for a fetch or a
+         * download the app makes itself.
+         */
+        return `${baseUrl}/api/v1/public/documents/${encodeURIComponent(id)}/content`;
+      },
     },
   };
 

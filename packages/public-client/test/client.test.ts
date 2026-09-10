@@ -315,3 +315,76 @@ describe('time is the tenant’s, not the reader’s', () => {
     expect(isCanonicalTimeZone('banana')).toBe(false);
   });
 });
+
+describe('documents (34 §7.6, 34-T21)', () => {
+  const DOC = {
+    id: 'doc_1',
+    kind: 'invoice',
+    number: 'INV-9',
+    status: 'rendered',
+    delivery: 'pending-review',
+    format: 'pdf',
+    locale: 'en-US',
+    createdAt: 1,
+    hasContent: true,
+  };
+
+  function make(handler: Parameters<typeof stub>[0]) {
+    const s = stub(handler);
+    const client = createPublicClient({
+      baseUrl: 'https://api.test',
+      publishableKey: 'adm_pub_x',
+      fetch: s.fetch,
+    })!;
+    return { client, calls: s.calls };
+  }
+
+  it('lists and gets through the claim-gated routes', async () => {
+    const { client, calls } = make((url) =>
+      url.endsWith('/documents') ? { data: [DOC] } : { data: DOC },
+    );
+    expect(await client.documents.list()).toEqual([DOC]);
+    expect(await client.documents.get('doc_1')).toEqual(DOC);
+    expect(calls.map((c) => c.url)).toEqual([
+      'https://api.test/api/v1/public/documents',
+      'https://api.test/api/v1/public/documents/doc_1',
+    ]);
+  });
+
+  it('sends the VALUES form as the body, with nothing the server stamps', async () => {
+    const { client, calls } = make(() => ({ data: DOC }));
+    await client.documents.render({ kind: 'invoice', fields: { total: '10.00' }, collections: {} });
+    const body = JSON.parse(String(calls[0]!.init!.body)) as Record<string, unknown>;
+    expect(body).toEqual({ kind: 'invoice', fields: { total: '10.00' }, collections: {} });
+    // The letterhead, the clock, the currency and the number are the server's.
+    for (const stamped of ['business', 'now', 'currency', 'entity', 'number']) {
+      expect(body[stamped]).toBeUndefined();
+    }
+  });
+
+  it('emails with NO body at all — the address is the session’s', async () => {
+    /*
+     * The visitor decides whether, never where. An address in this request
+     * would make the route a way to send somebody else's document anywhere.
+     */
+    const { client, calls } = make(() => ({ data: { ...DOC, delivery: 'sent' } }));
+    const out = await client.documents.email('doc_1');
+    expect(out.delivery).toBe('sent');
+    expect(calls[0]!.init?.body).toBeUndefined();
+    expect(calls[0]!.url).toBe('https://api.test/api/v1/public/documents/doc_1/email');
+  });
+
+  it('builds a same-origin content URL and puts no key in it', () => {
+    const { client } = make(() => ({ data: DOC }));
+    const url = client.documents.contentUrl('doc_1');
+    expect(url).toBe('https://api.test/api/v1/public/documents/doc_1/content');
+    expect(url).not.toContain('adm_pub_');
+  });
+
+  it('carries a refusal through as a code, like every other verb', async () => {
+    const { client } = make(() => err(404, 'PUBLIC_REF_NOT_FOUND'));
+    await expect(client.documents.get('doc_missing')).rejects.toMatchObject({
+      code: 'PUBLIC_REF_NOT_FOUND',
+    });
+  });
+});
