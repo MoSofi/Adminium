@@ -75,7 +75,7 @@ function StateCell({ definition, stateKey }: { definition: WidgetDefinition; sta
   const state = STATES.find((s) => s.key === stateKey)!;
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-body-xs font-medium text-fg-muted">{state.label}</span>
+      <span className="text-caption font-medium text-fg-muted">{state.label}</span>
       <div className="min-h-40 rounded-lg border border-border bg-surface p-3">
         <WidgetHost
           widgetId={definition.id}

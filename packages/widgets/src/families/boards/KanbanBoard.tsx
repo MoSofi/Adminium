@@ -196,7 +196,7 @@ export function KanbanBoard({
                     data-part="column-count"
                     className={
                       'ms-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 font-mono text-[10.5px] font-bold tabular-nums ' +
-                      (overWip ? 'bg-danger text-danger-fg' : 'bg-surface-3 text-fg-muted')
+                      (overWip ? 'bg-danger text-accent-fg' : 'bg-surface-3 text-fg-muted')
                     }
                   >
                     {column.wip === undefined ? columnCards.length : `${columnCards.length}/${column.wip}`}

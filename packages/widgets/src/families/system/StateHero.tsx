@@ -211,7 +211,7 @@ export function StateHeroView({
           </span>
         </div>
 
-        {entry.title !== undefined && <h2 className="text-title-md font-bold text-fg">{entry.title}</h2>}
+        {entry.title !== undefined && <h2 className="text-[24px] font-bold text-fg">{entry.title}</h2>}
         {entry.body !== undefined && <p className="max-w-[36ch] text-body-sm text-fg-muted">{entry.body}</p>}
 
         {(entry.primaryLabel !== undefined || entry.secondaryLabel !== undefined) && (

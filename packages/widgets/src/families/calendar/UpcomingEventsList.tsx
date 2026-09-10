@@ -143,7 +143,7 @@ export function UpcomingEventsList({
             )}
           </>
         );
-        const shell = `flex items-center gap-3 rounded-md border-s-4 bg-surface-1 px-2.5 py-2 ${TONE_BORDER[tone]}`;
+        const shell = `flex items-center gap-3 rounded-md border-s-4 bg-surface px-2.5 py-2 ${TONE_BORDER[tone]}`;
         return (
           <li key={event.id ?? index} data-part="upcoming-row" data-category={event.category}>
             {onSelect === undefined ? (

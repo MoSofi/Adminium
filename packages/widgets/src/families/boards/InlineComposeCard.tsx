@@ -99,7 +99,7 @@ export function InlineComposeCard({
       data-widget="inline-compose-card"
       data-testid={testId}
       data-part="compose-card"
-      className="flex flex-col gap-2 rounded-lg border border-accent bg-surface-1 p-2.5 shadow-sm"
+      className="flex flex-col gap-2 rounded-lg border border-accent bg-surface p-2.5 shadow-sm"
     >
       <input
         ref={inputRef}

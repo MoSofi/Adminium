@@ -133,7 +133,7 @@ export function ComparisonMatrix({
     >
       <div
         role="row"
-        className="sticky top-0 z-10 grid items-end gap-x-2 border-b border-border bg-surface-1 px-3 py-2.5 grid-cols-[var(--cmp-cols)]"
+        className="sticky top-0 z-10 grid items-end gap-x-2 border-b border-border bg-surface px-3 py-2.5 grid-cols-[var(--cmp-cols)]"
         style={{ '--cmp-cols': template }}
       >
         <span role="columnheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">

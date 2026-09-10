@@ -263,7 +263,7 @@ export function KanbanSwimlaneGrid({
                         id={cellKey}
                         testId={`cell-drop-${lane.id}-${column.id}`}
                         highlight={moves.grabTargetKey === cellKey}
-                        className="flex w-64 shrink-0 flex-col gap-2 rounded-lg bg-surface-1/40 p-1.5"
+                        className="flex w-64 shrink-0 flex-col gap-2 rounded-lg bg-surface/40 p-1.5"
                       >
                         {cellCards.map((card) => renderCard(card))}
                       </DroppableCell>

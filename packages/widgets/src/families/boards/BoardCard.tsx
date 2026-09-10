@@ -57,7 +57,7 @@ export function BoardCard({
   const initials = ownerInitials(card.owner, locale);
   const hasPct = typeof card.pct === 'number';
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-1 p-3 shadow-sm">
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 shadow-sm">
       <div className="flex items-start gap-2">
         {card.tag !== undefined && (
           <Tag tone={boardToneOf(card.tagTone, columnTone)}>{card.tag}</Tag>

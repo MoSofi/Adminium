@@ -136,7 +136,7 @@ export function SyncStatusCardView({
       </div>
 
       <div>
-        <MonoText data-part="sync-rows" className="text-h2 font-bold tabular-nums text-fg">
+        <MonoText data-part="sync-rows" className="text-title font-bold tabular-nums text-fg">
           {formatCompact(status.rowsSynced, locale)}
         </MonoText>
         <p className="text-caption text-fg-subtle">{rowsSyncedLabel ?? t('ui:widgets.domain.syncStatusCard.rowsSyncedLabel', 'Rows synced')}</p>
@@ -323,7 +323,7 @@ export function LiveTimerView({
       <MonoText
         data-part="timer-readout"
         aria-live="off"
-        className={`text-h1 font-bold tabular-nums ${timer.running ? 'text-danger' : 'text-fg'}`}
+        className={`text-display font-bold tabular-nums ${timer.running ? 'text-danger' : 'text-fg'}`}
       >
         {formatDuration(seconds, locale)}
       </MonoText>

@@ -145,7 +145,7 @@ export function RecordDetail({
     <div data-part="record-detail" className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         {/* Key-field highlight (09 §8.3). */}
-        <h3 className="truncate text-h3 text-fg">{title}</h3>
+        <h3 className="truncate text-modal text-fg">{title}</h3>
         <div className="flex shrink-0 items-center gap-1.5">
           {onEdit !== undefined && (
             <Button size="sm" variant="secondary" iconLeft={<Pencil />} onClick={() => onEdit(record)}>

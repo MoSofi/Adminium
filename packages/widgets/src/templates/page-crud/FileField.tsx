@@ -137,7 +137,7 @@ export function FileField(props: FileFieldProps): ReactNode {
         type="url"
         value={stringValue(value)}
         onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
-        className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-body-sm"
+        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-body-sm"
       />
     );
   }

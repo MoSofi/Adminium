@@ -127,7 +127,7 @@ export function SloMonitorCardView({
       <div className="flex items-baseline gap-2">
         <MonoText
           data-part="slo-current"
-          className={`text-h2 font-bold tabular-nums ${meetsTarget ? OPS_TONE_TEXT.pos : OPS_TONE_TEXT.danger}`}
+          className={`text-title font-bold tabular-nums ${meetsTarget ? OPS_TONE_TEXT.pos : OPS_TONE_TEXT.danger}`}
         >
           {formatPct(monitor.current, locale, 2)}
         </MonoText>

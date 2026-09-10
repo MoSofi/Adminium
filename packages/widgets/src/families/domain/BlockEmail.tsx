@@ -108,7 +108,7 @@ export function BlockEmailHeadingWidget({ config, data }: WidgetProps<BlockEmail
       data-widget="email.heading"
       data-testid={config.testId}
       data-level={String(level)}
-      className={level === 2 ? 'text-body-lg font-bold text-fg' : 'text-title font-bold text-fg'}
+      className={level === 2 ? 'text-modal font-bold text-fg' : 'text-title font-bold text-fg'}
     >
       {text}
     </p>

@@ -135,7 +135,7 @@ export function PlanPricingCardsView({
               </div>
 
               <div>
-                <MonoText className="text-h1 font-black tabular-nums text-fg" data-part="plan-price">
+                <MonoText className="text-display font-black tabular-nums text-fg" data-part="plan-price">
                   {formatMoney(monthly, currency, locale)}
                 </MonoText>
                 <span className="ms-1 text-caption text-fg-subtle">{perMonthLabel ?? t('ui:widgets.domain.planPricingCards.perMonthLabel', '/ month')}</span>
