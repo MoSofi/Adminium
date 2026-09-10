@@ -489,7 +489,7 @@ export function DesignMode({
         )}
 
         {buffer.drops.size > 0 && editing === null ? (
-          <div className="mb-4 rounded-lg border border-danger-border bg-danger-subtle p-3">
+          <div className="mb-4 rounded-lg border border-danger bg-danger-soft p-3">
             <h4 className="text-body font-medium text-fg">
               {t('studio:design.dropping', 'Marked for deletion')}
             </h4>

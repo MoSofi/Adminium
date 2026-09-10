@@ -395,7 +395,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
                       <div className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
                         {label}
                       </div>
-                      <div className="font-mono text-h3 text-fg tabular-nums">{value}</div>
+                      <div className="font-mono text-title text-fg tabular-nums">{value}</div>
                     </div>
                   ))}
                 </div>

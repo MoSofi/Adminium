@@ -96,6 +96,27 @@ jobs:
       - name: Check SPDX headers
         run: pnpm run check-spdx
 
+      # Tailwind emits NOTHING for a utility whose token is undefined — no
+      # warning, no error — so the element falls back to the CSS initial value
+      # and ships looking deliberate. On 2026-09-10 that was thirty call sites
+      # across sixteen invented utilities: headings at body size, six cards
+      # with `bg-surface-1` and therefore no background at all, black borders
+      # from `border-line`, and `text-danger-fg` putting black text on
+      # `bg-danger` at 4.01:1 — a WCAG AA failure.
+      #
+      # Nothing else in this file could have caught it. tsc and eslint do not
+      # read the inside of a string, no test or VRT baseline asserts on a class
+      # name, and the axe sweep sees contrast only on stories that render the
+      # affected state. Runs in under a second, right after SPDX, because the
+      # cheap gates go first.
+      #
+      # It asks Tailwind itself whether each class compiles (see the script
+      # header). If it ever goes red on a class you believe is real, the token
+      # is missing from packages/tokens/src/tailwind.css — add it there rather
+      # than adding an exemption here.
+      - name: Check Tailwind utilities compile
+        run: pnpm run check-tailwind-utilities
+
       # 37-T09: TEST_S3_URL un-skips the `s3` leg of the file-driver conformance
       # suite (apps/server/test/files-drivers.test.ts) — the only place SigV4 is
       # proved against a real S3 implementation rather than against AWS's

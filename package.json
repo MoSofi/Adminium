@@ -20,6 +20,7 @@
     "check-invoice-block-vocab": "node scripts/check-invoice-block-vocab.mjs",
     "check-invoice-money-fixture": "node scripts/check-invoice-money-fixture.mjs",
     "check-spdx": "node scripts/check-spdx.mjs",
+    "check-tailwind-utilities": "node scripts/check-tailwind-utilities.mjs",
     "openapi": "pnpm --filter @adminium/server run openapi",
     "openapi-check": "pnpm --filter @adminium/server run openapi:check",
     "ir-schema": "pnpm --filter @adminium/engine run ir-schema",

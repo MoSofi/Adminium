@@ -600,7 +600,7 @@ export function TranslationsPage(): ReactNode {
       />
 
       <div className="flex items-start gap-2 rounded-md border border-border bg-surface-2 p-3">
-        <AlertTriangle aria-hidden className="mt-0.5 text-warning" />
+        <AlertTriangle aria-hidden className="mt-0.5 text-warn" />
         <p className="text-body-sm text-fg-muted">
           {t(
             'settings.translations.warning',

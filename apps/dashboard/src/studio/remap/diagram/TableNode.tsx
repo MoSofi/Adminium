@@ -27,7 +27,7 @@ export function TableNode({ data }: { data: TableNodeData }) {
       ].join(' ')}
     >
       <Handle type="target" position={Position.Left} className="!bg-fg-muted" />
-      <header className="truncate rounded-t-lg border-b border-border bg-surface-raised px-2 py-1.5 font-medium text-fg">
+      <header className="truncate rounded-t-lg border-b border-border bg-surface-2 px-2 py-1.5 font-medium text-fg">
         {node.label}
       </header>
       <ul className="flex flex-col">
