@@ -47,6 +47,13 @@ const STARTERS: readonly (readonly [string, string, string])[] = [
   ['scorecard', 'KPI scorecard', 'Operations'],
 ];
 
+/** The palette's order (comp `palDefs`, 608). */
+const KINDS = [
+  'heading', 'text', 'kpi', 'bar', 'line', 'table', 'signature', 'terms', 'attachments', 'approval',
+  'qr', 'latefees', 'poterms', 'multicurrency', 'recurring', 'discount', 'taxbreak', 'payhistory',
+  'legal', 'refund', 'contact', 'loyalty', 'delivery', 'image', 'divider',
+] as const;
+
 /** The desktop-inspector aside — the drawer under the canvas carries the same ids. */
 function inspector(page: Page): Locator {
   return page.locator('[data-testid="report-inspector"][data-variant="aside"]');
@@ -318,6 +325,62 @@ test.describe('the /report-builder surface (43-T13)', () => {
     await page.request.delete(`/api/v1/report-documents/${templateId}`);
     await page.goto(`/report-builder/${reportId}`);
     await expect(page.getByTestId('report-title')).toHaveValue('Q3 2026 — final');
+  });
+
+  test('the side columns run the full height, and no panel scrolls sideways', async ({ page }) => {
+    // Both regressions this asserts were real and shipped: the columns painted
+    // their surface on a `max-h` sticky box, so the sidebar ended part-way down
+    // a long document; and every repeater panel overflowed horizontally because
+    // its fixed-width inputs were built with a template literal instead of
+    // `cn()`, leaving `w-full` from FIELD to win on CSS source order.
+    await signIn(page);
+    // Its own document: an earlier test in this serial run deletes `templateId`.
+    const made = await page.request.post('/api/v1/report-documents', { data: { kind: 'template', starter: 'exec', name: 'Layout probe' } });
+    expect(made.status(), await made.text()).toBe(201);
+    const probeId = ((await made.json()) as { id: string }).id;
+    await page.goto(`/report-builder/${probeId}`);
+    await expect(page.getByTestId('report-paper')).toBeVisible();
+
+    // Every kind, seeded through the palette so each panel draws its real rows —
+    // a block posted bare through the API has EMPTY repeaters and hides this.
+    for (const kind of KINDS) await page.locator(`[data-testid="report-palette-item"][data-kind="${kind}"]`).click();
+
+    const columnsFillTheRow = await page.evaluate(() => {
+      const aside = document.querySelector('[data-testid="report-inspector"][data-variant="aside"]');
+      const palette = document.querySelector('[data-testid="report-palette"]');
+      const row = aside?.parentElement;
+      if (aside === null || palette === null || row === undefined || row === null) return null;
+      const rowH = Math.round(row.getBoundingClientRect().height);
+      return { rowH, asideH: Math.round(aside.getBoundingClientRect().height), paletteH: Math.round(palette.getBoundingClientRect().height) };
+    });
+    expect(columnsFillTheRow).not.toBeNull();
+    expect(columnsFillTheRow?.asideH, 'the inspector column stops short of the editor').toBe(columnsFillTheRow?.rowH);
+    expect(columnsFillTheRow?.paletteH, 'the palette column stops short of the editor').toBe(columnsFillTheRow?.rowH);
+
+    const overflowing: string[] = [];
+    for (const kind of KINDS) {
+      await page.locator(`[data-testid="report-block"][data-kind="${kind}"]`).last().click({ position: { x: 6, y: 6 } });
+      await expect(inspector(page).locator(`[data-testid="report-block-panel"][data-kind="${kind}"]`)).toBeVisible();
+      // GEOMETRY, not `scrollWidth`. The panel sets `overflow-x: hidden`, so a row
+      // that is too wide is CLIPPED rather than scrollable and `scrollWidth`
+      // equals `clientWidth` — the first version of this guard measured exactly
+      // that and passed while the bug was live. Compare each control's right
+      // edge with the panel's content box instead: that catches the fault
+      // whether the overflow scrolls, is hidden, or escapes the box.
+      const over = await page.evaluate(() => {
+        const panel = document.querySelector('[data-testid="report-inspector"][data-variant="aside"] [data-testid="report-block-panel"]');
+        if (panel === null) return 0;
+        const box = panel.getBoundingClientRect();
+        let worst = 0;
+        for (const el of panel.querySelectorAll('input, button, textarea, img')) {
+          worst = Math.max(worst, Math.round(el.getBoundingClientRect().right - box.right));
+        }
+        return worst;
+      });
+      if (over > 0) overflowing.push(`${kind} (+${String(over)}px past the panel)`);
+    }
+    expect(overflowing, `panels that scroll sideways: ${overflowing.join(', ')}`).toEqual([]);
+    await page.request.delete(`/api/v1/report-documents/${probeId}`);
   });
 
   test('below `lg` the inspector is a drawer and the palette is a button (D18)', async ({ page }, testInfo) => {

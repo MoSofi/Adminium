@@ -12,6 +12,8 @@
  * shared with the background (`readImageFile`), and the refusal is the
  * editor's toast.
  */
+import { cn } from '@adminium/ui';
+
 import { t } from '../../../../i18n/t.js';
 import { reportIcon } from '../../../icons.js';
 import { pickImage, type ImageRejection } from '../../canvas/inline.js';
@@ -39,7 +41,7 @@ export function ImageFields({ block, edits, onImageRejected }: ImageFieldsProps)
         <PanelLabel className="mb-2">{t('reportBuilder:inspector.blockImage', 'Image')}</PanelLabel>
         {block.url === '' ? (
           <FileLabel
-            className={`${DASHED} h-[46px] gap-2`}
+            className={cn(DASHED, 'h-[46px] gap-2')}
             ariaLabel={t('reportBuilder:inspector.blockImageUpload', 'Upload image')}
             testId="report-block-image-upload"
             onFile={(event) => void pickImage(event, set, onImageRejected)}

@@ -231,7 +231,10 @@ export function Editor({ detail }: EditorProps) {
             onDelete={() => setConfirmDelete(true)}
             onPrimary={onPrimary}
           />
-          <div className="flex min-h-0 flex-1 items-start">
+          {/* `items-stretch` (the default), not `items-start`: the palette and the
+              inspector paint the comp's full-height surface and side border, and
+              only the panels inside them stick. */}
+          <div className="flex min-h-0 flex-1">
             <Palette onAdd={addBlock} />
             <main className="min-w-0 flex-1 bg-bg px-7 pb-[60px] pt-[30px]">
               {/* D18: below `lg` the palette is a button and the sheet scrolls

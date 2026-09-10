@@ -9,6 +9,8 @@
  * `delta: ''` (646). *Delta* is the Value field's own shape at 64 px, and the
  * canvas colour rule (`−`/`-` red, else green) is unchanged.
  */
+import { cn } from '@adminium/ui';
+
 import { t } from '../../../../i18n/t.js';
 import { rowSeeds } from '../../blockText.js';
 import { rowFieldLabel } from './rowFieldLabel.js';
@@ -43,7 +45,7 @@ export function KpiFields({ block, edits }: FieldsProps<'kpi'>) {
               value={row.value}
               onFocus={edits.beginEdit}
               onChange={(event) => edits.updateArrayItem(block.id, 'kpis', index, { value: event.target.value })}
-              className={`${FIELD} w-[72px] shrink-0 px-2 py-2 font-mono text-[12.5px]`}
+              className={cn(FIELD, 'w-[72px] shrink-0 px-2 py-2 font-mono text-[12.5px]')}
             />
             <input
               type="text"
@@ -52,7 +54,7 @@ export function KpiFields({ block, edits }: FieldsProps<'kpi'>) {
               value={row.delta}
               onFocus={edits.beginEdit}
               onChange={(event) => edits.updateArrayItem(block.id, 'kpis', index, { delta: event.target.value })}
-              className={`${FIELD} w-16 shrink-0 px-2 py-2 font-mono text-[12.5px]`}
+              className={cn(FIELD, 'w-16 shrink-0 px-2 py-2 font-mono text-[12.5px]')}
             />
             {remove}
           </div>
@@ -93,7 +95,7 @@ export function SeriesFields({ block, edits }: FieldsProps<'bar' | 'line'>) {
               // is a number, and an unparseable keystroke reads as zero rather
               // than making the bar disappear.
               onChange={(event) => edits.updateArrayItem(block.id, 'series', index, { value: Number.parseFloat(event.target.value) || 0 })}
-              className={`${FIELD} w-16 shrink-0 px-2 py-2 font-mono text-[12.5px]`}
+              className={cn(FIELD, 'w-16 shrink-0 px-2 py-2 font-mono text-[12.5px]')}
             />
             {remove}
           </div>
@@ -130,7 +132,7 @@ export function TableFields({ block, edits }: FieldsProps<'table'>) {
               value={row[1]}
               onFocus={edits.beginEdit}
               onChange={(event) => edits.updateRow(block.id, index, 1, event.target.value)}
-              className={`${FIELD} w-[76px] shrink-0 px-2 py-2 font-mono text-[12.5px]`}
+              className={cn(FIELD, 'w-[76px] shrink-0 px-2 py-2 font-mono text-[12.5px]')}
             />
             {remove}
           </div>

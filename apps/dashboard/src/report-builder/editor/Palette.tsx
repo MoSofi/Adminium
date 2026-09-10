@@ -52,13 +52,17 @@ export function Palette({ onAdd }: PaletteProps) {
   return (
     <div
       data-testid="report-palette"
-      className="sticky top-[calc(var(--adm-topbar-h,0px)+var(--adm-editor-header-h,0px))] hidden max-h-[calc(100vh-var(--adm-topbar-h,0px)-var(--adm-editor-header-h,0px))] w-[216px] shrink-0 overflow-auto border-e border-border bg-surface px-3.5 py-4 lg:block"
+      // The COLUMN paints the comp's full-height surface and border-right
+      // (277); the list inside it is what sticks and scrolls.
+      className="hidden w-[216px] shrink-0 self-stretch border-e border-border bg-surface lg:block"
     >
-      <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[.05em] text-fg-subtle">{t('reportBuilder:palette.title', 'Add block')}</div>
-      <div className="flex flex-col gap-[7px]">
-        {REPORT_BLOCK_KINDS.map((kind) => (
-          <PaletteRow key={kind} kind={kind} onAdd={onAdd} />
-        ))}
+      <div className="sticky top-[calc(var(--adm-topbar-h,0px)+var(--adm-editor-header-h,0px))] flex max-h-[calc(100vh-var(--adm-topbar-h,0px)-var(--adm-editor-header-h,0px))] flex-col overflow-y-auto overflow-x-hidden px-3.5 py-4">
+        <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[.05em] text-fg-subtle">{t('reportBuilder:palette.title', 'Add block')}</div>
+        <div className="flex flex-col gap-[7px]">
+          {REPORT_BLOCK_KINDS.map((kind) => (
+            <PaletteRow key={kind} kind={kind} onAdd={onAdd} />
+          ))}
+        </div>
       </div>
     </div>
   );

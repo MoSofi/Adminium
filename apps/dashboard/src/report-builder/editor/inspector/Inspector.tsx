@@ -80,10 +80,21 @@ export function Inspector({ body, status, selection, edits, onImageRejected, var
       aria-label={t('reportBuilder:inspector.header.title', 'Report header')}
       className={cn(
         variant === 'aside'
-          ? 'sticky top-[calc(var(--adm-topbar-h,0px)+var(--adm-editor-header-h,0px))] hidden max-h-[calc(100vh-var(--adm-topbar-h,0px)-var(--adm-editor-header-h,0px))] w-72 shrink-0 flex-col overflow-auto border-s border-border bg-surface px-4 pb-10 pt-[18px] lg:flex'
+          ? // The COLUMN paints the comp's full-height surface and border-left
+            // (353); the panel inside it is what sticks and scrolls. Painting
+            // them on the sticky box instead left the sidebar ending mid-page
+            // — the comp's aside is a stretched flex child and runs the whole
+            // height of the editor.
+            'hidden w-72 shrink-0 self-stretch border-s border-border bg-surface lg:block'
           : 'flex flex-col rounded-2xl border border-border bg-surface px-4 pb-6 pt-[18px] lg:hidden',
       )}
     >
+      <div
+        className={cn(
+          variant === 'aside' &&
+            'sticky top-[calc(var(--adm-topbar-h,0px)+var(--adm-editor-header-h,0px))] flex max-h-[calc(100vh-var(--adm-topbar-h,0px)-var(--adm-editor-header-h,0px))] flex-col overflow-y-auto overflow-x-hidden px-4 pb-10 pt-[18px]',
+        )}
+      >
       <div className="mb-[18px] flex items-center gap-2.5 rounded-xl bg-accent-soft px-[13px] py-[11px]">
         <Glyph className="size-4 shrink-0 text-accent" aria-hidden="true" />
         <div className="min-w-0">
@@ -102,6 +113,7 @@ export function Inspector({ body, status, selection, edits, onImageRejected, var
       ) : (
         <BlockPanel block={block} edits={edits} onImageRejected={onImageRejected} />
       )}
+      </div>
     </aside>
   );
 }

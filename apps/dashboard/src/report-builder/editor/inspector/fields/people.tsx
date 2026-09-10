@@ -6,6 +6,8 @@
  */
 import { useId } from 'react';
 
+import { cn } from '@adminium/ui';
+
 import { t } from '../../../../i18n/t.js';
 import { rowSeeds } from '../../blockText.js';
 import { RowsEditor } from '../RowsEditor.js';
@@ -89,7 +91,7 @@ export function AttachmentsFields({ block, edits }: FieldsProps<'attachments'>) 
               value={row.size}
               onFocus={edits.beginEdit}
               onChange={(event) => edits.updateArrayItem(block.id, 'attachments', index, { size: event.target.value })}
-              className={`${FIELD} w-[58px] shrink-0 px-2 py-2 font-mono text-[12.5px]`}
+              className={cn(FIELD, 'w-[58px] shrink-0 px-2 py-2 font-mono text-[12.5px]')}
             />
             {remove}
           </div>

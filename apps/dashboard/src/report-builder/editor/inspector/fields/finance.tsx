@@ -11,6 +11,8 @@
  * stored field is `loyLevel` — so the built-bytes sweep finds nothing
  * (43-T12/T15).
  */
+import { cn } from '@adminium/ui';
+
 import { t } from '../../../../i18n/t.js';
 import type { RecurFrequency } from '../../../model/envelope.js';
 import { rowSeeds } from '../../blockText.js';
@@ -74,7 +76,7 @@ export function MultiCurrencyFields({ block, edits }: FieldsProps<'multicurrency
                 value={row.code}
                 onFocus={edits.beginEdit}
                 onChange={(event) => edits.updateArrayItem(block.id, 'fx', index, { code: event.target.value })}
-                className={`${FIELD} w-[52px] shrink-0 px-2 py-[7px] text-[12.5px] font-bold`}
+                className={cn(FIELD, 'w-[52px] shrink-0 px-2 py-[7px] text-[12.5px] font-bold')}
               />
               <input
                 type="text"
@@ -82,7 +84,7 @@ export function MultiCurrencyFields({ block, edits }: FieldsProps<'multicurrency
                 value={row.sym}
                 onFocus={edits.beginEdit}
                 onChange={(event) => edits.updateArrayItem(block.id, 'fx', index, { sym: event.target.value })}
-                className={`${FIELD} w-9 shrink-0 px-2 py-[7px] text-[12.5px]`}
+                className={cn(FIELD, 'w-9 shrink-0 px-2 py-[7px] text-[12.5px]')}
               />
               <input
                 type="text"
@@ -91,7 +93,7 @@ export function MultiCurrencyFields({ block, edits }: FieldsProps<'multicurrency
                 value={row.rate}
                 onFocus={edits.beginEdit}
                 onChange={(event) => edits.updateArrayItem(block.id, 'fx', index, { rate: event.target.value })}
-                className={`${FIELD} min-w-0 flex-1 px-2 py-[7px] font-mono text-[12.5px]`}
+                className={cn(FIELD, 'min-w-0 flex-1 px-2 py-[7px] font-mono text-[12.5px]')}
               />
               {remove}
             </div>
@@ -172,7 +174,7 @@ export function DiscountFields({ block, edits }: FieldsProps<'discount'>) {
                 value={row.code}
                 onFocus={edits.beginEdit}
                 onChange={(event) => edits.updateArrayItem(block.id, 'discCodes', index, { code: event.target.value })}
-                className={`${FIELD} min-w-0 flex-1 bg-surface px-2 py-[7px] font-mono text-[12px] font-bold`}
+                className={cn(FIELD, 'min-w-0 flex-1 bg-surface px-2 py-[7px] font-mono text-[12px] font-bold')}
               />
               <input
                 type="text"
@@ -180,7 +182,7 @@ export function DiscountFields({ block, edits }: FieldsProps<'discount'>) {
                 value={row.amount}
                 onFocus={edits.beginEdit}
                 onChange={(event) => edits.updateArrayItem(block.id, 'discCodes', index, { amount: event.target.value })}
-                className={`${FIELD} w-[72px] shrink-0 bg-surface px-2 py-[7px] font-mono text-[12px]`}
+                className={cn(FIELD, 'w-[72px] shrink-0 bg-surface px-2 py-[7px] font-mono text-[12px]')}
               />
               {remove}
             </div>
@@ -190,7 +192,7 @@ export function DiscountFields({ block, edits }: FieldsProps<'discount'>) {
               value={row.label}
               onFocus={edits.beginEdit}
               onChange={(event) => edits.updateArrayItem(block.id, 'discCodes', index, { label: event.target.value })}
-              className={`${FIELD} bg-surface px-2 py-[7px] text-[12.5px]`}
+              className={cn(FIELD, 'bg-surface px-2 py-[7px] text-[12.5px]')}
             />
           </div>
         )}
@@ -226,7 +228,7 @@ export function TaxBreakFields({ block, edits }: FieldsProps<'taxbreak'>) {
               value={row.amount}
               onFocus={edits.beginEdit}
               onChange={(event) => edits.updateArrayItem(block.id, 'taxLines', index, { amount: event.target.value })}
-              className={`${FIELD} w-20 shrink-0 px-2 py-[7px] font-mono text-[12.5px]`}
+              className={cn(FIELD, 'w-20 shrink-0 px-2 py-[7px] font-mono text-[12.5px]')}
             />
             {remove}
           </div>
@@ -257,7 +259,7 @@ export function PayHistoryFields({ block, edits }: FieldsProps<'payhistory'>) {
                 value={row.date}
                 onFocus={edits.beginEdit}
                 onChange={(event) => edits.updateArrayItem(block.id, 'payHist', index, { date: event.target.value })}
-                className={`${FIELD} min-w-0 flex-1 bg-surface px-2 py-[7px] text-[12.5px]`}
+                className={cn(FIELD, 'min-w-0 flex-1 bg-surface px-2 py-[7px] text-[12.5px]')}
               />
               <input
                 type="text"
@@ -265,7 +267,7 @@ export function PayHistoryFields({ block, edits }: FieldsProps<'payhistory'>) {
                 value={row.amount}
                 onFocus={edits.beginEdit}
                 onChange={(event) => edits.updateArrayItem(block.id, 'payHist', index, { amount: event.target.value })}
-                className={`${FIELD} w-20 shrink-0 bg-surface px-2 py-[7px] font-mono text-[12px]`}
+                className={cn(FIELD, 'w-20 shrink-0 bg-surface px-2 py-[7px] font-mono text-[12px]')}
               />
               {remove}
             </div>
@@ -275,7 +277,7 @@ export function PayHistoryFields({ block, edits }: FieldsProps<'payhistory'>) {
               value={row.method}
               onFocus={edits.beginEdit}
               onChange={(event) => edits.updateArrayItem(block.id, 'payHist', index, { method: event.target.value })}
-              className={`${FIELD} bg-surface px-2 py-[7px] text-[12.5px]`}
+              className={cn(FIELD, 'bg-surface px-2 py-[7px] text-[12.5px]')}
             />
           </div>
         )}

@@ -11,6 +11,8 @@
  */
 import { useId } from 'react';
 
+import { cn } from '@adminium/ui';
+
 import { t } from '../../../i18n/t.js';
 import { ACCENT_SWATCHES, BG_TINT_MAX, type ReportBody, type ReportStatus } from '../../model/envelope.js';
 import type { DocumentEdits } from '../../model/edits.js';
@@ -103,7 +105,7 @@ export function HeaderPanel({ body, status, edits, onImageRejected }: HeaderPane
         {body.bgImage === '' ? (
           <>
             <FileLabel
-              className={`${DASHED} h-[46px] gap-2`}
+              className={cn(DASHED, 'h-[46px] gap-2')}
               ariaLabel={t('reportBuilder:inspector.backgroundUpload', 'Upload background')}
               testId="report-background-upload"
               onFile={(event) => void pickImage(event, setBackground, onImageRejected)}
