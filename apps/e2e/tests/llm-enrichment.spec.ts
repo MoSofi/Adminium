@@ -30,15 +30,60 @@
  * fixture keeps orders/employees OUT of the accepted navGroups so the two
  * composable pages keep their archetype's fixed sidebar group (workspace /
  * people) instead of an §8.3 llm-group stamp the five-group tree cannot show.
+ *
+ * The third describe is 46-T04: the same step, configuring its own provider
+ * inline instead of sending the operator to Settings. It has its own header.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { expect, test } from '@playwright/test';
+import { AxeBuilder } from '@axe-core/playwright';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 import { ENGINE, enrichWizardDsn } from './constants.js';
 import { signIn } from './helpers.js';
+
+/** WCAG 2.1 A/AA — the rule set every other sweep in this suite runs. */
+const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+const BLOCKING = new Set(['critical', 'serious']);
+
+/**
+ * Zero critical/serious on the state as it stands (46 §3.4). Lesser impacts are
+ * annotated rather than thrown, exactly as `report-builder-a11y.spec.ts` does:
+ * a regression in them stays visible in the report without failing a run on a
+ * rule the product has not adopted as blocking.
+ */
+async function expectNoBlockingViolations(page: Page, label: string, testInfo: TestInfo): Promise<void> {
+  // axe reads COMPUTED colours; a panel measured mid-transition reports its
+  // blended ones and fails a contrast check it passes at rest.
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))),
+  );
+  const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
+  // A sweep that analysed nothing reports zero violations and looks identical to
+  // a clean one. Passing checks are the proof it actually read a rendered page.
+  expect(results.passes.length, `${label}: axe analysed nothing`).toBeGreaterThan(10);
+  const blocking = results.violations.filter((violation) => BLOCKING.has(violation.impact ?? ''));
+  const lesser = results.violations.filter((violation) => !BLOCKING.has(violation.impact ?? ''));
+  if (lesser.length > 0) {
+    testInfo.annotations.push({
+      type: 'axe-lesser',
+      description: `${label}: ${lesser.map((v) => `${String(v.impact)}:${v.id}`).join(', ')}`,
+    });
+  }
+  const report = blocking
+    .map(
+      (violation) =>
+        `${String(violation.impact)}: ${violation.id} — ${violation.help}\n` +
+        violation.nodes
+          .slice(0, 3)
+          .map((node) => `    ${node.target.join(' ')}\n      ${node.html.slice(0, 200)}`)
+          .join('\n'),
+    )
+    .join('\n');
+  expect(blocking, `${label} has ${String(blocking.length)} blocking violations:\n${report}`).toEqual([]);
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const GOLDEN_RESPONSE = readFileSync(
@@ -269,5 +314,120 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
     await expect(page.locator('[data-part="page-directory"]')).toBeVisible();
     await expect(page.getByRole('tree')).toBeVisible();
     await expect(page.getByRole('treeitem').first()).toBeVisible();
+  });
+});
+
+/**
+ * 46-T04 — the enrich step configures its own provider
+ * (46-enrich-provider-inline.md R3).
+ *
+ * The wizard's "Use my AI provider" card used to be a dead end on a fresh
+ * install: disabled, with a sentence pointing at Settings → AI and no way to
+ * get there without abandoning the step. This leg walks the fix end to end
+ * against the real server — open the setup panel inside the step, save a
+ * provider, and watch the card go from disabled to pickable with no reload and
+ * nothing the operator already chose thrown away.
+ *
+ * OLLAMA IS THE STUB. It is the one configurable provider that needs no key and
+ * no cloud endpoint, so this leg configures a real provider and dials nothing:
+ * the post-save model listing goes to loopback and falls back to the static
+ * list. Enrichment itself is never started here — the run legs above cover that.
+ *
+ * The provider is REMOVED again in `afterEach`. `llm.enabled` is bootstrap state
+ * for the whole instance (it gates the ⌘K "Ask AI" affordance), the suite shares
+ * one server, and a spec that leaves a provider configured changes what every
+ * spec after it renders.
+ *
+ * Engine-independent — the code under test is the dashboard plus
+ * `/api/v1/llm/config`, which no dialect touches — so it runs once, on the
+ * default matrix leg, rather than three times.
+ */
+test.describe('the enrich step configures its own provider (46-T04)', () => {
+  test.skip(ENGINE !== 'sqlite', 'engine-independent (dashboard + /llm/config); runs once, on the default leg');
+
+  test.afterEach(async ({ page }) => {
+    const cleared = await page.request.put('/api/v1/llm/config', { data: { provider: null } });
+    expect(cleared.ok(), `clearing the provider → ${cleared.status()}`).toBeTruthy();
+  });
+
+  test('(f) wizard → enrich → set up a provider inline → the direct card enables', async ({ page }, testInfo) => {
+    await signIn(page);
+    await page.goto('/studio/connect');
+    await expect(page.getByRole('heading', { name: 'New connection' })).toBeVisible();
+
+    // Steps 1–5, as the golden legs above (a fresh connection on the seeded DB).
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByLabel('Connection name').fill('northwind-inline-provider-e2e');
+    await page.getByLabel('Connection string').fill(enrichWizardDsn());
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByText('Ready', { exact: true })).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Choose your tables' })).toBeVisible();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByRole('radio', { name: /Same database/ }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+    // Step 6 — no provider on this instance, so the direct card is off.
+    await expect(page.getByRole('heading', { name: 'Enrich with AI' })).toBeVisible();
+    const providerCard = page.getByRole('radio', { name: /Use my AI provider/ });
+    await expect(providerCard).toBeDisabled();
+
+    // Choices made BEFORE the detour: they are what a remount would cost.
+    await page.getByRole('radio', { name: /Copy a prompt to my own AI tool/ }).click();
+    await page.locator('#enrich-locale-de_DE').click();
+    await page.getByRole('switch', { name: /Include sample values/ }).click();
+    await expect(page.getByText('What leaves this machine')).toBeVisible();
+
+    // The panel: the same form Settings → AI renders, one heading level down.
+    await page.getByRole('button', { name: 'Set up a provider here' }).click();
+    await expect(page.getByRole('heading', { name: 'AI provider', exact: true })).toBeVisible();
+    await expectNoBlockingViolations(page, 'enrich step, provider form open (light)', testInfo);
+
+    await page.getByRole('radio', { name: /Models running locally through Ollama/ }).click();
+    await expect(page.getByRole('heading', { name: /Configure Ollama/ })).toBeVisible();
+    await page.getByLabel(/^Model/).fill('llama3.1');
+    await page.getByRole('button', { name: 'Save provider' }).click();
+
+    // THE POINT: the card enables in place. No reload, no navigation, and the
+    // step keeps every choice — the wizard was never remounted.
+    await expect(providerCard).toBeEnabled({ timeout: 15_000 });
+    await expect(page.getByText('AI provider configured')).toBeVisible();
+    await expect(page.locator('#enrich-locale-de_DE')).toHaveAttribute('data-state', 'checked');
+    await expect(page.getByRole('switch', { name: /Include sample values/ })).toHaveAttribute(
+      'data-state',
+      'checked',
+    );
+    await expect(page.getByRole('radio', { name: /Copy a prompt to my own AI tool/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+
+    // The card is genuinely pickable now, and it offers the direct run.
+    await page.getByRole('radio', { name: /Use my AI provider/ }).click();
+    await expect(page.getByRole('button', { name: 'Start enrichment' })).toBeVisible();
+
+    // Same states in dark. The attribute is the one `ThemeProvider` stamps on
+    // <html>; setting it here rather than through prefs + reload is deliberate —
+    // a reload would remount the wizard, which is the very thing this leg is
+    // about not doing, and the palette swap is pure CSS variables either way.
+    // The panel's own painted surface, not `document.body` — the shell paints the
+    // page background on its own element and body is transparent, so measuring
+    // body would compare "rgba(0, 0, 0, 0)" with itself and prove nothing.
+    const panelSurface = () =>
+      page.evaluate(
+        () => getComputedStyle(document.querySelector('#enrich-provider-config') as Element).backgroundColor,
+      );
+    const light = await panelSurface();
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    // The palette really swapped — otherwise the "dark" sweep below is the light
+    // one run twice, and axe's contrast checks would be measuring nothing new.
+    expect(await panelSurface(), 'the dark palette applied').not.toBe(light);
+    await expectNoBlockingViolations(page, 'enrich step, provider form open (dark)', testInfo);
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+
+    // The server really holds it (and `afterEach` really has something to clear).
+    const config = await page.request.get('/api/v1/llm/config');
+    expect(config.ok()).toBeTruthy();
+    expect(await config.json()).toMatchObject({ provider: 'ollama', model: 'llama3.1' });
   });
 });

@@ -3,16 +3,20 @@
  * Enrich-with-AI step tests (06-llm-assist.md §10.2) — happy-dom, fetch mocked
  * like the sibling wizard tests: the three-intent state machine (provider / BYO
  * / skip), the direct-vs-BYO branch, the BYO paste → validate → error-render →
- * merge round-trip, and the sampling toggle revealing the leaves-this-machine
- * preview.
+ * merge round-trip, the sampling toggle revealing the leaves-this-machine
+ * preview, and the inline provider setup (46-enrich-provider-inline.md 46-T02):
+ * an unconfigured step configures a provider without leaving the wizard, and the
+ * card it enables costs the operator none of the choices they already made.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { jsonResponse } from '../../../test/fixtures.js';
+import { AppToastProvider } from '../../../pages/toasts.js';
+import { jsonResponse, makeBootstrap } from '../../../test/fixtures.js';
+import type { LlmConfig } from '../../ai/api.js';
 import { INITIAL_WIZARD_STATE, type WizardState } from '../wizardState.js';
 import { EnrichStep } from './EnrichStep.js';
 
@@ -28,14 +32,51 @@ interface Call {
   body: unknown;
 }
 
+const EMPTY_CONFIG: LlmConfig = {
+  provider: null,
+  model: null,
+  baseUrl: null,
+  maxOutputTokens: 16000,
+  apiKeySet: false,
+  apiKeyLast4: null,
+};
+
 /** Script the `/api/v1/llm/*` routes the step touches. */
 function scriptFetch(overrides: Partial<Record<string, (call: Call) => Response>> = {}) {
   const calls: Call[] = [];
+  /**
+   * The provider config this scripted server holds. `PUT /llm/config` replaces
+   * it and `GET /bootstrap` derives `llm.enabled` from it — which is what the
+   * real server does too (its bootstrap handler reads the same `llm.provider`
+   * settings row the PUT writes). Modelling that link is the whole point: the
+   * wizard's provider card watches `llm.enabled`, not the config.
+   */
+  let stored: LlmConfig = EMPTY_CONFIG;
   const respond = (call: Call): Response => {
     const key = `${call.method} ${call.url.split('?')[0] ?? ''}`;
     const override = overrides[key];
     if (override !== undefined) return override(call);
     switch (key) {
+      case 'GET /api/v1/bootstrap':
+        return jsonResponse(200, {
+          data: makeBootstrap({ llm: { enabled: stored.provider !== null } }),
+        });
+      case 'GET /api/v1/llm/config':
+        return jsonResponse(200, stored);
+      case 'PUT /api/v1/llm/config': {
+        const body = call.body as { provider: string | null; model?: string | null; apiKey?: string };
+        stored = {
+          ...stored,
+          provider: (body.provider as LlmConfig['provider']) ?? null,
+          model: body.model ?? null,
+          // Write-only: the reply carries the tail, never the key (§3.2).
+          apiKeySet: body.apiKey !== undefined ? true : stored.apiKeySet,
+          apiKeyLast4: body.apiKey !== undefined ? body.apiKey.slice(-4) : stored.apiKeyLast4,
+        };
+        return jsonResponse(200, stored);
+      }
+      case 'GET /api/v1/llm/models':
+        return jsonResponse(200, { models: [], source: 'static' });
       case 'POST /api/v1/llm/runs':
         return jsonResponse(201, {
           run: {
@@ -110,16 +151,35 @@ function Harness({
 
 function renderStep(options: {
   providerConfigured?: boolean;
+  /** `/system/info`, seeded rather than fetched — air-gapped installs hide the direct path. */
+  networkFeaturesAllowed?: boolean;
   initial?: Partial<WizardState>;
   onOpenReview?: (runId: string) => void;
 } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   queryClient.setQueryData(['bootstrap'], { llm: { enabled: options.providerConfigured ?? false } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <Harness initial={options.initial} onOpenReview={options.onOpenReview} />
-    </QueryClientProvider>,
-  );
+  if (options.networkFeaturesAllowed !== undefined) {
+    queryClient.setQueryData(['system', 'info'], {
+      version: '0.5.0',
+      node: 'v22.0.0',
+      dialect: 'sqlite',
+      runtime: 'self-host',
+      smtpConfigured: false,
+      networkFeaturesAllowed: options.networkFeaturesAllowed,
+    });
+  }
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        {/* The inline provider form toasts on save, and `useAppToasts` throws
+            without a provider — the shell mounts one around the real wizard. */}
+        <AppToastProvider>
+          <Harness initial={options.initial} onOpenReview={options.onOpenReview} />
+        </AppToastProvider>
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 describe('intent cards', () => {
@@ -163,6 +223,130 @@ describe('intent cards', () => {
 
     await userEvent.click(screen.getByRole('radio', { name: /Copy a prompt to my own AI tool/ }));
     expect(screen.getByRole('button', { name: 'Generate prompt' })).toBeDefined();
+  });
+});
+
+describe('inline provider setup (46-T02)', () => {
+  /** Open the disclosure under the (disabled) provider card. */
+  async function openSetup() {
+    await userEvent.click(screen.getByRole('button', { name: 'Set up a provider here' }));
+    // The form is the one Settings renders — its own heading, one level down.
+    return screen.findByRole('heading', { name: 'AI provider', level: 3 });
+  }
+
+  /** Fill Anthropic + model + key and save. */
+  async function saveAnthropic() {
+    await userEvent.click(screen.getByRole('radio', { name: /Claude models via the Anthropic API/ }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Model' }), 'claude-opus-4-8');
+    await userEvent.type(screen.getByLabelText('API key', { exact: false }), 'sk-ant-abcd1234');
+    await userEvent.click(screen.getByRole('button', { name: 'Save provider' }));
+  }
+
+  it('offers setup on the step, and only reveals the form when asked', async () => {
+    scriptFetch();
+    renderStep({ providerConfigured: false });
+
+    const toggle = screen.getByRole('button', { name: 'Set up a provider here' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    // Closed: no form, and no reference to a panel that is not on the page.
+    expect(screen.queryByRole('heading', { name: 'AI provider' })).toBeNull();
+    expect(toggle.getAttribute('aria-controls')).toBeNull();
+
+    await openSetup();
+    expect(screen.getByRole('button', { name: 'Hide provider setup' }).getAttribute('aria-controls')).toBe(
+      'enrich-provider-config',
+    );
+    // Settings → AI remains one click away — the same form, plus run history.
+    expect(screen.getByRole('link', { name: /Configure a provider in Settings/ })).toBeDefined();
+  });
+
+  it('saving a provider enables the card without touching what the operator chose', async () => {
+    const { calls } = scriptFetch();
+    renderStep({ providerConfigured: false });
+
+    // The operator picks BYO and turns on sampling BEFORE deciding to configure
+    // a provider — the choices a wizard remount would silently throw away.
+    await userEvent.click(screen.getByRole('radio', { name: /Copy a prompt to my own AI tool/ }));
+    await userEvent.click(screen.getByRole('switch', { name: /Include sample values/ }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Enum semantics/ }));
+    expect(screen.getByRole('radio', { name: /Use my AI provider/ })).toHaveProperty('disabled', true);
+
+    await openSetup();
+    await saveAnthropic();
+
+    // The card the step could not offer a minute ago is now pickable, because
+    // the save invalidated `bootstrap` and the refetch reported llm.enabled.
+    await waitFor(() =>
+      expect(screen.getByRole('radio', { name: /Use my AI provider/ })).toHaveProperty('disabled', false),
+    );
+    expect(await screen.findByText(/AI provider configured/)).toBeDefined();
+
+    // …and nothing the operator had already set was lost (46 §3.3).
+    expect(screen.getByRole('switch', { name: /Include sample values/ }).getAttribute('data-state')).toBe(
+      'checked',
+    );
+    expect(screen.getByRole('checkbox', { name: /Enum semantics/ }).getAttribute('data-state')).toBe(
+      'unchecked',
+    );
+    expect(
+      screen.getByRole('radio', { name: /Copy a prompt to my own AI tool/ }).getAttribute('aria-checked'),
+    ).toBe('true');
+
+    // The key rode exactly one request, and the masked tail is all that comes back.
+    const put = calls.filter((call) => call.method === 'PUT' && call.url === '/api/v1/llm/config');
+    expect(put).toHaveLength(1);
+    expect((put[0]?.body as { apiKey?: string }).apiKey).toBe('sk-ant-abcd1234');
+    expect(await screen.findByText('sk-…1234')).toBeDefined();
+    expect(screen.queryByDisplayValue('sk-ant-abcd1234')).toBeNull();
+  });
+
+  it('runs the provider path straight after configuring it', async () => {
+    scriptFetch();
+    renderStep({ providerConfigured: false });
+
+    await openSetup();
+    await saveAnthropic();
+    await waitFor(() =>
+      expect(screen.getByRole('radio', { name: /Use my AI provider/ })).toHaveProperty('disabled', false),
+    );
+
+    await userEvent.click(screen.getByRole('radio', { name: /Use my AI provider/ }));
+    expect(screen.getByRole('button', { name: 'Start enrichment' })).toBeDefined();
+  });
+
+  it('closing the panel puts it away again', async () => {
+    scriptFetch();
+    renderStep({ providerConfigured: false });
+    await openSetup();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hide provider setup' }));
+    expect(screen.queryByRole('heading', { name: 'AI provider' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Set up a provider here' })).toBeDefined();
+  });
+
+  it('offers nothing to set up on an air-gapped install — no key would help', async () => {
+    scriptFetch();
+    renderStep({ providerConfigured: false, networkFeaturesAllowed: false });
+
+    expect(screen.getByRole('radio', { name: /Use my AI provider/ })).toHaveProperty('disabled', true);
+    expect(screen.queryByRole('button', { name: 'Set up a provider here' })).toBeNull();
+    // …and the card says why, rather than sending anyone to Settings (§2.3).
+    expect(screen.getByText(/no outbound internet access/)).toBeDefined();
+    expect(screen.queryByRole('link', { name: /Configure a provider in Settings/ })).toBeNull();
+  });
+
+  it('says so when the provider settings cannot be loaded', async () => {
+    scriptFetch({
+      'GET /api/v1/llm/config': () =>
+        jsonResponse(500, { error: { code: 'INTERNAL', message: 'nope', requestId: 'r' } }),
+    });
+    renderStep({ providerConfigured: false });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Set up a provider here' }));
+    expect(await screen.findByRole('alert')).toHaveProperty(
+      'textContent',
+      expect.stringContaining('Could not load the provider settings'),
+    );
   });
 });
 

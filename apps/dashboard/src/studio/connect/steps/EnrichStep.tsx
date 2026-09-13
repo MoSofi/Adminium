@@ -8,18 +8,24 @@
  * screen or the BYO round-trip panel. Both AI paths land on the review screen;
  * skipping advances to generation, never penalized.
  *
+ * When no provider is configured the step no longer just points at Settings: it
+ * renders the SAME `ProviderConfigForm` that page does, inline, and the provider
+ * card re-enables the moment a config saves (46-enrich-provider-inline.md R3).
+ *
  * RBAC: the whole connect wizard is Admin+ (StudioGuard), so this step inherits
- * the acceptance-#13 gate — Editor/Viewer never see it.
+ * the acceptance-#13 gate — Editor/Viewer never see it, and `/api/v1/llm/config`
+ * is gated by the same permission the rest of this step's calls are.
  */
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardCopy, CircleSlash, Sparkles } from 'lucide-react';
+import { ClipboardCopy, CircleSlash, PlugZap, Sparkles } from 'lucide-react';
 import { useState } from 'react';
-import { Alert, Button, Checkbox, Label, RadioCard, RadioGroup, Switch } from '@adminium/ui';
+import { Alert, Button, Checkbox, Label, RadioCard, RadioGroup, Spinner, Switch } from '@adminium/ui';
 
 import { ApiError } from '../../../app/api.js';
 import { bootstrapQuery } from '../../../app/bootstrap.js';
 import { llmAffordances, useCapabilities } from '../../../app/capabilities.js';
 import { t } from '../../../i18n/t.js';
+import { ProviderConfigForm, aiConfigQuery } from '../../ai/ProviderConfigForm.js';
 import { aiApi, type LlmPromptChunk } from '../../ai/api.js';
 import { EnrichByoPanel } from '../EnrichByoPanel.js';
 import { EnrichDirectProgress } from '../EnrichDirectProgress.js';
@@ -63,7 +69,47 @@ function providerDescription(input: { providerAvailable: boolean; networkAllowed
   }
   return t(
     'studio:enrich.provider.unconfigured',
-    'No AI provider is configured yet — copy a prompt to your own tool below, or configure a provider first.',
+    'No AI provider is configured yet — set one up below, or copy a prompt to your own AI tool.',
+  );
+}
+
+/** The disclosure panel's id — `aria-controls` on the button that opens it. */
+const PROVIDER_CONFIG_PANEL_ID = 'enrich-provider-config';
+
+/**
+ * The Settings → AI provider form, rendered inside the wizard (46 R3).
+ *
+ * `useQuery`, NOT `useSuspenseQuery` as Settings uses: suspending here would
+ * unmount the step while the config loads and take the operator's section
+ * toggles, locales and sampling opt-in with it (46 §3.3). The cost is this
+ * component owning its own pending and error states, which it should anyway —
+ * it is one panel on a live screen, not a whole route.
+ *
+ * Mounted only while the panel is open, so a wizard that never needs a provider
+ * never asks for one.
+ */
+function InlineProviderConfig({ networkAllowed }: { networkAllowed: boolean }) {
+  const configQuery = useQuery(aiConfigQuery());
+
+  if (configQuery.data === undefined) {
+    return configQuery.isError ? (
+      <Alert
+        tone="danger"
+        role="alert"
+        title={t(
+          'studio:enrich.provider.configError',
+          'Could not load the provider settings — set one up in Settings → AI, then come back to this step.',
+        )}
+      />
+    ) : (
+      <div className="flex items-center justify-center py-6">
+        <Spinner size="md" />
+      </div>
+    );
+  }
+
+  return (
+    <ProviderConfigForm config={configQuery.data} networkAllowed={networkAllowed} headingLevel={3} />
   );
 }
 
@@ -106,6 +152,17 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
   const [created, setCreated] = useState<CreatedRun | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  /**
+   * The inline provider form, opened by the operator and never by the step.
+   *
+   * It lives HERE, in the step, rather than inside the panel it controls: the
+   * panel unmounts when it closes, and state that unmounts with the thing it
+   * describes cannot remember that it was open. Nothing else in the wizard is
+   * touched by opening it, which is the point — `onPatch` is never called, so
+   * the section toggles, locales and sampling opt-in survive a provider save
+   * (46 §3.3).
+   */
+  const [configOpen, setConfigOpen] = useState(false);
 
   const sections = state.enrichSections;
   const locales = state.enrichLocales;
@@ -302,16 +359,65 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
       </RadioGroup>
 
       {/* Only offer the fix that fixes it. When the provider card is off because
-          this install has no outbound network, "Configure a provider in Settings"
-          is advice that leads nowhere — the card above already explains, and BYO
-          is right there. */}
-      {!providerAvailable && providerApi.enabled ? (
-        <p className="text-caption text-fg-muted">
-          {t('studio:enrich.provider.settingsHint', 'Want to run it directly?')}{' '}
-          <a className="font-semibold text-accent underline" href="/studio/settings/ai">
-            {t('studio:enrich.provider.settingsLink', 'Configure a provider in Settings → AI')}
-          </a>
-        </p>
+          this install has no outbound network, both a setup form and a link to
+          Settings lead nowhere — no key will ever make that card work — so the
+          whole affordance is gated on `providerApi.enabled`. The card above
+          already explains, and BYO is right there.
+
+          Once the form is open the row stays, whatever the card's state: it
+          carries the only control that closes the panel again. */}
+      {providerApi.enabled && (!providerAvailable || configOpen) ? (
+        <div className="flex flex-col gap-2">
+          {providerAvailable ? null : (
+            <p className="text-caption text-fg-muted">
+              {t('studio:enrich.provider.settingsHint', 'Want to run it directly?')}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {/* `aria-controls` only while the panel is on the page: a reference
+                to an id that does not exist is broken, not a hint. `aria-expanded`
+                is always there — it is what makes this a disclosure. */}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              iconLeft={<PlugZap />}
+              aria-expanded={configOpen}
+              {...(configOpen ? { 'aria-controls': PROVIDER_CONFIG_PANEL_ID } : {})}
+              onClick={() => setConfigOpen((open) => !open)}
+            >
+              {configOpen
+                ? t('studio:enrich.provider.setUpHide', 'Hide provider setup')
+                : t('studio:enrich.provider.setUpHere', 'Set up a provider here')}
+            </Button>
+            {/* Settings → AI is still one click away: it is the same form plus
+                the BYO explainer and the run history this step has no room for. */}
+            <a className="text-caption font-semibold text-accent underline" href="/studio/settings/ai">
+              {t('studio:enrich.provider.settingsLink', 'Configure a provider in Settings → AI')}
+            </a>
+          </div>
+        </div>
+      ) : null}
+
+      {providerApi.enabled && configOpen ? (
+        <div
+          id={PROVIDER_CONFIG_PANEL_ID}
+          className="flex flex-col gap-4 rounded-lg border border-border bg-surface-2 p-3.5"
+        >
+          {/* The card above went from grey to pickable while the operator was
+              looking at this panel — say so, and say what to do with it. */}
+          {providerAvailable ? (
+            <Alert
+              tone="pos"
+              title={t('studio:enrich.provider.readyTitle', 'AI provider configured')}
+              body={t(
+                'studio:enrich.provider.readyBody',
+                'Pick “Use my AI provider” above to run enrichment on this connection now.',
+              )}
+            />
+          ) : null}
+          <InlineProviderConfig networkAllowed={providerApi.enabled} />
+        </div>
       ) : null}
 
       {intent === 'provider' || intent === 'byo' ? (
