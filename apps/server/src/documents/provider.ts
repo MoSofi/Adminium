@@ -28,6 +28,16 @@
 
 import type { SubjectSlot } from './subject.js';
 
+/**
+ * The contract this pipeline consumes, at the version it was bought at.
+ *
+ * Declared here rather than in `render.ts`, which re-exports them: `deliver.ts`
+ * needs them too, and `render.ts` imports `deliver.ts`, so a definition there
+ * made the two modules import each other.
+ */
+export const DOCUMENT_RENDER_CONTRACT = 'document-render';
+export const DOCUMENT_RENDER_VERSION = 1;
+
 /** What every consumer of a provider reads: the kinds it can draw. */
 export interface DocumentProviderKind {
   id: string;

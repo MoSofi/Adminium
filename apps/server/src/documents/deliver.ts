@@ -36,8 +36,12 @@ import {
   enqueueEmail,
   type EmailLogger,
 } from '../email/send.js';
-import { labelForKind, providerOf } from './provider.js';
-import { DOCUMENT_RENDER_CONTRACT, DOCUMENT_RENDER_VERSION } from './render.js';
+import {
+  DOCUMENT_RENDER_CONTRACT,
+  DOCUMENT_RENDER_VERSION,
+  labelForKind,
+  providerOf,
+} from './provider.js';
 
 /**
  * What a profile's `deliver` json says (§3.7 step 6).

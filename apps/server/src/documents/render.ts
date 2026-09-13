@@ -57,12 +57,14 @@ import type { FileStore } from '../files/store.js';
 import { providerByKey, providersFor, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { EmailLogger } from '../email/send.js';
 import { emailDocument, type DocumentDelivery } from './deliver.js';
-import { renderingProviderOf } from './provider.js';
+import {
+  DOCUMENT_RENDER_CONTRACT,
+  DOCUMENT_RENDER_VERSION,
+  renderingProviderOf,
+} from './provider.js';
 import { buildSubject, mappedTables, type ProfileMapping } from './subject.js';
 
-/** The contract this pipeline consumes, at the version it was bought at. */
-export const DOCUMENT_RENDER_CONTRACT = 'document-render';
-export const DOCUMENT_RENDER_VERSION = 1;
+export { DOCUMENT_RENDER_CONTRACT, DOCUMENT_RENDER_VERSION };
 
 /** A rendered document as the contract returns it. */
 interface RenderedDocument {
