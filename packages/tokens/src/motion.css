@@ -99,8 +99,16 @@
   box-shadow: 0 6px 18px -10px rgba(0, 0, 0, .6);
 }
 
-/* button press: hover brighten, active shrink */
+/* button press: hover brighten, active shrink.
+
+   `cursor: pointer` lives HERE, on the class that means "this presses", rather
+   than in each component's variants. Tailwind v4's preflight does not restore
+   it and the browser default for <button> is an arrow, so every pressable in
+   the product had been showing one — 62 of the kit's 66 components never set a
+   cursor at all. One rule fixes them together, and a disabled control is
+   unaffected: `disabled:pointer-events-none` means it has no cursor to change. */
 .nb-press {
+  cursor: pointer;
   transition: transform .12s ease, filter .12s ease;
 }
 .nb-press:hover  { filter: brightness(1.05); }
@@ -108,6 +116,7 @@
 
 /* icon button: hover well, active shrink */
 .nb-ib {
+  cursor: pointer;
   transition: background-color .13s ease, transform .13s ease;
 }
 .nb-ib:hover  { background-color: var(--surface-3); }
