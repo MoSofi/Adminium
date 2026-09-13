@@ -149,6 +149,12 @@ if (has('--build')) {
 }
 
 if (!SKIP_PACK) {
+  // Every tarball in the directory is installed below, and the pack does not
+  // clear the last run's: rehearsing 0.2.6 beside 0.2.5's leftovers installed
+  // the 0.2.5 CLI over 0.2.6 libraries, and passed.
+  for (const file of existsSync(OUT_DIR) ? readdirSync(OUT_DIR) : []) {
+    if (file.endsWith('.tgz')) rmSync(join(OUT_DIR, file), { force: true });
+  }
   log('▸ packing the release tarballs (publish-npm.mjs --dry-run)');
   // Its X-ray is part of the rehearsal: compiled test files, a missing LICENSE
   // or an unpublishable range fails HERE rather than on the registry.
@@ -198,6 +204,25 @@ function warnIfStale() {
 if (SKIP_PACK) warnIfStale();
 
 const packages = tarballs.map((file) => ({ file, ...tarballIdentity(file) }));
+
+/*
+ * One version per package, or no rehearsal. With two, `find` below takes the
+ * FIRST flagship while the overrides keep the LAST of each library, so the
+ * install is a mix of releases that no user will ever have. That only happens
+ * with --skip-pack now (the pack clears the directory), which is exactly when
+ * nobody is looking at what is in it.
+ */
+const versionsOf = new Map();
+for (const p of packages) versionsOf.set(p.name, [...(versionsOf.get(p.name) ?? []), p.version]);
+const mixed = [...versionsOf].filter(([, versions]) => versions.length > 1);
+if (mixed.length > 0) {
+  die(
+    `scripts/release/out holds more than one version of ${mixed
+      .map(([name, versions]) => `${name} (${versions.join(', ')})`)
+      .join('; ')} — drop --skip-pack to repack, or delete the stale tarballs.`,
+  );
+}
+
 const flagship = packages.find((p) => p.name === '@adminiumjs/adminium');
 if (flagship === undefined) die('no @adminiumjs/adminium tarball — the flagship did not pack.');
 
