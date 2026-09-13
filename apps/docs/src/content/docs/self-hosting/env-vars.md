@@ -26,8 +26,10 @@ half-configured and fail later.
 | `AWS_ACCESS_KEY_ID` | No | *(unset)* | Access key for the AWS storage variables. |
 | `AWS_SECRET_ACCESS_KEY` | No | *(unset)* | Secret key for the AWS storage variables. |
 | `ADMINIUM_BUNDLED_ADD_ONS` | No | `./add-ons-bundle` | Directory of pre-verified add-on tarballs seeded into the store at boot — see [Installing add-ons](/self-hosting/installing-add-ons/). |
+| `ADMINIUM_BUNDLED_APPS` | No | `./apps-bundle` | Directory of pre-verified app tarballs seeded at boot, so *Studio → Hosted apps* has apps to install without reaching the network. See below. |
 | `ADMINIUM_LOG_LEVEL` | No | `info` | `fatal` · `error` · `warn` · `info` · `debug` · `trace` |
 | `ADMINIUM_STATIC_ROOT` | No | *(auto-detected)* | Serve the dashboard build from this directory instead of the auto-detected copy. |
+| `ADMINIUM_SURFACES_DIR` | No | *(unset)* | Directory of built app surfaces, served at `/apps/<app>/<side>/`. Unset means this instance hosts no apps. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
@@ -209,6 +211,78 @@ ADMINIUM_STATIC_ROOT=/srv/adminium/dashboard adminium start
 If the directory has no `index.html`, Adminium logs a warning naming the path,
 then falls back to the automatic candidates (or serves the API alone) rather
 than refusing to boot.
+
+## `ADMINIUM_BUNDLED_APPS`
+
+Apps that ship **with the build**. Each entry is a tarball plus its hash:
+
+```
+apps-bundle/
+  clinic-1.0.0.tgz
+  clinic-1.0.0.tgz.integrity     # sha512-…
+```
+
+At boot they are staged into this instance's app store, where *Studio → Hosted apps* offers them
+for install. Staging is not installing: nothing is created in your database, and nothing is served,
+until you pick a connection and confirm the schema plan.
+
+**It runs once per package.** A version already staged is skipped, so a restart is cheap and an app
+you installed is never disturbed by the seed. One corrupt entry costs its own package and not the
+boot, and the log names it.
+
+The point of the bundled set is the air-gapped case: an instance that can only ever use what came
+with its image is a supported configuration, not a degraded one — the same reason
+`ADMINIUM_BUNDLED_ADD_ONS` exists. Adminium never reaches the network to populate this.
+
+To build one from an app checkout:
+
+```bash
+node scripts/release/pack-app-bundle.mjs ../clinic-desk --build --out apps-bundle
+```
+
+## `ADMINIUM_SURFACES_DIR`
+
+Where the built frontends of the apps this instance hosts live. Unset — the
+default — it hosts none, and nothing else about the boot changes.
+
+A **surface** is one built frontend of an app: its `staff` side, its `customer`
+side, or both. Lay them out by app key and side:
+
+```
+surfaces/
+  clinic/
+    staff/index.html
+    customer/index.html
+```
+
+```bash
+ADMINIUM_SURFACES_DIR=/srv/adminium/surfaces adminium start
+```
+
+`clinic/staff` is then served at `/apps/clinic/staff/`, and every surface found
+gets a `serving hosted app surface` line in the boot log. The directory name
+must be the app key the bundle was **built** with: the build bakes
+`/apps/<app>/<side>/` into every asset URL, so a folder renamed after the fact
+serves an `index.html` whose scripts all 404.
+
+**Discovery runs once, at boot.** Adding an app — or rebuilding one — takes a
+restart. Everything you decide about a surface afterwards is settings and takes
+effect without one: where a staff surface appears (its own URL, or blended into
+the dashboard sidebar), which connection it reads, which domains answer for it,
+and how many instances of it you run.
+
+A directory that is absent, empty, or misspelled is **not** an error. You get no
+apps, no warning, and an empty *Studio → Hosted apps*; the boot log is where you
+check, and silence there is the symptom.
+
+A hosted **customer** surface also needs the public API admitted for pages this
+instance serves itself:
+
+```bash
+ADMINIUM_PUBLIC_API_ORIGINS='self'
+```
+
+→ [An app surface on its own domain](/self-hosting/app-domains/)
 
 ## `ADMINIUM_TRUST_PROXY`
 

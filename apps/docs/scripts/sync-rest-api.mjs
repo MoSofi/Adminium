@@ -52,6 +52,10 @@ const DESCRIPTIONS = {
     'Installed add-ons — list what a host should mount, preview what installing would do, ' +
     'install from a verified package, enable or disable per host, and uninstall',
   'api-keys': 'Issue, list and revoke API keys',
+  apps:
+    'Micro-SaaS apps installed into this instance — upload a built bundle, browse what is ' +
+    'staged or shipped with the build, plan its tables against a connection, install, ' +
+    'discard a staged version, and uninstall',
   audit: 'The audit log — list and read single entries',
   automations:
     'Automation rules — the trigger, the steps and the branches between them; ' +
@@ -106,7 +110,9 @@ const DESCRIPTIONS = {
   search: 'Cross-resource search for the command palette',
   surfaces: 'Hosted app surfaces — placement in the dashboard, and attaching your own domains',
   settings: 'Instance settings — defaults, branding, email, security, telemetry, workspace',
-  setup: 'First-boot super-admin creation, and whether setup is still open',
+  setup:
+    'First-boot super-admin creation, whether setup is still open, and — in that same ' +
+    'window — checking a database for an Adminium store already in it and adopting that store',
   system: 'Version and instance information',
   users: 'People in the workspace — invite, suspend, delete, assign roles',
   'widget-data': 'The queries widgets run, singly and in batches',
