@@ -349,6 +349,41 @@ function driverExport<T>(mod: Record<string, unknown>, name: string, engine: Met
   return found as T;
 }
 
+/** A `pg` Pool or Client, as far as {@link surviveDroppedConnections} needs one. */
+interface PgEmitter {
+  on(event: 'connect' | 'error', listener: (value: never) => void): unknown;
+}
+
+/**
+ * Keep a dropped Postgres connection from ending the process.
+ *
+ * `pg` reports a connection that dies (a network change, a failover, a
+ * provider's idle cutoff) as an 'error' event, and an 'error' event with no
+ * listener is thrown as an uncaught exception. Which emitter fires depends on
+ * where the client was:
+ *
+ * - idle in the pool: pg-pool discards the client, then emits on the POOL;
+ * - checked out: the CLIENT emits. pg-pool detaches its own listener for the
+ *   checkout and kysely never attaches one — and this store checks clients out
+ *   for long stretches (a migration pass and a relocation's copy each run inside
+ *   one transaction).
+ *
+ * Both listeners are empty on purpose. A running query already rejects with the
+ * same error, which is where it is reported, and the next checkout opens a
+ * fresh connection. adapter-postgres's `buildDataPool` guards its pool the same
+ * way.
+ */
+function surviveDroppedConnections(pool: PgEmitter): void {
+  pool.on('error', () => {
+    /* the pool has already discarded the idle client */
+  });
+  pool.on('connect', (client: PgEmitter) => {
+    client.on('error', () => {
+      /* the query it was running rejects with it */
+    });
+  });
+}
+
 export interface ConnectMetaStoreOptions {
   /** Postgres/MySQL pool size; the single-process topology stays small (01 §4.1). */
   poolSize?: number | undefined;
@@ -370,13 +405,13 @@ export async function connectMetaStore(
     case 'postgres': {
       const mod = await importDriver('pg', 'postgres');
       const Pool = driverExport<new (config: unknown) => never>(mod, 'Pool', 'postgres', 'pg');
-      meta = createPostgresMetaDb({
-        pool: new Pool({
-          connectionString: resolved.url,
-          max: poolSize,
-          types: postgresInt8AsNumber(mod),
-        }),
+      const pool = new Pool({
+        connectionString: resolved.url,
+        max: poolSize,
+        types: postgresInt8AsNumber(mod),
       });
+      surviveDroppedConnections(pool);
+      meta = createPostgresMetaDb({ pool });
       break;
     }
     case 'mysql': {
