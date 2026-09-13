@@ -57,3 +57,39 @@ describe('RadioCard', () => {
     expect(card.querySelector('svg')).toBeNull();
   });
 });
+
+describe('the comp card shapes (45-onboarding.md §3)', () => {
+  it('keeps `row` as the default, so every existing caller is untouched', () => {
+    render(
+      <RadioGroup value="a" onValueChange={() => undefined}>
+        <RadioCard value="a" title="Row" icon={<span data-testid="glyph" />} />
+      </RadioGroup>,
+    );
+    const card = screen.getByRole('radio', { name: /Row/ });
+    expect(card.className).toContain('p-3.5');
+    expect(card.className).toContain('rounded-lg');
+  });
+
+  it('gives `tile` the comp geometry: 15px padding, a 13px radius, a 40px icon box', () => {
+    render(
+      <RadioGroup value="a" onValueChange={() => undefined}>
+        <RadioCard layout="tile" value="a" title="Tile" description="Body" icon={<span data-testid="glyph" />} />
+      </RadioGroup>,
+    );
+    const card = screen.getByRole('radio', { name: /Tile/ });
+    expect(card.className).toContain('p-[15px]');
+    expect(card.className).toContain('rounded-[13px]');
+    expect(screen.getByTestId('glyph').parentElement?.className).toContain('size-10');
+  });
+
+  it('centres `stack` and puts the tile above the label', () => {
+    render(
+      <RadioGroup value="a" onValueChange={() => undefined}>
+        <RadioCard layout="stack" value="a" title="Stack" icon={<span data-testid="glyph" />} />
+      </RadioGroup>,
+    );
+    const card = screen.getByRole('radio', { name: /Stack/ });
+    expect(card.className).toContain('flex-col');
+    expect(card.className).toContain('text-center');
+  });
+});

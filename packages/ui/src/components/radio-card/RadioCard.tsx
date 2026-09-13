@@ -17,7 +17,45 @@ export interface RadioCardProps
   trailing?: React.ReactNode | undefined;
   /** Hide the top-end check indicator shown when selected. */
   hideIndicator?: boolean | undefined;
+  /**
+   * Card shape.
+   *
+   * `row` (default) is the one every existing caller renders: a bare leading
+   * glyph beside a 13px title. `tile` and `stack` are the two the onboarding
+   * comps draw (`designs/Onboarding.dc.html`, 45-onboarding.md §3) — a 40px
+   * accent-filling icon tile, leading with a description or centred above a
+   * label — and they are here rather than hand-rolled in the wizard because
+   * the Radix item underneath is what makes arrow keys and `aria-checked`
+   * work, and it is not exported.
+   */
+  layout?: 'row' | 'tile' | 'stack' | undefined;
 }
+
+/** Per-layout geometry, from the comp: padding, radius, and the icon's box. */
+const LAYOUT = {
+  row: {
+    card: 'items-start gap-3 rounded-lg p-3.5',
+    icon: 'items-center [&_svg]:size-[18px]',
+    title: 'text-[13px] font-semibold text-fg',
+    description: 'text-[11.5px] leading-4 text-fg-muted',
+  },
+  tile: {
+    card: 'items-start gap-3 rounded-[13px] p-[15px]',
+    icon:
+      'size-10 items-center justify-center rounded-[11px] bg-surface-3 ' +
+      'group-data-[state=checked]:bg-accent group-data-[state=checked]:text-accent-fg [&_svg]:size-[18px]',
+    title: 'text-[13.5px] font-bold text-fg',
+    description: 'mt-1 text-[11.5px] leading-[1.5] text-fg-subtle',
+  },
+  stack: {
+    card: 'flex-col items-center gap-[9px] rounded-[13px] p-[15px] text-center',
+    icon:
+      'size-10 items-center justify-center rounded-[11px] bg-surface-3 ' +
+      'group-data-[state=checked]:bg-accent group-data-[state=checked]:text-accent-fg [&_svg]:size-5',
+    title: 'text-[13px] font-bold text-fg',
+    description: 'mt-1 text-[11.5px] leading-[1.5] text-fg-subtle',
+  },
+} as const;
 
 /**
  * RadioCard — selectable card variant of the radio item
@@ -26,6 +64,7 @@ export interface RadioCardProps
  * a `RadioGroup` (../radio); arrow keys move and select between cards.
  */
 export function RadioCard({
+  layout = 'row',
   title,
   description,
   icon,
@@ -37,7 +76,9 @@ export function RadioCard({
   return (
     <RadioGroupPrimitive.Item
       className={cn(
-        'group relative flex w-full items-start gap-3 rounded-lg border border-border-strong bg-surface p-3.5 text-start ',
+        'group relative flex w-full cursor-pointer border border-border-strong bg-surface text-start ',
+        LAYOUT[layout].card,
+        layout === 'stack' ? '' : 'text-start ',
         'transition-[border-color,background-color,box-shadow] duration-150 hover:border-fg-subtle ',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ',
         'disabled:pointer-events-none disabled:opacity-40 ',
@@ -49,18 +90,26 @@ export function RadioCard({
       {icon ? (
         <span
           aria-hidden="true"
-          className="flex shrink-0 items-center text-fg-muted group-data-[state=checked]:text-accent [&_svg]:size-[18px]"
+          className={cn(
+            'flex shrink-0 text-fg-muted group-data-[state=checked]:text-accent',
+            LAYOUT[layout].icon,
+          )}
         >
           {icon}
         </span>
       ) : null}
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <span
+        className={cn(
+          'flex min-w-0 flex-col gap-0.5',
+          layout === 'stack' ? 'items-center' : 'flex-1',
+        )}
+      >
         <span className="flex items-center gap-2">
-          <span className="text-[13px] font-semibold text-fg">{title}</span>
+          <span className={LAYOUT[layout].title}>{title}</span>
           {trailing ? <span className="ms-auto flex shrink-0 items-center">{trailing}</span> : null}
         </span>
         {description === undefined || description === null ? null : (
-          <span className="text-[11.5px] leading-4 text-fg-muted">{description}</span>
+          <span className={LAYOUT[layout].description}>{description}</span>
         )}
       </span>
       {hideIndicator ? null : (
