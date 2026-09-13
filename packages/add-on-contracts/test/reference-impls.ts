@@ -429,15 +429,21 @@ export class ReferenceProductPersonalizer implements ProductPersonalizer {
 // -- document-render@1 -------------------------------------------------------
 
 /**
- * A reference `DocumentRenderer` — two kinds, deliberately with DIFFERENT
- * coverage, because a single-kind reference would leave half the contract
- * unexecuted.
+ * A reference `DocumentRenderer` — four kinds, deliberately DIFFERENT from one
+ * another, because each shape a real provider can take sends the suite down a
+ * branch no other shape reaches.
  *
  *   · `note` is `winansi` and renders both formats, so it exercises the
  *     drawing branch for `é ß ø €` and the refusal branch for Arabic and Han;
  *   · `ticket` is `ascii` and PDF-only, so it exercises the refusal branch for
  *     `é ß ø €` — the case a WinAnsi-only reference could never reach, and the
- *     one `barcode-labels` actually is (34-T06).
+ *     one `barcode-labels` actually is (34-T06);
+ *   · `receipt` is HTML-only with no free-text slot and every required slot
+ *     defaulted, so the PDF, glyph and missing-slot cases have nothing to
+ *     assert — and a line it carries has an empty cell, and a collection it
+ *     declares arrives with no rows, which the money law has to step over;
+ *   · `badge` is PDF-only with no free-text slot, so the escaping and coverage
+ *     cases skip it while its cross-reference table is still walked.
  *
  * It earns its passes the way the other three references do. The PDF is built
  * over BYTE buffers with the cross-reference offsets collected from the buffer
@@ -588,6 +594,21 @@ const REFERENCE_KINDS: readonly DocumentKind[] = [
     paper: ['receipt-80mm'],
     coverage: 'ascii',
   },
+  {
+    // HTML is UTF-8, so a kind that only ever writes HTML draws every glyph.
+    id: 'receipt',
+    label: everyLocale('Receipt'),
+    formats: ['html'],
+    paper: ['receipt-80mm'],
+    coverage: 'all',
+  },
+  {
+    id: 'badge',
+    label: everyLocale('Badge'),
+    formats: ['pdf'],
+    paper: ['a4'],
+    coverage: 'winansi',
+  },
 ];
 
 const REFERENCE_OUTLINES: Readonly<Record<string, DocumentOutline>> = {
@@ -621,6 +642,36 @@ const REFERENCE_OUTLINES: Readonly<Record<string, DocumentOutline>> = {
     slots: [
       { id: 'title', label: everyLocale('Title'), type: 'text', required: true },
       { id: 'reference', label: everyLocale('Reference'), type: 'text', required: true },
+    ],
+  },
+  receipt: {
+    slots: [
+      { id: 'issuedAt', label: everyLocale('Issued'), type: 'date', required: true, default: 'now' },
+      { id: 'paid', label: everyLocale('Paid'), type: 'money', required: false },
+      {
+        id: 'payments',
+        label: everyLocale('Payments'),
+        type: 'collection',
+        required: false,
+        columns: [
+          { id: 'method', label: everyLocale('Method'), type: 'text', required: true },
+          { id: 'amount', label: everyLocale('Amount'), type: 'money', required: true },
+          { id: 'tip', label: everyLocale('Tip'), type: 'money', required: false },
+        ],
+      },
+      {
+        id: 'refunds',
+        label: everyLocale('Refunds'),
+        type: 'collection',
+        required: false,
+        columns: [{ id: 'amount', label: everyLocale('Amount'), type: 'money', required: true }],
+      },
+    ],
+  },
+  badge: {
+    slots: [
+      { id: 'seat', label: everyLocale('Seat'), type: 'number', required: true },
+      { id: 'issuedAt', label: everyLocale('Issued'), type: 'date', required: true, default: 'now' },
     ],
   },
 };

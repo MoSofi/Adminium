@@ -388,6 +388,30 @@ function withoutField(subject: DocumentSubject, id: string): DocumentSubject {
 }
 
 /**
+ * `render` answered with documents — asserted, and narrowed in one step.
+ *
+ * `expect` fails by throwing, but TypeScript cannot see that, so the suite
+ * used to follow each assertion with `if (isDocumentError(outcome)) continue;`
+ * purely to narrow the union. That guard could never run: by the time it was
+ * reached the assertion had either passed or thrown. An assertion signature
+ * narrows without leaving an unreachable branch behind.
+ */
+function expectRendered(
+  outcome: readonly RenderedDocument[] | DocumentError,
+  message?: string,
+): asserts outcome is readonly RenderedDocument[] {
+  expect(isDocumentError(outcome), message).toBe(false);
+}
+
+/** `render` refused as data — the other ending, asserted and narrowed the same way. */
+function expectRefused(
+  outcome: readonly RenderedDocument[] | DocumentError,
+  message?: string,
+): asserts outcome is DocumentError {
+  expect(isDocumentError(outcome), message).toBe(true);
+}
+
+/**
  * Walk a PDF's cross-reference table back to the objects it points at.
  *
  * This is the assertion that a hand-rolled writer cannot fake. Every offset in
@@ -396,8 +420,12 @@ function withoutField(subject: DocumentSubject, id: string): DocumentSubject {
  * file every viewer opens and every parser mis-seeks — the exact failure 34's
  * §0.3 trap 8 sends the invoices writer over byte buffers to avoid. Seeking to
  * each offset and requiring `<n> 0 obj` there catches it on the first render.
+ *
+ * Exported so a writer's own tests can walk its table with the same rules the
+ * suite applies, rather than re-deriving a second walker that drifts from
+ * this one. Every refusal throws an `Error` naming what it found.
  */
-function parseXrefBack(bytes: Uint8Array): { objects: number; offsets: number[] } {
+export function parseXrefBack(bytes: Uint8Array): { objects: number; offsets: number[] } {
   const text = LATIN1.decode(bytes);
   const startxref = text.lastIndexOf('startxref');
   if (startxref < 0) throw new Error('no startxref in the file');
@@ -534,8 +562,7 @@ export function describeDocumentRenderer(
         paper: 'a4',
         settings: fixtures.settings,
       });
-      expect(isDocumentError(outcome)).toBe(true);
-      if (!isDocumentError(outcome)) return;
+      expectRefused(outcome);
       expect(outcome.code).toBe('UNSUPPORTED_KIND');
     });
 
@@ -545,8 +572,7 @@ export function describeDocumentRenderer(
         const slot = firstUnsuppliedRequiredSlot(outline);
         if (slot === undefined) continue;
         const outcome = await renderOf(kind, withoutField(fixtures.subject(kind), slot.id));
-        expect(isDocumentError(outcome), `${kind.id} rendered without ${slot.id}`).toBe(true);
-        if (!isDocumentError(outcome)) continue;
+        expectRefused(outcome, `${kind.id} rendered without ${slot.id}`);
         expect(outcome.code).toBe('MISSING_SLOT');
         // The engine puts this in front of an operator, who needs to know
         // WHICH column they did not map.
@@ -564,11 +590,10 @@ export function describeDocumentRenderer(
         const outline = impl.describe(kind.id);
         const subject = fixtures.subject(kind);
         for (const slot of outline.slots) {
-          const value = subject.fields[slot.id];
-          if (value === undefined || value === null) continue;
-          if (slot.type === 'money' || slot.type === 'percent') {
-            expect(Number.isInteger(value), `${kind.id}.${slot.id} is ${String(value)}`).toBe(true);
-          }
+          // A collection's rows live in `subject.collections`, never in
+          // `fields`, so this branch must come BEFORE the `fields` read below.
+          // Written after it, the `continue` on an undefined field skipped
+          // every collection, and a decimal in a line item passed.
           if (slot.type === 'collection') {
             const rows = subject.collections[slot.id] ?? [];
             for (const column of slot.columns ?? []) {
@@ -582,6 +607,12 @@ export function describeDocumentRenderer(
                 ).toBe(true);
               }
             }
+            continue;
+          }
+          const value = subject.fields[slot.id];
+          if (value === undefined || value === null) continue;
+          if (slot.type === 'money' || slot.type === 'percent') {
+            expect(Number.isInteger(value), `${kind.id}.${slot.id} is ${String(value)}`).toBe(true);
           }
         }
       }
@@ -590,8 +621,7 @@ export function describeDocumentRenderer(
     it('renders every format it declares, and nothing it does not', async () => {
       for (const kind of kinds) {
         const outcome = await renderOf(kind, fixtures.subject(kind));
-        expect(isDocumentError(outcome), `${kind.id}: ${JSON.stringify(outcome)}`).toBe(false);
-        if (isDocumentError(outcome)) continue;
+        expectRendered(outcome, `${kind.id}: ${JSON.stringify(outcome)}`);
         expect(outcome.map((d) => d.format).sort()).toEqual([...kind.formats].sort());
         for (const document of outcome) {
           const parsed = renderedDocumentSchema.safeParse(document);
@@ -610,9 +640,8 @@ export function describeDocumentRenderer(
         const subject = fixtures.subject(kind);
         const first = await renderOf(kind, subject);
         const second = await renderOf(kind, subject);
-        expect(isDocumentError(first)).toBe(false);
-        expect(isDocumentError(second)).toBe(false);
-        if (isDocumentError(first) || isDocumentError(second)) continue;
+        expectRendered(first);
+        expectRendered(second);
         expect(second).toHaveLength(first.length);
         for (let at = 0; at < first.length; at += 1) {
           expect(
@@ -636,8 +665,7 @@ export function describeDocumentRenderer(
             ? fixtures.subject(kind)
             : withField(fixtures.subject(kind), text, '<script>alert(1)</script>');
         const outcome = await renderOf(kind, subject, ['html']);
-        expect(isDocumentError(outcome), `${kind.id}: ${JSON.stringify(outcome)}`).toBe(false);
-        if (isDocumentError(outcome)) continue;
+        expectRendered(outcome, `${kind.id}: ${JSON.stringify(outcome)}`);
         for (const document of outcome) {
           expect(LATIN1.decode(document.bytes).toLowerCase()).not.toContain('<script');
         }
@@ -672,8 +700,7 @@ export function describeDocumentRenderer(
 
         for (const subject of subjects) {
           const outcome = await renderOf(kind, subject, ['pdf']);
-          expect(isDocumentError(outcome), `${kind.id}: ${JSON.stringify(outcome)}`).toBe(false);
-          if (isDocumentError(outcome)) continue;
+          expectRendered(outcome, `${kind.id}: ${JSON.stringify(outcome)}`);
           for (const document of outcome) {
             const decoded = LATIN1.decode(document.bytes);
             expect(decoded.startsWith('%PDF-1.4'), `${kind.id} is not a PDF 1.4`).toBe(true);
@@ -710,11 +737,10 @@ export function describeDocumentRenderer(
           // The refusal is the contract's point: a writer that silently
           // dropped the letters would ship an invoice with a customer's name
           // missing characters, and nothing downstream would ever know.
-          expect(
-            isDocumentError(outcome),
+          expectRefused(
+            outcome,
             `${kind.id} claims coverage '${kind.coverage}' and drew ${sample} anyway`,
-          ).toBe(true);
-          if (!isDocumentError(outcome)) continue;
+          );
           expect(outcome.code).toBe('LATIN_ONLY');
           expect(outcome.dropped ?? [], `${kind.id} refused without naming a glyph`).not.toHaveLength(
             0,

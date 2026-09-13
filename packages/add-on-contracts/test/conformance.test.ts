@@ -35,7 +35,15 @@ import {
   outlineSlotSchema,
   templateSchema,
 } from '../src/index.js';
-import type { Address, JobSpec, Parcel, Personalization, Template } from '../src/index.js';
+import type {
+  Address,
+  DocumentSubject,
+  JobSpec,
+  Parcel,
+  Personalization,
+  RenderInput,
+  Template,
+} from '../src/index.js';
 import {
   ReferenceArtworkSource,
   ReferenceDocumentRenderer,
@@ -251,50 +259,127 @@ describe('CarrierError', () => {
  */
 const DOCUMENT_NOW = { iso: '2026-09-10T09:15:00.000Z', timezone: 'Europe/Lisbon' };
 
+const BUSINESS = { name: 'Northwind Studio', lines: ['18 Harbour Road', 'Lisbon'] };
+
+/** One subject per reference kind, built fresh on every call. */
+const DOCUMENT_SUBJECTS: Readonly<Record<string, () => DocumentSubject>> = {
+  ticket: () => ({
+    now: DOCUMENT_NOW,
+    locale: 'en-US',
+    currency: 'EUR',
+    business: BUSINESS,
+    entity: null,
+    number: 'TK-0007',
+    fields: { title: 'Collection ticket', reference: 'ORD-4118' },
+    collections: {},
+  }),
+  note: () => ({
+    now: DOCUMENT_NOW,
+    locale: 'en-US',
+    currency: 'EUR',
+    business: BUSINESS,
+    entity: {
+      connectionId: 'conn_1',
+      table: 'public.orders',
+      pk: { id: 4118 },
+      label: 'Order 4118',
+    },
+    number: 'NB-1042',
+    // Money in integer minor units, percent in basis points — the wire
+    // law the suite asserts on this very object.
+    fields: {
+      title: 'Design system audit',
+      recipientLines: ['Acme Corporation', '400 Market Street'],
+      amount: 214_500,
+      rate: 2000,
+    },
+    collections: {
+      lines: [
+        { description: 'Audit', total: 120_000 },
+        { description: 'Report', total: 94_500 },
+      ],
+    },
+  }),
+  receipt: () => ({
+    now: DOCUMENT_NOW,
+    locale: 'en-US',
+    currency: 'EUR',
+    business: BUSINESS,
+    entity: null,
+    number: null,
+    fields: { paid: 1_400 },
+    // A cash payment carries no tip, and nothing was refunded: an empty cell
+    // and an absent collection are both ordinary, and the money law must step
+    // over them rather than read them as a decimal.
+    collections: {
+      payments: [
+        { method: 'Card', amount: 1_150, tip: 100 },
+        { method: 'Cash', amount: 250 },
+      ],
+    },
+  }),
+  badge: () => ({
+    now: DOCUMENT_NOW,
+    locale: 'en-US',
+    currency: 'EUR',
+    business: BUSINESS,
+    entity: null,
+    number: 'BD-0031',
+    fields: { seat: 14 },
+    collections: {},
+  }),
+};
+
 const REFERENCE_DOCUMENT_FIXTURES: DocumentRendererFixtures = {
   settings: { footer: 'Thank you' },
-  subject: (kind) =>
-    kind.id === 'ticket'
-      ? {
-          now: DOCUMENT_NOW,
-          locale: 'en-US',
-          currency: 'EUR',
-          business: { name: 'Northwind Studio', lines: ['18 Harbour Road', 'Lisbon'] },
-          entity: null,
-          number: 'TK-0007',
-          fields: { title: 'Collection ticket', reference: 'ORD-4118' },
-          collections: {},
-        }
-      : {
-          now: DOCUMENT_NOW,
-          locale: 'en-US',
-          currency: 'EUR',
-          business: { name: 'Northwind Studio', lines: ['18 Harbour Road', 'Lisbon'] },
-          entity: {
-            connectionId: 'conn_1',
-            table: 'public.orders',
-            pk: { id: 4118 },
-            label: 'Order 4118',
-          },
-          number: 'NB-1042',
-          // Money in integer minor units, percent in basis points — the wire
-          // law the suite asserts on this very object.
-          fields: {
-            title: 'Design system audit',
-            recipientLines: ['Acme Corporation', '400 Market Street'],
-            amount: 214_500,
-            rate: 2000,
-          },
-          collections: {
-            lines: [
-              { description: 'Audit', total: 120_000 },
-              { description: 'Report', total: 94_500 },
-            ],
-          },
-        },
+  subject: (kind) => {
+    const build = DOCUMENT_SUBJECTS[kind.id];
+    if (build === undefined) throw new Error(`no reference subject for kind '${kind.id}'`);
+    return build();
+  },
 };
 
 describeDocumentRenderer(new ReferenceDocumentRenderer(), REFERENCE_DOCUMENT_FIXTURES);
+
+/**
+ * The suite again, through the two OPTIONAL fixture hooks — and a check that
+ * they reach the provider.
+ *
+ * Run only without them, neither path executes here: `body` is how a provider
+ * that renders an authored composition is fed one (34 D54, the invoices
+ * add-on), and `textSlot` is how a provider whose first text slot is not the
+ * one it prints points the escaping and coverage cases elsewhere
+ * (`barcode-labels`, 34-T06). A hook that stopped arriving would otherwise
+ * pass unnoticed in this repo and fail in the one that relies on it.
+ */
+class RecordingDocumentRenderer extends ReferenceDocumentRenderer {
+  readonly renders: { kind: string; body: RenderInput['body'] }[] = [];
+
+  override async render(input: RenderInput) {
+    this.renders.push({ kind: input.kind, body: input.body });
+    return super.render(input);
+  }
+}
+
+describe('document-render@1 — through the body and textSlot hooks', () => {
+  const recording = new RecordingDocumentRenderer();
+  const drawn: Readonly<Record<string, string>> = { note: 'title', ticket: 'reference' };
+
+  describeDocumentRenderer(recording, {
+    ...REFERENCE_DOCUMENT_FIXTURES,
+    body: (kind) => ({ blocks: [{ type: 'heading', text: kind.id }] }),
+    textSlot: (kind) => drawn[kind.id],
+  });
+
+  it('hands the composed body to every render of a kind the provider lists', () => {
+    const listed = new Set(recording.kinds().map((kind) => kind.id));
+    const ofListedKinds = recording.renders.filter((render) => listed.has(render.kind));
+    expect(ofListedKinds.length).toBeGreaterThan(0);
+    for (const render of ofListedKinds) {
+      expect(render.body).toEqual({ blocks: [{ type: 'heading', text: render.kind }] });
+    }
+  });
+});
 
 describe('document-render@1 — the suite fails what it promises to fail', () => {
   /*
