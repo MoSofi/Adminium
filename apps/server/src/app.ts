@@ -22,6 +22,7 @@ import {
 import type { MetaDb } from '@adminium/meta';
 
 import { createAuditCoverageRegistry } from './audit/coverage.js';
+import type { InstalledApps } from './apps/installed.js';
 import type { HostedSurface } from './cli/surfaces-root.js';
 import { hashPassword } from './auth/passwords.js';
 import { SESSION_COOKIE } from './auth/sessions.js';
@@ -217,6 +218,12 @@ export interface BuildServerOptions {
    */
   surfaces?: readonly HostedSurface[] | undefined;
   /**
+   * Apps installed into this instance (47-app-installation.md D2), served
+   * alongside `surfaces` and refreshed without a restart. Omitted ⇒ only what
+   * boot discovered is served.
+   */
+  installedApps?: InstalledApps | undefined;
+  /**
    * Include real messages in 500 envelopes. Default: `NODE_ENV !== 'production'`.
    * In production the message is generic; the stack goes to the log under the
    * same requestId (the §1.4 support handshake).
@@ -295,6 +302,21 @@ export async function buildServer(opts: BuildServerOptions = {}) {
 
   const app = fastify({
     loggerInstance,
+    /**
+     * Destroy what is left when the server closes, instead of waiting on it.
+     *
+     * Fastify's default is `'idle'`, which closes idle keep-alive sockets and
+     * waits for active ones — and an upgraded WEBSOCKET is never idle. The app
+     * shell opens one the moment anyone is signed in (`dashboard/app/ws.ts`),
+     * so a single open browser tab made `app.close()` a promise that never
+     * settled: Ctrl-C reached the handler, the handler called close, and the
+     * terminal sat there while the server went on serving. `adminium` is a
+     * foreground process whose lifetime is a terminal session; when its
+     * operator asks it to stop, it stops. In-flight requests still get the
+     * onClose hooks and the drain — this only governs what happens to sockets
+     * that would otherwise hold the process open forever.
+     */
+    forceCloseConnections: true,
     // §1.3: `req_` + 8 lowercase hex chars, e.g. req_8f2a91cd.
     genReqId: () => `req_${randomBytes(4).toString('hex')}`,
     // An inbound x-request-id is honored only behind a trusted proxy (§1.3).
@@ -426,6 +448,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   // makes the precedence a property of the file rather than of find-my-way.
   await app.register(surfacesPlugin, {
     ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
+    ...(opts.installedApps === undefined ? {} : { installed: opts.installedApps }),
     ...(opts.metaDb === undefined ? {} : { metaDb: opts.metaDb }),
     // For the `surface-config.json` route (29 D10) — the same envelope
     // connection DSNs use, so the publishable key is re-readable here exactly

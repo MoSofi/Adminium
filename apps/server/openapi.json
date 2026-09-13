@@ -3537,6 +3537,9 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 4096
+                  },
+                  "park": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -3581,6 +3584,160 @@
                       "required": [
                         "engine",
                         "rowsCopied",
+                        "restarting",
+                        "healthPath"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/probe": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dsn": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "dsn"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reachable": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "tables": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "occupied": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "secretMatches": {
+                          "anyOf": [
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reachable",
+                        "reason",
+                        "tables",
+                        "occupied",
+                        "secretMatches"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/adopt": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dsn": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "dsn"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "engine": {
+                          "type": "string"
+                        },
+                        "restarting": {
+                          "type": "boolean"
+                        },
+                        "healthPath": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "engine",
                         "restarting",
                         "healthPath"
                       ],
@@ -69844,7 +70001,8 @@
                 "automations",
                 "dataio",
                 "files",
-                "reportBuilder"
+                "reportBuilder",
+                "onboarding"
               ]
             },
             "in": "path",
@@ -69974,7 +70132,8 @@
                 "automations",
                 "dataio",
                 "files",
-                "reportBuilder"
+                "reportBuilder",
+                "onboarding"
               ]
             },
             "in": "query",
@@ -70175,7 +70334,8 @@
                       "automations",
                       "dataio",
                       "files",
-                      "reportBuilder"
+                      "reportBuilder",
+                      "onboarding"
                     ]
                   },
                   "key": {
@@ -70324,7 +70484,8 @@
                 "automations",
                 "dataio",
                 "files",
-                "reportBuilder"
+                "reportBuilder",
+                "onboarding"
               ]
             },
             "in": "query",
@@ -70477,7 +70638,8 @@
                             "automations",
                             "dataio",
                             "files",
-                            "reportBuilder"
+                            "reportBuilder",
+                            "onboarding"
                           ]
                         },
                         "key": {
@@ -73712,6 +73874,739 @@
                   },
                   "required": [
                     "domains"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "apps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "schema": {
+                            "type": "object",
+                            "properties": {
+                              "created": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "reused": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "created",
+                              "reused"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "installedAt": {
+                            "type": "number"
+                          },
+                          "connectionId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "sides": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "side": {
+                                  "type": "string",
+                                  "enum": [
+                                    "staff",
+                                    "customer"
+                                  ]
+                                },
+                                "prefix": {
+                                  "type": "string"
+                                },
+                                "navAvailable": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "side",
+                                "prefix",
+                                "navAvailable"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "version",
+                          "source",
+                          "installedAt",
+                          "connectionId",
+                          "sides"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "staged": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                          },
+                          "version": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "version"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "apps",
+                    "staged"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/upload": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "query",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "version",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^sha512-[A-Za-z0-9+/]+={0,2}$"
+            },
+            "in": "query",
+            "name": "expectedSha512",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "files": {
+                      "type": "number"
+                    },
+                    "integrity": {
+                      "type": "string"
+                    },
+                    "sides": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "staff",
+                          "customer"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "version",
+                    "files",
+                    "integrity",
+                    "sides"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/catalog": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "apps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "categories": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "publisher": {
+                            "type": "string"
+                          },
+                          "capabilities": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "sides": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "staff",
+                                "customer"
+                              ]
+                            }
+                          },
+                          "installed": {
+                            "type": "boolean"
+                          },
+                          "installedVersion": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "readable": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "version",
+                          "name",
+                          "description",
+                          "categories",
+                          "publisher",
+                          "capabilities",
+                          "sides",
+                          "installed",
+                          "installedVersion",
+                          "readable"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "apps"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/plan": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "key",
+                  "version",
+                  "connectionId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plan": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "installable": {
+                          "type": "boolean"
+                        },
+                        "touchesData": {
+                          "type": "boolean"
+                        },
+                        "create": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ref": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "ref",
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "columns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "reuse": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "missingColumns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "missingColumns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "references": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "fromTable": {
+                                "type": "string"
+                              },
+                              "fromColumn": {
+                                "type": "string"
+                              },
+                              "to": {
+                                "type": "string"
+                              },
+                              "resolution": {
+                                "type": "string",
+                                "enum": [
+                                  "internal",
+                                  "host",
+                                  "unresolved"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "fromTable",
+                              "fromColumn",
+                              "to",
+                              "resolution"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "problems": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "message",
+                              "table"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "requiresSchemaChange": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "version",
+                        "installable",
+                        "touchesData",
+                        "create",
+                        "reuse",
+                        "references",
+                        "problems",
+                        "requiresSchemaChange"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "plan"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/install": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "key",
+                  "version"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "created": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "reused": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "created",
+                        "reused"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "installedAt": {
+                      "type": "number"
+                    },
+                    "connectionId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sides": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "side": {
+                            "type": "string",
+                            "enum": [
+                              "staff",
+                              "customer"
+                            ]
+                          },
+                          "prefix": {
+                            "type": "string"
+                          },
+                          "navAvailable": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "side",
+                          "prefix",
+                          "navAvailable"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "version",
+                    "source",
+                    "installedAt",
+                    "connectionId",
+                    "sides"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/staged/{key}/{version}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "version",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "discarded": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "version",
+                    "discarded"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "uninstalled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "uninstalled"
                   ],
                   "additionalProperties": false
                 }
@@ -78184,7 +79079,8 @@
                 "automation",
                 "export",
                 "system",
-                "add-on"
+                "add-on",
+                "app"
               ]
             },
             "in": "query",
@@ -78323,7 +79219,8 @@
                               "automation",
                               "export",
                               "system",
-                              "add-on"
+                              "add-on",
+                              "app"
                             ]
                           },
                           "action": {
@@ -78500,7 +79397,8 @@
                         "automation",
                         "export",
                         "system",
-                        "add-on"
+                        "add-on",
+                        "app"
                       ]
                     },
                     "action": {
@@ -79860,39 +80758,70 @@
                             {
                               "type": "array",
                               "items": {
-                                "type": "object",
-                                "properties": {
-                                  "code": {
-                                    "type": "string"
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "provider"
+                                        ]
+                                      },
+                                      "provider": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "provider",
+                                      "code",
+                                      "message"
+                                    ],
+                                    "additionalProperties": false
                                   },
-                                  "severity": {
-                                    "type": "string",
-                                    "enum": [
-                                      "fatal",
-                                      "item",
-                                      "warning"
-                                    ]
-                                  },
-                                  "path": {
-                                    "type": "string"
-                                  },
-                                  "message": {
-                                    "type": "string"
-                                  },
-                                  "hint": {
-                                    "type": "string"
-                                  },
-                                  "suggestionId": {
-                                    "type": "string"
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "severity": {
+                                        "type": "string",
+                                        "enum": [
+                                          "fatal",
+                                          "item",
+                                          "warning"
+                                        ]
+                                      },
+                                      "path": {
+                                        "type": "string"
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      },
+                                      "hint": {
+                                        "type": "string"
+                                      },
+                                      "suggestionId": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "code",
+                                      "severity",
+                                      "path",
+                                      "message"
+                                    ],
+                                    "additionalProperties": false
                                   }
-                                },
-                                "required": [
-                                  "code",
-                                  "severity",
-                                  "path",
-                                  "message"
-                                ],
-                                "additionalProperties": false
+                                ]
                               }
                             },
                             {
@@ -80273,39 +81202,70 @@
                         {
                           "type": "array",
                           "items": {
-                            "type": "object",
-                            "properties": {
-                              "code": {
-                                "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "provider"
+                                    ]
+                                  },
+                                  "provider": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "provider",
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
                               },
-                              "severity": {
-                                "type": "string",
-                                "enum": [
-                                  "fatal",
-                                  "item",
-                                  "warning"
-                                ]
-                              },
-                              "path": {
-                                "type": "string"
-                              },
-                              "message": {
-                                "type": "string"
-                              },
-                              "hint": {
-                                "type": "string"
-                              },
-                              "suggestionId": {
-                                "type": "string"
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "severity": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fatal",
+                                      "item",
+                                      "warning"
+                                    ]
+                                  },
+                                  "path": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  },
+                                  "hint": {
+                                    "type": "string"
+                                  },
+                                  "suggestionId": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "severity",
+                                  "path",
+                                  "message"
+                                ],
+                                "additionalProperties": false
                               }
-                            },
-                            "required": [
-                              "code",
-                              "severity",
-                              "path",
-                              "message"
-                            ],
-                            "additionalProperties": false
+                            ]
                           }
                         },
                         {

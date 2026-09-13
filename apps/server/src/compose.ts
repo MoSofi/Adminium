@@ -76,6 +76,9 @@ import { createDocumentPipeline } from './documents/compose.js';
 import { syncTriggersForAddOn } from './documents/trigger-sync.js';
 import { documentRoutes } from './routes/documents/index.js';
 import { createAddOnStore, seedBundledPackages } from './add-ons/store.js';
+import { createInstalledApps } from './apps/installed.js';
+import { createAppSchemaTarget } from './apps/schema-target.js';
+import { createAppStore } from './apps/store.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
 import { createDestinationResolver } from './files/destinations.js';
 import { createFileReconciler } from './files/reconcile.js';
@@ -128,6 +131,9 @@ import { desktopCapabilityRoutes } from './routes/desktop-capabilities/index.js'
 import { brandingRoutes } from './routes/branding/index.js';
 import { bridgeRoutes } from './routes/bridge/index.js';
 import { metaRoutes } from './routes/meta/index.js';
+import { setupStoreRoutes } from './routes/setup/store.js';
+import { createSetupService } from './setup/service.js';
+import { hashPassword } from './auth/passwords.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
 import { emailTemplatesRoutes } from './routes/email-templates/index.js';
@@ -159,6 +165,7 @@ import { createTelemetryService } from './telemetry/service.js';
 import { APP_VERSION } from './version.js';
 import { publicApiRegistrationBlocked, publicRoutes } from './routes/public/index.js';
 import { publicAdminRoutes } from './routes/public-admin/index.js';
+import { appRoutes } from './routes/apps/index.js';
 import { surfacesAdminRoutes } from './routes/surfaces-admin/index.js';
 import { createPublicApiGate } from './public-api/enabled.js';
 import type { OnMetaRelocated } from './meta/relocate.js';
@@ -202,6 +209,16 @@ export const CATALOG_REFRESH_JITTER_MS = 60 * 60 * 1000;
  * dev checkout, where {@link seedBundledPackages} is simply a no-op.
  */
 export const BUNDLED_ADD_ONS_DIR = process.env['ADMINIUM_BUNDLED_ADD_ONS'] ?? './add-ons-bundle';
+/**
+ * Apps shipped with the build (47-app-installation.md step 4).
+ *
+ * The same shape the add-on bundle takes — a directory of `<key>-<version>.tgz`
+ * beside a `.tgz.integrity` — and it exists for the same reason: an instance
+ * that can only ever use what came with the image is a SUPPORTED configuration,
+ * not a degraded one. It is also what lets the browse surface show real apps
+ * before anything is published to a registry (47 O1).
+ */
+export const BUNDLED_APPS_DIR = process.env['ADMINIUM_BUNDLED_APPS'] ?? './apps-bundle';
 
 /**
  * Daily export-retention sweep (M7-T07): flips `ready` → `expired` on
@@ -377,9 +394,31 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const { env, manager, runService, applyService, allowed } = opts;
   const meta = opts.metaStore.meta;
 
+  /*
+   * Installed apps (47-app-installation.md D1/D2), created BEFORE the server so
+   * the surfaces plugin can hold the registry it will read per request.
+   *
+   * The first read is best-effort for the same reason the add-on store's prune
+   * is: a meta store that cannot be queried yet is a real problem, but it is
+   * not a reason to refuse to start a server whose other features do not need
+   * one. An empty registry serves nothing extra and the next install refreshes
+   * it.
+   */
+  const appStore = createAppStore({ dataDir: env.ADMINIUM_DATA_DIR });
+  const appManifests = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
+  const installedApps = createInstalledApps({
+    store: appStore,
+    list: async () =>
+      (await appManifests.list('app')).map((installed) => ({
+        key: installed.row.manifestKey,
+        version: installed.row.version,
+      })),
+  });
+
   const app = await buildServer({
     env,
     metaDb: meta,
+    installedApps,
     ...(opts.staticRoot === undefined ? {} : { staticRoot: opts.staticRoot }),
     ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
     ...(opts.logger === undefined ? {} : { logger: opts.logger }),
@@ -532,6 +571,44 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // all. Both are best-effort: a data dir that cannot be written is a real
   // problem, but it is not a reason to refuse to start a server whose other
   // features do not need one.
+  /*
+   * First read of the installed-app registry. AWAITED, not fire-and-forget: a
+   * request that arrives before it resolves would see an empty registry and get
+   * a 404 for an app that is installed — a boot-time race that would reproduce
+   * once in a hundred restarts and read as an install bug.
+   */
+  try {
+    const serving = await installedApps.refresh();
+    if (serving.length > 0) {
+      app.log.info({ surfaces: serving.length }, 'serving installed app surfaces');
+    }
+  } catch (error) {
+    app.log.warn({ err: error }, 'could not read installed apps; none will be served');
+  }
+
+  /*
+   * The bundled app set, staged into the store before anything asks for it.
+   * Best-effort in the same way the add-on seed below is: a missing directory
+   * is the normal case for a from-source run, and a corrupt entry costs its own
+   * package rather than the boot.
+   */
+  void appStore
+    .pruneTemp()
+    .then(async (pruned) => {
+      if (pruned > 0) app.log.info({ pruned }, 'pruned orphaned app staging directories');
+      const seed = await seedBundledPackages(
+        appStore,
+        resolve(BUNDLED_APPS_DIR),
+        (m, d) => app.log.warn(d, m),
+        'app',
+      );
+      if (seed.seeded.length > 0) app.log.info({ seeded: seed.seeded }, 'seeded bundled apps');
+      if (seed.failed.length > 0) app.log.warn({ failed: seed.failed }, 'bundled apps failed to seed');
+    })
+    .catch((error: unknown) => {
+      app.log.warn({ err: error }, 'could not seed bundled apps');
+    });
+
   const addOnStore = createAddOnStore({ dataDir: env.ADMINIUM_DATA_DIR });
   void addOnStore
     .pruneTemp()
@@ -856,6 +933,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           }),
         );
       }
+      // The rest of `/setup` is registered in `buildServer` (routes/setup/index.ts);
+      // these two need the composed env and the relocation host, which only exist
+      // here. They gate on the same once-only setup window — see routes/setup/store.ts.
+      await api.register(
+        setupStoreRoutes({
+          service: createSetupService({ meta, hashPassword }),
+          env,
+          ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
+        }),
+      );
       if (bridge !== null) {
         await api.register(
           bridgeRoutes({
@@ -990,6 +1077,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // discovered the list is empty and the page says how to add some, which
       // beats a namespace that 404s only on some instances.
       await api.register(surfacesAdminRoutes({ meta }));
+      // Installing an app (47-app-installation.md §1). Registered on the same
+      // terms as the surfaces admin above: with nothing installed the list is
+      // empty, which is a different thing from a namespace that 404s.
+      await api.register(
+        appRoutes({
+          meta,
+          store: appStore,
+          installed: installedApps,
+          credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+          // An install may not shadow a surface the operator deployed by hand:
+          // those own registered routes the installed-app hook yields to, so it
+          // would appear to succeed and then serve nothing (47 D4).
+          directoryKeys: () => (opts.surfaces ?? []).map((surface) => surface.appKey),
+          // Where an installed app's tables are planned and created (47 O2).
+          // The same shared core the add-on target runs, given the connection
+          // the operator picked instead of one inferred from a host.
+          schemaTarget: createAppSchemaTarget({ meta, manager }),
+        }),
+      );
       // The add-on runtime (26 §5.1). Registered unconditionally: an instance
       // with no add-ons serves an empty list, which is what a host in connected
       // mode expects to read — a conditionally-registered route would 404 there
