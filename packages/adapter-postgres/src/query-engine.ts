@@ -158,6 +158,15 @@ export function createQueryEngine(config: DataConnectionConfig | string): QueryE
  * closing (57P01). That surfaced as a *rare* unhandled error failing the whole
  * `pnpm test` run — the harness merely reproduced, under load, what a production
  * failover does on purpose.
+ *
+ * That guard alone covered only IDLE clients. A checked-out client reports its
+ * death on itself: pg-pool detaches its listener for the checkout and kysely
+ * never attaches one. So a network failure under a running statement, between
+ * two statements of a transaction, or on a dead client handed out before the
+ * pool noticed still crashed the process (query-engine.live.test.ts). Each
+ * client therefore gets one listener of its own on its first connect. The
+ * statement it was running rejects with the same error, which is where that
+ * error is reported.
  */
 function buildDataPool(
   base: { connectionString: string; max: number },
@@ -166,6 +175,11 @@ function buildDataPool(
   const pool = new pg.Pool({ ...base, ...(options === '' ? {} : { options }) });
   pool.on('error', () => {
     /* mapped when the next query fails */
+  });
+  pool.on('connect', (client) => {
+    client.on('error', () => {
+      /* the statement it was running rejects with it */
+    });
   });
   return pool;
 }

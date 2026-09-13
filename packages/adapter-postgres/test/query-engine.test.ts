@@ -104,6 +104,19 @@ describe('createQueryEngine pool error contract', () => {
     expect(pool.emit('error', terminated)).toBe(true);
   });
 
+  it('gives every client its own error listener, for a death while checked out', () => {
+    // The pool guard above never hears a checked-out client: pg-pool detaches
+    // its listener for the checkout, so the error fires on the client alone.
+    // query-engine.live.test.ts shows the crash against a real server.
+    createQueryEngine(DSN);
+    const pool = pools.at(0)!;
+    const client = new EventEmitter();
+    pool.emit('connect', client);
+
+    const reset = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' });
+    expect(() => client.emit('error', reset)).not.toThrow();
+  });
+
   describe('the statement budget on the pool that reads rows', () => {
     // This pool was built bare while the adapter's carried 05 §4.1's rails since
     // M3, so a runaway CRUD query had no server-side bound at all.
