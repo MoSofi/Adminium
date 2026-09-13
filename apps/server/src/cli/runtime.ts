@@ -415,6 +415,18 @@ function listenError(cause: unknown, env: Pick<Env, 'PORT' | 'HOST'>): unknown {
   return cause;
 }
 
+/**
+ * Test seam: the install is once-per-process by design (the guard below), which
+ * a suite exercising it more than once has no other way past.
+ */
+export function resetSignalShutdownForTests(): void {
+  signalShutdownInstalled = false;
+  shutdownTarget = null;
+}
+
+/** How long a graceful close gets before the process leaves anyway. */
+export const SHUTDOWN_DEADLINE_MS = 5_000;
+
 export function installSignalShutdown(
   app: AdminiumServer,
   proc: Pick<NodeJS.Process, 'once' | 'exit'> = process,
@@ -435,9 +447,29 @@ export function installSignalShutdown(
     const live = shutdownTarget ?? app;
     // `info`, so the wizard's quiet `warn` default stays quiet on Ctrl-C.
     live.log.info({ signal }, 'shutting down');
+
+    /**
+     * A close that does not finish must not hold the terminal hostage.
+     *
+     * `forceCloseConnections` (app.ts) removes the reason this ever triggered —
+     * an open dashboard WebSocket, which is never "idle" and which Fastify's
+     * default policy waits on forever. This is the guarantee behind that fix:
+     * whatever a future hook decides to await, Ctrl-C ends the process. Unref'd
+     * so it never keeps the loop alive on its own.
+     */
+    const deadline = setTimeout(() => {
+      live.log.warn({ signal, ms: SHUTDOWN_DEADLINE_MS }, 'shutdown did not finish — exiting anyway');
+      proc.exit(0);
+    }, SHUTDOWN_DEADLINE_MS);
+    deadline.unref?.();
+
     live.close().then(
-      () => proc.exit(0),
+      () => {
+        clearTimeout(deadline);
+        proc.exit(0);
+      },
       (error: unknown) => {
+        clearTimeout(deadline);
         live.log.error({ err: error }, 'error during shutdown');
         proc.exit(1);
       },

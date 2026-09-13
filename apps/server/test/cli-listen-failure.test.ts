@@ -17,9 +17,14 @@
 import { createServer, type Server } from 'node:net';
 
 import fastify from 'fastify';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { listenOrClose } from '../src/cli/runtime.js';
+import {
+  installSignalShutdown,
+  listenOrClose,
+  resetSignalShutdownForTests,
+  SHUTDOWN_DEADLINE_MS,
+} from '../src/cli/runtime.js';
 import { CliError } from '../src/cli/exit.js';
 
 let squatter: Server | null = null;
@@ -97,5 +102,51 @@ describe('any other bind failure', () => {
     };
     await expect(listenOrClose(app, { PORT: 4600, HOST: '0.0.0.0' })).rejects.toBe(cause);
     expect(closed).toBe(true);
+  });
+});
+
+/**
+ * Ctrl-C must end the process — even when the close it starts never finishes.
+ *
+ * THE BUG THIS PINS. The dashboard's app shell opens a WebSocket the moment
+ * anyone is signed in, and Fastify's default close policy (`'idle'`) waits for
+ * active connections — an upgraded socket is never idle. So a single open
+ * browser tab turned `app.close()` into a promise that never settled: SIGINT
+ * reached the handler, the handler called close, and the terminal sat there
+ * while the server went on serving. `forceCloseConnections` (app.ts) removes
+ * the cause; this deadline is the guarantee that no future hook can bring it
+ * back.
+ */
+describe('Ctrl-C on a close that never finishes', () => {
+  it('leaves anyway, once the deadline passes', async () => {
+    vi.useFakeTimers();
+    try {
+      const handlers = new Map<string, () => void>();
+      const exits: number[] = [];
+      const proc = {
+        once: (signal: string, handler: () => void) => {
+          handlers.set(signal, handler);
+          return proc as never;
+        },
+        exit: ((code?: number) => {
+          exits.push(code ?? 0);
+        }) as never,
+      };
+      const app = {
+        // Never settles — the open-WebSocket shape.
+        close: () => new Promise<void>(() => undefined),
+        log: { info: () => undefined, warn: () => undefined, error: () => undefined },
+      };
+
+      installSignalShutdown(app as never, proc as never);
+      handlers.get('SIGINT')?.();
+      expect(exits).toEqual([]);
+
+      await vi.advanceTimersByTimeAsync(SHUTDOWN_DEADLINE_MS + 10);
+      expect(exits).toEqual([0]);
+    } finally {
+      vi.useRealTimers();
+      resetSignalShutdownForTests();
+    }
   });
 });
