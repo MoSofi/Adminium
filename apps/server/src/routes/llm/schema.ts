@@ -152,6 +152,33 @@ export const llmValidationErrorSchema = z.object({
 });
 export type LlmValidationErrorDto = z.infer<typeof llmValidationErrorSchema>;
 
+/**
+ * A provider transport/config failure (mirrors `ProviderRunError`). It has no
+ * `severity` and no `path` — nothing was validated, because nothing came back —
+ * and it is what `run_id`'s `validation_errors` holds for EVERY failed direct
+ * run: a bad key, a timeout, a rate limit, a rejected parameter.
+ */
+export const llmProviderRunErrorSchema = z.object({
+  kind: z.literal('provider'),
+  provider: z.string(),
+  /** `ProviderError.code` — `auth` / `timeout` / `http` / `config` / … */
+  code: z.string(),
+  message: z.string(),
+});
+export type LlmProviderRunErrorDto = z.infer<typeof llmProviderRunErrorSchema>;
+
+/**
+ * One entry of a run's `validationErrors` column, which holds EITHER shape.
+ *
+ * Narrowing this to the validation shape alone made the detail route answer 500
+ * for every provider-failed run — `FST_ERR_RESPONSE_SERIALIZATION`, reported to
+ * the browser as "Response doesn't match the schema", which reads as the MODEL
+ * having returned something bad and hid the actual cause (2026-09-11). The
+ * provider branch goes first: it is the narrower of the two.
+ */
+export const llmRunErrorSchema = z.union([llmProviderRunErrorSchema, llmValidationErrorSchema]);
+export type LlmRunErrorDto = z.infer<typeof llmRunErrorSchema>;
+
 /** Accepted/rejected suggestion-id lists persisted on a reviewed run (§8.3). */
 export const llmRunReviewSchema = z.object({
   accepted: z.array(z.string()),
@@ -160,7 +187,7 @@ export const llmRunReviewSchema = z.object({
 
 /** Run detail DTO — the summary plus the validation errors + review lists. */
 export const llmRunDetailDto = llmRunDto.extend({
-  validationErrors: z.array(llmValidationErrorSchema).nullable(),
+  validationErrors: z.array(llmRunErrorSchema).nullable(),
   review: llmRunReviewSchema.nullable(),
 });
 export type LlmRunDetailDto = z.infer<typeof llmRunDetailDto>;

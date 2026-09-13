@@ -134,6 +134,27 @@ export interface LlmValidationError {
   suggestionId?: string;
 }
 
+/**
+ * A provider transport/config failure recorded on a failed run — no `severity`,
+ * no `path`, because nothing was validated: nothing came back. This is what a
+ * failed DIRECT run stores (bad key, timeout, rate limit, rejected parameter),
+ * so it is the shape the failure message on screen usually comes from.
+ */
+export interface LlmProviderRunError {
+  kind: 'provider';
+  provider: string;
+  /** `auth` / `timeout` / `rate_limit` / `http` / `config` / … */
+  code: string;
+  message: string;
+}
+
+/** One entry of a run's `validationErrors`, which holds either shape. */
+export type LlmRunError = LlmProviderRunError | LlmValidationError;
+
+export function isProviderRunError(error: LlmRunError): error is LlmProviderRunError {
+  return 'kind' in error && error.kind === 'provider';
+}
+
 /** Accepted/rejected suggestion-id lists persisted on a reviewed run (§8.3). */
 export interface LlmRunReview {
   accepted: string[];
@@ -142,7 +163,7 @@ export interface LlmRunReview {
 
 /** Run detail DTO — the summary plus the validation errors + review lists. */
 export interface LlmRunDetail extends LlmRunDto {
-  validationErrors: LlmValidationError[] | null;
+  validationErrors: LlmRunError[] | null;
   review: LlmRunReview | null;
 }
 

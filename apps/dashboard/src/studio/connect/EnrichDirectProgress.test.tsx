@@ -26,7 +26,9 @@ interface Call {
 }
 
 /** Script the direct-path routes: execute → job (succeeded) → run detail. */
-function scriptFetch(): { calls: Call[] } {
+function scriptFetch(detail: unknown = { id: 'run_1', status: 'validated', validationErrors: null }): {
+  calls: Call[];
+} {
   const calls: Call[] = [];
   const fetchMock = vi.fn((input: unknown, init?: RequestInit) => {
     const url = String(input);
@@ -51,7 +53,7 @@ function scriptFetch(): { calls: Call[] } {
       );
     }
     if (method === 'GET' && /\/llm\/runs\/run_1$/.test(path)) {
-      return Promise.resolve(jsonResponse(200, { id: 'run_1', status: 'validated', validationErrors: null }));
+      return Promise.resolve(jsonResponse(200, detail));
     }
     return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: `no route: ${method} ${url}` } }));
   });
@@ -88,5 +90,71 @@ describe('EnrichDirectProgress — StrictMode double-invoke', () => {
       expect(screen.getByText('Enrichment complete — review the suggestions.')).toBeTruthy();
     });
     expect(screen.getByRole('button', { name: 'Continue to review' })).toBeTruthy();
+  });
+});
+
+/*
+ * A direct run that never reached a response fails at the PROVIDER, and that
+ * error is a different shape from a validation failure — no `severity`, no
+ * `path`. The screen used to look only for a `severity: 'fatal'` entry, found
+ * nothing, and fell back to "Check your AI settings and retry", which is true
+ * but says nothing. The provider's own sentence names the setting.
+ */
+describe('EnrichDirectProgress — a failed run says why', () => {
+  it('shows the provider error rather than the generic fallback', async () => {
+    scriptFetch({
+      id: 'run_1',
+      status: 'failed',
+      validationErrors: [
+        {
+          kind: 'provider',
+          provider: 'anthropic',
+          code: 'http',
+          message: 'anthropic: HTTP 400 — `temperature` is deprecated for this model.',
+        },
+      ],
+    });
+
+    render(
+      <EnrichDirectProgress
+        runId="run_1"
+        provider="anthropic"
+        model="claude-sonnet-5"
+        onContinueReview={() => undefined}
+        onCancel={() => undefined}
+        pollIntervalMs={0}
+      />,
+    );
+
+    // Twice over: the log console's last line and the Alert beneath it.
+    await waitFor(() => {
+      expect(screen.getAllByText(/deprecated for this model/).length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText(/Check your AI settings and retry/)).toBeNull();
+  });
+
+  it('still shows a fatal validation error when the model did answer', async () => {
+    scriptFetch({
+      id: 'run_1',
+      status: 'failed',
+      validationErrors: [
+        { code: 'LLM_JSON_PARSE', severity: 'fatal', path: '', message: 'Unexpected token at position 1.' },
+      ],
+    });
+
+    render(
+      <EnrichDirectProgress
+        runId="run_1"
+        provider="anthropic"
+        model="claude-sonnet-5"
+        onContinueReview={() => undefined}
+        onCancel={() => undefined}
+        pollIntervalMs={0}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Unexpected token at position 1.').length).toBeGreaterThan(0);
+    });
   });
 });

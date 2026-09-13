@@ -20,11 +20,30 @@ import {
 } from '@adminium/llm';
 import type { SettingsRepo } from '@adminium/meta';
 
-import { guardOutboundUrl } from '../../connections/dsn.js';
+import { guardOutboundUrl, type DsnGuardOptions } from '../../connections/dsn.js';
 import type { LlmConfigPutBody, LlmConfigReply } from './schema.js';
 
-/** Loopback blocking mirrors the DSN guard: on only in production. */
-function outboundGuardOpts() {
+/**
+ * Loopback policy for the provider `baseUrl`. Cloud-metadata endpoints are
+ * refused unconditionally inside the guard itself; this decides loopback only.
+ *
+ * `ollama` is carved out, because it is DEFINED as a local endpoint (06 §3.1:
+ * "`baseUrl` default `http://localhost:11434`") and `createOllamaClient` falls
+ * back to that exact address when nothing is stored — down a path
+ * {@link resolveProviderClient} never guards, since it skips the check when
+ * `baseUrl` is null. Blocking loopback here therefore refuses the explicit
+ * spelling of a dial the code already performs implicitly: it stops no attacker,
+ * and makes the one keyless, no-cloud, no-network provider the single one an
+ * install running with `NODE_ENV=production` cannot configure. Same call the
+ * desktop makes for its local databases (`apps/desktop/src/server/index.ts`) and
+ * the SMTP guard makes for a 127.0.0.1 relay (`email/config.ts`) — "production"
+ * is a packaging flag, not a trust boundary.
+ *
+ * Every other provider keeps the production rule. `openai-compatible` is the one
+ * that takes an arbitrary, possibly attacker-suggested URL — the actual vector.
+ */
+function outboundGuardOpts(provider: ProviderId | null): DsnGuardOptions {
+  if (provider === 'ollama') return { blockLoopback: false };
   return { blockLoopback: process.env.NODE_ENV === 'production' };
 }
 
@@ -103,14 +122,18 @@ export async function writeLlmConfig(
   ctx: WriteLlmConfigContext,
 ): Promise<void> {
   const opts = { updatedBy: ctx.updatedBy, at: ctx.at };
+  // SSRF: reject a metadata/loopback baseUrl BEFORE the first write, so a
+  // refused save leaves the stored config untouched. Guarding inside the
+  // `baseUrl` branch below threw after `llm.provider`/`llm.model` had already
+  // been persisted, leaving the instance pointing a newly-saved provider at the
+  // PREVIOUS provider's baseUrl. The policy pairs the URL with the provider
+  // being saved in this same request (see {@link outboundGuardOpts}).
+  if (body.baseUrl !== undefined && body.baseUrl !== null && body.baseUrl.length > 0) {
+    guardOutboundUrl(body.baseUrl, outboundGuardOpts(body.provider));
+  }
   await settings.set('llm.provider', body.provider, opts);
   if (body.model !== undefined) await settings.set('llm.model', body.model, opts);
   if (body.baseUrl !== undefined) {
-    // SSRF: reject a metadata/loopback baseUrl at write time so a bad value is
-    // never stored (openai-compatible accepts an arbitrary baseUrl).
-    if (body.baseUrl !== null && body.baseUrl.length > 0) {
-      guardOutboundUrl(body.baseUrl, outboundGuardOpts());
-    }
     await settings.set('llm.baseUrl', body.baseUrl, opts);
   }
   if (body.maxOutputTokens !== undefined) {
@@ -152,8 +175,12 @@ export async function resolveProviderClient(
   if (apiKey !== null) config.apiKey = apiKey;
   if (baseUrl !== null) {
     // SSRF: re-check at resolve time so an already-stored bad value (e.g. from
-    // before this guard, or a direct settings write) cannot be dialed.
-    guardOutboundUrl(baseUrl, outboundGuardOpts());
+    // before this guard, a config-bundle import, or a direct settings write)
+    // cannot be dialed. Checked against the STORED provider, which is what
+    // closes the two-PUT gap: saving Ollama with a loopback baseUrl and then
+    // flipping `llm.provider` to `openai-compatible` (a body with no `baseUrl`
+    // field never reaches the write-time guard) is refused here instead.
+    guardOutboundUrl(baseUrl, outboundGuardOpts(provider));
     config.baseUrl = baseUrl;
   }
 

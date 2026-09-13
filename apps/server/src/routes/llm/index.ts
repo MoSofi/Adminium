@@ -90,6 +90,8 @@ import {
   llmRunDetailDto,
   type LlmRunDetailDto,
   type LlmRunDto,
+  llmRunErrorSchema,
+  type LlmRunErrorDto,
   type LlmValidationErrorDto,
 } from './schema.js';
 
@@ -160,11 +162,35 @@ function toRunDto(run: LlmRun): LlmRunDto {
   };
 }
 
+/**
+ * Read a run's `validation_errors` column back into DTO shape.
+ *
+ * The column is `unknown` JSON written by whatever version of the server
+ * persisted the run, and it holds two DIFFERENT shapes (`llmRunErrorSchema`).
+ * A cast here used to assert one of them, which meant every provider-failed run
+ * answered 500 at serialization time and the real cause — "anthropic: HTTP 400
+ * — `temperature` is deprecated for this model" — never reached the browser.
+ *
+ * So this parses instead of asserting, and an entry matching NEITHER shape is
+ * dropped rather than allowed to fail the response: the detail route is the
+ * only way to find out why a run failed, and it has to survive a row it does
+ * not recognise. In practice nothing should be dropped — both writers are
+ * covered — which is why there is no partial-read signal for the UI.
+ */
+function toRunErrorDtos(stored: unknown): LlmRunErrorDto[] | null {
+  if (!Array.isArray(stored)) return null;
+  const errors = stored.flatMap((entry) => {
+    const parsed = llmRunErrorSchema.safeParse(entry);
+    return parsed.success ? [parsed.data] : [];
+  });
+  return errors.length > 0 ? errors : null;
+}
+
 /** The detail DTO — the summary plus the validation errors + review lists. */
 function toRunDetailDto(run: LlmRun): LlmRunDetailDto {
   return {
     ...toRunDto(run),
-    validationErrors: (run.validationErrors as LlmValidationErrorDto[] | null) ?? null,
+    validationErrors: toRunErrorDtos(run.validationErrors),
     review: run.review,
   };
 }

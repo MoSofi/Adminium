@@ -129,8 +129,13 @@ function ReviewScreenBody({ runId }: ReviewScreenProps) {
   );
   const nAccepted = diffs === undefined ? 0 : acceptedCount(diffs, selected);
 
+  const [applyError, setApplyError] = useState<string | null>(null);
+
   const applyMutation = useMutation({
-    mutationFn: () => aiApi.applyRun(runId, [...selected]),
+    mutationFn: () => {
+      setApplyError(null);
+      return aiApi.applyRun(runId, [...selected]);
+    },
     onSuccess: (result) => {
       clearDraftSelection(runId);
       setSelected(new Set(result.review.accepted));
@@ -140,6 +145,13 @@ function ReviewScreenBody({ runId }: ReviewScreenProps) {
       pushUndoToast(result);
     },
     onError: (error: unknown) => {
+      // BOTH: the dialog is where the operator is looking (it stays open on a
+      // failure), and the toast is for anyone who has already moved on.
+      setApplyError(
+        error instanceof Error
+          ? error.message
+          : t('studio:llmRuns.review.applyUnknown', 'The server did not say why.'),
+      );
       toasts.push({
         variant: 'error',
         title: t('studio:llmRuns.review.toast.applyFailed', 'Could not apply suggestions'),
@@ -312,8 +324,12 @@ function ReviewScreenBody({ runId }: ReviewScreenProps) {
           open={applyOpen}
           summary={summary}
           applying={applyMutation.isPending}
+          error={applyError}
           onConfirm={() => applyMutation.mutate()}
-          onOpenChange={setApplyOpen}
+          onOpenChange={(next) => {
+            if (!next) setApplyError(null);
+            setApplyOpen(next);
+          }}
         />
       ) : null}
     </PageSurface>

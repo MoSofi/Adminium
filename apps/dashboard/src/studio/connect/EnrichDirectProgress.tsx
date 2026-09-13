@@ -17,7 +17,7 @@ import { Alert, Button, MonoText } from '@adminium/ui';
 import { api } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { studioApi } from '../api.js';
-import { aiApi } from '../ai/api.js';
+import { aiApi, isProviderRunError, type LlmRunError } from '../ai/api.js';
 import { LogConsole, type LogLine } from './LogConsole.js';
 
 const wait = (ms: number) => (ms <= 0 ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms)));
@@ -66,11 +66,26 @@ export function EnrichDirectProgress({
     push('error', message);
   };
 
+  /*
+   * The reason a run failed, in the order a person needs it. A provider error
+   * comes FIRST and is the common case — a direct run that never reached a
+   * response stores exactly one of those, and its message ("anthropic: HTTP 400
+   * — …") is the only thing on screen that says what to change. A fatal
+   * validation error is the other ending: the model answered, and answered badly.
+   */
+  const reasonFor = (errors: readonly LlmRunError[] | null): string | undefined => {
+    const provider = errors?.find(isProviderRunError);
+    if (provider !== undefined) return provider.message;
+    return errors?.find((issue) => !isProviderRunError(issue) && issue.severity === 'fatal')?.message;
+  };
+
   async function finish(): Promise<void> {
     const run = await aiApi.getRun(runId);
     if (run.status === 'failed') {
-      const first = run.validationErrors?.find((issue) => issue.severity === 'fatal');
-      fail(first?.message ?? t('studio:enrich.direct.failed', 'The provider run failed. Check your AI settings and retry.'));
+      fail(
+        reasonFor(run.validationErrors) ??
+          t('studio:enrich.direct.failed', 'The provider run failed. Check your AI settings and retry.'),
+      );
       return;
     }
     push('ok', t('studio:enrich.direct.done', 'Enrichment complete — review the suggestions.'));

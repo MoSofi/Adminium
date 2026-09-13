@@ -32,11 +32,12 @@ import {
   type Role,
   type User,
 } from '@adminium/meta';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { decryptSecret, deriveKey, encryptSecret } from '../src/config/secrets.js';
 import { createApplyService } from '../src/llm/apply-service.js';
+import type { ProviderRunError } from '../src/llm/direct-runner.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { LLM_RUN_KIND } from '../src/jobs/llm-run.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
@@ -414,6 +415,100 @@ describe('llm routes — config (§3.2, acceptance #10)', () => {
   });
 });
 
+/**
+ * The loopback policy on `llm.baseUrl` under a PRODUCTION env — the only place
+ * `outboundGuardOpts` does anything, and previously untested at any layer
+ * (`connections-unit.test.ts` covers `guardOutboundUrl` itself, but always with
+ * an explicit `blockLoopback`, never through the route with `NODE_ENV` set).
+ *
+ * `NODE_ENV` is stubbed BEFORE the harness is built, because `buildServer` reads
+ * it once for `exposeInternalErrors`; the guard itself reads it per call.
+ */
+describe('llm routes — baseUrl loopback policy under NODE_ENV=production', () => {
+  let t: Harness;
+  beforeEach(async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    t = await buildHarness();
+  });
+  afterEach(async () => {
+    await t.app.close();
+    await t.meta.db.destroy();
+    vi.unstubAllEnvs();
+  });
+
+  const OLLAMA_DEFAULT = 'http://localhost:11434';
+
+  /** PUT /config as the admin. */
+  async function putConfig(payload: InjectPayload) {
+    return t.app.inject({ method: 'PUT', url: '/api/v1/llm/config', headers: asUser(t.users.admin), payload });
+  }
+
+  it('saves Ollama on its loopback default — the provider that IS loopback', async () => {
+    const res = await putConfig({ provider: 'ollama', model: 'llama3', baseUrl: OLLAMA_DEFAULT });
+    expect(res.statusCode).toBe(200);
+    expect(await settingsRepo(t.meta).get('llm.baseUrl')).toBe(OLLAMA_DEFAULT);
+    expect(res.json()).toMatchObject({ provider: 'ollama', baseUrl: OLLAMA_DEFAULT });
+  });
+
+  it.each(['http://127.0.0.1:11434', 'http://[::1]:11434', 'http://127.9.9.9:11434'])(
+    'allows Ollama on any loopback spelling (%s)',
+    async (baseUrl) => {
+      expect((await putConfig({ provider: 'ollama', model: 'llama3', baseUrl })).statusCode).toBe(200);
+    },
+  );
+
+  it('still refuses a loopback baseUrl for openai-compatible — the arbitrary-URL provider', async () => {
+    const res = await putConfig({ provider: 'openai-compatible', model: 'x', baseUrl: OLLAMA_DEFAULT });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.message).toContain('Loopback');
+    // Nothing was persisted: the guard runs before the first write, so a refused
+    // save cannot leave `llm.provider` pointing at the PREVIOUS baseUrl.
+    const settings = settingsRepo(t.meta);
+    expect(await settings.get('llm.provider')).toBeNull();
+    expect(await settings.get('llm.model')).toBeNull();
+    expect(await settings.get('llm.baseUrl')).toBeNull();
+  });
+
+  it('refuses cloud metadata even for Ollama — the carve-out is loopback, not the whole guard', async () => {
+    const res = await putConfig({ provider: 'ollama', baseUrl: 'http://169.254.169.254' });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.message).toContain('blocked address');
+    expect(await settingsRepo(t.meta).get('llm.baseUrl')).toBeNull();
+  });
+
+  it('leaves a remote baseUrl for openai-compatible working', async () => {
+    const res = await putConfig({ provider: 'openai-compatible', model: 'x', baseUrl: 'https://api.groq.com/openai/v1' });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('resolves a stored Ollama loopback baseUrl (POST /config/test does not 422)', async () => {
+    await putConfig({ provider: 'ollama', model: 'llama3', baseUrl: OLLAMA_DEFAULT });
+    const res = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/llm/config/test',
+      headers: asUser(t.users.admin),
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ ok: true, error: null });
+  });
+
+  it('refuses at RESOLVE time when the provider is flipped off Ollama under the stored loopback URL', async () => {
+    await putConfig({ provider: 'ollama', model: 'llama3', baseUrl: OLLAMA_DEFAULT });
+    // A body with no `baseUrl` field never reaches the write-time guard, so the
+    // loopback URL survives the flip; the resolve-time re-check is what stops it.
+    expect((await putConfig({ provider: 'openai-compatible', model: 'x' })).statusCode).toBe(200);
+    expect(await settingsRepo(t.meta).get('llm.baseUrl')).toBe(OLLAMA_DEFAULT);
+
+    const res = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/llm/config/test',
+      headers: asUser(t.users.admin),
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.message).toContain('Loopback');
+  });
+});
+
 describe('llm routes — runs', () => {
   let t: Harness;
   beforeEach(async () => {
@@ -557,6 +652,48 @@ describe('llm routes — runs', () => {
     expect(detail.statusCode).toBe(200);
     expect(detail.json()).toMatchObject({ id, review: null });
     expect(detail.json()).toHaveProperty('validationErrors');
+  });
+
+  /*
+   * The regression: a direct run that fails at the PROVIDER stores a
+   * `ProviderRunError` in `validation_errors` — no `severity`, no `path` —
+   * and the detail DTO admitted only the validation shape, so this route
+   * answered `FST_ERR_RESPONSE_SERIALIZATION` (500) for every failed direct
+   * run. The browser rendered that 500's message, "Response doesn't match the
+   * schema", as the enrichment's own failure, which read as the MODEL having
+   * misbehaved and buried the real cause (2026-09-11).
+   */
+  it('GET /runs/:id returns a provider failure rather than failing to serialize', async () => {
+    const { id } = await createByoRun(t);
+    await createRunService({ meta: t.meta }).markFailed(id, {
+      errors: [
+        {
+          kind: 'provider',
+          provider: 'anthropic',
+          code: 'http',
+          message: 'anthropic: HTTP 400 — `temperature` is deprecated for this model.',
+        },
+      ],
+    });
+
+    const res = await t.app.inject({ method: 'GET', url: `/api/v1/llm/runs/${id}`, headers: asUser(t.users.admin) });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { status: string; validationErrors: { message: string }[] };
+    expect(body.status).toBe('failed');
+    // The cause has to survive the round-trip — it is the only actionable text.
+    expect(body.validationErrors[0]?.message).toContain('deprecated for this model');
+  });
+
+  it('GET /runs/:id drops an unreadable stored error rather than failing the response', async () => {
+    const { id } = await createByoRun(t);
+    await createRunService({ meta: t.meta }).markFailed(id, {
+      // A row written by some other version of the server: neither known shape.
+      errors: [{ nonsense: true } as unknown as ProviderRunError],
+    });
+
+    const res = await t.app.inject({ method: 'GET', url: `/api/v1/llm/runs/${id}`, headers: asUser(t.users.admin) });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().validationErrors).toBeNull();
   });
 
   it('GET /runs/:id is a 404 for an unknown run', async () => {

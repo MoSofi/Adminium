@@ -7,7 +7,7 @@
  * (an Undo toast follows, §10.3), so a plain confirm suffices.
  */
 import { Sparkles } from 'lucide-react';
-import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@adminium/ui';
+import { Alert, Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import { REVIEW_GROUPS, type ApplySummary } from './model.js';
@@ -38,11 +38,22 @@ export interface ApplyDialogProps {
   open: boolean;
   summary: ApplySummary;
   applying: boolean;
+  /**
+   * Why the last attempt did not land, on the screen that asked for it.
+   *
+   * The failure was reported ONLY as a toast — bottom-end, auto-dismissing,
+   * outside the dialog the operator is looking at — so an apply that died
+   * server-side (a `value too long for type character varying(12)` from inside
+   * the transaction, say) left the modal open, unchanged, saying nothing. The
+   * toast still fires for anyone who has moved on; this is for the person who
+   * has not.
+   */
+  error?: string | null | undefined;
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ApplyDialog({ open, summary, applying, onConfirm, onOpenChange }: ApplyDialogProps) {
+export function ApplyDialog({ open, summary, applying, error = null, onConfirm, onOpenChange }: ApplyDialogProps) {
   const lines = summaryLines(summary);
   return (
     <Modal
@@ -61,6 +72,15 @@ export function ApplyDialog({ open, summary, applying, onConfirm, onOpenChange }
         closeLabel={t('common.dismiss', 'Dismiss')}
       />
       <ModalBody>
+        {error === null || error === undefined ? null : (
+          <Alert
+            className="mb-4"
+            tone="danger"
+            role="alert"
+            title={t('studio:llmRuns.review.applyFailed', 'Nothing was applied')}
+            body={error}
+          />
+        )}
         {lines.length === 0 ? (
           <p className="text-body-sm text-fg-muted">
             {t('studio:llmRuns.review.apply.empty', 'Nothing selected to apply.')}

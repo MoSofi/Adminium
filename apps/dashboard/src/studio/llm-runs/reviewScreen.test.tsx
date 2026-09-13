@@ -151,6 +151,8 @@ interface HarnessOptions {
   /** Applied run returned by POST /apply (and by GET after apply). */
   appliedRun?: () => LlmRunDetail;
   undoToken?: string | null;
+  /** Non-200 ⇒ POST /apply fails with this status and message. */
+  applyFailure?: { status: number; message: string };
 }
 
 function installFetch(options: HarnessOptions = {}): { calls: Call[] } {
@@ -173,6 +175,13 @@ function installFetch(options: HarnessOptions = {}): { calls: Call[] } {
       return Promise.resolve(jsonResponse(200, applied ? appliedRunFn() : runFn()));
     }
     if (method === 'POST' && url.endsWith('/apply')) {
+      if (options.applyFailure !== undefined) {
+        return Promise.resolve(
+          jsonResponse(options.applyFailure.status, {
+            error: { code: 'INTERNAL', message: options.applyFailure.message, requestId: 'req_1' },
+          }),
+        );
+      }
       applied = true;
       const accepted = (body as { accepted: string[] }).accepted;
       return Promise.resolve(
@@ -355,5 +364,33 @@ describe('ReviewScreen — applied run is read-only', () => {
     const checkboxes = screen.getAllByRole('checkbox');
     for (const checkbox of checkboxes) expect(isDisabled(checkbox)).toBe(true);
     expect(screen.queryByRole('button', { name: /Apply .* accepted suggestions/ })).toBeNull();
+  });
+});
+
+/**
+ * A failed apply must say so where the operator is looking.
+ *
+ * It was reported ONLY as a toast — bottom-end, auto-dismissing, outside the
+ * dialog — so a server-side failure (the `varchar(12)` nav-group crash that
+ * found this) left the modal open, unchanged, saying nothing at all. The modal
+ * stays open on failure by design; it now carries the reason.
+ */
+describe('when the apply fails', () => {
+  it('names the reason inside the dialog, not only in a toast', async () => {
+    const user = userEvent.setup();
+    installFetch({
+      applyFailure: { status: 500, message: 'value too long for type character varying(12)' },
+    });
+    renderScreen();
+
+    await user.click(await screen.findByRole('button', { name: /Apply/ }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /Apply changes/ }));
+
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert.textContent ?? '').toContain('Nothing was applied');
+    expect(alert.textContent ?? '').toContain('character varying(12)');
+    // Still open — closing it would take the explanation with it.
+    expect(screen.getByRole('dialog')).toBeDefined();
   });
 });
