@@ -28,6 +28,7 @@ import {
   templateId as templateSuggestionId,
   widgetId as widgetSuggestionId,
 } from '../apply/suggestion-id.js';
+import { NAV_GROUP_MAX } from '../nav-group.js';
 import { PSEUDO_ENUM_MAX_DISTINCT, qualifyTableRef } from '../prompt/serializer.js';
 import { type LlmValidationError, makeError } from './errors.js';
 import type { LlmResponseV1, LocaleCode } from './schema.js';
@@ -801,6 +802,25 @@ function checkNavGroups(
   const tableToGroup = new Map<string, number>();
 
   response.navGroups.forEach((group, i) => {
+    // The id is a SLUG that becomes `adminium_pages.nav_group`, a bounded
+    // column (@adminium/meta's `0032_nav_group_width.ts`). The schema cannot
+    // enforce the bound: a zod failure is FATAL and would reject the whole run
+    // over one group nobody would miss. Dropped here, where a bad suggestion
+    // costs only itself — and where the operator is TOLD, rather than meeting
+    // `value too long for type character varying(…)` from inside the apply.
+    if (group.id.length > NAV_GROUP_MAX) {
+      errors.push(
+        makeError(
+          'LLM_GROUP_INVALID',
+          `navGroups[${i}].id`,
+          `Nav-group id "${group.id}" is longer than ${String(NAV_GROUP_MAX)} characters. The group was discarded.`,
+          { suggestionId: groupSuggestionId(group.id) },
+        ),
+      );
+      prunes.navGroups.add(i);
+      return;
+    }
+
     if (seenIds.has(group.id)) {
       errors.push(
         makeError(

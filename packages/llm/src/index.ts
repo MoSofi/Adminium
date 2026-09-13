@@ -25,3 +25,4 @@ export * from './providers/index.js';
 
 // Apply: EnrichmentSet normalization + field-by-field diff (§8).
 export * from './apply/index.js';
+export { NAV_GROUP_MAX } from './nav-group.js';

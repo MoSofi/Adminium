@@ -23,6 +23,7 @@ import { readFileSync } from 'node:fs';
 import { parseDatabaseModel, type DatabaseModel } from '@adminium/engine';
 import { describe, expect, it } from 'vitest';
 
+import { NAV_GROUP_MAX } from '../nav-group.js';
 import { validateResponse, type ValidationContext } from './validate.js';
 
 function fixture(relative: string): string {
@@ -378,6 +379,45 @@ describe('§7.3 rows 2–3 — inferred relations', () => {
 /* -------------------------------------------------------------- navGroups */
 
 describe('§7.3 row 6 — nav groups', () => {
+  it('drops a slug too long for the column it becomes — and keeps the run', () => {
+    // `adminium_pages.nav_group` is bounded (@adminium/meta 0032). It was
+    // `varchar(12)` and nothing checked the model's side at all, so
+    // `client-management` reached PostgreSQL mid-apply and came back as
+    // `value too long for type character varying(12)` — an unhandled 500 on a
+    // screen that had already said "these changes are written in one
+    // transaction and can be undone".
+    //
+    // Here, and not in the zod schema: a schema failure is FATAL, and one
+    // unusable group must not cost an entire enrichment run.
+    const tooLong = `g-${'x'.repeat(NAV_GROUP_MAX)}`;
+    const result = validateResponse(
+      body({
+        navGroups: [
+          navGroup({ id: tooLong, tables: ['public.orders'] }),
+          navGroup({ id: 'ops', label: { en_US: 'Ops' }, tables: ['public.products'] }),
+        ],
+      }),
+      ctx,
+    );
+
+    const error = result.errors.find((e) => e.code === 'LLM_GROUP_INVALID');
+    expect(error?.path).toBe('navGroups[0].id');
+    expect(error?.message).toContain(`longer than ${String(NAV_GROUP_MAX)} characters`);
+    // The run survives, minus the group that could not be stored.
+    expect(result.response?.navGroups).toHaveLength(1);
+    expect(result.response?.navGroups[0]?.id).toBe('ops');
+  });
+
+  it('keeps a slug exactly at the bound — off-by-one both ways', () => {
+    const exact = 'x'.repeat(NAV_GROUP_MAX);
+    const result = validateResponse(
+      body({ navGroups: [navGroup({ id: exact, tables: ['public.orders'] })] }),
+      ctx,
+    );
+    expect(result.errors.filter((e) => e.code === 'LLM_GROUP_INVALID')).toEqual([]);
+    expect(result.response?.navGroups).toHaveLength(1);
+  });
+
   it('drops the second group claiming an id, never the first', () => {
     // Order matters: the first claimant is the one the rest of the response
     // (dashboards, table→group mapping) was written against.

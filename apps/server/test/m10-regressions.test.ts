@@ -9,6 +9,8 @@
  * than pre-arranging the state the bug was about.
  */
 
+import { readFile } from 'node:fs/promises';
+
 import BetterSqlite3 from 'better-sqlite3';
 import {
   applyMigrations,
@@ -592,5 +594,32 @@ describe('apply-llm-response --dry-run', () => {
     // The CLI must ask the SERVICE not to write, not decide afterwards.
     expect(receive).toHaveBeenCalledTimes(1);
     expect(receive.mock.calls[0]?.[1]).toMatchObject({ dryRun: true });
+  });
+});
+
+/**
+ * The nav-group bound is written twice, and this is where they meet.
+ *
+ * `@adminium/llm` validates a model's proposed slug; `@adminium/meta` stores it
+ * in a bounded column. Neither may import the other — the LLM layer knows
+ * nothing about a database — so the number lives in both and `apps/server`,
+ * which depends on both, is the only place it can be held equal. It was not
+ * held at all until 2026-09-10, when `varchar(12)` met `client-management` and
+ * PostgreSQL answered `value too long for type character varying(12)` from
+ * inside the apply transaction.
+ */
+describe('the nav-group bound', () => {
+  it('is the same number in the layer that proposes it and the one that stores it', async () => {
+    const { NAV_GROUP_MAX } = await import('@adminium/llm');
+    // The migration is not on `@adminium/meta`'s public surface, so the column's
+    // side is read from the source file the way the meta suite does — the point
+    // is that ONE number cannot move without the other failing here.
+    const source = await readFile(
+      new URL('../../../packages/meta/src/migrations/0032_nav_group_width.ts', import.meta.url),
+      'utf8',
+    );
+    const stored = /NAV_GROUP_MAX = (\d+)/.exec(source)?.[1];
+    expect(stored).toBeDefined();
+    expect(Number(stored)).toBe(NAV_GROUP_MAX);
   });
 });
