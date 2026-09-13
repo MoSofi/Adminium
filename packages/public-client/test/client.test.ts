@@ -351,6 +351,20 @@ describe('documents (34 §7.6, 34-T21)', () => {
     ]);
   });
 
+  it('hands the caller’s abort signal to fetch, so a page that unmounts can cancel', async () => {
+    const { client, calls } = make((url) =>
+      url.endsWith('/documents') ? { data: [DOC] } : { data: DOC },
+    );
+    const controller = new AbortController();
+    await client.documents.list(controller.signal);
+    await client.documents.get('doc_1', controller.signal);
+    // `toBe`, not `toEqual`: an AbortSignal has no enumerable fields, so ANY
+    // signal would deep-equal this one and the assertion could not fail.
+    expect(calls).toHaveLength(2);
+    expect(calls[0]!.init?.signal).toBe(controller.signal);
+    expect(calls[1]!.init?.signal).toBe(controller.signal);
+  });
+
   it('sends the VALUES form as the body, with nothing the server stamps', async () => {
     const { client, calls } = make(() => ({ data: DOC }));
     await client.documents.render({ kind: 'invoice', fields: { total: '10.00' }, collections: {} });
