@@ -139,22 +139,43 @@ async function safeText(res: Response): Promise<string> {
 }
 
 /**
- * Shared `ProviderClient.test()` implementation: a 1-token, temperature-0 ping
+ * Response budget for the connectivity ping. §3.1 calls `test()` a "1-token
+ * ping" and for a plain chat model one token is all it takes; a reasoning model
+ * spends its budget on thinking BEFORE it writes anything, so a budget of 1
+ * guarantees a reply with no assistant text in it. 16 is still far below a
+ * rounding error in cost and gives a normal model room to answer properly.
+ */
+const PING_MAX_TOKENS = 16;
+
+/**
+ * Shared `ProviderClient.test()` implementation: a short, temperature-0 ping
  * through the client's own `complete()`, timing the round-trip. `performance.now`
  * is intentionally not a determinism hazard — latency never feeds a prompt or diff.
+ *
+ * An `empty_response` is reported as a PASS. What this button answers is "can
+ * this key reach this model" — a 2xx proves the key, the model id and the route,
+ * whether or not the model chose to spend the 16 tokens on reasoning. Every
+ * other {@link ProviderErrorCode} still fails the test, so a wrong key (`auth`),
+ * a wrong model id (`not_found`) and an unreachable host (`network`) report
+ * exactly as before. An EMPTY answer to an enrichment prompt is a different
+ * matter and still fails the run — this tolerance lives in the ping alone.
  */
 export async function pingComplete(
   client: ProviderClient,
   model: string,
 ): Promise<{ ok: true; model: string; latencyMs: number }> {
   const start = performance.now();
-  await client.complete({
-    system: '',
-    messages: [{ role: 'user', content: 'ping' }],
-    model,
-    maxTokens: 1,
-    temperature: 0,
-  });
+  try {
+    await client.complete({
+      system: '',
+      messages: [{ role: 'user', content: 'ping' }],
+      model,
+      maxTokens: PING_MAX_TOKENS,
+      temperature: 0,
+    });
+  } catch (err) {
+    if (!(err instanceof ProviderError) || err.code !== 'empty_response') throw err;
+  }
   return { ok: true, model, latencyMs: Math.round(performance.now() - start) };
 }
 

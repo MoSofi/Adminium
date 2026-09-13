@@ -51,12 +51,12 @@ afterEach(() => {
 describe('createAnthropicClient.complete', () => {
   it('POSTs /v1/messages with the exact headers and Messages body', async () => {
     const { calls } = stubFetch(jsonResponse(OK_BODY));
-    const client = createAnthropicClient({ provider: 'anthropic', apiKey: KEY, model: 'claude-opus-4-8' });
+    const client = createAnthropicClient({ provider: 'anthropic', apiKey: KEY, model: 'claude-sonnet-4-6' });
 
     const result = await client.complete({
       system: 'You are a data architect.',
       messages: [{ role: 'user', content: 'schema here' }],
-      model: 'claude-opus-4-8',
+      model: 'claude-sonnet-4-6',
       maxTokens: 16000,
       temperature: 0,
     });
@@ -74,7 +74,7 @@ describe('createAnthropicClient.complete', () => {
 
     const body = JSON.parse(call.init.body as string) as Record<string, unknown>;
     expect(body).toEqual({
-      model: 'claude-opus-4-8',
+      model: 'claude-sonnet-4-6',
       max_tokens: 16000,
       temperature: 0,
       system: 'You are a data architect.',
@@ -103,13 +103,57 @@ describe('createAnthropicClient.complete', () => {
     ).rejects.toMatchObject({ name: 'ProviderError', code: 'auth', status: 401, provider: 'anthropic' });
   });
 
-  it('throws bad_response when no text content is returned', async () => {
+  it('throws empty_response when no text content is returned', async () => {
     stubFetch(jsonResponse({ content: [], usage: {} }));
     const client = createAnthropicClient({ provider: 'anthropic', apiKey: KEY, model: 'claude-opus-4-8' });
 
     await expect(
       client.complete({ system: '', messages: [{ role: 'user', content: 'x' }], model: 'claude-opus-4-8', maxTokens: 1, temperature: 0 }),
-    ).rejects.toMatchObject({ code: 'bad_response' });
+    ).rejects.toMatchObject({ code: 'empty_response' });
+  });
+});
+
+/*
+ * The bug this locks: `temperature: 0` on Sonnet 5 answers
+ * `HTTP 400 — \`temperature\` is deprecated for this model`, which failed the
+ * connection test and then every chunk of the enrichment run behind it.
+ */
+describe('createAnthropicClient — sampling parameters by generation', () => {
+  async function bodyFor(model: string): Promise<Record<string, unknown>> {
+    const { calls } = stubFetch(jsonResponse(OK_BODY));
+    const client = createAnthropicClient({ provider: 'anthropic', apiKey: KEY, model });
+    await client.complete({
+      system: 's',
+      messages: [{ role: 'user', content: 'q' }],
+      model,
+      maxTokens: 100,
+      temperature: 0,
+    });
+    const call = calls[0];
+    if (!call) throw new Error('fetch not called');
+    return JSON.parse(call.init.body as string) as Record<string, unknown>;
+  }
+
+  it.each(['claude-sonnet-5', 'claude-opus-5', 'claude-opus-4-7', 'claude-opus-4-8', 'claude-fable-5-1'])(
+    'omits temperature for %s',
+    async (model) => {
+      const body = await bodyFor(model);
+      expect('temperature' in body).toBe(false);
+      expect(body['model']).toBe(model);
+    },
+  );
+
+  it.each(['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5', 'claude-3-5-sonnet-20241022'])(
+    'still pins temperature 0 for %s',
+    async (model) => {
+      expect(await bodyFor(model)).toMatchObject({ temperature: 0 });
+    },
+  );
+
+  it('omits temperature for a model id it has never seen', async () => {
+    // The model list is fetched live from the caller's account, so an unknown
+    // id is routine — and every generation since 4.7 has dropped sampling.
+    expect('temperature' in (await bodyFor('claude-something-new'))).toBe(false);
   });
 });
 
@@ -171,6 +215,39 @@ describe('createAnthropicClient.listModels', () => {
 
     const models = await client.listModels();
     expect(models).toEqual([...ANTHROPIC_STATIC_MODELS]);
+  });
+});
+
+/*
+ * "Test connection" answers one question — can this key reach this model — and
+ * a reasoning model can answer a 16-token ping entirely in thinking, returning
+ * a perfectly good 200 with no text in it. That must read as a PASS; a bad key
+ * must still read as a failure.
+ */
+describe('createAnthropicClient.test — the connectivity ping', () => {
+  it('passes when the reply carries no assistant text', async () => {
+    const { calls } = stubFetch(jsonResponse({ content: [], usage: { input_tokens: 4, output_tokens: 16 } }));
+    const client = createAnthropicClient({ provider: 'anthropic', apiKey: KEY, model: 'claude-sonnet-5' });
+
+    await expect(client.test()).resolves.toMatchObject({ ok: true, model: 'claude-sonnet-5' });
+
+    const call = calls[0];
+    if (!call) throw new Error('fetch not called');
+    const body = JSON.parse(call.init.body as string) as Record<string, unknown>;
+    expect(body['max_tokens']).toBe(16);
+    expect('temperature' in body).toBe(false);
+  });
+
+  it('still fails on a bad key', async () => {
+    stubFetch(jsonResponse({ error: { message: 'invalid key' } }, 401));
+    const client = createAnthropicClient({ provider: 'anthropic', apiKey: KEY, model: 'claude-sonnet-5' });
+    await expect(client.test()).rejects.toMatchObject({ code: 'auth', status: 401 });
+  });
+
+  it('still fails when the body is not JSON at all', async () => {
+    stubFetch(new Response('<html>proxy error</html>', { status: 200 }));
+    const client = createAnthropicClient({ provider: 'anthropic', apiKey: KEY, model: 'claude-sonnet-5' });
+    await expect(client.test()).rejects.toMatchObject({ code: 'bad_response' });
   });
 });
 

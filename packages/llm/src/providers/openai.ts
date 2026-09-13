@@ -45,7 +45,7 @@ export function parseOpenAiChatResponse(json: OpenAiChatResponse, provider: Prov
   if (typeof text !== 'string' || text.length === 0) {
     throw new ProviderError({
       provider,
-      code: 'bad_response',
+      code: 'empty_response',
       message: `${provider}: response contained no message content`,
     });
   }

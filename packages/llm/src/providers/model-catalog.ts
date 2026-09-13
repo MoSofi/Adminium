@@ -30,6 +30,57 @@ export const OPENAI_STATIC_MODELS: readonly ModelInfo[] = [
   { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
 ];
 
+// ─── Model capabilities ──────────────────────────────────────────────────────
+
+/**
+ * The newest Anthropic generation whose Messages API still accepts sampling
+ * parameters. `temperature` / `top_p` / `top_k` were REMOVED for Opus 4.7 and
+ * every model released after it — 4.7, 4.8, Opus 5, Sonnet 5, the Fable/Mythos
+ * line — which answer `HTTP 400 — \`temperature\` is deprecated for this model`
+ * rather than ignoring the field. 4.6 and everything older still take it.
+ */
+const ANTHROPIC_SAMPLING_LAST: readonly [number, number] = [4, 6];
+
+/**
+ * Parse an Anthropic model id into its `[major, minor]` generation, or `null`
+ * when the id carries no version we recognise.
+ *
+ * Two id shapes are in circulation and both appear in a live model list: the
+ * modern family-first form (`claude-sonnet-4-6`, `claude-opus-5`) and the
+ * legacy version-first form (`claude-3-5-sonnet-20241022`). Either way the
+ * generation is the run of numeric segments, once a trailing `-YYYYMMDD`
+ * snapshot suffix is dropped — `claude-sonnet-4-20250514` is 4.0, not 4.20250514.
+ */
+export function anthropicGeneration(model: string): [number, number] | null {
+  const parts = model.split('-');
+  if (parts[0] !== 'claude') return null;
+  const last = parts[parts.length - 1] ?? '';
+  const body = /^\d{8}$/.test(last) ? parts.slice(1, -1) : parts.slice(1);
+  const digits = body.filter((part) => /^\d+$/.test(part)).map(Number);
+  if (digits.length === 0) return null;
+  return [digits[0] ?? 0, digits[1] ?? 0];
+}
+
+/**
+ * True when `temperature` may be sent to this Anthropic model.
+ *
+ * An UNRECOGNISED id omits the parameter rather than sending it, and that
+ * default is the load-bearing half of this function: the model list is fetched
+ * live from the caller's own account, so ids we have never seen are routine,
+ * and every Anthropic generation since 4.7 has dropped sampling. Omitting costs
+ * the §3.1 determinism mandate — the API then samples at its own default — but
+ * sending costs the entire run, and no request we can make buys determinism
+ * back on those models (see the note in the Anthropic client's `complete()`).
+ */
+export function anthropicAcceptsTemperature(model: string): boolean {
+  const generation = anthropicGeneration(model);
+  if (generation === null) return false;
+  const [major, minor] = generation;
+  const [maxMajor, maxMinor] = ANTHROPIC_SAMPLING_LAST;
+  if (major !== maxMajor) return major < maxMajor;
+  return minor <= maxMinor;
+}
+
 const ANTHROPIC_VERSION = '2023-06-01';
 
 export interface CatalogFetchOptions {

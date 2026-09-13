@@ -86,7 +86,8 @@ export type ProviderErrorCode =
   | 'not_found' // 404 (e.g. absent model-list endpoint)
   | 'server' // 5xx
   | 'http' // other non-2xx with no more specific mapping
-  | 'bad_response'; // 2xx but unparseable / missing expected fields
+  | 'bad_response' // 2xx but unparseable / missing expected fields
+  | 'empty_response'; // 2xx, well-formed, but carried no assistant text
 
 export interface ProviderErrorInit {
   provider: ProviderId;

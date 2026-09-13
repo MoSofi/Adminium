@@ -2,10 +2,11 @@
 /**
  * Anthropic Messages API client (06-llm-assist.md §3.1). Auth: `x-api-key` +
  * `anthropic-version`; POST `/v1/messages` in the Messages wire format. Fetch
- * only, no SDK. Enrichment temperature is fixed at 0 (asserted).
+ * only, no SDK. Enrichment temperature is fixed at 0 (asserted) and sent only to
+ * the models that still accept it — see {@link anthropicAcceptsTemperature}.
  */
 import { pingComplete, requestJson, toCompleteResult } from './http.js';
-import { listAnthropicModels } from './model-catalog.js';
+import { anthropicAcceptsTemperature, listAnthropicModels } from './model-catalog.js';
 import {
   assertEnrichmentTemperature,
   ProviderError,
@@ -48,6 +49,17 @@ export function createAnthropicClient(config: ProviderConfig): ProviderClient {
 
     async complete(req) {
       assertEnrichmentTemperature(req.temperature, 'anthropic');
+      /*
+       * `temperature` is OMITTED for every model that has dropped sampling
+       * (4.7 and newer): those 400 the whole request rather than ignoring the
+       * field, so one deprecated parameter fails an entire enrichment run.
+       *
+       * The §3.1 determinism mandate cannot be honoured on those models by any
+       * request this client can make — the knob is gone, and the API samples at
+       * its own default. `assertEnrichmentTemperature` above still stands: a
+       * caller asking for 0.7 is a bug wherever it lands, and on a 4.6-or-older
+       * model the 0 below is still sent and still binding.
+       */
       const json = await requestJson<AnthropicMessagesResponse>({
         provider: 'anthropic',
         method: 'POST',
@@ -58,7 +70,7 @@ export function createAnthropicClient(config: ProviderConfig): ProviderClient {
         body: {
           model: req.model,
           max_tokens: req.maxTokens,
-          temperature: req.temperature,
+          ...(anthropicAcceptsTemperature(req.model) ? { temperature: req.temperature } : {}),
           system: req.system,
           messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
         },
@@ -71,7 +83,7 @@ export function createAnthropicClient(config: ProviderConfig): ProviderClient {
       if (text.length === 0) {
         throw new ProviderError({
           provider: 'anthropic',
-          code: 'bad_response',
+          code: 'empty_response',
           message: 'anthropic: response contained no text content',
         });
       }

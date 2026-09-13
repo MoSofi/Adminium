@@ -18,6 +18,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  anthropicGeneration,
   ANTHROPIC_STATIC_MODELS,
   OPENAI_STATIC_MODELS,
   listAnthropicModels,
@@ -263,5 +264,32 @@ describe('timeoutMs is forwarded, not silently replaced by the 60s default', () 
     );
     await vi.advanceTimersByTimeAsync(25);
     expect(((await pending) as ProviderError).code).toBe('timeout');
+  });
+});
+
+/*
+ * The generation is what decides whether `temperature` may be sent at all, and
+ * the id shapes in a live model list disagree about where the version lives:
+ * `claude-3-5-sonnet-20241022` puts it first, `claude-sonnet-4-6` puts it last,
+ * and `claude-sonnet-4-20250514` ends in a DATE that must not be read as a
+ * minor version (4.0, not 4.20250514 — which would sort above every real id).
+ */
+describe('anthropicGeneration', () => {
+  it.each([
+    ['claude-sonnet-4-20250514', [4, 0]],
+    ['claude-opus-4-1-20250805', [4, 1]],
+    ['claude-haiku-4-5', [4, 5]],
+    ['claude-opus-4-6', [4, 6]],
+    ['claude-opus-4-7', [4, 7]],
+    ['claude-sonnet-5', [5, 0]],
+    ['claude-fable-5-1', [5, 1]],
+    ['claude-3-opus-20240229', [3, 0]],
+    ['claude-3-5-sonnet-20241022', [3, 5]],
+  ])('reads %s as %j', (model, expected) => {
+    expect(anthropicGeneration(model)).toEqual(expected);
+  });
+
+  it.each(['gpt-4o', 'llama3.2', 'claude-instant', ''])('returns null for %s', (model) => {
+    expect(anthropicGeneration(model)).toBeNull();
   });
 });

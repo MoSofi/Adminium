@@ -59,7 +59,7 @@ export function createOllamaClient(config: ProviderConfig): ProviderClient {
       if (typeof text !== 'string' || text.length === 0) {
         throw new ProviderError({
           provider: 'ollama',
-          code: 'bad_response',
+          code: 'empty_response',
           message: 'ollama: response contained no message content',
         });
       }
