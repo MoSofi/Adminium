@@ -1,5 +1,19 @@
 # @adminium/charts
 
+## 0.2.6
+
+### Patch Changes
+
+- Updated dependencies [ce438a0]
+- Updated dependencies [ce438a0]
+- Updated dependencies [9f47a62]
+- Updated dependencies [f73fffc]
+- Updated dependencies [f2fd258]
+- Updated dependencies [3a38695]
+- Updated dependencies [cb398f1]
+  - @adminium/i18n@0.2.6
+  - @adminium/tokens@0.2.6
+
 ## 0.2.5
 
 ### Patch Changes

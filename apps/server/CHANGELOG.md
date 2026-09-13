@@ -1,5 +1,217 @@
 # @adminium/server
 
+## 0.2.6
+
+### Patch Changes
+
+- ce438a0: Browsing add-ons is a browse surface now, not a list of slugs.
+  
+  **Two defects, both in the catalog projection.** The browse route derived a
+  catalog row's name as `entry.name['en_US']`, but the feed keys rows `en`, `de`,
+  `zh-cn` — `en_US` has never been present, so the fallback fired every time and
+  every online add-on was labelled with its own slug (`barcode-labels`, not
+  `Barcode Labels`). Fixing that one key would still have thrown away the seven
+  other translations the feed already carries, so the row is now resolved against
+  the caller's locale: exact tag, then the normalised tag (`zh_CN` → `zh-cn`, the
+  leg without which both Chinese locales silently render English), then the
+  language subtag, then `en`.
+  
+  **The reply carries what the cache already held.** `categories`, `tagline` and
+  `connectKind` were parsed from the feed, cached to disk, and then projected away.
+  They are now in the DTO, so the page can show what an add-on is and whether
+  installing will ask for a credential — the one permission-shaped fact on a card,
+  with everything else about an add-on's reach left to the install plan, which is
+  the security surface.
+  
+  **The page is the comp again.** `designs/Integrations.dc.html` draws a category
+  rail with per-category counts, a search box and a card grid; the shipped page
+  rendered a flat list of names. The browse half moves to its own component and
+  gains all three, plus distinct empty states for "this build shipped none",
+  "nothing matched your filter" and "the catalog is on but found nothing".
+  
+  Browsing remains a disk read: no page load, category click or search makes an
+  outbound request.
+- f73fffc: Three message groups leave the eagerly bundled `common` catalogue: `dataio`
+  (the import wizard, exports manager and export builder), `files` (the Files
+  library and its upload dialog), and `email`. All three are deferred namespaces
+  now, fetched by the surface that owns them.
+  
+  `common` ships in every user's first load, so a key living there is paid for on
+  every route by every user no matter how lazy its surface is. 422 keys had
+  collected there that no first paint can render — and 143 of them are `email`
+  keys whose every call site is in the server's email-template machinery, i.e.
+  text a browser can never display.
+  
+  **Operators with customised translations:** meta migration `0029` re-files
+  overrides written against the old `common:dataio.*` / `files.*` / `email.*`
+  addresses. Three keys did not move — two page titles that a statically imported
+  route factory reads, and the page-files template's upload hint — so overrides on
+  those are COPIED to the twin they now resolve through (`common:nav.imports`,
+  `common:nav.exports`, `ui:templates.files.uploadsUnavailable`) rather than only
+  moved.
+  
+  Server-rendered email also needed `createServerI18n` to load the deferred set
+  explicitly. Without it every non-English recipient would have silently received
+  English — silently, because each call site supplies its own English default, so
+  there is no missing-key error to notice.
+- f2fd258: Email templates become email documents (39-email-templates-and-campaigns.md
+  WS-A/WS-B). Migration 0026 gives `adminium_email_templates` a kind
+  (template | campaign), a category, a fixed footer, a preheader, a per-document
+  brand, attachments, archiving and starter provenance, and adds
+  `adminium_email_blocks` (saved sections) and `adminium_email_runs` (campaign
+  runs). The renderer speaks the comp's 24 block types, draws the brand banner
+  and the envelope footer, and references the brand mark and Files images by
+  CID; delivery reads attachment bytes from the file store right before
+  `sendMail` and fails loudly on a missing file. Twelve localizable starters ship
+  behind `GET /email-templates/starters`.
+  
+  Routes: `PUT /email-templates/:key/:locale` and `POST /email-templates/:key/test-send`
+  are retired — the editor saves explicitly through `PUT /email-templates/:id`,
+  and a test send carries the on-screen document (`POST /email-templates/:id/test-send`,
+  up to ten recipients). New: create (blank or from a starter), duplicate, add a
+  language variation, start a campaign from a template, archive/restore, delete
+  (a built-in resets instead), export/import of a JSON bundle, and saved blocks
+  under `/email-blocks`. Settings gain `email.senders` and
+  `email.maxAttachmentBytes`.
+  
+  Campaigns, phase 1: `POST /email-templates/:id/send` (workspace users, optional
+  roles, now or scheduled) creates an `adminium_email_runs` row and one
+  `email.campaign-run` job; `POST /email-templates/:id/audience/preview` counts
+  recipients and opt-outs; `GET /email-templates/:id/runs` lists a campaign's
+  runs; `POST /email-runs/:id/cancel` cancels a scheduled run or cooperatively
+  stops a running one. The `email.campaign` notification kind is the opt-out;
+  `email.campaign.sent` tells the creator how many were sent and failed.
+  
+  Dashboard: the Email templates manager is rebuilt to the design (WS-C, 39-T08–T10):
+  Templates/Campaigns trays with counts, group by topic or language, gallery and
+  list layouts remembered per browser, the actions menu (import, senders, export,
+  settings, archived), inline rename, duplicate and delete with Undo, archived
+  mode with restore / delete for good / reset to built-in, the New modal with the
+  twelve starters and *Your templates* for campaigns, and the import modal. The
+  old autosaving page under `pages/builders` is gone; the editor route
+  (`/email-templates/:id`) shows the document's facts until the new editor lands.
+  
+  The Email templates surface's messages move to a deferred `email` namespace
+  (`DEFERRED_NAMESPACES`), loaded by its two routes like the studio's: the
+  strings no longer ship in every user's entry chunk. `GET /i18n/bundle/:locale/email`
+  serves it; the overrides budget counts it.
+  
+  The editor (39 WS-D/WS-E): a live canvas of the 24 block kinds plus the two
+  legacy ones, inline subject and preheader, the inspector's Sections and Design
+  tabs (five panels, a rows editor, eight style axes, saved blocks), explicit save
+  with `Ctrl/⌘+S`, sixty steps of undo, a discard-changes guard, language
+  variations with the mirror question for structural edits, the image picker
+  (workspace files, upload with the connection rule, https URLs), workspace
+  documents as attachments, test sends of the on-screen document to several
+  addresses, and — for a campaign — *Send campaign* (workspace users by role,
+  now or scheduled, the live recipient count), the *Scheduled · time* / *Sending
+  · N %* chip with an explicit cancel, and live progress on the run's job channel.
+  Every string of the surface, the twelve starters and the blank copy are in all
+  eight languages. Two guides (`guides/email/`, `guides/email/campaigns/`) document
+  templates, campaigns, attachments, senders, opt-out and what is not tracked.
+- a828566: **The public surface can generate a value.** A scope resource's `defaults` may
+  now carry `{"$generate": "uuid"}` or `{"$generate": "now"}`, resolved
+  server-side per request.
+  
+  Nothing on the public create path generated anything before: add-on DDL emits no
+  column defaults, `insertRow` writes what it is handed, and scope `defaults` were
+  static JSON — so every add-on table row in existence was written by an add-on's
+  server half. An anonymous visitor could not create a row at all, and both ways
+  round it are refusals: a writable primary key is a compile error, and browser
+  code may not reach `crypto`. This is the smallest primitive that closes it, and
+  it is general — every app whose intent rows sit on an `id`-typed table needs
+  exactly this, and `created_at` needs it too.
+  
+  `compileScope` refuses a sentinel that is malformed, names an unknown generator,
+  or sits on a column the same resource lists `writable` — a generated value
+  exists precisely because the caller may not choose it, and a document that says
+  both is a contradiction a reader can resolve two ways. It also now checks
+  `defaults` against the schema snapshot, which was the one list it never did.
+  
+  Two fixes travel with it, both owed with or without any add-on:
+  
+  - **A public write is published to the widget-data stream.** `routes/data` has
+    fanned every write out to `widget-data:<connection>:<table>` since the widget
+    registry shipped; the public routes published nothing, so a dashboard page
+    bound to a table a customer can write to learned about that write only on its
+    next refetch. The row is masked by the same publisher as every other frame on
+    that channel.
+  - **The sentinels resolve on create and are dropped on update.** `defaults` are
+    applied on both paths, which is harmless for a literal and a data-loss bug for
+    a generated one: a visitor patching their own row would have been handed a
+    fresh primary key each time.
+  
+  Both generators round-trip on postgres, mysql and sqlite. The instant is
+  formatted per dialect — MySQL's `datetime` refuses the ISO form the other two
+  want, and no single JavaScript value satisfies all three drivers.
+- cb398f1: The Report builder ships at `/report-builder` (43-report-builder.md): a
+  two-collection manager plus a block editor, over a new envelope — a report is a
+  header (kicker · title · subtitle) plus an ORDERED ARRAY of self-contained
+  blocks, each with its own title, width and visibility, drawn from a palette of
+  25 kinds. Migration 0030 adds `adminium_report_documents` (prefix `rpt`): one
+  table, two kinds (template | report), the comp's three-value status
+  (draft | sent | live), a starter key, a soft `origin_id`, the manager's
+  `position` and a denormalised `summary`.
+  
+  Not Scheduled Reports. That surface keeps `/reports`, its `reports.*` keys, the
+  `rep` prefix and `system:reports:manage`; this one is `/report-builder`, the
+  `reportBuilder` namespace, `adminium_report_documents` and
+  `/api/v1/report-documents`, and its writes ride `system:settings:manage` like
+  the other two document surfaces. No permission key is added.
+  
+  Server: nine routes in the invoice surface's shape — list with unfiltered tab
+  counts, the twelve starters, detail, create (blank or from a starter), the
+  explicit `PUT` save that re-derives the summary, inline rename, duplicate,
+  delete, and `POST /:id/from-template`, which copies a template's body into a
+  new report and records its origin. The envelope decodes leniently and holds
+  both inline-image slots to the existing caps; a block of an unknown kind
+  becomes a labelled placeholder rather than a card nobody can explain.
+  
+  Dashboard: the manager (Templates/Reports trays with counts that ignore the
+  search box, client-side search over name · title · kicker, gallery and list
+  layouts remembered per browser, four empty states, inline rename, duplicate
+  with Undo, delete behind a confirm, the New modal with twelve starters and
+  *Your templates* for reports) and the editor (the 25-kind palette, the always-
+  light sheet with its background image and tint, the block stack with drag and a
+  keyboard reorder, half-width blocks, the *Show in export* flag, an inspector
+  whose 25 field groups each carry Width · Show · Delete, explicit save with
+  `Ctrl/⌘+S`, sixty steps of undo and a discard guard). A template's primary
+  saves; a report's *Publish* saves and marks the row Published. Below `lg` the
+  inspector becomes a drawer and the palette an *Add block* sheet.
+  
+  Two gaps in the design are filled with its own patterns: the image block gains
+  the background's Upload / Replace / Remove row, and a KPI metric gains the
+  *Delta* field that makes its rendered delta reachable. Two of the design's own
+  defects are corrected: the block label/glyph pair is a record with named fields
+  (the pair ships swapped for four kinds), and a card's glyph rides its row
+  rather than a title match, so renaming a report never changes its icon.
+  
+  Every string of the surface, the twelve starters and the seeded block content
+  are in all eight languages, in a deferred `reportBuilder` namespace loaded by
+  its two routes — the strings never ship in a user's entry chunk.
+- Updated dependencies [ce438a0]
+- Updated dependencies [ce438a0]
+- Updated dependencies [ab6314e]
+- Updated dependencies [9f47a62]
+- Updated dependencies [f73fffc]
+- Updated dependencies [8fb86bf]
+- Updated dependencies [f2fd258]
+- Updated dependencies [8fb86bf]
+- Updated dependencies [3a38695]
+- Updated dependencies [65f69df]
+- Updated dependencies [cb398f1]
+- Updated dependencies [ce438a0]
+  - @adminium/i18n@0.2.6
+  - @adminium/add-on-contracts@0.2.6
+  - @adminium/meta@0.2.6
+  - @adminium/manifest@0.2.6
+  - @adminium/adapter-postgres@0.2.6
+  - @adminium/engine@0.2.6
+  - @adminium/llm@0.2.6
+  - @adminium/adapter-mysql@0.2.6
+  - @adminium/adapter-sqlite@0.2.6
+  - @adminium/schema-import@0.2.6
+
 ## 0.2.5
 
 ### Patch Changes

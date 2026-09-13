@@ -1,5 +1,223 @@
 # @adminium/dashboard
 
+## 0.2.6
+
+### Patch Changes
+
+- ce438a0: Browsing add-ons is a browse surface now, not a list of slugs.
+  
+  **Two defects, both in the catalog projection.** The browse route derived a
+  catalog row's name as `entry.name['en_US']`, but the feed keys rows `en`, `de`,
+  `zh-cn` — `en_US` has never been present, so the fallback fired every time and
+  every online add-on was labelled with its own slug (`barcode-labels`, not
+  `Barcode Labels`). Fixing that one key would still have thrown away the seven
+  other translations the feed already carries, so the row is now resolved against
+  the caller's locale: exact tag, then the normalised tag (`zh_CN` → `zh-cn`, the
+  leg without which both Chinese locales silently render English), then the
+  language subtag, then `en`.
+  
+  **The reply carries what the cache already held.** `categories`, `tagline` and
+  `connectKind` were parsed from the feed, cached to disk, and then projected away.
+  They are now in the DTO, so the page can show what an add-on is and whether
+  installing will ask for a credential — the one permission-shaped fact on a card,
+  with everything else about an add-on's reach left to the install plan, which is
+  the security surface.
+  
+  **The page is the comp again.** `designs/Integrations.dc.html` draws a category
+  rail with per-category counts, a search box and a card grid; the shipped page
+  rendered a flat list of names. The browse half moves to its own component and
+  gains all three, plus distinct empty states for "this build shipped none",
+  "nothing matched your filter" and "the catalog is on but found nothing".
+  
+  Browsing remains a disk read: no page load, category click or search makes an
+  outbound request.
+- ce438a0: Workspace settings links to Add-ons. `/studio/add-ons` shipped with a route and
+  no inbound link: the avatar menu lists only Data connections and Workspace
+  settings, and no page navigated to it — so the whole add-on surface (browse,
+  consent, install, connect, sideload) was reachable only by typing the URL, while
+  the self-hosting docs told operators to open it from a menu. It is now a row in
+  the settings cross-link card, beside Pages, AI enrichment and Storage, on the
+  same Admin+ reasoning: the routes guard on `system:manifests:manage` and the
+  page answers a 403 itself, so an admin who could hold the permission finds the
+  door rather than a hidden one.
+- f73fffc: Three message groups leave the eagerly bundled `common` catalogue: `dataio`
+  (the import wizard, exports manager and export builder), `files` (the Files
+  library and its upload dialog), and `email`. All three are deferred namespaces
+  now, fetched by the surface that owns them.
+  
+  `common` ships in every user's first load, so a key living there is paid for on
+  every route by every user no matter how lazy its surface is. 422 keys had
+  collected there that no first paint can render — and 143 of them are `email`
+  keys whose every call site is in the server's email-template machinery, i.e.
+  text a browser can never display.
+  
+  **Operators with customised translations:** meta migration `0029` re-files
+  overrides written against the old `common:dataio.*` / `files.*` / `email.*`
+  addresses. Three keys did not move — two page titles that a statically imported
+  route factory reads, and the page-files template's upload hint — so overrides on
+  those are COPIED to the twin they now resolve through (`common:nav.imports`,
+  `common:nav.exports`, `ui:templates.files.uploadsUnavailable`) rather than only
+  moved.
+  
+  Server-rendered email also needed `createServerI18n` to load the deferred set
+  explicitly. Without it every non-English recipient would have silently received
+  English — silently, because each call site supplies its own English default, so
+  there is no missing-key error to notice.
+- 3a38695: The browser tab names the page. `document.title` had one publisher — branding,
+  at the root route — so every screen rendered a tab reading "Adminium" and a
+  strip of six open tabs said nothing about which page each one was. It is now
+  composed by a single owner from two slots: the workspace name, and the screen.
+  
+  Inside the shell the topbar is the one writer, so the tab mirrors the `<h1>`
+  and the two can never disagree. Screens whose heading cannot identify them
+  publish a tab name of their own: a record page reads "Amara Osei · Clients ·
+  Adminium", a full-page system state names the state rather than the page it
+  replaced. Sign-in, the routed 404 and the direct-addressed system states have
+  no shell above them and name themselves.
+  
+  Two Studio screens drew their own header and published none, so the shell's h1
+  fell back to "Home" above them — the schema editor, and the AI review, which
+  was rendering a second `<h1>` in its summary card. Both now publish their real
+  heading, so the topbar, the tab and the body agree.
+- f2fd258: Email templates become email documents (39-email-templates-and-campaigns.md
+  WS-A/WS-B). Migration 0026 gives `adminium_email_templates` a kind
+  (template | campaign), a category, a fixed footer, a preheader, a per-document
+  brand, attachments, archiving and starter provenance, and adds
+  `adminium_email_blocks` (saved sections) and `adminium_email_runs` (campaign
+  runs). The renderer speaks the comp's 24 block types, draws the brand banner
+  and the envelope footer, and references the brand mark and Files images by
+  CID; delivery reads attachment bytes from the file store right before
+  `sendMail` and fails loudly on a missing file. Twelve localizable starters ship
+  behind `GET /email-templates/starters`.
+  
+  Routes: `PUT /email-templates/:key/:locale` and `POST /email-templates/:key/test-send`
+  are retired — the editor saves explicitly through `PUT /email-templates/:id`,
+  and a test send carries the on-screen document (`POST /email-templates/:id/test-send`,
+  up to ten recipients). New: create (blank or from a starter), duplicate, add a
+  language variation, start a campaign from a template, archive/restore, delete
+  (a built-in resets instead), export/import of a JSON bundle, and saved blocks
+  under `/email-blocks`. Settings gain `email.senders` and
+  `email.maxAttachmentBytes`.
+  
+  Campaigns, phase 1: `POST /email-templates/:id/send` (workspace users, optional
+  roles, now or scheduled) creates an `adminium_email_runs` row and one
+  `email.campaign-run` job; `POST /email-templates/:id/audience/preview` counts
+  recipients and opt-outs; `GET /email-templates/:id/runs` lists a campaign's
+  runs; `POST /email-runs/:id/cancel` cancels a scheduled run or cooperatively
+  stops a running one. The `email.campaign` notification kind is the opt-out;
+  `email.campaign.sent` tells the creator how many were sent and failed.
+  
+  Dashboard: the Email templates manager is rebuilt to the design (WS-C, 39-T08–T10):
+  Templates/Campaigns trays with counts, group by topic or language, gallery and
+  list layouts remembered per browser, the actions menu (import, senders, export,
+  settings, archived), inline rename, duplicate and delete with Undo, archived
+  mode with restore / delete for good / reset to built-in, the New modal with the
+  twelve starters and *Your templates* for campaigns, and the import modal. The
+  old autosaving page under `pages/builders` is gone; the editor route
+  (`/email-templates/:id`) shows the document's facts until the new editor lands.
+  
+  The Email templates surface's messages move to a deferred `email` namespace
+  (`DEFERRED_NAMESPACES`), loaded by its two routes like the studio's: the
+  strings no longer ship in every user's entry chunk. `GET /i18n/bundle/:locale/email`
+  serves it; the overrides budget counts it.
+  
+  The editor (39 WS-D/WS-E): a live canvas of the 24 block kinds plus the two
+  legacy ones, inline subject and preheader, the inspector's Sections and Design
+  tabs (five panels, a rows editor, eight style axes, saved blocks), explicit save
+  with `Ctrl/⌘+S`, sixty steps of undo, a discard-changes guard, language
+  variations with the mirror question for structural edits, the image picker
+  (workspace files, upload with the connection rule, https URLs), workspace
+  documents as attachments, test sends of the on-screen document to several
+  addresses, and — for a campaign — *Send campaign* (workspace users by role,
+  now or scheduled, the live recipient count), the *Scheduled · time* / *Sending
+  · N %* chip with an explicit cancel, and live progress on the run's job channel.
+  Every string of the surface, the twelve starters and the blank copy are in all
+  eight languages. Two guides (`guides/email/`, `guides/email/campaigns/`) document
+  templates, campaigns, attachments, senders, opt-out and what is not tracked.
+- 3a38695: Three more built pages get an entry point. An audit of every route for inbound
+  navigation found `/studio/add-ons` was not alone:
+  
+  - **`/studio/public-api`** had exactly one inbound link — inline prose on the
+    Hosted apps page, rendered only for a customer-side surface with no key bound
+    yet. So it was unreachable without hosted surfaces, and the link removed
+    itself the moment someone bound the key it sent them to mint. It is now a row
+    in the Workspace settings cross-link card; the contextual shortcut stays.
+  - **`/api-keys`** had none at all. It joins the sidebar's `people` group beside
+    Team, Roles and the audit log — a key is a principal that carries a role, not
+    a personal preference — gated `adminOnly` like its neighbours.
+  - **`/help` and `/changelog`** had none at all. Both are for every role (the
+    router's own note: a viewer hitting a wall needs the docs more than an admin
+    does), so they go in the avatar menu below the admin-only Studio section.
+- 3a38695: The sidebar's platform tail no longer waits for a database. With no `nav.groups`
+  the rail rendered the "Pages appear here once a database is connected" prompt
+  and returned, which skipped the platform-only groups entirely — so on a fresh
+  instance Team, Roles & permissions, API keys, the audit log, Files, Email
+  templates, imports, exports and scheduled reports were all invisible until a
+  source was connected, which none of them need. Inviting people is the first
+  thing an admin does, and Team was behind that wall.
+  
+  The prompt now says only what it means — an explanation for the missing pages —
+  and renders alongside the tail rather than instead of it. The admin gate is
+  unchanged: a viewer still sees only the ungated rows.
+- cb398f1: The Report builder ships at `/report-builder` (43-report-builder.md): a
+  two-collection manager plus a block editor, over a new envelope — a report is a
+  header (kicker · title · subtitle) plus an ORDERED ARRAY of self-contained
+  blocks, each with its own title, width and visibility, drawn from a palette of
+  25 kinds. Migration 0030 adds `adminium_report_documents` (prefix `rpt`): one
+  table, two kinds (template | report), the comp's three-value status
+  (draft | sent | live), a starter key, a soft `origin_id`, the manager's
+  `position` and a denormalised `summary`.
+  
+  Not Scheduled Reports. That surface keeps `/reports`, its `reports.*` keys, the
+  `rep` prefix and `system:reports:manage`; this one is `/report-builder`, the
+  `reportBuilder` namespace, `adminium_report_documents` and
+  `/api/v1/report-documents`, and its writes ride `system:settings:manage` like
+  the other two document surfaces. No permission key is added.
+  
+  Server: nine routes in the invoice surface's shape — list with unfiltered tab
+  counts, the twelve starters, detail, create (blank or from a starter), the
+  explicit `PUT` save that re-derives the summary, inline rename, duplicate,
+  delete, and `POST /:id/from-template`, which copies a template's body into a
+  new report and records its origin. The envelope decodes leniently and holds
+  both inline-image slots to the existing caps; a block of an unknown kind
+  becomes a labelled placeholder rather than a card nobody can explain.
+  
+  Dashboard: the manager (Templates/Reports trays with counts that ignore the
+  search box, client-side search over name · title · kicker, gallery and list
+  layouts remembered per browser, four empty states, inline rename, duplicate
+  with Undo, delete behind a confirm, the New modal with twelve starters and
+  *Your templates* for reports) and the editor (the 25-kind palette, the always-
+  light sheet with its background image and tint, the block stack with drag and a
+  keyboard reorder, half-width blocks, the *Show in export* flag, an inspector
+  whose 25 field groups each carry Width · Show · Delete, explicit save with
+  `Ctrl/⌘+S`, sixty steps of undo and a discard guard). A template's primary
+  saves; a report's *Publish* saves and marks the row Published. Below `lg` the
+  inspector becomes a drawer and the palette an *Add block* sheet.
+  
+  Two gaps in the design are filled with its own patterns: the image block gains
+  the background's Upload / Replace / Remove row, and a KPI metric gains the
+  *Delta* field that makes its rendered delta reachable. Two of the design's own
+  defects are corrected: the block label/glyph pair is a record with named fields
+  (the pair ships swapped for four kinds), and a card's glyph rides its row
+  rather than a title match, so renaming a report never changes its icon.
+  
+  Every string of the surface, the twelve starters and the seeded block content
+  are in all eight languages, in a deferred `reportBuilder` namespace loaded by
+  its two routes — the strings never ship in a user's entry chunk.
+- Updated dependencies [ce438a0]
+- Updated dependencies [ce438a0]
+- Updated dependencies [9f47a62]
+- Updated dependencies [f73fffc]
+- Updated dependencies [f2fd258]
+- Updated dependencies [3a38695]
+- Updated dependencies [cb398f1]
+  - @adminium/i18n@0.2.6
+  - @adminium/widgets@0.2.6
+  - @adminium/charts@0.2.6
+  - @adminium/engine@0.2.6
+  - @adminium/tokens@0.2.6
+  - @adminium/ui@0.2.6
+
 ## 0.2.5
 
 ### Patch Changes
