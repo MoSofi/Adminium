@@ -141,12 +141,18 @@ jobs:
       # `--health-cmd`: the upstream image is UBI-micro based and is not
       # guaranteed to carry curl, and a health check that cannot execute reports
       # unhealthy forever.
+      #
+      # FROM quay.io, NOT DOCKER HUB. On 2026-09-13 `minio/minio` stopped
+      # existing on Docker Hub (repository 404, "pull access denied"), so this
+      # step exited 125 and `verify` ran nothing. quay.io is MinIO's own registry
+      # and carries this exact pinned tag, so the pin did not move, only where it
+      # is pulled from.
       - name: Start MinIO (the S3 conformance target)
         run: |
           docker run -d --name minio -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
+            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
           for i in $(seq 1 40); do
             if curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null 2>&1; then
               echo "minio ready after ${i} attempt(s)"
