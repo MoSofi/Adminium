@@ -45,6 +45,14 @@ function stubFetch() {
           jsonResponse(200, { data: makeBootstrap({ nav: { groups: [] }, roles: ['super-admin'] }) }),
         );
       }
+      // The installed-apps card (47 step 3) suspends on this; unstubbed it
+      // throws and the route paints the offline hero instead of the page.
+      if (url.startsWith('/api/v1/apps/catalog')) {
+        return Promise.resolve(jsonResponse(200, { apps: [] }));
+      }
+      if (url.startsWith('/api/v1/apps')) {
+        return Promise.resolve(jsonResponse(200, { apps: [], staged: [] }));
+      }
       if (url.startsWith('/api/v1/surfaces')) {
         return Promise.resolve(jsonResponse(200, { instances: {}, surfaces: [], domains: {} }));
       }

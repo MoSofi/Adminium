@@ -61,6 +61,9 @@ import {
   type SurfaceSummaryDto,
 } from './hostedAppsApi.js';
 import { connectionsQuery } from '../hub/ConnectionsHub.js';
+import { AppBrowser } from './AppBrowser.js';
+import { InstallAppWizard } from './InstallAppWizard.js';
+import { InstalledAppsCard } from './InstalledAppsCard.js';
 
 export function HostedAppsPage() {
   const queryClient = useQueryClient();
@@ -72,6 +75,18 @@ export function HostedAppsPage() {
    */
   const { data: connections } = useSuspenseQuery(connectionsQuery());
 
+  /*
+   * The install flow REPLACES the page body rather than opening over it
+   * (`Marketplace.dc.html` draws it as its own screen with its own sticky
+   * footer, and `ConnectWizard` is the house precedent for that shape). A modal
+   * would put a four-step flow with its own footer inside a dialog that already
+   * has one.
+   */
+  const [installing, setInstalling] = useState(false);
+  /** The shelf app the wizard opens on, when it was opened from a card. */
+  const [chosen, setChosen] = useState<
+    { key: string; version: string; name: string } | undefined
+  >(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<DomainIssue[]>([]);
@@ -109,11 +124,39 @@ export function HostedAppsPage() {
         )}
       />
 
+      {installing ? (
+        <InstallAppWizard
+          preselected={chosen}
+          onClose={() => {
+            setInstalling(false);
+            setChosen(undefined);
+          }}
+        />
+      ) : (
+        <>
       {error !== null && (
         <Alert tone="danger" title={t('studio:hostedApps.error', 'Something went wrong')}>
           {error}
         </Alert>
       )}
+
+      {/*
+        * The shelf sits above the installed list, which is the order the comp
+        * puts its two screens in: browse, then manage.
+        */}
+      <AppBrowser
+        onInstall={(app) => {
+          setChosen({ key: app.key, version: app.version, name: app.name });
+          setInstalling(true);
+        }}
+      />
+
+      <InstalledAppsCard
+        onInstall={() => {
+          setChosen(undefined);
+          setInstalling(true);
+        }}
+      />
 
       {data.surfaces.length === 0 ? (
         <Card>
@@ -167,6 +210,8 @@ export function HostedAppsPage() {
             return ok;
           }}
         />
+      )}
+        </>
       )}
     </PageSurface>
   );

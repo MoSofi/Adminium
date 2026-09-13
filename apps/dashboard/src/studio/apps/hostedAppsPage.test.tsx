@@ -107,6 +107,17 @@ function stubFetch(options: StubOptions = {}) {
       return Promise.resolve(jsonResponse(200, options.reply ?? makeReply()));
     }
     // The page reads the connection list too, for the staff binding picker.
+    // The installed-apps card the page now carries (47 step 3). Empty is the
+    // state every assertion below was written against: an instance serving
+    // surfaces from a directory, with nothing installed over the API.
+    // The shelf (47 step 4b) suspends on this. Checked BEFORE `/api/v1/apps`,
+    // which would otherwise swallow it as a prefix.
+    if (url === '/api/v1/apps/catalog' && method === 'GET') {
+      return Promise.resolve(jsonResponse(200, { apps: [] }));
+    }
+    if (url === '/api/v1/apps' && method === 'GET') {
+      return Promise.resolve(jsonResponse(200, { apps: [], staged: [] }));
+    }
     if (url === '/api/v1/connections' && method === 'GET') {
       return Promise.resolve(jsonResponse(200, { connections: options.connections ?? [] }));
     }
