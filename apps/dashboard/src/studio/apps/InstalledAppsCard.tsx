@@ -33,6 +33,7 @@ import { getFormatters } from '@adminium/i18n';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
 import {
+  APP_CATALOG_QUERY_KEY,
   APPS_QUERY_KEY,
   discardStagedApp,
   installedAppsQuery,
@@ -53,7 +54,9 @@ export function InstalledAppsCard({ onInstall }: InstalledAppsCardProps) {
     mutationFn: (staged: { key: string; version: string }) =>
       discardStagedApp(staged.key, staged.version),
     onSuccess: async () => {
+      // The shelf lists what is on disk too, and this package no longer is.
       await queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY });
     },
   });
 
@@ -61,8 +64,11 @@ export function InstalledAppsCard({ onInstall }: InstalledAppsCardProps) {
     mutationFn: (key: string) => uninstallApp(key),
     onSuccess: async () => {
       setConfirming(null);
+      // An uninstall removes the key's package from disk as well
+      // (`store.removeKey`), so the shelf card that offered it goes with it.
       await queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
       await queryClient.invalidateQueries({ queryKey: SURFACES_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY });
     },
   });
 

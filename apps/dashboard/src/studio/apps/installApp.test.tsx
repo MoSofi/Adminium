@@ -25,7 +25,7 @@ import { jsonResponse } from '../../test/fixtures.js';
 import { AppBrowser } from './AppBrowser.js';
 import { InstallAppWizard } from './InstallAppWizard.js';
 import { InstalledAppsCard } from './InstalledAppsCard.js';
-import { ddlPreview, type CatalogApp } from './appsApi.js';
+import { APP_CATALOG_QUERY_KEY, APPS_QUERY_KEY, ddlPreview, type CatalogApp } from './appsApi.js';
 
 const CONNECTION = { id: 'con_1', name: 'Practice', engine: 'postgres', readOnly: false, tableCount: 9 };
 
@@ -155,6 +155,42 @@ describe('the install wizard', () => {
     expect(screen.getByText('/apps/clinic/staff/')).toBeTruthy();
   });
 
+  it('marks the installed list and the shelf stale as soon as a bundle is uploaded', async () => {
+    /*
+     * An upload changes what is on disk, so both lists are out of date the
+     * moment it lands, not only after an install. When only a finished install
+     * said so, cancelling after an upload went back to the lists as they were
+     * before it: a suspense query refetches on remount only once it is a second
+     * old, so a quick Cancel left the staged bundle invisible until a reload.
+     * Every e2e engine hit it (app-install.spec.ts) whenever Cancel landed
+     * inside that second. Asserted on the cache rather than on timing, because
+     * timing is exactly what hid it.
+     */
+    const client = createQueryClient();
+    client.setQueryData(APPS_QUERY_KEY, { apps: [], staged: [] });
+    client.setQueryData(APP_CATALOG_QUERY_KEY, { apps: [] });
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={client}>
+        <InstallAppWizard onClose={() => {}} />
+      </QueryClientProvider>,
+    );
+
+    const file = new File(['pretend-tarball'], 'clinic-1.0.0.tgz', { type: 'application/gzip' });
+    await user.upload(await screen.findByLabelText(/Bundle file/i), file);
+    await user.type(screen.getByLabelText(/App key/i), 'clinic');
+    await user.type(screen.getByLabelText(/^Version/i), '1.0.0');
+    await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
+    expect(client.getQueryState(APPS_QUERY_KEY)?.isInvalidated).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Upload' }));
+    await screen.findByText(/Install into which database/i);
+
+    await waitFor(() => {
+      expect(client.getQueryState(APPS_QUERY_KEY)?.isInvalidated).toBe(true);
+      expect(client.getQueryState(APP_CATALOG_QUERY_KEY)?.isInvalidated).toBe(true);
+    });
+  });
+
   it('sends the operator’s own integrity value rather than one it computed', async () => {
     const user = userEvent.setup();
     renderWizard();
@@ -248,9 +284,11 @@ describe('the installed list', () => {
       ],
       staged: [],
     };
+    const client = createQueryClient();
+    client.setQueryData(APP_CATALOG_QUERY_KEY, { apps: [] });
     const user = userEvent.setup();
     render(
-      <QueryClientProvider client={createQueryClient()}>
+      <QueryClientProvider client={client}>
         <InstalledAppsCard onInstall={() => {}} />
       </QueryClientProvider>,
     );
@@ -278,13 +316,20 @@ describe('the installed list', () => {
         true,
       );
     });
+    // An uninstall also removes the key's package from disk, so the shelf
+    // card that offered it is gone too.
+    await waitFor(() => {
+      expect(client.getQueryState(APP_CATALOG_QUERY_KEY)?.isInvalidated).toBe(true);
+    });
   });
 
   it('discards a bundle that was uploaded and never installed', async () => {
     installed = { apps: [], staged: [{ key: 'clinic', version: '1.0.0' }] };
+    const client = createQueryClient();
+    client.setQueryData(APP_CATALOG_QUERY_KEY, { apps: [] });
     const user = userEvent.setup();
     render(
-      <QueryClientProvider client={createQueryClient()}>
+      <QueryClientProvider client={client}>
         <InstalledAppsCard onInstall={() => {}} />
       </QueryClientProvider>,
     );
@@ -299,6 +344,10 @@ describe('the installed list', () => {
           (call) => call.method === 'DELETE' && call.url === '/api/v1/apps/staged/clinic/1.0.0',
         ),
       ).toBe(true);
+    });
+    // The shelf lists what is on disk, and a discarded package no longer is.
+    await waitFor(() => {
+      expect(client.getQueryState(APP_CATALOG_QUERY_KEY)?.isInvalidated).toBe(true);
     });
   });
 });

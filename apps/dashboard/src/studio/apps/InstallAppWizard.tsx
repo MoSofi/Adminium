@@ -159,6 +159,17 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
       setStaged(next);
       setError(null);
       setStep('database');
+      /*
+       * The bundle is on disk from this moment, whatever the operator does
+       * next, so the installed list (its staged row) and the shelf (its card)
+       * are already out of date. Left to the install, a Cancel went back to the
+       * lists as they were before the upload: a suspense query refetches on
+       * remount only once it is a second old, so the bundle stayed invisible.
+       * Not awaited, so the wizard moves on at once. Nothing observes either
+       * query while it is open, so this marks them stale for the remount.
+       */
+      void queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY });
     },
     onError: (cause: Error) => setError(cause.message),
   });
