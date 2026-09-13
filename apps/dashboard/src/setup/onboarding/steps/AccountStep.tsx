@@ -12,9 +12,17 @@
  *    password and presses Enter has submitted, whatever the DOM thinks.
  *  - **This step is the hinge.** Its submit mints the session everything after
  *    it needs (45 R1), which is why it can never be skipped.
+ *
+ * Both password fields can be unmasked, independently. A person choosing a
+ * password they will have to type again in the next field is exactly who needs
+ * to see it, and checking a mismatch by eye beats discovering it from an error
+ * message. The toggle is an `IconButton`, so it carries an accessible name that
+ * says which way it goes, `aria-pressed`, and `type="button"` — this is a form,
+ * and a reveal that submitted it would be worse than no reveal at all.
  */
-import { FormField, Input, PasswordStrength } from '@adminium/ui';
-import type { KeyboardEvent } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { FormField, IconButton, Input, InputGroup, PasswordStrength } from '@adminium/ui';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { t } from '../../../i18n/t.js';
 import type { AccountErrors, AccountValues } from '../../accountValidation.js';
@@ -35,6 +43,33 @@ export function AccountStep({
   onChange,
   onSubmit,
 }: AccountStepProps) {
+  const [shown, setShown] = useState<{ password: boolean; confirm: boolean }>({
+    password: false,
+    confirm: false,
+  });
+
+  function revealToggle(field: 'password' | 'confirm'): ReactNode {
+    const revealed = shown[field];
+    return (
+      <IconButton
+        size="sm"
+        aria-pressed={revealed}
+        label={
+          revealed
+            ? t('onboarding:account.hidePassword', 'Hide password')
+            : t('onboarding:account.showPassword', 'Show password')
+        }
+        onClick={() => setShown((current) => ({ ...current, [field]: !current[field] }))}
+      >
+        {revealed ? (
+          <EyeOff aria-hidden="true" className="size-3.5" />
+        ) : (
+          <Eye aria-hidden="true" className="size-3.5" />
+        )}
+      </IconButton>
+    );
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLFormElement>): void {
     if (event.key !== 'Enter' || event.shiftKey) return;
     event.preventDefault();
@@ -84,9 +119,10 @@ export function AccountStep({
             }
           : { error: errors.password })}
       >
-        <Input
-          type="password"
+        <InputGroup
+          type={shown.password ? 'text' : 'password'}
           autoComplete="new-password"
+          trailing={revealToggle('password')}
           value={values.password}
           onChange={(event) => onChange({ ...values, password: event.target.value })}
         />
@@ -110,9 +146,10 @@ export function AccountStep({
         required
         {...(errors.confirm === undefined ? {} : { error: errors.confirm })}
       >
-        <Input
-          type="password"
+        <InputGroup
+          type={shown.confirm ? 'text' : 'password'}
           autoComplete="new-password"
+          trailing={revealToggle('confirm')}
           value={values.confirm}
           onChange={(event) => onChange({ ...values, confirm: event.target.value })}
         />

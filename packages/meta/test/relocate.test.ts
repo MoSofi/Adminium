@@ -17,6 +17,8 @@ import {
   MetaStoreNotEmptyError,
   applyMigrations,
   assertMetaStoreEmpty,
+  parkAdminiumTables,
+  probeAdminiumTables,
   connectionsRepo,
   copyMetaStore,
   countMetaRows,
@@ -252,4 +254,116 @@ async function seed2(meta: MetaDb): Promise<{
     userId: user?.id as string,
     connectionId: connections[0]?.id as string,
   };
+}
+
+/**
+ * `probeAdminiumTables` answers the same question as `assertMetaStoreEmpty`
+ * WITHOUT writing (45-T11): a first-run wizard has to ask it of a database the
+ * operator has only typed a string for, and migrating that database to find out
+ * would be the write the question exists to avoid.
+ */
+for (const dialect of available) {
+  describe(`probeAdminiumTables [${dialect.name}]`, () => {
+    let db: TestDb;
+    beforeEach(async () => {
+      db = await dialect.make();
+    });
+    afterEach(async () => {
+      await db.destroy();
+    });
+
+    it('finds nothing in a database Adminium has never touched — and migrates nothing', async () => {
+      await expect(probeAdminiumTables(db.meta)).resolves.toEqual({ present: [], occupied: [] });
+      // The point of the whole helper: asking did not create the tables.
+      await expect(probeAdminiumTables(db.meta)).resolves.toEqual({ present: [], occupied: [] });
+    });
+
+    it('reports migrated-but-empty tables as present and unoccupied', async () => {
+      await applyMigrations(db.meta.db, { dialect: db.meta.dialect });
+      const probe = await probeAdminiumTables(db.meta);
+      expect(probe.present.length).toBeGreaterThan(0);
+      expect(probe.present).toContain('adminium_users');
+      // Empty tables are what a relocation happily writes into, so they are not
+      // an obstacle and must not be reported as one — INCLUDING the migration
+      // ledger, which has rows the moment the schema exists and which a
+      // relocation skips for exactly that reason.
+      expect(probe.present).toContain('adminium_migrations');
+      expect(probe.occupied).toEqual([]);
+      await expect(assertMetaStoreEmpty(db.meta)).resolves.toBeUndefined();
+    });
+
+    it('reports the tables that actually hold rows — the ones a relocation refuses over', async () => {
+      await applyMigrations(db.meta.db, { dialect: db.meta.dialect });
+      await seed(db.meta);
+      const probe = await probeAdminiumTables(db.meta);
+      expect(probe.occupied.length).toBeGreaterThan(0);
+      expect(probe.occupied.every((table) => probe.present.includes(table))).toBe(true);
+      await expect(assertMetaStoreEmpty(db.meta)).rejects.toThrow(MetaStoreNotEmptyError);
+    });
+  });
+}
+
+/**
+ * Parking (45-T11): the second answer offered to someone whose target database
+ * already runs an Adminium — keep what is there, and start beside it.
+ */
+for (const dialect of available) {
+  describe(`parkAdminiumTables [${dialect.name}]`, () => {
+    let db: TestDb;
+    beforeEach(async () => {
+      db = await dialect.make();
+      await applyMigrations(db.meta.db, { dialect: db.meta.dialect });
+      await seed(db.meta);
+    });
+    afterEach(async () => {
+      await db.destroy();
+    });
+
+    it('leaves the database empty by the only definition that matters', async () => {
+      const before = await probeAdminiumTables(db.meta);
+      expect(before.occupied.length).toBeGreaterThan(0);
+
+      await parkAdminiumTables(db.meta, '20260910');
+
+      const after = await probeAdminiumTables(db.meta);
+      expect(after.present).toEqual([]);
+      expect(after.occupied).toEqual([]);
+      // `assertMetaStoreEmpty` counts rows in tables it assumes EXIST, so it is
+      // only askable after the schema is rebuilt — which is exactly the order
+      // `relocateMetaStore` runs these in: park, migrate, then check.
+      await applyMigrations(db.meta.db, { dialect: db.meta.dialect });
+      await expect(assertMetaStoreEmpty(db.meta)).resolves.toBeUndefined();
+    });
+
+    it('keeps every row — this is a rename, not a drop', async () => {
+      const users = await db.meta.db.selectFrom('adminium_users').selectAll().execute();
+      expect(users.length).toBeGreaterThan(0);
+
+      const { renamed } = await parkAdminiumTables(db.meta, '20260910');
+      expect(renamed.some((entry) => entry.to === 'old_20260910_adminium_users')).toBe(true);
+
+      const parked = await db.meta.db
+        .selectFrom('old_20260910_adminium_users' as never)
+        .selectAll()
+        .execute();
+      expect(parked).toHaveLength(users.length);
+    });
+
+    it('takes the parked names OUT of the adminium_ namespace', async () => {
+      // Suffixing would leave `adminium_users_old_…`, which the probe — and so
+      // the emptiness check, and so the relocation — still reads as occupied.
+      const { renamed } = await parkAdminiumTables(db.meta, '20260910');
+      expect(renamed.every((entry) => !entry.to.startsWith('adminium_'))).toBe(true);
+    });
+
+    it('moves the migration ledger too, or the next migrate would create nothing', async () => {
+      const { renamed } = await parkAdminiumTables(db.meta, '20260910');
+      expect(renamed.map((entry) => entry.from)).toContain('adminium_migrations');
+      // The proof: a fresh migration run rebuilds the whole schema beside it.
+      await applyMigrations(db.meta.db, { dialect: db.meta.dialect });
+      const rebuilt = await probeAdminiumTables(db.meta);
+      expect(rebuilt.present).toContain('adminium_users');
+      expect(rebuilt.occupied).toEqual([]);
+    });
+  });
 }

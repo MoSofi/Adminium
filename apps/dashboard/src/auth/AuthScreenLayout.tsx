@@ -12,7 +12,8 @@ import { t } from '../i18n/t.js';
 import { BrandMark } from '../shell/BrandMark.js';
 import { useDocumentPageTitle } from '../shell/documentTitle.js';
 
-export function ThemeToggleButton() {
+/** `className` lets a screen give the corner control the geometry its comp draws. */
+export function ThemeToggleButton({ className }: { className?: string | undefined } = {}) {
   const resolved = useTheme();
   const { setPref } = useThemePrefs();
   const dark = resolved.theme === 'dark';
@@ -20,6 +21,7 @@ export function ThemeToggleButton() {
     <IconButton
       variant="bordered"
       size="lg"
+      {...(className === undefined ? {} : { className })}
       label={
           dark
             ? t('theme.toLight', 'Light mode')

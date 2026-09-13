@@ -51,6 +51,8 @@ function renderStep(props: Partial<React.ComponentProps<typeof StorageStep>> = {
       onSeparateTested={() => undefined}
       placement={EMBEDDED}
       connection={WRITABLE}
+      existing={null}
+      park={false}
       relocating={null}
       {...props}
     />,
@@ -134,5 +136,27 @@ describe('while it moves', () => {
     expect(screen.getByText(/Copying Adminium’s data across/)).toBeDefined();
     renderStep({ value: 'same-db', relocating: 'restarting' });
     expect(screen.getByText(/Restarting onto the new database/)).toBeDefined();
+  });
+});
+
+describe('when that database already runs an Adminium (45-T11)', () => {
+  const existing = { occupied: ['adminium_users', 'adminium_sessions'], secretMatches: true };
+
+  it('blocks the card, and says where the decision is made', () => {
+    // The failure this replaces came two screens later, from the relocation.
+    expect(sameDbBlockedReason(WRITABLE, existing, false)).toContain('already holds an Adminium');
+    renderStep({ existing });
+    const card = screen.getByRole('radio', { name: /In the database you just connected/ });
+    expect(card.getAttribute('data-disabled') ?? card.getAttribute('disabled')).not.toBeNull();
+  });
+
+  it('opens the card once the operator chose to keep those tables', () => {
+    expect(sameDbBlockedReason(WRITABLE, existing, true)).toBeNull();
+    renderStep({ existing, park: true });
+    expect(screen.getByText(/renamed out of the way first/)).toBeDefined();
+  });
+
+  it('says nothing when the probe found only empty husks', () => {
+    expect(sameDbBlockedReason(WRITABLE, { occupied: [], secretMatches: null }, false)).toBeNull();
   });
 });

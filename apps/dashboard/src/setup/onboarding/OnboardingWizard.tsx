@@ -16,9 +16,9 @@
  * rule (the product name alone: at first run there is nothing to tell apart)
  * and the same theme control, in the corner the comp draws it in.
  */
-import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Alert, Button, ProgressBar, Stepper } from '@adminium/ui';
+import { Alert, Button, cn, ProgressBar } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import { BrandMark } from '../../shell/BrandMark.js';
@@ -86,34 +86,76 @@ export function OnboardingWizard({
         loses the step LIST without ever losing where it is. A second progress
         bar down here would only put two of them in the accessibility tree.
       */}
-      <div className="hidden w-[300px] shrink-0 flex-col border-e border-border bg-surface px-7 py-8 md:flex">
-        <BrandMark className="mb-9" />
+      <div className="hidden w-[300px] shrink-0 flex-col border-e border-border bg-surface px-7 py-[34px] md:flex">
+        <BrandMark className="mb-[38px] gap-[11px]" />
 
-        <Stepper
-          orientation="vertical"
-          label={t('onboarding:progressLabel', 'Setup progress')}
-          activeIndex={index}
-          steps={defs.map((entry) => ({
-            id: entry.id,
-            label: entry.label,
-            description: entry.description,
-          }))}
-          {...(onStepSelect === undefined || busy
-            ? {}
-            : {
-                onStepClick: (clicked: number) => {
-                  const target = defs[clicked];
-                  if (target !== undefined) onStepSelect(target.id);
-                },
-              })}
-        />
+        {/*
+          The rail, drawn to the comp (34-45): 30px dots, a 13px label over an
+          11px second line, 2px between rows. `<ol>` + `aria-current="step"` is
+          the kit `Stepper`'s contract, kept — what is not kept is its geometry,
+          which is a header stepper's and half a size down from this.
+        */}
+        <ol
+          aria-label={t('onboarding:progressLabel', 'Setup progress')}
+          className="flex flex-col gap-0.5"
+        >
+          {defs.map((entry, position) => {
+            const done = position < index;
+            const current = position === index;
+            const selectable = onStepSelect !== undefined && !busy && (done || current);
+            const body = (
+              <>
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'flex size-[30px] shrink-0 items-center justify-center rounded-full text-[12.5px] font-bold',
+                    done
+                      ? 'bg-accent text-accent-fg'
+                      : current
+                        ? 'border-[1.5px] border-accent bg-accent-soft text-accent'
+                        : 'bg-surface-3 text-fg-subtle',
+                  )}
+                >
+                  {done ? <Check className="size-3.5 stroke-[2.5]" /> : position + 1}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span
+                    className={cn(
+                      'truncate text-[13px]',
+                      current ? 'font-bold text-fg' : done ? 'font-semibold text-fg' : 'font-semibold text-fg-muted',
+                    )}
+                  >
+                    {entry.label}
+                  </span>
+                  <span className="truncate text-[11px] text-fg-subtle">{entry.description}</span>
+                </span>
+              </>
+            );
+            return (
+              <li key={entry.id} {...(current ? { 'aria-current': 'step' as const } : {})}>
+                {selectable ? (
+                  <button
+                    type="button"
+                    onClick={() => onStepSelect(entry.id)}
+                    className="flex w-full cursor-pointer items-center gap-[13px] rounded-[10px] px-2 py-[11px] text-start transition-colors hover:bg-surface-2"
+                  >
+                    {body}
+                  </button>
+                ) : (
+                  <div className="flex w-full items-center gap-[13px] px-2 py-[11px]">{body}</div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
 
         <div className="mt-auto flex flex-col gap-2 pt-6">
           <ProgressBar
+            className="h-1.5"
             value={percent}
             label={t('onboarding:progressLabel', 'Setup progress')}
           />
-          <span className="text-caption text-fg-subtle">
+          <span className="text-[11.5px] text-fg-subtle">
             {t('onboarding:progressComplete', '{percent}% complete', { percent })}
           </span>
         </div>
@@ -121,7 +163,7 @@ export function OnboardingWizard({
 
       <div className="relative flex min-w-0 flex-1 flex-col">
         <div className="absolute end-6 top-6 z-[2]">
-          <ThemeToggleButton />
+          <ThemeToggleButton className="size-[38px] rounded-[10px] [&_svg]:size-[17px]" />
         </div>
 
         <div className="flex flex-1 items-center justify-center overflow-auto p-10">
@@ -130,31 +172,51 @@ export function OnboardingWizard({
             key={step}
             className="w-full max-w-[560px] animate-[nb-fade_.3s_cubic-bezier(.2,.7,.3,1)]"
           >
-            <p className="text-micro uppercase text-accent">{def.kicker}</p>
-            <h1 className="mt-2 text-title text-fg">{def.title}</h1>
+            <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.06em] text-accent">
+              {def.kicker}
+            </p>
+            <h1 className="text-[26px] font-extrabold tracking-[-0.02em] text-fg">{def.title}</h1>
             {def.body === '' ? null : (
-              <p className="mt-1.5 text-body leading-[1.55] text-fg-muted">{def.body}</p>
+              <p className="mt-1.5 text-[14px] leading-[1.55] text-fg-muted">{def.body}</p>
             )}
 
             {error === null || error === undefined ? null : (
               <Alert className="mt-5" tone="danger" role="alert" title={error} />
             )}
 
-            <div className="mt-6">{children}</div>
+            <div className="mt-[26px]">{children}</div>
 
             <div className="mt-8 flex items-center gap-3">
               {stepBefore(step) === null ? null : (
-                <Button variant="outline" size="lg" onClick={onBack} disabled={busy}>
+                <Button
+                  variant="outline"
+                  className="h-auto rounded-[11px] px-5 py-3 text-[13.5px] font-bold"
+                  onClick={onBack}
+                  disabled={busy}
+                >
                   {t('onboarding:back', 'Back')}
                 </Button>
               )}
               <div className="ms-auto flex items-center gap-3">
                 {def.skippable ? (
-                  <Button variant="ghost" size="lg" onClick={onSkip} disabled={busy}>
+                  <Button
+                    variant="ghost"
+                    className="h-auto px-1 py-0 text-[13px] font-bold text-fg-muted"
+                    onClick={onSkip}
+                    disabled={busy}
+                  >
                     {t('onboarding:skip', 'Skip')}
                   </Button>
                 ) : null}
-                <Button size="lg" onClick={onNext} loading={busy} disabled={nextDisabled}>
+                <Button
+                  className={cn(
+                    'h-auto gap-[7px] rounded-[11px] px-[22px] py-3 text-[13.5px] font-bold',
+                    'shadow-[0_2px_10px_color-mix(in_srgb,var(--color-accent)_40%,transparent)]',
+                  )}
+                  onClick={onNext}
+                  loading={busy}
+                  disabled={nextDisabled}
+                >
                   {nextLabel ??
                     (last
                       ? t('onboarding:finish', 'Go to dashboard')

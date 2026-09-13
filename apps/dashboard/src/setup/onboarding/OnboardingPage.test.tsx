@@ -53,13 +53,20 @@ beforeAll(() => {
   restoreI18n = installTestI18n();
   // Hermetic: once the account exists the page asks where the meta store is,
   // and an unstubbed test would open a real socket to answer it.
-  globalThis.fetch = vi.fn(async (input: unknown) =>
-    String(input).includes('/api/v1/meta/placement')
-      ? jsonResponse(200, {
-          data: { source: 'embedded', engine: 'sqlite', embedded: true, canRelocate: true },
-        })
-      : jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'no', requestId: 'req_x' } }),
-  ) as typeof globalThis.fetch;
+  globalThis.fetch = vi.fn(async (input: unknown) => {
+    const url = String(input);
+    if (url.includes('/api/v1/meta/placement')) {
+      return jsonResponse(200, {
+        data: { source: 'embedded', engine: 'sqlite', embedded: true, canRelocate: true },
+      });
+    }
+    if (url.includes('/api/v1/setup/probe')) {
+      return jsonResponse(200, {
+        data: { reachable: true, reason: null, tables: [], occupied: [], secretMatches: null },
+      });
+    }
+    return jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'no', requestId: 'req_x' } });
+  }) as typeof globalThis.fetch;
 });
 afterAll(() => {
   restoreI18n();
@@ -121,6 +128,33 @@ describe('the walk', () => {
   });
 });
 
+describe('the check on the connection string', () => {
+  it('holds Continue until it has an answer — Skip stays open', async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
+    await userEvent.type(screen.getByLabelText('Connection string'), 'postgres://u@h:5432/db');
+
+    // The probe is debounced and then in flight; pressing Continue in that
+    // window is exactly how the panel used to appear a screen too late.
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: /Continue/ }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Skip' }).disabled).toBe(false);
+
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: /Continue/ }).disabled).toBe(false);
+    });
+    // And the answer is on THIS screen, before the account is asked for.
+    expect(screen.getByRole('heading', { name: 'Connect your database' })).toBeDefined();
+  });
+
+  it('does not wait on a string that is not a DSN yet', async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
+    await userEvent.type(screen.getByLabelText('Connection string'), 'postgres://');
+    // Nothing to ask about: the shape error is the answer.
+    expect(screen.getByText(/Add the host and database/)).toBeDefined();
+  });
+});
+
 describe('the account submit', () => {
   it('validates before it sends anything', async () => {
     renderPage();
@@ -174,6 +208,43 @@ describe('the account submit', () => {
     const alert = screen.getByRole('alert').textContent ?? '';
     expect(alert).toContain('signed in');
     expect(alert).toContain('password authentication failed');
+  });
+});
+
+describe('the retry after a database that would not answer', () => {
+  it('lands the connection without creating the account twice', async () => {
+    submit.mockResolvedValue({ kind: 'connection-failed', cause: { message: 'password authentication failed' } });
+    renderPage();
+    await walkToAccount();
+    await fillAccount();
+    await userEvent.click(screen.getByRole('button', { name: /Create account/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Connect your database' })).toBeDefined();
+    });
+
+    // Fix the string and go on. A second `createSuperAdmin` would 409 against
+    // the instance's own new admin and strand the operator in the wizard.
+    submit.mockResolvedValue({ kind: 'ok', connection: null });
+    await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Where Adminium keeps its own data' })).toBeDefined();
+    });
+    expect(submit).toHaveBeenLastCalledWith(expect.objectContaining({ accountExists: true }));
+  });
+
+  it('does not walk back into the account step, whichever way you ask', async () => {
+    submit.mockResolvedValue({ kind: 'connection-failed', cause: { message: 'nope' } });
+    renderPage();
+    await walkToAccount();
+    await fillAccount();
+    await userEvent.click(screen.getByRole('button', { name: /Create account/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Connect your database' })).toBeDefined();
+    });
+    // Skipping the connect step means "no database" — and must still not send
+    // the operator to a screen whose only button would 409.
+    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(screen.getByRole('heading', { name: 'Where Adminium keeps its own data' })).toBeDefined();
   });
 });
 
@@ -240,6 +311,10 @@ describe('finishing', () => {
     await userEvent.click(screen.getByRole('radio', { name: /CRUD tables/ }));
     await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
     await userEvent.type(screen.getByLabelText('Connection string'), 'postgres://u@h:5432/shop');
+    // Continue waits for the check now — this used to walk straight past it.
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: /Continue/ }).disabled).toBe(false);
+    });
     await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
     submit.mockResolvedValue({
       kind: 'ok',

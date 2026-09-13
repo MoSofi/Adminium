@@ -34,6 +34,8 @@ const ACCOUNT = {
   password: 'first-run-password',
 };
 const TEAMMATE = 'mate@adminium.local';
+/** Parses, points at nothing: port 1 on loopback answers no one. */
+const UNREACHABLE_DSN = 'postgres://nobody@127.0.0.1:1/nothing';
 
 interface Sweep {
   states: number;
@@ -95,6 +97,16 @@ test.describe('first run', () => {
 
     const tally: Sweep = { states: 0, minor: 0, failures: [] };
 
+    // The setup-only probe (45-T11), on a database Adminium has never touched:
+    // open while setup is, honest about finding nothing, and it writes nothing —
+    // the walk below relocates into this same database and would fail if the
+    // probe had migrated it.
+    const clean = await page.request.post('/api/v1/setup/probe', {
+      data: { dsn: enrichWizardDsn() },
+    });
+    expect(clean.status(), await clean.text()).toBe(200);
+    expect(((await clean.json()) as { data: { occupied: string[] } }).data.occupied).toEqual([]);
+
     // ── 1. what will you build first ────────────────────────────────────────
     await page.goto('/');
     await expect(page).toHaveURL(/\/setup$/);
@@ -109,7 +121,11 @@ test.describe('first run', () => {
     // ── 2. connect ──────────────────────────────────────────────────────────
     await expect(page.getByRole('heading', { name: 'Connect your database' })).toBeVisible();
     await expect(page.getByText(/Nothing leaves this browser until your account exists/)).toBeVisible();
-    await page.getByLabel('Connection string').fill(enrichWizardDsn());
+    // A well-formed DSN that will not answer. The walk goes through the failure
+    // path FIRST because that is the state the R1 ordering has to make
+    // recoverable: the account is created, the database is not reached, and the
+    // wizard must let you fix the string without asking for the account again.
+    await page.getByLabel('Connection string').fill(UNREACHABLE_DSN);
     await sweepBothThemes(page, 'connect', tally, testInfo);
     await page.getByRole('button', { name: /Continue/ }).click();
 
@@ -121,6 +137,20 @@ test.describe('first run', () => {
     await page.getByLabel(/^Confirm password/).fill(ACCOUNT.password);
     await sweepBothThemes(page, 'account', tally, testInfo);
     await page.getByRole('button', { name: /Create account/ }).click();
+
+    // ── the failure path, and back out of it ────────────────────────────────
+    // The account was created; the database was not reached. Both facts are on
+    // screen, and the way forward is to fix the string — not to answer for the
+    // account a second time, which would 409 against the admin just created.
+    await expect(page.getByRole('heading', { name: 'Connect your database' })).toBeVisible({
+      timeout: 30_000,
+    });
+    const recovery = page.getByRole('alert');
+    await expect(recovery).toContainText('signed in');
+    await sweepBothThemes(page, 'connect-failed', tally, testInfo);
+
+    await page.getByLabel('Connection string').fill(enrichWizardDsn());
+    await page.getByRole('button', { name: /Continue/ }).click();
 
     // ── 4. where Adminium keeps its own data ────────────────────────────────
     await expect(page.getByRole('heading', { name: 'Where Adminium keeps its own data' })).toBeVisible({
@@ -174,5 +204,24 @@ test.describe('first run', () => {
     // The instance now has an admin, so the guard sends `/setup` to `/login`.
     await page.goto('/setup');
     await expect(page).toHaveURL(/\/login$/);
+  });
+
+  test('the setup-only database routes close with the window (45-T11)', async ({ page }) => {
+    // The whole safety argument for asking a database question before there is
+    // a session: the window shuts on the first account and never re-opens. An
+    // un-bootstrapped instance is briefly usable to ask about a DSN; a running
+    // one is not, to anyone.
+    const probe = await page.request.post('/api/v1/setup/probe', { data: { dsn: enrichWizardDsn() } });
+    expect(probe.status(), await probe.text()).toBe(409);
+
+    // `/setup/adopt` is not even MOUNTED here, and that is its own guarantee:
+    // it is registered only where something can carry out the restart it ends
+    // in (`compose.ts` passes `onMetaRelocated` only from the CLI's relocation
+    // host). This harness composes the server directly, so adopting — which
+    // would repoint the instance and then have no way to come back — cannot be
+    // reached at all. The shared gate is proven by the probe above; both routes
+    // call it.
+    const adopt = await page.request.post('/api/v1/setup/adopt', { data: { dsn: enrichWizardDsn() } });
+    expect(adopt.status(), await adopt.text()).toBe(404);
   });
 });

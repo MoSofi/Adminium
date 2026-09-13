@@ -108,18 +108,28 @@ export async function submitHeldAnswers(
     account: AccountValues;
     consent: SetupConsent;
     held: HeldAnswers;
+    /**
+     * The account is already there — this is the RETRY after a
+     * `connection-failed`, where the DSN was fixed and the account never was
+     * the problem. Creating it again would 409 against the instance's own new
+     * admin and strand the person inside the wizard, which is the shape the
+     * recovery path exists to avoid.
+     */
+    accountExists?: boolean | undefined;
   },
   deps: SubmitDeps = REAL_DEPS,
 ): Promise<SubmitOutcome> {
-  try {
-    await deps.createSuperAdmin({
-      email: input.account.email.trim(),
-      password: input.account.password,
-      name: input.account.name.trim(),
-      consent: input.consent,
-    });
-  } catch (cause) {
-    return { kind: 'account-failed', cause };
+  if (input.accountExists !== true) {
+    try {
+      await deps.createSuperAdmin({
+        email: input.account.email.trim(),
+        password: input.account.password,
+        name: input.account.name.trim(),
+        consent: input.consent,
+      });
+    } catch (cause) {
+      return { kind: 'account-failed', cause };
+    }
   }
 
   const dsn = input.held.dsn.trim();

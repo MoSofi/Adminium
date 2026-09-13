@@ -182,6 +182,7 @@ export function metaRoutes(deps: MetaRoutesDeps): FastifyPluginAsyncZod {
             secret: env.ADMINIUM_SECRET,
             dataDir: env.ADMINIUM_DATA_DIR,
             envMetaUrl: env.ADMINIUM_META_URL,
+            ...(request.body.park === true ? { park: true } : {}),
           });
         } catch (error) {
           throw asAppError(error);

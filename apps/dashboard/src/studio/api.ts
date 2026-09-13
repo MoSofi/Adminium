@@ -279,8 +279,18 @@ export const studioApi = {
    * promise means "the copy committed", not "the server is back" — follow it
    * with {@link waitForRestart}.
    */
-  relocateMeta: async (dsn: string): Promise<MetaRelocated> =>
-    (await api.post<{ data: MetaRelocated }>('/api/v1/meta/relocate', { dsn })).data,
+  /**
+   * `park` renames the target's existing `adminium_` tables out of the way
+   * instead of refusing (45-T11). Only the first-run wizard sets it, and only
+   * after telling the operator which tables are there.
+   */
+  relocateMeta: async (dsn: string, opts: { park?: boolean } = {}): Promise<MetaRelocated> =>
+    (
+      await api.post<{ data: MetaRelocated }>('/api/v1/meta/relocate', {
+        dsn,
+        ...(opts.park === true ? { park: true } : {}),
+      })
+    ).data,
 };
 
 /**

@@ -42,6 +42,14 @@ export const metaRelocateBody = z
      * to keep in sync.
      */
     dsn: z.string().min(1).max(4096),
+    /**
+     * Rename the target's existing `adminium_` tables out of the way instead of
+     * refusing (45-onboarding.md 45-T11). Off by default: merging two stores is
+     * not something this can do, and silently moving somebody's tables would be
+     * a worse answer than the refusal. The first-run wizard sets it only after
+     * telling the operator exactly which tables are there.
+     */
+    park: z.boolean().optional(),
   })
   // `.strict()` like the other credential-bearing bodies: an unknown key beside
   // a DSN should be a rejection, not something silently dropped.

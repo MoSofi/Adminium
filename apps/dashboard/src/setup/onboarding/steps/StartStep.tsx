@@ -15,7 +15,10 @@
  * may read one of its keys without dragging it into the first-run chunk.
  *
  * No heading: the shell already renders the step's title and description above
- * this body, exactly as the comp lays it out.
+ * this body, exactly as the comp lays it out — and the cards are the comp's own
+ * `optCard`/`optIcon` geometry (`RadioCard layout="tile"`): 15px padding, a 13px
+ * radius, a 40px icon tile that fills with the accent when chosen, and no check
+ * indicator, because the comp shows selection with the border and the fill.
  */
 import { BarChart3, Headset, LayoutDashboard, SquareDashed, Table2 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -93,11 +96,13 @@ export function StartStep({ value, onChange }: StartStepProps) {
       aria-label={t('onboarding:start.title', 'What will you build first?')}
       value={value}
       onValueChange={(next) => onChange(next as OnboardingStart)}
-      className="grid gap-2.5 sm:grid-cols-2"
+      className="grid gap-3 sm:grid-cols-2"
     >
       {options.map((option) => (
         <RadioCard
           key={option.value}
+          layout="tile"
+          hideIndicator
           value={option.value}
           title={option.title}
           description={option.description}

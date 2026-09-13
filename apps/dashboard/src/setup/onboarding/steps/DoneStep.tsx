@@ -95,11 +95,12 @@ export function DoneStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-center gap-4 text-center">
-        <span className="flex size-16 items-center justify-center rounded-[18px] bg-pos-soft text-pos">
+      <div className="flex flex-col items-center text-center">
+        {/* The comp's hero (84): a 64px tile, 18px radius, 18px beneath it. */}
+        <span className="mb-[18px] flex size-16 items-center justify-center rounded-[18px] bg-pos-soft text-pos">
           <PartyPopper className="size-8" />
         </span>
-        <p className="max-w-[40ch] text-body text-fg-muted">
+        <p className="max-w-[40ch] text-[15px] leading-[1.6] text-fg-muted">
           {generating
             ? t(
                 'onboarding:done.next.generate',
@@ -114,7 +115,7 @@ export function DoneStep({
 
       <ul className="flex flex-col gap-2">
         {lines.map((line) => (
-          <li key={line} className="flex items-start gap-2 text-body-sm text-fg-muted">
+          <li key={line} className="flex items-start gap-2 text-[13px] text-fg-muted">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-pos" aria-hidden="true" />
             <span>{line}</span>
           </li>

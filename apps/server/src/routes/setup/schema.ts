@@ -71,3 +71,68 @@ export const setupSuperAdminReply = z.object({
   data: z.object({ user: authUserView, csrfToken: z.string() }),
 });
 export type SetupSuperAdminReply = z.infer<typeof setupSuperAdminReply>;
+
+/**
+ * `POST /setup/probe` — does this database already hold an Adminium instance?
+ *
+ * The wizard asks BEFORE it asks for a password (45-onboarding.md 45-T11), so
+ * a person who points a second install at a database that already runs one is
+ * told while they can still change their mind, rather than after an account
+ * exists and a relocation has failed.
+ *
+ * Narrow on purpose: it takes a DSN and answers about `adminium_` tables only.
+ * It reports no row counts, no schema, no server version — nothing an
+ * un-bootstrapped instance should be usable to learn about a database.
+ */
+export const setupProbeBody = z
+  .object({
+    dsn: z.string().trim().min(1).max(2000),
+  })
+  .strict();
+export type SetupProbeBody = z.infer<typeof setupProbeBody>;
+
+export const setupProbeReply = z.object({
+  data: z.object({
+    /** False ⇒ nothing else here is meaningful; `reason` says why. */
+    reachable: z.boolean(),
+    /** Why it could not be reached, in the operator's terms. */
+    reason: z.string().nullable(),
+    /** Physical `adminium_` tables found, sorted. Empty on a clean database. */
+    tables: z.array(z.string()),
+    /**
+     * The subset holding rows — what a relocation actually refuses over. Empty
+     * tables from an abandoned attempt are not an obstacle.
+     */
+    occupied: z.array(z.string()),
+    /**
+     * Whether THIS instance's `ADMINIUM_SECRET` can read what that store
+     * encrypted. `null` when the store holds nothing encrypted to test.
+     * Adopting a store under a different secret still signs you in — password
+     * hashes are not encrypted — but its saved connection strings are lost.
+     */
+    secretMatches: z.boolean().nullable(),
+  }),
+});
+export type SetupProbeReply = z.infer<typeof setupProbeReply>;
+
+/**
+ * `POST /setup/adopt` — point this instance at an Adminium store that already
+ * exists, instead of creating a second one beside it.
+ *
+ * Writes the §7.2 bootstrap file and restarts onto the named store; the reply
+ * is the health path to wait on, exactly as `/meta/relocate` answers. Nothing
+ * is copied and nothing is dropped — the local store this instance booted on
+ * is left on disk, and the wizard sends the operator to `/login`, where their
+ * existing account is.
+ */
+export const setupAdoptBody = setupProbeBody;
+export type SetupAdoptBody = z.infer<typeof setupAdoptBody>;
+
+export const setupAdoptReply = z.object({
+  data: z.object({
+    engine: z.string(),
+    restarting: z.boolean(),
+    healthPath: z.string(),
+  }),
+});
+export type SetupAdoptReply = z.infer<typeof setupAdoptReply>;

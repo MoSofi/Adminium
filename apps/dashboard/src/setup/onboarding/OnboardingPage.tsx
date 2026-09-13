@@ -16,7 +16,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
@@ -27,6 +27,7 @@ import {
   saveWizardState,
 } from '../../studio/connect/wizardState.js';
 import { setTelemetry } from '../../about/desktopAbout.js';
+import { adoptStore, probeStore } from '../setupApi.js';
 import {
   EMPTY_ACCOUNT,
   validateAccount,
@@ -46,6 +47,9 @@ import { DEFAULT_HELD_ANSWERS, type HeldAnswers } from './heldAnswers.js';
 import { submitHeldAnswers, type LandedConnection } from './submitHeldAnswers.js';
 import { stepAfter, stepBefore, type OnboardingStepId } from './wizardState.js';
 
+/** Long enough that typing a DSN is one probe, short enough that waiting on it is cheap. */
+const PROBE_DEBOUNCE_MS = 400;
+
 /** Both OFF — the wizard never pre-checks a consent (`TelemetryConsent`). */
 const NO_CONSENT: SetupConsent = { telemetry: false, updateCheck: false };
 
@@ -62,6 +66,11 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
   const [consent, setConsent] = useState<SetupConsent>(NO_CONSENT);
   const [invited, setInvited] = useState<readonly InvitedPerson[]>([]);
   const [connection, setConnection] = useState<LandedConnection | null>(null);
+  /**
+   * The account exists. Set on BOTH outcomes that create one — including the
+   * failure, where the connection is what did not take.
+   */
+  const [accountCreated, setAccountCreated] = useState(false);
   /** Everything after step 3 runs signed in; before it, nothing has been sent. */
   const signedIn = connection !== null || step === 'meta' || step === 'team' || step === 'done';
   const [busy, setBusy] = useState(false);
@@ -70,6 +79,67 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
   const [separateDsn, setSeparateDsn] = useState('');
   const [separateTested, setSeparateTested] = useState(false);
   const [relocating, setRelocating] = useState<'copying' | 'restarting' | null>(null);
+  const [adopting, setAdopting] = useState<'writing' | 'restarting' | null>(null);
+
+  /**
+   * Ask what is already in the database the connect step was given (45-T11).
+   *
+   * Debounced and fire-and-forget: it runs while someone is still typing, its
+   * answer only ever ADDS a choice, and a probe that fails leaves the wizard
+   * exactly as it was — the DSN is tested for real at the step-3 transition
+   * either way. Keyed on the trimmed string, so re-typing the same DSN does not
+   * re-ask and every edit invalidates the previous answer.
+   */
+  const inFlight = useRef<string | null>(null);
+  useEffect(() => {
+    const dsn = held.dsn.trim();
+    if (step !== 'connect' || dsn === '' || connectDsnError(dsn) !== null) return;
+    if (held.probedDsn === dsn || inFlight.current === dsn) return;
+    const timer = window.setTimeout(() => {
+      inFlight.current = dsn;
+      void probeStore(dsn)
+        .then((probe) => {
+          setHeld((current) =>
+            current.dsn.trim() !== dsn
+              ? current // a later keystroke moved on while this was in flight
+              : {
+                  ...current,
+                  existing:
+                    probe.reachable && probe.occupied.length > 0
+                      ? { occupied: probe.occupied, secretMatches: probe.secretMatches }
+                      : null,
+                  probedDsn: dsn,
+                  park: false,
+                },
+          );
+        })
+        .catch(() => {
+          // A probe that cannot answer must not hold the wizard: record the
+          // question as asked, say nothing, and let the step-3 transition test
+          // the DSN properly. Blocking Continue on a failed probe would make an
+          // advisory check into a gate on something it cannot see.
+          setHeld((current) =>
+            current.dsn.trim() === dsn ? { ...current, existing: null, probedDsn: dsn } : current,
+          );
+        })
+        .finally(() => {
+          if (inFlight.current === dsn) inFlight.current = null;
+        });
+    }, PROBE_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [step, held.dsn, held.probedDsn]);
+
+  /**
+   * A DSN worth asking about, whose answer has not arrived. Covers the debounce
+   * window as well as the request, because both are time in which pressing
+   * Continue would out-run the check.
+   */
+  const dsnTrimmed = held.dsn.trim();
+  const probing =
+    step === 'connect' &&
+    dsnTrimmed !== '' &&
+    connectDsnError(dsnTrimmed) === null &&
+    held.probedDsn !== dsnTrimmed;
 
   /**
    * Where the meta store lives. Fetched only once the account exists — the
@@ -86,7 +156,10 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
   function goto(next: OnboardingStepId | null): void {
     if (next === null) return;
     setError(null);
-    setStep(next);
+    // The account step is behind us once it has run: a second submit would 409
+    // against the instance's own admin. Anything aimed at it — Continue, Skip,
+    // the rail — lands on the step after instead.
+    setStep(next === 'account' && accountCreated ? 'meta' : next);
   }
 
   /**
@@ -107,20 +180,25 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
     // step 6, three screens after this runs. Creating the account with both
     // answers off is what keeps "nothing is sent until you say so" true for the
     // window in between.
-    void submitHeldAnswers({ account, consent: NO_CONSENT, held })
+    void submitHeldAnswers({ account, consent: NO_CONSENT, held, accountExists: accountCreated })
       .then((outcome) => {
         setBusy(false);
         if (outcome.kind === 'ok') {
           // A fresh session: drop every cached query before going on.
           router.options.context.queryClient.clear();
+          setAccountCreated(true);
           setConnection(outcome.connection);
-          goto('meta');
+          setError(null);
+          setStep('meta');
           return;
         }
         if (outcome.kind === 'account-failed') {
           setError(accountErrorCopy(outcome.cause));
           return;
         }
+        // The account stands — that is what makes this recoverable, and what
+        // the next attempt must not try to repeat.
+        setAccountCreated(true);
         setError(connectionErrorCopy(outcome.cause));
         setStep('connect');
       })
@@ -157,7 +235,7 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
     setError(null);
     setBusy(true);
     void studioApi
-      .relocateMeta(target)
+      .relocateMeta(target, { park: held.park })
       .then(async (result) => {
         // The reply means the COPY committed, not that the server is back — it
         // restarts immediately after flushing it. Advancing here would land the
@@ -232,8 +310,50 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
     return '/studio/connect';
   }
 
+  /**
+   * Point this instance at the store that is already there, and go and sign in.
+   *
+   * No account is created and nothing is copied: the bootstrap file is written,
+   * the server restarts onto that store, and the operator lands on `/login`
+   * where their existing account is. Only reachable from the connect step —
+   * before this wizard has made anything of its own to strand.
+   */
+  function adopt(): void {
+    setAdopting('writing');
+    setError(null);
+    void adoptStore(held.dsn.trim())
+      .then(async (result) => {
+        setAdopting('restarting');
+        const back = await waitForRestart(result.healthPath);
+        if (!back) {
+          throw new Error(
+            t(
+              'onboarding:connect.existing.timeout',
+              'Adminium is pointed at that database but has not come back yet — reload this page in a moment.',
+            ),
+          );
+        }
+        router.options.context.queryClient.clear();
+        router.history.push('/login');
+      })
+      .catch((cause: unknown) => {
+        setAdopting(null);
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : t('onboarding:connect.existing.failed', 'Could not point this instance at that database.'),
+        );
+      });
+  }
+
   function onNext(): void {
     if (step === 'account') {
+      submitAccount();
+      return;
+    }
+    // Continuing from the connect step AFTER the account exists is the retry of
+    // a database that would not answer: land the connection, skip the account.
+    if (step === 'connect' && accountCreated) {
       submitAccount();
       return;
     }
@@ -257,6 +377,9 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
       error={error}
       nextDisabled={
         (step === 'connect' && dsnError !== null) ||
+        // Wait for the check. Skip stays live: passing the step means "no
+        // database", which needs no answer about one.
+        probing ||
         // A database of its own has to be PROVEN before the store moves into
         // it: a failed relocation is the one failure here with no way back.
         (step === 'meta' &&
@@ -266,7 +389,8 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
       onStepSelect={(target) => {
         // The rail may not walk BACK into the account step once it has run:
         // the account exists, and the server would 409 a second submit.
-        if (signedIn && (target === 'start' || target === 'connect' || target === 'account')) return;
+        if (accountCreated && target === 'account') return;
+        if (signedIn && (target === 'start' || target === 'connect')) return;
         goto(target);
       }}
       onBack={() => goto(stepBefore(step))}
@@ -283,7 +407,21 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
         <ConnectStep
           engine={held.engine}
           dsn={held.dsn}
-          onChange={(patch) => setHeld({ ...held, ...patch })}
+          existing={held.existing}
+          probing={probing}
+          park={held.park}
+          adopting={adopting}
+          onPark={() => setHeld({ ...held, park: true })}
+          onAdopt={adopt}
+          onChange={(patch) =>
+            // Any edit to the string invalidates what the probe said about the
+            // old one — and un-parks, because the choice was about that database.
+            setHeld({
+              ...held,
+              ...patch,
+              ...(patch.dsn === undefined ? {} : { existing: null, probedDsn: null, park: false }),
+            })
+          }
         />
       ) : null}
       {step === 'account' ? (
@@ -305,6 +443,8 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
           onSeparateTested={setSeparateTested}
           placement={placement.data ?? null}
           connection={connection}
+          existing={held.existing}
+          park={held.park}
           relocating={relocating}
         />
       ) : null}

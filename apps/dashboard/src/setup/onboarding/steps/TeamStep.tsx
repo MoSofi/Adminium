@@ -89,15 +89,15 @@ export function TeamStep({ invited, onInvited }: TeamStepProps) {
           {invited.map((person) => (
             <li
               key={person.email}
-              className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3"
+              className="flex flex-col gap-2 rounded-[11px] border border-border bg-surface px-[13px] py-[11px]"
             >
-              <div className="flex items-center gap-3">
-                <Avatar name={person.email} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-body font-semibold text-fg">
+              <div className="flex items-center gap-[11px]">
+                <Avatar name={person.email} size="sm" className="size-[30px] text-[11px] font-bold" />
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-fg">
                   {person.email}
                 </span>
                 {person.emailSent ? (
-                  <span className="text-caption text-fg-muted">
+                  <span className="text-[11.5px] font-bold text-fg-muted">
                     {t('onboarding:team.emailed', 'Invitation emailed')}
                   </span>
                 ) : null}
@@ -123,7 +123,9 @@ export function TeamStep({ invited, onInvited }: TeamStepProps) {
         <InputGroup
           type="email"
           autoComplete="off"
-          className="flex-1"
+          // The comp's dashed "add someone" row (76): 11px/13px, an 11px radius
+          // and a 16px glyph.
+          className="h-auto flex-1 gap-[9px] rounded-[11px] border-dashed px-[13px] py-[11px] [&_svg]:size-4"
           aria-label={t('onboarding:team.emailLabel', 'Teammate’s email')}
           placeholder={t('onboarding:team.placeholder', 'teammate@company.com')}
           value={email}
@@ -134,7 +136,13 @@ export function TeamStep({ invited, onInvited }: TeamStepProps) {
             setEmail(event.target.value);
           }}
         />
-        <Button variant="soft" onClick={invite} loading={busy} disabled={email.trim() === ''}>
+        <Button
+          variant="soft"
+          className="h-auto rounded-[11px] px-4 py-[11px] text-[13px] font-bold"
+          onClick={invite}
+          loading={busy}
+          disabled={email.trim() === ''}
+        >
           {t('onboarding:team.invite', 'Invite')}
         </Button>
       </div>

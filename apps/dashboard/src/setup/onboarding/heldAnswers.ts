@@ -36,15 +36,55 @@ export type OnboardingStart = 'blank' | GenerateIntent;
  */
 export const ONBOARDING_ENGINES: readonly DsnEngine[] = ['postgres', 'mysql', 'sqlite'];
 
+/**
+ * What `POST /setup/probe` found in the database the connect step was given
+ * (45-T11). `null` until a DSN has been probed; `occupied` empty means the
+ * database is either clean or holds only the husk of an abandoned attempt.
+ */
+export interface ExistingStore {
+  occupied: string[];
+  /** `false` ⇒ adopting keeps the account but loses that store's saved DSNs. */
+  secretMatches: boolean | null;
+}
+
 export interface HeldAnswers {
   start: OnboardingStart;
   /** The engine card that is picked — not necessarily what `dsn` parses as. */
   engine: DsnEngine;
   /** Exactly as typed. Shape-checked here, proven only once a session exists. */
   dsn: string;
+  /**
+   * What is already in there — meaningful only when {@link probedDsn} matches
+   * the current `dsn`. `null` reads as "nothing found" and as "not asked yet",
+   * which is why the answer needs the question beside it.
+   */
+  existing: ExistingStore | null;
+  /**
+   * The exact string `existing` describes, or `null` for "not asked yet".
+   *
+   * The wizard WAITS on this. An advisory probe was the first shape of this
+   * feature and it was wrong: the answer landed after Continue had already been
+   * pressed, so the panel appeared on a screen the operator had left and come
+   * back to — which reads as the wizard noticing late rather than as them
+   * out-running it.
+   */
+  probedDsn: string | null;
+  /**
+   * The operator chose "keep the old tables and start fresh": the relocation
+   * renames them out of the way instead of refusing. Meaningless unless they
+   * also put Adminium's own data in that same database.
+   */
+  park: boolean;
 }
 
-export const DEFAULT_HELD_ANSWERS: HeldAnswers = { start: 'blank', engine: 'postgres', dsn: '' };
+export const DEFAULT_HELD_ANSWERS: HeldAnswers = {
+  start: 'blank',
+  engine: 'postgres',
+  dsn: '',
+  existing: null,
+  probedDsn: null,
+  park: false,
+};
 
 /** Nothing was typed — the connect step may be passed without an answer. */
 export function hasNoConnection(held: HeldAnswers): boolean {

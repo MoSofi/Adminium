@@ -85,3 +85,44 @@ export async function createSuperAdmin(input: SetupSuperAdminInput): Promise<Set
   setCsrfToken(body.data.csrfToken ?? null);
   return body.data.user;
 }
+
+/**
+ * `POST /setup/probe` — does this database already run an Adminium?
+ *
+ * Asked from the CONNECT step, before there is an account to ask with: the
+ * route is open only while `setup.state.required` is true and closes forever
+ * after the first one (`server/src/routes/setup/store.ts`). Advisory by design
+ * — a database that will not answer comes back `reachable: false` rather than
+ * throwing, because the wizard tests the DSN properly once a session exists.
+ */
+export interface SetupProbe {
+  reachable: boolean;
+  reason: string | null;
+  tables: string[];
+  /** The subset holding rows — what a relocation actually refuses over. */
+  occupied: string[];
+  /** `null` when the store holds nothing encrypted to test against. */
+  secretMatches: boolean | null;
+}
+
+export async function probeStore(dsn: string): Promise<SetupProbe> {
+  return (await api.post<{ data: SetupProbe }>('/api/v1/setup/probe', { dsn })).data;
+}
+
+/**
+ * `POST /setup/adopt` — point this instance at a store that already exists.
+ *
+ * Nothing is copied and nothing is dropped: the bootstrap file is written and
+ * the server restarts onto it. The reply is the health path to wait on, exactly
+ * as `/meta/relocate` answers — a resolved promise means the file is written,
+ * not that the server is back.
+ */
+export interface SetupAdopted {
+  engine: string;
+  restarting: boolean;
+  healthPath: string;
+}
+
+export async function adoptStore(dsn: string): Promise<SetupAdopted> {
+  return (await api.post<{ data: SetupAdopted }>('/api/v1/setup/adopt', { dsn })).data;
+}

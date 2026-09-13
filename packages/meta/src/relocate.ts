@@ -290,6 +290,139 @@ export async function countMetaRows(meta: MetaDb): Promise<Map<string, number>> 
 }
 
 /**
+ * What Adminium data a database ALREADY holds, without writing to it.
+ *
+ * `assertMetaStoreEmpty` below answers the same question and cannot be asked
+ * early: it counts rows in tables it assumes exist, which is true only after
+ * `applyMigrations` has run against the target — and running migrations is
+ * itself a write, on a database the operator has not yet chosen. This reads the
+ * catalogue instead (`introspection.getTables()`, the same call `introspectKinds`
+ * makes), so it is safe to ask of any database at any time, including one the
+ * answer will be "leave it alone" for.
+ *
+ * `present` is every physical `adminium_` table; `occupied` is the subset that
+ * holds rows, which is what a relocation actually refuses over — a set of empty
+ * tables from an abandoned attempt relocates cleanly.
+ */
+export async function probeAdminiumTables(
+  meta: MetaDb,
+): Promise<{ present: string[]; occupied: string[] }> {
+  const tables = await meta.db.introspection.getTables();
+  const present = tables
+    .map((table) => table.name)
+    .filter((name) => name.startsWith('adminium_'))
+    .sort();
+  const occupied: string[] = [];
+  for (const table of present) {
+    // `adminium_migrations` is skipped for the same reason a relocation skips
+    // it (RELOCATE_SKIP_TABLES): the ledger has rows the moment the schema
+    // exists, and a migrated-but-empty database is one a relocation writes into
+    // happily. Counting it would report every abandoned attempt as occupied.
+    if (RELOCATE_SKIP_TABLES.includes(table)) continue;
+    // Only tables the catalogue just named, so this can never hit a missing one.
+    if ((await countRows(meta.db, table)) > 0) occupied.push(table);
+  }
+  return { present, occupied };
+}
+
+/**
+ * Rename every `adminium_` table out of the way, keeping its rows.
+ *
+ * The alternative offered to someone whose target database already runs an
+ * Adminium: keep what is there and start beside it (45-onboarding.md 45-T11).
+ * `adminium_users` becomes `adminium_users_old_<stamp>` and so on, which leaves
+ * the target empty by the only definition that matters here — `probeAdminiumTables`
+ * and `assertMetaStoreEmpty` both look for the `adminium_` names — while losing
+ * nothing. Reversible by renaming back.
+ *
+ * THE LEDGER MOVES TOO. `adminium_migrations` is skipped by the copy and by the
+ * emptiness check, but if it were left in place a fresh `applyMigrations` would
+ * read it, believe the schema is already current, and create none of the tables
+ * this just renamed away.
+ *
+ * Kysely's `renameTo` is what makes it one statement per dialect: Postgres and
+ * SQLite take `ALTER TABLE … RENAME TO`, MySQL `RENAME TABLE … TO`, and the
+ * builder emits each. Constraints, indexes and inbound foreign keys follow the
+ * table on all three.
+ */
+export async function parkAdminiumTables(
+  meta: MetaDb,
+  stamp: string = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, ''),
+): Promise<{ renamed: { from: string; to: string }[] }> {
+  const { present } = await probeAdminiumTables(meta);
+  const renamed: { from: string; to: string }[] = [];
+  for (const table of present) {
+    // Its INDEXES first, while the name still resolves.
+    await freeIndexNames(meta, table, stamp);
+    // PREPENDED, not suffixed: `adminium_users_old_…` still starts with
+    // `adminium_`, so the probe — and therefore the emptiness check, and
+    // therefore the relocation — would go on seeing the parked copy as an
+    // occupied store. The prefix takes the table out of that namespace.
+    const to = `${PARK_PREFIX}${stamp}_${table}`;
+    await meta.db.schema.alterTable(table).renameTo(to).execute();
+    renamed.push({ from: table, to });
+  }
+  return { renamed };
+}
+
+/** Parked objects carry this prefix, which is deliberately NOT `adminium_`. */
+export const PARK_PREFIX = 'old_';
+
+/**
+ * Take the table's index names out of the way of the schema about to be built.
+ *
+ * A table rename does not carry its indexes' NAMES on every engine, and the
+ * migration that rebuilds the schema creates them by name:
+ *
+ *  - **PostgreSQL** names indexes per schema. They are renamed alongside, which
+ *    keeps the parked copy fully indexed — and renaming the index behind a
+ *    UNIQUE or PRIMARY KEY constraint renames the constraint with it.
+ *  - **SQLite** also names indexes per database and offers no `ALTER INDEX`, so
+ *    they are dropped.
+ *  - **MySQL** scopes index names to their table, so those move by themselves —
+ *    but it scopes FOREIGN KEY names to the SCHEMA, and there is no way to
+ *    rename one. They are dropped.
+ *
+ * Two of the three lose something, and both losses are the right trade: a
+ * parked copy is an archive to read, not a store to run. Every ROW survives on
+ * all three, which is the whole reason for parking rather than dropping.
+ */
+async function freeIndexNames(meta: MetaDb, table: string, stamp: string): Promise<void> {
+  if (meta.dialect === 'mysql') {
+    const rows = await sql<{ name: string }>`
+      select constraint_name as name from information_schema.key_column_usage
+      where table_schema = database() and table_name = ${table}
+        and referenced_table_name is not null
+    `.execute(meta.db);
+    // A composite key has one row per column; the constraint is dropped once.
+    for (const name of new Set(rows.rows.map((row) => row.name))) {
+      await sql`alter table ${sql.ref(table)} drop foreign key ${sql.ref(name)}`.execute(meta.db);
+    }
+    return;
+  }
+
+  if (meta.dialect === 'postgres') {
+    const rows = await sql<{ indexname: string }>`
+      select indexname from pg_indexes where tablename = ${table}
+    `.execute(meta.db);
+    for (const { indexname } of rows.rows) {
+      await sql`alter index ${sql.ref(indexname)} rename to ${sql.ref(`${PARK_PREFIX}${stamp}_${indexname}`)}`.execute(
+        meta.db,
+      );
+    }
+    return;
+  }
+
+  const rows = await sql<{ name: string }>`
+    select name from sqlite_master
+    where type = 'index' and tbl_name = ${table} and name not like 'sqlite_autoindex%'
+  `.execute(meta.db);
+  for (const { name } of rows.rows) {
+    await sql`drop index ${sql.ref(name)}`.execute(meta.db);
+  }
+}
+
+/**
  * Throw unless the store holds no Adminium data. Called against the TARGET
  * before anything is written, so "already in use" is a refusal rather than a
  * primary-key collision halfway through the copy.

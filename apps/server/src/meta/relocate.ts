@@ -42,6 +42,7 @@ import {
   applyMigrations,
   assertMetaStoreEmpty,
   copyMetaStore,
+  parkAdminiumTables,
   MetaRelocateError,
   MetaStoreNotEmptyError,
 } from '@adminium/meta';
@@ -158,6 +159,13 @@ export interface RelocateMetaStoreOptions {
   envMetaUrl?: string | undefined;
   poolSize?: number | undefined;
   onProgress?: ((table: string, rows: number) => void) | undefined;
+  /**
+   * Rename the target's existing `adminium_` tables out of the way instead of
+   * refusing (45-onboarding.md 45-T11). The operator asked for this on the
+   * connect step, having been told what is already in there; the default is
+   * still to refuse, because merging two stores is not a thing this can do.
+   */
+  park?: boolean | undefined;
 }
 
 export interface RelocateMetaStoreResult {
@@ -205,6 +213,11 @@ export async function relocateMetaStore(
   );
 
   try {
+    // BEFORE the migrations, not after: `applyMigrations` would read the
+    // ledger the previous instance left, conclude the schema is current, and
+    // create nothing — and the copy would then land on that instance's rows.
+    if (opts.park === true) await parkAdminiumTables(target.meta);
+
     // The migration run IS the write + DDL probe (01 §3.1's rule for same-db
     // placement): a read-only or DDL-less role cannot get past it, and saying so
     // in those terms beats surfacing a raw driver permission error.
