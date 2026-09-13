@@ -13,10 +13,12 @@ export default {
     "body": "Der erste Administrator. Das passiert nur einmal, und Sie bleiben danach angemeldet.",
     "confirm": "Passwort bestätigen",
     "email": "E-Mail",
+    "hidePassword": "Passwort verbergen",
     "label": "Ihr Konto",
     "name": "Ihr Name",
     "password": "Passwort",
     "passwordHelper": "Mindestens {min} Zeichen.",
+    "showPassword": "Passwort anzeigen",
     "strength": "Passwortstärke",
     "strengthLevels": {
       "fair": "Ausreichend",
@@ -36,6 +38,7 @@ export default {
       "title": "Für diese Instanz wartet eine Verbindungszeichenfolge"
     },
     "dsn": {
+      "checking": "Diese Datenbank wird geprüft…",
       "helper": "Nichts verlässt diesen Browser, bevor Ihr Konto existiert — dann testen wir sie.",
       "incomplete": "Ergänzen Sie Host und Datenbank, z. B. postgres://user@host:5432/db",
       "invalidScheme": "Unbekanntes Schema — erwartet wurde postgres://, mysql://, mariadb:// oder sqlite:",
@@ -47,6 +50,21 @@ export default {
       "sqlite": "SQLite"
     },
     "engineLabel": "Datenbank-Engine",
+    "existing": {
+      "adopt": "Diese verwenden und anmelden",
+      "adopting": "Diese Instanz wird darauf ausgerichtet…",
+      "body": "Sie enthält {count, plural, one {# Adminium-Tabelle} other {# Adminium-Tabellen}} mit Daten. Zwei Möglichkeiten:",
+      "failed": "Diese Instanz konnte nicht auf diese Datenbank ausgerichtet werden.",
+      "otherSecret": "Sie wurde mit einem anderen ADMINIUM_SECRET eingerichtet: die Anmeldung dort funktioniert, aber ihre gespeicherten Verbindungszeichenfolgen kann diese Instanz nicht entschlüsseln.",
+      "park": "Behalten und neu anfangen",
+      "parked": {
+        "body": "Sie werden umbenannt und beiseitegelegt — jede Zeile bleibt erhalten — und Adminium beginnt mit frischen Tabellen daneben. Es passiert nichts, bis Sie Adminiums eigene Daten in diese Datenbank legen.",
+        "title": "Die vorhandenen Tabellen bleiben erhalten"
+      },
+      "restarting": "Neustart darauf…",
+      "timeout": "Adminium ist auf diese Datenbank ausgerichtet, aber noch nicht zurück — laden Sie diese Seite gleich neu.",
+      "title": "In dieser Datenbank läuft bereits ein Adminium"
+    },
     "label": "Daten verbinden",
     "sub": "Datenbank verknüpfen",
     "title": "Verbinden Sie Ihre Datenbank"
@@ -98,11 +116,13 @@ export default {
       "title": "Adminiums Daten haben bereits ein Zuhause"
     },
     "sameDb": {
+      "alreadyAdminium": "Diese Datenbank enthält bereits eine Adminium-Instanz. Gehen Sie einen Schritt zurück, um deren Tabellen zu behalten und daneben neu anzufangen — oder melden Sie sich stattdessen dort an.",
       "body": "Adminium legt seine eigenen `adminium_`-Tabellen neben Ihren an. Eine Datenbank zum Sichern.",
       "disabledFile": "Eine SQLite-Datei ist kein Server, dem Adminium eigene Tabellen hinzufügen kann.",
       "disabledNoDdl": "Diese Rolle darf kein CREATE TABLE ausführen, was Adminiums eigene Migrationen benötigen.",
       "disabledReadOnly": "Diese Rolle ist schreibgeschützt — Adminium schreibt nie in Ihre Datenbank. Behalten Sie seine Daten in einer Datei oder geben Sie ihm eine eigene.",
       "noSource": "Sie haben noch keine Datenbank verbunden — verbinden Sie zuerst eine, oder behalten Sie Adminiums Daten in einer Datei.",
+      "parked": "Die bereits vorhandenen Adminium-Tabellen werden zuerst umbenannt und beiseitegelegt — jede Zeile bleibt erhalten — und Adminium beginnt mit frischen daneben.",
       "title": "In der Datenbank, die Sie gerade verbunden haben"
     },
     "separate": {

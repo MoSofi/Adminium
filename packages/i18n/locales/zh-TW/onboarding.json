@@ -3,10 +3,12 @@
     "body": "第一位管理員。這只會發生一次，之後你將保持登入狀態。",
     "confirm": "確認密碼",
     "email": "電子郵件",
+    "hidePassword": "隱藏密碼",
     "label": "你的帳戶",
     "name": "你的姓名",
     "password": "密碼",
     "passwordHelper": "至少 {min} 個字元。",
+    "showPassword": "顯示密碼",
     "strength": "密碼強度",
     "strengthLevels": {
       "fair": "普通",
@@ -26,6 +28,7 @@
       "title": "有一個連線字串正在等待此執行個體"
     },
     "dsn": {
+      "checking": "正在檢查該資料庫……",
       "helper": "在你的帳戶建立之前，任何內容都不會離開此瀏覽器——之後我們才會測試它。",
       "incomplete": "請補上主機與資料庫，例如 postgres://user@host:5432/db",
       "invalidScheme": "無法辨識的協定——應為 postgres://、mysql://、mariadb:// 或 sqlite:",
@@ -37,6 +40,21 @@
       "sqlite": "SQLite"
     },
     "engineLabel": "資料庫引擎",
+    "existing": {
+      "adopt": "使用它並登入",
+      "adopting": "正在把此執行個體指向它……",
+      "body": "其中有 {count, plural, other {# 張 Adminium 資料表}}含有資料。你有兩個選擇：",
+      "failed": "無法把此執行個體指向那個資料庫。",
+      "otherSecret": "它是用另一個 ADMINIUM_SECRET 建立的：登入仍然可用，但此執行個體無法解密它儲存的連線字串。",
+      "park": "保留它們並重新開始",
+      "parked": {
+        "body": "它們會被改名移開——每一列都保留——Adminium 會在旁邊新建自己的資料表。在你把 Adminium 自己的資料放進這個資料庫之前，不會有任何變動。",
+        "title": "既有的資料表會被保留"
+      },
+      "restarting": "正在切換到它並重新啟動……",
+      "timeout": "Adminium 已指向那個資料庫，但尚未恢復——請稍後重新載入此頁面。",
+      "title": "那個資料庫已經在執行一個 Adminium"
+    },
     "label": "連接資料",
     "sub": "連結資料庫",
     "title": "連接你的資料庫"
@@ -88,11 +106,13 @@
       "title": "Adminium 的資料已有歸屬"
     },
     "sameDb": {
+      "alreadyAdminium": "那個資料庫已經有一個 Adminium 執行個體。返回上一步保留它的資料表並在旁邊新建，或直接登入它。",
       "body": "Adminium 會在你的資料表旁邊加入自己的 `adminium_` 資料表。只需備份一個資料庫。",
       "disabledFile": "SQLite 檔案不是伺服器，Adminium 無法在其中加入自己的資料表。",
       "disabledNoDdl": "該角色無法執行 CREATE TABLE，而 Adminium 自身的移轉需要它。",
       "disabledReadOnly": "該角色是唯讀的——Adminium 從不寫入你的資料庫。把它的資料放在檔案裡，或給它一個自己的資料庫。",
       "noSource": "你還沒有連接資料庫——先連接一個，或把 Adminium 的資料存放在檔案裡。",
+      "parked": "已經在那裡的 Adminium 資料表會先被改名移開——每一列都保留——Adminium 在旁邊新建自己的資料表。",
       "title": "存放在你剛連接的資料庫裡"
     },
     "separate": {

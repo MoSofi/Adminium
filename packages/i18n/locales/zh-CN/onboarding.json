@@ -3,10 +3,12 @@
     "body": "第一位管理员。这只会发生一次，之后你将保持登录状态。",
     "confirm": "确认密码",
     "email": "电子邮箱",
+    "hidePassword": "隐藏密码",
     "label": "你的账户",
     "name": "你的姓名",
     "password": "密码",
     "passwordHelper": "至少 {min} 个字符。",
+    "showPassword": "显示密码",
     "strength": "密码强度",
     "strengthLevels": {
       "fair": "一般",
@@ -26,6 +28,7 @@
       "title": "有一个连接字符串正在等待此实例"
     },
     "dsn": {
+      "checking": "正在检查该数据库……",
       "helper": "在你的账户创建之前，任何内容都不会离开此浏览器——之后我们才会测试它。",
       "incomplete": "请补上主机和数据库，例如 postgres://user@host:5432/db",
       "invalidScheme": "无法识别的协议——应为 postgres://、mysql://、mariadb:// 或 sqlite:",
@@ -37,6 +40,21 @@
       "sqlite": "SQLite"
     },
     "engineLabel": "数据库引擎",
+    "existing": {
+      "adopt": "使用它并登录",
+      "adopting": "正在把此实例指向它……",
+      "body": "其中有 {count, plural, other {# 张 Adminium 表}}含有数据。你有两个选择：",
+      "failed": "无法把此实例指向那个数据库。",
+      "otherSecret": "它是用另一个 ADMINIUM_SECRET 建立的：登录仍然可用，但此实例无法解密它保存的连接字符串。",
+      "park": "保留它们并重新开始",
+      "parked": {
+        "body": "它们会被改名挪开——每一行都保留——Adminium 会在旁边新建自己的表。在你把 Adminium 自己的数据放进这个数据库之前，什么都不会发生。",
+        "title": "已有的表将被保留"
+      },
+      "restarting": "正在切换到它并重启……",
+      "timeout": "Adminium 已指向那个数据库，但尚未恢复——请稍后重新加载此页面。",
+      "title": "那个数据库里已经在运行一个 Adminium"
+    },
     "label": "连接数据",
     "sub": "关联数据库",
     "title": "连接你的数据库"
@@ -88,11 +106,13 @@
       "title": "Adminium 的数据已有归宿"
     },
     "sameDb": {
+      "alreadyAdminium": "那个数据库里已经有一个 Adminium 实例。返回上一步保留它的表并在旁边新建，或者直接登录到它。",
       "body": "Adminium 会在你的表旁边添加自己的 `adminium_` 表。只需备份一个数据库。",
       "disabledFile": "SQLite 文件不是服务器，Adminium 无法在其中添加自己的表。",
       "disabledNoDdl": "该角色无法执行 CREATE TABLE，而 Adminium 自身的迁移需要它。",
       "disabledReadOnly": "该角色是只读的——Adminium 从不写入你的数据库。把它的数据放在文件里，或者给它一个自己的数据库。",
       "noSource": "你还没有连接数据库——先连接一个，或者把 Adminium 的数据保存在文件里。",
+      "parked": "已经在那里的 Adminium 表会先被改名挪开——每一行都保留——Adminium 在旁边新建自己的表。",
       "title": "保存在你刚连接的数据库里"
     },
     "separate": {

@@ -1,1150 +1,25 @@
 {
-  "title": "Studio",
-  "settings": {
-    "title": "Indstillinger",
-    "workspaceSection": "Arbejdsområde",
-    "globalDefaultsNav": "Globale standarder"
-  },
-  "source": {
-    "engine": {
-      "label": "Databasemotor",
-      "postgres": "PostgreSQL",
-      "mysql": "MySQL / MariaDB",
-      "sqlite": "SQLite"
-    },
-    "format": {
-      "label": "Skemaformat",
-      "helper": "Lad automatisk registrering være slået til, medmindre den tager fejl.",
-      "auto": "Registrér automatisk",
-      "sql": "SQL DDL / pg_dump",
-      "prisma": "Prisma-skema",
-      "drizzle": "Drizzle ORM",
-      "typeorm": "TypeORM-entiteter",
-      "sequelize": "Sequelize-modeller",
-      "rails": "Rails schema.rb",
-      "django": "Django models.py",
-      "json": "Adminium JSON"
-    },
-    "sqlite": {
-      "file": "Sti til databasefil",
-      "helper": "SQLite er en fil, ikke en server — angiv den absolutte sti på den maskine, der kører Adminium."
-    },
-    "file": {
-      "detectedAs": "Registreret: {format}",
-      "moreWarnings": "+{count} flere advarsler — den fulde liste vises i analysetrinnet.",
-      "dropTitle": "Slip din skemafil her, eller gennemse",
-      "dropHint": "SQL DDL / pg_dump, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django-modeller, Adminium JSON",
-      "pitch": "Ingen databaseforbindelse påkrævet — vi fortolker din skemafil og bygger de samme dashboards.",
-      "parsing": "Læser den uploadede skemafil…",
-      "tables": "tabeller",
-      "columns": "kolonner",
-      "warnings": "advarsler",
-      "errorTitle": "Kunne ikke fortolke filen",
-      "parseFailed": "Vi kunne ikke fortolke den fil. Hvis auto-genkendelsen gættede forkert, så vælg formatet eksplicit og prøv igen.",
-      "unsupported": "Formatet blev ikke genkendt — SQL DDL, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django-modeller og Adminium JSON understøttes. Vælg ét eksplicit og prøv igen.",
-      "requestFailed": "Upload mislykkedes — tjek din forbindelse og prøv igen."
-    },
-    "title": "Forbind din database",
-    "subtitle": "Peg Adminium mod en database, så genererer vi et admin-dashboard ud fra dens skema.",
-    "name": "Forbindelsesnavn",
-    "namePlaceholder": "Produktions-Postgres",
-    "modeLabel": "Kildeinputtilstand",
-    "mode": {
-      "dsn": "Forbindelsesstreng",
-      "fields": "Enkelte felter",
-      "file": "Skemafil"
-    },
-    "dsn": {
-      "label": "Forbindelsesstreng",
-      "helper": "postgres://bruger:kodeord@vaert:5432/database — mysql:// og sqlite: virker også.",
-      "incomplete": "Tilføj vært og database, f.eks. postgres://user@host:5432/db",
-      "invalidScheme": "Ukendt skema — forventede postgres://, mysql://, mariadb:// eller sqlite:",
-      "quickFill": "Hurtig udfyldning:"
-    },
-    "fields": {
-      "host": "Vært",
-      "port": "Port",
-      "database": "Database",
-      "user": "Bruger",
-      "password": "Adgangskode",
-      "ssl": "SSL-tilstand",
-      "preview": "Forhåndsvisning af forbindelsesstreng:"
-    },
-    "readOnlyRole": {
-      "title": "Brug en skrivebeskyttet rolle",
-      "body": "Under opsætningen læser Adminium kun skemametadata — aldrig dine rækker. Vi anbefaler en dedikeret bruger med kun SELECT-rettigheder; hvor Adminium gemmer sine egne tabeller, bestemmer du i trinnet om metadatalagring."
-    }
-  },
-  "capability": {
-    "mysqlApproxRows": "MySQL-rækkeantal er estimater fra lagringsmotoren (kan afvige op til ±40 %) — vises med ≈.",
-    "mysqlFkEnum": "MySQL’s FK-/enum-metadata er svagere: MyISAM-tabeller deklarerer ingen fremmednøgler, enums er kolonnetyper som enum(…), og CHECK-begrænsninger kræver MySQL 8.0.16+ / MariaDB 10.2+.",
-    "sqliteCheckEnums": "SQLite har ingen indbygget enum-type — enums syntetiseres fra CHECK (col IN (…))-begrænsninger.",
-    "sqliteNoComments": "SQLite har ingen kolonnekommentarer — brug skema-remap-editoren til at tilføje etiketter.",
-    "importNoRowCounts": "Skemafiler indeholder ingen rækkeantal — tabellisten viser — i stedet for opdigtede tal.",
-    "importNoLiveHealth": "Ingen live databaseforbindelse — sundhedstjek og registrering af skemadrift er ikke tilgængelige for denne kilde.",
-    "rowsUnavailable": "Skemafiler har ingen live database — rækkeantal er ukendte, indtil du forbinder en.",
-    "rowsRunAnalyze": "Intet estimat endnu — kør ANALYZE på databasen for at få rækkeantal.",
-    "rowsNoEstimate": "Motoren rapporterede intet estimat for denne tabel.",
-    "rowsApproximate": "Estimat fra lagringsmotoren — kan afvige op til ±40 % på InnoDB."
-  },
-  "test": {
-    "log": {
-      "moreWarnings": "+{count} flere parser-advarsler",
-      "connecting": "Etablerer sikker forbindelse…",
-      "connected": "Forbundet ({latency} ms) · skrivebeskyttet introspektion",
-      "connectFailed": "Forbindelsen mislykkedes.",
-      "readingSchema": "Læser skema: public",
-      "readingFile": "Læser den uploadede skemafil…",
-      "parsingFile": "Fortolker {file}…",
-      "detected": "Registrerede {tables} tabeller · {columns} kolonner",
-      "found": "Fandt {tables} tabeller · {columns} kolonner",
-      "mapping": "Kortlægger kolonnetyper → inputwidgets",
-      "relations": "Registrerer relationer…",
-      "piiScan": "Scanner efter PII-kolonner…",
-      "piiDone": "PII-scanning fuldført — {count} kolonner maskeret som standard",
-      "piiDoneUnknown": "PII-scanning fuldført",
-      "jobFailed": "Introspektion mislykkedes.",
-      "networkFailed": "Anmodningen mislykkedes — tjek din forbindelse og prøv igen.",
-      "ready": "Klar"
-    },
-    "title": "Analyserer dit skema",
-    "subtitle": "Introspekterer tabeller, kolonner og relationer. Det tager et par sekunder.",
-    "trust": "Vi læser kun dit skema og dine data. Intet ændres.",
-    "errorTitle": "Forbindelsen mislykkedes",
-    "retry": "Prøv igen",
-    "logLabel": "Introspektionslog",
-    "hint": {
-      "auth": "Godkendelse mislykkedes — tjek brugernavn og adgangskode i din DSN.",
-      "hostUnreachable": "Vært utilgængelig — tjek værtsnavn og port, og at databasen accepterer forbindelser fra denne maskine (tilføj vores IP'er til tilladelseslisten).",
-      "metaPlacement": "Denne kilde kan ikke huse Adminiums metatabeller — fortsæt med en separat metadatabase.",
-      "permission": "Rollen fik forbindelse, men mangler skema-læserettigheder — giv USAGE på skemaet til din introspektionsrolle.",
-      "timeout": "Databasen svarede ikke i tide — tjek netværkssti og belastning, og prøv igen.",
-      "tls": "TLS-forhandling mislykkedes — prøv sslmode=require, eller upload det CA-certifikat din server forventer.",
-      "unknown": "Forbindelsen mislykkedes — kontrollér DSN'en og prøv igen."
-    }
-  },
-  "tables": {
-    "importNoCounts": "Skemafiler indeholder ingen rækkeantal — kolonnen viser —, indtil en live database er forbundet.",
-    "title": "Vælg dine tabeller",
-    "subtitle": "Vælg hvilke der skal med. Du kan altid ændre det.",
-    "search": "Filtrér tabeller…",
-    "listLabel": "Tabeller der kan medtages",
-    "emptyFilter": "Ingen tabeller matcher dit filter.",
-    "pii": "PII",
-    "highVolume": "stor volumen",
-    "highVolumeNote": "Tabeller med over 100.000 rækker starter fravalgt — driftstabeller hører sjældent hjemme i et dashboard.",
-    "joinHidden": "{count} join-/systemtabeller er skjult på forhånd — de driver stadig mange-til-mange-relationer."
-  },
-  "hub": {
-    "title": "Dataforbindelser",
-    "subtitle": "{healthy, number} af {total, plural, one {# forbindelse} other {# forbindelser}} sunde",
-    "connectNew": "Ny forbindelse",
-    "stats": {
-      "connections": "Forbindelser",
-      "healthy": "Sunde",
-      "tables": "Inkluderede tabeller",
-      "pages": "Genererede sider"
-    },
-    "status": {
-      "connected": "Forbundet",
-      "error": "Fejl",
-      "unconfigured": "Kladde",
-      "testing": "Tester…",
-      "paused": "Sat på pause"
-    },
-    "card": {
-      "readOnly": "Skrivebeskyttet",
-      "tables": "Tabeller",
-      "pages": "Sider",
-      "latency": "Latenstid",
-      "latencyMs": "{latency, number} ms",
-      "lastIntrospected": "Senest introspiceret",
-      "never": "Aldrig",
-      "timezone": "Tidszone",
-      "timezoneGuessed": "fra denne server",
-      "paused": "Adminium opretter ikke forbindelse til denne database. Dens sider indlæses igen, når du genoptager den.",
-      "pausedSince": "Sat på pause {when} – Adminium opretter ikke forbindelse til denne database. Dens sider indlæses igen, når du genoptager den."
-    },
-    "action": {
-      "test": "Test",
-      "reintrospect": "Introspicer igen",
-      "reintrospectFile": "Skemafil-kilder har ingen aktiv database — upload filen igen i stedet.",
-      "remap": "Ommap skema",
-      "delete": "Slet",
-      "regional": "Regionale indstillinger",
-      "pause": "Sæt på pause",
-      "resume": "Genoptag",
-      "pausedHint": "Denne forbindelse er sat på pause – genoptag den for at nå databasen.",
-      "rename": "Omdøb"
-    },
-    "regional": {
-      "title": "Regionale indstillinger",
-      "intro": "De beskriver den virksomhed, databasen tilhører — ikke den, der læser. Apps, der leveres af Adminium, henter dem her.",
-      "timezone": "Tidszone",
-      "timezoneHelper": "Datoer og klokkeslæt vises i denne tidszone. Uden en falder Adminium-hostede apps tilbage til UTC og skriver det på skærmen.",
-      "guessedTitle": "Denne tidszone kom fra serveren",
-      "guessedBody": "Adminium hentede den fra den maskine, det kører på — ingen her har valgt den. Gem for at bekræfte den, eller vælg den tidszone, virksomheden faktisk arbejder i.",
-      "timezonePlaceholder": "Region/By",
-      "currency": "Valuta",
-      "currencyHelper": "Bruges til at formatere beløb. Valgfri — undlader du den, påvirker det kun formateringen.",
-      "currencyPlaceholder": "ISO-4217-kode",
-      "notSet": "Ikke angivet",
-      "noMatch": "Ingen matchende zone",
-      "noMatchCurrency": "Ingen matchende valuta",
-      "save": "Gem",
-      "failed": "De regionale indstillinger kunne ikke gemmes",
-      "saved": "Regionale indstillinger opdateret"
-    },
-    "test": {
-      "ok": "Forbindelsen er sund · {latency, number} ms",
-      "failed": "Forbindelsestest mislykkedes"
-    },
-    "introspect": {
-      "noChanges": "Skemaet er uændret — intet nyt snapshot.",
-      "updated": "Skemaet er introspiceret igen",
-      "masksProposed": "{count, plural, one {# kolonne} other {# kolonner}} foreslået til maskering — gennemgå i ommapnings-editoren.",
-      "failed": "Introspektion mislykkedes. Prøv igen."
-    },
-    "delete": {
-      "title": "Slet forbindelse",
-      "body": "Dette sletter “{name}” og de genererede sider. Selve din database røres aldrig.",
-      "prompt": "Skriv {name} for at bekræfte",
-      "confirm": "Slet forbindelse",
-      "cancel": "Annuller",
-      "close": "Luk",
-      "success": "Forbindelsen “{name}” er slettet",
-      "failed": "Forbindelsen kunne ikke slettes. Prøv igen."
-    },
-    "empty": {
-      "title": "Ingen datakilder endnu",
-      "body": "Forbind en database, så genererer Adminium dit adminpanel ud fra dens skema.",
-      "cta": "Forbind en database"
-    },
-    "hostedApps": "Hostede apps",
-    "subtitlePaused": "{healthy, number} af {total, plural, one {# forbindelse} other {# forbindelser}} sunde · {paused, number} sat på pause",
-    "pause": {
-      "title": "Sæt denne forbindelse på pause?",
-      "body": "Adminium åbner ikke længere nogen forbindelse til “{name}”. {pages, plural, one {# side} other {# sider}}, planlagte rapporter og hostede apps holder op med at indlæse data, indtil du genoptager den.",
-      "keeps": "Intet slettes – forbindelsen, dens skema og {pages, plural, one {dens # side} other {dens # sider}} bevares alle, og ét klik henter dem tilbage.",
-      "confirm": "Sæt forbindelsen på pause",
-      "pausedToast": "Forbindelsen “{name}” er sat på pause",
-      "resumedToast": "Forbindelsen “{name}” er genoptaget",
-      "pauseFailed": "Forbindelsen kunne ikke sættes på pause. Prøv igen.",
-      "resumeFailed": "Forbindelsen kunne ikke genoptages. Prøv igen."
-    },
-    "rename": {
-      "title": "Omdøb forbindelse",
-      "label": "Navn",
-      "helper": "Hvad denne database hedder i hele Adminium — kortet, sidepanelgruppen over dens sider og hver vælger, der tilbyder den. Selve databasen omdøbes ikke.",
-      "save": "Omdøb",
-      "saved": "Forbindelse omdøbt",
-      "failed": "Forbindelsen kunne ikke omdøbes"
-    }
-  },
-  "settingsHub": {
-    "title": "Arbejdsområdeindstillinger",
-    "subtitle": "Identitet, sikkerhed og destruktive handlinger for dette arbejdsområde.",
-    "save": "Gem ændringer",
-    "saved": "Arbejdsområdeindstillinger opdateret",
-    "saveFailed": "Arbejdsområdeindstillingerne kunne ikke gemmes. Prøv igen.",
-    "superAdminOnlyTitle": "Superadmin påkrævet",
-    "superAdminOnly": "Kun en superadmin kan ændre arbejdsområdets identitet og sikkerhedsindstillinger.",
-    "identity": {
-      "heading": "Arbejdsområdets identitet",
-      "appName": {
-        "label": "Applikationsnavn",
-        "helper": "Vises i sidepanelet, browsertitlen og e-mails.",
-        "error": "Angiv et navn på højst 60 tegn."
-      },
-      "logo": {
-        "label": "Logo",
-        "drop": "Slip et billede her",
-        "helper": "PNG, JPEG, WebP, GIF eller SVG på op til 1 MB. Erstatter det indbyggede mærke overalt.",
-        "upload": "Upload logo",
-        "replace": "Erstat logo",
-        "remove": "Fjern",
-        "uploaded": "Logo opdateret",
-        "removed": "Logo fjernet",
-        "tooLarge": "Billedet er større end 1 MB.",
-        "badType": "Vælg et PNG-, JPEG-, WebP-, GIF- eller SVG-billede.",
-        "undo": "Fortryd"
-      },
-      "showVersion": {
-        "label": "Version i sidepanelet",
-        "helper": "Buildnummeret ved siden af logoet. Slået fra skjuler, hvilken version du kører."
-      }
-    },
-    "security": {
-      "heading": "Sikkerhed",
-      "require2fa": {
-        "label": "Kræv tofaktorgodkendelse",
-        "desc": "Alle medlemmer skal aktivere 2FA for at logge ind.",
-        "note": "Vejledende, ikke en spærring: medlemmer uden 2FA sendes til opsætningen og kan ikke slå den fra igen, men deres login blokeres aldrig, og API-nøgler er ikke omfattet."
-      },
-      "allowSignup": {
-        "label": "Tillad selvregistrering",
-        "desc": "Alle kan oprette en konto — slået fra er arbejdsområdet kun på invitation."
-      },
-      "sessionTtl": {
-        "label": "Sessionslevetid (timer)",
-        "error": "Mellem {min, number} og {max, number} timer."
-      },
-      "passwordMin": {
-        "label": "Minimal adgangskodelængde",
-        "error": "Mellem {min, number} og {max, number} tegn."
-      }
-    },
-    "email": {
-      "attachmentCap": {
-        "error": "Mellem {min, number} og {max, number} MB.",
-        "helper": "Det meste, én besked må indeholde af vedhæftninger.",
-        "label": "Grænse for vedhæftninger (MB)"
-      },
-      "from": {
-        "label": "Afsenderadresse",
-        "helper": "Kun adressen, eller et visningsnavn foran den.",
-        "error": "Indtast en e-mailadresse."
-      },
-      "heading": "E-mail (SMTP)",
-      "host": {
-        "label": "SMTP-vært",
-        "error": "Kun et værtsnavn eller en IP-adresse — uden skema, port eller loginoplysninger."
-      },
-      "pass": {
-        "label": "Adgangskode",
-        "helper": "Gemmes krypteret og vises aldrig igen. Lad feltet stå tomt for at beholde den nuværende.",
-        "error": "Dette brugernavn kræver en adgangskode."
-      },
-      "port": {
-        "label": "Port",
-        "error": "Mellem {min, number} og {max, number}."
-      },
-      "remove": "Fjern mailserver",
-      "review": {
-        "removed": "Fjernet",
-        "password": "Erstattet"
-      },
-      "secure": {
-        "label": "Implicit TLS",
-        "helper": "Til på port 465. Fra starter i klartekst og skifter med STARTTLS, som port 587 forventer."
-      },
-      "senders": {
-        "add": "Tilføj afsender",
-        "address": "Adresse",
-        "error": "Indtast en e-mailadresse.",
-        "heading": "Afsendere",
-        "helper": "Adresser, en e-mail må sendes fra. SMTP-afsenderadressen er altid tilgængelig.",
-        "implicit": "SMTP-afsenderadresse",
-        "name": "Visningsnavn",
-        "remove": "Fjern afsender",
-        "review": "Afsendere"
-      },
-      "unconfigured": "Der er ikke opsat nogen mailserver, så Adminium kan ikke sende nulstilling af adgangskode, invitationer eller planlagte rapporter.",
-      "user": {
-        "label": "Brugernavn",
-        "helper": "Lad feltet stå tomt, hvis relayet ikke kræver login."
-      }
-    },
-    "review": {
-      "title": "Gem arbejdsområdeindstillinger",
-      "subtitle": "Gennemgå dine ændringer, før du gemmer.",
-      "confirm": "Gem ændringer",
-      "cancel": "Annuller",
-      "close": "Luk",
-      "on": "Til",
-      "off": "Fra",
-      "shown": "Vist",
-      "hidden": "Skjult",
-      "change": "{before} → {after}"
-    },
-    "defaultsCard": {
-      "heading": "Standarder for udseende og sprog",
-      "body": "Tema, accentfarve, tæthed og sprog for hele arbejdsområdet findes under globale standarder.",
-      "cta": "Åbn globale standarder"
-    },
-    "danger": {
-      "heading": "Farezone",
-      "subtitle": "Uigenkaldelige handlinger.",
-      "empty": "Intet at slette — ingen forbindelser endnu.",
-      "deleteDesc": "Sletter forbindelsen og de genererede sider. Din database røres ikke. Kan ikke fortrydes.",
-      "deleteCta": "Slet forbindelse"
-    },
-    "aiCard": {
-      "heading": "AI-berigelse",
-      "body": "Konfigurér en AI-udbyder (eller kopiér-indsæt-turen) for at berige etiketter, grupper og relationer.",
-      "cta": "Åbn AI-indstillinger"
-    },
-    "pagesCard": {
-      "heading": "Sider",
-      "body": "Tilføj, rediger og slet sider, skift hvad hver enkelt viser, og omarranger sidepanelet.",
-      "cta": "Administrer sider"
-    },
-    "translationsCard": {
-      "heading": "Sprog og oversættelser",
-      "body": "Omformulér hvad som helst i Adminium, vælg hvilke sprog folk kan vælge, og tilføj dine egne.",
-      "cta": "Åbn oversættelser"
-    },
-    "storageCard": {
-      "heading": "Lagring",
-      "body": "Vælg hvor uploadede filer, eksporter og andre gemte bytes bor — denne server, en bucket eller din egen server.",
-      "cta": "Åbn lagring"
-    },
-    "addOnsCard": {
-      "heading": "Tilføjelser",
-      "body": "Gennemse, installer og forbind tilføjelser — ekstra blokke, datapakker og integrationer — eller upload selv en.",
-      "cta": "Åbn tilføjelser"
-    },
-    "publicApiCard": {
-      "heading": "Offentligt API",
-      "body": "Lad dine egne kunde- eller medarbejdervendte sider læse denne database gennem et scope, du definerer.",
-      "cta": "Åbn offentligt API"
-    }
-  },
-  "settingsAi": {
-    "title": "AI-berigelse",
-    "subtitle": "Forbind en model, så Adminium kan foreslå etiketter, grupper, relationer og mere — altid gennemgået som en diff, før noget anvendes.",
-    "saved": "AI-udbyder gemt",
-    "saveFailed": "AI-udbyderen kunne ikke gemmes. Prøv igen.",
-    "save": "Gem udbyder",
-    "test": "Test forbindelse",
-    "testHintDirty": "Gem dine ændringer, før du tester.",
-    "testing": "Kontakter udbyderen…",
-    "testError": "Testen mislykkedes",
-    "testErrorBody": "Kunne ikke nå udbyderen. Tjek nøglen og basis-URL.",
-    "testOk": "Forbundet til {model} på {latency} ms",
-    "testUnknownModel": "udbyderen",
-    "provider": {
-      "heading": "AI-udbyder",
-      "subtitle": "Vælg, hvordan Adminium når en model til at berige dit skema. Nøgler gemmes krypteret og vises aldrig igen.",
-      "active": "Aktiv",
-      "anthropic": {
-        "label": "Anthropic",
-        "desc": "Claude-modeller via Anthropic-API’en."
-      },
-      "openai": {
-        "label": "OpenAI",
-        "desc": "GPT-modeller via OpenAI-API’en."
-      },
-      "openaiCompatible": {
-        "label": "OpenAI-kompatibel",
-        "desc": "Ethvert endpoint, der taler OpenAI-formatet — Groq, Together, vLLM, LM Studio."
-      },
-      "ollama": {
-        "label": "Ollama (lokal)",
-        "desc": "Modeller kører lokalt via Ollama — ingen nøgle, ingen sky."
-      },
-      "requiresNetwork": "Kræver internet og en API-nøgle",
-      "networkDisabledTitle": "Direkte AI-udbydere er slået fra i denne installation",
-      "networkDisabledBody": "Dette Adminium er konfigureret uden udgående internetadgang og kan ikke nå en udbyder-API. Brug kopier-indsæt-turen nedenfor — den kræver hverken nøgle eller netværk."
-    },
-    "configure": {
-      "heading": "Konfigurér {provider}"
-    },
-    "field": {
-      "baseUrl": "Basis-URL",
-      "baseUrlOptional": "Lad stå, medmindre Ollama kører på en anden vært.",
-      "baseUrlHelper": "Endpoint-roden, der leverer /chat/completions.",
-      "model": "Model",
-      "modelFreeText": "Indtast det præcise model-id, dit endpoint leverer.",
-      "modelLive": "Indlæst live fra udbyderen.",
-      "modelStatic": "En gennemprøvet liste; skriv et brugerdefineret id efter at have gemt for at opdatere den.",
-      "modelLoading": "Indlæser…",
-      "modelPlaceholder": "Vælg en model…",
-      "key": "API-nøgle",
-      "keyStored": "Gemt krypteret. Erstat den for at bruge en anden nøgle.",
-      "keyMask": "sk-…{last4}",
-      "keyReplace": "Erstat nøgle",
-      "keyOptional": "Valgfri — nogle endpoints kræver ingen nøgle.",
-      "keyWriteOnly": "Kun skrivning: når den er gemt, vises den aldrig igen.",
-      "noKeyTitle": "Ingen API-nøgle nødvendig",
-      "noKeyBody": "Ollama kører lokalt, så intet forlader denne maskine."
-    },
-    "runStatus": {
-      "draft": "Kladde",
-      "running": "Kører",
-      "awaitingResponse": "Afventer svar",
-      "validated": "Valideret",
-      "applied": "Anvendt",
-      "partiallyApplied": "Delvist anvendt",
-      "failed": "Mislykkedes",
-      "discarded": "Kasseret"
-    },
-    "byo": {
-      "heading": "Ingen nøgle? Brug dit eget AI-værktøj",
-      "subtitle": "Kopiér-indsæt-turen — intet forlader denne maskine.",
-      "body": "Studio kan generere en selvstændig prompt ud fra dit skema. Kør den i Claude Code, ChatGPT eller et hvilket som helst værktøj, og indsæt derefter den returnerede JSON tilbage i forbindelsesguiden. Samme validering, samme gennemgang, samme resultat som den direkte vej.",
-      "guaranteeTitle": "Telemetrifri garanti",
-      "guarantee1": "Prompten indeholder kun dit skema og aggregeret statistik — aldrig rækkedata som standard.",
-      "guarantee2": "Ingen legitimationsoplysninger, instans-URL eller identifikatorer er indlejret.",
-      "guarantee3": "BYO-kørsler foretager ingen netværkskald.",
-      "promptVersion": "Prompt {version}",
-      "schemaVersion": "Skema {version}",
-      "headingRecommended": "Brug dit eget AI-værktøj — ingen nøgle nødvendig",
-      "recommended": "Anbefalet"
-    },
-    "history": {
-      "heading": "Kørselshistorik",
-      "subtitle": "Tidligere berigelseskørsler. Åbn en for at gennemgå dens forslag.",
-      "tableLabel": "Berigelseskørsler",
-      "colDate": "Dato",
-      "colSource": "Kilde",
-      "colStatus": "Status",
-      "colChunks": "Blokke",
-      "openReview": "Åbn gennemgang for kørslen fra {date}",
-      "connection": "Forbindelse",
-      "empty": "Ingen berigelseskørsler endnu. Berig et skema fra forbindelsesguiden for at se historik her.",
-      "errorTitle": "Kunne ikke indlæse kørsler",
-      "errorBody": "Genindlæs siden for at prøve igen.",
-      "noConnections": "Forbind først en database — berigelseskørsler registreres pr. forbindelse.",
-      "byo": "BYO",
-      "directPath": "Direkte"
-    }
-  },
-  "enrich": {
-    "title": "Berig med AI",
-    "subtitle": "Forfin eventuelt de genererede etiketter, grupper, enums og dashboards med en LLM. Det heuristiske grundlag fungerer uden — dette tilføjer kun forslag, som du gennemgår, før noget anvendes.",
-    "intentLabel": "Hvordan vil du berige?",
-    "sectionsLegend": "Hvad skal AI’en beslutte?",
-    "localesLegend": "Oversæt etiketter til",
-    "localeLocked": "(påkrævet)",
-    "samplingTitle": "Inkludér eksempelværdier",
-    "samplingHint": "Inkluderer op til 20 rigtige værdier pr. ikke-PII-kolonne i prompten.",
-    "samplingPreviewTitle": "Hvad forlader denne maskine",
-    "samplingPreviewBody": "Op til 20 hyppigste værdier pr. ikke-PII-kolonne, plus min/maks for numeriske og datokolonner. PII-markerede kolonner udtages aldrig. Alt andet forbliver kun aggregeret. Gennemgå den præcise prompt før kopiering (BYO) — intet sendes uden din handling.",
-    "noSections": "Vælg mindst én beslutningsgruppe at berige.",
-    "generatePrompt": "Generér prompt",
-    "startProvider": "Start berigelse",
-    "startOver": "Start forfra",
-    "copied": "Kopieret",
-    "createFailed": "Berigelsesprompten kunne ikke bygges — prøv igen.",
-    "createFailedTitle": "Kunne ikke starte",
-    "providerFallback": "din AI-udbyder",
-    "fileTitle": "AI-berigelse kræver en live-database",
-    "fileBody": "Skemafil-kilder har endnu ikke et snapshot at berige. Forbind en live-database for at bruge AI-berigelse, eller fortsæt — det heuristiske grundlag genererer stadig en komplet app.",
-    "section": {
-      "labels": "Etiketter og beskrivelser",
-      "groups": "Navigationsgrupper",
-      "enums": "Enum-semantik",
-      "relations": "Relationer",
-      "keys": "Nøglekolonner",
-      "templates": "Sideskabeloner",
-      "widgets": "Dashboard-widgets",
-      "pii": "PII og maskering",
-      "icons": "Ikoner",
-      "microcopy": "Mikrotekst"
-    },
-    "provider": {
-      "title": "Brug min AI-udbyder",
-      "description": "Kør berigelsen nu mod din konfigurerede udbyder. Du gennemgår hvert forslag som en diff.",
-      "unconfigured": "Der er endnu ikke konfigureret nogen AI-udbyder — kopiér en prompt til dit eget værktøj nedenfor, eller konfigurér først en udbyder.",
-      "settingsHint": "Vil du køre den direkte?",
-      "settingsLink": "Konfigurér en udbyder i Indstillinger → AI",
-      "networkDisabled": "Dette Adminium har ingen udgående internetadgang og kan ikke nå en udbyder-API. Brug kopier-indsæt-turen i stedet — samme prompt, samme gennemgang."
-    },
-    "byo": {
-      "cardTitle": "Kopiér en prompt til mit eget AI-værktøj",
-      "cardDescription": "Kopiér en selvstændig prompt ind i Claude Code, ChatGPT, hvad som helst — og indsæt så JSON’en tilbage. Ingen nøgle nødvendig, intet forlader denne maskine automatisk.",
-      "guidance": "Kør dette i et hvilket som helst AI-værktøj — Claude Code, ChatGPT, hvad som helst. Indsæt den returnerede JSON nedenfor.",
-      "promptLabel": "Berigelsesprompt",
-      "promptLabelN": "Berigelsesprompt {index} af {total}",
-      "tokenChip": "≈ {tokens} tokens",
-      "copyPrompt": "Kopiér prompt",
-      "copyPromptDone": "Prompt kopieret",
-      "download": "Download .md",
-      "chunkTabs": "Prompt-dele",
-      "chunkTab": "Prompt {index}",
-      "chunkValid": "Del {index} valideret",
-      "pasteLabel": "Indsæt JSON-svaret",
-      "pastePlaceholder": "Indsæt JSON-svaret her…",
-      "validate": "Validér",
-      "valid": "Svar valideret",
-      "mergedTitle": "Alle {count} dele valideret og flettet",
-      "mergedTitleSingle": "Svar valideret",
-      "mergedBody": "Forslagene er klar til gennemgang mod det heuristiske grundlag.",
-      "errorsTitle": "Valideringen fandt {count} problemer",
-      "copyErrors": "Kopiér fejl til dit AI-værktøj",
-      "copyErrorsDone": "Fejl kopieret",
-      "copyErrorsHint": "Indsæt dette tilbage i dit AI-værktøj for at få et rettet svar.",
-      "droppedItems": "{count} forslag blev frasorteret under valideringen — gennemgangen viser resten.",
-      "pendingTitle": "Validér hver prompt for at fortsætte",
-      "pendingBody": "Indsæt JSON-svaret ovenfor og validér det for at fortsætte til gennemgang.",
-      "pendingBodyChunked": "Hver del skal valideres, før forslagene flettes. Indsæt og validér hver prompt ovenfor.",
-      "requestFailed": "Kunne ikke nå serveren for at validere — prøv igen.",
-      "continueReview": "Fortsæt til gennemgang",
-      "wholeDocument": "hele dokumentet",
-      "cardTitleRecommended": "Kopiér en prompt til mit eget AI-værktøj — anbefalet"
-    },
-    "direct": {
-      "title": "Beriger med AI",
-      "subtitle": "Sender dit skema til",
-      "building": "Bygger prompt…",
-      "logLabel": "Berigelseslog",
-      "cancel": "Annullér",
-      "back": "Tilbage til valg",
-      "retry": "Prøv igen",
-      "done": "Berigelse fuldført — gennemgå forslagene.",
-      "continueReview": "Fortsæt til gennemgang",
-      "failed": "Udbyderkørslen mislykkedes. Tjek dine AI-indstillinger, og prøv igen.",
-      "jobFailed": "Berigelseskørslen blev ikke fuldført.",
-      "startFailed": "Kunne ikke starte kørslen — prøv igen.",
-      "errorTitle": "Berigelse mislykkedes"
-    },
-    "skip": {
-      "title": "Spring over — brug kun heuristik",
-      "description": "Generér fra det heuristiske grundlag. Du kan berige senere fra Indstillinger → AI — at springe over straffes aldrig.",
-      "confirmTitle": "Fortsætter med heuristik",
-      "confirmBody": "Den genererede app vil bruge de heuristiske etiketter, grupper og dashboards. Fortsæt for at generere — du kan køre AI-berigelse når som helst fra Indstillinger → AI."
-    }
-  },
-  "review": {
-    "unavailableTitle": "Gennemgangsskærm ikke tilgængelig",
-    "unavailableBody": "Denne build indeholder endnu ikke berigelsens gennemgangsskærm (06-T14). Den kommer med diff-og-anvend-flowet."
-  },
-  "llmRuns": {
-    "review": {
-      "header": {
-        "title": "Gennemgå AI-forslag",
-        "model": "Model",
-        "snapshot": "Øjebliksbillede",
-        "byo": "BYO",
-        "pathDirect": "Direkte API",
-        "pathByo": "Kopiér-indsæt",
-        "agree": "{n} enige",
-        "conflict": "{n} konflikt",
-        "new": "{n} nye",
-        "rejects": "{n} afvisninger",
-        "countsAria": "Antal forslag"
-      },
-      "bulk": {
-        "thresholdLabel": "Tillidstærskel",
-        "thresholdAria": "Tillidstærskel for “Accepter alle”",
-        "acceptAll": "Accepter alle ≥ {pct}%",
-        "clear": "Ryd markering"
-      },
-      "section": {
-        "selectAllAria": "Vælg alle i {group}",
-        "acceptedCount": "{n} accepteret"
-      },
-      "group": {
-        "labels": "Etiketter og oversættelser",
-        "navigation": "Navigation og domæner",
-        "enums": "Enum-semantik",
-        "relations": "Relationer",
-        "keys": "Nøglekolonner",
-        "templates": "Sideskabeloner",
-        "dashboards": "Dashboards og widgets",
-        "pii": "Personoplysninger og maskering",
-        "icons": "Ikoner",
-        "microcopy": "Mikrotekst"
-      },
-      "status": {
-        "agree": "Stemmer overens",
-        "conflict": "Konflikt",
-        "new": "Ny",
-        "heuristicOnly": "Kun heuristik",
-        "rejects": "Afviser heuristik",
-        "locked": "Låst"
-      },
-      "row": {
-        "acceptAria": "Accepter {noun}-forslag for {target}",
-        "keptEdited": "bevaret – redigeret af dig",
-        "rejectsCallout": "AI’en afviser en heuristisk beslutning – bekræft før accept.",
-        "showTranslations": "Vis oversættelser",
-        "hideTranslations": "Skjul oversættelser",
-        "confidenceAria": "Tillid {pct}%",
-        "noAi": "Intet AI-forslag"
-      },
-      "value": {
-        "none": "Ingen værdi",
-        "absent": "Ingen",
-        "dash": "—",
-        "display": "Visning",
-        "key": "Nøgle",
-        "rank": "rang {n}",
-        "span": "bredde {n}",
-        "tableCount": "{n} tabeller",
-        "widgetCount": "{n} widgets",
-        "enumWorkflow": "Arbejdsgang",
-        "enumCategory": "Kategori",
-        "notPii": "Ikke personoplysninger",
-        "label": "Etiket",
-        "description": "Beskrivelse",
-        "subtitle": "Sideundertekst",
-        "headline": "Overskrift for tom tilstand",
-        "guidance": "Vejledning for tom tilstand"
-      },
-      "apply": {
-        "title": "Anvend {n} forslag",
-        "subtitle": "Disse ændringer skrives i én transaktion og kan fortrydes.",
-        "empty": "Intet valgt at anvende.",
-        "confirm": "Anvend ændringer"
-      },
-      "footer": {
-        "count": "{n} forslag valgt",
-        "apply": "Anvend {n} accepterede forslag",
-        "failed": "Anvendelse mislykkedes"
-      },
-      "toast": {
-        "applied": "Anvendte {n} forslag",
-        "appliedPartial": "Anvendte {n} forslag (nogle sprunget over)",
-        "applyFailed": "Kunne ikke anvende forslag",
-        "undoFailed": "Kunne ikke fortryde denne ændring"
-      },
-      "error": {
-        "title": "Kunne ikke indlæse denne kørsel"
-      },
-      "notReady": {
-        "title": "Denne kørsel har endnu ingen forslag til gennemgang",
-        "body": "En kørsel skal være valideret, før dens forslag kan gennemgås. Generér eller indsæt et svar først."
-      },
-      "applied": {
-        "title": "Denne kørsel er blevet anvendt",
-        "body": "De accepterede forslag nedenfor er skrivebeskyttede."
-      },
-      "empty": {
-        "title": "Ingen forslag",
-        "body": "Denne kørsel gav ingen forslag til gennemgang."
-      },
-      "cat": {
-        "label": "etiket",
-        "key": "nøglekolonner",
-        "enum": "enum",
-        "relation": "relation",
-        "pii": "personoplysninger",
-        "template": "sideskabelon",
-        "group": "navigationsgruppe",
-        "dashboard": "dashboard",
-        "widget": "widget",
-        "copy": "mikrotekst"
-      }
-    }
-  },
-  "wizard": {
-    "title": "Ny forbindelse",
-    "back": "Tilbage",
-    "continue": "Fortsæt",
-    "progress": "Opsætningsforløb",
-    "persistFailed": "Dit tabelvalg kunne ikke gemmes — prøv igen.",
-    "persistFailedTitle": "Kunne ikke gemme",
-    "bridgeAppliedTitle": "Forbindelsesstreng modtaget",
-    "bridgeAppliedBody": "Overdraget fra adminium.dev af din browser — den gik direkte til denne maskine og blev aldrig uploadet. Tjek den nedenfor, og fortsæt.",
-    "bridgeFailedTitle": "Denne overdragelse kunne ikke bruges",
-    "bridgeFailedBody": "Den er allerede brugt eller udløbet. Indsæt i stedet din forbindelsesstreng nedenfor.",
-    "step": {
-      "source": "Kilde",
-      "test": "Analysér",
-      "tables": "Tabeller",
-      "meta": "Metalagring",
-      "intent": "Formål",
-      "enrich": "Berig",
-      "generate": "Generér"
-    }
-  },
-  "meta": {
-    "title": "Hvor skal Adminium gemme sine egne tabeller?",
-    "subtitle": "Sider, roller, auditlog og indstillinger bor i tabeller med adminium_-præfiks — aldrig blandet med dine data.",
-    "sameDb": {
-      "title": "Samme database",
-      "description": "adminium_*-tabeller oprettes ved siden af dine kildetabeller. Enkleste opsætning — kræver en rolle med skrive- og CREATE TABLE-rettigheder.",
-      "disabledReadOnly": "Din rolle er skrivebeskyttet — Adminium skriver aldrig til denne database. Vælg en separat database til Adminiums egne tabeller.",
-      "disabledNoDdl": "Denne rolle kan ikke køre DDL — Adminium-migreringer kræver CREATE TABLE. Vælg en separat database til Adminiums egne tabeller.",
-      "disabledFile": "En skemafil har ingen live database — vælg en separat database til Adminiums egne tabeller."
-    },
-    "separate": {
-      "title": "Separat database",
-      "description": "Adminium holder sine tabeller i en anden database. Din kilde forbliver urørt — påkrævet for skrivebeskyttede kilder.",
-      "dsn": "Forbindelsesstreng til metadatabasen",
-      "helper": "Kræver skrive- + DDL-rettigheder — Adminium kører sine egne migreringer dér.",
-      "test": "Test forbindelse",
-      "ok": "Kompatibel — skrivning ✓ · DDL ✓",
-      "insufficient": "Denne rolle kan ikke huse metalageret — Adminium behøver skrive- og CREATE TABLE-rettigheder dér.",
-      "errorTitle": "Metalager ikke kompatibelt"
-    },
-    "testFailed": "Forbindelsen mislykkedes.",
-    "v1Note": {
-      "title": "Om denne installation",
-      "body": "Denne server gemmer allerede sine egne tabeller i en konfigureret database, og dette trin flytter dem ikke. Det validerer, at dit valg er kompatibelt med denne forbindelse — serveren håndhæver den samme regel uafhængigt (409 META_PLACEMENT_INVALID)."
-    },
-    "move": {
-      "title": "Flytter Adminiums tabeller",
-      "copying": "Flytter Adminiums tabeller …",
-      "restarting": "Genstarter …",
-      "copyingBody": "Kopierer hver adminium_-tabel til den nye database. Dine kildedata røres ikke, og der skiftes først over, når kopien er verificeret.",
-      "restartingBody": "Kopien er færdig. Adminium genstarter på den nye database — denne side fortsætter af sig selv om få sekunder.",
-      "failed": "Kunne ikke flytte Adminiums tabeller — prøv igen.",
-      "timeout": "Adminium flyttede sine tabeller, men er ikke kommet tilbage endnu. Dine data er sikre i den nye database — genindlæs siden om et øjeblik."
-    },
-    "willMove": {
-      "title": "Dette flytter Adminiums tabeller",
-      "body": "Adminium bruger i øjeblikket sit indbyggede SQLite-lager. Fortsæt kopierer det lager til den valgte database og genstarter på den — konti, sider og indstillinger følger med, så du forbliver logget ind."
-    }
-  },
-  "intent": {
-    "title": "Hvad har du brug for?",
-    "subtitle": "Formålet afgør, hvilke sider der genereres. Du kan ændre det senere — en ændring foreslår en regenerering, aldrig en stille omskrivning.",
-    "trust": "Vi læser kun dit skema — aldrig dine rækkedata under opsætningen.",
-    "fullAdmin": {
-      "title": "Fuldt adminpanel",
-      "description": "Dashboards, CRUD-sider, søgning, import og eksport — alt hvad dit skema understøtter."
-    },
-    "analytics": {
-      "title": "Skrivebeskyttet analyse",
-      "description": "Dashboards, diagrammer og skrivebeskyttede tabeller. Ingen formularer, ingen skrivninger — hver rolle begrænset til Fremviser."
-    },
-    "crud": {
-      "title": "CRUD-tabeller",
-      "description": "Én redigeringsside pr. tabel plus søgning og import/eksport — et minimalt hjem, ingen dashboards."
-    },
-    "support": {
-      "title": "Supportkonsol",
-      "description": "Køer, ticket- og kundedetaljesider først. Sletning slået fra som standard. (Kø-skabeloner lander i M7 — v1-sidesættet svarer til fuldt admin.)"
-    }
-  },
-  "generate": {
-    "title": "Generér din app",
-    "subtitle": "Én side pr. medtaget tabel plus dashboards pr. domæne — formål:",
-    "run": "Generér dashboard",
-    "openApp": "Åbn din app",
-    "logLabel": "Genereringslog",
-    "log": {
-      "classifying": "Klassificerer skema…",
-      "composing": "Sammensætter skabeloner…",
-      "writing": "Skriver sider…",
-      "done": "{pages} sider genereret på tværs af {groups} navigationsgrupper"
-    },
-    "successTitle": "Dit dashboard er klar",
-    "successBody": "{pages} sider i {groups} navigationsgrupper — genereret fra dit skema, redigerbare i Studio.",
-    "errorTitle": "Generering mislykkedes",
-    "failed": "Generering mislykkedes — prøv igen, eller kør introspektionen igen først.",
-    "fileTitle": "Skemafil fortolket — generering kræver en live database",
-    "fileBody": "Dit skema blev fortolket rent, og forhåndsvisningen ovenfor er ægte. Generering af en kørende app direkte fra en skemafil (med pladsholderrækker) er ikke tilgængelig endnu — forbind en live database for at generere i dag."
-  },
-  "remap": {
-    "column": {
-      "nullable": "kan være NULL",
-      "labelOverride": "Visningsetiket",
-      "labelHelper": "Udledt: {name}",
-      "logicalType": "Logisk type",
-      "logicalTypeHelper": "Udledt: {type} (fra {dbType}) — kortlagt af adapteren; kan ikke tilsidesættes i v1.",
-      "semantic": "Semantisk type",
-      "unclassified": "Endnu ikke klassificeret.",
-      "semanticHelper": "Klassifikator: {tag} · {confidence}% tillid · kilde: {source}",
-      "semanticInferred": "udledt: {tag}",
-      "currency": "Valuta",
-      "currencyHelper": "ISO 4217-kode anvendt på beløbsformatering.",
-      "pii": "Maskér som standard",
-      "piiHelper": "Maskerede værdier vises slørede; afmaskering kræver tilladelsen data.unmask_pii og logges i auditloggen.",
-      "enum": "Enum-semantik",
-      "enumKind": "Enum-art",
-      "enumWorkflow": "Arbejdsgang",
-      "enumCategory": "Kategori",
-      "enumLabelFor": "Etiket for {value}",
-      "enumToneFor": "Tone for {value}",
-      "enumToneAuto": "auto",
-      "enumHelper": "Arbejdsgangs-enums driver statusmærker og tavlekolonner; toner knytter værdierne til den semantiske farvetoneskala."
-    },
-    "diff": {
-      "one": "1 ændring",
-      "count": "{count} ændringer",
-      "saved": "Tilsidesættelser gemt.",
-      "revertOne": "Fortryd {change}",
-      "regenerate": "Regenerér sider",
-      "revertAll": "Fortryd alle",
-      "save": "Gem tilsidesættelser"
-    },
-    "table": {
-      "iconPicker": "Tabelikon",
-      "system": "System",
-      "labelOverride": "Visningsetiket",
-      "labelHelper": "Udledt: {name}",
-      "icon": "Ikon",
-      "navGroup": "Navigationsgruppe",
-      "navGroupHelper": "Navigationsplaceringen bestemmes af generatoren — en table.navGroup-tilsidesættelse er ikke en del af v1-vokabularet.",
-      "include": "Medtag i den genererede app",
-      "includeHelper": "Udeladte tabeller får ingen sider og forsvinder fra navigationen.",
-      "shape": "Tabelform (klassificeret)",
-      "role": "Rolle",
-      "unclassified": "Ikke klassificeret",
-      "kind": "Art",
-      "hierarchy": "Hierarki",
-      "selfFk": "Selvreference via {column}",
-      "polymorphic": "Polymorfe par",
-      "rows": "Rækkeestimat",
-      "shapeHelper": "Klassificeringen genberegnes ved hver introspektion; tilsidesættelser lægges ovenpå og overlever regenerering."
-    },
-    "relations": {
-      "declared": "Deklarerede fremmednøgler",
-      "noneDeclared": "Ingen deklarerede fremmednøgler berører denne tabel.",
-      "inferred": "Udledte relationer",
-      "noneInferred": "Intet udledt for denne tabel.",
-      "confidence": "udledt · {pct}%",
-      "accepted": "Accepteret",
-      "suppressed": "Undertrykt",
-      "accept": "Accepter",
-      "suppress": "Undertryk",
-      "overrides": "Relationer fra tilsidesættelser (anvendt)",
-      "overrideBadge": "tilsidesættelse",
-      "add": "Tilføj virtuel relation",
-      "fromColumn": "Fra kolonne",
-      "noColumns": "Ingen matchende kolonne",
-      "fromPlaceholder": "customer_id",
-      "toTable": "Til tabel",
-      "noTables": "Ingen matchende tabel",
-      "toColumn": "Til kolonne",
-      "cardinality": "Kardinalitet",
-      "addButton": "Tilføj relation"
-    },
-    "toast": {
-      "saved": "Skema-tilsidesættelser gemt",
-      "savedDetail": "Det anvendte skema nedenfor afspejler dine ændringer.",
-      "regenerated": "{created} oprettet · {updated} opdateret · {unchanged} uændret",
-      "regeneratedDetail": "Sider, du har redigeret i hånden, bevares — kun sider med en urørt generated_hash blev regenereret på stedet.",
-      "regenerateFailed": "Regenerering mislykkedes"
-    },
-    "title": "Skema",
-    "subtitle": "{tables} tabeller · {applied} tilsidesættelser anvendt",
-    "saveFailed": "Lagring mislykkedes: {message}",
-    "loadFailed": "Kunne ikke indlæse skemaet for denne forbindelse.",
-    "inspector": "Inspektør",
-    "empty": {
-      "title": "Vælg en tabel eller kolonne",
-      "description": "Vælg noget i skematræet for at ommappe dets etiket, type, relationer eller maskering."
-    },
-    "tabs": {
-      "details": "Detaljer",
-      "relations": "Relationer"
-    },
-    "tree": {
-      "label": "Skema",
-      "search": "Søg i tabeller og kolonner",
-      "searchPlaceholder": "Søg i tabeller…",
-      "noMatches": "Ingen tabeller matcher din søgning.",
-      "collapse": "Fold tabel sammen",
-      "expand": "Fold tabel ud",
-      "unsaved": "Ugemt ændring",
-      "excluded": "Udeladt"
-    },
-    "badge": {
-      "pk": "PK",
-      "fk": "FK",
-      "unique": "UNIK",
-      "pii": "PII",
-      "masked": "Maskeret"
-    },
-    "unavailableTitle": "Editor til skema-ommapning ikke tilgængelig",
-    "unavailableBody": "Dette build indeholder endnu ikke ommapnings-editoren (09-T12). Kør genereringen igen, når den er kommet, for at ommappe etiketter, typer og relationer.",
-    "mode": {
-      "design": "Design",
-      "remap": "Etiketter og relationer",
-      "diagram": "Diagram"
-    },
-    "modeLabel": "Redigeringstilstand",
-    "noDesign": {
-      "schemaFile": "Denne forbindelse blev oprettet ud fra en skemafil, så der er ingen database at ændre. Etiketter og relationer virker fortsat.",
-      "readOnlyRole": "Denne forbindelse logger på med en skrivebeskyttet rolle, så Adminium kan ikke ændre dens skema.",
-      "noPrivilege": "Denne forbindelses rolle kan ikke oprette eller ændre tabeller. Giv den skemarettigheder, eller forbind en rolle, der har dem.",
-      "readOnlyIntent": "Denne forbindelse blev sat op til skrivebeskyttet analyse. Skift dens formål i Indstillinger for at redigere dens skema."
-    }
-  },
-  "publicApi": {
-    "error": "Noget gik galt",
-    "scopes": {
-      "deleteTitle": "Slet dette scope",
-      "deleteBody": "Enhver side, der bruger en nøgle tilknyttet dette scope, holder op med at indlæse data. Nøgler slettes ikke — tilbagekald dem først, hvis det var det, du mente.",
-      "deletePrompt": "Skriv scopets navn for at bekræfte",
-      "deleteConfirm": "Slet scope",
-      "issuesTitle": "Dette scope kunne ikke kompileres",
-      "title": "Scopes",
-      "subtitle": "Et scope er alt det, en nøgle må nå — tabellerne, de præcise kolonner og et filter, som kalderen kan indsnævre, men aldrig fjerne.",
-      "emptyTitle": "Ingen scopes endnu",
-      "emptyBody": "Opret et nedenfor. Det tjekkes mod dit aktuelle skema, før det gemmes.",
-      "keyCount": "{count, plural, =0 {ingen nøgler} one {# nøgle} other {# nøgler}}",
-      "delete": "Slet",
-      "nameLabel": "Navn",
-      "connectionLabel": "Forbindelses-id",
-      "documentLabel": "Scope-dokument",
-      "documentHint": "Kompileres mod dit skema, når du gemmer. Hver eneste kolonne, en kalder kan nå, står her og ingen andre steder. En standardværdi kan være '{'\"$generate\": \"uuid\"'}' eller '{'\"$generate\": \"now\"'}' — serveren udfylder dem ved oprettelse, så en besøgende kan tilføje en række uden at vælge dens id.",
-      "create": "Opret scope",
-      "formLabel": "Opret et scope"
-    },
-    "cancel": "Annuller",
-    "close": "Luk",
-    "title": "Offentligt API",
-    "subtitle": "Lad dine egne kunde- eller medarbejdervendte sider læse denne database gennem et scope, du definerer.",
-    "notRegistered": {
-      "title": "Ikke slået til på denne server",
-      "body": "Sæt ADMINIUM_PUBLIC_API_ORIGINS til de præcise origins, der må kalde det, og genstart så. Indtil da serveres disse ruter slet ikke."
-    },
-    "toggle": {
-      "label": "Servér det offentlige API",
-      "hint": "Slår du dette fra, stopper enhver offentlig forespørgsel med det samme. Intet slettes — nøgler, scopes og data bevares alle."
-    },
-    "origins": {
-      "label": "Origins, der må kalde det"
-    },
-    "keys": {
-      "title": "Nøgler",
-      "subtitle": "De ligger i din sides JavaScript, så alle kan læse dem. Sådan skal det være — en nøgle kan aldrig gøre andet end det, dens scope tillader.",
-      "emptyTitle": "Ingen nøgler endnu",
-      "emptyBody": "Opret først et scope, og opret så en nøgle til det.",
-      "reveal": "Vis nøgle",
-      "rotate": "Rotér",
-      "revoke": "Tilbagekald",
-      "nameLabel": "Navn",
-      "scopeLabel": "Scope",
-      "scopePlaceholder": "Vælg et scope",
-      "create": "Opret nøgle",
-      "formLabel": "Opret en nøgle",
-      "scopeIsAuthTitle": "Scopet er den eneste tilladelse",
-      "scopeIsAuthBody": "En nøgle kan nå præcis det, der står i dens scope, og intet andet. Den bruger hverken roller eller tabeltilladelser, og den kan ikke læse noget gennem resten af API’et.",
-      "appLabel": "Tilknyt en hostet app-flade (valgfrit)",
-      "appHint": "Appens kundeflade serverer så selv denne nøgle — rotation kræver ingen ny build.",
-      "appNone": "Ikke tilknyttet"
-    },
-    "status": {
-      "heading": "Status"
-    }
-  },
-  "hostedApps": {
-    "title": "Hostede apps",
-    "subtitle": "De app-flader denne instans serverer — hvor hver enkelt vises, og hvilke domæner der peger på dem.",
-    "error": "Noget gik galt",
-    "emptyTitle": "Der serveres ingen app-flader",
-    "emptyBody": "Peg ADMINIUM_SURFACES_DIR på en mappe med byggede flader — én mappe pr. app og side, hver med sin index.html — og genstart. De serveres derefter under /apps/ og vises her.",
-    "surfaces": {
-      "title": "Flader",
-      "subtitle": "En medarbejderflade kan glide ind i dette dashboards sidepanel eller stå for sig selv; en kundeflade er offentlig og læser gennem sin tilknyttede nøgle.",
-      "staff": "Medarbejder",
-      "customer": "Kunde",
-      "noNav": "Intern placering utilgængelig — byg denne flade igen med det aktuelle toolkit, så den udsender surface.json.",
-      "noKey": "Ingen nøgle tilknyttet — denne flade kan ikke læse data, før der oprettes en til den.",
-      "mintLink": "Opret en under Offentligt API",
-      "boundKey": "Serverer nøgle",
-      "placementLabel": "Placering",
-      "placementInternal": "I sidepanelet (indlejret)",
-      "placementExternal": "Ekstern (kun egen URL)",
-      "connectionLabel": "Læser",
-      "connectionUnset": "Den der kører"
-    },
-    "domains": {
-      "title": "Domæner",
-      "subtitle": "Peg et domænes DNS på din proxy, send Host-headeren videre til Adminium, og tilknyt det her — værten serverer så fladen i stedet for dette dashboard. Certifikater bliver på din proxy.",
-      "issuesTitle": "Domænekortet blev afvist",
-      "savedTitle": "Gemt",
-      "savedBody": "Tilknytninger træder i kraft inden for få sekunder. En vært svarer først, når dens DNS og din proxy faktisk når denne instans.",
-      "none": "Ingen domæner er tilknyttet.",
-      "hostLabel": "Vært",
-      "surfaceLabel": "Flade",
-      "remove": "Fjern",
-      "add": "Tilknyt et domæne",
-      "save": "Gem domæner",
-      "instanceLabel": "Instans",
-      "instanceOwn": "Appens egen"
-    },
-    "instances": {
-      "title": "Instanser",
-      "body": "Server den samme app over flere databaser. Hver instans er tilgængelig på /apps/<app>/<segment>/<side>/ og læser kun den forbindelse, du giver den.",
-      "appLabel": "App",
-      "slugLabel": "URL-segment",
-      "readsLabel": "Læser",
-      "add": "Tilføj en instans",
-      "save": "Gem instanser",
-      "remove": "Fjern",
-      "empty": "Ingen ekstra instanser.",
-      "failed": "Instanserne blev ikke gemt"
-    }
-  },
   "addOns": {
-    "plan": {
-      "blocked": "This cannot be installed here",
-      "needsColumns": "This add-on needs columns you do not have",
-      "needsColumnsBody": "Adminium will not add columns to tables you already own. Add them yourself, then install.",
-      "willCreate": "This will create tables in your database",
-      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone.",
-      "noData": "This add-on reads and writes no tables of its own.",
-      "reuse": "This add-on will use tables you already have:"
-    },
-    "consent": {
-      "title": "Install {name}",
-      "subtitle": "What this add-on will do, before it can do it.",
-      "close": "Close",
-      "loading": "Working out what this would do…",
-      "hosts": "Attach to",
-      "cancel": "Cancel",
-      "confirm": "Install"
-    },
-    "connect": {
-      "apiKey": "API key",
-      "submit": "Connect"
-    },
-    "title": "Add-ons",
-    "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
-    "error": "Something went wrong",
     "browse": {
-      "title": "Available",
-      "online": "Includes add-ons from the online catalogue. Checking for newer versions is a separate action.",
-      "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
-      "refresh": "Check for newer",
-      "emptyTitle": "No add-ons available",
-      "emptyBody": "This build shipped none, and the online catalogue is off.",
-      "bundled": "Included",
-      "upgrade": "v{version} available",
-      "download": "Download",
-      "install": "Install",
-      "discard": "Discard",
-      "upgradeAction": "Upgrade",
-      "toggle": "Browse the online catalogue",
       "all": "Alle",
+      "bundled": "Included",
       "categories": "Kategorier",
-      "search": "Søg efter tilføjelser",
-      "noMatchTitle": "Ingen match",
+      "discard": "Discard",
+      "download": "Download",
+      "emptyBody": "This build shipped none, and the online catalogue is off.",
+      "emptyOnlineBody": "Onlinekataloget er slået til, men sidste tjek fandt intet. Prøv at søge efter nyere.",
+      "emptyTitle": "No add-ons available",
+      "install": "Install",
       "noMatchBody": "Ingen tilføjelse her matcher den søgning og kategori.",
-      "emptyOnlineBody": "Onlinekataloget er slået til, men sidste tjek fandt intet. Prøv at søge efter nyere."
-    },
-    "installed": {
-      "title": "Installed",
-      "emptyTitle": "Nothing installed yet",
-      "emptyBody": "Install an add-on above and it will appear here with its hosts and connection.",
-      "connected": "Connected",
-      "notConnected": "Not connected",
-      "egress": "May contact: {hosts}",
-      "on": "on",
-      "off": "off",
-      "disconnect": "Disconnect",
-      "uninstall": "Uninstall"
-    },
-    "confirm": {
-      "close": "Close",
-      "disconnectTitle": "Disconnect this add-on",
-      "uninstallTitle": "Uninstall this add-on",
-      "discardTitle": "Discard this download",
-      "disconnectBody": "Its keys are deleted and it stops making calls. Every table and every row it created stays exactly as it is, and you can reconnect at any time.",
-      "uninstallBody": "Its keys are deleted and its files are removed from this server. Every table and every row it created stays exactly as it is. You can install it again later.",
-      "discardBody": "The downloaded files are deleted. Nothing was installed, so nothing else changes — you can download it again whenever you like.",
-      "cancel": "Cancel",
-      "disconnect": "Disconnect",
-      "uninstall": "Uninstall",
-      "discard": "Discard"
-    },
-    "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
-    "job": {
-      "title": "Downloading",
-      "body": "Fetching and verifying. Nothing is installed until you say so.",
-      "failed": "The download did not finish. Nothing was installed."
-    },
-    "veto": {
-      "title": "This deployment cannot browse online",
-      "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself."
-    },
-    "sideload": {
-      "title": "Upload a package",
-      "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
-      "file": "Package file (.tgz)",
-      "key": "Add-on key",
-      "version": "Version",
-      "sha": "Integrity (sha512-…)",
-      "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
-      "submit": "Upload"
+      "noMatchTitle": "Ingen match",
+      "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
+      "online": "Includes add-ons from the online catalogue. Checking for newer versions is a separate action.",
+      "refresh": "Check for newer",
+      "search": "Søg efter tilføjelser",
+      "title": "Available",
+      "toggle": "Browse the online catalogue",
+      "upgrade": "v{version} available",
+      "upgradeAction": "Upgrade"
     },
     "card": {
       "needsApiKey": "Kræver en API-nøgle",
@@ -1152,359 +27,134 @@
     },
     "category": {
       "artwork": "Design",
+      "data": "Data",
       "delivery": "Levering",
-      "payments": "Betalinger",
       "email": "E-mail",
-      "data": "Data"
+      "payments": "Betalinger"
+    },
+    "confirm": {
+      "cancel": "Cancel",
+      "close": "Close",
+      "discard": "Discard",
+      "discardBody": "The downloaded files are deleted. Nothing was installed, so nothing else changes — you can download it again whenever you like.",
+      "discardTitle": "Discard this download",
+      "disconnect": "Disconnect",
+      "disconnectBody": "Its keys are deleted and it stops making calls. Every table and every row it created stays exactly as it is, and you can reconnect at any time.",
+      "disconnectTitle": "Disconnect this add-on",
+      "uninstall": "Uninstall",
+      "uninstallBody": "Its keys are deleted and its files are removed from this server. Every table and every row it created stays exactly as it is. You can install it again later.",
+      "uninstallTitle": "Uninstall this add-on"
+    },
+    "connect": {
+      "apiKey": "API key",
+      "submit": "Connect"
+    },
+    "consent": {
+      "cancel": "Cancel",
+      "close": "Close",
+      "confirm": "Install",
+      "hosts": "Attach to",
+      "loading": "Working out what this would do…",
+      "subtitle": "What this add-on will do, before it can do it.",
+      "title": "Install {name}"
+    },
+    "error": "Something went wrong",
+    "installed": {
+      "connected": "Connected",
+      "disconnect": "Disconnect",
+      "egress": "May contact: {hosts}",
+      "emptyBody": "Install an add-on above and it will appear here with its hosts and connection.",
+      "emptyTitle": "Nothing installed yet",
+      "notConnected": "Not connected",
+      "off": "off",
+      "on": "on",
+      "title": "Installed",
+      "uninstall": "Uninstall"
+    },
+    "job": {
+      "body": "Fetching and verifying. Nothing is installed until you say so.",
+      "failed": "The download did not finish. Nothing was installed.",
+      "title": "Downloading"
+    },
+    "plan": {
+      "blocked": "This cannot be installed here",
+      "needsColumns": "This add-on needs columns you do not have",
+      "needsColumnsBody": "Adminium will not add columns to tables you already own. Add them yourself, then install.",
+      "noData": "This add-on reads and writes no tables of its own.",
+      "reuse": "This add-on will use tables you already have:",
+      "willCreate": "This will create tables in your database",
+      "willCreateBody": "Installing creates these tables. Uninstalling later leaves them, and their data, alone."
     },
     "settings": {
-      "title": "Indstillinger",
+      "badJson": "Det er ikke gyldig JSON, så intet blev gemt.",
       "save": "Gem indstillinger",
-      "badJson": "Det er ikke gyldig JSON, så intet blev gemt."
+      "title": "Indstillinger"
+    },
+    "sideload": {
+      "file": "Package file (.tgz)",
+      "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
+      "key": "Add-on key",
+      "sha": "Integrity (sha512-…)",
+      "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
+      "submit": "Upload",
+      "title": "Upload a package",
+      "version": "Version"
+    },
+    "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
+    "title": "Add-ons",
+    "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
+    "veto": {
+      "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
+      "title": "This deployment cannot browse online"
     }
   },
-  "pages": {
-    "title": "Sider",
-    "subtitle": "Tilføj, rediger og organiser din apps sider — og den rækkefølge de vises i sidepanelet.",
-    "createButton": "Ny side",
-    "loadFailed": {
-      "title": "Siderne kunne ikke indlæses",
-      "body": "Sidestyring kræver tilladelsen “Administrer sider”. Bed en administrator om at give den til en af dine roller."
-    },
-    "tab": {
-      "pages": "Alle sider",
-      "sidebar": "Rækkefølge i sidepanelet"
-    },
-    "list": {
-      "title": "Sider",
-      "count": "{count, plural, one {# side} other {# sider}}"
-    },
-    "empty": {
-      "title": "Ingen sider endnu",
-      "body": "Forbind en database for at generere sider automatisk, eller opret en i hånden."
-    },
-    "status": {
-      "live": "Aktiv",
-      "hidden": "Skjult"
-    },
-    "origin": {
-      "generated": "Genereret",
-      "manifest": "Tilføjelse",
-      "llm": "Assistent",
-      "system": "System",
-      "user": "Egen"
-    },
-    "row": {
-      "menu": "Handlinger for {title}"
-    },
-    "action": {
-      "edit": "Rediger side",
-      "duplicate": "Dupliker",
-      "hide": "Skjul fra sidepanelet",
-      "show": "Vis i sidepanelet",
-      "delete": "Slet side"
-    },
-    "create": {
-      "title": "Ny side",
-      "failed": "Siden kunne ikke oprettes",
-      "submit": "Opret side",
-      "subtitle": "Vælg hvad siden viser, og hvordan den ser ud. Forhåndsvisningen følger dine valg."
-    },
-    "duplicate": {
-      "title": "Dupliker side",
-      "failed": "Siden kunne ikke duplikeres",
-      "submit": "Dupliker"
-    },
-    "delete": {
-      "title": "Slet denne side?",
-      "body": "Dette kan ikke fortrydes. Gemte visninger og personlige layouts på denne side slettes for alle.",
-      "bodyGenerated": "Denne side stammer fra skemagenerering, så den kommer igen næste gang du genererer. Gemte visninger og personlige layouts slettes for alle.",
-      "prompt": "Skriv {slug} for at bekræfte",
-      "confirm": "Slet side"
-    },
-    "field": {
-      "title": "Titel",
-      "titleHint": "Vises i sidepanelet og i sidens overskrift.",
-      "newRowLabel": "Tilføj-knap",
-      "newRowLabelHint": "Hvad der står på knappen, der tilføjer en post. Lad feltet stå tomt for at bruge standardteksten, som er oversat.",
-      "slug": "Sideadresse",
-      "slugHint": "Små bogstaver, tal og bindestreger. Kun den sidste del — resten af adressen tilføjer vi.",
-      "slugTaken": "En anden side bruger allerede denne adresse.",
-      "slugWarning": "Ændrer du adressen, går eksisterende links og bogmærker til siden i stykker.",
-      "template": "Skabelon",
-      "templateHint": "Afgør hvad siden kan indeholde. Kan ændres senere.",
-      "group": "Gruppe i sidepanelet",
-      "groupHint": "Hvilken del af sidepanelet den vises i.",
-      "icon": "Ikon",
-      "iconHint": "Vises ved siden af sidens navn i sidepanelet.",
-      "visible": "Vis i sidepanelet",
-      "visibleHint": "En skjult side kan stadig tilgås på sin URL af alle med linket.",
-      "table": "Tabel",
-      "tableCreateHint": "Tabellen som denne side læser fra. Vælg en nu, så er siden klar til brug; lad den stå tom, og du kan knytte den senere.",
-      "tableNone": "Ikke knyttet",
-      "tableNeedsConnection": "Vælg en datakilde først.",
-      "connection": "Datakilde",
-      "connectionNone": "Ingen",
-      "iconPick": "Vælg sidens ikon",
-      "padding": "Sidemargen",
-      "width": "Indholdsbredde",
-      "widthHint": "Hvor bred sidens indholdskolonne må blive på en stor skærm."
-    },
-    "editor": {
-      "title": "Rediger side",
-      "save": "Gem ændringer",
-      "saveFailed": "Ændringerne kunne ikke gemmes",
-      "openPage": "Åbn side",
-      "generated": {
-        "title": "Denne side blev genereret ud fra dit skema",
-        "body": "Dine ændringer bevares, når du genererer igen — siden markeres som redigeret og røres ikke. En sletning holder derimod kun, indtil næste generering opretter den på ny."
-      },
-      "contentUnavailable": "Sidens indhold kunne ikke indlæses",
-      "contentUnavailableBody": "Oplysningerne ovenfor kan stadig gemmes.",
-      "contentInvalid": "Denne sides konfiguration kan ikke læses",
-      "contentInvalidBody": "Den er skrevet af en nyere version, eller den er ugyldig. Generer siden igen, eller slet den.",
-      "data": "Data",
-      "schemaFailed": "Tabellerne kunne ikke vises",
-      "schemaFailedBody": "Denne forbindelse er måske ikke analyseret endnu. Kør introspektion fra Studio → Dataforbindelser.",
-      "notBindable": "Denne skabelon er ikke knyttet til én tabel",
-      "notBindableBody": "Dens indhold bygges widget for widget i stedet. Åbn siden, og brug “Rediger” til at tilføje dem.",
-      "recompose": "Denne side bliver bygget om",
-      "recomposeBody": "Når du gemmer, erstattes indholdet af et nyt layout for skabelonen og tabellen ovenfor. Kolonnetilpasninger og widget-ændringer på siden går tabt.",
-      "missing": "Denne side findes ikke længere",
-      "missingBody": "Den er måske slettet eller fjernet af en generering.",
-      "details": "Detaljer",
-      "itemsPending": "Gem først ændringen ovenfor — sidens indhold bygges op igen ud fra den nye skabelon og tabel.",
-      "columns": "Kolonner",
-      "appearance": "Udseende",
-      "derived": "Afledte tal",
-      "attachments": "Vedhæftede filer"
-    },
-    "sidebar": {
-      "help": "Omarranger sider inden for en gruppe, eller flyt en til en anden gruppe. Ændringerne gælder for alle.",
-      "discard": "Kassér",
-      "save": "Gem rækkefølge",
-      "saveFailed": "Den nye rækkefølge kunne ikke gemmes",
-      "emptyGroup": "Ingen sider i denne gruppe.",
-      "moveUp": "Flyt {title} op",
-      "moveDown": "Flyt {title} ned",
-      "moveTo": "Flyt {title} til en gruppe",
-      "ungrouped": {
-        "title": "Nogle sider hører ikke til nogen gruppe",
-        "body": "Siderne virker på deres URL, men vises ingen steder i sidepanelet. Åbn hver enkelt og vælg en gruppe."
-      }
-    },
-    "columns": {
-      "help": "Træk for at omarrangere kolonner, omdøb deres overskrifter, og vælg hvilke der vises i tabellen.",
-      "empty": "Ingen kolonner endnu — tilføj dem nedenfor.",
-      "pk": "Nøgle",
-      "masked": "Maskeret",
-      "header": "Overskrift for {name}",
-      "shown": "Vist",
-      "mask": "Maskér",
-      "maskToggle": "Skjul {name} bag en vis-knap",
-      "avatar": "Avatar",
-      "avatarToggle": "Vis et monogram ved siden af {name}",
-      "maskHelp": "Maskering skjuler en værdi bag en vis-knap for læsere, der må se den. Om data overhovedet forlader databasen, indstilles på forbindelsen, ikke her.",
-      "toggle": "Vis {name} i tabellen",
-      "dragHandle": "Flyt {name}",
-      "remove": "Fjern {name}",
-      "addOpen": "Tilføj kolonne",
-      "addTitle": "Tilføj en kolonne",
-      "addSearch": "Søg i kolonner…",
-      "addFromTable": "Fra {table}",
-      "addFromLinked": "Fra linkede tabeller",
-      "addLinkedHelp": "Vis en værdi fra den tabel, som en linkkolonne peger på.",
-      "addVia": "via {column}",
-      "addNoMatches": "Ingen kolonner matcher “{query}”.",
-      "followColumn": "Følg {name}",
-      "addLinkedFrom": "Tabeller, der linker hertil",
-      "addLinkedFromHelp": "Tæl rækkerne, der peger på hver post, eller læg et af deres tal sammen.",
-      "countBadge": "Antal",
-      "lookupBadge": "Sammenkædet",
-      "lookupBack": "Tilbage",
-      "lookupBrowse": "Vælg hvad der skal vises fra {table}",
-      "lookupBroken": "Kæden kan ikke længere følges",
-      "lookupBrokenBody": "Skemaet ændrede sig undervejs. Start kæden forfra.",
-      "schemaUnavailable": "Databasens kolonner kunne ikke hentes, så kolonner kan ikke tilføjes her.",
-      "none": {
-        "title": "Denne side har ingen kolonner endnu",
-        "body": "Kolonner læses fra tabellen, når siden genereres. Knyt siden til en tabel og generer igen for at udfylde dem."
-      },
-      "foldLabel": "Aggregering",
-      "foldAdd": "Tilføj",
-      "fold": {
-        "sum": "Sum",
-        "avg": "Gennemsnit",
-        "min": "Min",
-        "max": "Maks"
-      },
-      "file": {
-        "ref": {
-          "url": "Et link til filen",
-          "id": "Adminiums fil-id",
-          "key": "Nøglen i destinationen"
-        },
-        "type": {
-          "pdf": "PDF",
-          "png": "PNG",
-          "jpeg": "JPEG",
-          "gif": "GIF",
-          "webp": "WebP",
-          "heic": "HEIC",
-          "svg": "SVG",
-          "zip": "ZIP",
-          "office": "Office-dokumenter",
-          "mp4": "MP4-video",
-          "mp3": "MP3-lyd",
-          "wav": "WAV-lyd",
-          "webm": "WebM",
-          "ogg": "Ogg",
-          "csv": "CSV",
-          "text": "Almindelig tekst",
-          "markdown": "Markdown",
-          "json": "JSON"
-        },
-        "badge": "Fil",
-        "switch": "Fil",
-        "switchToggle": "{name} gemmer en fil",
-        "refLabel": "Gemt værdi",
-        "refHelp": "Det, der skrives i denne kolonne, når en fil uploades. Værdier, der allerede er gemt, virker fortsat — dette ændrer kun den næste.",
-        "refTooNarrow": "Denne kolonne er for kort til at rumme den værdi. Vælg en, den kan rumme, eller gør kolonnen bredere i databasen.",
-        "refWidth": "{shape} — kræver {needs} tegn, denne kolonne rummer {holds}",
-        "destinationLabel": "Destination",
-        "destinationHelp": "Hvor de bytes, der uploades gennem denne kolonne, opbevares.",
-        "destinationDefault": "Standarddestinationen",
-        "acceptLabel": "Accepterede typer",
-        "acceptHelp": "Lad alle typer være slået fra for at acceptere det, dette arbejdsområde accepterer. Vælger du typer, kan det kun indsnævre listen — en kolonne kan aldrig acceptere en type, arbejdsområdet afviser.",
-        "maxLabel": "Største fil (MB)",
-        "maxHelp": "Lad feltet stå tomt for at bruge arbejdsområdets grænse. En kolonne kan kun bede om mindre.",
-        "maxToggle": "Største fil, {name} accepterer, i MB",
-        "inlineLabel": "Vis den i tabellen",
-        "inlineHelp": "Kun billeder tegnes i cellen. Alt andet forbliver et mærke med sit navn og sin størrelse, uanset hvad der er valgt her.",
-        "maxCountHelp": "Lad feltet stå tomt for at acceptere så mange, som en post har brug for.",
-        "maxCountLabel": "Højst antal filer pr. post",
-        "maxCountToggle": "Højst antal filer for {name}",
-        "multipleHelp": "Kolonnen gemmer en liste af filer i stedet for én. Eksisterende enkeltværdier virker fortsat — de læses som en liste med ét element.",
-        "multipleLabel": "Rumme mere end én fil"
-      }
-    },
-    "icon": {
-      "none": "Vælg et ikon",
-      "search": "Søg efter ikoner",
-      "noMatches": "Ingen ikoner matcher den søgning."
-    },
-    "preview": {
-      "untitled": "Side uden titel",
-      "note": "En illustration af layoutet, ikke dine data. Den rigtige side fyldes ud, når den er gemt."
-    },
-    "padding": {
-      "default": "Standard for denne skabelon",
-      "none": "Ingen",
-      "standard": "Standard (28 × 24)",
-      "custom": "Tilpasset…",
-      "x": "Sider (px)",
-      "y": "Top og bund (px)"
-    },
-    "width": {
-      "default": "Standard for denne skabelon",
-      "narrow": "Smal (720 px)",
-      "content": "Indhold (900 px)",
-      "page": "Side (1080 px)",
-      "dash": "Dashboard (1320 px)",
-      "wide": "Bred (1800 px)",
-      "full": "Fuld bredde (ingen grænse)"
-    },
-    "derived": {
-      "help": "Beregn tal ud fra oversigterne ovenfor og denne posts egne kolonner. De beregnes, når siden indlæses, og kan ikke sorteres.",
-      "foldBadge": "Opsummering",
-      "fieldBadge": "Beregnet",
-      "remove": "Fjern {name}",
-      "emptyTitle": "Ingen beregnede tal endnu",
-      "emptyBody": "Opsummer først en forbundet tabel i Kolonner-kortet — reglerne her bygger på de tal.",
-      "label": "Kolonneoverskrift",
-      "operandA": "Tal",
-      "operandB": "Tal",
-      "operator": "Operator",
-      "minus": "minus",
-      "plus": "plus",
-      "percentOf": "procent fra denne post",
-      "atLeast": "er mindst",
-      "thenShow": "så vis",
-      "otherwise": "ellers",
-      "numberHelp": "Tal er almindelige decimaler — 500 eller 12.50, aldrig 1,000 eller 5e3.",
-      "add": "Tilføj kolonne",
-      "cancel": "Annuller",
-      "previewTitle": "Forhåndsvisning",
-      "previewHelp": "Eksempelværdier, beregnet af den samme kode, som siden bruger.",
-      "preset": {
-        "combine": "Læg to tal sammen eller træk fra",
-        "percent": "Procent af et tal",
-        "rule": "Regel med en tærskel"
-      }
-    },
-    "attachments": {
-      "type": {
-        "office": "Office-dokumenter",
-        "text": "Almindelig tekst"
-      },
-      "destinationIsDefault": "{name} (standarden)",
-      "enable": "Tillad vedhæftede filer på denne tabels poster",
-      "enableHint": "Filerne knyttes til på Adminiums side, så denne tabel behøver ingen ny kolonne — det virker på en skrivebeskyttet forbindelse og på en tabel, du helst ikke vil ændre.",
-      "destination": "Hvor filerne havner",
-      "destinationHint": "Lad den stå på standarden, medmindre denne tabels filer hører hjemme et andet sted.",
-      "destinationDefault": "Standarddestinationen",
-      "destinationLocal": "Denne servers disk",
-      "accept": "Accepterede filtyper",
-      "acceptHint": "Vælger du ingen, accepteres alt, hvad dette arbejdsområde tillader. Et valg her kan kun indsnævre listen, aldrig udvide den.",
-      "maxBytes": "Største fil (MB)",
-      "maxBytesHint": "Lad feltet stå tomt for at følge arbejdsområdets grænse. Et tal her kan kun sænke den.",
-      "maxCount": "Flest filer pr. post",
-      "maxCountHint": "Lad feltet stå tomt for at acceptere så mange, som en post har brug for.",
-      "column": {
-        "adoptHint": "Denne tabel har allerede kolonnen, så der oprettes ikke noget — den bruges, som den er.",
-        "bound": "Filer gemmes i denne tabels {column}-kolonne.",
-        "boundHint": "Slår du vedhæftninger fra senere, frakobles kun denne side. Kolonnen og filerne i den røres ikke.",
-        "confirm": "Kør den",
-        "create": "Opret kolonnen",
-        "createHint": "Adminium tilføjer én tekstkolonne til denne tabel. Du ser den præcise sætning, før noget kører.",
-        "createdHint": "Kolonnen findes nu. Gem denne side for at gøre koblingen færdig.",
-        "failed": "Det virkede ikke",
-        "invalid": "Et kolonnenavn skal starte med et bogstav og må kun indeholde små bogstaver, cifre og understregninger.",
-        "label": "Kolonne der indeholder filerne",
-        "required": "Giv kolonnen et navn.",
-        "tooLong": "Det navn er for langt til en kolonne.",
-        "use": "Brug denne kolonne",
-        "wrongType": "Tabellen har allerede en kolonne med det navn, og den kan ikke rumme en filreference. Vælg et andet navn."
-      },
-      "enableHintColumn": "Filer gemmes i én kolonne på denne tabel, så de vises både i dialogerne Ny og Rediger og på hver post.",
-      "enableHintSidecar": "Filer kobles i stedet på Adminiums side. De vises på hver posts side, ikke i dialogen Ny.",
-      "sidecar": {
-        "readOnlyIntent": "Denne forbindelse er sat op til skrivebeskyttet analyse, så Adminium kan ikke tilføje en kolonne til den.",
-        "readOnlyRole": "Denne forbindelse logger på med en skrivebeskyttet rolle, så Adminium kan ikke tilføje en kolonne til den.",
-        "schemaFile": "Denne forbindelse blev oprettet ud fra en skemafil, så Adminium kan ikke tilføje en kolonne til den.",
-        "noPrivilege": "Denne forbindelses rolle kan ikke ændre tabeller, så Adminium kan ikke tilføje en kolonne til den."
-      }
-    }
+  "capability": {
+    "importNoLiveHealth": "Ingen live databaseforbindelse — sundhedstjek og registrering af skemadrift er ikke tilgængelige for denne kilde.",
+    "importNoRowCounts": "Skemafiler indeholder ingen rækkeantal — tabellisten viser — i stedet for opdigtede tal.",
+    "mysqlApproxRows": "MySQL-rækkeantal er estimater fra lagringsmotoren (kan afvige op til ±40 %) — vises med ≈.",
+    "mysqlFkEnum": "MySQL’s FK-/enum-metadata er svagere: MyISAM-tabeller deklarerer ingen fremmednøgler, enums er kolonnetyper som enum(…), og CHECK-begrænsninger kræver MySQL 8.0.16+ / MariaDB 10.2+.",
+    "rowsApproximate": "Estimat fra lagringsmotoren — kan afvige op til ±40 % på InnoDB.",
+    "rowsNoEstimate": "Motoren rapporterede intet estimat for denne tabel.",
+    "rowsRunAnalyze": "Intet estimat endnu — kør ANALYZE på databasen for at få rækkeantal.",
+    "rowsUnavailable": "Skemafiler har ingen live database — rækkeantal er ukendte, indtil du forbinder en.",
+    "sqliteCheckEnums": "SQLite har ingen indbygget enum-type — enums syntetiseres fra CHECK (col IN (…))-begrænsninger.",
+    "sqliteNoComments": "SQLite har ingen kolonnekommentarer — brug skema-remap-editoren til at tilføje etiketter."
   },
   "design": {
+    "adopt": {
+      "action": "Tilføj til min app",
+      "done": "{created} sider oprettet, {updated} opdateret, {unchanged} allerede aktuelle.",
+      "everything": "Denne forbindelse viser allerede alle tabeller, så intet skulle inkluderes.",
+      "forbidden": "Din rolle kan ændre skemaet, men ikke generere sider. Bed en administrator med forbindelsesstyring om at tilføje disse tabeller til appen.",
+      "grants": "Ingen rolle får adgang automatisk — tildel den under Indstillinger → Roller.",
+      "offer": "En ny tabel gør ingenting, før den har en side. Vil du tilføje {tables} til din app?",
+      "skippedEdited": "Efterladt urørt, fordi du har redigeret dem: {pages}."
+    },
     "apply": "Anvend",
+    "ceiling": {
+      "authorise": "Godkend denne omskrivning",
+      "body": "{table} har over {rows} rækker — mere, end Adminium omskriver af sig selv. Kun en Super Admin kan godkende det, og tabellen er låst, så længe omskrivningen varer.",
+      "hint": "Skriv tabelnavnet præcis som det står ovenfor.",
+      "notYours": "{table} har over {rows} rækker. Kun en Super Admin kan godkende en omskrivning af den størrelse — spørg en, eller kør ændringen i et servicevindue med dine egne værktøjer.",
+      "prompt": "Skriv {table} igen for at godkende omskrivningen"
+    },
     "column": {
+      "help": "Hvad betyder disse indstillinger?",
       "key": "Nøgle",
       "length": "Længde",
+      "link": "Linker til",
+      "linkHelp": "Forbind dette til en række i en anden tabel.",
+      "linkTypeNote": "Typen matcher den linkede tabels nøgle.",
       "name": "Navn",
+      "namePlaceholder": "client_id",
+      "noLink": "Ingenting",
+      "onDelete": "Hvis den linkede række slettes",
       "precision": "Præcision",
+      "primaryKey": "Primærnøgle",
       "remove": "Fjern {name}",
       "required": "Påkrævet",
       "type": "Type",
-      "unique": "Unik",
-      "primaryKey": "Primærnøgle",
-      "help": "Hvad betyder disse indstillinger?",
-      "link": "Linker til",
-      "linkHelp": "Forbind dette til en række i en anden tabel.",
-      "noLink": "Ingenting",
-      "onDelete": "Hvis den linkede række slettes",
-      "linkTypeNote": "Typen matcher den linkede tabels nøgle.",
-      "namePlaceholder": "client_id"
+      "unique": "Unik"
     },
     "confirm": {
       "body": "Denne ændring kasserer data eller fjerner et objekt. Adminium kan ikke fortryde den.",
@@ -1516,9 +166,17 @@
     },
     "designer": "Tabeldesigner",
     "discard": "Kassér ændringer",
+    "dropping": "Markeret til sletning",
     "empty": {
       "body": "Opret en tabel, eller vælg en at redigere. Intet når din database, før du har gennemgået sætningerne og anvendt dem.",
       "title": "Design dit skema"
+    },
+    "error": {
+      "atColumn": "Kolonne {n}, {field}",
+      "atTable": "Tabel {field}",
+      "empty": "Et navn er påkrævet.",
+      "identifier": "Brug små bogstaver, tal og understregninger, og start med et bogstav.",
+      "tooLong": "For langt — {dialect} tillader {max} tegn."
     },
     "existing": "Eksisterende tabeller",
     "hazard": {
@@ -1529,13 +187,49 @@
       "rewrite": "Omskriver tabellen",
       "safe": "Sikker"
     },
+    "help": {
+      "close": "Luk",
+      "link": {
+        "example": "En reservation linker til en klient. Adminium viser så klienten på reservationen og reservationerne på klienten.",
+        "term": "Link til en anden tabel",
+        "what": "Forbinder denne række med en række i en anden tabel og beder databasen om at holde linket ærligt — du kan ikke pege på noget, der ikke findes."
+      },
+      "primaryKey": {
+        "example": "Uden en primærnøgle kan Adminium vise rækkerne på en liste, men ikke redigere eller slette en enkelt af dem.",
+        "term": "Primærnøgle",
+        "what": "Feltet, der identificerer hver række — det, Adminium bruger til at skelne én række fra en anden. Hver tabel bør have præcis ét, og det er næsten altid det \"id\"-felt, der blev oprettet for dig."
+      },
+      "required": {
+        "example": "En ordre skal have en kunde, så det felt er påkrævet. En leveringsbemærkning er valgfri, så det er den ikke.",
+        "term": "Påkrævet",
+        "what": "Feltet skal udfyldes. En række kan ikke gemmes, så længe det er tomt."
+      },
+      "subtitle": "Beskrivelser i almindeligt sprog af hver indstilling, og hvad den ændrer for dem, der bruger din app.",
+      "title": "Hvad disse felter betyder",
+      "type": {
+        "example": "Et telefonnummer er som regel tekst, ikke et tal — tal taber nuller i starten.",
+        "term": "Type",
+        "what": "Hvilken slags oplysning feltet indeholder — ord, hele tal, penge, en dato, et ja/nej-svar. Det er valget af den rigtige, der gør, at Adminium kan vise en datovælger i stedet for et tekstfelt og lægge en kolonne med penge sammen."
+      },
+      "unique": {
+        "example": "To kunder bør ikke dele den samme e-mailadresse — marker feltet som unikt, og så kan de ikke.",
+        "term": "Unik",
+        "what": "To rækker må ikke indeholde den samme værdi. Databasen afviser den anden."
+      }
+    },
+    "keepTable": "Behold {table}",
     "newTable": "Ny tabel",
+    "onDelete": {
+      "cascade": "Slet også denne række",
+      "restrict": "Forhindr sletningen",
+      "setNull": "Lad feltet være tomt"
+    },
     "plan": "Gennemgå ændringer",
     "result": {
       "applied": "Anvendt. Adminium har genindlæst dit skema.",
+      "failed": "Intet blev anvendt — din database er uændret. {error}",
       "partial": "Delvist anvendt: {done} af {total} trin blev kørt. Anvend de samme ændringer igen for at fuldføre dem.",
-      "repaired": "Omdøbningen blev ført videre til {pages, plural, one {# side} other {# sider}}, {grants, plural, one {# rolletilladelse} other {# rolletilladelser}} og {overrides, plural, one {# skemaoverstyring} other {# skemaoverstyringer}}.",
-      "failed": "Intet blev anvendt — din database er uændret. {error}"
+      "repaired": "Omdøbningen blev ført videre til {pages, plural, one {# side} other {# sider}}, {grants, plural, one {# rolletilladelse} other {# rolletilladelser}} og {overrides, plural, one {# skemaoverstyring} other {# skemaoverstyringer}}."
     },
     "review": {
       "noChanges": "Ingen skemaændringer endnu.",
@@ -1544,90 +238,30 @@
       "superAdmin": "Superadministrator",
       "unfinished": "En tidligere anvendelse på denne forbindelse rapporterede aldrig et resultat. Dens skema er måske halvvejs mellem to former — tjek ændringshistorikken, før du anvender flere."
     },
+    "reviewPane": "Gennemgang",
     "table": {
       "addColumn": "Tilføj kolonne",
       "columns": "Kolonner",
-      "name": "Tabelnavn",
-      "nameHelp": "Små bogstaver, tal og understregninger.",
-      "noKey": "Denne tabel har ingen primærnøgle, så Adminium behandler den som skrivebeskyttet — rækker kan vises, men ikke redigeres.",
-      "renameHelp": "Ændrer du dette, omdøbes tabellen i din database.",
-      "uuidKeyUnavailable": "På denne motor skal en nøgle være et genereret heltal: en databasegenereret uuid kan ikke læses tilbage efter en indsættelse.",
       "drop": "Slet denne tabel",
       "dropHelp": "Tabellen og alle dens rækker destrueres. Du får se præcis hvad der går i stykker, før noget køres.",
-      "namePlaceholder": "reservations"
-    },
-    "reviewPane": "Gennemgang",
-    "error": {
-      "empty": "Et navn er påkrævet.",
-      "identifier": "Brug små bogstaver, tal og understregninger, og start med et bogstav.",
-      "tooLong": "For langt — {dialect} tillader {max} tegn.",
-      "atColumn": "Kolonne {n}, {field}",
-      "atTable": "Tabel {field}"
-    },
-    "onDelete": {
-      "restrict": "Forhindr sletningen",
-      "cascade": "Slet også denne række",
-      "setNull": "Lad feltet være tomt"
-    },
-    "help": {
-      "title": "Hvad disse felter betyder",
-      "subtitle": "Beskrivelser i almindeligt sprog af hver indstilling, og hvad den ændrer for dem, der bruger din app.",
-      "close": "Luk",
-      "type": {
-        "term": "Type",
-        "what": "Hvilken slags oplysning feltet indeholder — ord, hele tal, penge, en dato, et ja/nej-svar. Det er valget af den rigtige, der gør, at Adminium kan vise en datovælger i stedet for et tekstfelt og lægge en kolonne med penge sammen.",
-        "example": "Et telefonnummer er som regel tekst, ikke et tal — tal taber nuller i starten."
-      },
-      "required": {
-        "term": "Påkrævet",
-        "what": "Feltet skal udfyldes. En række kan ikke gemmes, så længe det er tomt.",
-        "example": "En ordre skal have en kunde, så det felt er påkrævet. En leveringsbemærkning er valgfri, så det er den ikke."
-      },
-      "unique": {
-        "term": "Unik",
-        "what": "To rækker må ikke indeholde den samme værdi. Databasen afviser den anden.",
-        "example": "To kunder bør ikke dele den samme e-mailadresse — marker feltet som unikt, og så kan de ikke."
-      },
-      "primaryKey": {
-        "term": "Primærnøgle",
-        "what": "Feltet, der identificerer hver række — det, Adminium bruger til at skelne én række fra en anden. Hver tabel bør have præcis ét, og det er næsten altid det \"id\"-felt, der blev oprettet for dig.",
-        "example": "Uden en primærnøgle kan Adminium vise rækkerne på en liste, men ikke redigere eller slette en enkelt af dem."
-      },
-      "link": {
-        "term": "Link til en anden tabel",
-        "what": "Forbinder denne række med en række i en anden tabel og beder databasen om at holde linket ærligt — du kan ikke pege på noget, der ikke findes.",
-        "example": "En reservation linker til en klient. Adminium viser så klienten på reservationen og reservationerne på klienten."
-      }
-    },
-    "unrepresentableDefaults": "Disse kolonner beholder en databasegenereret standardværdi, som Adminium ikke kan redigere her, og den efterlades som den er: {columns}",
-    "dropping": "Markeret til sletning",
-    "keepTable": "Behold {table}",
-    "adopt": {
-      "offer": "En ny tabel gør ingenting, før den har en side. Vil du tilføje {tables} til din app?",
-      "grants": "Ingen rolle får adgang automatisk — tildel den under Indstillinger → Roller.",
-      "action": "Tilføj til min app",
-      "done": "{created} sider oprettet, {updated} opdateret, {unchanged} allerede aktuelle.",
-      "skippedEdited": "Efterladt urørt, fordi du har redigeret dem: {pages}.",
-      "everything": "Denne forbindelse viser allerede alle tabeller, så intet skulle inkluderes.",
-      "forbidden": "Din rolle kan ændre skemaet, men ikke generere sider. Bed en administrator med forbindelsesstyring om at tilføje disse tabeller til appen."
+      "name": "Tabelnavn",
+      "nameHelp": "Små bogstaver, tal og understregninger.",
+      "namePlaceholder": "reservations",
+      "noKey": "Denne tabel har ingen primærnøgle, så Adminium behandler den som skrivebeskyttet — rækker kan vises, men ikke redigeres.",
+      "renameHelp": "Ændrer du dette, omdøbes tabellen i din database.",
+      "uuidKeyUnavailable": "På denne motor skal en nøgle være et genereret heltal: en databasegenereret uuid kan ikke læses tilbage efter en indsættelse."
     },
     "unnamed": "Navngiv hver tabel og kolonne for at gennemgå ændringerne.",
-    "ceiling": {
-      "prompt": "Skriv {table} igen for at godkende omskrivningen",
-      "body": "{table} har over {rows} rækker — mere, end Adminium omskriver af sig selv. Kun en Super Admin kan godkende det, og tabellen er låst, så længe omskrivningen varer.",
-      "hint": "Skriv tabelnavnet præcis som det står ovenfor.",
-      "notYours": "{table} har over {rows} rækker. Kun en Super Admin kan godkende en omskrivning af den størrelse — spørg en, eller kør ændringen i et servicevindue med dine egne værktøjer.",
-      "authorise": "Godkend denne omskrivning"
-    }
+    "unrepresentableDefaults": "Disse kolonner beholder en databasegenereret standardværdi, som Adminium ikke kan redigere her, og den efterlades som den er: {columns}"
   },
   "diagram": {
     "ceiling": "Viser de {shown} mest forbundne tabeller. {omitted} flere er skjult — søg for at hente en frem.",
-    "legendLabel": "Signaturforklaring",
     "legend": {
       "declared": "Fremmednøgle",
       "inferred": "Udledt",
       "virtual": "Tilføjet i Adminium"
     },
+    "legendLabel": "Signaturforklaring",
     "node": {
       "foreignKey": "Fremmednøgle",
       "more": "+{count} mere",
@@ -1644,191 +278,1653 @@
     "showDiagram": "Vis diagram",
     "showList": "Vis som liste"
   },
+  "documents": {
+    "cancel": "Annullér",
+    "connectionLabel": "Forbindelse",
+    "delete": "Slet",
+    "delivery": {
+      "email": "Send til",
+      "noEmail": "Ingen — behold det på posten",
+      "noEmailSlot": "Denne bilagstype har ikke noget adressefelt og kan derfor ikke sendes.",
+      "noSmtp": "Dette Adminium har endnu ingen e-mailserver, så der kan ikke sendes noget. Opsæt en under Studio → Indstillinger → E-mail.",
+      "stored": "Bliver altid på posten."
+    },
+    "disabled": "slået fra",
+    "edit": "Rediger",
+    "empty": "Ingen tilknytninger endnu.",
+    "grants": {
+      "refused": "Denne tilknytning læser {tables}, som I ikke må læse. Bilag herfra vil fejle for jer.",
+      "title": "I må ikke læse det hele"
+    },
+    "intro": "En tilknytning siger, hvilke kolonner i hvilken tabel der udgør én slags bilag, hvad der tegner det, og hvor det går hen.",
+    "name": "Navngiv denne tilknytning",
+    "newFrom": "Ny tilknytning til:",
+    "noProvider": "Intet installeret add-on kan endnu tegne bilag. Installér et under Add-ons, så vises de mulige tilknytninger her.",
+    "pickTable": "Vælg en tabel…",
+    "prefix": "Nummerforstavelse",
+    "render": {
+      "failedRow": "Der blev ikke tegnet noget: {reason}",
+      "intro": "Tegn et nu, ud fra en række, du vælger. Intet sendes nogen steder hen — det bliver på posten som alle andre.",
+      "noRows": "Ingen rækker at tegne ud fra endnu.",
+      "open": "Åbn",
+      "pending": "Tegner…",
+      "pick": "Tegn denne",
+      "ready": "Tegnet.",
+      "saveFirst": "Gem tilknytningen først. Et bilag tegnes ud fra en gemt, så du kan se, hvad den laver, før andre gør.",
+      "search": "Søg i rækker",
+      "slow": "Der er endnu ikke dukket et bilag op. Det venter måske på tur, eller denne installation kører ingen baggrundsopgaver — der tegnes ikke noget, før den gør.",
+      "slowTitle": "Stadig ingenting"
+    },
+    "save": "Gem tilknytning",
+    "slot": {
+      "byDefault": "Udfyldes af Adminium",
+      "lineColumnOf": "{column} for hver linje",
+      "lineColumns": "Hvad der udfylder hver kolonne i en linje",
+      "looksLikeLines": "ligner linjer",
+      "noChildren": "Intet i din database peger på denne tabel, så der er ingen linjer at tegne. Et bilag har brug for en underordnet tabel med en fremmednøgle tilbage til denne.",
+      "noLines": "Ingen linjer",
+      "pii": "skjulte data",
+      "typed": "En værdi, jeg skriver",
+      "typedHint": "Skrevet her, ikke læst fra dine data — hvert bilag fra denne tilknytning får den samme værdi.",
+      "typedValue": "Værdi for {slot}",
+      "unmapped": "Ikke udfyldt"
+    },
+    "step": {
+      "delivery": "Hvor det går hen",
+      "kind": "Slags",
+      "mapping": "Hvad der udfylder hvert felt",
+      "mappingHelp": "Hvert felt læser en kolonne — eller tager en værdi, du skriver her.",
+      "render": "Prøv den på en række",
+      "table": "Forbindelse og tabel",
+      "trigger": "Hvad der tegner det"
+    },
+    "tableLabel": "Tabel",
+    "title": "Bilagstilknytninger",
+    "trigger": {
+      "created": "Når en række kommer til",
+      "manual": "Kun når nogen beder om det",
+      "manualShort": "på anmodning",
+      "note": "Rækker fra en import eller skrevet direkte i databasen tegner intet — kun skrivninger gennem Adminium gør.",
+      "noteTitle": "Hvad der tæller som en ændring",
+      "updated": "Når en række ændres"
+    },
+    "unbound": "Mangler stadig: {slots}"
+  },
+  "enrich": {
+    "byo": {
+      "cardDescription": "Kopiér en selvstændig prompt ind i Claude Code, ChatGPT, hvad som helst — og indsæt så JSON’en tilbage. Ingen nøgle nødvendig, intet forlader denne maskine automatisk.",
+      "cardTitle": "Kopiér en prompt til mit eget AI-værktøj",
+      "cardTitleRecommended": "Kopiér en prompt til mit eget AI-værktøj — anbefalet",
+      "chunkTab": "Prompt {index}",
+      "chunkTabs": "Prompt-dele",
+      "chunkValid": "Del {index} valideret",
+      "continueReview": "Fortsæt til gennemgang",
+      "copyErrors": "Kopiér fejl til dit AI-værktøj",
+      "copyErrorsDone": "Fejl kopieret",
+      "copyErrorsHint": "Indsæt dette tilbage i dit AI-værktøj for at få et rettet svar.",
+      "copyPrompt": "Kopiér prompt",
+      "copyPromptDone": "Prompt kopieret",
+      "download": "Download .md",
+      "droppedItems": "{count} forslag blev frasorteret under valideringen — gennemgangen viser resten.",
+      "errorsTitle": "Valideringen fandt {count} problemer",
+      "guidance": "Kør dette i et hvilket som helst AI-værktøj — Claude Code, ChatGPT, hvad som helst. Indsæt den returnerede JSON nedenfor.",
+      "mergedBody": "Forslagene er klar til gennemgang mod det heuristiske grundlag.",
+      "mergedTitle": "Alle {count} dele valideret og flettet",
+      "mergedTitleSingle": "Svar valideret",
+      "pasteLabel": "Indsæt JSON-svaret",
+      "pastePlaceholder": "Indsæt JSON-svaret her…",
+      "pendingBody": "Indsæt JSON-svaret ovenfor og validér det for at fortsætte til gennemgang.",
+      "pendingBodyChunked": "Hver del skal valideres, før forslagene flettes. Indsæt og validér hver prompt ovenfor.",
+      "pendingTitle": "Validér hver prompt for at fortsætte",
+      "promptLabel": "Berigelsesprompt",
+      "promptLabelN": "Berigelsesprompt {index} af {total}",
+      "requestFailed": "Kunne ikke nå serveren for at validere — prøv igen.",
+      "tokenChip": "≈ {tokens} tokens",
+      "valid": "Svar valideret",
+      "validate": "Validér",
+      "wholeDocument": "hele dokumentet"
+    },
+    "copied": "Kopieret",
+    "createFailed": "Berigelsesprompten kunne ikke bygges — prøv igen.",
+    "createFailedTitle": "Kunne ikke starte",
+    "direct": {
+      "back": "Tilbage til valg",
+      "building": "Bygger prompt…",
+      "cancel": "Annullér",
+      "continueReview": "Fortsæt til gennemgang",
+      "done": "Berigelse fuldført — gennemgå forslagene.",
+      "errorTitle": "Berigelse mislykkedes",
+      "failed": "Udbyderkørslen mislykkedes. Tjek dine AI-indstillinger, og prøv igen.",
+      "jobFailed": "Berigelseskørslen blev ikke fuldført.",
+      "logLabel": "Berigelseslog",
+      "retry": "Prøv igen",
+      "startFailed": "Kunne ikke starte kørslen — prøv igen.",
+      "subtitle": "Sender dit skema til",
+      "title": "Beriger med AI"
+    },
+    "fileBody": "Skemafil-kilder har endnu ikke et snapshot at berige. Forbind en live-database for at bruge AI-berigelse, eller fortsæt — det heuristiske grundlag genererer stadig en komplet app.",
+    "fileTitle": "AI-berigelse kræver en live-database",
+    "generatePrompt": "Generér prompt",
+    "intentLabel": "Hvordan vil du berige?",
+    "localeLocked": "(påkrævet)",
+    "localesLegend": "Oversæt etiketter til",
+    "noSections": "Vælg mindst én beslutningsgruppe at berige.",
+    "provider": {
+      "configError": "Udbyderindstillingerne kunne ikke indlæses — konfigurér en udbyder i Indstillinger → AI, og kom tilbage til dette trin.",
+      "description": "Kør berigelsen nu mod din konfigurerede udbyder. Du gennemgår hvert forslag som en diff.",
+      "networkDisabled": "Dette Adminium har ingen udgående internetadgang og kan ikke nå en udbyder-API. Brug kopier-indsæt-turen i stedet — samme prompt, samme gennemgang.",
+      "readyBody": "Vælg “Brug min AI-udbyder” ovenfor for at køre berigelsen på denne forbindelse nu.",
+      "readyTitle": "AI-udbyder konfigureret",
+      "setUpHere": "Konfigurér en udbyder her",
+      "setUpHide": "Skjul udbyderopsætning",
+      "settingsHint": "Vil du køre den direkte?",
+      "settingsLink": "Konfigurér en udbyder i Indstillinger → AI",
+      "title": "Brug min AI-udbyder",
+      "unconfigured": "Der er endnu ikke konfigureret nogen AI-udbyder — konfigurér en nedenfor, eller kopiér en prompt til dit eget AI-værktøj."
+    },
+    "providerFallback": "din AI-udbyder",
+    "samplingHint": "Inkluderer op til 20 rigtige værdier pr. ikke-PII-kolonne i prompten.",
+    "samplingPreviewBody": "Op til 20 hyppigste værdier pr. ikke-PII-kolonne, plus min/maks for numeriske og datokolonner. PII-markerede kolonner udtages aldrig. Alt andet forbliver kun aggregeret. Gennemgå den præcise prompt før kopiering (BYO) — intet sendes uden din handling.",
+    "samplingPreviewTitle": "Hvad forlader denne maskine",
+    "samplingTitle": "Inkludér eksempelværdier",
+    "section": {
+      "enums": "Enum-semantik",
+      "groups": "Navigationsgrupper",
+      "icons": "Ikoner",
+      "keys": "Nøglekolonner",
+      "labels": "Etiketter og beskrivelser",
+      "microcopy": "Mikrotekst",
+      "pii": "PII og maskering",
+      "relations": "Relationer",
+      "templates": "Sideskabeloner",
+      "widgets": "Dashboard-widgets"
+    },
+    "sectionsLegend": "Hvad skal AI’en beslutte?",
+    "skip": {
+      "confirmBody": "Den genererede app vil bruge de heuristiske etiketter, grupper og dashboards. Fortsæt for at generere — du kan køre AI-berigelse når som helst fra Indstillinger → AI.",
+      "confirmTitle": "Fortsætter med heuristik",
+      "description": "Generér fra det heuristiske grundlag. Du kan berige senere fra Indstillinger → AI — at springe over straffes aldrig.",
+      "title": "Spring over — brug kun heuristik"
+    },
+    "startOver": "Start forfra",
+    "startProvider": "Start berigelse",
+    "subtitle": "Forfin eventuelt de genererede etiketter, grupper, enums og dashboards med en LLM. Det heuristiske grundlag fungerer uden — dette tilføjer kun forslag, som du gennemgår, før noget anvendes.",
+    "title": "Berig med AI"
+  },
+  "generate": {
+    "errorTitle": "Generering mislykkedes",
+    "failed": "Generering mislykkedes — prøv igen, eller kør introspektionen igen først.",
+    "fileBody": "Dit skema blev fortolket rent, og forhåndsvisningen ovenfor er ægte. Generering af en kørende app direkte fra en skemafil (med pladsholderrækker) er ikke tilgængelig endnu — forbind en live database for at generere i dag.",
+    "fileTitle": "Skemafil fortolket — generering kræver en live database",
+    "log": {
+      "classifying": "Klassificerer skema…",
+      "composing": "Sammensætter skabeloner…",
+      "done": "{pages} sider genereret på tværs af {groups} navigationsgrupper",
+      "writing": "Skriver sider…"
+    },
+    "logLabel": "Genereringslog",
+    "openApp": "Åbn din app",
+    "run": "Generér dashboard",
+    "subtitle": "Én side pr. medtaget tabel plus dashboards pr. domæne — formål:",
+    "successBody": "{pages} sider i {groups} navigationsgrupper — genereret fra dit skema, redigerbare i Studio.",
+    "successTitle": "Dit dashboard er klar",
+    "title": "Generér din app"
+  },
+  "hostedApps": {
+    "domains": {
+      "add": "Tilknyt et domæne",
+      "hostLabel": "Vært",
+      "instanceLabel": "Instans",
+      "instanceOwn": "Appens egen",
+      "issuesTitle": "Domænekortet blev afvist",
+      "none": "Ingen domæner er tilknyttet.",
+      "remove": "Fjern",
+      "save": "Gem domæner",
+      "savedBody": "Tilknytninger træder i kraft inden for få sekunder. En vært svarer først, når dens DNS og din proxy faktisk når denne instans.",
+      "savedTitle": "Gemt",
+      "subtitle": "Peg et domænes DNS på din proxy, send Host-headeren videre til Adminium, og tilknyt det her — værten serverer så fladen i stedet for dette dashboard. Certifikater bliver på din proxy.",
+      "surfaceLabel": "Flade",
+      "title": "Domæner"
+    },
+    "emptyBody": "Peg ADMINIUM_SURFACES_DIR på en mappe med byggede flader — én mappe pr. app og side, hver med sin index.html — og genstart. De serveres derefter under /apps/ og vises her.",
+    "emptyTitle": "Der serveres ingen app-flader",
+    "error": "Noget gik galt",
+    "instances": {
+      "add": "Tilføj en instans",
+      "appLabel": "App",
+      "body": "Server den samme app over flere databaser. Hver instans er tilgængelig på /apps/<app>/<segment>/<side>/ og læser kun den forbindelse, du giver den.",
+      "empty": "Ingen ekstra instanser.",
+      "failed": "Instanserne blev ikke gemt",
+      "readsLabel": "Læser",
+      "remove": "Fjern",
+      "save": "Gem instanser",
+      "slugLabel": "URL-segment",
+      "title": "Instanser"
+    },
+    "subtitle": "De app-flader denne instans serverer — hvor hver enkelt vises, og hvilke domæner der peger på dem.",
+    "surfaces": {
+      "boundKey": "Serverer nøgle",
+      "connectionLabel": "Læser",
+      "connectionUnset": "Den der kører",
+      "customer": "Kunde",
+      "mintLink": "Opret en under Offentligt API",
+      "noKey": "Ingen nøgle tilknyttet — denne flade kan ikke læse data, før der oprettes en til den.",
+      "noNav": "Intern placering utilgængelig — byg denne flade igen med det aktuelle toolkit, så den udsender surface.json.",
+      "placementExternal": "Ekstern (kun egen URL)",
+      "placementInternal": "I sidepanelet (indlejret)",
+      "placementLabel": "Placering",
+      "staff": "Medarbejder",
+      "subtitle": "En medarbejderflade kan glide ind i dette dashboards sidepanel eller stå for sig selv; en kundeflade er offentlig og læser gennem sin tilknyttede nøgle.",
+      "title": "Flader"
+    },
+    "title": "Hostede apps",
+    "install": {
+      "steps": {
+        "bundle": "Pakke",
+        "database": "Database",
+        "plan": "Skemaplan",
+        "done": "Færdig"
+      },
+      "progress": "Installationsforløb",
+      "failed": "Installationen mislykkedes",
+      "bundle": {
+        "title": "Upload app-pakken",
+        "hint": "Den .tgz, som `npm pack` laver af en bygget flade — den indeholder manifest.json og en staff/- eller customer/-mappe.",
+        "file": "Pakkefil (.tgz)",
+        "fileHint": "Der oprettes intet, før du bekræfter på skemaplan-trinnet.",
+        "key": "App-nøgle",
+        "version": "Version",
+        "integrity": "Integritet (valgfrit)",
+        "integrityHint": "Indsæt sha512-værdien fra `npm pack --json`, så serveren kontrollerer netop disse bytes. Står feltet tomt, beregnes den her."
+      },
+      "database": {
+        "title": "Hvilken database skal den installeres i?",
+        "hint": "Vælg en forbindelse med skriveadgang. Det er her, tabellerne oprettes, og det er den, appen læser fra bagefter.",
+        "tables": "Tabeller: {count}",
+        "readOnly": "Skrivebeskyttet",
+        "writable": "Skrivbar",
+        "noWritable": "Ingen skrivbar forbindelse",
+        "allReadOnly": "Alle forbindelser her bruger en skrivebeskyttet rolle, så ingen app kan oprette sine tabeller. Tilslut først en, der må køre DDL."
+      },
+      "plan": {
+        "title": "Gennemgå skemaplanen",
+        "hint": "Præcis det, der bliver oprettet i din database. Der er endnu ikke skrevet noget.",
+        "refused": "Denne app kan ikke installeres her",
+        "create": "Opret",
+        "reuse": "Genbrug eksisterende",
+        "toggleDdl": "Vis DDL-forhåndsvisning",
+        "ddl": "DDL-forhåndsvisning",
+        "ddlNote": "Vejledende. Serveren danner den præcise sætning til din motor, inklusive fremmednøgler.",
+        "summary": "{created} oprettet · {reused} genbrugt"
+      },
+      "done": {
+        "title": "Installeret",
+        "body": "{key} serveres nu. Vælg nedenfor, hvor medarbejdersiden skal vises.",
+        "schema": "Tabeller oprettet: {created} · genbrugt: {reused}"
+      },
+      "cancel": "Annullér",
+      "back": "Tilbage",
+      "upload": "Upload",
+      "continue": "Fortsæt",
+      "confirm": "Installér",
+      "finish": "Administrér apps",
+      "staged": "Udpakkede filer: {files}",
+      "footerStep": "Trin {n} af {total}",
+      "footerStepApp": "Trin {n} af {total} · {app}",
+      "chosen": {
+        "title": "Installér {app}",
+        "hint": "Denne app fulgte med dit build og ligger allerede på disken. Der oprettes intet, før du bekræfter skemaplanen."
+      }
+    },
+    "installed": {
+      "title": "Installerede apps",
+      "install": "Installér en app",
+      "emptyTitle": "Ingen apps installeret endnu",
+      "emptyBody": "Upload en bygget fladepakke for at installere en. Apps installeret her serveres med det samme — uden genstart, i modsætning til en mappe.",
+      "uninstall": "Afinstallér",
+      "confirmTitle": "Afinstallér denne app?",
+      "confirmBody": "Dens flader serveres ikke længere, og pakken slettes. Tabeller, den har oprettet i din database, røres ikke.",
+      "confirmPrompt": "Skriv {key} for at bekræfte",
+      "confirmCancel": "Annullér",
+      "confirmClose": "Luk",
+      "stagedTitle": "Uploadet, men ikke installeret",
+      "stagedHint": "Kassér den, du har fravalgt, eller upload den samme nøgle igen for at erstatte den.",
+      "discard": "Kassér",
+      "installedAt": "installeret {when}"
+    },
+    "browse": {
+      "title": "Apps du kan installere",
+      "subtitle": "Færdige apps, der fulgte med dette build. En installation opretter de nødvendige tabeller og serverer appens skærme — der sker intet, før du bekræfter planen.",
+      "search": "Søg efter apps…",
+      "clear": "Ryd søgningen",
+      "all": "Alle",
+      "by": "af {publisher}",
+      "install": "Installér",
+      "installed": "Installeret",
+      "noMatch": "Ingen apps matcher den søgning",
+      "noMatchBody": "Prøv et andet ord eller en anden kategori.",
+      "emptyTitle": "Ingen apps er tilgængelige",
+      "emptyBody": "Apps, der følger med dette build, vises her. Lad ADMINIUM_BUNDLED_APPS pege på en mappe med app-pakker, eller upload selv en.",
+      "unreadable": "Pakkens manifest kunne ikke læses. Den kan ikke installeres — kassér den nedenfor."
+    }
+  },
+  "hub": {
+    "action": {
+      "delete": "Slet",
+      "pause": "Sæt på pause",
+      "pausedHint": "Denne forbindelse er sat på pause – genoptag den for at nå databasen.",
+      "regional": "Regionale indstillinger",
+      "reintrospect": "Introspicer igen",
+      "reintrospectFile": "Skemafil-kilder har ingen aktiv database — upload filen igen i stedet.",
+      "remap": "Ommap skema",
+      "rename": "Omdøb",
+      "resume": "Genoptag",
+      "test": "Test"
+    },
+    "card": {
+      "lastIntrospected": "Senest introspiceret",
+      "latency": "Latenstid",
+      "latencyMs": "{latency, number} ms",
+      "never": "Aldrig",
+      "pages": "Sider",
+      "paused": "Adminium opretter ikke forbindelse til denne database. Dens sider indlæses igen, når du genoptager den.",
+      "pausedSince": "Sat på pause {when} – Adminium opretter ikke forbindelse til denne database. Dens sider indlæses igen, når du genoptager den.",
+      "readOnly": "Skrivebeskyttet",
+      "tables": "Tabeller",
+      "timezone": "Tidszone",
+      "timezoneGuessed": "fra denne server"
+    },
+    "connectNew": "Ny forbindelse",
+    "delete": {
+      "body": "Dette sletter “{name}” og de genererede sider. Selve din database røres aldrig.",
+      "cancel": "Annuller",
+      "close": "Luk",
+      "confirm": "Slet forbindelse",
+      "failed": "Forbindelsen kunne ikke slettes. Prøv igen.",
+      "prompt": "Skriv {name} for at bekræfte",
+      "success": "Forbindelsen “{name}” er slettet",
+      "title": "Slet forbindelse"
+    },
+    "empty": {
+      "body": "Forbind en database, så genererer Adminium dit adminpanel ud fra dens skema.",
+      "cta": "Forbind en database",
+      "title": "Ingen datakilder endnu"
+    },
+    "hostedApps": "Hostede apps",
+    "introspect": {
+      "failed": "Introspektion mislykkedes. Prøv igen.",
+      "masksProposed": "{count, plural, one {# kolonne} other {# kolonner}} foreslået til maskering — gennemgå i ommapnings-editoren.",
+      "noChanges": "Skemaet er uændret — intet nyt snapshot.",
+      "updated": "Skemaet er introspiceret igen"
+    },
+    "pause": {
+      "body": "Adminium åbner ikke længere nogen forbindelse til “{name}”. {pages, plural, one {# side} other {# sider}}, planlagte rapporter og hostede apps holder op med at indlæse data, indtil du genoptager den.",
+      "confirm": "Sæt forbindelsen på pause",
+      "keeps": "Intet slettes – forbindelsen, dens skema og {pages, plural, one {dens # side} other {dens # sider}} bevares alle, og ét klik henter dem tilbage.",
+      "pauseFailed": "Forbindelsen kunne ikke sættes på pause. Prøv igen.",
+      "pausedToast": "Forbindelsen “{name}” er sat på pause",
+      "resumeFailed": "Forbindelsen kunne ikke genoptages. Prøv igen.",
+      "resumedToast": "Forbindelsen “{name}” er genoptaget",
+      "title": "Sæt denne forbindelse på pause?"
+    },
+    "regional": {
+      "currency": "Valuta",
+      "currencyHelper": "Bruges til at formatere beløb. Valgfri — undlader du den, påvirker det kun formateringen.",
+      "currencyPlaceholder": "ISO-4217-kode",
+      "failed": "De regionale indstillinger kunne ikke gemmes",
+      "guessedBody": "Adminium hentede den fra den maskine, det kører på — ingen her har valgt den. Gem for at bekræfte den, eller vælg den tidszone, virksomheden faktisk arbejder i.",
+      "guessedTitle": "Denne tidszone kom fra serveren",
+      "intro": "De beskriver den virksomhed, databasen tilhører — ikke den, der læser. Apps, der leveres af Adminium, henter dem her.",
+      "noMatch": "Ingen matchende zone",
+      "noMatchCurrency": "Ingen matchende valuta",
+      "notSet": "Ikke angivet",
+      "save": "Gem",
+      "saved": "Regionale indstillinger opdateret",
+      "timezone": "Tidszone",
+      "timezoneHelper": "Datoer og klokkeslæt vises i denne tidszone. Uden en falder Adminium-hostede apps tilbage til UTC og skriver det på skærmen.",
+      "timezonePlaceholder": "Region/By",
+      "title": "Regionale indstillinger"
+    },
+    "rename": {
+      "failed": "Forbindelsen kunne ikke omdøbes",
+      "helper": "Hvad denne database hedder i hele Adminium — kortet, sidepanelgruppen over dens sider og hver vælger, der tilbyder den. Selve databasen omdøbes ikke.",
+      "label": "Navn",
+      "save": "Omdøb",
+      "saved": "Forbindelse omdøbt",
+      "title": "Omdøb forbindelse"
+    },
+    "stats": {
+      "connections": "Forbindelser",
+      "healthy": "Sunde",
+      "pages": "Genererede sider",
+      "tables": "Inkluderede tabeller"
+    },
+    "status": {
+      "connected": "Forbundet",
+      "error": "Fejl",
+      "paused": "Sat på pause",
+      "testing": "Tester…",
+      "unconfigured": "Kladde"
+    },
+    "subtitle": "{healthy, number} af {total, plural, one {# forbindelse} other {# forbindelser}} sunde",
+    "subtitlePaused": "{healthy, number} af {total, plural, one {# forbindelse} other {# forbindelser}} sunde · {paused, number} sat på pause",
+    "test": {
+      "failed": "Forbindelsestest mislykkedes",
+      "ok": "Forbindelsen er sund · {latency, number} ms"
+    },
+    "title": "Dataforbindelser"
+  },
+  "intent": {
+    "analytics": {
+      "description": "Dashboards, diagrammer og skrivebeskyttede tabeller. Ingen formularer, ingen skrivninger — hver rolle begrænset til Fremviser.",
+      "title": "Skrivebeskyttet analyse"
+    },
+    "crud": {
+      "description": "Én redigeringsside pr. tabel plus søgning og import/eksport — et minimalt hjem, ingen dashboards.",
+      "title": "CRUD-tabeller"
+    },
+    "fullAdmin": {
+      "description": "Dashboards, CRUD-sider, søgning, import og eksport — alt hvad dit skema understøtter.",
+      "title": "Fuldt adminpanel"
+    },
+    "subtitle": "Formålet afgør, hvilke sider der genereres. Du kan ændre det senere — en ændring foreslår en regenerering, aldrig en stille omskrivning.",
+    "support": {
+      "description": "Køer, ticket- og kundedetaljesider først. Sletning slået fra som standard. (Kø-skabeloner lander i M7 — v1-sidesættet svarer til fuldt admin.)",
+      "title": "Supportkonsol"
+    },
+    "title": "Hvad har du brug for?",
+    "trust": "Vi læser kun dit skema — aldrig dine rækkedata under opsætningen."
+  },
+  "llmRuns": {
+    "review": {
+      "applied": {
+        "body": "De accepterede forslag nedenfor er skrivebeskyttede.",
+        "title": "Denne kørsel er blevet anvendt"
+      },
+      "apply": {
+        "confirm": "Anvend ændringer",
+        "empty": "Intet valgt at anvende.",
+        "subtitle": "Disse ændringer skrives i én transaktion og kan fortrydes.",
+        "title": "Anvend {n} forslag"
+      },
+      "applyFailed": "Intet blev anvendt",
+      "applyUnknown": "Serveren sagde ikke hvorfor.",
+      "bulk": {
+        "acceptAll": "Accepter alle ≥ {pct}%",
+        "clear": "Ryd markering",
+        "thresholdAria": "Tillidstærskel for “Accepter alle”",
+        "thresholdLabel": "Tillidstærskel"
+      },
+      "cat": {
+        "copy": "mikrotekst",
+        "dashboard": "dashboard",
+        "enum": "enum",
+        "group": "navigationsgruppe",
+        "key": "nøglekolonner",
+        "label": "etiket",
+        "pii": "personoplysninger",
+        "relation": "relation",
+        "template": "sideskabelon",
+        "widget": "widget"
+      },
+      "empty": {
+        "body": "Denne kørsel gav ingen forslag til gennemgang.",
+        "title": "Ingen forslag"
+      },
+      "error": {
+        "title": "Kunne ikke indlæse denne kørsel"
+      },
+      "footer": {
+        "apply": "Anvend {n} accepterede forslag",
+        "count": "{n} forslag valgt",
+        "failed": "Anvendelse mislykkedes"
+      },
+      "group": {
+        "dashboards": "Dashboards og widgets",
+        "enums": "Enum-semantik",
+        "icons": "Ikoner",
+        "keys": "Nøglekolonner",
+        "labels": "Etiketter og oversættelser",
+        "microcopy": "Mikrotekst",
+        "navigation": "Navigation og domæner",
+        "pii": "Personoplysninger og maskering",
+        "relations": "Relationer",
+        "templates": "Sideskabeloner"
+      },
+      "header": {
+        "agree": "{n} enige",
+        "byo": "BYO",
+        "conflict": "{n} konflikt",
+        "countsAria": "Antal forslag",
+        "model": "Model",
+        "new": "{n} nye",
+        "pathByo": "Kopiér-indsæt",
+        "pathDirect": "Direkte API",
+        "rejects": "{n} afvisninger",
+        "snapshot": "Øjebliksbillede",
+        "title": "Gennemgå AI-forslag"
+      },
+      "notReady": {
+        "body": "En kørsel skal være valideret, før dens forslag kan gennemgås. Generér eller indsæt et svar først.",
+        "title": "Denne kørsel har endnu ingen forslag til gennemgang"
+      },
+      "row": {
+        "acceptAria": "Accepter {noun}-forslag for {target}",
+        "confidenceAria": "Tillid {pct}%",
+        "hideTranslations": "Skjul oversættelser",
+        "keptEdited": "bevaret – redigeret af dig",
+        "noAi": "Intet AI-forslag",
+        "rejectsCallout": "AI’en afviser en heuristisk beslutning – bekræft før accept.",
+        "showTranslations": "Vis oversættelser"
+      },
+      "section": {
+        "acceptedCount": "{n} accepteret",
+        "selectAllAria": "Vælg alle i {group}"
+      },
+      "status": {
+        "agree": "Stemmer overens",
+        "conflict": "Konflikt",
+        "heuristicOnly": "Kun heuristik",
+        "locked": "Låst",
+        "new": "Ny",
+        "rejects": "Afviser heuristik"
+      },
+      "toast": {
+        "applied": "Anvendte {n} forslag",
+        "appliedPartial": "Anvendte {n} forslag (nogle sprunget over)",
+        "applyFailed": "Kunne ikke anvende forslag",
+        "undoFailed": "Kunne ikke fortryde denne ændring"
+      },
+      "value": {
+        "absent": "Ingen",
+        "dash": "—",
+        "description": "Beskrivelse",
+        "display": "Visning",
+        "enumCategory": "Kategori",
+        "enumWorkflow": "Arbejdsgang",
+        "guidance": "Vejledning for tom tilstand",
+        "headline": "Overskrift for tom tilstand",
+        "key": "Nøgle",
+        "label": "Etiket",
+        "none": "Ingen værdi",
+        "notPii": "Ikke personoplysninger",
+        "rank": "rang {n}",
+        "span": "bredde {n}",
+        "subtitle": "Sideundertekst",
+        "tableCount": "{n} tabeller",
+        "widgetCount": "{n} widgets"
+      }
+    }
+  },
+  "meta": {
+    "move": {
+      "copying": "Flytter Adminiums tabeller …",
+      "copyingBody": "Kopierer hver adminium_-tabel til den nye database. Dine kildedata røres ikke, og der skiftes først over, når kopien er verificeret.",
+      "failed": "Kunne ikke flytte Adminiums tabeller — prøv igen.",
+      "restarting": "Genstarter …",
+      "restartingBody": "Kopien er færdig. Adminium genstarter på den nye database — denne side fortsætter af sig selv om få sekunder.",
+      "timeout": "Adminium flyttede sine tabeller, men er ikke kommet tilbage endnu. Dine data er sikre i den nye database — genindlæs siden om et øjeblik.",
+      "title": "Flytter Adminiums tabeller"
+    },
+    "sameDb": {
+      "description": "adminium_*-tabeller oprettes ved siden af dine kildetabeller. Enkleste opsætning — kræver en rolle med skrive- og CREATE TABLE-rettigheder.",
+      "disabledFile": "En skemafil har ingen live database — vælg en separat database til Adminiums egne tabeller.",
+      "disabledNoDdl": "Denne rolle kan ikke køre DDL — Adminium-migreringer kræver CREATE TABLE. Vælg en separat database til Adminiums egne tabeller.",
+      "disabledReadOnly": "Din rolle er skrivebeskyttet — Adminium skriver aldrig til denne database. Vælg en separat database til Adminiums egne tabeller.",
+      "title": "Samme database"
+    },
+    "separate": {
+      "description": "Adminium holder sine tabeller i en anden database. Din kilde forbliver urørt — påkrævet for skrivebeskyttede kilder.",
+      "dsn": "Forbindelsesstreng til metadatabasen",
+      "errorTitle": "Metalager ikke kompatibelt",
+      "helper": "Kræver skrive- + DDL-rettigheder — Adminium kører sine egne migreringer dér.",
+      "insufficient": "Denne rolle kan ikke huse metalageret — Adminium behøver skrive- og CREATE TABLE-rettigheder dér.",
+      "ok": "Kompatibel — skrivning ✓ · DDL ✓",
+      "test": "Test forbindelse",
+      "title": "Separat database"
+    },
+    "subtitle": "Sider, roller, auditlog og indstillinger bor i tabeller med adminium_-præfiks — aldrig blandet med dine data.",
+    "testFailed": "Forbindelsen mislykkedes.",
+    "title": "Hvor skal Adminium gemme sine egne tabeller?",
+    "v1Note": {
+      "body": "Denne server gemmer allerede sine egne tabeller i en konfigureret database, og dette trin flytter dem ikke. Det validerer, at dit valg er kompatibelt med denne forbindelse — serveren håndhæver den samme regel uafhængigt (409 META_PLACEMENT_INVALID).",
+      "title": "Om denne installation"
+    },
+    "willMove": {
+      "body": "Adminium bruger i øjeblikket sit indbyggede SQLite-lager. Fortsæt kopierer det lager til den valgte database og genstarter på den — konti, sider og indstillinger følger med, så du forbliver logget ind.",
+      "title": "Dette flytter Adminiums tabeller"
+    }
+  },
+  "pages": {
+    "action": {
+      "delete": "Slet side",
+      "duplicate": "Dupliker",
+      "edit": "Rediger side",
+      "hide": "Skjul fra sidepanelet",
+      "show": "Vis i sidepanelet"
+    },
+    "attachments": {
+      "accept": "Accepterede filtyper",
+      "acceptHint": "Vælger du ingen, accepteres alt, hvad dette arbejdsområde tillader. Et valg her kan kun indsnævre listen, aldrig udvide den.",
+      "column": {
+        "adoptHint": "Denne tabel har allerede kolonnen, så der oprettes ikke noget — den bruges, som den er.",
+        "bound": "Filer gemmes i denne tabels {column}-kolonne.",
+        "boundHint": "Slår du vedhæftninger fra senere, frakobles kun denne side. Kolonnen og filerne i den røres ikke.",
+        "confirm": "Kør den",
+        "create": "Opret kolonnen",
+        "createHint": "Adminium tilføjer én tekstkolonne til denne tabel. Du ser den præcise sætning, før noget kører.",
+        "createdHint": "Kolonnen findes nu. Gem denne side for at gøre koblingen færdig.",
+        "failed": "Det virkede ikke",
+        "invalid": "Et kolonnenavn skal starte med et bogstav og må kun indeholde små bogstaver, cifre og understregninger.",
+        "label": "Kolonne der indeholder filerne",
+        "required": "Giv kolonnen et navn.",
+        "tooLong": "Det navn er for langt til en kolonne.",
+        "use": "Brug denne kolonne",
+        "wrongType": "Tabellen har allerede en kolonne med det navn, og den kan ikke rumme en filreference. Vælg et andet navn."
+      },
+      "destination": "Hvor filerne havner",
+      "destinationDefault": "Standarddestinationen",
+      "destinationHint": "Lad den stå på standarden, medmindre denne tabels filer hører hjemme et andet sted.",
+      "destinationIsDefault": "{name} (standarden)",
+      "destinationLocal": "Denne servers disk",
+      "enable": "Tillad vedhæftede filer på denne tabels poster",
+      "enableHint": "Filerne knyttes til på Adminiums side, så denne tabel behøver ingen ny kolonne — det virker på en skrivebeskyttet forbindelse og på en tabel, du helst ikke vil ændre.",
+      "enableHintColumn": "Filer gemmes i én kolonne på denne tabel, så de vises både i dialogerne Ny og Rediger og på hver post.",
+      "enableHintSidecar": "Filer kobles i stedet på Adminiums side. De vises på hver posts side, ikke i dialogen Ny.",
+      "maxBytes": "Største fil (MB)",
+      "maxBytesHint": "Lad feltet stå tomt for at følge arbejdsområdets grænse. Et tal her kan kun sænke den.",
+      "maxCount": "Flest filer pr. post",
+      "maxCountHint": "Lad feltet stå tomt for at acceptere så mange, som en post har brug for.",
+      "sidecar": {
+        "noPrivilege": "Denne forbindelses rolle kan ikke ændre tabeller, så Adminium kan ikke tilføje en kolonne til den.",
+        "readOnlyIntent": "Denne forbindelse er sat op til skrivebeskyttet analyse, så Adminium kan ikke tilføje en kolonne til den.",
+        "readOnlyRole": "Denne forbindelse logger på med en skrivebeskyttet rolle, så Adminium kan ikke tilføje en kolonne til den.",
+        "schemaFile": "Denne forbindelse blev oprettet ud fra en skemafil, så Adminium kan ikke tilføje en kolonne til den."
+      },
+      "type": {
+        "office": "Office-dokumenter",
+        "text": "Almindelig tekst"
+      }
+    },
+    "columns": {
+      "addFromLinked": "Fra linkede tabeller",
+      "addFromTable": "Fra {table}",
+      "addLinkedFrom": "Tabeller, der linker hertil",
+      "addLinkedFromHelp": "Tæl rækkerne, der peger på hver post, eller læg et af deres tal sammen.",
+      "addLinkedHelp": "Vis en værdi fra den tabel, som en linkkolonne peger på.",
+      "addNoMatches": "Ingen kolonner matcher “{query}”.",
+      "addOpen": "Tilføj kolonne",
+      "addSearch": "Søg i kolonner…",
+      "addTitle": "Tilføj en kolonne",
+      "addVia": "via {column}",
+      "avatar": "Avatar",
+      "avatarToggle": "Vis et monogram ved siden af {name}",
+      "countBadge": "Antal",
+      "dragHandle": "Flyt {name}",
+      "empty": "Ingen kolonner endnu — tilføj dem nedenfor.",
+      "file": {
+        "acceptHelp": "Lad alle typer være slået fra for at acceptere det, dette arbejdsområde accepterer. Vælger du typer, kan det kun indsnævre listen — en kolonne kan aldrig acceptere en type, arbejdsområdet afviser.",
+        "acceptLabel": "Accepterede typer",
+        "badge": "Fil",
+        "destinationDefault": "Standarddestinationen",
+        "destinationHelp": "Hvor de bytes, der uploades gennem denne kolonne, opbevares.",
+        "destinationLabel": "Destination",
+        "inlineHelp": "Kun billeder tegnes i cellen. Alt andet forbliver et mærke med sit navn og sin størrelse, uanset hvad der er valgt her.",
+        "inlineLabel": "Vis den i tabellen",
+        "maxCountHelp": "Lad feltet stå tomt for at acceptere så mange, som en post har brug for.",
+        "maxCountLabel": "Højst antal filer pr. post",
+        "maxCountToggle": "Højst antal filer for {name}",
+        "maxHelp": "Lad feltet stå tomt for at bruge arbejdsområdets grænse. En kolonne kan kun bede om mindre.",
+        "maxLabel": "Største fil (MB)",
+        "maxToggle": "Største fil, {name} accepterer, i MB",
+        "multipleHelp": "Kolonnen gemmer en liste af filer i stedet for én. Eksisterende enkeltværdier virker fortsat — de læses som en liste med ét element.",
+        "multipleLabel": "Rumme mere end én fil",
+        "ref": {
+          "id": "Adminiums fil-id",
+          "key": "Nøglen i destinationen",
+          "url": "Et link til filen"
+        },
+        "refHelp": "Det, der skrives i denne kolonne, når en fil uploades. Værdier, der allerede er gemt, virker fortsat — dette ændrer kun den næste.",
+        "refLabel": "Gemt værdi",
+        "refTooNarrow": "Denne kolonne er for kort til at rumme den værdi. Vælg en, den kan rumme, eller gør kolonnen bredere i databasen.",
+        "refWidth": "{shape} — kræver {needs} tegn, denne kolonne rummer {holds}",
+        "switch": "Fil",
+        "switchToggle": "{name} gemmer en fil",
+        "type": {
+          "csv": "CSV",
+          "gif": "GIF",
+          "heic": "HEIC",
+          "jpeg": "JPEG",
+          "json": "JSON",
+          "markdown": "Markdown",
+          "mp3": "MP3-lyd",
+          "mp4": "MP4-video",
+          "office": "Office-dokumenter",
+          "ogg": "Ogg",
+          "pdf": "PDF",
+          "png": "PNG",
+          "svg": "SVG",
+          "text": "Almindelig tekst",
+          "wav": "WAV-lyd",
+          "webm": "WebM",
+          "webp": "WebP",
+          "zip": "ZIP"
+        }
+      },
+      "fold": {
+        "avg": "Gennemsnit",
+        "max": "Maks",
+        "min": "Min",
+        "sum": "Sum"
+      },
+      "foldAdd": "Tilføj",
+      "foldLabel": "Aggregering",
+      "followColumn": "Følg {name}",
+      "header": "Overskrift for {name}",
+      "help": "Træk for at omarrangere kolonner, omdøb deres overskrifter, og vælg hvilke der vises i tabellen.",
+      "lookupBack": "Tilbage",
+      "lookupBadge": "Sammenkædet",
+      "lookupBroken": "Kæden kan ikke længere følges",
+      "lookupBrokenBody": "Skemaet ændrede sig undervejs. Start kæden forfra.",
+      "lookupBrowse": "Vælg hvad der skal vises fra {table}",
+      "mask": "Maskér",
+      "maskHelp": "Maskering skjuler en værdi bag en vis-knap for læsere, der må se den. Om data overhovedet forlader databasen, indstilles på forbindelsen, ikke her.",
+      "maskToggle": "Skjul {name} bag en vis-knap",
+      "masked": "Maskeret",
+      "none": {
+        "body": "Kolonner læses fra tabellen, når siden genereres. Knyt siden til en tabel og generer igen for at udfylde dem.",
+        "title": "Denne side har ingen kolonner endnu"
+      },
+      "pk": "Nøgle",
+      "remove": "Fjern {name}",
+      "schemaUnavailable": "Databasens kolonner kunne ikke hentes, så kolonner kan ikke tilføjes her.",
+      "shown": "Vist",
+      "toggle": "Vis {name} i tabellen"
+    },
+    "create": {
+      "failed": "Siden kunne ikke oprettes",
+      "submit": "Opret side",
+      "subtitle": "Vælg hvad siden viser, og hvordan den ser ud. Forhåndsvisningen følger dine valg.",
+      "title": "Ny side"
+    },
+    "createButton": "Ny side",
+    "delete": {
+      "body": "Dette kan ikke fortrydes. Gemte visninger og personlige layouts på denne side slettes for alle.",
+      "bodyGenerated": "Denne side stammer fra skemagenerering, så den kommer igen næste gang du genererer. Gemte visninger og personlige layouts slettes for alle.",
+      "confirm": "Slet side",
+      "prompt": "Skriv {slug} for at bekræfte",
+      "title": "Slet denne side?"
+    },
+    "derived": {
+      "add": "Tilføj kolonne",
+      "atLeast": "er mindst",
+      "cancel": "Annuller",
+      "emptyBody": "Opsummer først en forbundet tabel i Kolonner-kortet — reglerne her bygger på de tal.",
+      "emptyTitle": "Ingen beregnede tal endnu",
+      "fieldBadge": "Beregnet",
+      "foldBadge": "Opsummering",
+      "help": "Beregn tal ud fra oversigterne ovenfor og denne posts egne kolonner. De beregnes, når siden indlæses, og kan ikke sorteres.",
+      "label": "Kolonneoverskrift",
+      "minus": "minus",
+      "numberHelp": "Tal er almindelige decimaler — 500 eller 12.50, aldrig 1,000 eller 5e3.",
+      "operandA": "Tal",
+      "operandB": "Tal",
+      "operator": "Operator",
+      "otherwise": "ellers",
+      "percentOf": "procent fra denne post",
+      "plus": "plus",
+      "preset": {
+        "combine": "Læg to tal sammen eller træk fra",
+        "percent": "Procent af et tal",
+        "rule": "Regel med en tærskel"
+      },
+      "previewHelp": "Eksempelværdier, beregnet af den samme kode, som siden bruger.",
+      "previewTitle": "Forhåndsvisning",
+      "remove": "Fjern {name}",
+      "thenShow": "så vis"
+    },
+    "duplicate": {
+      "failed": "Siden kunne ikke duplikeres",
+      "submit": "Dupliker",
+      "title": "Dupliker side"
+    },
+    "editor": {
+      "appearance": "Udseende",
+      "attachments": "Vedhæftede filer",
+      "columns": "Kolonner",
+      "contentInvalid": "Denne sides konfiguration kan ikke læses",
+      "contentInvalidBody": "Den er skrevet af en nyere version, eller den er ugyldig. Generer siden igen, eller slet den.",
+      "contentUnavailable": "Sidens indhold kunne ikke indlæses",
+      "contentUnavailableBody": "Oplysningerne ovenfor kan stadig gemmes.",
+      "data": "Data",
+      "derived": "Afledte tal",
+      "details": "Detaljer",
+      "generated": {
+        "body": "Dine ændringer bevares, når du genererer igen — siden markeres som redigeret og røres ikke. En sletning holder derimod kun, indtil næste generering opretter den på ny.",
+        "title": "Denne side blev genereret ud fra dit skema"
+      },
+      "itemsPending": "Gem først ændringen ovenfor — sidens indhold bygges op igen ud fra den nye skabelon og tabel.",
+      "missing": "Denne side findes ikke længere",
+      "missingBody": "Den er måske slettet eller fjernet af en generering.",
+      "notBindable": "Denne skabelon er ikke knyttet til én tabel",
+      "notBindableBody": "Dens indhold bygges widget for widget i stedet. Åbn siden, og brug “Rediger” til at tilføje dem.",
+      "openPage": "Åbn side",
+      "recompose": "Denne side bliver bygget om",
+      "recomposeBody": "Når du gemmer, erstattes indholdet af et nyt layout for skabelonen og tabellen ovenfor. Kolonnetilpasninger og widget-ændringer på siden går tabt.",
+      "save": "Gem ændringer",
+      "saveFailed": "Ændringerne kunne ikke gemmes",
+      "schemaFailed": "Tabellerne kunne ikke vises",
+      "schemaFailedBody": "Denne forbindelse er måske ikke analyseret endnu. Kør introspektion fra Studio → Dataforbindelser.",
+      "title": "Rediger side"
+    },
+    "empty": {
+      "body": "Forbind en database for at generere sider automatisk, eller opret en i hånden.",
+      "title": "Ingen sider endnu"
+    },
+    "field": {
+      "connection": "Datakilde",
+      "connectionNone": "Ingen",
+      "group": "Gruppe i sidepanelet",
+      "groupHint": "Hvilken del af sidepanelet den vises i.",
+      "icon": "Ikon",
+      "iconHint": "Vises ved siden af sidens navn i sidepanelet.",
+      "iconPick": "Vælg sidens ikon",
+      "newRowLabel": "Tilføj-knap",
+      "newRowLabelHint": "Hvad der står på knappen, der tilføjer en post. Lad feltet stå tomt for at bruge standardteksten, som er oversat.",
+      "padding": "Sidemargen",
+      "slug": "Sideadresse",
+      "slugHint": "Små bogstaver, tal og bindestreger. Kun den sidste del — resten af adressen tilføjer vi.",
+      "slugTaken": "En anden side bruger allerede denne adresse.",
+      "slugWarning": "Ændrer du adressen, går eksisterende links og bogmærker til siden i stykker.",
+      "table": "Tabel",
+      "tableCreateHint": "Tabellen som denne side læser fra. Vælg en nu, så er siden klar til brug; lad den stå tom, og du kan knytte den senere.",
+      "tableNeedsConnection": "Vælg en datakilde først.",
+      "tableNone": "Ikke knyttet",
+      "template": "Skabelon",
+      "templateHint": "Afgør hvad siden kan indeholde. Kan ændres senere.",
+      "title": "Titel",
+      "titleHint": "Vises i sidepanelet og i sidens overskrift.",
+      "visible": "Vis i sidepanelet",
+      "visibleHint": "En skjult side kan stadig tilgås på sin URL af alle med linket.",
+      "width": "Indholdsbredde",
+      "widthHint": "Hvor bred sidens indholdskolonne må blive på en stor skærm."
+    },
+    "icon": {
+      "noMatches": "Ingen ikoner matcher den søgning.",
+      "none": "Vælg et ikon",
+      "search": "Søg efter ikoner"
+    },
+    "list": {
+      "count": "{count, plural, one {# side} other {# sider}}",
+      "title": "Sider"
+    },
+    "loadFailed": {
+      "body": "Sidestyring kræver tilladelsen “Administrer sider”. Bed en administrator om at give den til en af dine roller.",
+      "title": "Siderne kunne ikke indlæses"
+    },
+    "origin": {
+      "generated": "Genereret",
+      "llm": "Assistent",
+      "manifest": "Tilføjelse",
+      "system": "System",
+      "user": "Egen"
+    },
+    "padding": {
+      "custom": "Tilpasset…",
+      "default": "Standard for denne skabelon",
+      "none": "Ingen",
+      "standard": "Standard (28 × 24)",
+      "x": "Sider (px)",
+      "y": "Top og bund (px)"
+    },
+    "preview": {
+      "note": "En illustration af layoutet, ikke dine data. Den rigtige side fyldes ud, når den er gemt.",
+      "untitled": "Side uden titel"
+    },
+    "row": {
+      "menu": "Handlinger for {title}"
+    },
+    "sidebar": {
+      "discard": "Kassér",
+      "emptyGroup": "Ingen sider i denne gruppe.",
+      "help": "Omarranger sider inden for en gruppe, eller flyt en til en anden gruppe. Ændringerne gælder for alle.",
+      "moveDown": "Flyt {title} ned",
+      "moveTo": "Flyt {title} til en gruppe",
+      "moveUp": "Flyt {title} op",
+      "save": "Gem rækkefølge",
+      "saveFailed": "Den nye rækkefølge kunne ikke gemmes",
+      "ungrouped": {
+        "body": "Siderne virker på deres URL, men vises ingen steder i sidepanelet. Åbn hver enkelt og vælg en gruppe.",
+        "title": "Nogle sider hører ikke til nogen gruppe"
+      }
+    },
+    "status": {
+      "hidden": "Skjult",
+      "live": "Aktiv"
+    },
+    "subtitle": "Tilføj, rediger og organiser din apps sider — og den rækkefølge de vises i sidepanelet.",
+    "tab": {
+      "pages": "Alle sider",
+      "sidebar": "Rækkefølge i sidepanelet"
+    },
+    "title": "Sider",
+    "width": {
+      "content": "Indhold (900 px)",
+      "dash": "Dashboard (1320 px)",
+      "default": "Standard for denne skabelon",
+      "full": "Fuld bredde (ingen grænse)",
+      "narrow": "Smal (720 px)",
+      "page": "Side (1080 px)",
+      "wide": "Bred (1800 px)"
+    }
+  },
+  "publicApi": {
+    "cancel": "Annuller",
+    "close": "Luk",
+    "error": "Noget gik galt",
+    "keys": {
+      "appHint": "Appens kundeflade serverer så selv denne nøgle — rotation kræver ingen ny build.",
+      "appLabel": "Tilknyt en hostet app-flade (valgfrit)",
+      "appNone": "Ikke tilknyttet",
+      "create": "Opret nøgle",
+      "emptyBody": "Opret først et scope, og opret så en nøgle til det.",
+      "emptyTitle": "Ingen nøgler endnu",
+      "formLabel": "Opret en nøgle",
+      "nameLabel": "Navn",
+      "reveal": "Vis nøgle",
+      "revoke": "Tilbagekald",
+      "rotate": "Rotér",
+      "scopeIsAuthBody": "En nøgle kan nå præcis det, der står i dens scope, og intet andet. Den bruger hverken roller eller tabeltilladelser, og den kan ikke læse noget gennem resten af API’et.",
+      "scopeIsAuthTitle": "Scopet er den eneste tilladelse",
+      "scopeLabel": "Scope",
+      "scopePlaceholder": "Vælg et scope",
+      "subtitle": "De ligger i din sides JavaScript, så alle kan læse dem. Sådan skal det være — en nøgle kan aldrig gøre andet end det, dens scope tillader.",
+      "title": "Nøgler"
+    },
+    "notRegistered": {
+      "body": "Sæt ADMINIUM_PUBLIC_API_ORIGINS til de præcise origins, der må kalde det, og genstart så. Indtil da serveres disse ruter slet ikke.",
+      "title": "Ikke slået til på denne server"
+    },
+    "origins": {
+      "label": "Origins, der må kalde det"
+    },
+    "scopes": {
+      "connectionLabel": "Forbindelses-id",
+      "create": "Opret scope",
+      "delete": "Slet",
+      "deleteBody": "Enhver side, der bruger en nøgle tilknyttet dette scope, holder op med at indlæse data. Nøgler slettes ikke — tilbagekald dem først, hvis det var det, du mente.",
+      "deleteConfirm": "Slet scope",
+      "deletePrompt": "Skriv scopets navn for at bekræfte",
+      "deleteTitle": "Slet dette scope",
+      "documentHint": "Kompileres mod dit skema, når du gemmer. Hver eneste kolonne, en kalder kan nå, står her og ingen andre steder. En standardværdi kan være '{'\"$generate\": \"uuid\"'}' eller '{'\"$generate\": \"now\"'}' — serveren udfylder dem ved oprettelse, så en besøgende kan tilføje en række uden at vælge dens id.",
+      "documentLabel": "Scope-dokument",
+      "emptyBody": "Opret et nedenfor. Det tjekkes mod dit aktuelle skema, før det gemmes.",
+      "emptyTitle": "Ingen scopes endnu",
+      "formLabel": "Opret et scope",
+      "issuesTitle": "Dette scope kunne ikke kompileres",
+      "keyCount": "{count, plural, =0 {ingen nøgler} one {# nøgle} other {# nøgler}}",
+      "nameLabel": "Navn",
+      "subtitle": "Et scope er alt det, en nøgle må nå — tabellerne, de præcise kolonner og et filter, som kalderen kan indsnævre, men aldrig fjerne.",
+      "title": "Scopes"
+    },
+    "status": {
+      "heading": "Status"
+    },
+    "subtitle": "Lad dine egne kunde- eller medarbejdervendte sider læse denne database gennem et scope, du definerer.",
+    "title": "Offentligt API",
+    "toggle": {
+      "hint": "Slår du dette fra, stopper enhver offentlig forespørgsel med det samme. Intet slettes — nøgler, scopes og data bevares alle.",
+      "label": "Servér det offentlige API"
+    }
+  },
+  "remap": {
+    "badge": {
+      "fk": "FK",
+      "masked": "Maskeret",
+      "pii": "PII",
+      "pk": "PK",
+      "unique": "UNIK"
+    },
+    "column": {
+      "currency": "Valuta",
+      "currencyHelper": "ISO 4217-kode anvendt på beløbsformatering.",
+      "enum": "Enum-semantik",
+      "enumCategory": "Kategori",
+      "enumHelper": "Arbejdsgangs-enums driver statusmærker og tavlekolonner; toner knytter værdierne til den semantiske farvetoneskala.",
+      "enumKind": "Enum-art",
+      "enumLabelFor": "Etiket for {value}",
+      "enumToneAuto": "auto",
+      "enumToneFor": "Tone for {value}",
+      "enumWorkflow": "Arbejdsgang",
+      "labelHelper": "Udledt: {name}",
+      "labelOverride": "Visningsetiket",
+      "logicalType": "Logisk type",
+      "logicalTypeHelper": "Udledt: {type} (fra {dbType}) — kortlagt af adapteren; kan ikke tilsidesættes i v1.",
+      "nullable": "kan være NULL",
+      "pii": "Maskér som standard",
+      "piiHelper": "Maskerede værdier vises slørede; afmaskering kræver tilladelsen data.unmask_pii og logges i auditloggen.",
+      "semantic": "Semantisk type",
+      "semanticHelper": "Klassifikator: {tag} · {confidence}% tillid · kilde: {source}",
+      "semanticInferred": "udledt: {tag}",
+      "unclassified": "Endnu ikke klassificeret."
+    },
+    "diff": {
+      "count": "{count} ændringer",
+      "one": "1 ændring",
+      "regenerate": "Regenerér sider",
+      "revertAll": "Fortryd alle",
+      "revertOne": "Fortryd {change}",
+      "save": "Gem tilsidesættelser",
+      "saved": "Tilsidesættelser gemt."
+    },
+    "empty": {
+      "description": "Vælg noget i skematræet for at ommappe dets etiket, type, relationer eller maskering.",
+      "title": "Vælg en tabel eller kolonne"
+    },
+    "inspector": "Inspektør",
+    "loadFailed": "Kunne ikke indlæse skemaet for denne forbindelse.",
+    "mode": {
+      "design": "Design",
+      "diagram": "Diagram",
+      "remap": "Etiketter og relationer"
+    },
+    "modeLabel": "Redigeringstilstand",
+    "noDesign": {
+      "noPrivilege": "Denne forbindelses rolle kan ikke oprette eller ændre tabeller. Giv den skemarettigheder, eller forbind en rolle, der har dem.",
+      "readOnlyIntent": "Denne forbindelse blev sat op til skrivebeskyttet analyse. Skift dens formål i Indstillinger for at redigere dens skema.",
+      "readOnlyRole": "Denne forbindelse logger på med en skrivebeskyttet rolle, så Adminium kan ikke ændre dens skema.",
+      "schemaFile": "Denne forbindelse blev oprettet ud fra en skemafil, så der er ingen database at ændre. Etiketter og relationer virker fortsat."
+    },
+    "relations": {
+      "accept": "Accepter",
+      "accepted": "Accepteret",
+      "add": "Tilføj virtuel relation",
+      "addButton": "Tilføj relation",
+      "cardinality": "Kardinalitet",
+      "confidence": "udledt · {pct}%",
+      "declared": "Deklarerede fremmednøgler",
+      "fromColumn": "Fra kolonne",
+      "fromPlaceholder": "customer_id",
+      "inferred": "Udledte relationer",
+      "noColumns": "Ingen matchende kolonne",
+      "noTables": "Ingen matchende tabel",
+      "noneDeclared": "Ingen deklarerede fremmednøgler berører denne tabel.",
+      "noneInferred": "Intet udledt for denne tabel.",
+      "overrideBadge": "tilsidesættelse",
+      "overrides": "Relationer fra tilsidesættelser (anvendt)",
+      "suppress": "Undertryk",
+      "suppressed": "Undertrykt",
+      "toColumn": "Til kolonne",
+      "toTable": "Til tabel"
+    },
+    "saveFailed": "Lagring mislykkedes: {message}",
+    "subtitle": "{tables} tabeller · {applied} tilsidesættelser anvendt",
+    "table": {
+      "hierarchy": "Hierarki",
+      "icon": "Ikon",
+      "iconPicker": "Tabelikon",
+      "include": "Medtag i den genererede app",
+      "includeHelper": "Udeladte tabeller får ingen sider og forsvinder fra navigationen.",
+      "kind": "Art",
+      "labelHelper": "Udledt: {name}",
+      "labelOverride": "Visningsetiket",
+      "navGroup": "Navigationsgruppe",
+      "navGroupHelper": "Navigationsplaceringen bestemmes af generatoren — en table.navGroup-tilsidesættelse er ikke en del af v1-vokabularet.",
+      "polymorphic": "Polymorfe par",
+      "role": "Rolle",
+      "rows": "Rækkeestimat",
+      "selfFk": "Selvreference via {column}",
+      "shape": "Tabelform (klassificeret)",
+      "shapeHelper": "Klassificeringen genberegnes ved hver introspektion; tilsidesættelser lægges ovenpå og overlever regenerering.",
+      "system": "System",
+      "unclassified": "Ikke klassificeret"
+    },
+    "tabs": {
+      "details": "Detaljer",
+      "relations": "Relationer"
+    },
+    "title": "Skema",
+    "toast": {
+      "regenerateFailed": "Regenerering mislykkedes",
+      "regenerated": "{created} oprettet · {updated} opdateret · {unchanged} uændret",
+      "regeneratedDetail": "Sider, du har redigeret i hånden, bevares — kun sider med en urørt generated_hash blev regenereret på stedet.",
+      "saved": "Skema-tilsidesættelser gemt",
+      "savedDetail": "Det anvendte skema nedenfor afspejler dine ændringer."
+    },
+    "tree": {
+      "collapse": "Fold tabel sammen",
+      "excluded": "Udeladt",
+      "expand": "Fold tabel ud",
+      "label": "Skema",
+      "noMatches": "Ingen tabeller matcher din søgning.",
+      "search": "Søg i tabeller og kolonner",
+      "searchPlaceholder": "Søg i tabeller…",
+      "unsaved": "Ugemt ændring"
+    },
+    "unavailableBody": "Dette build indeholder endnu ikke ommapnings-editoren (09-T12). Kør genereringen igen, når den er kommet, for at ommappe etiketter, typer og relationer.",
+    "unavailableTitle": "Editor til skema-ommapning ikke tilgængelig"
+  },
+  "review": {
+    "unavailableBody": "Denne build indeholder endnu ikke berigelsens gennemgangsskærm (06-T14). Den kommer med diff-og-anvend-flowet.",
+    "unavailableTitle": "Gennemgangsskærm ikke tilgængelig"
+  },
+  "settings": {
+    "globalDefaultsNav": "Globale standarder",
+    "title": "Indstillinger",
+    "workspaceSection": "Arbejdsområde"
+  },
+  "settingsAi": {
+    "byo": {
+      "body": "Studio kan generere en selvstændig prompt ud fra dit skema. Kør den i Claude Code, ChatGPT eller et hvilket som helst værktøj, og indsæt derefter den returnerede JSON tilbage i forbindelsesguiden. Samme validering, samme gennemgang, samme resultat som den direkte vej.",
+      "guarantee1": "Prompten indeholder kun dit skema og aggregeret statistik — aldrig rækkedata som standard.",
+      "guarantee2": "Ingen legitimationsoplysninger, instans-URL eller identifikatorer er indlejret.",
+      "guarantee3": "BYO-kørsler foretager ingen netværkskald.",
+      "guaranteeTitle": "Telemetrifri garanti",
+      "heading": "Ingen nøgle? Brug dit eget AI-værktøj",
+      "headingRecommended": "Brug dit eget AI-værktøj — ingen nøgle nødvendig",
+      "promptVersion": "Prompt {version}",
+      "recommended": "Anbefalet",
+      "schemaVersion": "Skema {version}",
+      "subtitle": "Kopiér-indsæt-turen — intet forlader denne maskine."
+    },
+    "configure": {
+      "heading": "Konfigurér {provider}"
+    },
+    "field": {
+      "baseUrl": "Basis-URL",
+      "baseUrlHelper": "Endpoint-roden, der leverer /chat/completions.",
+      "baseUrlOptional": "Lad stå, medmindre Ollama kører på en anden vært.",
+      "key": "API-nøgle",
+      "keyMask": "sk-…{last4}",
+      "keyOptional": "Valgfri — nogle endpoints kræver ingen nøgle.",
+      "keyReplace": "Erstat nøgle",
+      "keyStored": "Gemt krypteret. Erstat den for at bruge en anden nøgle.",
+      "keyWriteOnly": "Kun skrivning: når den er gemt, vises den aldrig igen.",
+      "model": "Model",
+      "modelFreeText": "Indtast det præcise model-id, dit endpoint leverer.",
+      "modelLive": "Indlæst live fra udbyderen.",
+      "modelLoading": "Indlæser…",
+      "modelPlaceholder": "Vælg en model…",
+      "modelStatic": "En gennemprøvet liste; skriv et brugerdefineret id efter at have gemt for at opdatere den.",
+      "noKeyBody": "Ollama kører lokalt, så intet forlader denne maskine.",
+      "noKeyTitle": "Ingen API-nøgle nødvendig"
+    },
+    "history": {
+      "byo": "BYO",
+      "colChunks": "Blokke",
+      "colDate": "Dato",
+      "colSource": "Kilde",
+      "colStatus": "Status",
+      "connection": "Forbindelse",
+      "directPath": "Direkte",
+      "empty": "Ingen berigelseskørsler endnu. Berig et skema fra forbindelsesguiden for at se historik her.",
+      "errorBody": "Genindlæs siden for at prøve igen.",
+      "errorTitle": "Kunne ikke indlæse kørsler",
+      "heading": "Kørselshistorik",
+      "noConnections": "Forbind først en database — berigelseskørsler registreres pr. forbindelse.",
+      "openReview": "Åbn gennemgang for kørslen fra {date}",
+      "subtitle": "Tidligere berigelseskørsler. Åbn en for at gennemgå dens forslag.",
+      "tableLabel": "Berigelseskørsler"
+    },
+    "provider": {
+      "active": "Aktiv",
+      "anthropic": {
+        "desc": "Claude-modeller via Anthropic-API’en.",
+        "label": "Anthropic"
+      },
+      "heading": "AI-udbyder",
+      "networkDisabledBody": "Dette Adminium er konfigureret uden udgående internetadgang og kan ikke nå en udbyder-API. Brug kopier-indsæt-turen nedenfor — den kræver hverken nøgle eller netværk.",
+      "networkDisabledTitle": "Direkte AI-udbydere er slået fra i denne installation",
+      "ollama": {
+        "desc": "Modeller kører lokalt via Ollama — ingen nøgle, ingen sky.",
+        "label": "Ollama (lokal)"
+      },
+      "openai": {
+        "desc": "GPT-modeller via OpenAI-API’en.",
+        "label": "OpenAI"
+      },
+      "openaiCompatible": {
+        "desc": "Ethvert endpoint, der taler OpenAI-formatet — Groq, Together, vLLM, LM Studio.",
+        "label": "OpenAI-kompatibel"
+      },
+      "requiresNetwork": "Kræver internet og en API-nøgle",
+      "subtitle": "Vælg, hvordan Adminium når en model til at berige dit skema. Nøgler gemmes krypteret og vises aldrig igen."
+    },
+    "runStatus": {
+      "applied": "Anvendt",
+      "awaitingResponse": "Afventer svar",
+      "discarded": "Kasseret",
+      "draft": "Kladde",
+      "failed": "Mislykkedes",
+      "partiallyApplied": "Delvist anvendt",
+      "running": "Kører",
+      "validated": "Valideret"
+    },
+    "save": "Gem udbyder",
+    "saveFailed": "AI-udbyderen kunne ikke gemmes. Prøv igen.",
+    "saved": "AI-udbyder gemt",
+    "subtitle": "Forbind en model, så Adminium kan foreslå etiketter, grupper, relationer og mere — altid gennemgået som en diff, før noget anvendes.",
+    "test": "Test forbindelse",
+    "testError": "Testen mislykkedes",
+    "testErrorBody": "Kunne ikke nå udbyderen. Tjek nøglen og basis-URL.",
+    "testHintDirty": "Gem dine ændringer, før du tester.",
+    "testOk": "Forbundet til {model} på {latency} ms",
+    "testUnknownModel": "udbyderen",
+    "testing": "Kontakter udbyderen…",
+    "title": "AI-berigelse"
+  },
+  "settingsHub": {
+    "addOnsCard": {
+      "body": "Gennemse, installer og forbind tilføjelser — ekstra blokke, datapakker og integrationer — eller upload selv en.",
+      "cta": "Åbn tilføjelser",
+      "heading": "Tilføjelser"
+    },
+    "aiCard": {
+      "body": "Konfigurér en AI-udbyder (eller kopiér-indsæt-turen) for at berige etiketter, grupper og relationer.",
+      "cta": "Åbn AI-indstillinger",
+      "heading": "AI-berigelse"
+    },
+    "danger": {
+      "deleteCta": "Slet forbindelse",
+      "deleteDesc": "Sletter forbindelsen og de genererede sider. Din database røres ikke. Kan ikke fortrydes.",
+      "empty": "Intet at slette — ingen forbindelser endnu.",
+      "heading": "Farezone",
+      "subtitle": "Uigenkaldelige handlinger."
+    },
+    "defaultsCard": {
+      "body": "Tema, accentfarve, tæthed og sprog for hele arbejdsområdet findes under globale standarder.",
+      "cta": "Åbn globale standarder",
+      "heading": "Standarder for udseende og sprog"
+    },
+    "email": {
+      "attachmentCap": {
+        "error": "Mellem {min, number} og {max, number} MB.",
+        "helper": "Det meste, én besked må indeholde af vedhæftninger.",
+        "label": "Grænse for vedhæftninger (MB)"
+      },
+      "from": {
+        "error": "Indtast en e-mailadresse.",
+        "helper": "Kun adressen, eller et visningsnavn foran den.",
+        "label": "Afsenderadresse"
+      },
+      "heading": "E-mail (SMTP)",
+      "host": {
+        "error": "Kun et værtsnavn eller en IP-adresse — uden skema, port eller loginoplysninger.",
+        "label": "SMTP-vært"
+      },
+      "pass": {
+        "error": "Dette brugernavn kræver en adgangskode.",
+        "helper": "Gemmes krypteret og vises aldrig igen. Lad feltet stå tomt for at beholde den nuværende.",
+        "label": "Adgangskode"
+      },
+      "port": {
+        "error": "Mellem {min, number} og {max, number}.",
+        "label": "Port"
+      },
+      "remove": "Fjern mailserver",
+      "review": {
+        "password": "Erstattet",
+        "removed": "Fjernet"
+      },
+      "secure": {
+        "helper": "Til på port 465. Fra starter i klartekst og skifter med STARTTLS, som port 587 forventer.",
+        "label": "Implicit TLS"
+      },
+      "senders": {
+        "add": "Tilføj afsender",
+        "address": "Adresse",
+        "error": "Indtast en e-mailadresse.",
+        "heading": "Afsendere",
+        "helper": "Adresser, en e-mail må sendes fra. SMTP-afsenderadressen er altid tilgængelig.",
+        "implicit": "SMTP-afsenderadresse",
+        "name": "Visningsnavn",
+        "remove": "Fjern afsender",
+        "review": "Afsendere"
+      },
+      "unconfigured": "Der er ikke opsat nogen mailserver, så Adminium kan ikke sende nulstilling af adgangskode, invitationer eller planlagte rapporter.",
+      "user": {
+        "helper": "Lad feltet stå tomt, hvis relayet ikke kræver login.",
+        "label": "Brugernavn"
+      }
+    },
+    "identity": {
+      "appName": {
+        "error": "Angiv et navn på højst 60 tegn.",
+        "helper": "Vises i sidepanelet, browsertitlen og e-mails.",
+        "label": "Applikationsnavn"
+      },
+      "heading": "Arbejdsområdets identitet",
+      "logo": {
+        "badType": "Vælg et PNG-, JPEG-, WebP-, GIF- eller SVG-billede.",
+        "drop": "Slip et billede her",
+        "helper": "PNG, JPEG, WebP, GIF eller SVG på op til 1 MB. Erstatter det indbyggede mærke overalt.",
+        "label": "Logo",
+        "remove": "Fjern",
+        "removed": "Logo fjernet",
+        "replace": "Erstat logo",
+        "tooLarge": "Billedet er større end 1 MB.",
+        "undo": "Fortryd",
+        "upload": "Upload logo",
+        "uploaded": "Logo opdateret"
+      },
+      "showVersion": {
+        "helper": "Buildnummeret ved siden af logoet. Slået fra skjuler, hvilken version du kører.",
+        "label": "Version i sidepanelet"
+      }
+    },
+    "pagesCard": {
+      "body": "Tilføj, rediger og slet sider, skift hvad hver enkelt viser, og omarranger sidepanelet.",
+      "cta": "Administrer sider",
+      "heading": "Sider"
+    },
+    "publicApiCard": {
+      "body": "Lad dine egne kunde- eller medarbejdervendte sider læse denne database gennem et scope, du definerer.",
+      "cta": "Åbn offentligt API",
+      "heading": "Offentligt API"
+    },
+    "review": {
+      "cancel": "Annuller",
+      "change": "{before} → {after}",
+      "close": "Luk",
+      "confirm": "Gem ændringer",
+      "hidden": "Skjult",
+      "off": "Fra",
+      "on": "Til",
+      "shown": "Vist",
+      "subtitle": "Gennemgå dine ændringer, før du gemmer.",
+      "title": "Gem arbejdsområdeindstillinger"
+    },
+    "save": "Gem ændringer",
+    "saveFailed": "Arbejdsområdeindstillingerne kunne ikke gemmes. Prøv igen.",
+    "saved": "Arbejdsområdeindstillinger opdateret",
+    "security": {
+      "allowSignup": {
+        "desc": "Alle kan oprette en konto — slået fra er arbejdsområdet kun på invitation.",
+        "label": "Tillad selvregistrering"
+      },
+      "heading": "Sikkerhed",
+      "passwordMin": {
+        "error": "Mellem {min, number} og {max, number} tegn.",
+        "label": "Minimal adgangskodelængde"
+      },
+      "require2fa": {
+        "desc": "Alle medlemmer skal aktivere 2FA for at logge ind.",
+        "label": "Kræv tofaktorgodkendelse",
+        "note": "Vejledende, ikke en spærring: medlemmer uden 2FA sendes til opsætningen og kan ikke slå den fra igen, men deres login blokeres aldrig, og API-nøgler er ikke omfattet."
+      },
+      "sessionTtl": {
+        "error": "Mellem {min, number} og {max, number} timer.",
+        "label": "Sessionslevetid (timer)"
+      }
+    },
+    "storageCard": {
+      "body": "Vælg hvor uploadede filer, eksporter og andre gemte bytes bor — denne server, en bucket eller din egen server.",
+      "cta": "Åbn lagring",
+      "heading": "Lagring"
+    },
+    "subtitle": "Identitet, sikkerhed og destruktive handlinger for dette arbejdsområde.",
+    "superAdminOnly": "Kun en superadmin kan ændre arbejdsområdets identitet og sikkerhedsindstillinger.",
+    "superAdminOnlyTitle": "Superadmin påkrævet",
+    "title": "Arbejdsområdeindstillinger",
+    "translationsCard": {
+      "body": "Omformulér hvad som helst i Adminium, vælg hvilke sprog folk kan vælge, og tilføj dine egne.",
+      "cta": "Åbn oversættelser",
+      "heading": "Sprog og oversættelser"
+    }
+  },
+  "source": {
+    "dsn": {
+      "helper": "postgres://bruger:kodeord@vaert:5432/database — mysql:// og sqlite: virker også.",
+      "incomplete": "Tilføj vært og database, f.eks. postgres://user@host:5432/db",
+      "invalidScheme": "Ukendt skema — forventede postgres://, mysql://, mariadb:// eller sqlite:",
+      "label": "Forbindelsesstreng",
+      "quickFill": "Hurtig udfyldning:"
+    },
+    "engine": {
+      "label": "Databasemotor",
+      "mysql": "MySQL / MariaDB",
+      "postgres": "PostgreSQL",
+      "sqlite": "SQLite"
+    },
+    "fields": {
+      "database": "Database",
+      "host": "Vært",
+      "password": "Adgangskode",
+      "port": "Port",
+      "preview": "Forhåndsvisning af forbindelsesstreng:",
+      "ssl": "SSL-tilstand",
+      "user": "Bruger"
+    },
+    "file": {
+      "columns": "kolonner",
+      "detectedAs": "Registreret: {format}",
+      "dropHint": "SQL DDL / pg_dump, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django-modeller, Adminium JSON",
+      "dropTitle": "Slip din skemafil her, eller gennemse",
+      "errorTitle": "Kunne ikke fortolke filen",
+      "moreWarnings": "+{count} flere advarsler — den fulde liste vises i analysetrinnet.",
+      "parseFailed": "Vi kunne ikke fortolke den fil. Hvis auto-genkendelsen gættede forkert, så vælg formatet eksplicit og prøv igen.",
+      "parsing": "Læser den uploadede skemafil…",
+      "pitch": "Ingen databaseforbindelse påkrævet — vi fortolker din skemafil og bygger de samme dashboards.",
+      "requestFailed": "Upload mislykkedes — tjek din forbindelse og prøv igen.",
+      "tables": "tabeller",
+      "unsupported": "Formatet blev ikke genkendt — SQL DDL, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django-modeller og Adminium JSON understøttes. Vælg ét eksplicit og prøv igen.",
+      "warnings": "advarsler"
+    },
+    "format": {
+      "auto": "Registrér automatisk",
+      "django": "Django models.py",
+      "drizzle": "Drizzle ORM",
+      "helper": "Lad automatisk registrering være slået til, medmindre den tager fejl.",
+      "json": "Adminium JSON",
+      "label": "Skemaformat",
+      "prisma": "Prisma-skema",
+      "rails": "Rails schema.rb",
+      "sequelize": "Sequelize-modeller",
+      "sql": "SQL DDL / pg_dump",
+      "typeorm": "TypeORM-entiteter"
+    },
+    "mode": {
+      "dsn": "Forbindelsesstreng",
+      "fields": "Enkelte felter",
+      "file": "Skemafil"
+    },
+    "modeLabel": "Kildeinputtilstand",
+    "name": "Forbindelsesnavn",
+    "namePlaceholder": "Produktions-Postgres",
+    "readOnlyRole": {
+      "body": "Under opsætningen læser Adminium kun skemametadata — aldrig dine rækker. Vi anbefaler en dedikeret bruger med kun SELECT-rettigheder; hvor Adminium gemmer sine egne tabeller, bestemmer du i trinnet om metadatalagring.",
+      "title": "Brug en skrivebeskyttet rolle"
+    },
+    "sqlite": {
+      "file": "Sti til databasefil",
+      "helper": "SQLite er en fil, ikke en server — angiv den absolutte sti på den maskine, der kører Adminium."
+    },
+    "subtitle": "Peg Adminium mod en database, så genererer vi et admin-dashboard ud fra dens skema.",
+    "title": "Forbind din database"
+  },
   "storage": {
+    "actionFailed": "Det virkede ikke",
+    "add": "Tilføj en destination",
+    "availableOnDisk": "{size} tilgængelig på denne disk",
+    "default": "Standard",
+    "defaultBlockedByDisabled": "En destination, der er slået fra, kan ikke være standard. Slå den til først.",
+    "delete": {
+      "blockedBody": "{name} indeholder stadig {count, plural, one {# fil} other {# filer}}. Flyt først indholdet til en anden destination, og slet så denne.",
+      "blockedTitle": "Denne destination indeholder stadig filer",
+      "body": "Adminium glemmer {name} og dens loginoplysninger. Intet af det, der er gemt i den, røres — selve bucketen eller serveren er din, og filer, der stadig er registreret på den, afviser sletningen.",
+      "confirm": "Slet destination",
+      "title": "Slet denne destination"
+    },
+    "deleteButton": "Slet",
+    "disable": "Slå fra",
+    "disabled": "Slået fra",
     "driver": {
       "local": "En sti på denne maskine",
       "s3": "S3-kompatibel bucket",
       "webdav": "WebDAV-server"
     },
-    "preset": {
-      "aws": "AWS S3",
-      "spaces": "DigitalOcean Spaces",
-      "r2": "Cloudflare R2",
-      "tigris": "Tigris",
-      "b2": "Backblaze B2",
-      "wasabi": "Wasabi",
-      "minio": "MinIO eller en anden S3-kompatibel server"
-    },
-    "status": {
-      "ok": "Kan nås",
-      "error": "Kan ikke nås",
-      "untested": "Ikke testet"
-    },
-    "title": "Lagring",
-    "subtitle": "Hvor denne instans opbevarer uploadede filer, eksporter og andre gemte bytes.",
-    "move": {
-      "open": "Flyt filer…",
-      "startedTitle": "Flytningen er gået i gang",
-      "startedBody": "Den kører i baggrunden som job {jobId} og fortsætter, selvom du forlader siden. Tallene nedenfor ændrer sig, efterhånden som filerne ankommer — genindlæs for at se dem.",
-      "title": "Flyt filer",
-      "subtitle": "Kopierer hver fil fra én destination til en anden og glemmer så den gamle kopi. Downloads virker hele vejen igennem.",
-      "from": "Fra",
-      "to": "Til",
-      "start": "Start flytningen",
-      "kinds": "Begræns til",
-      "kindsHelp": "Lad alt være uafkrydset for at flytte dem alle. Uploads er de filer, folk vedhæfter; resten er artefakter, Adminium selv har lavet."
-    },
-    "add": "Tilføj en destination",
-    "loadFailed": {
-      "title": "Destinationerne kunne ikke indlæses",
-      "forbidden": "At ændre hvor filer gemmes kræver tilladelsen “Administrer lagring”. Bed en administrator om at give den til en af dine roller."
-    },
-    "actionFailed": "Det virkede ikke",
-    "delete": {
-      "blockedTitle": "Denne destination indeholder stadig filer",
-      "blockedBody": "{name} indeholder stadig {count, plural, one {# fil} other {# filer}}. Flyt først indholdet til en anden destination, og slet så denne.",
-      "title": "Slet denne destination",
-      "body": "Adminium glemmer {name} og dens loginoplysninger. Intet af det, der er gemt i den, røres — selve bucketen eller serveren er din, og filer, der stadig er registreret på den, afviser sletningen.",
-      "confirm": "Slet destination"
-    },
-    "list": {
-      "title": "Destinationer",
-      "subtitle": "Nye filer havner i standarddestinationen. Eksisterende filer bliver, hvor de er, indtil du flytter dem."
-    },
-    "localDisk": "Denne servers disk",
-    "default": "Standard",
-    "usedBytes": "{size} brugt",
-    "fileCount": "{count, plural, one {# fil} other {# filer}}",
-    "availableOnDisk": "{size} tilgængelig på denne disk",
-    "disabled": "Slået fra",
-    "test": {
-      "ok": "Nået på {ms} ms",
-      "button": "Test",
-      "unreachable": "Testen kunne ikke køres",
-      "failed": "Denne destination kunne ikke nås"
-    },
-    "defaultBlockedByDisabled": "En destination, der er slået fra, kan ikke være standard. Slå den til først.",
-    "setDefault": "Gør til standard",
-    "enable": "Slå til",
-    "disable": "Slå fra",
     "edit": "Rediger",
-    "deleteButton": "Slet",
     "editor": {
       "createTitle": "Tilføj en destination",
       "editTitle": "Rediger destination",
       "subtitle": "Adminium læser og skriver gennem denne destination på dine vegne; det er infrastruktur, du selv styrer."
     },
+    "enable": "Slå til",
     "field": {
-      "name": "Navn",
-      "namePlaceholder": "Bucket til uploads",
+      "accessKeyId": "Adgangsnøgle-id",
+      "bucket": "Bucket",
       "driver": "Type",
       "driverLocked": "Ændrer du typen på en destination, der allerede indeholder filer, kan de filer ikke længere nås.",
-      "root": "Mappe",
-      "rootHelper": "En absolut sti, som denne server kan skrive til — et monteret drev eller et netværksdrev. Ikke standardmappen, som allerede er den første i listen.",
-      "preset": "Udbyder",
-      "presetHelper": "Udfylder endpoint, region og adresseringsform. Alt, hvad udbyderen ikke kan vide om din konto, står tomt, så du selv kan skrive det.",
       "endpoint": "Endpoint",
       "endpointDerived": "Lad feltet stå tomt for AWS selv — endpointet følger af regionen.",
-      "region": "Region",
-      "bucket": "Bucket",
+      "name": "Navn",
+      "namePlaceholder": "Bucket til uploads",
+      "password": "Adgangskode",
       "pathStyle": "Stibaseret adressering",
       "pathStyleToggle": "Adressér bucketen som en sti frem for et værtsnavn",
-      "url": "Samlings-URL",
-      "urlHelper": "Den samling, Adminium skriver i, sådan som din server offentliggør den.",
       "prefix": "Præfiks",
       "prefixHelper": "En mappe inde i destinationen. To destinationer på samme bucket, der kun adskiller sig her, deler bucketen uden at dele navnerum.",
+      "preset": "Udbyder",
+      "presetHelper": "Udfylder endpoint, region og adresseringsform. Alt, hvad udbyderen ikke kan vide om din konto, står tomt, så du selv kan skrive det.",
       "publicBaseUrl": "Offentlig basis-URL",
       "publicBaseUrlHelper": "Valgfri. Hvor disse objekter kan læses uden Adminium — et CDN foran en offentlig bucket. Bruges kun, når en kolonne gemmer et link.",
-      "accessKeyId": "Adgangsnøgle-id",
+      "region": "Region",
+      "root": "Mappe",
+      "rootHelper": "En absolut sti, som denne server kan skrive til — et monteret drev eller et netværksdrev. Ikke standardmappen, som allerede er den første i listen.",
       "secretAccessKey": "Hemmelig adgangsnøgle",
       "secretKept": "Der er gemt en nøgle. Lad begge felter stå tomme for at beholde den; udfyld begge for at erstatte den.",
-      "username": "Brugernavn",
-      "password": "Adgangskode"
+      "url": "Samlings-URL",
+      "urlHelper": "Den samling, Adminium skriver i, sådan som din server offentliggør den.",
+      "username": "Brugernavn"
     },
-    "secret": {
-      "partialTitle": "Halve loginoplysninger duer ikke",
-      "partialBody": "Udfyld begge felter for at erstatte de gemte loginoplysninger, eller ryd begge for at beholde dem. Gemmer du kun det ene, bliver de gamle stiltiende stående."
-    },
-    "save": "Gem destination",
+    "fileCount": "{count, plural, one {# fil} other {# filer}}",
     "kind": {
-      "upload": "Filer vedhæftet poster",
+      "archive": "Arkiverede batches fra auditloggen",
+      "branding": "Arbejdsområdets logo",
       "export": "Filer fra dataeksporter",
       "import": "Uploadede CSV-filer og deres fejlrapporter",
-      "branding": "Arbejdsområdets logo",
       "schema": "Importerede skemafiler",
-      "archive": "Arkiverede batches fra auditloggen"
-    }
+      "upload": "Filer vedhæftet poster"
+    },
+    "list": {
+      "subtitle": "Nye filer havner i standarddestinationen. Eksisterende filer bliver, hvor de er, indtil du flytter dem.",
+      "title": "Destinationer"
+    },
+    "loadFailed": {
+      "forbidden": "At ændre hvor filer gemmes kræver tilladelsen “Administrer lagring”. Bed en administrator om at give den til en af dine roller.",
+      "title": "Destinationerne kunne ikke indlæses"
+    },
+    "localDisk": "Denne servers disk",
+    "move": {
+      "from": "Fra",
+      "kinds": "Begræns til",
+      "kindsHelp": "Lad alt være uafkrydset for at flytte dem alle. Uploads er de filer, folk vedhæfter; resten er artefakter, Adminium selv har lavet.",
+      "open": "Flyt filer…",
+      "start": "Start flytningen",
+      "startedBody": "Den kører i baggrunden som job {jobId} og fortsætter, selvom du forlader siden. Tallene nedenfor ændrer sig, efterhånden som filerne ankommer — genindlæs for at se dem.",
+      "startedTitle": "Flytningen er gået i gang",
+      "subtitle": "Kopierer hver fil fra én destination til en anden og glemmer så den gamle kopi. Downloads virker hele vejen igennem.",
+      "title": "Flyt filer",
+      "to": "Til"
+    },
+    "preset": {
+      "aws": "AWS S3",
+      "b2": "Backblaze B2",
+      "minio": "MinIO eller en anden S3-kompatibel server",
+      "r2": "Cloudflare R2",
+      "spaces": "DigitalOcean Spaces",
+      "tigris": "Tigris",
+      "wasabi": "Wasabi"
+    },
+    "save": "Gem destination",
+    "secret": {
+      "partialBody": "Udfyld begge felter for at erstatte de gemte loginoplysninger, eller ryd begge for at beholde dem. Gemmer du kun det ene, bliver de gamle stiltiende stående.",
+      "partialTitle": "Halve loginoplysninger duer ikke"
+    },
+    "setDefault": "Gør til standard",
+    "status": {
+      "error": "Kan ikke nås",
+      "ok": "Kan nås",
+      "untested": "Ikke testet"
+    },
+    "subtitle": "Hvor denne instans opbevarer uploadede filer, eksporter og andre gemte bytes.",
+    "test": {
+      "button": "Test",
+      "failed": "Denne destination kunne ikke nås",
+      "ok": "Nået på {ms} ms",
+      "unreachable": "Testen kunne ikke køres"
+    },
+    "title": "Lagring",
+    "usedBytes": "{size} brugt"
   },
-  "documents": {
-    "title": "Bilagstilknytninger",
-    "intro": "En tilknytning siger, hvilke kolonner i hvilken tabel der udgør én slags bilag, hvad der tegner det, og hvor det går hen.",
-    "noProvider": "Intet installeret add-on kan endnu tegne bilag. Installér et under Add-ons, så vises de mulige tilknytninger her.",
-    "newFrom": "Ny tilknytning til:",
-    "empty": "Ingen tilknytninger endnu.",
-    "name": "Navngiv denne tilknytning",
-    "pickTable": "Vælg en tabel…",
-    "delete": "Slet",
-    "disabled": "slået fra",
-    "save": "Gem tilknytning",
-    "cancel": "Annullér",
-    "prefix": "Nummerforstavelse",
-    "unbound": "Mangler stadig: {slots}",
+  "tables": {
+    "emptyFilter": "Ingen tabeller matcher dit filter.",
+    "highVolume": "stor volumen",
+    "highVolumeNote": "Tabeller med over 100.000 rækker starter fravalgt — driftstabeller hører sjældent hjemme i et dashboard.",
+    "importNoCounts": "Skemafiler indeholder ingen rækkeantal — kolonnen viser —, indtil en live database er forbundet.",
+    "joinHidden": "{count} join-/systemtabeller er skjult på forhånd — de driver stadig mange-til-mange-relationer.",
+    "listLabel": "Tabeller der kan medtages",
+    "pii": "PII",
+    "search": "Filtrér tabeller…",
+    "subtitle": "Vælg hvilke der skal med. Du kan altid ændre det.",
+    "title": "Vælg dine tabeller"
+  },
+  "test": {
+    "errorTitle": "Forbindelsen mislykkedes",
+    "hint": {
+      "auth": "Godkendelse mislykkedes — tjek brugernavn og adgangskode i din DSN.",
+      "hostUnreachable": "Vært utilgængelig — tjek værtsnavn og port, og at databasen accepterer forbindelser fra denne maskine (tilføj vores IP'er til tilladelseslisten).",
+      "metaPlacement": "Denne kilde kan ikke huse Adminiums metatabeller — fortsæt med en separat metadatabase.",
+      "permission": "Rollen fik forbindelse, men mangler skema-læserettigheder — giv USAGE på skemaet til din introspektionsrolle.",
+      "timeout": "Databasen svarede ikke i tide — tjek netværkssti og belastning, og prøv igen.",
+      "tls": "TLS-forhandling mislykkedes — prøv sslmode=require, eller upload det CA-certifikat din server forventer.",
+      "unknown": "Forbindelsen mislykkedes — kontrollér DSN'en og prøv igen."
+    },
+    "log": {
+      "connectFailed": "Forbindelsen mislykkedes.",
+      "connected": "Forbundet ({latency} ms) · skrivebeskyttet introspektion",
+      "connecting": "Etablerer sikker forbindelse…",
+      "detected": "Registrerede {tables} tabeller · {columns} kolonner",
+      "found": "Fandt {tables} tabeller · {columns} kolonner",
+      "jobFailed": "Introspektion mislykkedes.",
+      "mapping": "Kortlægger kolonnetyper → inputwidgets",
+      "moreWarnings": "+{count} flere parser-advarsler",
+      "networkFailed": "Anmodningen mislykkedes — tjek din forbindelse og prøv igen.",
+      "parsingFile": "Fortolker {file}…",
+      "piiDone": "PII-scanning fuldført — {count} kolonner maskeret som standard",
+      "piiDoneUnknown": "PII-scanning fuldført",
+      "piiScan": "Scanner efter PII-kolonner…",
+      "readingFile": "Læser den uploadede skemafil…",
+      "readingSchema": "Læser skema: public",
+      "ready": "Klar",
+      "relations": "Registrerer relationer…"
+    },
+    "logLabel": "Introspektionslog",
+    "retry": "Prøv igen",
+    "subtitle": "Introspekterer tabeller, kolonner og relationer. Det tager et par sekunder.",
+    "title": "Analyserer dit skema",
+    "trust": "Vi læser kun dit skema og dine data. Intet ændres."
+  },
+  "title": "Studio",
+  "wizard": {
+    "back": "Tilbage",
+    "bridgeAppliedBody": "Overdraget fra adminium.dev af din browser — den gik direkte til denne maskine og blev aldrig uploadet. Tjek den nedenfor, og fortsæt.",
+    "bridgeAppliedTitle": "Forbindelsesstreng modtaget",
+    "bridgeFailedBody": "Den er allerede brugt eller udløbet. Indsæt i stedet din forbindelsesstreng nedenfor.",
+    "bridgeFailedTitle": "Denne overdragelse kunne ikke bruges",
+    "continue": "Fortsæt",
+    "persistFailed": "Dit tabelvalg kunne ikke gemmes — prøv igen.",
+    "persistFailedTitle": "Kunne ikke gemme",
+    "progress": "Opsætningsforløb",
     "step": {
-      "kind": "Slags",
-      "table": "Forbindelse og tabel",
-      "mapping": "Hvad der udfylder hvert felt",
-      "trigger": "Hvad der tegner det",
-      "delivery": "Hvor det går hen",
-      "mappingHelp": "Hvert felt læser en kolonne — eller tager en værdi, du skriver her.",
-      "render": "Prøv den på en række"
+      "enrich": "Berig",
+      "generate": "Generér",
+      "intent": "Formål",
+      "meta": "Metalagring",
+      "source": "Kilde",
+      "tables": "Tabeller",
+      "test": "Analysér"
     },
-    "trigger": {
-      "manual": "Kun når nogen beder om det",
-      "manualShort": "på anmodning",
-      "created": "Når en række kommer til",
-      "updated": "Når en række ændres",
-      "noteTitle": "Hvad der tæller som en ændring",
-      "note": "Rækker fra en import eller skrevet direkte i databasen tegner intet — kun skrivninger gennem Adminium gør."
-    },
-    "delivery": {
-      "stored": "Bliver altid på posten.",
-      "email": "Send til",
-      "noEmail": "Ingen — behold det på posten",
-      "noEmailSlot": "Denne bilagstype har ikke noget adressefelt og kan derfor ikke sendes.",
-      "noSmtp": "Dette Adminium har endnu ingen e-mailserver, så der kan ikke sendes noget. Opsæt en under Studio → Indstillinger → E-mail."
-    },
-    "grants": {
-      "title": "I må ikke læse det hele",
-      "refused": "Denne tilknytning læser {tables}, som I ikke må læse. Bilag herfra vil fejle for jer."
-    },
-    "slot": {
-      "unmapped": "Ikke udfyldt",
-      "byDefault": "Udfyldes af Adminium",
-      "pii": "skjulte data",
-      "typed": "En værdi, jeg skriver",
-      "typedValue": "Værdi for {slot}",
-      "typedHint": "Skrevet her, ikke læst fra dine data — hvert bilag fra denne tilknytning får den samme værdi.",
-      "noLines": "Ingen linjer",
-      "looksLikeLines": "ligner linjer",
-      "noChildren": "Intet i din database peger på denne tabel, så der er ingen linjer at tegne. Et bilag har brug for en underordnet tabel med en fremmednøgle tilbage til denne.",
-      "lineColumns": "Hvad der udfylder hver kolonne i en linje",
-      "lineColumnOf": "{column} for hver linje"
-    },
-    "edit": "Rediger",
-    "render": {
-      "saveFirst": "Gem tilknytningen først. Et bilag tegnes ud fra en gemt, så du kan se, hvad den laver, før andre gør.",
-      "intro": "Tegn et nu, ud fra en række, du vælger. Intet sendes nogen steder hen — det bliver på posten som alle andre.",
-      "search": "Søg i rækker",
-      "noRows": "Ingen rækker at tegne ud fra endnu.",
-      "pick": "Tegn denne",
-      "pending": "Tegner…",
-      "ready": "Tegnet.",
-      "failedRow": "Der blev ikke tegnet noget: {reason}",
-      "open": "Åbn",
-      "slowTitle": "Stadig ingenting",
-      "slow": "Der er endnu ikke dukket et bilag op. Det venter måske på tur, eller denne installation kører ingen baggrundsopgaver — der tegnes ikke noget, før den gør."
-    },
-    "connectionLabel": "Forbindelse",
-    "tableLabel": "Tabel"
+    "title": "Ny forbindelse"
   }
 }

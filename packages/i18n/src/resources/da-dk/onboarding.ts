@@ -13,10 +13,12 @@ export default {
     "body": "Den første administrator. Det sker kun én gang, og du forbliver logget ind bagefter.",
     "confirm": "Bekræft adgangskode",
     "email": "E-mail",
+    "hidePassword": "Skjul adgangskode",
     "label": "Din konto",
     "name": "Dit navn",
     "password": "Adgangskode",
     "passwordHelper": "Mindst {min} tegn.",
+    "showPassword": "Vis adgangskode",
     "strength": "Adgangskodens styrke",
     "strengthLevels": {
       "fair": "Nogenlunde",
@@ -36,6 +38,7 @@ export default {
       "title": "En forbindelsesstreng venter på denne instans"
     },
     "dsn": {
+      "checking": "Tjekker den database …",
       "helper": "Intet forlader denne browser, før din konto findes — så tester vi den.",
       "incomplete": "Tilføj vært og database, f.eks. postgres://user@host:5432/db",
       "invalidScheme": "Ukendt skema — forventede postgres://, mysql://, mariadb:// eller sqlite:",
@@ -47,6 +50,21 @@ export default {
       "sqlite": "SQLite"
     },
     "engineLabel": "Databasemotor",
+    "existing": {
+      "adopt": "Brug den, og log ind",
+      "adopting": "Peger denne instans mod den …",
+      "body": "Den indeholder {count, plural, one {# Adminium-tabel} other {# Adminium-tabeller}} med data. To muligheder:",
+      "failed": "Denne instans kunne ikke pege mod den database.",
+      "otherSecret": "Den blev sat op med en anden ADMINIUM_SECRET: du ville kunne logge ind, men denne instans kan ikke dekryptere dens gemte forbindelsesstrenge.",
+      "park": "Behold dem, og start forfra",
+      "parked": {
+        "body": "De omdøbes og sættes til side — hver eneste række overlever — og Adminium starter med friske ved siden af. Der sker intet, før du lægger Adminiums egne data i denne database.",
+        "title": "Tabellerne, der er der, bliver bevaret"
+      },
+      "restarting": "Genstarter på den …",
+      "timeout": "Adminium peger mod den database, men er ikke kommet tilbage endnu — genindlæs siden om et øjeblik.",
+      "title": "Den database kører allerede et Adminium"
+    },
     "label": "Forbind data",
     "sub": "Tilknyt en database",
     "title": "Forbind din database"
@@ -98,11 +116,13 @@ export default {
       "title": "Adminiums data har allerede et hjem"
     },
     "sameDb": {
+      "alreadyAdminium": "Den database indeholder allerede en Adminium-instans. Gå et trin tilbage for at beholde dens tabeller og starte ved siden af — eller log ind på den i stedet.",
       "body": "Adminium tilføjer sine egne `adminium_`-tabeller ved siden af dine. Én database at sikkerhedskopiere.",
       "disabledFile": "En SQLite-fil er ikke en server, Adminium kan tilføje sine egne tabeller til.",
       "disabledNoDdl": "Den rolle kan ikke køre CREATE TABLE, som Adminiums egne migreringer har brug for.",
       "disabledReadOnly": "Den rolle er skrivebeskyttet — Adminium skriver aldrig til din database. Behold dets data i en fil, eller giv det sin egen.",
       "noSource": "Du har ikke forbundet en database endnu — forbind en først, eller behold Adminiums data i en fil.",
+      "parked": "De Adminium-tabeller, der allerede er der, omdøbes først og sættes til side — hver eneste række overlever — og Adminium starter med friske ved siden af.",
       "title": "I den database, du lige forbandt"
     },
     "separate": {

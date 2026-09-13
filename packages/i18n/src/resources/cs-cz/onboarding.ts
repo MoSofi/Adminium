@@ -13,10 +13,12 @@ export default {
     "body": "První správce. Stane se to jen jednou a poté zůstanete přihlášeni.",
     "confirm": "Potvrzení hesla",
     "email": "E-mail",
+    "hidePassword": "Skrýt heslo",
     "label": "Váš účet",
     "name": "Vaše jméno",
     "password": "Heslo",
     "passwordHelper": "Alespoň {min} znaků.",
+    "showPassword": "Zobrazit heslo",
     "strength": "Síla hesla",
     "strengthLevels": {
       "fair": "Ucházející",
@@ -36,6 +38,7 @@ export default {
       "title": "Na tuto instanci čeká připojovací řetězec"
     },
     "dsn": {
+      "checking": "Kontroluji tuto databázi…",
       "helper": "Nic neopustí tento prohlížeč, dokud nebude existovat váš účet — pak ho otestujeme.",
       "incomplete": "Doplňte hostitele a databázi, např. postgres://user@host:5432/db",
       "invalidScheme": "Neznámé schéma — očekává se postgres://, mysql://, mariadb:// nebo sqlite:",
@@ -47,6 +50,21 @@ export default {
       "sqlite": "SQLite"
     },
     "engineLabel": "Databázový engine",
+    "existing": {
+      "adopt": "Použít ji a přihlásit se",
+      "adopting": "Nasměrování této instance na ni…",
+      "body": "Obsahuje {count, plural, one {# tabulku Adminia} few {# tabulky Adminia} other {# tabulek Adminia}} s daty. Dvě možnosti:",
+      "failed": "Tuto instanci se nepodařilo nasměrovat na tuto databázi.",
+      "otherSecret": "Byla nastavena s jiným ADMINIUM_SECRET: přihlášení by fungovalo, ale uložené připojovací řetězce tato instance nedokáže dešifrovat.",
+      "park": "Ponechat je a začít znovu",
+      "parked": {
+        "body": "Budou přejmenovány a odsunuty stranou — každý řádek zůstane — a Adminium začne vedle nich s novými. Nic se nestane, dokud do této databáze nedáte vlastní data Adminia.",
+        "title": "Stávající tabulky zůstanou zachovány"
+      },
+      "restarting": "Restart na ni…",
+      "timeout": "Adminium je nasměrováno na tuto databázi, ale ještě se nevrátilo — za chvíli tuto stránku načtěte znovu.",
+      "title": "V této databázi už běží Adminium"
+    },
     "label": "Připojit data",
     "sub": "Propojit databázi",
     "title": "Připojte svou databázi"
@@ -98,11 +116,13 @@ export default {
       "title": "Data Adminia už mají svůj domov"
     },
     "sameDb": {
+      "alreadyAdminium": "Tato databáze už obsahuje instanci Adminia. Vraťte se o krok zpět, ponechte její tabulky a začněte vedle nich — nebo se do ní místo toho přihlaste.",
       "body": "Adminium přidá vedle vašich tabulek své vlastní s prefixem `adminium_`. Jedna databáze k zálohování.",
       "disabledFile": "Soubor SQLite není server, do kterého by Adminium mohlo přidat vlastní tabulky.",
       "disabledNoDdl": "Tato role nemůže spustit CREATE TABLE, který vlastní migrace Adminia potřebují.",
       "disabledReadOnly": "Tato role je jen pro čtení — Adminium do vaší databáze nikdy nezapisuje. Ponechte jeho data v souboru, nebo mu dejte vlastní databázi.",
       "noSource": "Zatím jste nepřipojili žádnou databázi — nejprve nějakou připojte, nebo ponechte data Adminia v souboru.",
+      "parked": "Tabulky Adminia, které tam už jsou, se nejprve přejmenují a odsunou stranou — každý řádek zůstane — a Adminium začne vedle nich s novými.",
       "title": "V databázi, kterou jste právě připojili"
     },
     "separate": {

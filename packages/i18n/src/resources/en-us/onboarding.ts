@@ -13,10 +13,12 @@ export default {
     "body": "The first administrator. This happens once, and you stay signed in afterwards.",
     "confirm": "Confirm password",
     "email": "Email",
+    "hidePassword": "Hide password",
     "label": "Your account",
     "name": "Your name",
     "password": "Password",
     "passwordHelper": "At least {min} characters.",
+    "showPassword": "Show password",
     "strength": "Password strength",
     "strengthLevels": {
       "fair": "Fair",
@@ -36,6 +38,7 @@ export default {
       "title": "A connection string is waiting for this instance"
     },
     "dsn": {
+      "checking": "Checking that database…",
       "helper": "Nothing leaves this browser until your account exists — then we test it.",
       "incomplete": "Add the host and database, e.g. postgres://user@host:5432/db",
       "invalidScheme": "Unrecognized scheme — expected postgres://, mysql://, mariadb:// or sqlite:",
@@ -47,6 +50,21 @@ export default {
       "sqlite": "SQLite"
     },
     "engineLabel": "Database engine",
+    "existing": {
+      "adopt": "Use it and sign in",
+      "adopting": "Pointing this instance at it…",
+      "body": "It holds {count, plural, one {# Adminium table} other {# Adminium tables}} with data in them. Two things you can do:",
+      "failed": "Could not point this instance at that database.",
+      "otherSecret": "It was set up with a different ADMINIUM_SECRET: signing in there would work, but its saved connection strings cannot be decrypted by this instance.",
+      "park": "Keep them and start fresh",
+      "parked": {
+        "body": "They are renamed out of the way — every row survives — and Adminium starts with fresh ones beside them. Nothing happens until you choose to put Adminium’s own data in this database.",
+        "title": "The tables that are there will be kept"
+      },
+      "restarting": "Restarting onto it…",
+      "timeout": "Adminium is pointed at that database but has not come back yet — reload this page in a moment.",
+      "title": "That database already runs an Adminium"
+    },
     "label": "Connect data",
     "sub": "Link a database",
     "title": "Connect your database"
@@ -98,11 +116,13 @@ export default {
       "title": "Adminium’s data already has a home"
     },
     "sameDb": {
+      "alreadyAdminium": "That database already holds an Adminium instance. Go back a step to keep its tables and start beside them, or sign in to it instead.",
       "body": "Adminium adds its own `adminium_` tables beside yours. One database to back up.",
       "disabledFile": "A SQLite file is not a server Adminium can add its own tables to.",
       "disabledNoDdl": "That role cannot run CREATE TABLE, which Adminium’s own migrations need.",
       "disabledReadOnly": "That role is read-only — Adminium never writes to your database. Keep its data in a file, or give it one of its own.",
       "noSource": "You have not connected a database yet — connect one first, or keep Adminium’s data in a file.",
+      "parked": "The Adminium tables already in there are renamed out of the way first — every row survives — and Adminium starts with fresh ones beside them.",
       "title": "In the database you just connected"
     },
     "separate": {

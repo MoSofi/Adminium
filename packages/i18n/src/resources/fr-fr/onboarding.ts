@@ -13,10 +13,12 @@ export default {
     "body": "Le premier administrateur. Cela n’arrive qu’une fois, et vous restez connecté ensuite.",
     "confirm": "Confirmer le mot de passe",
     "email": "E-mail",
+    "hidePassword": "Masquer le mot de passe",
     "label": "Votre compte",
     "name": "Votre nom",
     "password": "Mot de passe",
     "passwordHelper": "Au moins {min} caractères.",
+    "showPassword": "Afficher le mot de passe",
     "strength": "Robustesse du mot de passe",
     "strengthLevels": {
       "fair": "Correct",
@@ -36,6 +38,7 @@ export default {
       "title": "Une chaîne de connexion attend cette instance"
     },
     "dsn": {
+      "checking": "Vérification de cette base…",
       "helper": "Rien ne quitte ce navigateur tant que votre compte n’existe pas — nous la testerons ensuite.",
       "incomplete": "Ajoutez l’hôte et la base, par ex. postgres://user@host:5432/db",
       "invalidScheme": "Schéma non reconnu — attendu : postgres://, mysql://, mariadb:// ou sqlite:",
@@ -47,6 +50,21 @@ export default {
       "sqlite": "SQLite"
     },
     "engineLabel": "Moteur de base de données",
+    "existing": {
+      "adopt": "L’utiliser et se connecter",
+      "adopting": "Orientation de cette instance vers elle…",
+      "body": "Elle contient {count, plural, one {# table Adminium} other {# tables Adminium}} avec des données. Deux possibilités :",
+      "failed": "Impossible d’orienter cette instance vers cette base.",
+      "otherSecret": "Elle a été configurée avec un autre ADMINIUM_SECRET : la connexion fonctionnerait, mais cette instance ne peut pas déchiffrer ses chaînes de connexion enregistrées.",
+      "park": "Les garder et repartir de zéro",
+      "parked": {
+        "body": "Elles sont renommées et mises de côté — chaque ligne survit — et Adminium repart avec des tables neuves à côté. Rien ne se passe tant que vous ne placez pas les données d’Adminium dans cette base.",
+        "title": "Les tables présentes seront conservées"
+      },
+      "restarting": "Redémarrage sur elle…",
+      "timeout": "Adminium est orienté vers cette base mais n’est pas encore revenu — rechargez cette page dans un instant.",
+      "title": "Cette base fait déjà tourner un Adminium"
+    },
     "label": "Connecter les données",
     "sub": "Relier une base",
     "title": "Connectez votre base de données"
@@ -98,11 +116,13 @@ export default {
       "title": "Les données d’Adminium ont déjà un logement"
     },
     "sameDb": {
+      "alreadyAdminium": "Cette base contient déjà une instance Adminium. Revenez à l’étape précédente pour conserver ses tables et repartir à côté, ou connectez-vous à elle.",
       "body": "Adminium ajoute ses propres tables `adminium_` à côté des vôtres. Une seule base à sauvegarder.",
       "disabledFile": "Un fichier SQLite n’est pas un serveur auquel Adminium peut ajouter ses propres tables.",
       "disabledNoDdl": "Ce rôle ne peut pas exécuter CREATE TABLE, dont les migrations d’Adminium ont besoin.",
       "disabledReadOnly": "Ce rôle est en lecture seule — Adminium n’écrit jamais dans votre base. Gardez ses données dans un fichier, ou donnez-lui une base à lui.",
       "noSource": "Vous n’avez pas encore connecté de base — connectez-en une d’abord, ou gardez les données d’Adminium dans un fichier.",
+      "parked": "Les tables Adminium déjà présentes sont d’abord renommées et mises de côté — chaque ligne survit — et Adminium repart avec des tables neuves à côté.",
       "title": "Dans la base que vous venez de connecter"
     },
     "separate": {
