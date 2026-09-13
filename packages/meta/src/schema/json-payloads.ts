@@ -267,6 +267,12 @@ export const auditCategorySchema = z.enum([
   // operator asks on its own, and it should not have to be sieved out of the
   // system log.
   'add-on',
+  // Installing a micro-SaaS app (47-app-installation.md D5): staged, installed,
+  // uninstalled, and the two refusals. Its own category on the same argument
+  // the add-on one is made on — an app surface is served at the dashboard's own
+  // origin, inside the session boundary, so "what code arrived on this
+  // deployment, from where, and did anything refuse it" is asked of apps too.
+  'app',
 ]);
 export type AuditCategory = z.infer<typeof auditCategorySchema>;
 

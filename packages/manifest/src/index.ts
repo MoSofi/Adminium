@@ -2,9 +2,11 @@
 /**
  * @adminium/manifest — Micro-SaaS manifest spec v1 (13-marketplace.md §2).
  *
- * Wave 1: the frozen envelope schema + validator (browser-safe, pure Zod).
- * The install planner (requiredSchema → create-or-map diff) and the
- * server-side installer land in later waves and consume a validated manifest.
+ * The frozen envelope schema + validator (browser-safe, pure Zod), and the
+ * install planner (`requiredSchema` → create-or-map diff, `plan.ts`) that both
+ * install paths run: add-ons since 26-T01, apps since 47-app-installation.md
+ * step 2. The DDL that applies a plan lives server-side in
+ * `apps/server/src/add-ons/install-ddl.ts`; nothing in this package does I/O.
  */
 export const PACKAGE_NAME = '@adminium/manifest';
 

@@ -52,6 +52,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { publicKeysRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
 
+import type { InstalledApps } from '../apps/installed.js';
 import type { HostedSurface, SurfaceSide } from '../cli/surfaces-root.js';
 import { NotFoundError } from '../errors.js';
 import { openPublishableKey } from '../public-api/keys.js';
@@ -113,6 +114,11 @@ declare module 'fastify' {
 
 export interface SurfacesPluginOptions {
   surfaces?: readonly HostedSurface[] | undefined;
+  /**
+   * Installed apps (47-app-installation.md D2), re-read on install and
+   * uninstall. Absent ⇒ this composition serves only what boot discovered.
+   */
+  installed?: InstalledApps | undefined;
   /** Absent ⇒ no placement settings; every surface stays where it is mounted. */
   metaDb?: MetaDb | undefined;
   /**
@@ -199,6 +205,25 @@ export function parseInstancePath(
 }
 
 /**
+ * `/apps/<appKey>/<side>/<rest…>` → its parts, or null.
+ *
+ * The mirror image of {@link parseInstancePath}: this is the app's OWN mount,
+ * the form that parser deliberately refuses. Boot-discovered surfaces are
+ * served here by registered routes; an INSTALLED app has no route to be
+ * matched, so its mount is parsed out of the path by the hook below.
+ */
+export function parseSurfacePath(
+  path: string,
+): { appKey: string; side: SurfaceSide; rest: string } | null {
+  const parts = path.split('/').filter((p) => p !== '');
+  if (parts.length < 3 || parts[0] !== 'apps') return null;
+  const [, appKey, side, ...rest] = parts;
+  if (appKey === undefined || side === undefined) return null;
+  if (side !== 'staff' && side !== 'customer') return null;
+  return { appKey, side, rest: rest.join('/') };
+}
+
+/**
  * The relative file path a mapped-host request names under the surface root,
  * or null when it names none (junk encoding, traversal, no such file). The
  * containment check is belt-and-braces on top of `send()`'s own — `statSync`
@@ -226,14 +251,37 @@ function surfaceFileFor(root: string, path: string): string | null {
 export const surfacesPlugin = fp<SurfacesPluginOptions>(
   async (app, opts) => {
     const surfaces = opts.surfaces ?? [];
-    app.decorate('surfaces', surfaces);
+    const installed = opts.installed ?? null;
+
+    /*
+     * THE TWO SOURCES, AS ONE LIST (47-app-installation.md D4).
+     *
+     * Boot-discovered surfaces come from a directory the operator points at and
+     * cannot change while the process runs; installed surfaces come from a
+     * store this server owns and change the moment an install finishes. Every
+     * consumer downstream — the SPA fallback, Host routing, the staff gate,
+     * `/bootstrap`'s nav, Studio's list — wants "every surface being served",
+     * and a decorator that answered with only half of them would be the kind of
+     * bug that shows up as one feature working and its neighbour not.
+     *
+     * A GETTER rather than an array, because `app.surfaces` is read after an
+     * install has already changed the answer.
+     *
+     * BOOT WINS on a key collision: those surfaces own registered routes, which
+     * an installed app's hook must not shadow. The install route refuses the
+     * collision up front (47 D4), so this ordering is the second line of that
+     * rule rather than the statement of it.
+     */
+    const allSurfaces = (): readonly HostedSurface[] =>
+      installed === null ? surfaces : [...surfaces, ...installed.current()];
+    app.decorate('surfaces', { getter: allSurfaces });
     app.decorate(
       'surfaceSettings',
       opts.metaDb === undefined ? null : createSurfaceSettings({ meta: opts.metaDb }),
     );
     app.decorate('surfaceForUrl', (url: string): HostedSurface | null => {
       const path = pathOf(url);
-      for (const surface of surfaces) {
+      for (const surface of allSurfaces()) {
         if (path === surface.prefix || path.startsWith(`${surface.prefix}/`)) return surface;
       }
       return null;
@@ -244,7 +292,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       async (request: FastifyRequest): Promise<HostedSurface | null> => {
         // Both short-circuits are the unmapped-host fast path: an instance with
         // no surfaces or no meta store never pays the (cached) settings read.
-        if (surfaces.length === 0) return null;
+        const known = allSurfaces();
+        if (known.length === 0) return null;
         const cache = app.surfaceSettings;
         if (cache === null) return null;
         const settings = await cache.read();
@@ -255,7 +304,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         // exactly as it did before the mapping existed, and Studio shows the
         // dangling entry for the operator to fix.
         return (
-          surfaces.find(
+          known.find(
             (surface) => surface.appKey === mapping.appKey && surface.side === mapping.side,
           ) ?? null
         );
@@ -384,7 +433,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       const path = pathOf(request.url);
       const parsed = parseInstancePath(path);
       if (parsed === null) return;
-      const surface = surfaces.find(
+      const surface = allSurfaces().find(
         (s) => s.appKey === parsed.appKey && s.side === parsed.side,
       );
       if (surface === undefined) return;
@@ -407,6 +456,57 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       if (file !== null) return reply.sendFile(file, surface.root);
       return reply.sendFile('index.html', surface.root);
     });
+
+    /*
+     * INSTALLED APPS, at their own mount `/apps/<appKey>/<side>/…`
+     * (47-app-installation.md D2).
+     *
+     * A HOOK for the same reason the instance mount above is one, and here the
+     * reason is sharper: routes are fixed at boot, and an install happens while
+     * the server is running. Registered routes would make every install end in
+     * "now restart your server", which is not an install.
+     *
+     * It runs AFTER the instance hook, so a slugged path has already been
+     * claimed, and it yields to any boot-discovered surface holding the same
+     * key — those own real routes, and a hook that answered first would shadow
+     * them silently.
+     *
+     * Bytes are served with `sendFile` out of the pinned tree, not re-hashed
+     * per request. The pin's job is the TOCTOU window between unpack and
+     * install — `verifyTree` closes that before a single byte is parsed — and
+     * re-hashing every asset on every request would put a full digest on the
+     * hot path that the directory-backed source does not pay either. What is
+     * served is what install verified.
+     */
+    if (installed !== null) {
+      app.addHook('onRequest', async (request, reply) => {
+        if (request.method !== 'GET' && request.method !== 'HEAD') return;
+        const parsed = parseSurfacePath(pathOf(request.url));
+        if (parsed === null) return;
+        // A boot-discovered surface owns this mount: leave it to its routes.
+        if (surfaces.some((s) => s.appKey === parsed.appKey && s.side === parsed.side)) return;
+        const surface = installed
+          .current()
+          .find((s) => s.appKey === parsed.appKey && s.side === parsed.side);
+        // Not installed either: the dashboard's own 404 answers, exactly as it
+        // does for any other unknown path.
+        if (surface === undefined) return;
+
+        if (await app.surfaceGate(surface, request, reply)) return reply;
+
+        if (parsed.rest === 'surface-config.json') {
+          void reply.header('cache-control', 'no-store');
+          const settings = (await app.surfaceSettings?.read()) ?? { apps: {}, domains: {} };
+          const doc = await configFor(settings, parsed.appKey, parsed.side, null);
+          if (doc !== null) return reply.send(doc);
+          return;
+        }
+
+        const file = surfaceFileFor(surface.root, `/${parsed.rest}`);
+        if (file !== null) return reply.sendFile(file, surface.root);
+        return reply.sendFile('index.html', surface.root);
+      });
+    }
 
     for (const surface of surfaces) {
       await app.register(async (scope) => {

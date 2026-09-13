@@ -15,14 +15,18 @@
  * That is also why nothing here writes: a plan that could not be computed
  * without side effects could not be shown before consent.
  *
- * ─── Add-on scope only (D1) ────────────────────────────────────────────────
+ * ─── One field, both kinds (47-app-installation.md O2) ─────────────────────
  *
- * 13-T03/T04 own the APP install path — `pages`, `roles`, `seeds`, `frontend`,
- * the whole envelope. An add-on manifest has none of those blocks (24 §5.2
- * leaves them off the branch entirely), so this planner reads exactly one
- * field: `requiredSchema`. Three of the six shipped add-ons declare it;
- * `import-canva`, `barcode-labels` and `holiday-calendars` declare none and
- * plan to nothing, which is a real and common case rather than an edge one.
+ * This planner reads exactly ONE field of a manifest — `requiredSchema` — and
+ * that field is on the shared envelope, so an app's tables diff the same way an
+ * add-on's do. Installing an APP now runs through here too; what stays outside
+ * it is the rest of the app envelope (`pages`, `roles`, `settings`, `seeds`),
+ * which 13-T03/T04 still own and which no install path creates yet.
+ *
+ * Three of the six shipped add-ons declare `requiredSchema`; `import-canva`,
+ * `barcode-labels` and `holiday-calendars` declare none and plan to nothing,
+ * which is a real and common case rather than an edge one. An app manifest
+ * always declares one — the schema makes it required on that branch.
  *
  * ─── The case that makes this non-trivial: a foreign key pointing OUT ──────
  *
@@ -44,7 +48,7 @@
  * half-installed add-on with no rollback.
  */
 
-import type { AddOnManifest, RequiredColumn, RequiredTable } from './schema.js';
+import type { Manifest, RequiredColumn, RequiredTable } from './schema.js';
 
 /** The existing database, as much of it as planning needs. */
 export interface SchemaModelView {
@@ -101,6 +105,15 @@ export interface PlanProblem {
 }
 
 export interface InstallPlan {
+  /**
+   * The manifest key this plan is for.
+   *
+   * Named `addOnKey` because add-ons were the only caller when it was written,
+   * and left named that because the wire DTOs each route builds are where a
+   * reader meets it — `routes/apps` spells it `key` on its own reply. Renaming
+   * it here would churn three call sites and a shipped dialog for a field only
+   * the server reads.
+   */
   addOnKey: string;
   version: string;
   /** Tables to create, in declaration order (targets before dependents). */
@@ -145,11 +158,17 @@ function planColumns(
 }
 
 /**
- * Diffs an add-on's `requiredSchema` against the database it would install
+ * Diffs a manifest's `requiredSchema` against the database it would install
  * into. Pure: no I/O, no side effects, safe to run for a preview.
+ *
+ * The NOUN in every problem message comes from `manifest.kind`, because these
+ * messages are read by an operator deciding whether to go ahead — being told
+ * an "add-on" cannot be installed while looking at an app's install dialog is
+ * the kind of small wrongness that makes someone distrust the whole screen.
  */
-export function planInstall(manifest: AddOnManifest, model: SchemaModelView): InstallPlan {
+export function planInstall(manifest: Manifest, model: SchemaModelView): InstallPlan {
   const required = manifest.requiredSchema?.tables ?? [];
+  const noun = manifest.kind === 'app' ? 'app' : 'add-on';
   const existingByRef = new Map(model.tables.map((t) => [t.ref, t]));
   const declared = new Set(required.map((t) => t.ref));
 
@@ -164,7 +183,7 @@ export function planInstall(manifest: AddOnManifest, model: SchemaModelView): In
         code: 'RESERVED_TABLE',
         table: table.ref,
         message:
-          `"${table.ref}" is in Adminium's own namespace. An add-on cannot declare a table ` +
+          `"${table.ref}" is in Adminium's own namespace. An ${noun} cannot declare a table ` +
           `whose name begins with "${RESERVED_TABLE_PREFIX}".`,
       });
       continue;
@@ -199,10 +218,22 @@ export function planInstall(manifest: AddOnManifest, model: SchemaModelView): In
           code: 'UNRESOLVED_REFERENCE',
           table: table.ref,
           column: column.ref,
+          /*
+           * The two kinds fail this check for different reasons, and the fix
+           * differs with them. An add-on's dangling FK points at a table its
+           * HOST app was supposed to bring; an app has no host, so its dangling
+           * FK points at something the operator has to have in the database
+           * already. One sentence covering both would tell at least one of them
+           * to do something that cannot be done.
+           */
           message:
-            `"${table.ref}.${column.ref}" points at a table called "${target}", which this ` +
-            `add-on does not create and this database does not have. It is a table the host ` +
-            `app is expected to provide, so this add-on cannot be installed here.`,
+            manifest.kind === 'app'
+              ? `"${table.ref}.${column.ref}" points at a table called "${target}", which this ` +
+                `app does not create and this database does not have. Connect a database that ` +
+                `already has it, or create it first.`
+              : `"${table.ref}.${column.ref}" points at a table called "${target}", which this ` +
+                `add-on does not create and this database does not have. It is a table the host ` +
+                `app is expected to provide, so this add-on cannot be installed here.`,
         });
       }
     }

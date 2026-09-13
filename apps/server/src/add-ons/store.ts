@@ -249,14 +249,30 @@ function compareVersionsDesc(a: string, b: string): number {
 export function createAddOnStore(opts: {
   dataDir: string;
   limits?: ArchiveLimits;
+  /**
+   * Store root under `<dataDir>`, default `add-ons`
+   * (47-app-installation.md D1).
+   *
+   * Installed micro-SaaS apps are the second tenant of this module, at
+   * `<dataDir>/apps/`. They are a DIFFERENT store, never a shared one: an app
+   * key and an add-on key are separate namespaces, and a collision between
+   * them must not be able to overwrite either tree. Everything else — the
+   * grammar checks, the containment checks, the hardened unpack, the per-file
+   * pin written outside the tree — is the same code for both, which is the
+   * whole reason this is a parameter rather than a second module.
+   */
+  subdir?: string;
+  /** The noun in this store's refusal messages: `add-on`, or `app`. */
+  label?: string;
 }): AddOnStore {
-  const root = resolve(opts.dataDir, ADD_ONS_DIR);
+  const root = resolve(opts.dataDir, opts.subdir ?? ADD_ONS_DIR);
+  const label = opts.label ?? 'add-on';
   const defaultLimits = opts.limits ?? DEFAULT_ARCHIVE_LIMITS;
 
   /** Grammar check + containment check for a package directory. */
   function dirFor(key: string, version: string): string {
     if (!KEY_RE.test(key)) {
-      throw new AddOnStoreError('UNSAFE_KEY', `unsafe add-on key: ${JSON.stringify(key)}`);
+      throw new AddOnStoreError('UNSAFE_KEY', `unsafe ${label} key: ${JSON.stringify(key)}`);
     }
     if (!VERSION_RE.test(version)) {
       throw new AddOnStoreError('UNSAFE_VERSION', `unsafe version: ${JSON.stringify(version)}`);
@@ -265,7 +281,7 @@ export function createAddOnStore(opts: {
     if (target !== join(root, key, version) || !target.startsWith(root + sep)) {
       throw new AddOnStoreError(
         'PATH_ESCAPES_ROOT',
-        `add-on path escapes the store root: ${JSON.stringify(`${key}/${version}`)}`,
+        `${label} path escapes the store root: ${JSON.stringify(`${key}/${version}`)}`,
       );
     }
     return target;
@@ -519,7 +535,7 @@ export function createAddOnStore(opts: {
 
     async versions(key) {
       if (!KEY_RE.test(key)) {
-        throw new AddOnStoreError('UNSAFE_KEY', `unsafe add-on key: ${JSON.stringify(key)}`);
+        throw new AddOnStoreError('UNSAFE_KEY', `unsafe ${label} key: ${JSON.stringify(key)}`);
       }
       try {
         const items = await readdir(join(root, key), { withFileTypes: true });
@@ -574,11 +590,11 @@ export function createAddOnStore(opts: {
 
     async removeKey(key) {
       if (!KEY_RE.test(key)) {
-        throw new AddOnStoreError('UNSAFE_KEY', `unsafe add-on key: ${JSON.stringify(key)}`);
+        throw new AddOnStoreError('UNSAFE_KEY', `unsafe ${label} key: ${JSON.stringify(key)}`);
       }
       const target = resolve(join(root, key));
       if (target !== join(root, key) || !target.startsWith(root + sep)) {
-        throw new AddOnStoreError('PATH_ESCAPES_ROOT', `add-on key escapes the store root: ${key}`);
+        throw new AddOnStoreError('PATH_ESCAPES_ROOT', `${label} key escapes the store root: ${key}`);
       }
       await rm(target, { recursive: true, force: true });
     },
@@ -641,6 +657,12 @@ export async function seedBundledPackages(
   store: AddOnStore,
   bundleDir: string,
   log: (message: string, data?: Record<string, unknown>) => void = () => {},
+  /**
+   * The noun in this seed's log lines — `add-on`, or `app`
+   * (47-app-installation.md step 4). The function itself is already generic
+   * over the store; only the words were not.
+   */
+  noun = 'add-on',
 ): Promise<{ seeded: string[]; skipped: string[]; failed: string[] }> {
   const seeded: string[] = [];
   const skipped: string[] = [];
@@ -668,7 +690,7 @@ export async function seedBundledPackages(
     const key = match?.groups?.['key'];
     const version = match?.groups?.['version'];
     if (key === undefined || version === undefined) {
-      log('bundled add-on has an unreadable filename', { name });
+      log(`bundled ${noun} has an unreadable filename`, { name });
       failed.push(name);
       continue;
     }
@@ -681,7 +703,7 @@ export async function seedBundledPackages(
       // bundle directory threw out of the loop and silently ended the seed.
       alreadyThere = (await stat(store.dirFor(key, version)).catch(() => undefined)) !== undefined;
     } catch (err) {
-      log('bundled add-on has an unusable key or version', { name, error: String(err) });
+      log(`bundled ${noun} has an unusable key or version`, { name, error: String(err) });
       failed.push(name);
       continue;
     }
@@ -706,7 +728,7 @@ export async function seedBundledPackages(
       // continues, because a boot seed that aborts on the first problem leaves
       // an air-gapped install with a partly-populated store and no signal about
       // which packages never arrived.
-      log('bundled add-on failed to seed', { name, error: String(err) });
+      log(`bundled ${noun} failed to seed`, { name, error: String(err) });
       failed.push(name);
     }
   }

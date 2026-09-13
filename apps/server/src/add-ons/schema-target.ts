@@ -38,7 +38,7 @@
  */
 
 import { manifestsRepo, type MetaDb } from '@adminium/meta';
-import type { AddOnManifest, InstallPlan, RequiredTable } from '@adminium/manifest';
+import type { AddOnManifest, InstallPlan, Manifest, RequiredTable } from '@adminium/manifest';
 
 import { ForbiddenError, ValidationFailedError } from '../errors.js';
 import type { ConnectionManager } from '../connections/manager.js';
@@ -105,27 +105,100 @@ async function resolveConnectionId(
   return usable[0]!.id;
 }
 
+/** What the connection-explicit core needs; the crypto is the wrapper's own. */
+export type SchemaTargetCoreDeps = Pick<AddOnSchemaTargetDeps, 'meta' | 'manager'>;
+
+/**
+ * The tables a planner diffs against, for ONE named connection.
+ *
+ * Split out of the add-on wrapper below so the app install path
+ * (47-app-installation.md step 2) reads the same snapshot through the same
+ * function. The two paths differ only in how they arrive at a connection id —
+ * an add-on infers it from its host, an app is told it by the operator — and
+ * everything after that point must not be able to diverge.
+ */
+export async function readExistingTables(
+  deps: SchemaTargetCoreDeps,
+  connectionId: string,
+): Promise<ExistingTable[]> {
+  let view;
+  try {
+    view = await loadSnapshotView(deps.meta, connectionId);
+  } catch {
+    // No snapshot yet — a connection that has never been introspected. The
+    // planner treats that as "no tables", which is honest: nothing is known
+    // to exist, so nothing can be reused.
+    return [];
+  }
+  return view.model.tables.map((table) => ({
+    ref: table.name,
+    columns: table.columns.map((column) => ({
+      ref: column.name,
+      isPrimaryKey: column.isPrimaryKey,
+    })),
+  }));
+}
+
+/**
+ * Creates what a plan says to create, in ONE named connection, then refreshes
+ * the snapshot so the new tables are addressable.
+ *
+ * The two write guards live here rather than in `install-ddl.ts`, which stays a
+ * pure DDL emitter that knows nothing about connections
+ * (35-schema-authoring.md 35-T18).
+ */
+export async function applyPlanTo(
+  deps: SchemaTargetCoreDeps,
+  connectionId: string,
+  plan: InstallPlan,
+  manifest: Manifest,
+): Promise<ApplyInstallResult> {
+  // 13 §2.5 specified this guard when it specified the install path — a
+  // `create` outcome is "refused when the `data` role is read-only" — and
+  // `install-ddl.ts` never implemented it, so until it was retrofitted an
+  // install ran CREATE TABLE against a connection Adminium had already
+  // recorded as read-only, and failed with whatever the engine said.
+  const connection = await deps.manager.mustFind(connectionId);
+  if (connection.readOnly) {
+    throw new ForbiddenError(
+      `"${manifest.key}" needs to create tables, but this connection uses a read-only role.`,
+      'READ_ONLY_MODE',
+      { code: 'ADD_ON_READ_ONLY', create: plan.create.map((table) => table.ref) },
+    );
+  }
+  if (connection.canDdl === false) {
+    throw new ForbiddenError(
+      `"${manifest.key}" needs to create tables, but this connection's role cannot run DDL.`,
+      'READ_ONLY_MODE',
+      { code: 'ADD_ON_NO_DDL', create: plan.create.map((table) => table.ref) },
+    );
+  }
+
+  const tables: readonly RequiredTable[] = manifest.requiredSchema?.tables ?? [];
+  const existing = await readExistingTables(deps, connectionId);
+  const handle = await deps.manager.data(connectionId);
+  const result = await applyInstall({
+    plan,
+    tables,
+    db: handle.db,
+    dialect: handle.dialect,
+    existing,
+  });
+
+  // The snapshot, so the new tables are addressable. AFTER the DDL and in
+  // its own adapter — see the header.
+  if (result.created.length > 0) {
+    await runIntrospection({ manager: deps.manager, meta: deps.meta, connectionId });
+  }
+  return result;
+}
+
 export function createAddOnSchemaTarget(deps: AddOnSchemaTargetDeps): AddOnSchemaTarget {
   return {
     async read(attachTo) {
       const connectionId = await resolveConnectionId(deps, attachTo);
       if (connectionId === null) return [];
-      let view;
-      try {
-        view = await loadSnapshotView(deps.meta, connectionId);
-      } catch {
-        // No snapshot yet — a connection that has never been introspected. The
-        // planner treats that as "no tables", which is honest: nothing is known
-        // to exist, so nothing can be reused.
-        return [];
-      }
-      return view.model.tables.map((table) => ({
-        ref: table.name,
-        columns: table.columns.map((column) => ({
-          ref: column.name,
-          isPrimaryKey: column.isPrimaryKey,
-        })),
-      }));
+      return readExistingTables(deps, connectionId);
     },
 
     async apply(plan, manifest, attachTo) {
@@ -137,48 +210,7 @@ export function createAddOnSchemaTarget(deps: AddOnSchemaTargetDeps): AddOnSchem
           { code: 'ADD_ON_NO_CONNECTION', create: plan.create.map((table) => table.ref) },
         );
       }
-
-      // 13 §2.5 specified this guard when it specified the install path — a
-      // `create` outcome is "refused when the `data` role is read-only" — and
-      // `install-ddl.ts` never implemented it, so until now an add-on install
-      // ran CREATE TABLE against a connection Adminium had already recorded as
-      // read-only, and failed with whatever the engine said. The check is
-      // retrofitted here rather than inside `applyInstall`, which stays a pure
-      // DDL emitter that knows nothing about connections
-      // (35-schema-authoring.md 35-T18).
-      const connection = await deps.manager.mustFind(connectionId);
-      if (connection.readOnly) {
-        throw new ForbiddenError(
-          `"${manifest.key}" needs to create tables, but this connection uses a read-only role.`,
-          'READ_ONLY_MODE',
-          { code: 'ADD_ON_READ_ONLY', create: plan.create.map((table) => table.ref) },
-        );
-      }
-      if (connection.canDdl === false) {
-        throw new ForbiddenError(
-          `"${manifest.key}" needs to create tables, but this connection's role cannot run DDL.`,
-          'READ_ONLY_MODE',
-          { code: 'ADD_ON_NO_DDL', create: plan.create.map((table) => table.ref) },
-        );
-      }
-
-      const tables: readonly RequiredTable[] = manifest.requiredSchema?.tables ?? [];
-      const existing = await this.read(attachTo);
-      const handle = await deps.manager.data(connectionId);
-      const result = await applyInstall({
-        plan,
-        tables,
-        db: handle.db,
-        dialect: handle.dialect,
-        existing,
-      });
-
-      // The snapshot, so the new tables are addressable. AFTER the DDL and in
-      // its own adapter — see the header.
-      if (result.created.length > 0) {
-        await runIntrospection({ manager: deps.manager, meta: deps.meta, connectionId });
-      }
-      return result;
+      return applyPlanTo(deps, connectionId, plan, manifest);
     },
   };
 }
