@@ -1,5 +1,11 @@
 # @adminium/manifest
 
+## 0.2.8
+
+### Patch Changes
+
+- @adminium/add-on-contracts@0.2.8
+
 ## 0.2.7
 
 ### Patch Changes

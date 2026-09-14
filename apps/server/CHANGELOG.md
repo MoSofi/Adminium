@@ -1,5 +1,106 @@
 # @adminium/server
 
+## 0.2.8
+
+### Patch Changes
+
+- 7b0e544: **Settings → Translations keeps every accessible name it can find.** The server
+  refuses to save an empty translation for a string that is a control's accessible
+  name, such as an icon-only button's label, a field's label or a tooltip. The
+  list of those strings had fallen behind the screens. It held 1,294 keys and
+  missed, among others, the app install wizard's labels and the onboarding
+  wizard's show-password toggle, so those could be blanked, leaving a control with
+  no name.
+  
+  The list is now built by parsing the source instead of matching two patterns, so
+  it also finds a key that reaches a name through a condition, a `??` fallback, a
+  translator imported under another name, or a field descriptor. It holds 2,402
+  keys. Those strings can still be translated. They just cannot be left empty.
+- 3d627e5: **Uploading an add-on asks only for the file and its hash.** The "Upload a
+  package" card on Studio → Add-ons used to ask for the add-on key and version as
+  well. The server staged the package under whatever was typed, and nothing
+  checked the typed key against the manifest. A key that did not match installed
+  without complaint and then served no bundle, because an add-on's bundle URLs
+  are built from its manifest's key.
+  
+  The server now reads the key and version from the package's `manifest.json`,
+  which is inside the bytes the integrity value verifies. The card shows what it
+  read ("Uploaded Holiday Calendars 1.0.0 · Install it from the list above") and
+  clears the file and hash for the next package. The hash is still required, and
+  still has to come from somewhere other than the file itself, such as
+  `npm pack --json`.
+  
+  The upload now runs the full manifest validator. A manifest that does not
+  validate, one from a publisher other than Adminium, or an app's manifest is
+  refused on the card instead of after the package is staged. Refusals say what
+  was wrong: no `manifest.json`, an integrity value that does not match, or an
+  archive that cannot be read (with its reason code).
+  
+  `POST /api/v1/add-ons/upload`: `key` and `version` are now optional. A caller
+  that still sends them has them checked against the manifest, and a mismatch is
+  refused with `KEY_MISMATCH` or `VERSION_MISMATCH` before anything is written.
+  The reply gains `name`.
+- d1d11d4: **Micro-SaaS apps install on Postgres and MySQL.** Reported against 0.2.7:
+  installing online-ordering, clinic-desk or hotel-reservations failed at the
+  database step with
+  
+      creating "menu_items" failed: error: foreign key constraint
+      "fk_menu_items_category_id" cannot be implemented
+  
+  The installer created every foreign-key column as `varchar(36)`, the type of an
+  `id` key. Every add-on keys its tables with `id`, so add-ons installed fine. The
+  apps key theirs with `int` (and hotel-reservations also with `text`), and
+  Postgres and MySQL both refuse a foreign key whose column type differs from the
+  key it references. SQLite does not check this, which is why the tests passed.
+  All five published apps failed on both server engines. Only three were tried.
+  
+  A foreign-key column now takes its target's key type: the declared type when the
+  install creates that table, and the live database type when the table already
+  exists. On MySQL, a `text` primary key, and any foreign key that points at one,
+  is now `varchar(255)`. MySQL cannot index a `TEXT` column without a prefix length,
+  so hotel-reservations' `room_types` would otherwise fail on MySQL even with the
+  foreign keys fixed.
+  
+  A failed install already leaves nothing to clean up. Tables it created before
+  the error are skipped on retry, so installing the app again completes it.
+- 3d627e5: **Uploading an app asks only for the file.** The install wizard's bundle step
+  used to ask for the app key and version. The server staged the bundle under
+  whatever was typed, and a key that did not match the bundle's manifest uploaded
+  fine, then failed on the next step:
+  
+      The bundle was uploaded as "clinicx" but its manifest declares "clinic".
+  
+  The bundle already says which app it is, so the server now reads the key and
+  version from its `manifest.json` during the upload and returns them with the
+  app's name. The wizard's later steps use what the server returned. Stepping back
+  after an upload shows the app it read ("Install Clinic Desk · 0.1.1"), with an
+  option to upload a different bundle. The optional integrity field stays.
+  
+  A manifest that does not validate, or that belongs to an add-on, is now refused
+  on the bundle step, where the file was chosen. Both used to be staged and then
+  refused at the plan step. Refusals at upload also say what was wrong: no
+  `manifest.json`, an integrity value that does not match, or an archive that
+  cannot be read (with its reason code), where they used to say only "The
+  uploaded bundle was refused."
+  
+  `POST /api/v1/apps/upload`: `key` and `version` are now optional. A caller that
+  still sends them has them checked against the manifest, and a mismatch is
+  refused with `KEY_MISMATCH` or `VERSION_MISMATCH` before anything is written.
+  The reply gains `name`.
+- Updated dependencies [7b0e544]
+- Updated dependencies [3d627e5]
+- Updated dependencies [3d627e5]
+  - @adminium/i18n@0.2.8
+  - @adminium/engine@0.2.8
+  - @adminium/llm@0.2.8
+  - @adminium/adapter-mysql@0.2.8
+  - @adminium/adapter-postgres@0.2.8
+  - @adminium/adapter-sqlite@0.2.8
+  - @adminium/schema-import@0.2.8
+  - @adminium/add-on-contracts@0.2.8
+  - @adminium/manifest@0.2.8
+  - @adminium/meta@0.2.8
+
 ## 0.2.7
 
 ### Patch Changes

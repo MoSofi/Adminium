@@ -1,5 +1,70 @@
 # @adminium/i18n
 
+## 0.2.8
+
+### Patch Changes
+
+- 7b0e544: **Settings → Translations keeps every accessible name it can find.** The server
+  refuses to save an empty translation for a string that is a control's accessible
+  name, such as an icon-only button's label, a field's label or a tooltip. The
+  list of those strings had fallen behind the screens. It held 1,294 keys and
+  missed, among others, the app install wizard's labels and the onboarding
+  wizard's show-password toggle, so those could be blanked, leaving a control with
+  no name.
+  
+  The list is now built by parsing the source instead of matching two patterns, so
+  it also finds a key that reaches a name through a condition, a `??` fallback, a
+  translator imported under another name, or a field descriptor. It holds 2,402
+  keys. Those strings can still be translated. They just cannot be left empty.
+- 3d627e5: **Uploading an add-on asks only for the file and its hash.** The "Upload a
+  package" card on Studio → Add-ons used to ask for the add-on key and version as
+  well. The server staged the package under whatever was typed, and nothing
+  checked the typed key against the manifest. A key that did not match installed
+  without complaint and then served no bundle, because an add-on's bundle URLs
+  are built from its manifest's key.
+  
+  The server now reads the key and version from the package's `manifest.json`,
+  which is inside the bytes the integrity value verifies. The card shows what it
+  read ("Uploaded Holiday Calendars 1.0.0 · Install it from the list above") and
+  clears the file and hash for the next package. The hash is still required, and
+  still has to come from somewhere other than the file itself, such as
+  `npm pack --json`.
+  
+  The upload now runs the full manifest validator. A manifest that does not
+  validate, one from a publisher other than Adminium, or an app's manifest is
+  refused on the card instead of after the package is staged. Refusals say what
+  was wrong: no `manifest.json`, an integrity value that does not match, or an
+  archive that cannot be read (with its reason code).
+  
+  `POST /api/v1/add-ons/upload`: `key` and `version` are now optional. A caller
+  that still sends them has them checked against the manifest, and a mismatch is
+  refused with `KEY_MISMATCH` or `VERSION_MISMATCH` before anything is written.
+  The reply gains `name`.
+- 3d627e5: **Uploading an app asks only for the file.** The install wizard's bundle step
+  used to ask for the app key and version. The server staged the bundle under
+  whatever was typed, and a key that did not match the bundle's manifest uploaded
+  fine, then failed on the next step:
+  
+      The bundle was uploaded as "clinicx" but its manifest declares "clinic".
+  
+  The bundle already says which app it is, so the server now reads the key and
+  version from its `manifest.json` during the upload and returns them with the
+  app's name. The wizard's later steps use what the server returned. Stepping back
+  after an upload shows the app it read ("Install Clinic Desk · 0.1.1"), with an
+  option to upload a different bundle. The optional integrity field stays.
+  
+  A manifest that does not validate, or that belongs to an add-on, is now refused
+  on the bundle step, where the file was chosen. Both used to be staged and then
+  refused at the plan step. Refusals at upload also say what was wrong: no
+  `manifest.json`, an integrity value that does not match, or an archive that
+  cannot be read (with its reason code), where they used to say only "The
+  uploaded bundle was refused."
+  
+  `POST /api/v1/apps/upload`: `key` and `version` are now optional. A caller that
+  still sends them has them checked against the manifest, and a mismatch is
+  refused with `KEY_MISMATCH` or `VERSION_MISMATCH` before anything is written.
+  The reply gains `name`.
+
 ## 0.2.7
 
 ## 0.2.6
