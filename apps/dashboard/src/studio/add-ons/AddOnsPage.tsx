@@ -78,6 +78,7 @@ import {
   type AddOnDto,
   type CatalogEntry,
   type InstallPlan,
+  type StagedPackage,
 } from './addOnsApi.js';
 
 /** What a pending confirm is about; each has its own words. */
@@ -487,23 +488,31 @@ function ConnectForm({
  * server refuses anything that does not match. A form that computed the hash
  * from the uploaded file would be verifying the bytes against themselves.
  *
- * The key and version are asked for rather than read out of the tarball,
- * deliberately: the store's directory grammar is `<key>/<version>/`, and
- * deriving them from a filename an operator can rename is how a package ends up
- * staged under somebody else's name.
+ * ── WHY THE KEY AND VERSION ARE NOT ASKED FOR ──────────────────────────────
+ *
+ * The server reads them from the package's own `manifest.json`, which is inside
+ * the bytes the hash verifies — never from the filename, which an operator can
+ * rename. Asking for them added nothing but a way to be wrong: a typed key that
+ * differed from the manifest staged the package under a key its bundle URLs do
+ * not use, so it installed and then served nothing. The card says what was read
+ * once the upload lands.
  */
 function SideloadCard({
   busy,
   onUpload,
 }: {
   busy: boolean;
-  onUpload: (file: File, input: { key: string; version: string; expectedSha512: string }) => void;
+  /** Resolves to what the server staged, or `undefined` when it was refused. */
+  onUpload: (file: File, input: { expectedSha512: string }) => Promise<StagedPackage | undefined>;
 }) {
   const [file, setFile] = useState<File | null>(null);
-  const [key, setKey] = useState('');
-  const [version, setVersion] = useState('');
   const [sha, setSha] = useState('');
-  const ready = file !== null && key !== '' && version !== '' && sha.startsWith('sha512-');
+  const [uploaded, setUploaded] = useState<StagedPackage | null>(null);
+  // Remounts the file input after an upload: a file input cannot be cleared
+  // through React state, and leaving the old file picked invites sending it
+  // again with the next package's hash.
+  const [picker, setPicker] = useState(0);
+  const ready = file !== null && sha.startsWith('sha512-');
 
   return (
     <Card>
@@ -522,32 +531,28 @@ function SideloadCard({
         </span>
       </CardHeader>
       <CardBody className="flex flex-col gap-3">
+        {uploaded === null ? null : (
+          <Alert
+            tone="pos"
+            role="status"
+            title={t('studio:addOns.sideload.uploaded.title', 'Uploaded {name} {version}', {
+              name: uploaded.name,
+              version: uploaded.version,
+            })}
+          >
+            {t('studio:addOns.sideload.uploaded.body', 'Install it from the list above.')}
+          </Alert>
+        )}
         <FormField label={t('studio:addOns.sideload.file', 'Package file (.tgz)')}>
           <input
+            key={picker}
             type="file"
             accept=".tgz,application/gzip"
             disabled={busy}
             aria-label={t('studio:addOns.sideload.file', 'Package file (.tgz)')}
             onChange={(event) => {
               setFile(event.currentTarget.files?.[0] ?? null);
-            }}
-          />
-        </FormField>
-        <FormField label={t('studio:addOns.sideload.key', 'Add-on key')}>
-          <Input
-            value={key}
-            disabled={busy}
-            onChange={(event) => {
-              setKey(event.currentTarget.value);
-            }}
-          />
-        </FormField>
-        <FormField label={t('studio:addOns.sideload.version', 'Version')}>
-          <Input
-            value={version}
-            disabled={busy}
-            onChange={(event) => {
-              setVersion(event.currentTarget.value);
+              setUploaded(null);
             }}
           />
         </FormField>
@@ -572,7 +577,14 @@ function SideloadCard({
             disabled={busy || !ready}
             onClick={() => {
               if (file === null) return;
-              onUpload(file, { key, version, expectedSha512: sha });
+              void onUpload(file, { expectedSha512: sha }).then((staged) => {
+                if (staged === undefined) return;
+                setUploaded(staged);
+                // The hash described that file, and would refuse the next one.
+                setFile(null);
+                setSha('');
+                setPicker((n) => n + 1);
+              });
             }}
           >
             {t('studio:addOns.sideload.submit', 'Upload')}
@@ -612,15 +624,20 @@ export function AddOnsPage() {
     ]);
   };
 
-  /** One place that turns a thrown request into page state. */
-  const run = async (fn: () => Promise<unknown>): Promise<void> => {
+  /**
+   * One place that turns a thrown request into page state. Resolves to what
+   * the request returned, or `undefined` once its failure is on the page.
+   */
+  const run = async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
     setBusy(true);
     setError(null);
     try {
-      await fn();
+      const result = await fn();
       await refresh();
+      return result;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
+      return undefined;
     } finally {
       setBusy(false);
     }
@@ -743,12 +760,7 @@ export function AddOnsPage() {
         }}
       />
 
-      <SideloadCard
-        busy={busy}
-        onUpload={(file, input) => {
-          void run(() => uploadAddOn(file, input));
-        }}
-      />
+      <SideloadCard busy={busy} onUpload={(file, input) => run(() => uploadAddOn(file, input))} />
 
       <Card>
         <CardHeader className="flex items-center gap-3">
@@ -928,7 +940,7 @@ export function AddOnsPage() {
               onClick={() => {
                 const current = pending;
                 setPending(null);
-                void run(() => {
+                void run<unknown>(() => {
                   if (current.kind === 'disconnect') return disconnectAddOn(current.addOn.key);
                   if (current.kind === 'uninstall') return uninstallAddOn(current.addOn.key);
                   return discardStaged(current.entry.key, current.entry.version);

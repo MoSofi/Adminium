@@ -38,6 +38,8 @@ interface Call {
 let calls: Call[];
 let plan: Record<string, unknown>;
 let installed: { apps: unknown[]; staged: unknown[] };
+/** What the upload route answers — the identity the server read from the bundle. */
+let uploadReply: { status: number; body: unknown };
 
 function stubFetch() {
   const fetchMock = vi.fn((input: unknown, init?: RequestInit) => {
@@ -51,15 +53,7 @@ function stubFetch() {
       return Promise.resolve(jsonResponse(200, { connections: [CONNECTION] }));
     }
     if (url.startsWith('/api/v1/apps/upload')) {
-      return Promise.resolve(
-        jsonResponse(200, {
-          key: 'clinic',
-          version: '1.0.0',
-          files: 12,
-          integrity: 'sha512-x',
-          sides: ['staff'],
-        }),
-      );
+      return Promise.resolve(jsonResponse(uploadReply.status, uploadReply.body));
     }
     if (url === '/api/v1/apps/plan') return Promise.resolve(jsonResponse(200, { plan }));
     if (url === '/api/v1/apps/install') {
@@ -89,6 +83,17 @@ beforeEach(async () => {
   await installTestI18n();
   calls = [];
   installed = { apps: [], staged: [] };
+  uploadReply = {
+    status: 200,
+    body: {
+      key: 'clinic',
+      version: '1.0.0',
+      name: 'Clinic Desk',
+      files: 12,
+      integrity: 'sha512-x',
+      sides: ['staff'],
+    },
+  };
   plan = {
     key: 'clinic',
     version: '1.0.0',
@@ -122,8 +127,6 @@ async function reachPlan(user: ReturnType<typeof userEvent.setup>) {
   // the picker's options ARE that list, and offering an empty menu that fills
   // in underneath is the bug the suspense is there to prevent.
   await user.upload(await screen.findByLabelText(/Bundle file/i), file);
-  await user.type(screen.getByLabelText(/App key/i), 'clinic');
-  await user.type(screen.getByLabelText(/^Version/i), '1.0.0');
   // The operator's own hash — the path where the check is real end to end, and
   // the one that does not need WebCrypto in the test environment.
   await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
@@ -155,6 +158,108 @@ describe('the install wizard', () => {
     expect(screen.getByText('/apps/clinic/staff/')).toBeTruthy();
   });
 
+  it('asks only for the file, and installs the app the bundle says it is', async () => {
+    /*
+     * The form used to ask for the key and version too. The server staged the
+     * bundle under whatever was typed, and a key that differed from the
+     * manifest — "clinicx" for "clinic" — was refused on the NEXT step. Now the
+     * reply names the app and every later call is addressed by it, so the
+     * filename below deliberately says nothing about which app this is.
+     */
+    uploadReply = {
+      status: 200,
+      body: { key: 'clinic', version: '0.1.1', name: 'Clinic Desk', files: 3, integrity: 'sha512-x', sides: ['staff'] },
+    };
+    const user = userEvent.setup();
+    renderWizard();
+    await screen.findByLabelText(/Bundle file/i);
+    expect(screen.queryByLabelText(/App key/i)).toBeNull();
+    expect(screen.queryByLabelText(/^Version/i)).toBeNull();
+    // The file alone is enough to upload.
+    expect(screen.getByRole('button', { name: 'Upload' }).hasAttribute('disabled')).toBe(true);
+    await user.upload(
+      screen.getByLabelText(/Bundle file/i),
+      new File(['pretend-tarball'], 'download.tgz', { type: 'application/gzip' }),
+    );
+    await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
+    expect(screen.getByRole('button', { name: 'Upload' }).hasAttribute('disabled')).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await screen.findByText(/Install into which database/i);
+    const raw = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls
+      .map((args) => String(args[0]))
+      .find((url) => url.startsWith('/api/v1/apps/upload'));
+    expect([...new URL(raw!, 'http://x').searchParams.keys()]).toEqual(['expectedSha512']);
+    expect(screen.getByText('Step 2 of 4 · clinic')).toBeTruthy();
+
+    await user.click(screen.getByRole('radio', { name: /Practice/i }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByText(/Review the schema plan/i);
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText('Installed');
+
+    const identity = { key: 'clinic', version: '0.1.1', connectionId: CONNECTION.id };
+    expect(calls.find((call) => call.url === '/api/v1/apps/plan')?.body).toEqual(identity);
+    expect(calls.find((call) => call.url === '/api/v1/apps/install')?.body).toEqual(identity);
+  });
+
+  it('shows a bundle the server could not read on the bundle step, in its words', async () => {
+    uploadReply = {
+      status: 422,
+      body: {
+        error: {
+          code: 'VALIDATION_FAILED',
+          message: 'This bundle carries no `manifest.json` at its root, so it is not an app bundle.',
+          requestId: 'r',
+        },
+      },
+    };
+    const user = userEvent.setup();
+    renderWizard();
+    await user.upload(
+      await screen.findByLabelText(/Bundle file/i),
+      new File(['x'], 'photos.tgz', { type: 'application/gzip' }),
+    );
+    await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
+    await user.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await screen.findByText(/not an app bundle/i);
+    // Still on the step where the file was chosen, with nothing to continue to.
+    expect(screen.getByLabelText(/Bundle file/i)).toBeTruthy();
+    expect(screen.getByText('Step 1 of 4')).toBeTruthy();
+  });
+
+  it('confirms what it read when stepping back after an upload, and can start over', async () => {
+    const user = userEvent.setup();
+    renderWizard();
+    await user.upload(
+      await screen.findByLabelText(/Bundle file/i),
+      new File(['x'], 'clinic-1.0.0.tgz', { type: 'application/gzip' }),
+    );
+    await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
+    await user.click(screen.getByRole('button', { name: 'Upload' }));
+    await screen.findByText(/Install into which database/i);
+
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    // The app, as the bundle named it — not an empty file picker that would
+    // upload the same file again.
+    expect(await screen.findByText('Install Clinic Desk')).toBeTruthy();
+    expect(screen.getByText('1.0.0')).toBeTruthy();
+    expect(screen.getByText(/Read from the manifest.json/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/Bundle file/i)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByText(/Install into which database/i);
+    expect(calls.filter((call) => call.url === '/api/v1/apps/upload')).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await user.click(await screen.findByRole('button', { name: /Upload a different bundle/i }));
+    expect(screen.getByLabelText(/Bundle file/i)).toBeTruthy();
+    // The old pasted hash described the old file; it does not carry over.
+    expect((screen.getByLabelText(/Integrity/i) as HTMLInputElement).value).toBe('');
+    expect(screen.getByRole('button', { name: 'Upload' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('Step 1 of 4')).toBeTruthy();
+  });
+
   it('marks the installed list and the shelf stale as soon as a bundle is uploaded', async () => {
     /*
      * An upload changes what is on disk, so both lists are out of date the
@@ -178,8 +283,6 @@ describe('the install wizard', () => {
 
     const file = new File(['pretend-tarball'], 'clinic-1.0.0.tgz', { type: 'application/gzip' });
     await user.upload(await screen.findByLabelText(/Bundle file/i), file);
-    await user.type(screen.getByLabelText(/App key/i), 'clinic');
-    await user.type(screen.getByLabelText(/^Version/i), '1.0.0');
     await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
     expect(client.getQueryState(APPS_QUERY_KEY)?.isInvalidated).toBe(false);
     await user.click(screen.getByRole('button', { name: 'Upload' }));
@@ -211,8 +314,6 @@ describe('the install wizard', () => {
     // Reach the database step without selecting anything.
     const file = new File(['x'], 'clinic-1.0.0.tgz', { type: 'application/gzip' });
     await user.upload(await screen.findByLabelText(/Bundle file/i), file);
-    await user.type(screen.getByLabelText(/App key/i), 'clinic');
-    await user.type(screen.getByLabelText(/^Version/i), '1.0.0');
     await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
     await user.click(screen.getByRole('button', { name: 'Upload' }));
     await screen.findByText(/Install into which database/i);
@@ -234,7 +335,7 @@ describe('the install wizard', () => {
     renderWizard();
     await screen.findByLabelText(/Bundle file/i);
     // Before an upload there is no app to name — the comp knows its app from
-    // the card it was opened from; here the key is still being typed.
+    // the card it was opened from; here the bundle has not been read yet.
     expect(screen.getByText('Step 1 of 4')).toBeTruthy();
 
     await reachPlan(user);

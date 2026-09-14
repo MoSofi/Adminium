@@ -68,8 +68,11 @@ export function appCatalogQuery() {
 }
 
 export interface StagedApp {
+  /** Read from the bundle's own manifest, never supplied by the operator. */
   key: string;
   version: string;
+  /** The manifest's display name. */
+  name: string;
   files: number;
   integrity: string;
   sides: SurfaceSide[];
@@ -101,13 +104,17 @@ export async function sha512Of(file: Blob): Promise<string> {
 /**
  * Upload a built surface bundle.
  *
+ * Only the bytes and their hash go up. Which app they are — its key and
+ * version — is read by the server from the bundle's own `manifest.json` and
+ * comes back in the reply, which is what every later step addresses.
+ *
  * Not routed through `api`, which is JSON-only: the route takes the bundle as a
  * raw body. A hand-rolled `fetch` means a hand-rolled CSRF header — without it
  * every upload 403s.
  */
 export async function uploadApp(
   file: File | Blob,
-  input: { key: string; version: string; expectedSha512: string },
+  input: { expectedSha512: string },
 ): Promise<StagedApp> {
   const query = new URLSearchParams(input);
   const response = await fetch(`/api/v1/apps/upload?${query.toString()}`, {

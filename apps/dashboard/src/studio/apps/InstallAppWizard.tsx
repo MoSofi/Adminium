@@ -36,7 +36,8 @@
  *  **D4 — the bundle is a `.tgz`, not `manifest.json`.** The comp's upload
  *  tile takes "a .json module". A manifest alone carries no built surfaces,
  *  and the store's hardened unpack is what makes an upload safe to serve at
- *  this origin at all.
+ *  this origin at all. Like the comp's tile, it asks for nothing but the file:
+ *  the app's key and version are read from the manifest inside it.
  *
  *  **D5 — no source step.** The comp's first screen chooses marketplace or
  *  upload. There is no feed yet (47 O1), so the choice has one option; the
@@ -116,15 +117,28 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
 
   // Step 1 — the bundle.
   const [file, setFile] = useState<File | null>(null);
-  const [key, setKey] = useState(preselected?.key ?? '');
-  const [version, setVersion] = useState(preselected?.version ?? '');
   const [integrity, setIntegrity] = useState('');
+  /*
+   * WHICH APP THIS IS, and the only place later steps read it from.
+   *
+   * Never typed. A shelf app brings its identity from the card; an upload gets
+   * it back from the server, which reads it out of the bundle's own manifest.
+   * The form used to ask for both, and a key that differed from the manifest
+   * uploaded fine and was refused one step later, on the database step.
+   */
   const [staged, setStaged] = useState<StagedApp | null>(
     // A shelf app is ALREADY on disk — the boot seed staged it — so there is
     // nothing to upload and the footer can name it from the first step.
     preselected === undefined
       ? null
-      : { key: preselected.key, version: preselected.version, files: 0, integrity: '', sides: [] },
+      : {
+          key: preselected.key,
+          version: preselected.version,
+          name: preselected.name,
+          files: 0,
+          integrity: '',
+          sides: [],
+        },
   );
 
   // Step 2 — where it goes.
@@ -153,7 +167,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
        * right default and what it is worth.
        */
       const expectedSha512 = integrity.trim() === '' ? await sha512Of(file) : integrity.trim();
-      return uploadApp(file, { key: key.trim(), version: version.trim(), expectedSha512 });
+      return uploadApp(file, { expectedSha512 });
     },
     onSuccess: (next) => {
       setStaged(next);
@@ -175,7 +189,10 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
   });
 
   const preview = useMutation({
-    mutationFn: () => planApp({ key: key.trim(), version: version.trim(), connectionId }),
+    mutationFn: () => {
+      if (staged === null) throw new Error('no bundle');
+      return planApp({ key: staged.key, version: staged.version, connectionId });
+    },
     onSuccess: ({ plan: next }) => {
       setPlan(next);
       setError(null);
@@ -185,7 +202,10 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
   });
 
   const install = useMutation({
-    mutationFn: () => installApp({ key: key.trim(), version: version.trim(), connectionId }),
+    mutationFn: () => {
+      if (staged === null) throw new Error('no bundle');
+      return installApp({ key: staged.key, version: staged.version, connectionId });
+    },
     onSuccess: async (next) => {
       setResult(next);
       setError(null);
@@ -222,19 +242,30 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
         </Alert>
       )}
 
-      {step === 'bundle' && preselected !== undefined ? (
+      {/*
+        * The app this install is for, once it is known: picked off the shelf,
+        * or read from an uploaded bundle (reached by stepping back after the
+        * upload). The comp's marketplace tile draws this row — name, then the
+        * version in mono — so an upload confirms itself the same way.
+        */}
+      {step === 'bundle' && staged !== null ? (
         <div className="flex flex-col gap-4">
           <div>
             <h2 className="text-base font-bold tracking-tight">
               {t('studio:hostedApps.install.chosen.title', 'Install {app}', {
-                app: preselected.name,
+                app: staged.name,
               })}
             </h2>
             <p className="mt-1 text-sm text-fg-muted">
-              {t(
-                'studio:hostedApps.install.chosen.hint',
-                'This app came with your build and is already on disk. Nothing is created until you confirm the schema plan.',
-              )}
+              {preselected === undefined
+                ? t(
+                    'studio:hostedApps.install.uploaded.hint',
+                    'Read from the manifest.json inside the bundle you uploaded. Nothing is created until you confirm the schema plan.',
+                  )
+                : t(
+                    'studio:hostedApps.install.chosen.hint',
+                    'This app came with your build and is already on disk. Nothing is created until you confirm the schema plan.',
+                  )}
             </p>
           </div>
           <Card>
@@ -242,14 +273,35 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
               <IconTile>
                 <Package aria-hidden className="size-5" />
               </IconTile>
-              <span className="flex-1 text-sm font-bold">{preselected.name}</span>
-              <MonoText className="text-xs text-fg-muted">{preselected.version}</MonoText>
+              <span className="flex-1 text-sm font-bold">{staged.name}</span>
+              <MonoText className="text-xs text-fg-muted">{staged.version}</MonoText>
             </CardBody>
           </Card>
+          {preselected === undefined ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="self-start"
+              disabled={busy}
+              onClick={() => {
+                // The staged bytes stay on disk, as they would after a Cancel;
+                // the installed list offers to discard them.
+                setStaged(null);
+                setFile(null);
+                // A pasted hash describes the old file, and would refuse the next.
+                setIntegrity('');
+                setPlan(null);
+                setError(null);
+              }}
+            >
+              <FileUp aria-hidden className="size-4" />
+              {t('studio:hostedApps.install.uploaded.replace', 'Upload a different bundle')}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
-      {step === 'bundle' && preselected === undefined ? (
+      {step === 'bundle' && staged === null ? (
         <div className="flex flex-col gap-4">
           <div>
             <h2 className="text-base font-bold tracking-tight">
@@ -279,22 +331,6 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
                   onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
                 />
               </FormField>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField label={t('studio:hostedApps.install.bundle.key', 'App key')}>
-                  <Input
-                    value={key}
-                    onChange={(event) => setKey(event.currentTarget.value)}
-                    placeholder="clinic"
-                  />
-                </FormField>
-                <FormField label={t('studio:hostedApps.install.bundle.version', 'Version')}>
-                  <Input
-                    value={version}
-                    onChange={(event) => setVersion(event.currentTarget.value)}
-                    placeholder="1.0.0"
-                  />
-                </FormField>
-              </div>
               <FormField
                 label={t('studio:hostedApps.install.bundle.integrity', 'Integrity (optional)')}
                 helper={t(
@@ -555,8 +591,8 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
           * footer elsewhere was the worst of both.
           *
           * The app half only appears once there IS one — the comp knows its app
-          * from the marketplace card it was opened from, and here the key is
-          * still being typed on step 1.
+          * from the marketplace card it was opened from, and an upload learns
+          * it from the bundle's manifest once the file has gone up.
           */}
         <span className="text-sm text-fg-subtle">
           {staged === null
@@ -589,17 +625,14 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
             </Button>
           ) : null}
 
-          {step === 'bundle' && preselected !== undefined ? (
+          {step === 'bundle' && staged !== null ? (
             <Button disabled={busy} onClick={() => setStep('database')}>
               {t('studio:hostedApps.install.continue', 'Continue')}
             </Button>
           ) : null}
 
-          {step === 'bundle' && preselected === undefined ? (
-            <Button
-              disabled={busy || file === null || key.trim() === '' || version.trim() === ''}
-              onClick={() => upload.mutate()}
-            >
+          {step === 'bundle' && staged === null ? (
+            <Button disabled={busy || file === null} onClick={() => upload.mutate()}>
               {upload.isPending ? <Spinner size="sm" /> : <FileUp aria-hidden className="size-4" />}
               {t('studio:hostedApps.install.upload', 'Upload')}
             </Button>

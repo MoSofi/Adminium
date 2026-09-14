@@ -190,8 +190,11 @@ export async function setCatalogEnabled(
 
 /** Mirrors `stagedPackageReply` — the receipt for an unpack. */
 export interface StagedPackage {
+  /** Read from the package's own manifest, never supplied by the operator. */
   key: string;
   version: string;
+  /** The manifest's display name. */
+  name: string;
   files: number;
   integrity: string;
 }
@@ -208,19 +211,18 @@ export interface StagedPackage {
  * `npm pack --json` prints, which is a plain sha512 of the tarball, so the
  * person doing the sideloading can produce it without trusting this page.
  *
+ * Which add-on the bytes are — its key and version — is not sent. The server
+ * reads it from the package's own `manifest.json` and returns it.
+ *
  * Not routed through `api`, which is JSON-only: the route takes the package as
  * a raw body. A hand-rolled `fetch` means a hand-rolled CSRF header — without
  * it every upload 403s.
  */
 export async function uploadAddOn(
   file: File | Blob,
-  input: { key: string; version: string; expectedSha512: string },
+  input: { expectedSha512: string },
 ): Promise<StagedPackage> {
-  const query = new URLSearchParams({
-    key: input.key,
-    version: input.version,
-    expectedSha512: input.expectedSha512,
-  });
+  const query = new URLSearchParams({ expectedSha512: input.expectedSha512 });
   const response = await fetch(`/api/v1/add-ons/upload?${query.toString()}`, {
     method: 'POST',
     credentials: 'same-origin',

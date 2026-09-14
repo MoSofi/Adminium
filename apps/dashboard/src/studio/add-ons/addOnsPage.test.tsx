@@ -97,6 +97,8 @@ interface StubOptions {
   entries?: CatalogEntry[];
   installed?: AddOnDto[];
   plan?: InstallPlan;
+  /** What the sideload route answers — by default, the package it read. */
+  upload?: { status: number; body: unknown };
 }
 
 function stubFetch(options: StubOptions = {}) {
@@ -137,6 +139,19 @@ function stubFetch(options: StubOptions = {}) {
           vetoed: options.vetoed ?? false,
         }),
       );
+    }
+    if (url.startsWith('/api/v1/add-ons/upload')) {
+      const reply = options.upload ?? {
+        status: 200,
+        body: {
+          key: 'holiday-calendars',
+          version: '1.0.0',
+          name: 'Holiday Calendars',
+          files: 3,
+          integrity: 'sha512-abc==',
+        },
+      };
+      return Promise.resolve(jsonResponse(reply.status, reply.body));
     }
     if (url.startsWith('/api/v1/add-ons/download') || url.endsWith('/catalog/refresh')) {
       return Promise.resolve(jsonResponse(200, { jobId: 'job_1' }));
@@ -380,18 +395,19 @@ describe('AddOnsPage', () => {
        * D4: the upload runs the identical verify-then-unpack path a download
        * runs, so it needs the same thing a download gets from the registry — a
        * hash supplied by somebody other than the bytes. The button stays
-       * disabled until there is one.
+       * disabled until there is one. It asks for nothing else: which add-on the
+       * file is comes out of its manifest.
        */
       const user = userEvent.setup();
       await renderPage();
       const upload = await screen.findByRole('button', { name: 'Upload' });
       expect((upload as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.queryByLabelText('Add-on key')).toBeNull();
+      expect(screen.queryByLabelText('Version')).toBeNull();
 
       const file = new File([new Uint8Array([1, 2, 3])], 'add-on.tgz', { type: 'application/gzip' });
       await user.upload(screen.getByLabelText('Package file (.tgz)'), file);
-      await user.type(screen.getByLabelText('Add-on key'), 'holiday-calendars');
-      await user.type(screen.getByLabelText('Version'), '1.0.0');
-      // Still disabled — everything but the hash.
+      // Still disabled — a file, but no hash.
       expect((screen.getByRole('button', { name: 'Upload' }) as HTMLButtonElement).disabled).toBe(
         true,
       );
@@ -402,24 +418,56 @@ describe('AddOnsPage', () => {
       );
     });
 
-    it('sends the sideload as raw bytes with its key, version and hash', async () => {
+    it('sends only the bytes and their hash, and names the add-on the server read', async () => {
       const user = userEvent.setup();
       const { calls } = await renderPage();
       await screen.findByRole('button', { name: 'Upload' });
-      const file = new File([new Uint8Array([1, 2, 3])], 'add-on.tgz', { type: 'application/gzip' });
+      // A filename that says nothing about which add-on this is.
+      const file = new File([new Uint8Array([1, 2, 3])], 'download.tgz', { type: 'application/gzip' });
       await user.upload(screen.getByLabelText('Package file (.tgz)'), file);
-      await user.type(screen.getByLabelText('Add-on key'), 'holiday-calendars');
-      await user.type(screen.getByLabelText('Version'), '1.0.0');
       await user.type(screen.getByLabelText(/Integrity/), 'sha512-abc==');
       await user.click(screen.getByRole('button', { name: 'Upload' }));
 
-      await waitFor(() => {
-        const upload = calls.find((c) => c.url.startsWith('/api/v1/add-ons/upload'));
-        expect(upload, 'no upload was sent').toBeTruthy();
-        expect(upload?.url).toContain('key=holiday-calendars');
-        expect(upload?.url).toContain('version=1.0.0');
-        expect(upload?.url).toContain('expectedSha512=sha512-abc');
+      expect(await screen.findByText('Uploaded Holiday Calendars 1.0.0')).toBeTruthy();
+      const upload = calls.find((c) => c.url.startsWith('/api/v1/add-ons/upload'));
+      expect(upload, 'no upload was sent').toBeTruthy();
+      expect([...new URL(upload!.url, 'http://x').searchParams]).toEqual([
+        ['expectedSha512', 'sha512-abc=='],
+      ]);
+
+      // The hash described that file; the form is ready for the next package.
+      expect((screen.getByLabelText(/Integrity/) as HTMLInputElement).value).toBe('');
+      expect((screen.getByRole('button', { name: 'Upload' }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+    });
+
+    it('shows a package the server refused in its words, and confirms nothing', async () => {
+      const user = userEvent.setup();
+      await renderPage({
+        upload: {
+          status: 422,
+          body: {
+            error: {
+              code: 'VALIDATION_FAILED',
+              message: '"sample-desk" is an app, not an add-on. Install it from Studio → Hosted apps.',
+              requestId: 'r',
+            },
+          },
+        },
       });
+      await screen.findByRole('button', { name: 'Upload' });
+      await user.upload(
+        screen.getByLabelText('Package file (.tgz)'),
+        new File([new Uint8Array([1])], 'clinic.tgz', { type: 'application/gzip' }),
+      );
+      await user.type(screen.getByLabelText(/Integrity/), 'sha512-abc==');
+      await user.click(screen.getByRole('button', { name: 'Upload' }));
+
+      expect(await screen.findByText(/is an app, not an add-on/)).toBeTruthy();
+      expect(screen.queryByText(/^Uploaded /)).toBeNull();
+      // Kept, so the operator can pick the right file without retyping the hash.
+      expect((screen.getByLabelText(/Integrity/) as HTMLInputElement).value).toBe('sha512-abc==');
     });
   });
 
