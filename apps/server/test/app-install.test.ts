@@ -23,6 +23,7 @@ import { Kysely, SqliteDialect } from 'kysely';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  auditRepo,
   connectionsRepo,
   createSqliteMetaDb,
   firstRun,
@@ -265,27 +266,119 @@ async function buildApp() {
   return app;
 }
 
-async function upload(app: Awaited<ReturnType<typeof buildApp>>, key: string, files?: Record<string, string>) {
+/**
+ * Uploads a bundle the way Studio does: the bytes and their hash, and nothing
+ * about which app they are — the bundle's manifest says that. `assert` adds the
+ * optional key/version a scripted caller may send to have them checked.
+ */
+async function upload(
+  app: Awaited<ReturnType<typeof buildApp>>,
+  key: string,
+  files?: Record<string, string>,
+  assert: { key?: string; version?: string } = {},
+) {
   const tarball = packageTarball(files ?? bundleFor(key));
+  const query = new URLSearchParams({ ...assert, expectedSha512: sha512Integrity(tarball) });
   return app.inject({
     method: 'POST',
-    url: `/apps/upload?key=${key}&version=1.0.0&expectedSha512=${encodeURIComponent(sha512Integrity(tarball))}`,
+    url: `/apps/upload?${query.toString()}`,
     headers: { 'content-type': 'application/octet-stream' },
     payload: Buffer.from(tarball),
   });
 }
 
 describe('uploading a surface bundle', () => {
-  it('stages it and reports the sides it carries', async () => {
+  it('stages it under the key and version its own manifest declares', async () => {
+    // Nothing in the request names the app. The reply does, from the manifest.
     const app = await buildApp();
     const res = await upload(app, 'sample-desk');
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode, res.body).toBe(200);
     expect(res.json()).toMatchObject({
       key: 'sample-desk',
       version: '1.0.0',
+      name: 'Sample Desk',
       sides: ['staff', 'customer'],
     });
     expect(await store.versions('sample-desk')).toEqual(['1.0.0']);
+    await app.close();
+  });
+
+  it('installs what it staged under the identity it read, with nothing typed', async () => {
+    // The screenshot this replaced: "uploaded as clinicx but its manifest
+    // declares clinic", on the step AFTER the upload had succeeded.
+    const app = await buildApp();
+    const staged = (await upload(app, 'sample-desk')).json() as { key: string; version: string };
+    const res = await app.inject({
+      method: 'POST',
+      url: '/apps/install',
+      payload: { key: staged.key, version: staged.version, connectionId: CONNECTION },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    await app.close();
+  });
+
+  it('checks a key or version the caller asserts, and stages nothing when it is wrong', async () => {
+    const app = await buildApp();
+    const wrongKey = await upload(app, 'sample-desk', undefined, { key: 'sample-deskx' });
+    expect(wrongKey.statusCode).toBe(422);
+    expect(wrongKey.json().error.details.reason).toBe('KEY_MISMATCH');
+    expect(wrongKey.json().error.message).toContain('"sample-desk"');
+
+    const wrongVersion = await upload(app, 'sample-desk', undefined, { version: '2.0.0' });
+    expect(wrongVersion.statusCode).toBe(422);
+    expect(wrongVersion.json().error.details.reason).toBe('VERSION_MISMATCH');
+    expect(await store.keys()).toEqual([]);
+
+    // Audited under the identity the bundle actually has, with the reason.
+    const rows = await auditRepo(meta).list({ category: 'app', limit: 10 });
+    expect(
+      rows.map((row) => ({ action: row.action, ...(row.changes as { after: object }).after })),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: 'app.unpack-refused', key: 'sample-desk', reason: 'KEY_MISMATCH' }),
+        expect.objectContaining({ action: 'app.unpack-refused', version: '1.0.0', reason: 'VERSION_MISMATCH' }),
+      ]),
+    );
+
+    // Asserting what the manifest actually says is simply an upload.
+    const right = await upload(app, 'sample-desk', undefined, { key: 'sample-desk', version: '1.0.0' });
+    expect(right.statusCode, right.body).toBe(200);
+    await app.close();
+  });
+
+  it('refuses a bundle it cannot identify at the upload, where the file was chosen', async () => {
+    const app = await buildApp();
+
+    const notGzip = await app.inject({
+      method: 'POST',
+      url: `/apps/upload?expectedSha512=${encodeURIComponent(sha512Integrity(Buffer.from('photos')))}`,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: Buffer.from('photos'),
+    });
+    expect(notGzip.statusCode).toBe(422);
+    expect(notGzip.json().error.message).toBe('This file could not be read as an app bundle (NOT_GZIP).');
+
+    const none = await upload(app, 'sample-desk', { 'staff/index.html': STAFF_HTML });
+    expect(none.statusCode).toBe(422);
+    expect(none.json().error.details.reason).toBe('MANIFEST_MISSING');
+    expect(none.json().error.message).toMatch(/no `manifest.json`/);
+
+    const unreadable = await upload(app, 'sample-desk', {
+      'manifest.json': '{ not json',
+      'staff/index.html': STAFF_HTML,
+    });
+    expect(unreadable.statusCode).toBe(422);
+    expect(unreadable.json().error.details.reason).toBe('MANIFEST_MISSING');
+
+    const invalid = await upload(app, 'sample-desk', {
+      'manifest.json': JSON.stringify({ ...manifestFor('sample-desk'), version: 'one' }),
+      'staff/index.html': STAFF_HTML,
+    });
+    expect(invalid.statusCode).toBe(422);
+    expect(invalid.json().error.message).toBe('The manifest in this bundle is not valid.');
+    expect(invalid.json().error.details.issues.length).toBeGreaterThan(0);
+
+    expect(await store.keys()).toEqual([]);
     await app.close();
   });
 
@@ -317,11 +410,13 @@ describe('uploading a surface bundle', () => {
     const tarball = packageTarball(bundleFor('sample-desk'));
     const res = await app.inject({
       method: 'POST',
-      url: '/apps/upload?key=sample-desk&version=1.0.0&expectedSha512=sha512-AAAA',
+      url: '/apps/upload?expectedSha512=sha512-AAAA',
       headers: { 'content-type': 'application/octet-stream' },
       payload: Buffer.from(tarball),
     });
     expect(res.statusCode).toBe(422);
+    expect(res.json().error.details.reason).toBe('INTEGRITY_MISMATCH');
+    expect(res.json().error.message).toMatch(/does not match the integrity value/);
     expect(await store.keys()).toEqual([]);
     await app.close();
   });
@@ -351,9 +446,18 @@ describe('installing a staged bundle', () => {
     await app.close();
   });
 
-  it('refuses a manifest whose key is not the one uploaded', async () => {
+  it('refuses a manifest whose key is not the one it was staged under', async () => {
+    // An upload can no longer stage one — it takes its key from the manifest —
+    // so the package is put on disk the way the bundled seed does, under a key
+    // read off a filename.
     const app = await buildApp();
-    await upload(app, 'sample-desk', bundleFor('other-desk'));
+    const tarball = packageTarball(bundleFor('other-desk'));
+    await store.stage({
+      key: 'sample-desk',
+      version: '1.0.0',
+      tarball,
+      expectedIntegrity: sha512Integrity(tarball),
+    });
     const res = await app.inject({
       method: 'POST',
       url: '/apps/install',

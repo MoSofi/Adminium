@@ -49,7 +49,7 @@ import { surfacesOfInstalled, type InstalledApps } from '../../apps/installed.js
 import type { AppSchemaTarget } from '../../apps/schema-target.js';
 import type { AppStore } from '../../apps/store.js';
 import { AddOnStoreError } from '../../add-ons/store.js';
-import { AddOnArchiveError } from '../../add-ons/archive.js';
+import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import { SURFACE_SIDES, type SurfaceSide } from '../../cli/surfaces-root.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
@@ -141,11 +141,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       );
     }
 
-    let document: unknown;
+    let bytes: Buffer;
     try {
-      document = JSON.parse(
-        (await deps.store.readFile(key, version, MANIFEST_FILE)).toString('utf8'),
-      );
+      bytes = await deps.store.readFile(key, version, MANIFEST_FILE);
     } catch {
       throw new ValidationFailedError(
         `"${key}@${version}" carries no readable \`${MANIFEST_FILE}\` at its root.`,
@@ -153,25 +151,54 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       );
     }
 
-    const validated = validateManifest(document);
-    if (!validated.ok) {
-      throw new ValidationFailedError(`The manifest in "${key}@${version}" is not valid.`, {
-        issues: validated.issues,
-      });
-    }
-    if (isAddOnManifest(validated.manifest)) {
-      throw new ValidationFailedError(
-        `"${key}" is an add-on, not an app. Install it from Studio → Add-ons.`,
-        { reason: 'WRONG_KIND' },
-      );
-    }
-    if (validated.manifest.key !== key) {
+    const manifest = appManifestFrom(bytes, `"${key}@${version}"`);
+    if (manifest.key !== key) {
       // The key is a path segment AND a URL segment; a manifest naming a
       // different one would serve at a URL its own code does not expect,
       // because the build baked `/apps/<key>/<side>/` into every asset URL.
+      // An upload can no longer stage one — it takes its key FROM the manifest
+      // — but the bundled seed still reads its key off a filename.
       throw new ValidationFailedError(
-        `The bundle was uploaded as "${key}" but its manifest declares "${validated.manifest.key}".`,
+        `The bundle was staged as "${key}" but its manifest declares "${manifest.key}".`,
         { reason: 'KEY_MISMATCH' },
+      );
+    }
+    return manifest;
+  }
+
+  /**
+   * An app manifest out of raw bytes, or a refusal.
+   *
+   * One reading for both places a manifest is read — the upload, which takes
+   * the package's identity from it, and plan/install, which re-read it from
+   * the verified tree — so the two cannot disagree about what counts as one.
+   *
+   * @param subject How the refusal names the package: `"clinic@1.0.0"` once it
+   *   is staged, or `null` for a bundle still being uploaded, which has no name
+   *   until this function has read one.
+   */
+  function appManifestFrom(bytes: Buffer, subject: string | null): Manifest {
+    let document: unknown;
+    try {
+      document = JSON.parse(bytes.toString('utf8'));
+    } catch {
+      throw new ValidationFailedError(
+        `${subject ?? 'This bundle'} carries no readable \`${MANIFEST_FILE}\` at its root.`,
+        { reason: 'MANIFEST_MISSING' },
+      );
+    }
+
+    const validated = validateManifest(document);
+    if (!validated.ok) {
+      throw new ValidationFailedError(
+        `The manifest in ${subject ?? 'this bundle'} is not valid.`,
+        { issues: validated.issues },
+      );
+    }
+    if (isAddOnManifest(validated.manifest)) {
+      throw new ValidationFailedError(
+        `"${validated.manifest.key}" is an add-on, not an app. Install it from Studio → Add-ons.`,
+        { reason: 'WRONG_KIND' },
       );
     }
     return validated.manifest;
@@ -318,35 +345,68 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               '`staff/` and/or `customer/` directory.',
           );
         }
-        const { key, version, expectedSha512 } = request.query;
+        const asserted = request.query;
         const userId = request.user?.id ?? null;
         const userLabel = request.user?.email ?? 'unknown';
 
+        /*
+         * THE BUNDLE NAMES ITSELF. Its key and version come out of its own
+         * `manifest.json`, read by the store from the verified in-memory unpack
+         * before a byte is written — so the package is staged under exactly the
+         * identity the plan and install steps will later check it against.
+         * A key typed by the operator could only ever agree with the manifest
+         * or be refused, one step too late (47 step 1 follow-up).
+         *
+         * Held in an object rather than a `let`: TypeScript cannot see an
+         * assignment made inside a callback, and would read a `let` as never
+         * assigned on every line below this call.
+         */
+        const read: { manifest?: Manifest } = {};
         let staged;
         try {
           staged = await deps.store.stage({
-            key,
-            version,
             tarball: new Uint8Array(body),
-            expectedIntegrity: expectedSha512,
+            expectedIntegrity: asserted.expectedSha512,
+            identify: (bytes) => {
+              const manifest = appManifestFrom(bytes, null);
+              read.manifest = manifest;
+              if (asserted.key !== undefined && asserted.key !== manifest.key) {
+                throw new ValidationFailedError(
+                  `The bundle was uploaded as "${asserted.key}" but its manifest declares "${manifest.key}".`,
+                  { reason: 'KEY_MISMATCH' },
+                );
+              }
+              if (asserted.version !== undefined && asserted.version !== manifest.version) {
+                throw new ValidationFailedError(
+                  `The bundle was uploaded as version ${asserted.version} but its manifest declares ${manifest.version}.`,
+                  { reason: 'VERSION_MISMATCH' },
+                );
+              }
+              return { key: manifest.key, version: manifest.version };
+            },
           });
         } catch (error) {
-          const reason =
-            error instanceof AddOnArchiveError || error instanceof AddOnStoreError
-              ? error.reason
-              : 'UNKNOWN';
+          const reason = refusalReason(error);
           await auditAppEvent(
             'app.unpack-refused',
-            { key, version, source: 'upload', reason, bytes: body.byteLength },
+            {
+              // What is known of the package, which may be nothing: a refused
+              // hash or archive is refused before the manifest is read.
+              key: read.manifest?.key ?? asserted.key ?? null,
+              version: read.manifest?.version ?? asserted.version ?? null,
+              source: 'upload',
+              reason,
+              bytes: body.byteLength,
+            },
             userId,
             userLabel,
           );
-          throw new ValidationFailedError(
-            `The uploaded bundle for "${key}@${version}" was refused.`,
-            { reason },
-          );
+          // A manifest refusal is already a sentence about this bundle.
+          if (error instanceof AppError) throw error;
+          throw new ValidationFailedError(uploadRefusalMessage(error, 'app bundle'), { reason });
         }
 
+        const { key, version } = staged;
         const sides = sidesOf(staged.tree.files);
         if (sides.length === 0) {
           // Staged and then discarded: a bundle with no servable side is not a
@@ -383,6 +443,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         return {
           key,
           version,
+          // Always set here: `identify` ran, or the stage above threw.
+          name: read.manifest?.name ?? key,
           files: Object.keys(staged.tree.files).length,
           integrity: staged.tree.integrity,
           sides,
@@ -516,11 +578,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
            * package claiming someone else's key is at least as worth a line as
            * a tree that drifted.
            */
-          const details = error instanceof AppError ? error.details : undefined;
-          const reason =
-            typeof (details as { reason?: unknown } | undefined)?.reason === 'string'
-              ? ((details as { reason: string }).reason)
-              : 'INVALID';
+          const reason = refusalReason(error);
           await auditAppEvent('app.verify-refused', { key, version, reason }, userId, userLabel);
           throw error;
         }

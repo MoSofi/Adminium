@@ -188,9 +188,13 @@ export interface AddOnStore {
   writeCatalogCache(document: unknown, at: number): Promise<void>;
 }
 
-export interface StageInput {
+/** Where a package is staged: `<key>/<version>/`. */
+export interface PackageIdentity {
   key: string;
   version: string;
+}
+
+interface StageSource {
   tarball: Uint8Array;
   /**
    * `sha512-<base64>` — npm's packument `dist.integrity` format, which is also
@@ -200,6 +204,20 @@ export interface StageInput {
   expectedIntegrity: string;
   limits?: ArchiveLimits;
 }
+
+/**
+ * What to stage, and under which identity.
+ *
+ * Either the caller NAMES the identity — the bundled seed reads it off the
+ * filename, a download off the catalogue row — or it passes `identify` and the
+ * package names itself. `identify` receives the bytes of the package's own
+ * `manifest.json`, read from the verified in-memory unpack before anything
+ * touches the disk, so the identity is taken from exactly the bytes that are
+ * then written and pinned. Whatever it throws propagates unchanged, with
+ * nothing written. The store still grammar-checks what it returns.
+ */
+export type StageInput = StageSource &
+  (PackageIdentity | { identify: (manifest: Buffer) => PackageIdentity });
 
 /** npm's Subresource-Integrity spelling of a tarball hash. */
 export function sha512Integrity(bytes: Uint8Array): string {
@@ -342,7 +360,9 @@ export function createAddOnStore(opts: {
     dirFor,
 
     async stage(input) {
-      const target = dirFor(input.key, input.version);
+      // A NAMED identity is grammar-checked before any work at all. One the
+      // package supplies can only be checked once it has been read, below.
+      if (!('identify' in input)) dirFor(input.key, input.version);
 
       // 1. Integrity FIRST: the cheapest gate, and the one that decides whether
       //    these bytes are the ones the packument/ledger named. Everything
@@ -359,6 +379,20 @@ export function createAddOnStore(opts: {
       // 2. Hardened unpack, in memory. Nothing has touched the disk yet.
       const entries = readAddOnTarball(input.tarball, input.limits ?? defaultLimits);
 
+      //    The manifest is looked for HERE, still in memory, rather than after
+      //    the files are written: it is what an unnamed package is identified
+      //    by, and a package without one is refused with nothing to clean up.
+      const manifest = entries.find((entry) => entry.path === 'manifest.json');
+      if (manifest === undefined) {
+        throw new AddOnStoreError(
+          'MANIFEST_MISSING',
+          'package carries no manifest.json at its root',
+        );
+      }
+      const { key, version } =
+        'identify' in input ? input.identify(Buffer.from(manifest.bytes)) : input;
+      const target = dirFor(key, version);
+
       // 3. Write into a temp directory INSIDE the store root, so the rename
       //    below is a same-filesystem operation (a cross-device rename falls
       //    back to a copy and stops being atomic).
@@ -373,12 +407,12 @@ export function createAddOnStore(opts: {
       await mkdir(root, { recursive: true, mode: 0o700 });
       const temp = join(
         root,
-        `${TEMP_PREFIX}${input.key}-${input.version}-${randomBytes(8).toString('hex')}`,
+        `${TEMP_PREFIX}${key}-${version}-${randomBytes(8).toString('hex')}`,
       );
       await mkdir(temp, { recursive: true, mode: 0o700 });
 
-      const pin = pinFor(input.key, input.version);
-      const backup = join(root, `${BACKUP_PREFIX}${input.key}-${input.version}-${randomBytes(8).toString('hex')}`);
+      const pin = pinFor(key, version);
+      const backup = join(root, `${BACKUP_PREFIX}${key}-${version}-${randomBytes(8).toString('hex')}`);
       let replaced = false;
 
       try {
@@ -391,16 +425,9 @@ export function createAddOnStore(opts: {
           files[entry.path] = sha256(entry.bytes);
         }
 
-        if (files['manifest.json'] === undefined) {
-          throw new AddOnStoreError(
-            'MANIFEST_MISSING',
-            'package carries no manifest.json at its root',
-          );
-        }
-
         const tree: TreeManifest = {
-          key: input.key,
-          version: input.version,
+          key,
+          version,
           integrity: actual,
           // Sorted so the pin file is byte-stable for the same input.
           files: Object.fromEntries(Object.entries(files).sort(([a], [b]) => (a < b ? -1 : 1))),
@@ -431,7 +458,7 @@ export function createAddOnStore(opts: {
         await rename(pinTemp, pin);
 
         if (replaced) await rm(backup, { recursive: true, force: true });
-        return { key: input.key, version: input.version, dir: target, tree };
+        return { key, version, dir: target, tree };
       } catch (err) {
         // Any refusal leaves nothing behind (D5) — including the outgoing tree,
         // which is put back rather than lost.

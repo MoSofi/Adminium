@@ -1446,45 +1446,194 @@ describe('32-T09: acquisition routes (§4.3)', () => {
   });
 
   describe('POST /add-ons/upload — the sideload path (D4)', () => {
-    it('verifies and unpacks a correct tarball, with no network involved', async () => {
-      const app = await buildApp();
-      const tarball = tarballFor('holiday-calendars');
-      const res = await app.inject({
+    /**
+     * Uploads bytes the way Studio does: the tarball and the operator's hash,
+     * and nothing about which add-on it is — the manifest inside says that.
+     * `assert` adds the optional key/version a scripted caller may send.
+     */
+    async function sideload(
+      app: Awaited<ReturnType<typeof buildApp>>,
+      tarball: Uint8Array,
+      assert: { key?: string; version?: string; expectedSha512?: string } = {},
+    ) {
+      const query = new URLSearchParams({ expectedSha512: sha512Integrity(tarball), ...assert });
+      return app.inject({
         method: 'POST',
-        url: `/api/v1/add-ons/upload?key=holiday-calendars&version=1.0.0&expectedSha512=${encodeURIComponent(sha512Integrity(tarball))}`,
+        url: `/api/v1/add-ons/upload?${query.toString()}`,
         headers: { 'content-type': 'application/octet-stream' },
         payload: Buffer.from(tarball),
       });
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toMatchObject({ key: 'holiday-calendars', version: '1.0.0', files: 3 });
+    }
+
+    it('verifies and unpacks a correct tarball, with no network involved', async () => {
+      const app = await buildApp();
+      const res = await sideload(app, tarballFor('holiday-calendars'));
+      expect(res.statusCode, res.body).toBe(200);
+      // Named by its own manifest: nothing in the request said which add-on.
+      expect(res.json()).toMatchObject({
+        key: 'holiday-calendars',
+        version: '1.0.0',
+        name: 'holiday-calendars',
+        files: 3,
+      });
       // It went through the SAME store path a download would use.
       await expect(store.verifyTree('holiday-calendars', '1.0.0')).resolves.toBeDefined();
       await app.close();
     });
 
-    it('refuses a tarball whose hash does not match the operator-supplied one', async () => {
+    it('installs what it staged under that identity, and serves its bundle', async () => {
+      // With a typed key the package could be staged, and installed, under a key
+      // its manifest does not declare. The bundle URL is built from the MANIFEST
+      // key, so that install served no bundle at all.
+      const app = await buildApp();
+      const staged = (await sideload(app, tarballFor('holiday-calendars'))).json() as {
+        key: string;
+        version: string;
+      };
+      const installed = await app.inject({
+        method: 'POST',
+        url: '/api/v1/add-ons',
+        payload: { key: staged.key, version: staged.version, attachTo: ['printing'] },
+      });
+      expect(installed.statusCode, installed.body).toBe(200);
+      const list = (await app.inject({ method: 'GET', url: '/api/v1/add-ons' })).json() as {
+        addOns: { key: string; bundles: { url: string }[] }[];
+      };
+      expect(list.addOns[0]?.bundles.map((bundle) => bundle.url)).toEqual([
+        '/api/v1/add-ons/holiday-calendars/bundle/dist/client.js',
+      ]);
+      await app.close();
+    });
+
+    it('checks a key or version the caller asserts, and stages nothing when it is wrong', async () => {
       const app = await buildApp();
       const tarball = tarballFor('holiday-calendars');
-      const res = await app.inject({
-        method: 'POST',
-        url: '/api/v1/add-ons/upload?key=holiday-calendars&version=1.0.0&expectedSha512=sha512-AAAAwrong',
-        headers: { 'content-type': 'application/octet-stream' },
-        payload: Buffer.from(tarball),
+
+      const wrongKey = await sideload(app, tarball, { key: 'holiday-calendarsx' });
+      expect(wrongKey.statusCode).toBe(422);
+      expect(wrongKey.json().error.details.reason).toBe('KEY_MISMATCH');
+      const wrongVersion = await sideload(app, tarball, { version: '2.0.0' });
+      expect(wrongVersion.statusCode).toBe(422);
+      expect(wrongVersion.json().error.details.reason).toBe('VERSION_MISMATCH');
+      expect(await store.keys()).toEqual([]);
+
+      // Audited under the identity the package actually has.
+      const rows = await auditRepo(meta).list({ category: 'add-on', limit: 10 });
+      expect(
+        rows.map((row) => ({ action: row.action, ...(row.changes as { after: object }).after })),
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ action: 'add-on.unpack-refused', key: 'holiday-calendars', reason: 'KEY_MISMATCH' }),
+          expect.objectContaining({ action: 'add-on.unpack-refused', version: '1.0.0', reason: 'VERSION_MISMATCH' }),
+        ]),
+      );
+
+      // Asserting what the manifest actually says is simply an upload.
+      const right = await sideload(app, tarball, { key: 'holiday-calendars', version: '1.0.0' });
+      expect(right.statusCode, right.body).toBe(200);
+      await app.close();
+    });
+
+    it('refuses a package it cannot identify at the upload, and stages nothing', async () => {
+      const app = await buildApp();
+
+      const none = await sideload(app, packageTarball({ 'dist/client.js': 'x' }));
+      expect(none.statusCode).toBe(422);
+      expect(none.json().error.details.reason).toBe('MANIFEST_MISSING');
+      expect(none.json().error.message).toBe(
+        'This file carries no `manifest.json` at its root, so it is not an add-on package.',
+      );
+
+      const invalid = await sideload(
+        app,
+        packageTarball({
+          'manifest.json': JSON.stringify({ ...manifestFor('holiday-calendars'), version: 'one' }),
+          'dist/client.js': 'x',
+        }),
+      );
+      expect(invalid.statusCode).toBe(422);
+      expect(invalid.json().error.message).toBe(
+        'The manifest in this package is not a valid add-on manifest.',
+      );
+
+      // The full validator, so the publisher gate refuses at the upload too.
+      const thirdParty = await sideload(
+        app,
+        packageTarball({
+          'manifest.json': JSON.stringify({
+            ...manifestFor('holiday-calendars'),
+            publisher: { id: 'acme', name: 'Acme', url: 'https://acme.example' },
+          }),
+          'dist/client.js': 'x',
+        }),
+      );
+      expect(thirdParty.statusCode).toBe(422);
+      expect(JSON.stringify(thirdParty.json().error.details.issues)).toContain('publisher');
+
+      const notGzip = await sideload(app, new Uint8Array(Buffer.from('photos')));
+      expect(notGzip.json().error.message).toBe(
+        'This file could not be read as an add-on package (NOT_GZIP).',
+      );
+
+      expect(await store.keys()).toEqual([]);
+      await app.close();
+    });
+
+    it('refuses an app at the upload, and says where it goes', async () => {
+      const app = await buildApp();
+      const res = await sideload(
+        app,
+        packageTarball({
+          'manifest.json': JSON.stringify({
+            kind: 'app',
+            manifestVersion: 1,
+            key: 'sample-desk',
+            name: 'Sample Desk',
+            version: '1.0.0',
+            publisher: { id: 'adminium', name: 'Adminium', url: 'https://adminium.dev' },
+            license: 'AGPL-3.0-only',
+            description: { key: 'mft.sample.desc', fallback: 'A sample desk.' },
+            categories: ['operations'],
+            compatibility: { minAdminiumVersion: '1.0.0' },
+            requiredSchema: {
+              tables: [{ ref: 'clinicians', columns: [{ ref: 'id', type: 'int', role: 'pk' }] }],
+            },
+            pages: [
+              {
+                ref: 'sample-dashboard',
+                template: 'page-dashboard',
+                title: { key: 'mft.sample.page.dashboard', fallback: 'Dashboard' },
+                nav: { group: 'manifest:sample', icon: 'layout-dashboard', order: 1 },
+              },
+            ],
+            frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html', routes: { desk: '/' } }],
+          }),
+          'staff/index.html': '<!doctype html>',
+        }),
+      );
+      expect(res.statusCode, res.body).toBe(422);
+      expect(res.json().error.details.reason).toBe('WRONG_KIND');
+      expect(res.json().error.message).toContain('Hosted apps');
+      expect(await store.keys()).toEqual([]);
+      await app.close();
+    });
+
+    it('refuses a tarball whose hash does not match the operator-supplied one', async () => {
+      const app = await buildApp();
+      const res = await sideload(app, tarballFor('holiday-calendars'), {
+        expectedSha512: 'sha512-AAAAwrong',
       });
       expect(res.statusCode).toBe(422);
+      expect(res.json().error.message).toBe(
+        'The add-on package does not match the integrity value it was sent with.',
+      );
       expect(await store.keys()).toEqual([]);
       await app.close();
     });
 
     it('audits a refused upload as a verify refusal', async () => {
       const app = await buildApp();
-      const tarball = tarballFor('holiday-calendars');
-      await app.inject({
-        method: 'POST',
-        url: '/api/v1/add-ons/upload?key=holiday-calendars&version=1.0.0&expectedSha512=sha512-AAAAwrong',
-        headers: { 'content-type': 'application/octet-stream' },
-        payload: Buffer.from(tarball),
-      });
+      await sideload(app, tarballFor('holiday-calendars'), { expectedSha512: 'sha512-AAAAwrong' });
       const rows = await auditRepo(meta).list({ category: 'add-on', limit: 10 });
       expect(rows.map((r) => r.action)).toEqual(['add-on.verify-refused']);
       await app.close();
@@ -1494,7 +1643,7 @@ describe('32-T09: acquisition routes (§4.3)', () => {
       const app = await buildApp();
       const res = await app.inject({
         method: 'POST',
-        url: '/api/v1/add-ons/upload?key=x-thing&version=1.0.0&expectedSha512=sha512-AAAA',
+        url: '/api/v1/add-ons/upload?expectedSha512=sha512-AAAA',
         headers: { 'content-type': 'application/octet-stream' },
         payload: Buffer.alloc(0),
       });

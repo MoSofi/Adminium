@@ -339,8 +339,16 @@ export const downloadAddOnReply = z.object({ jobId: z.string() });
  *
  * The TARBALL is the raw request body — this server has no `@fastify/multipart`
  * and its established idiom for a binary upload is a scoped content-type parser
- * plus a route-scoped `bodyLimit` (`routes/imports`). So the two scalars that
- * would have been the other multipart parts travel as query parameters instead.
+ * plus a route-scoped `bodyLimit` (`routes/imports`). So the scalars that would
+ * have been the other multipart parts travel as query parameters instead.
+ *
+ * The package names itself: its key and version are read from its own
+ * `manifest.json`, inside the bytes `expectedSha512` verifies. They used to be
+ * typed, and a typed key that differed from the manifest staged and installed
+ * under a key the add-on's own bundle URLs do not use, so it served nothing.
+ * `key` and `version` remain as optional ASSERTIONS for a scripted caller: given
+ * and different from the manifest, the upload is refused before anything is
+ * written.
  *
  * `expectedSha512` is the operator's, and D4 is honest about what that is worth:
  * for a tarball of unknown origin it is self-referential, and the hardened
@@ -348,14 +356,16 @@ export const downloadAddOnReply = z.object({ jobId: z.string() });
  * unconditional rather than trusted-source-skippable.
  */
 export const uploadAddOnQuery = z.object({
-  key: addOnKey,
-  version: z.string().min(1).max(64),
+  key: addOnKey.optional(),
+  version: z.string().min(1).max(64).optional(),
   expectedSha512: z.string().regex(/^sha512-[A-Za-z0-9+/]+={0,2}$/),
 });
 
 export const stagedPackageReply = z.object({
   key: addOnKey,
   version: z.string(),
+  /** The manifest's display name, so the operator sees what was read. */
+  name: z.string(),
   /** How many files the verified tree holds — the receipt for an unpack. */
   files: z.number(),
   integrity: z.string(),

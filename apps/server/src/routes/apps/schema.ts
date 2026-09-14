@@ -24,7 +24,16 @@ export const appKey = z
 export const appKeyParams = z.object({ key: appKey });
 
 /**
- * Upload carries its identity in the query and its bytes in the body.
+ * Upload carries its bytes in the body, and the bundle names itself.
+ *
+ * The key and version are read from the bundle's own `manifest.json`. They
+ * used to be asked for, and that was a question with one right answer that the
+ * file already held: a bundle is served at the key its build baked into every
+ * asset URL, so a typed key that differed was always going to be refused, one
+ * step later. `key` and `version` remain as optional ASSERTIONS for a scripted
+ * caller that wants to be told when it picked up the wrong file: given and
+ * different from the manifest, the upload is refused before anything is
+ * written.
  *
  * `expectedSha512` is the uploader's own hash of the file they are sending, and
  * 32 D4's honesty about what that is worth applies here unchanged: for a
@@ -33,14 +42,16 @@ export const appKeyParams = z.object({ key: appKey });
  * trusted source.
  */
 export const uploadAppQuery = z.object({
-  key: appKey,
-  version: z.string().min(1).max(64),
+  key: appKey.optional(),
+  version: z.string().min(1).max(64).optional(),
   expectedSha512: z.string().regex(/^sha512-[A-Za-z0-9+/]+={0,2}$/),
 });
 
 export const stagedAppReply = z.object({
   key: appKey,
   version: z.string(),
+  /** The manifest's display name, so the operator sees what was read. */
+  name: z.string(),
   /** How many files the verified tree holds — the receipt for an unpack. */
   files: z.number(),
   integrity: z.string(),

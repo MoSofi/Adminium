@@ -205,7 +205,81 @@ describe('store: staging', () => {
       }),
     ).rejects.toMatchObject({ reason: 'MANIFEST_MISSING' });
     expect(await store.keys()).toEqual([]);
-    expect(await readdir(join(dataDir, 'add-ons'))).toEqual([]);
+    // Refused from the in-memory unpack, so the store root is never created.
+    await expect(readdir(join(dataDir, 'add-ons'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('stages a package under the identity its own manifest gives', async () => {
+    const tarball = packageTarball(GOOD_FILES);
+    const seen: string[] = [];
+    const staged = await store.stage({
+      tarball,
+      expectedIntegrity: sha512Integrity(tarball),
+      identify: (manifest) => {
+        seen.push(manifest.toString('utf8'));
+        const { key, version } = JSON.parse(manifest.toString('utf8')) as {
+          key: string;
+          version: string;
+        };
+        return { key, version };
+      },
+    });
+    // The callback read the manifest's bytes, and the tree landed where they said.
+    expect(seen).toEqual([GOOD_FILES['manifest.json']]);
+    expect(staged).toMatchObject({ key: 'design-studio', version: '1.0.0' });
+    expect(staged.tree).toMatchObject({ key: 'design-studio', version: '1.0.0' });
+    await expect(store.verifyTree('design-studio', '1.0.0')).resolves.toBeTruthy();
+  });
+
+  it('writes nothing when the package cannot be identified', async () => {
+    const tarball = packageTarball(GOOD_FILES);
+    const refusal = new Error('not an app');
+    await expect(
+      store.stage({
+        tarball,
+        expectedIntegrity: sha512Integrity(tarball),
+        identify: () => {
+          throw refusal;
+        },
+      }),
+    ).rejects.toBe(refusal);
+    await expect(readdir(join(dataDir, 'add-ons'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('grammar-checks an identity the package supplies, like a named one', async () => {
+    // A manifest is attacker-authored: its key becomes a path segment.
+    const tarball = packageTarball(GOOD_FILES);
+    await expect(
+      store.stage({
+        tarball,
+        expectedIntegrity: sha512Integrity(tarball),
+        identify: () => ({ key: '../escape', version: '1.0.0' }),
+      }),
+    ).rejects.toMatchObject({ reason: 'UNSAFE_KEY' });
+    await expect(
+      store.stage({
+        tarball,
+        expectedIntegrity: sha512Integrity(tarball),
+        identify: () => ({ key: 'design-studio', version: '../1.0.0' }),
+      }),
+    ).rejects.toMatchObject({ reason: 'UNSAFE_VERSION' });
+    await expect(readdir(join(dataDir, 'add-ons'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('checks the hash before asking the package who it is', async () => {
+    const tarball = packageTarball(GOOD_FILES);
+    let asked = false;
+    await expect(
+      store.stage({
+        tarball,
+        expectedIntegrity: sha512Integrity(packageTarball({ ...GOOD_FILES, 'README.md': 'x' })),
+        identify: () => {
+          asked = true;
+          return { key: 'design-studio', version: '1.0.0' };
+        },
+      }),
+    ).rejects.toMatchObject({ reason: 'INTEGRITY_MISMATCH' });
+    expect(asked).toBe(false);
   });
 
   it('writes nothing at all when the archive is refused mid-unpack', async () => {

@@ -74025,7 +74025,7 @@
             },
             "in": "query",
             "name": "key",
-            "required": true
+            "required": false
           },
           {
             "schema": {
@@ -74035,7 +74035,7 @@
             },
             "in": "query",
             "name": "version",
-            "required": true
+            "required": false
           },
           {
             "schema": {
@@ -74062,6 +74062,9 @@
                     "version": {
                       "type": "string"
                     },
+                    "name": {
+                      "type": "string"
+                    },
                     "files": {
                       "type": "number"
                     },
@@ -74082,6 +74085,7 @@
                   "required": [
                     "key",
                     "version",
+                    "name",
                     "files",
                     "integrity",
                     "sides"
@@ -74862,7 +74866,7 @@
             },
             "in": "query",
             "name": "key",
-            "required": true
+            "required": false
           },
           {
             "schema": {
@@ -74872,7 +74876,7 @@
             },
             "in": "query",
             "name": "version",
-            "required": true
+            "required": false
           },
           {
             "schema": {
@@ -74899,6 +74903,9 @@
                     "version": {
                       "type": "string"
                     },
+                    "name": {
+                      "type": "string"
+                    },
                     "files": {
                       "type": "number"
                     },
@@ -74909,6 +74916,7 @@
                   "required": [
                     "key",
                     "version",
+                    "name",
                     "files",
                     "integrity"
                   ],

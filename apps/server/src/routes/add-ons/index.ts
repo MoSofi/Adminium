@@ -96,13 +96,14 @@ import {
   type OAuthFlowStore,
 } from '../../add-ons/oauth.js';
 import type { AddOnSchemaTarget } from '../../add-ons/schema-target.js';
-import type { AddOnStore } from '../../add-ons/store.js';
+import type { AddOnStore, StagedPackage } from '../../add-ons/store.js';
+import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import {
   enqueueAddOnDownload,
   enqueueCatalogRefresh,
 } from '../../jobs/add-on-acquire.js';
 import { audited } from '../../audit/coverage.js';
-import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   addOnBundleParams,
@@ -212,6 +213,40 @@ function parseManifest(document: unknown, key: string): AddOnManifest {
   }
   if (!isAddOnManifest(result.manifest)) {
     throw new ValidationFailedError(`"${key}" is an app manifest, not an add-on.`);
+  }
+  return result.manifest;
+}
+
+/**
+ * An add-on manifest out of an uploaded package's bytes, or a refusal.
+ *
+ * The same FULL validator `parseManifest` runs on a stored manifest, so the
+ * publisher gate and `FRONTEND_SECRET_LEAK` refuse a package at the upload,
+ * where the file was chosen, instead of after it has been staged. Its own
+ * function because the package has no name to put in a refusal until this has
+ * read one.
+ */
+function uploadedManifest(bytes: Buffer): AddOnManifest {
+  let document: unknown;
+  try {
+    document = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw new ValidationFailedError(
+      'This package carries no readable `manifest.json` at its root.',
+      { reason: 'MANIFEST_MISSING' },
+    );
+  }
+  const result = validateManifest(document);
+  if (!result.ok) {
+    throw new ValidationFailedError('The manifest in this package is not a valid add-on manifest.', {
+      issues: result.issues,
+    });
+  }
+  if (!isAddOnManifest(result.manifest)) {
+    throw new ValidationFailedError(
+      `"${result.manifest.key}" is an app, not an add-on. Install it from Studio → Hosted apps.`,
+      { reason: 'WRONG_KIND' },
+    );
   }
   return result.manifest;
 }
@@ -442,49 +477,90 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     return { installed, manifest };
   }
 
-  /** Shared by the sideload and (later) any other byte source. */
-  async function stageTarball(
-    key: string,
-    version: string,
+  /**
+   * Stages an uploaded package under the identity its own manifest declares.
+   *
+   * The key and version come out of `manifest.json`, read by the store from the
+   * verified in-memory unpack before a byte is written, so the package lands
+   * under exactly the key its bundle URLs and its install will use. A caller's
+   * `asserted` key or version is only checked against it.
+   */
+  async function stageUpload(
+    asserted: { key?: string | undefined; version?: string | undefined },
     tarball: Uint8Array,
     expectedIntegrity: string,
     userId: string | null,
     userLabel: string,
-  ) {
+  ): Promise<{ staged: StagedPackage; name: string }> {
+    // An object, not a `let`: TypeScript cannot see an assignment made inside
+    // the callback, and would read a `let` as never assigned below it.
+    const read: { manifest?: AddOnManifest } = {};
+    let staged: StagedPackage;
     try {
-      const staged = await deps.store.stage({ key, version, tarball, expectedIntegrity });
-      await auditRepo(deps.meta).append({
-        actorKind: 'user',
-        actorId: userId,
-        actorLabel: userLabel,
-        category: 'add-on',
-        action: 'add-on.staged',
-        changes: {
-          after: {
-            key,
-            version,
-            source: 'upload',
-            integrity: staged.tree.integrity,
-            files: Object.keys(staged.tree.files).length,
-          },
+      staged = await deps.store.stage({
+        tarball,
+        expectedIntegrity,
+        identify: (bytes) => {
+          const manifest = uploadedManifest(bytes);
+          read.manifest = manifest;
+          if (asserted.key !== undefined && asserted.key !== manifest.key) {
+            throw new ValidationFailedError(
+              `The package was uploaded as "${asserted.key}" but its manifest declares "${manifest.key}".`,
+              { reason: 'KEY_MISMATCH' },
+            );
+          }
+          if (asserted.version !== undefined && asserted.version !== manifest.version) {
+            throw new ValidationFailedError(
+              `The package was uploaded as version ${asserted.version} but its manifest declares ${manifest.version}.`,
+              { reason: 'VERSION_MISMATCH' },
+            );
+          }
+          return { key: manifest.key, version: manifest.version };
         },
       });
-      return staged;
     } catch (error) {
-      const reason = (error as { reason?: string }).reason ?? 'UNKNOWN';
+      const reason = refusalReason(error);
       await auditRepo(deps.meta).append({
         actorKind: 'user',
         actorId: userId,
         actorLabel: userLabel,
         category: 'add-on',
         action: reason === 'INTEGRITY_MISMATCH' ? 'add-on.verify-refused' : 'add-on.unpack-refused',
-        changes: { after: { key, version, source: 'upload', reason, bytes: tarball.byteLength } },
+        changes: {
+          after: {
+            // What is known of the package, which may be nothing: a refused
+            // hash or archive is refused before the manifest is read.
+            key: read.manifest?.key ?? asserted.key ?? null,
+            version: read.manifest?.version ?? asserted.version ?? null,
+            source: 'upload',
+            reason,
+            bytes: tarball.byteLength,
+          },
+        },
       });
-      throw new ValidationFailedError(
-        `The uploaded package for "${key}@${version}" was refused.`,
-        { reason },
-      );
+      // A manifest refusal is already a sentence about this package.
+      if (error instanceof AppError) throw error;
+      throw new ValidationFailedError(uploadRefusalMessage(error, 'add-on package'), { reason });
     }
+
+    await auditRepo(deps.meta).append({
+      actorKind: 'user',
+      actorId: userId,
+      actorLabel: userLabel,
+      category: 'add-on',
+      action: 'add-on.staged',
+      changes: {
+        after: {
+          key: staged.key,
+          version: staged.version,
+          source: 'upload',
+          integrity: staged.tree.integrity,
+          files: Object.keys(staged.tree.files).length,
+        },
+      },
+    });
+    // Always set here: `identify` ran, or the stage above threw.
+    return { staged, name: read.manifest?.name ?? staged.key };
   }
 
   return async (app) => {
@@ -778,17 +854,17 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           );
         }
         const { key, version, expectedSha512 } = request.query;
-        const staged = await stageTarball(
-          key,
-          version,
+        const { staged, name } = await stageUpload(
+          { key, version },
           new Uint8Array(body),
           expectedSha512,
           request.user?.id ?? null,
           request.user?.email ?? 'unknown',
         );
         return {
-          key,
-          version,
+          key: staged.key,
+          version: staged.version,
+          name,
           files: Object.keys(staged.tree.files).length,
           integrity: staged.tree.integrity,
         };
