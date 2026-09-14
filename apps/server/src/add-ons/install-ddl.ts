@@ -84,13 +84,20 @@ export class AddOnInstallError extends Error {
  *    every accounting system settled on, and binary floating point cannot
  *    represent a tenth of a cent.
  */
-function columnTypeFor(type: RequiredColumn['type'], dialect: Dialect): string {
+function columnTypeFor(type: RequiredColumn['type'], dialect: Dialect, keyed = false): string {
   switch (type) {
     case 'id':
+      return dialect === 'postgres' ? 'varchar(36)' : dialect === 'mysql' ? 'varchar(36)' : 'text';
     case 'fk':
+      // Never reached for a real column: an FK takes its TARGET's key type,
+      // resolved by `keyTarget` below. Kept for exhaustiveness only.
       return dialect === 'postgres' ? 'varchar(36)' : dialect === 'mysql' ? 'varchar(36)' : 'text';
     case 'text':
-      return 'text';
+      // MySQL cannot index a TEXT column without a prefix length, so a text
+      // primary key — or a foreign key pointing at one — is refused outright
+      // ("BLOB/TEXT column used in key specification"). 255 utf8mb4 characters
+      // is 1020 bytes, inside InnoDB's 3072-byte key limit.
+      return dialect === 'mysql' && keyed ? 'varchar(255)' : 'text';
     case 'uuid':
       return dialect === 'postgres' ? 'uuid' : dialect === 'mysql' ? 'char(36)' : 'text';
     case 'int':
@@ -140,7 +147,13 @@ function columnTypeFor(type: RequiredColumn['type'], dialect: Dialect): string {
 /** What the caller must supply about the tables that already exist. */
 export interface ExistingTable {
   ref: string;
-  columns: readonly { ref: string; isPrimaryKey?: boolean }[];
+  columns: readonly {
+    ref: string;
+    isPrimaryKey?: boolean;
+    /** The native type verbatim, as the database reports it. A foreign key
+     * pointing at this column must be created with exactly this type. */
+    dbType?: string;
+  }[];
 }
 
 export interface ApplyInstallInput {
@@ -160,8 +173,14 @@ export interface ApplyInstallResult {
   reused: string[];
 }
 
+/** The column an FK points at, and the type the FK column must be created with. */
+interface KeyTarget {
+  column: string;
+  type: string;
+}
+
 /**
- * Resolves the column an FK points at.
+ * Resolves the column an FK points at, and the type the FK column must have.
  *
  * `references` names a TABLE, never a column (the manifest schema has no field
  * for one), so the target's primary key has to be found. For a table this
@@ -170,12 +189,21 @@ export interface ApplyInstallResult {
  * refused rather than guessed at — a composite key cannot be pointed at by one
  * column, and inventing `id` would create a constraint against a column that
  * may not exist.
+ *
+ * The TYPE matters as much as the column. Postgres and MySQL both refuse a
+ * foreign key whose column type differs from the key it references ("cannot be
+ * implemented" / "are incompatible"), so an FK is never a fixed type: it is
+ * whatever its target's key is. A fixed `varchar(36)` served every add-on,
+ * whose keys are all `id`, and failed every app, whose keys are `int` and
+ * `text`. SQLite enforces no such rule, which is how it went unnoticed.
  */
-function primaryKeyOf(
+function keyTarget(
   target: string,
   tables: readonly RequiredTable[],
   existing: readonly ExistingTable[],
-): string {
+  dialect: Dialect,
+  seen: ReadonlySet<string> = new Set(),
+): KeyTarget {
   // The LIVE schema first, and the manifest only as a fallback. A table can be
   // in both — that is exactly the reuse case, where an add-on declares a table
   // the host already has — and there the database is the truth. Reading the
@@ -193,7 +221,12 @@ function primaryKeyOf(
         target,
       );
     }
-    return keys[0]!.ref;
+    const key = keys[0]!;
+    // Verbatim, because the database wrote it: postgres's `format_type` quotes
+    // any identifier that needs it and MySQL's COLUMN_TYPE escapes its enum
+    // literals, so the string is already valid SQL for this engine. A caller
+    // that knows no type (an old snapshot) keeps the historical `id` mapping.
+    return { column: key.ref, type: key.dbType ?? columnTypeFor('id', dialect, true) };
   }
 
   const declared = tables.find((table) => table.ref === target);
@@ -212,7 +245,38 @@ function primaryKeyOf(
       target,
     );
   }
-  return pk[0]!.ref;
+  const key = pk[0]!;
+  return { column: key.ref, type: declaredTypeOf(key, declared, tables, existing, dialect, seen) };
+}
+
+/**
+ * The type a DECLARED column is created with. Only an `fk` needs more than the
+ * map: it borrows its target's key type, and that key may itself be an FK (a
+ * one-to-one extension table keyed by its parent's id), so this follows the
+ * chain — and refuses a chain that loops back on itself rather than recursing
+ * forever.
+ */
+function declaredTypeOf(
+  column: RequiredColumn,
+  table: RequiredTable,
+  tables: readonly RequiredTable[],
+  existing: readonly ExistingTable[],
+  dialect: Dialect,
+  seen: ReadonlySet<string> = new Set(),
+): string {
+  if (column.type !== 'fk' || column.references === undefined) {
+    return columnTypeFor(column.type, dialect, column.role === 'pk');
+  }
+  const link = `${table.ref}.${column.ref}`;
+  if (seen.has(link)) {
+    throw new AddOnInstallError(
+      'UNRESOLVED_FK_TARGET',
+      `"${link}" is a primary key that references itself through a chain of foreign keys, ` +
+        'so it has no type to take.',
+      table.ref,
+    );
+  }
+  return keyTarget(column.references, tables, existing, dialect, new Set([...seen, link])).type;
 }
 
 /**
@@ -280,7 +344,7 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
       .ifNotExists();
 
     for (const column of table.columns) {
-      const type = columnTypeFor(column.type, dialect);
+      const type = declaredTypeOf(column, table, tables, existing, dialect);
       builder = builder.addColumn(column.ref, sql.raw(type), (col) => {
         let built = col;
         if (column.role === 'pk') built = built.primaryKey();
@@ -298,7 +362,7 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
 
     for (const column of table.columns) {
       if (column.type !== 'fk' || column.references === undefined) continue;
-      const targetColumn = primaryKeyOf(column.references, tables, existing);
+      const { column: targetColumn } = keyTarget(column.references, tables, existing, dialect);
       // NAMED and table-level, never an inline column-level `references`: MySQL
       // parses the inline form and silently discards it, which is the 2026-07-20
       // lesson the meta migrations already carry.

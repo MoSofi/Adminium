@@ -135,6 +135,8 @@ export async function readExistingTables(
     columns: table.columns.map((column) => ({
       ref: column.name,
       isPrimaryKey: column.isPrimaryKey,
+      // An FK to this column must be created with this exact type.
+      dbType: column.dbType,
     })),
   }));
 }

@@ -17,6 +17,12 @@
  * The manifests are the SHIPPED ones, copied verbatim from `Adminiumjs/add-ons`.
  * Three of the six declare tables and all three are here, because the point of
  * a type map is the types that real add-ons actually use: eight of the fifteen.
+ *
+ * Every add-on keys its tables with `id`, which is why an APP is here too. Apps
+ * key theirs with `int` and `text`, and a foreign key typed for `id` against
+ * those is refused by postgres and mysql — while SQLite, which checks no FK
+ * column type, accepted it. Every published app failed to install on both
+ * server engines with this whole file green.
  */
 
 import { randomBytes } from 'node:crypto';
@@ -118,6 +124,37 @@ const PERSONALIZER: RequiredTable[] = [
   },
 ];
 
+/**
+ * `hotel-reservations`, trimmed to the keys — the shipped app whose schema
+ * exercises every shape a key can take: a `text` primary key (`room_types`), a
+ * natural `int` one (`rooms.number`), and a table referencing both.
+ */
+const HOTEL: RequiredTable[] = [
+  {
+    ref: 'room_types',
+    columns: [
+      { ref: 'id', type: 'text', role: 'pk' },
+      { ref: 'name', type: 'text', semantic: 'name' },
+    ],
+  },
+  {
+    ref: 'rooms',
+    columns: [
+      { ref: 'number', type: 'int', role: 'pk' },
+      { ref: 'type_id', type: 'fk', references: 'room_types' },
+      { ref: 'note', type: 'text', nullable: true },
+    ],
+  },
+  {
+    ref: 'stays',
+    columns: [
+      { ref: 'ref', type: 'text', role: 'pk' },
+      { ref: 'type_id', type: 'fk', references: 'room_types' },
+      { ref: 'room_number', type: 'fk', references: 'rooms', nullable: true },
+    ],
+  },
+];
+
 // ── harness ──────────────────────────────────────────────────────────────────
 
 type AnyDb = Kysely<Record<string, Record<string, unknown>>>;
@@ -182,6 +219,7 @@ async function sqlFor(
   tables: RequiredTable[],
   hostTables: string[],
   dialect: 'postgres' | 'mysql' | 'sqlite',
+  existing: ExistingTable[] = hostSchema(hostTables),
 ): Promise<string[]> {
   const statements: string[] = [];
   const db = compilerFor(dialect);
@@ -208,7 +246,7 @@ async function sqlFor(
     tables,
     db: recording,
     dialect,
-    existing: hostSchema(hostTables),
+    existing,
   });
   return statements;
 }
@@ -348,6 +386,34 @@ describe('applyInstall against a real SQLite database', () => {
       name: string;
     }>`select name from sqlite_master where type = 'table'`.execute(db);
     expect(tables.rows.map((r) => r.name).sort()).toContain('shipments');
+  });
+
+  it("gives an app's foreign keys their TARGET's key type, not a fixed id type", async () => {
+    const { db, raw } = sqliteWith([]);
+    const result = await applyInstall({
+      plan: planFor(HOTEL, []),
+      tables: HOTEL,
+      db,
+      dialect: 'sqlite',
+      existing: [],
+    });
+    expect(result.created).toEqual(['room_types', 'rooms', 'stays']);
+
+    const typeOf = (table: string, column: string): string =>
+      (raw.pragma(`table_info(${table})`) as { name: string; type: string }[]).find(
+        (c) => c.name === column,
+      )!.type.toLowerCase();
+    expect(typeOf('stays', 'room_number')).toBe('integer');
+    expect(typeOf('stays', 'type_id')).toBe('text');
+
+    // The affinity is the point on SQLite, which never refuses the mismatch:
+    // under `text` a room number reads back as the STRING '101'.
+    raw.exec(`insert into room_types values ('dbl', 'Double')`);
+    raw.exec(`insert into rooms values (101, 'dbl', null)`);
+    raw.exec(`insert into stays values ('S-1', 'dbl', 101)`);
+    const row = raw.prepare('select room_number from stays').get() as { room_number: unknown };
+    expect(row.room_number).toBe(101);
+    expect(() => raw.exec(`insert into stays values ('S-2', 'dbl', 999)`)).toThrow(/FOREIGN KEY/);
   });
 
   it('reports what it reused rather than pretending it created it', async () => {
@@ -545,6 +611,61 @@ describe('the column-type map, per dialect', () => {
     }
   });
 
+  it("types an app's foreign keys like the keys they point at, on every dialect", async () => {
+    const [, rooms, stays] = await sqlFor(HOTEL, [], 'postgres');
+    expect(rooms).toContain('"number" integer primary key');
+    expect(rooms).toContain('"type_id" text not null');
+    expect(stays).toContain('"room_number" integer');
+    expect(stays).not.toContain('varchar(36)');
+
+    const [sqliteRooms, , sqliteStays] = await sqlFor(HOTEL, [], 'sqlite');
+    expect(sqliteRooms).toContain('"id" text primary key');
+    expect(sqliteStays).toContain('"room_number" integer');
+  });
+
+  it('gives mysql a varchar for a text KEY, which it cannot index, and only there', async () => {
+    // "BLOB/TEXT column 'id' used in key specification without a key length".
+    const [types, rooms, stays] = await sqlFor(HOTEL, [], 'mysql');
+    expect(types).toContain('`id` varchar(255) primary key');
+    expect(types).toContain('`name` text not null');
+    // The FK to it must match it exactly, or mysql calls the pair incompatible.
+    expect(rooms).toContain('`type_id` varchar(255) not null');
+    expect(rooms).toContain('`note` text');
+    expect(stays).toContain('`room_number` integer');
+  });
+
+  it("types an FK to a HOST table with the host key's native type", async () => {
+    const existing: ExistingTable[] = [
+      { ref: 'jobs', columns: [{ ref: 'id', isPrimaryKey: true, dbType: 'bigint' }] },
+    ];
+    const [pg] = await sqlFor(DESIGN_STUDIO, ['jobs'], 'postgres', existing);
+    expect(pg).toContain('"job_id" bigint not null');
+    // A snapshot that carries no type keeps the historical id mapping.
+    const [legacy] = await sqlFor(DESIGN_STUDIO, ['jobs'], 'postgres');
+    expect(legacy).toContain('"job_id" varchar(36) not null');
+  });
+
+  it('follows a primary key that is itself a foreign key, and refuses a loop', async () => {
+    const extension: RequiredTable[] = [
+      ...HOTEL,
+      {
+        ref: 'room_notes',
+        columns: [
+          { ref: 'room_number', type: 'fk', role: 'pk', references: 'rooms' },
+          { ref: 'body', type: 'text' },
+        ],
+      },
+    ];
+    const statements = await sqlFor(extension, [], 'postgres');
+    expect(statements[3]).toContain('"room_number" integer primary key');
+
+    const loop: RequiredTable[] = [
+      { ref: 'a', columns: [{ ref: 'b_id', type: 'fk', role: 'pk', references: 'b' }] },
+      { ref: 'b', columns: [{ ref: 'a_id', type: 'fk', role: 'pk', references: 'a' }] },
+    ];
+    await expect(sqlFor(loop, [], 'postgres')).rejects.toThrow(/references itself/);
+  });
+
   it('creates every table IF NOT EXISTS, on every dialect', async () => {
     for (const dialect of ['postgres', 'mysql', 'sqlite'] as const) {
       const statements = await sqlFor(SHIPPING_DHL, [], dialect);
@@ -667,6 +788,32 @@ describe.skipIf(POSTGRES_URL === undefined)('applyInstall against a real Postgre
     }
   });
 
+  it("creates an app's int- and text-keyed tables, whose FKs postgres used to refuse", async () => {
+    // Was: `foreign key constraint "fk_stays_room_number" cannot be implemented`.
+    const { db, done } = await postgres();
+    try {
+      const result = await applyInstall({
+        plan: planFor(HOTEL, []),
+        tables: HOTEL,
+        db,
+        dialect: 'postgres',
+        existing: [],
+      });
+      expect(result.created).toEqual(['room_types', 'rooms', 'stays']);
+      await db.insertInto('room_types').values({ id: 'dbl', name: 'Double' }).execute();
+      await db.insertInto('rooms').values({ number: 101, type_id: 'dbl', note: null }).execute();
+      await db
+        .insertInto('stays')
+        .values({ ref: 'S-1', type_id: 'dbl', room_number: 101 })
+        .execute();
+      await expect(
+        db.insertInto('stays').values({ ref: 'S-2', type_id: 'dbl', room_number: 999 }).execute(),
+      ).rejects.toThrow(/foreign key/i);
+    } finally {
+      await done();
+    }
+  });
+
   it('is re-runnable on postgres too', async () => {
     const { db, done } = await postgres();
     try {
@@ -681,6 +828,49 @@ describe.skipIf(POSTGRES_URL === undefined)('applyInstall against a real Postgre
       await expect(applyInstall(input)).resolves.toBeTruthy();
     } finally {
       await done();
+    }
+  });
+});
+
+// ── executed, against a real MySQL ───────────────────────────────────────────
+
+/**
+ * MySQL refuses two things SQLite accepts and this map once emitted: an FK
+ * whose column type differs from its target ("are incompatible"), and a `text`
+ * primary key ("used in key specification without a key length"). Gated on
+ * `TEST_MYSQL_URL` like every other engine leg; CI always sets it.
+ */
+const MYSQL_URL = process.env.TEST_MYSQL_URL;
+
+describe.skipIf(MYSQL_URL === undefined)('applyInstall against a real MySQL', () => {
+  it("creates an app's int- and text-keyed tables, and enforces their FKs", async () => {
+    const mysql = await import('mysql2');
+    const database = `adminium_addon_ddl_${randomBytes(4).toString('hex')}`;
+    const admin = mysql.createPool({ uri: MYSQL_URL as string, connectionLimit: 1 }).promise();
+    await admin.query(`CREATE DATABASE \`${database}\``);
+    const url = new URL(MYSQL_URL as string);
+    url.pathname = `/${database}`;
+    const db = new Kysely({
+      dialect: new MysqlDialect({ pool: mysql.createPool({ uri: url.toString() }) }),
+    }) as AnyDb;
+    try {
+      const result = await applyInstall({
+        plan: planFor(HOTEL, []),
+        tables: HOTEL,
+        db,
+        dialect: 'mysql',
+        existing: [],
+      });
+      expect(result.created).toEqual(['room_types', 'rooms', 'stays']);
+      await db.insertInto('room_types').values({ id: 'dbl', name: 'Double' }).execute();
+      await db.insertInto('rooms').values({ number: 101, type_id: 'dbl', note: null }).execute();
+      await expect(
+        db.insertInto('stays').values({ ref: 'S-1', type_id: 'dbl', room_number: 999 }).execute(),
+      ).rejects.toThrow(/foreign key/i);
+    } finally {
+      await db.destroy();
+      await admin.query(`DROP DATABASE \`${database}\``);
+      await admin.end();
     }
   });
 });
