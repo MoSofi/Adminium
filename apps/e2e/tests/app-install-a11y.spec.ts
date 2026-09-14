@@ -113,8 +113,6 @@ async function toPlanStep(page: Page): Promise<void> {
     mimeType: 'application/gzip',
     buffer: bundle.buffer,
   });
-  await page.getByLabel('App key').fill(APP_KEY);
-  await page.getByLabel('Version', { exact: true }).fill(APP_VERSION);
   await page.getByLabel(/Integrity/).fill(bundle.integrity);
 }
 
@@ -174,6 +172,14 @@ test.describe('/studio/apps under axe', () => {
       await expect(page.getByText('Install into which database?')).toBeVisible();
       await sweep(page, `${theme} · wizard, database step`, tally, testInfo);
 
+      // Back to the bundle step, which now confirms the app the upload read
+      // from its manifest instead of showing the file picker again.
+      await page.getByRole('button', { name: 'Back' }).click();
+      await expect(page.getByText('Install E2E Desk')).toBeVisible();
+      await sweep(page, `${theme} · wizard, bundle step after the upload`, tally, testInfo);
+      await page.getByRole('button', { name: 'Continue' }).click();
+      await expect(page.getByText('Install into which database?')).toBeVisible();
+
       await page.getByRole('radio', { name: /northwind/i }).click();
       await page.getByRole('button', { name: 'Continue' }).click();
       await expect(page.getByText('Review the schema plan')).toBeVisible();
@@ -210,7 +216,7 @@ test.describe('/studio/apps under axe', () => {
         type: 'axe-summary',
         description: `${theme}: ${String(tally.states)} states, ${String(tally.minor)} lesser`,
       });
-      expect(tally.states, 'no state was swept').toBeGreaterThanOrEqual(7);
+      expect(tally.states, 'no state was swept').toBeGreaterThanOrEqual(8);
       expect(tally.failures.join('\n\n')).toBe('');
     });
   }

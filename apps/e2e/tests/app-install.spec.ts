@@ -54,8 +54,9 @@ test.describe('installing an app', () => {
       mimeType: 'application/gzip',
       buffer: bundle.buffer,
     });
-    await page.getByLabel('App key').fill(APP_KEY);
-    await page.getByLabel('Version', { exact: true }).fill(APP_VERSION);
+    // Nothing about WHICH app this is gets typed: the server reads the key and
+    // version out of the bundle's manifest, and the footer names what it read.
+    await expect(page.getByLabel('App key')).toHaveCount(0);
     // The operator's own hash: the one path where the integrity check is real
     // end to end rather than self-referential.
     await page.getByLabel(/Integrity/).fill(bundle.integrity);
@@ -63,6 +64,7 @@ test.describe('installing an app', () => {
 
     // ── Step 2: where it goes ─────────────────────────────────────────────
     await expect(page.getByText('Install into which database?')).toBeVisible();
+    await expect(page.getByText(`Step 2 of 4 · ${APP_KEY}`)).toBeVisible();
     await page.getByRole('radio', { name: /northwind/i }).click();
     await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -192,8 +194,6 @@ test.describe('installing an app', () => {
       mimeType: 'application/gzip',
       buffer: bundle.buffer,
     });
-    await page.getByLabel('App key').fill(APP_KEY);
-    await page.getByLabel('Version', { exact: true }).fill(APP_VERSION);
     await page.getByLabel(/Integrity/).fill(bundle.integrity);
     await page.getByRole('button', { name: 'Upload' }).click();
 
