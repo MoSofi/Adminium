@@ -93,12 +93,14 @@
     "sideload": {
       "file": "Package file (.tgz)",
       "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
-      "key": "Add-on key",
       "sha": "Integrity (sha512-…)",
       "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
       "submit": "Upload",
       "title": "Upload a package",
-      "version": "Version"
+      "uploaded": {
+        "title": "Nahráno: {name} {version}",
+        "body": "Nainstalujte ho ze seznamu výše."
+      }
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
@@ -532,8 +534,6 @@
         "hint": "Soubor .tgz, který vytvoří `npm pack` ze sestaveného rozhraní — obsahuje manifest.json a složku staff/ nebo customer/.",
         "file": "Soubor balíčku (.tgz)",
         "fileHint": "Dokud nepotvrdíte krok s plánem schématu, nic se nevytvoří.",
-        "key": "Klíč aplikace",
-        "version": "Verze",
         "integrity": "Kontrolní součet (volitelné)",
         "integrityHint": "Vložte hodnotu sha512- z `npm pack --json`, aby server ověřil právě tyto bajty. Necháte-li pole prázdné, spočítá se zde."
       },
@@ -574,6 +574,10 @@
       "chosen": {
         "title": "Nainstalovat {app}",
         "hint": "Tato aplikace přišla s vaším buildem a už je na disku. Dokud nepotvrdíte plán schématu, nic se nevytvoří."
+      },
+      "uploaded": {
+        "hint": "Načteno ze souboru manifest.json v balíčku, který jste nahráli. Dokud nepotvrdíte plán schématu, nic se nevytvoří.",
+        "replace": "Nahrát jiný balíček"
       }
     },
     "installed": {

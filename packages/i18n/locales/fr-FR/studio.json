@@ -93,12 +93,14 @@
     "sideload": {
       "file": "Fichier du paquet (.tgz)",
       "hint": "Pour un serveur sans internet. Vérifié exactement comme un téléchargement, il lui faut donc l’empreinte fournie.",
-      "key": "Clé du module",
       "sha": "Intégrité (sha512-…)",
       "shaHint": "La valeur `integrity` affichée par `npm pack --json`. Refusé si les octets n’y correspondent pas.",
       "submit": "Téléverser",
       "title": "Téléverser un paquet",
-      "version": "Version"
+      "uploaded": {
+        "title": "{name} {version} téléversé",
+        "body": "Installez-le depuis la liste ci-dessus."
+      }
     },
     "subtitle": "Des capacités supplémentaires pour vos applications — expédition, graphisme, données. Chacune indique ce dont elle a besoin avant l’installation.",
     "title": "Modules",
@@ -532,8 +534,6 @@
         "hint": "Le .tgz produit par `npm pack` pour une surface compilée — il contient manifest.json et un dossier staff/ ou customer/.",
         "file": "Fichier du paquet (.tgz)",
         "fileHint": "Rien n’est créé tant que vous n’avez pas confirmé à l’étape du plan de schéma.",
-        "key": "Clé de l’application",
-        "version": "Version",
         "integrity": "Intégrité (facultatif)",
         "integrityHint": "Collez la valeur sha512- de `npm pack --json` pour que le serveur vérifie ces octets exacts. Laissée vide, elle est calculée ici."
       },
@@ -574,6 +574,10 @@
       "chosen": {
         "title": "Installer {app}",
         "hint": "Cette application est livrée avec votre version et se trouve déjà sur le disque. Rien n’est créé tant que vous n’avez pas confirmé le plan de schéma."
+      },
+      "uploaded": {
+        "hint": "Lu dans le manifest.json du paquet que vous avez téléversé. Rien n’est créé tant que vous n’avez pas confirmé le plan de schéma.",
+        "replace": "Téléverser un autre paquet"
       }
     },
     "installed": {

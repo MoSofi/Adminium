@@ -103,12 +103,14 @@ export default {
     "sideload": {
       "file": "Package file (.tgz)",
       "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
-      "key": "Add-on key",
       "sha": "Integrity (sha512-…)",
       "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
       "submit": "Upload",
       "title": "Upload a package",
-      "version": "Version"
+      "uploaded": {
+        "title": "{name} {version} er uploadet",
+        "body": "Installer det fra listen ovenfor."
+      }
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
@@ -542,8 +544,6 @@ export default {
         "hint": "Den .tgz, som `npm pack` laver af en bygget flade — den indeholder manifest.json og en staff/- eller customer/-mappe.",
         "file": "Pakkefil (.tgz)",
         "fileHint": "Der oprettes intet, før du bekræfter på skemaplan-trinnet.",
-        "key": "App-nøgle",
-        "version": "Version",
         "integrity": "Integritet (valgfrit)",
         "integrityHint": "Indsæt sha512-værdien fra `npm pack --json`, så serveren kontrollerer netop disse bytes. Står feltet tomt, beregnes den her."
       },
@@ -584,6 +584,10 @@ export default {
       "chosen": {
         "title": "Installér {app}",
         "hint": "Denne app fulgte med dit build og ligger allerede på disken. Der oprettes intet, før du bekræfter skemaplanen."
+      },
+      "uploaded": {
+        "hint": "Læst fra manifest.json i den pakke, du uploadede. Der oprettes intet, før du bekræfter skemaplanen.",
+        "replace": "Upload en anden pakke"
       }
     },
     "installed": {

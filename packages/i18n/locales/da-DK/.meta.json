@@ -13863,10 +13863,6 @@
     "status": "src",
     "srcHash": "62b3bc3606f9"
   },
-  "studio.addOns.sideload.key": {
-    "status": "src",
-    "srcHash": "87a37f058207"
-  },
   "studio.addOns.sideload.sha": {
     "status": "src",
     "srcHash": "e549bfd60f37"
@@ -13883,9 +13879,13 @@
     "status": "src",
     "srcHash": "f34d1ee61d3b"
   },
-  "studio.addOns.sideload.version": {
-    "status": "src",
-    "srcHash": "2da600bf9404"
+  "studio.addOns.sideload.uploaded.body": {
+    "status": "mt",
+    "srcHash": "4f4099cda401"
+  },
+  "studio.addOns.sideload.uploaded.title": {
+    "status": "mt",
+    "srcHash": "a2cd1ca192f1"
   },
   "studio.addOns.subtitle": {
     "status": "src",
@@ -15191,17 +15191,9 @@
     "status": "mt",
     "srcHash": "a3dc02e7f963"
   },
-  "studio.hostedApps.install.bundle.key": {
-    "status": "mt",
-    "srcHash": "6d3fb6142fdb"
-  },
   "studio.hostedApps.install.bundle.title": {
     "status": "mt",
     "srcHash": "8b039fc56cc9"
-  },
-  "studio.hostedApps.install.bundle.version": {
-    "status": "src",
-    "srcHash": "2da600bf9404"
   },
   "studio.hostedApps.install.cancel": {
     "status": "mt",
@@ -15342,6 +15334,14 @@
   "studio.hostedApps.install.upload": {
     "status": "src",
     "srcHash": "8bdf057f91e7"
+  },
+  "studio.hostedApps.install.uploaded.hint": {
+    "status": "mt",
+    "srcHash": "10bc585caa66"
+  },
+  "studio.hostedApps.install.uploaded.replace": {
+    "status": "mt",
+    "srcHash": "0f14907d67be"
   },
   "studio.hostedApps.installed.confirmBody": {
     "status": "mt",

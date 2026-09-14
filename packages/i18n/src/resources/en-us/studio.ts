@@ -103,12 +103,14 @@ export default {
     "sideload": {
       "file": "Package file (.tgz)",
       "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
-      "key": "Add-on key",
       "sha": "Integrity (sha512-…)",
       "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
       "submit": "Upload",
       "title": "Upload a package",
-      "version": "Version"
+      "uploaded": {
+        "title": "Uploaded {name} {version}",
+        "body": "Install it from the list above."
+      }
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
@@ -542,8 +544,6 @@ export default {
         "hint": "The .tgz that `npm pack` produces for a built surface — it holds manifest.json and a staff/ or customer/ directory.",
         "file": "Bundle file (.tgz)",
         "fileHint": "Nothing is created until you confirm on the schema-plan step.",
-        "key": "App key",
-        "version": "Version",
         "integrity": "Integrity (optional)",
         "integrityHint": "Paste the sha512- value from `npm pack --json` to have the server check these exact bytes. Left empty, it is computed here."
       },
@@ -584,6 +584,10 @@ export default {
       "chosen": {
         "title": "Install {app}",
         "hint": "This app came with your build and is already on disk. Nothing is created until you confirm the schema plan."
+      },
+      "uploaded": {
+        "hint": "Read from the manifest.json inside the bundle you uploaded. Nothing is created until you confirm the schema plan.",
+        "replace": "Upload a different bundle"
       }
     },
     "installed": {

@@ -103,12 +103,14 @@ export default {
     "sideload": {
       "file": "Paketdatei (.tgz)",
       "hint": "Für einen Server ohne Internet. Wird genau wie ein Download geprüft und braucht daher den mitgelieferten Hash.",
-      "key": "Add-on-Schlüssel",
       "sha": "Integrität (sha512-…)",
       "shaHint": "Der von `npm pack --json` ausgegebene `integrity`-Wert. Passen die Bytes nicht, wird abgelehnt.",
       "submit": "Hochladen",
       "title": "Paket hochladen",
-      "version": "Version"
+      "uploaded": {
+        "title": "{name} {version} hochgeladen",
+        "body": "Installieren Sie es über die Liste oben."
+      }
     },
     "subtitle": "Zusätzliche Funktionen für Ihre Apps – Versand, Grafik, Daten. Jedes sagt vor der Installation, was es benötigt.",
     "title": "Add-ons",
@@ -542,8 +544,6 @@ export default {
         "hint": "Die .tgz-Datei, die `npm pack` für eine gebaute Oberfläche erzeugt — sie enthält manifest.json und ein Verzeichnis staff/ oder customer/.",
         "file": "Paketdatei (.tgz)",
         "fileHint": "Es wird nichts angelegt, bevor Sie den Schemaplan bestätigen.",
-        "key": "App-Schlüssel",
-        "version": "Version",
         "integrity": "Prüfsumme (optional)",
         "integrityHint": "Fügen Sie den sha512-Wert aus `npm pack --json` ein, damit der Server genau diese Bytes prüft. Bleibt das Feld leer, wird er hier berechnet."
       },
@@ -584,6 +584,10 @@ export default {
       "chosen": {
         "title": "{app} installieren",
         "hint": "Diese App kam mit Ihrem Build und liegt bereits auf der Festplatte. Es wird nichts angelegt, bevor Sie den Schemaplan bestätigen."
+      },
+      "uploaded": {
+        "hint": "Aus der manifest.json im hochgeladenen Paket gelesen. Es wird nichts angelegt, bevor Sie den Schemaplan bestätigen.",
+        "replace": "Anderes Paket hochladen"
       }
     },
     "installed": {

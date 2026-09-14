@@ -103,12 +103,14 @@ export default {
     "sideload": {
       "file": "Package file (.tgz)",
       "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
-      "key": "Add-on key",
       "sha": "Integrity (sha512-…)",
       "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
       "submit": "Upload",
       "title": "Upload a package",
-      "version": "Version"
+      "uploaded": {
+        "title": "已上傳 {name} {version}",
+        "body": "請在上方清單中安裝。"
+      }
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
@@ -542,8 +544,6 @@ export default {
         "hint": "`npm pack` 為已建置介面產生的 .tgz 檔——其中含有 manifest.json 以及 staff/ 或 customer/ 目錄。",
         "file": "安裝包檔案（.tgz）",
         "fileHint": "在你於結構計畫這一步確認之前，不會建立任何東西。",
-        "key": "應用程式識別碼",
-        "version": "版本",
         "integrity": "完整性校驗（選填）",
         "integrityHint": "貼上 `npm pack --json` 輸出的 sha512- 值，伺服器會據此檢查這些位元組。留空則在本頁計算。"
       },
@@ -584,6 +584,10 @@ export default {
       "chosen": {
         "title": "安裝 {app}",
         "hint": "這個應用程式隨你的建置附帶，已經在磁碟上。在你確認結構計畫之前不會建立任何東西。"
+      },
+      "uploaded": {
+        "hint": "讀取自你上傳的安裝包中的 manifest.json。在你確認結構計畫之前不會建立任何東西。",
+        "replace": "上傳其他安裝包"
       }
     },
     "installed": {

@@ -103,12 +103,14 @@ export default {
     "sideload": {
       "file": "Package file (.tgz)",
       "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
-      "key": "Add-on key",
       "sha": "Integrity (sha512-…)",
       "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
       "submit": "Upload",
       "title": "Upload a package",
-      "version": "Version"
+      "uploaded": {
+        "title": "تم رفع {name} {version}",
+        "body": "ثبّته من القائمة أعلاه."
+      }
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
@@ -542,8 +544,6 @@ export default {
         "hint": "ملف ‎.tgz‎ الذي ينتجه `npm pack` لواجهة مبنية — يحتوي على manifest.json ومجلد staff/ أو customer/.",
         "file": "ملف الحزمة (‎.tgz‎)",
         "fileHint": "لا يُنشأ أي شيء قبل أن تؤكّد في خطوة خطة البنية.",
-        "key": "مفتاح التطبيق",
-        "version": "الإصدار",
         "integrity": "التحقق من السلامة (اختياري)",
         "integrityHint": "الصق قيمة ‎sha512-‎ من `npm pack --json` ليتحقق الخادم من هذه البايتات بالذات. وإن تركته فارغًا تُحسب هنا."
       },
@@ -584,6 +584,10 @@ export default {
       "chosen": {
         "title": "تثبيت {app}",
         "hint": "هذا التطبيق جاء مع نسختك وهو موجود بالفعل على القرص. لا يُنشأ شيء قبل أن تؤكّد خطة البنية."
+      },
+      "uploaded": {
+        "hint": "قُرئ من ملف manifest.json داخل الحزمة التي رفعتها. لا يُنشأ شيء قبل أن تؤكّد خطة البنية.",
+        "replace": "ارفع حزمة أخرى"
       }
     },
     "installed": {
