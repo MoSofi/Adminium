@@ -61,7 +61,8 @@
  *   pnpm preflight              the full local-runnable set (what `verify` +
  *                               `dep-graph` cover, minus the service legs)
  *   pnpm preflight --quick      the fast gates only: spdx, tailwind utilities,
- *                               lint, typecheck
+ *                               the a11y-key and icon-core lists, lint,
+ *                               typecheck
  *   pnpm preflight --with-a11y  adds the axe sweep (slow: needs a built ui)
  *   pnpm preflight --with-e2e   adds the sqlite e2e leg (slowest; needs dists)
  *   pnpm preflight --list       print the plan and exit
@@ -93,6 +94,24 @@ const STEPS = [
     id: 'check-tailwind-utilities',
     cmd: 'pnpm run check-tailwind-utilities',
     why: 'every className names a utility that actually compiles (no silently-inert classes)',
+    tier: 'quick',
+  },
+  {
+    // In `quick` for the same reason: about a second, no build, and the only
+    // gate that sees a new accessible-name call site the list does not protect.
+    id: 'a11y-keys-check',
+    cmd: 'pnpm run a11y-keys-check',
+    why: 'every key in an accessible-name position is on the list the server refuses to blank',
+    tier: 'quick',
+  },
+  {
+    // In `quick` too: 0.3 s measured, no build (it reads source and the
+    // installed lucide-react, never a workspace dist). The `test` step cannot
+    // stand in for it — @adminium/ui's copy of this check replays from turbo's
+    // cache, locally as on CI, after a change confined to the dashboard.
+    id: 'icon-core-check',
+    cmd: 'pnpm run icon-core-check',
+    why: 'every icon the product renders by name is a static import in icon-core.ts, not a lazy catalogue fetch',
     tier: 'quick',
   },
   {
@@ -289,6 +308,6 @@ if (inherited.length > 0) {
 }
 console.log('NOT CHECKED HERE (a green run above does not mean CI is green):');
 for (const u of UNCHECKED_HERE) console.log(`  - ${u}`);
-if (quick) console.log('\n  …and this was --quick: the build, the unit suites and every generated-artifact check were skipped.');
+if (quick) console.log('\n  …and this was --quick: the build, the unit suites and every generated-artifact check that runs after them were skipped.');
 if (!withE2e) console.log('\n  Add --with-e2e for the sqlite end-to-end leg, --with-a11y for the axe sweep.');
 console.log('');

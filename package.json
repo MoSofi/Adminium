@@ -30,6 +30,7 @@
     "icon-core": "node scripts/gen-icon-core.mjs",
     "icon-core-check": "node scripts/gen-icon-core.mjs --check",
     "i18n-check": "pnpm --filter @adminium/i18n i18n:check",
+    "a11y-keys-check": "node packages/i18n/scripts/gen-a11y-keys.mjs --check",
     "generate-notices": "node scripts/generate-notices.mjs",
     "changeset": "changeset"
   },
