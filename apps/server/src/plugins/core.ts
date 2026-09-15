@@ -521,7 +521,18 @@ export const corePlugin = fp<CorePluginOptions>(
           // The map widgets' basemap tiles load from the Carto CDN
           // (packages/widgets geo-lib.ts CARTO_TILES) — without this
           // allowance every deployed MapBubble renders over a blank basemap.
-          'img-src': ["'self'", 'data:', 'blob:', 'https://*.basemaps.cartocdn.com'],
+          // Then the operator's own image hosts, appended and never replacing
+          // the built-ins: hosted app surfaces render picture URLs from the
+          // operator's tables (a menu, a product list), and this one header is
+          // what a surface at /apps/* is served under. Named hosts only — see
+          // ADMINIUM_CSP_IMG_HOSTS in config/env.ts for why never a scheme.
+          'img-src': [
+            "'self'",
+            'data:',
+            'blob:',
+            'https://*.basemaps.cartocdn.com',
+            ...(env.ADMINIUM_CSP_IMG_HOSTS ?? []),
+          ],
           'font-src': ["'self'", 'data:'],
           // Same-HOST WebSocket only. Bare `ws:`/`wss:` scheme sources would
           // authorize a socket to ANY origin — an XSS foothold could

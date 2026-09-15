@@ -231,6 +231,36 @@ describe('security headers (08 §7 item 5)', () => {
     expect(res.headers['strict-transport-security']).toBeUndefined();
   });
 
+  it('appends ADMINIUM_CSP_IMG_HOSTS to img-src, and nothing when it is unset', async () => {
+    /*
+     * Hosted app surfaces are served under this same header, so an operator
+     * whose menu or product pictures live on another host names that host. The
+     * built-ins stay first and untouched — the basemap allowance must survive
+     * any operator list — and the default case pins the directive's END so an
+     * unset variable cannot quietly widen it.
+     */
+    fixture = await buildAuthApp();
+    const plain = await fixture.app.inject({ method: 'GET', url: '/api/v1/healthz' });
+    expect(String(plain.headers['content-security-policy'])).toContain(
+      "img-src 'self' data: blob: https://*.basemaps.cartocdn.com;",
+    );
+    await fixture.destroy();
+
+    fixture = await buildAuthApp({
+      env: makeEnv({
+        ADMINIUM_CSP_IMG_HOSTS: 'https://images.unsplash.com, https://*.cdn.example.com',
+      }),
+    });
+    const res = await fixture.app.inject({ method: 'GET', url: '/api/v1/healthz' });
+    const csp = String(res.headers['content-security-policy']);
+    expect(csp).toContain(
+      "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://images.unsplash.com https://*.cdn.example.com;",
+    );
+    // Only img-src moved. A host named for pictures reaches nothing else.
+    expect(csp).toContain("default-src 'self';");
+    expect(csp).not.toMatch(/(?:connect|script|frame|font)-src[^;]*unsplash/);
+  });
+
   it('adds HSTS behind a trusted proxy (TLS terminates upstream)', async () => {
     fixture = await buildAuthApp({ env: makeEnv({ ADMINIUM_TRUST_PROXY: 'on' }) });
     const res = await fixture.app.inject({ method: 'GET', url: '/api/v1/healthz' });

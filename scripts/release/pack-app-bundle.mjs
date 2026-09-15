@@ -4,7 +4,7 @@
  * (47-app-installation.md step 4).
  *
  * The bundled set is how `/studio/apps` has real apps to browse and install
- * before anything is published to a registry (47 O1), and it is the same shape
+ * with no network at all (47 O1), and it is the same shape
  * the add-on bundle takes: `<key>-<version>.tgz` beside a `.tgz.integrity`,
  * staged into the store at boot by `seedBundledPackages`.
  *
@@ -28,13 +28,11 @@
  *   --build   run `npm run build:surface` in the checkout first; without it the
  *             existing `dist-surface/` is packed, which is what you want when
  *             the surfaces were just built by something else.
- *   --publishable
- *             drop `private: true` from the staged package and print the
- *             `npm publish` line. The bundled set does NOT need this — a
- *             bundled tarball is read off disk and never leaves the image —
- *             but 4c's registry path publishes this exact package, and a
- *             staging manifest that npm refuses is a trap waiting at the end
- *             of a release run rather than at the start of one.
+ *
+ * Releases are not made here. An app releases itself from its own repository —
+ * `scripts/publish-app.mjs` in its release workflow uploads to
+ * downloads.adminium.dev (48 D6) — so there is no `--publishable` any more; npm
+ * is only the local packer (48 D5).
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -43,11 +41,17 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const args = process.argv.slice(2);
-const checkout = resolve(args.find((a) => !a.startsWith('--')) ?? '.');
+const unknown = args.filter((a, i) => a.startsWith('--') && a !== '--build' && a !== '--out' && args[i - 1] !== '--out');
+if (unknown.length > 0) {
+  // `--publishable` belonged to the npm route. Refuse it by name: an ignored
+  // flag reads as one that took effect.
+  console.error(`unknown option(s): ${unknown.join(' ')} (usage: pack-app-bundle.mjs <app-checkout> [--out <dir>] [--build])`);
+  process.exit(1);
+}
+const checkout = resolve(args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--out') ?? '.');
 const outIndex = args.indexOf('--out');
 const out = resolve(outIndex === -1 ? 'apps-bundle' : (args[outIndex + 1] ?? 'apps-bundle'));
 const build = args.includes('--build');
-const publishable = args.includes('--publishable');
 
 const manifestPath = join(checkout, 'manifest.json');
 if (!existsSync(manifestPath)) {
@@ -89,9 +93,8 @@ try {
       {
         name: `@adminiumjs/app-${key}`,
         version,
-        // npm REFUSES to publish a package marked private, so the flag that
-        // makes a bundled tarball safe is the one that would fail a release.
-        ...(publishable ? {} : { private: true }),
+        // A bundled tarball is read off disk and never leaves the image.
+        private: true,
         description: `Built surfaces for the ${key} app.`,
         files: ['manifest.json', ...sides],
       },
@@ -121,11 +124,6 @@ try {
   console.log(`  sides:     ${sides.join(', ')}`);
   console.log(`  bytes:     ${bytes.length}`);
   console.log(`  integrity: ${integrity}`);
-  if (publishable) {
-    console.log(`\n  publish with:  npm publish ${target} --access public`);
-    console.log('  (the first publish of a NEW package needs the 2FA bootstrap; after that,');
-    console.log('   OIDC trusted publishing from the release workflow — see 47 §5, 4c)');
-  }
 } finally {
   rmSync(staging, { recursive: true, force: true });
 }

@@ -30,6 +30,7 @@ half-configured and fail later.
 | `ADMINIUM_LOG_LEVEL` | No | `info` | `fatal` · `error` · `warn` · `info` · `debug` · `trace` |
 | `ADMINIUM_STATIC_ROOT` | No | *(auto-detected)* | Serve the dashboard build from this directory instead of the auto-detected copy. |
 | `ADMINIUM_SURFACES_DIR` | No | *(unset)* | Directory of built app surfaces, served at `/apps/<app>/<side>/`. Unset means this instance hosts no apps. See below. |
+| `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
@@ -283,6 +284,41 @@ ADMINIUM_PUBLIC_API_ORIGINS='self'
 ```
 
 → [An app surface on its own domain](/self-hosting/app-domains/)
+
+## `ADMINIUM_CSP_IMG_HOSTS`
+
+Adminium's Content-Security-Policy lets pages load pictures from Adminium itself
+and nowhere else (plus the map tiles its map widgets draw). That is right for
+the dashboard's own assets, and it is one header on everything the server sends
+— including the app surfaces it hosts. So when your data links images kept
+somewhere else, the browser refuses them and the app shows broken pictures: a
+menu whose `image_url` column points at a CDN, a product list, a page of
+service photos.
+
+Name the hosts those pictures come from:
+
+```bash
+ADMINIUM_CSP_IMG_HOSTS='https://images.example.com,https://*.cdn.example.com'
+```
+
+They are appended to `img-src`, and nothing else in the policy moves. Each entry
+is a scheme and a host, with an optional port; a leading `*.` covers that host's
+subdomains. Some of the example apps' demo data links its photos on
+`images.unsplash.com`, so a demo database needs `https://images.unsplash.com`.
+
+What it refuses, and why it refuses rather than guesses:
+
+- **A bare `*` or a scheme alone (`https:`).** Either one admits pictures from
+  any host, and an image request is a way to carry data out: a script that ever
+  lands on your instance could send what it sees anywhere, one image at a time.
+  The list exists to keep that as narrow as your real image hosting.
+- **A path.** CSP matches a path as a prefix, which reads like an exact rule and
+  is not one.
+- **A wildcard over a whole top-level domain** (`https://*.com`).
+
+A bad entry stops the boot with every refused value named, like any other
+invalid variable. An `https://` dashboard cannot show `http://` pictures however
+this is set — the browser blocks mixed content on its own.
 
 ## `ADMINIUM_TRUST_PROXY`
 

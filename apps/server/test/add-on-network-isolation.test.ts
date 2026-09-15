@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * D8's load-bearing proof: with the online catalog off, NO add-on code path
- * makes an outbound call (32-add-on-distribution.md D8, §7 acceptance #2).
+ * makes an outbound call (32-add-on-distribution.md D8, §7 acceptance #2) — and
+ * with it on, exactly two first-party hosts are reached, at addresses the
+ * server builds itself (48-self-hosted-downloads.md D4, D10).
  *
  * Mirrors `telemetry-network-isolation.test.ts` deliberately, down to the
  * recording thrower: ALL outbound network (fetch + node net/http/https) is
@@ -32,9 +34,11 @@ import {
   AddOnCatalogError,
   CATALOG_ENABLED_SETTING,
   CATALOG_ENDPOINT,
-  REGISTRY_HOST,
+  DOWNLOAD_HOST,
+  USER_AGENT,
   catalogSchema,
   createCatalogClient,
+  downloadUrlFor,
   type CatalogEntry,
 } from '../src/add-ons/catalog.js';
 
@@ -104,7 +108,6 @@ function disableNetwork(): NetGuard {
 
 const ENTRY: CatalogEntry = {
   key: 'design-studio',
-  npmPackage: '@adminiumjs/add-on-design-studio',
   version: '1.0.0',
   integrity: 'sha512-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ+/==',
   provides: [],
@@ -149,16 +152,7 @@ describe('add-on catalog: off means zero outbound attempts', () => {
 
     expect(await client.isEnabled()).toBe(false);
     await expect(client.fetchCatalog()).rejects.toMatchObject({ reason: 'CATALOG_DISABLED' });
-    await expect(client.pinRelease(ENTRY)).rejects.toMatchObject({ reason: 'CATALOG_DISABLED' });
-    await expect(
-      client.fetchTarball({
-        key: ENTRY.key,
-        npmPackage: ENTRY.npmPackage,
-        version: ENTRY.version,
-        integrity: ENTRY.integrity,
-        tarballUrl: `https://${REGISTRY_HOST}/x/-/x-1.0.0.tgz`,
-      }),
-    ).rejects.toMatchObject({ reason: 'CATALOG_DISABLED' });
+    await expect(client.fetchTarball(ENTRY)).rejects.toMatchObject({ reason: 'CATALOG_DISABLED' });
 
     expect(calls).toEqual([]);
     expect(guard.attempts).toEqual([]);
@@ -178,7 +172,7 @@ describe('add-on catalog: off means zero outbound attempts', () => {
 
     expect(await client.isEnabled()).toBe(false);
     await expect(client.fetchCatalog()).rejects.toMatchObject({ reason: 'NETWORK_FEATURES_OFF' });
-    await expect(client.pinRelease(ENTRY)).rejects.toMatchObject({
+    await expect(client.fetchTarball(ENTRY)).rejects.toMatchObject({
       reason: 'NETWORK_FEATURES_OFF',
     });
 
@@ -200,6 +194,7 @@ describe('add-on catalog: off means zero outbound attempts', () => {
       }) as unknown as typeof globalThis.fetch,
     });
     await expect(client.fetchCatalog()).rejects.toBeInstanceOf(AddOnCatalogError);
+    await expect(client.fetchTarball(ENTRY)).rejects.toBeInstanceOf(AddOnCatalogError);
   });
 });
 
@@ -208,125 +203,97 @@ describe('add-on catalog: on, it talks to exactly two hostnames', () => {
     await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, true);
   });
 
-  it('fetches the feed from the first-party constant only', async () => {
-    const calls: string[] = [];
+  /** A client whose fetch records every URL and init, answering with `respond`. */
+  function recording(respond: (url: string) => Response) {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
     const client = createCatalogClient({
       meta,
       networkFeatures: true,
-      fetchImpl: ((input: unknown) => {
-        calls.push(String(input));
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({ schemaVersion: 1, generatedAt: '2026-08-29T00:00:00Z', addOns: [ENTRY] }),
-            { status: 200, headers: { 'content-type': 'application/json' } },
-          ),
-        );
+      fetchImpl: ((input: unknown, init: RequestInit) => {
+        calls.push({ url: String(input), init });
+        return Promise.resolve(respond(String(input)));
       }) as unknown as typeof globalThis.fetch,
     });
+    return { client, calls };
+  }
+
+  it('fetches the feed from the first-party v2 constant only', async () => {
+    const { client, calls } = recording(
+      () =>
+        new Response(
+          JSON.stringify({ schemaVersion: 2, generatedAt: '2026-09-15T00:00:00Z', addOns: [ENTRY] }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
 
     const catalog = await client.fetchCatalog();
     expect(catalog.addOns[0]?.key).toBe('design-studio');
-    expect(calls).toEqual([CATALOG_ENDPOINT]);
-    expect(new URL(calls[0]!).hostname).toBe('adminium.dev');
+    expect(calls.map((c) => c.url)).toEqual([CATALOG_ENDPOINT]);
+    expect(CATALOG_ENDPOINT).toBe('https://adminium.dev/marketplace/v2/catalog.json');
   });
 
-  it('refuses a tarball URL that points anywhere but the registry host', async () => {
-    const client = createCatalogClient({
-      meta,
-      networkFeatures: true,
-      fetchImpl: (() =>
-        Promise.resolve(new Response('', { status: 200 }))) as unknown as typeof globalThis.fetch,
-    });
+  it('downloads from the one address it builds from the row: downloads host, key, exact version', async () => {
+    const { client, calls } = recording(() => new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
 
-    for (const url of [
-      'https://evil.example/x-1.0.0.tgz',
-      'http://registry.npmjs.org/x-1.0.0.tgz', // plain http
-      'https://registry.npmjs.org.evil.example/x.tgz', // suffix trick
-      'https://objects.githubusercontent.com/x.tgz',
+    const bytes = await client.fetchTarball(ENTRY);
+    expect(Array.from(bytes)).toEqual([1, 2, 3]);
+    expect(calls.map((c) => c.url)).toEqual([
+      'https://downloads.adminium.dev/add-ons/design-studio/design-studio-1.0.0.tgz',
+    ]);
+    expect(new URL(calls[0]!.url).hostname).toBe(DOWNLOAD_HOST);
+    // Says what it is, rather than looking like an anonymous bot to the host's
+    // bot protection (48 §4).
+    expect((calls[0]!.init.headers as Record<string, string>)['user-agent']).toBe(USER_AGENT);
+    expect(USER_AGENT).toMatch(/^Adminium\/\d+\.\d+\.\d+/);
+  });
+
+  it('never resolves `latest`: the address names the exact version, and no index is consulted', async () => {
+    const { client, calls } = recording(() => new Response(new Uint8Array([1]), { status: 200 }));
+    await client.fetchTarball({ key: 'design-studio', version: '1.0.0-rc.1+build.5' });
+    expect(calls.map((c) => c.url)).toEqual([
+      'https://downloads.adminium.dev/add-ons/design-studio/design-studio-1.0.0-rc.1+build.5.tgz',
+    ]);
+    expect(calls.map((c) => c.url).join(' ')).not.toContain('latest');
+  });
+
+  it('refuses, before any request, an address a row could steer off its path', async () => {
+    // A feed row cannot carry these (the schema refuses them, below). This
+    // proves the client does not depend on that: the grammar check and the
+    // built-path assertion in `downloadUrlFor` stand on their own.
+    const { client, calls } = recording(() => new Response(new Uint8Array([1]), { status: 200 }));
+    for (const row of [
+      { key: '../etc', version: '1.0.0' },
+      { key: 'design-studio', version: '1.0.0/../../evil' },
+      { key: 'design-studio', version: '1.0.0?x=1' },
+      { key: 'design-studio', version: '1.0.0#frag' },
+      { key: 'design-studio', version: 'latest' },
+      { key: 'Design-Studio', version: '1.0.0' },
+      { key: 'design-studio@evil.example', version: '1.0.0' },
     ]) {
-      await expect(
-        client.fetchTarball({
-          key: 'x',
-          npmPackage: '@adminiumjs/add-on-x',
-          version: '1.0.0',
-          integrity: 'sha512-x',
-          tarballUrl: url,
-        }),
-      ).rejects.toMatchObject({ reason: 'FOREIGN_TARBALL_HOST' });
+      await expect(client.fetchTarball(row), JSON.stringify(row)).rejects.toMatchObject({
+        reason: 'DOWNLOAD_ADDRESS_MISMATCH',
+      });
     }
+    expect(calls).toEqual([]);
   });
 
-  it('refuses when the registry and the release ledger disagree (D7)', async () => {
-    const client = createCatalogClient({
-      meta,
-      networkFeatures: true,
-      fetchImpl: (() =>
-        Promise.resolve(
-          new Response(
-            JSON.stringify({
-              versions: {
-                '1.0.0': {
-                  dist: {
-                    tarball: `https://${REGISTRY_HOST}/@adminiumjs/add-on-design-studio/-/x-1.0.0.tgz`,
-                    integrity: 'sha512-SOMETHINGELSEENTIRELY==',
-                  },
-                },
-              },
-            }),
-            { status: 200 },
-          ),
-        )) as unknown as typeof globalThis.fetch,
-    });
-
-    await expect(client.pinRelease(ENTRY)).rejects.toMatchObject({ reason: 'LEDGER_MISMATCH' });
+  it('builds the download address as a pure function of key and version', () => {
+    expect(downloadUrlFor('shipping-dhl', '1.0.0')).toBe(
+      'https://downloads.adminium.dev/add-ons/shipping-dhl/shipping-dhl-1.0.0.tgz',
+    );
+    expect(() => downloadUrlFor('shipping-dhl', '1.0.0/..')).toThrow(AddOnCatalogError);
   });
 
-  it('refuses a version the registry does not actually serve (18 D4)', async () => {
-    const client = createCatalogClient({
-      meta,
-      networkFeatures: true,
-      fetchImpl: (() =>
-        Promise.resolve(
-          new Response(JSON.stringify({ versions: { '0.9.0': { dist: { tarball: 'https://x/y' } } } }), {
-            status: 200,
-          }),
-        )) as unknown as typeof globalThis.fetch,
-    });
-
-    await expect(client.pinRelease(ENTRY)).rejects.toMatchObject({
-      reason: 'VERSION_NOT_PUBLISHED',
-    });
+  it('names a missing file on the download host as its own refusal', async () => {
+    // The catalog offering a version the download host does not serve is a
+    // publishing fault, and it must not read as a network blip.
+    const { client } = recording(() => new Response('not found', { status: 404 }));
+    await expect(client.fetchTarball(ENTRY)).rejects.toMatchObject({ reason: 'TARBALL_NOT_FOUND' });
   });
 
-  it('pins the exact version and never resolves a dist-tag (D9)', async () => {
-    const calls: string[] = [];
-    const tarball = `https://${REGISTRY_HOST}/@adminiumjs/add-on-design-studio/-/add-on-design-studio-1.0.0.tgz`;
-    const client = createCatalogClient({
-      meta,
-      networkFeatures: true,
-      fetchImpl: ((input: unknown) => {
-        calls.push(String(input));
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              versions: {
-                '1.0.0': { dist: { tarball, integrity: ENTRY.integrity } },
-                '2.0.0': { dist: { tarball: 'https://x/newer', integrity: 'sha512-newer' } },
-              },
-              'dist-tags': { latest: '2.0.0' },
-            }),
-            { status: 200 },
-          ),
-        );
-      }) as unknown as typeof globalThis.fetch,
-    });
-
-    const pinned = await client.pinRelease(ENTRY);
-    expect(pinned.version).toBe('1.0.0');
-    expect(pinned.integrity).toBe(ENTRY.integrity);
-    expect(pinned.tarballUrl).toBe(tarball);
-    // The word `latest` never appears in a URL this client builds.
-    expect(calls.join(' ')).not.toContain('latest');
+  it('reports any other failure status as unreachable', async () => {
+    const { client } = recording(() => new Response('<html>challenge</html>', { status: 403 }));
+    await expect(client.fetchTarball(ENTRY)).rejects.toMatchObject({ reason: 'TARBALL_UNREACHABLE' });
   });
 });
 
@@ -432,7 +399,7 @@ describe('add-on catalog: the transport itself is bounded', () => {
     expect(inits[0]?.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it('applies the same transport rules to the tarball', async () => {
+  it('applies the same transport rules to the download', async () => {
     const inits: RequestInit[] = [];
     const client = clientRecording(
       inits,
@@ -442,22 +409,36 @@ describe('add-on catalog: the transport itself is bounded', () => {
           headers: { location: 'https://cdn.evil.example/x.tgz' },
         }),
     );
-    await expect(
-      client.fetchTarball({
-        key: 'design-studio',
-        npmPackage: '@adminiumjs/add-on-design-studio',
-        version: '1.0.0',
-        integrity: ENTRY.integrity,
-        tarballUrl: `https://${REGISTRY_HOST}/x/-/x-1.0.0.tgz`,
-      }),
-    ).rejects.toMatchObject({ reason: 'REDIRECTED' });
+    await expect(client.fetchTarball(ENTRY)).rejects.toMatchObject({ reason: 'REDIRECTED' });
     expect(inits[0]?.redirect).toBe('manual');
+    expect(inits[0]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('caps the download body while streaming it', async () => {
+    const client = createCatalogClient({
+      meta,
+      networkFeatures: true,
+      fetchImpl: (() => {
+        const chunk = new Uint8Array(1024 * 1024);
+        let sent = 0;
+        const body = new ReadableStream<Uint8Array>({
+          pull(controller) {
+            sent += 1;
+            if (sent > 64) controller.close();
+            else controller.enqueue(chunk);
+          },
+        });
+        return Promise.resolve(new Response(body, { status: 200 }));
+      }) as unknown as typeof globalThis.fetch,
+    });
+    await expect(client.fetchTarball(ENTRY)).rejects.toMatchObject({ reason: 'RESPONSE_TOO_LARGE' });
   });
 });
 
 describe('add-on catalog: the feed schema defers monetization by construction', () => {
+  const base = { schemaVersion: 2, generatedAt: '2026-09-15T00:00:00Z' };
+
   it('refuses a feed carrying a price, tier, or licence-key field (17 §2)', () => {
-    const base = { schemaVersion: 1, generatedAt: '2026-08-29T00:00:00Z' };
     for (const extra of [
       { price: 0 },
       { priceMonthly: '9.99' },
@@ -471,46 +452,43 @@ describe('add-on catalog: the feed schema defers monetization by construction', 
     }
   });
 
-  it('accepts the exact documented entry shape', () => {
-    const parsed = catalogSchema.safeParse({
-      schemaVersion: 1,
-      generatedAt: '2026-08-29T00:00:00Z',
-      addOns: [ENTRY],
-    });
-    expect(parsed.success).toBe(true);
+  it('accepts the exact documented v2 entry shape', () => {
+    expect(catalogSchema.safeParse({ ...base, addOns: [ENTRY] }).success).toBe(true);
   });
 
-  it('refuses a feed entry whose npmPackage does not match its key', () => {
-    // The attack this closes: whoever serves the feed chooses which npm package
-    // a download fetches, and the D7 ledger cross-check does NOT cover it —
-    // the same attacker supplies both the package name and the `integrity` it
-    // is compared against, so naming a hostile package with that package's real
-    // hash passes the cross-check intact. Binding the name to the key is what
-    // stops it.
-    for (const npmPackage of [
-      'evil-package',
-      '@evil/add-on-design-studio',
-      '@adminiumjs/add-on-something-else',
-      '@adminiumjs/manifest',
-      'add-on-design-studio',
+  it('refuses the v1 document, including a row that still names an npm package (48 D7)', () => {
+    // Released servers keep reading v1 at its own address. A v2 server that
+    // took a v1 row would be taking an instruction about where to download
+    // from — the one thing a v2 row can no longer carry.
+    expect(
+      catalogSchema.safeParse({ schemaVersion: 1, generatedAt: base.generatedAt, addOns: [ENTRY] }).success,
+    ).toBe(false);
+    for (const extra of [
+      { npmPackage: '@adminiumjs/add-on-design-studio' },
+      { url: 'https://evil.example/design-studio.tgz' },
+      { tarball: 'https://evil.example/design-studio.tgz' },
     ]) {
-      const parsed = catalogSchema.safeParse({
-        schemaVersion: 1,
-        generatedAt: '2026-08-29T00:00:00Z',
-        addOns: [{ ...ENTRY, npmPackage }],
-      });
-      expect(parsed.success, `expected ${npmPackage} to be refused`).toBe(false);
+      const parsed = catalogSchema.safeParse({ ...base, addOns: [{ ...ENTRY, ...extra }] });
+      expect(parsed.success, `expected ${JSON.stringify(extra)} to be refused`).toBe(false);
     }
   });
 
   it('refuses a floating version in the feed (D9)', () => {
     for (const version of ['latest', '^1.0.0', '1.x', '*']) {
-      const parsed = catalogSchema.safeParse({
-        schemaVersion: 1,
-        generatedAt: '2026-08-29T00:00:00Z',
-        addOns: [{ ...ENTRY, version }],
-      });
+      const parsed = catalogSchema.safeParse({ ...base, addOns: [{ ...ENTRY, version }] });
       expect(parsed.success, `expected ${version} to be refused`).toBe(false);
+    }
+  });
+
+  it('refuses a key or version that could move the download address', () => {
+    for (const row of [
+      { key: '../etc' },
+      { key: 'design-studio/../x' },
+      { version: '1.0.0/../../evil' },
+      { version: '1.0.0?x=1' },
+    ]) {
+      const parsed = catalogSchema.safeParse({ ...base, addOns: [{ ...ENTRY, ...row }] });
+      expect(parsed.success, `expected ${JSON.stringify(row)} to be refused`).toBe(false);
     }
   });
 });

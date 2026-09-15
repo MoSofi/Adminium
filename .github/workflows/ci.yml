@@ -150,6 +150,24 @@ jobs:
       - name: Check the core icon set is current
         run: pnpm run icon-core-check
 
+      # The same hole as the two lists above, in ordinary unit tests. Each of
+      # these reads a file its own package's turbo key never hashes — a
+      # DEPENDENT package's source, or a root file — so after a change confined
+      # to that file, the Test step below replays the old pass from the
+      # restored cache. Found on 2026-09-14 by tracing every suite's file
+      # reads; a grep found nine of the eleven. They include meta's check of the
+      # dashboard's RESERVED_GRANTS mirror, i18n's key coverage over every
+      # product tree, the server's docs contract, and the fixtures that prove
+      # check-offline-assets and generate-notices can fail at all.
+      # scripts/check-cross-package-tests.mjs lists each with what it reads.
+      #
+      # This step runs the five files that touch no workspace dist, not even to
+      # probe for one — traced, and run green in a fresh clone with nothing
+      # built — so it needs no build; the other six run after Test. About 5 s
+      # on a dev box.
+      - name: Re-run the tests that read outside their cache key
+        run: pnpm run cross-package-tests-check
+
       # 37-T09: TEST_S3_URL un-skips the `s3` leg of the file-driver conformance
       # suite (apps/server/test/files-drivers.test.ts) — the only place SigV4 is
       # proved against a real S3 implementation rather than against AWS's
@@ -268,6 +286,17 @@ jobs:
             packages/*/coverage/
           retention-days: 7
           if-no-files-found: ignore
+
+      # The other six cross-package tests (see the step before MinIO). These
+      # need built workspace packages, so they run once the build has. Among
+      # them: the Docker distribution contract, which pins the ROOT Dockerfile,
+      # compose file and workflows, and the desktop demo's acceptance test,
+      # which seeds with apps/desktop's real script from inside the server
+      # suite. Neither file is in apps/server's key. Placed after the coverage
+      # upload on purpose: that step is for the suites above, and a red here
+      # should not trigger it. About 6 s on a dev box.
+      - name: Re-run the tests that read outside their cache key (built)
+        run: pnpm run cross-package-dist-tests-check
 
       # 11-electron.md §7: the desktop build must work with the network cable
       # unplugged, forever. `desktop#build` already chains this (see that

@@ -340,9 +340,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const body = request.body;
         if (!Buffer.isBuffer(body) || body.byteLength === 0) {
           throw new ValidationFailedError(
-            'Send the bundle as a raw `application/octet-stream` body — the .tgz that ' +
-              '`npm pack` produces for a built surface, holding `manifest.json` and a ' +
-              '`staff/` and/or `customer/` directory.',
+            'Send the bundle as a raw `application/octet-stream` body — the app’s release ' +
+              '.tgz, holding `manifest.json` and a `staff/` and/or `customer/` directory.',
           );
         }
         const asserted = request.query;

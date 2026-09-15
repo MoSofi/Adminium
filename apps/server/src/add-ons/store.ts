@@ -14,9 +14,10 @@
  * package. A package is also a TREE, not a blob — the runtime serves individual
  * files out of it by relative path.
  *
- * THE THREE SOURCES ARE ONE PATH. Bundled (D3), npm (D2) and sideload (D4) all
- * arrive here as a tarball plus an expected sha512, and all three go through
- * {@link AddOnStore.stage}. There is deliberately no second, softer entry point.
+ * THE THREE SOURCES ARE ONE PATH. Bundled (D3), downloaded (48 D4) and
+ * sideloaded (D4) packages all arrive here as a tarball plus an expected sha512,
+ * and all three go through {@link AddOnStore.stage}. There is deliberately no
+ * second, softer entry point.
  *
  * THE TOCTOU WINDOW, AND WHY THE HASH MANIFEST EXISTS. The data volume is
  * shared, writable state: between the moment a package is unpacked and the
@@ -197,9 +198,9 @@ export interface PackageIdentity {
 interface StageSource {
   tarball: Uint8Array;
   /**
-   * `sha512-<base64>` — npm's packument `dist.integrity` format, which is also
-   * what the release ledger records and what the sideload route asks the
-   * operator for. Compared in constant time.
+   * `sha512-<base64>` — the Subresource-Integrity spelling `npm pack` prints,
+   * which is what the release ledger records, what the catalog carries, and
+   * what the sideload route asks the operator for. Compared in constant time.
    */
   expectedIntegrity: string;
   limits?: ArchiveLimits;

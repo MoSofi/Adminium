@@ -94,7 +94,7 @@
       "file": "Package file (.tgz)",
       "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
       "sha": "Integrity (sha512-…)",
-      "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
+      "shaHint": "The sha512- fingerprint published with the release, shown beside its Download link on adminium.dev/marketplace. The upload is refused if the bytes do not match.",
       "submit": "Upload",
       "title": "Upload a package",
       "uploaded": {
@@ -531,11 +531,11 @@
       "failed": "فشل التثبيت",
       "bundle": {
         "title": "ارفع حزمة التطبيق",
-        "hint": "ملف ‎.tgz‎ الذي ينتجه `npm pack` لواجهة مبنية — يحتوي على manifest.json ومجلد staff/ أو customer/.",
+        "hint": "ملف الإصدار ‎.tgz‎ الخاص بالتطبيق — يحتوي على manifest.json ومجلد staff/ أو customer/.",
         "file": "ملف الحزمة (‎.tgz‎)",
         "fileHint": "لا يُنشأ أي شيء قبل أن تؤكّد في خطوة خطة البنية.",
         "integrity": "التحقق من السلامة (اختياري)",
-        "integrityHint": "الصق قيمة ‎sha512-‎ من `npm pack --json` ليتحقق الخادم من هذه البايتات بالذات. وإن تركته فارغًا تُحسب هنا."
+        "integrityHint": "الصق قيمة ‎sha512-‎ المنشورة مع الإصدار ليتحقق الخادم من هذه البايتات بالذات. وإن تركته فارغًا تُحسب هنا."
       },
       "database": {
         "title": "في أي قاعدة بيانات تريد التثبيت؟",

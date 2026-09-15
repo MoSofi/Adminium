@@ -479,14 +479,14 @@ function ConnectForm({
  * An air-gapped operator has no registry to download from, so the only way in
  * is a file they carried. That path runs the IDENTICAL
  * verify-then-hardened-unpack the download path runs — one code path for
- * bundled, npm and upload — which means it needs the same thing a download
- * gets from the registry: a hash to verify against, supplied by somebody other
- * than the bytes themselves.
+ * bundled, downloaded and uploaded packages — which means it needs the same
+ * thing a download gets from the catalog: a hash to verify against, supplied by
+ * somebody other than the bytes themselves.
  *
- * `npm pack --json` prints exactly this value as `integrity`, so the person
- * doing the sideloading can produce it without trusting this page, and the
- * server refuses anything that does not match. A form that computed the hash
- * from the uploaded file would be verifying the bytes against themselves.
+ * Every release publishes exactly this value beside its Download link (48 D9),
+ * so the person doing the sideloading can carry it without trusting this page,
+ * and the server refuses anything that does not match. A form that computed the
+ * hash from the uploaded file would be verifying the bytes against themselves.
  *
  * ── WHY THE KEY AND VERSION ARE NOT ASKED FOR ──────────────────────────────
  *
@@ -560,7 +560,7 @@ function SideloadCard({
           label={t('studio:addOns.sideload.sha', 'Integrity (sha512-…)')}
           helper={t(
             'studio:addOns.sideload.shaHint',
-            'The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.',
+            'The sha512- fingerprint published with the release, shown beside its Download link on adminium.dev/marketplace. The upload is refused if the bytes do not match.',
           )}
         >
           <Input

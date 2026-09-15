@@ -94,7 +94,7 @@
       "file": "Package file (.tgz)",
       "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
       "sha": "Integrity (sha512-…)",
-      "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
+      "shaHint": "The sha512- fingerprint published with the release, shown beside its Download link on adminium.dev/marketplace. The upload is refused if the bytes do not match.",
       "submit": "Upload",
       "title": "Upload a package",
       "uploaded": {
@@ -531,11 +531,11 @@
       "failed": "安裝失敗",
       "bundle": {
         "title": "上傳應用程式安裝包",
-        "hint": "`npm pack` 為已建置介面產生的 .tgz 檔——其中含有 manifest.json 以及 staff/ 或 customer/ 目錄。",
+        "hint": "應用程式的發布檔（.tgz）——其中含有 manifest.json 以及 staff/ 或 customer/ 目錄。",
         "file": "安裝包檔案（.tgz）",
         "fileHint": "在你於結構計畫這一步確認之前，不會建立任何東西。",
         "integrity": "完整性校驗（選填）",
-        "integrityHint": "貼上 `npm pack --json` 輸出的 sha512- 值，伺服器會據此檢查這些位元組。留空則在本頁計算。"
+        "integrityHint": "貼上隨版本發布的 sha512- 值，伺服器會據此檢查這些位元組。留空則在本頁計算。"
       },
       "database": {
         "title": "要安裝到哪個資料庫？",

@@ -99,7 +99,7 @@ RUN node apps/server/scripts/bundle-allowlists.mjs \
 RUN pnpm deploy --filter=@adminium/server --prod --legacy /app
 
 # The bundled add-on set (32 D3, 32-T12): the six first-party add-on tarballs
-# plus their `.integrity` sidecars, fetched from registry.npmjs.org and verified
+# plus their `.integrity` sidecars, fetched from downloads.adminium.dev and verified
 # against the exact sha512 pins in scripts/release/add-ons-bundle.json before a
 # byte lands. Parked at /app/add-ons-bundle because the runtime stage keeps
 # WORKDIR /app, so the server's CWD-relative default `./add-ons-bundle`

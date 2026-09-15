@@ -310,7 +310,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
             <p className="mt-1 text-sm text-fg-muted">
               {t(
                 'studio:hostedApps.install.bundle.hint',
-                'The .tgz that `npm pack` produces for a built surface — it holds manifest.json and a staff/ or customer/ directory.',
+                'The app’s release file (.tgz) — it holds manifest.json and a staff/ or customer/ directory.',
               )}
             </p>
           </div>
@@ -335,7 +335,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
                 label={t('studio:hostedApps.install.bundle.integrity', 'Integrity (optional)')}
                 helper={t(
                   'studio:hostedApps.install.bundle.integrityHint',
-                  'Paste the sha512- value from `npm pack --json` to have the server check these exact bytes. Left empty, it is computed here.',
+                  'Paste the sha512- fingerprint published with the release to have the server check these exact bytes. Left empty, it is computed here.',
                 )}
               >
                 <Input

@@ -94,7 +94,7 @@
       "file": "Paketdatei (.tgz)",
       "hint": "Für einen Server ohne Internet. Wird genau wie ein Download geprüft und braucht daher den mitgelieferten Hash.",
       "sha": "Integrität (sha512-…)",
-      "shaHint": "Der von `npm pack --json` ausgegebene `integrity`-Wert. Passen die Bytes nicht, wird abgelehnt.",
+      "shaHint": "Der mit dem Release veröffentlichte sha512-Wert, neben dem Download-Link auf adminium.dev/marketplace. Passen die Bytes nicht, wird der Upload abgelehnt.",
       "submit": "Hochladen",
       "title": "Paket hochladen",
       "uploaded": {
@@ -531,11 +531,11 @@
       "failed": "Installation fehlgeschlagen",
       "bundle": {
         "title": "App-Paket hochladen",
-        "hint": "Die .tgz-Datei, die `npm pack` für eine gebaute Oberfläche erzeugt — sie enthält manifest.json und ein Verzeichnis staff/ oder customer/.",
+        "hint": "Die Release-Datei der App (.tgz) — sie enthält manifest.json und ein Verzeichnis staff/ oder customer/.",
         "file": "Paketdatei (.tgz)",
         "fileHint": "Es wird nichts angelegt, bevor Sie den Schemaplan bestätigen.",
         "integrity": "Prüfsumme (optional)",
-        "integrityHint": "Fügen Sie den sha512-Wert aus `npm pack --json` ein, damit der Server genau diese Bytes prüft. Bleibt das Feld leer, wird er hier berechnet."
+        "integrityHint": "Fügen Sie die mit dem Release veröffentlichte sha512-Prüfsumme ein, damit der Server genau diese Bytes prüft. Bleibt das Feld leer, wird sie hier berechnet."
       },
       "database": {
         "title": "In welche Datenbank installieren?",

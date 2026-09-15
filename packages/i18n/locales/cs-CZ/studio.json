@@ -94,7 +94,7 @@
       "file": "Package file (.tgz)",
       "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
       "sha": "Integrity (sha512-…)",
-      "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
+      "shaHint": "The sha512- fingerprint published with the release, shown beside its Download link on adminium.dev/marketplace. The upload is refused if the bytes do not match.",
       "submit": "Upload",
       "title": "Upload a package",
       "uploaded": {
@@ -531,11 +531,11 @@
       "failed": "Instalace selhala",
       "bundle": {
         "title": "Nahrát balíček aplikace",
-        "hint": "Soubor .tgz, který vytvoří `npm pack` ze sestaveného rozhraní — obsahuje manifest.json a složku staff/ nebo customer/.",
+        "hint": "Soubor vydání aplikace (.tgz) — obsahuje manifest.json a složku staff/ nebo customer/.",
         "file": "Soubor balíčku (.tgz)",
         "fileHint": "Dokud nepotvrdíte krok s plánem schématu, nic se nevytvoří.",
         "integrity": "Kontrolní součet (volitelné)",
-        "integrityHint": "Vložte hodnotu sha512- z `npm pack --json`, aby server ověřil právě tyto bajty. Necháte-li pole prázdné, spočítá se zde."
+        "integrityHint": "Vložte kontrolní součet sha512- zveřejněný s vydáním, aby server ověřil právě tyto bajty. Necháte-li pole prázdné, spočítá se zde."
       },
       "database": {
         "title": "Do které databáze instalovat?",

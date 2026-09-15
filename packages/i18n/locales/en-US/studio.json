@@ -94,7 +94,7 @@
       "file": "Package file (.tgz)",
       "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
       "sha": "Integrity (sha512-…)",
-      "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
+      "shaHint": "The sha512- fingerprint published with the release, shown beside its Download link on adminium.dev/marketplace. The upload is refused if the bytes do not match.",
       "submit": "Upload",
       "title": "Upload a package",
       "uploaded": {
@@ -531,11 +531,11 @@
       "failed": "Install failed",
       "bundle": {
         "title": "Upload the app bundle",
-        "hint": "The .tgz that `npm pack` produces for a built surface — it holds manifest.json and a staff/ or customer/ directory.",
+        "hint": "The app’s release file (.tgz) — it holds manifest.json and a staff/ or customer/ directory.",
         "file": "Bundle file (.tgz)",
         "fileHint": "Nothing is created until you confirm on the schema-plan step.",
         "integrity": "Integrity (optional)",
-        "integrityHint": "Paste the sha512- value from `npm pack --json` to have the server check these exact bytes. Left empty, it is computed here."
+        "integrityHint": "Paste the sha512- fingerprint published with the release to have the server check these exact bytes. Left empty, it is computed here."
       },
       "database": {
         "title": "Install into which database?",

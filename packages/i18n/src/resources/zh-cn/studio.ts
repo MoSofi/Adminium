@@ -104,7 +104,7 @@ export default {
       "file": "Package file (.tgz)",
       "hint": "For a server with no internet. It is checked exactly as a download would be, so it needs the hash that came with it.",
       "sha": "Integrity (sha512-…)",
-      "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
+      "shaHint": "The sha512- fingerprint published with the release, shown beside its Download link on adminium.dev/marketplace. The upload is refused if the bytes do not match.",
       "submit": "Upload",
       "title": "Upload a package",
       "uploaded": {
@@ -541,11 +541,11 @@ export default {
       "failed": "安装失败",
       "bundle": {
         "title": "上传应用安装包",
-        "hint": "`npm pack` 为已构建界面生成的 .tgz 文件——其中包含 manifest.json 以及 staff/ 或 customer/ 目录。",
+        "hint": "应用的发布文件（.tgz）——其中包含 manifest.json 以及 staff/ 或 customer/ 目录。",
         "file": "安装包文件（.tgz）",
         "fileHint": "在你于架构计划这一步确认之前，不会创建任何内容。",
         "integrity": "完整性校验（可选）",
-        "integrityHint": "粘贴 `npm pack --json` 输出的 sha512- 值，服务器将据此校验这些字节。留空则在本页计算。"
+        "integrityHint": "粘贴随版本发布的 sha512- 值，服务器将据此校验这些字节。留空则在本页计算。"
       },
       "database": {
         "title": "安装到哪个数据库？",

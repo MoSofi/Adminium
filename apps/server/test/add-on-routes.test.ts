@@ -1231,12 +1231,11 @@ describe('32-T09: acquisition routes (§4.3)', () => {
       });
       await store.writeCatalogCache(
         {
-          schemaVersion: 1,
+          schemaVersion: 2,
           generatedAt: '2026-08-29T00:00:00Z',
           addOns: [
             {
               key: 'holiday-calendars',
-              npmPackage: '@adminiumjs/add-on-holiday-calendars',
               version: '1.2.0',
               integrity: 'sha512-AAAA',
               provides: [],
@@ -1250,7 +1249,6 @@ describe('32-T09: acquisition routes (§4.3)', () => {
             },
             {
               key: 'shipping-dhl',
-              npmPackage: '@adminiumjs/add-on-shipping-dhl',
               version: '1.0.0',
               integrity: 'sha512-BBBB',
               provides: [],
@@ -1281,6 +1279,46 @@ describe('32-T09: acquisition routes (§4.3)', () => {
       await app.close();
     });
 
+    it('treats a cached catalog in the earlier v1 format as no catalog (48 D7)', async () => {
+      // A server upgraded from 0.2.8 or earlier still holds the last v1 feed it
+      // fetched. Offering its rows would offer downloads this version cannot
+      // resolve, and showing its fetch time would hide why the list is short:
+      // "never fetched" is what makes the page ask for a refresh.
+      await stage('holiday-calendars');
+      const app = await buildApp();
+      await store.writeCatalogCache(
+        {
+          schemaVersion: 1,
+          generatedAt: '2026-08-29T00:00:00Z',
+          addOns: [
+            {
+              key: 'shipping-dhl',
+              npmPackage: '@adminiumjs/add-on-shipping-dhl',
+              version: '1.0.0',
+              integrity: 'sha512-BBBB',
+              provides: [],
+              attaches: [{ app: 'printing' }],
+              categories: [],
+              capabilities: [],
+              connect: { kind: 'api-key' },
+              network: { allow: [] },
+              name: { en: 'DHL Shipping' },
+              tagline: { en: 'y' },
+            },
+          ],
+        },
+        1_700_000_000_000,
+      );
+
+      const body = (await app.inject({ method: 'GET', url: '/api/v1/add-ons/catalog' })).json() as {
+        addOns: Array<{ key: string }>;
+        catalogFetchedAt: number | null;
+      };
+      expect(body.catalogFetchedAt).toBeNull();
+      expect(body.addOns.map((a) => a.key)).toEqual(['holiday-calendars']);
+      await app.close();
+    });
+
     /*
      * 40 D2 / D-BUG-1. The fixture above uses `en_US` keys, and that is exactly
      * how the defect survived every other test in this file: the route read
@@ -1289,18 +1327,18 @@ describe('32-T09: acquisition routes (§4.3)', () => {
      * always missed and the `?? key` fallback printed the slug.
      *
      * This fixture therefore uses the real key space, verified against
-     * adminium.dev/marketplace/catalog.json on 2026-09-06.
+     * adminium.dev/marketplace/catalog.json on 2026-09-06 — the key space v2
+     * keeps (48 D7 drops only `npmPackage`).
      */
     it('names a catalog row from the feed key space, not from its slug', async () => {
       const app = await buildApp();
       await store.writeCatalogCache(
         {
-          schemaVersion: 1,
+          schemaVersion: 2,
           generatedAt: '2026-09-01T13:10:59.915Z',
           addOns: [
             {
               key: 'barcode-labels',
-              npmPackage: '@adminiumjs/add-on-barcode-labels',
               version: '1.0.0',
               integrity: 'sha512-AAAA',
               provides: [],
@@ -1364,12 +1402,11 @@ describe('32-T09: acquisition routes (§4.3)', () => {
       const app = await buildApp();
       await store.writeCatalogCache(
         {
-          schemaVersion: 1,
+          schemaVersion: 2,
           generatedAt: '2026-09-01T13:10:59.915Z',
           addOns: [
             {
               key: 'holiday-calendars',
-              npmPackage: '@adminiumjs/add-on-holiday-calendars',
               version: '1.0.0',
               integrity: 'sha512-AAAA',
               provides: [],
@@ -1639,7 +1676,7 @@ describe('32-T09: acquisition routes (§4.3)', () => {
       await app.close();
     });
 
-    it('refuses an empty body with a message naming npm pack', async () => {
+    it('refuses an empty body with a message saying where the package comes from', async () => {
       const app = await buildApp();
       const res = await app.inject({
         method: 'POST',
@@ -1648,6 +1685,7 @@ describe('32-T09: acquisition routes (§4.3)', () => {
         payload: Buffer.alloc(0),
       });
       expect(res.statusCode).toBe(422);
+      expect(res.json().error.message).toContain('https://downloads.adminium.dev');
       await app.close();
     });
   });

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The add-on catalog client (32-add-on-distribution.md §4.2, D2/D7/D8/D9).
+ * The add-on catalog client (32-add-on-distribution.md §4.2, D8/D9;
+ * 48-self-hosted-downloads.md D3/D4/D7).
  *
  * Built on the telemetry client's precedent (`../telemetry/service.ts`): a
  * hardcoded first-party endpoint constant, an injectable `fetchImpl` so tests
@@ -11,38 +12,56 @@
  * rather than by trusting a caught error.
  *
  * TWO HOSTNAMES, EXACTLY (24 D14). `adminium.dev` serves the few-KB catalog
- * index; `registry.npmjs.org` serves the packument and the tarball. Both are
- * module constants. The tarball URL is the one address that arrives as REMOTE
- * DATA (out of the packument), so its hostname is compared for exact equality
- * against {@link REGISTRY_HOST} before it is fetched.
+ * index; `downloads.adminium.dev` serves the files. Both are module constants,
+ * and so is every address this client requests: a download URL is BUILT HERE
+ * from a catalog row's key and exact version (48 D4), never read out of remote
+ * data. The feed carries no URL and no package name, so there is nothing in it
+ * that could point a download at another host or another file. (Its v1
+ * predecessor named an npm package, and constraining that field to one value
+ * was the only thing standing between whoever served the feed and a download of
+ * any package they liked.)
+ *
+ * WHERE THE FINGERPRINT COMES FROM (48 D3). The catalog row's `integrity` — the
+ * release ledger's value, carried by a feed the website builds from the ledger
+ * at a pinned SHA. Never from the download host: a folder that supplied both the
+ * bytes and the hash they are checked against would be checking them against
+ * themselves. The STORE verifies the downloaded bytes against it, in constant
+ * time, before anything is unpacked.
  *
  * WHY THE D14 HOSTNAME *GRAMMAR* IS NOT IMPORTED HERE. That regex
  * (`add-on-contracts/src/add-on-block.ts`) exists to bound hostnames an add-on
  * DECLARES — attacker-controlled strings that must merely look like hostnames.
- * Here every destination is either a compile-time constant or checked with
- * `===` against one, which is strictly stronger than any grammar: a grammar
- * accepts an infinite set, equality accepts one. (`add-on-contracts` is also
- * not a dependency of this app today, and the regex is module-local rather than
- * exported, so importing it would mean widening both.)
+ * Here every destination is a compile-time constant, which is strictly stronger
+ * than any grammar: a grammar accepts an infinite set, a constant accepts one.
  *
- * NPM IS AN INSTALL-TIME DEPENDENCY ONLY (D2). Nothing here is reached at boot
- * or at serve time; a registry outage cannot affect a running deployment, and
- * an air-gapped one never calls this module at all.
+ * THE NETWORK IS AN INSTALL-TIME DEPENDENCY ONLY. Nothing here is reached at
+ * boot or at serve time; an outage of either host cannot affect a running
+ * deployment, and an air-gapped one never calls this module at all.
  *
- * THE DISCLOSURE, STATED. An online install tells npm this deployment's IP, the
- * time, and the exact `package@version` pulled. That is why the toggle is
- * default-off and why the docs page says so rather than leaving it to be
- * discovered.
+ * THE DISCLOSURE, STATED. An online install tells adminium.dev and Cloudflare
+ * (which serves downloads.adminium.dev) this deployment's IP, the time, the
+ * Adminium version, and the exact add-on and version pulled. That is why the
+ * toggle is default-off and why the docs page says so rather than leaving it to
+ * be discovered.
  */
 
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
-/** The static feed the website emits (D6). Never serves tarballs. */
-export const CATALOG_ENDPOINT = 'https://adminium.dev/marketplace/catalog.json';
+import { APP_VERSION } from '../version.js';
 
-/** The only registry host this client will talk to (D2). */
-export const REGISTRY_HOST = 'registry.npmjs.org';
+/**
+ * The static feed the website emits (48 D7). Never serves files.
+ *
+ * `v2` IS A NEW ADDRESS, NOT A NEW FIELD. Released servers (0.2.3–0.2.8) parse
+ * `/marketplace/catalog.json` with a `.strict()` v1 schema, so any change to
+ * that document breaks every one of them at once. They keep reading the frozen
+ * v1 address; this version reads its own.
+ */
+export const CATALOG_ENDPOINT = 'https://adminium.dev/marketplace/v2/catalog.json';
+
+/** The only host this client downloads a file from (48 D1/D4). */
+export const DOWNLOAD_HOST = 'downloads.adminium.dev';
 
 /** The settings-registry key behind D8's default-off browse-online toggle. */
 export const CATALOG_ENABLED_SETTING = 'addOns.catalogEnabled';
@@ -53,12 +72,10 @@ export type CatalogRefusal =
   | 'NETWORK_FEATURES_OFF'
   | 'CATALOG_UNREACHABLE'
   | 'CATALOG_MALFORMED'
-  | 'PACKUMENT_UNREACHABLE'
-  | 'VERSION_NOT_PUBLISHED'
-  | 'LEDGER_MISMATCH'
-  | 'FOREIGN_TARBALL_HOST'
+  | 'DOWNLOAD_ADDRESS_MISMATCH'
   | 'REDIRECTED'
   | 'RESPONSE_TOO_LARGE'
+  | 'TARBALL_NOT_FOUND'
   | 'TARBALL_UNREACHABLE'
   | 'UNKNOWN_ADD_ON';
 
@@ -68,14 +85,16 @@ export type CatalogRefusal =
  * The archive limits in `archive.ts` bound what is UNPACKED; they can do nothing
  * about a response body, because by the time they see it the bytes are already
  * in memory. So the transport caps the read itself, streaming and aborting —
- * otherwise `registry.npmjs.org` answering with an endless body is an OOM that
- * no amount of unpack hardening prevents.
+ * otherwise a download host answering with an endless body is an OOM that no
+ * amount of unpack hardening prevents.
  */
 export const MAX_CATALOG_BYTES = 4 * 1024 * 1024;
 export const MAX_TARBALL_BYTES = 32 * 1024 * 1024;
-export const MAX_PACKUMENT_BYTES = 8 * 1024 * 1024;
 /** Per-request budget: a host that accepts a connection and never answers. */
 export const REQUEST_TIMEOUT_MS = 30_000;
+
+/** Every request says what it is; bot protection judges a bare runtime harshly (48 §4). */
+export const USER_AGENT = `Adminium/${APP_VERSION}`;
 
 export class AddOnCatalogError extends Error {
   override readonly name = 'AddOnCatalogError';
@@ -141,30 +160,16 @@ export function pickLocalized(
   return null;
 }
 
-/** The one npm scope this deployment will pull an add-on from (D1/D2). */
-export const NPM_SCOPE = '@adminiumjs';
+/** An add-on key: the grammar the store, the payloads and the download path share. */
+export const ADD_ON_KEY_PATTERN = /^[a-z][a-z0-9-]{1,79}$/;
+/** EXACT — never a range, never `latest` (D9). */
+export const EXACT_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:[-+][0-9A-Za-z.-]+)*$/;
 
 export const catalogEntrySchema = z
   .object({
-    key: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/),
-    /**
-     * `@adminiumjs/add-on-<key>` (D1) — and checked against the key by the
-     * refinement below, not merely documented.
-     *
-     * WHY THIS IS A SECURITY CHECK AND NOT TIDINESS. `pinRelease` builds the
-     * packument URL from this field, so whoever writes the feed chooses which
-     * npm package a download actually fetches. The D7 cross-check does NOT
-     * cover it: an attacker who can serve the feed supplies BOTH the package
-     * name and the `integrity` it is compared against, so naming
-     * `evil-package` with `evil-package`'s real hash passes the ledger leg
-     * intact. Constraining the name to the one value D1 says it must have is
-     * free and closes that entirely — the feed can no longer point a key at a
-     * package the key does not name.
-     */
-    npmPackage: z.string().min(1).max(214),
-    /** EXACT — never a range, never `latest` (D9). */
-    version: z.string().regex(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:[-+][0-9A-Za-z.-]+)*$/),
-    /** The release ledger's value, `sha512-<base64>` (D7 leg 2). */
+    key: z.string().regex(ADD_ON_KEY_PATTERN),
+    version: z.string().regex(EXACT_VERSION_PATTERN),
+    /** The release ledger's value, `sha512-<base64>` (48 D3). */
     integrity: z.string().regex(/^sha512-[A-Za-z0-9+/]+={0,2}$/),
     provides: z
       .array(z.object({ contract: z.string(), version: z.number().int().positive() }).strict())
@@ -179,15 +184,11 @@ export const catalogEntrySchema = z
     name: localizedSchema,
     tagline: localizedSchema,
   })
-  .strict()
-  .refine((entry) => entry.npmPackage === `${NPM_SCOPE}/add-on-${entry.key}`, {
-    path: ['npmPackage'],
-    message: `npmPackage must be exactly ${NPM_SCOPE}/add-on-<key>`,
-  });
+  .strict();
 
 export const catalogSchema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal(2),
     generatedAt: z.string().min(1),
     addOns: z.array(catalogEntrySchema),
   })
@@ -196,14 +197,47 @@ export const catalogSchema = z
 export type CatalogEntry = z.infer<typeof catalogEntrySchema>;
 export type Catalog = z.infer<typeof catalogSchema>;
 
-/** What a download needs after the two-leg trust check has passed. */
-export interface PinnedRelease {
-  key: string;
-  npmPackage: string;
-  version: string;
-  /** Agreed by BOTH the packument and the ledger (D7 legs 1 + 2). */
-  integrity: string;
-  tarballUrl: string;
+/**
+ * Whether a cached document is in the format this server reads.
+ *
+ * The cache outlives an upgrade: a server that last refreshed on 0.2.8 holds a
+ * v1 feed. Callers treat that as NO catalog — prompting a refresh — rather than
+ * as a malformed one, which is what a failed parse alone would report.
+ */
+export function isCurrentCatalogFormat(document: unknown): boolean {
+  return (
+    typeof document === 'object' &&
+    document !== null &&
+    (document as { schemaVersion?: unknown }).schemaVersion === 2
+  );
+}
+
+/**
+ * The one address a release of `key` at exactly `version` is downloaded from
+ * (48 D1/D4): `https://downloads.adminium.dev/add-ons/<key>/<key>-<version>.tgz`.
+ *
+ * Built, then CHECKED: the grammars rule out every character that could move the
+ * address, and the parsed URL must still carry exactly the path that was built
+ * and the base's origin. A version's pre-release tail may hold `.` or `+`; the
+ * check is what proves neither changes where the request goes. Pure — no I/O.
+ */
+export function downloadUrlFor(key: string, version: string, base = `https://${DOWNLOAD_HOST}`): string {
+  if (!ADD_ON_KEY_PATTERN.test(key) || !EXACT_VERSION_PATTERN.test(version)) {
+    throw new AddOnCatalogError(
+      'DOWNLOAD_ADDRESS_MISMATCH',
+      `refusing to build a download address from ${JSON.stringify(key)}@${JSON.stringify(version)}`,
+    );
+  }
+  const path = `/add-ons/${key}/${key}-${version}.tgz`;
+  const origin = new URL(base).origin;
+  const url = new URL(path, origin);
+  if (url.pathname !== path || url.origin !== origin) {
+    throw new AddOnCatalogError(
+      'DOWNLOAD_ADDRESS_MISMATCH',
+      `the download address for ${key}@${version} resolved to ${url.href}, not ${origin}${path}`,
+    );
+  }
+  return url.href;
 }
 
 export interface CatalogClientDeps {
@@ -215,7 +249,8 @@ export interface CatalogClientDeps {
    */
   networkFeatures: boolean;
   endpoint?: string | undefined;
-  registryBase?: string | undefined;
+  /** Tests only; production always downloads from {@link DOWNLOAD_HOST}. */
+  downloadBase?: string | undefined;
   /** Injected so tests can observe calls; defaults to the global fetch. */
   fetchImpl?: typeof globalThis.fetch | undefined;
 }
@@ -244,33 +279,16 @@ export interface CatalogClient {
    */
   fetchCatalog(signal?: AbortSignal): Promise<Catalog>;
   /**
-   * D7 legs 1 + 2 for one entry: pin `dist.integrity` from the packument, then
-   * cross-check it against the ledger value the catalog carries. A disagreement
-   * refuses — it means the registry is serving bytes the publish pipeline did
-   * not record.
+   * Download one catalog row's file from the address {@link downloadUrlFor}
+   * builds. The hash is verified by the STORE against `entry.integrity`, not
+   * here — this returns bytes, never a verdict on them.
    */
-  pinRelease(entry: CatalogEntry, signal?: AbortSignal): Promise<PinnedRelease>;
-  /** Download the pinned tarball. The hash is verified by the STORE, not here. */
-  fetchTarball(pinned: PinnedRelease, signal?: AbortSignal): Promise<Uint8Array>;
+  fetchTarball(entry: Pick<CatalogEntry, 'key' | 'version'>, signal?: AbortSignal): Promise<Uint8Array>;
 }
-
-/** The packument fields this client reads. Everything else is ignored. */
-const packumentSchema = z.object({
-  versions: z.record(
-    z.string(),
-    z.object({
-      dist: z.object({
-        tarball: z.string().url(),
-        integrity: z.string().optional(),
-        shasum: z.string().optional(),
-      }),
-    }),
-  ),
-});
 
 export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
   const endpoint = deps.endpoint ?? CATALOG_ENDPOINT;
-  const registryBase = deps.registryBase ?? `https://${REGISTRY_HOST}`;
+  const downloadBase = deps.downloadBase ?? `https://${DOWNLOAD_HOST}`;
   const settings = settingsRepo(deps.meta);
 
   async function isEnabled(): Promise<boolean> {
@@ -294,22 +312,6 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
     }
   }
 
-  /** Exact-host equality (D14), applied to the one URL that is remote data. */
-  function assertRegistryHost(url: string): void {
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      throw new AddOnCatalogError('FOREIGN_TARBALL_HOST', `tarball URL is unparseable: ${url}`);
-    }
-    if (parsed.protocol !== 'https:' || parsed.hostname !== REGISTRY_HOST) {
-      throw new AddOnCatalogError(
-        'FOREIGN_TARBALL_HOST',
-        `tarball URL points at ${parsed.protocol}//${parsed.hostname}, not https://${REGISTRY_HOST}`,
-      );
-    }
-  }
-
   const doFetch = (): typeof globalThis.fetch => deps.fetchImpl ?? globalThis.fetch;
 
   /**
@@ -317,14 +319,14 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
    * properties the exact-hostname ruling actually requires.
    *
    * `redirect: 'manual'` IS THE LOAD-BEARING ONE. `fetch` follows redirects by
-   * default, and the host check necessarily runs on the URL *before* the
-   * request — so with the default, `registry.npmjs.org` answering `302 Location:
-   * https://evil.example/x.tgz` would be followed silently and the "exactly two
-   * hostnames" guarantee (24 D14) would hold only on paper. A redirect is
-   * therefore a typed REFUSAL rather than something to re-check and follow:
-   * both endpoints are first-party or first-party-pinned, neither has any
-   * business bouncing us, and "refuse and say where it tried to send us" is a
-   * far better failure than a redirect-following loop with a host check in it.
+   * default, and the address is fixed *before* the request — so with the
+   * default, a host answering `302 Location: https://evil.example/x.tgz` would
+   * be followed silently and the "exactly two hostnames" guarantee (24 D14)
+   * would hold only on paper. A redirect is therefore a typed REFUSAL rather
+   * than something to re-check and follow: both hosts are first-party, neither
+   * has any business bouncing us, and "refuse and say where it tried to send
+   * us" is a far better failure than a redirect-following loop with a host
+   * check in it.
    */
   async function request(
     url: string,
@@ -332,6 +334,7 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
     maxBytes: number,
     what: CatalogRefusal,
     signal?: AbortSignal,
+    notFound?: CatalogRefusal,
   ): Promise<{ bytes: Uint8Array; response: Response }> {
     // The caller's cancellation composed with our own budget. A job that is
     // cancelled mid-download must actually stop the request: checking
@@ -344,7 +347,7 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
     let response: Response;
     try {
       response = await doFetch()(url, {
-        headers: { accept },
+        headers: { accept, 'user-agent': USER_AGENT },
         redirect: 'manual',
         signal: composed,
       });
@@ -360,6 +363,9 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
         `${url} answered with a redirect to ${response.headers.get('location') ?? '<opaque>'}; ` +
           'the add-on channel does not follow redirects',
       );
+    }
+    if (response.status === 404 && notFound !== undefined) {
+      throw new AddOnCatalogError(notFound, `${url} responded 404`);
     }
     if (!response.ok) {
       throw new AddOnCatalogError(what, `${url} responded ${response.status}`);
@@ -422,22 +428,6 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
     return { bytes, response };
   }
 
-  /** Reads a capped JSON body. */
-  async function requestJson(
-    url: string,
-    accept: string,
-    maxBytes: number,
-    what: CatalogRefusal,
-    signal?: AbortSignal,
-  ): Promise<unknown> {
-    const { bytes } = await request(url, accept, maxBytes, what, signal);
-    try {
-      return JSON.parse(Buffer.from(bytes).toString('utf8'));
-    } catch (err) {
-      throw new AddOnCatalogError(what, `${url} did not return JSON: ${String(err)}`);
-    }
-  }
-
   return {
     isEnabled,
     networkFeaturesAllowed: () => deps.networkFeatures,
@@ -445,13 +435,19 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
     async fetchCatalog(signal) {
       await assertEnabled();
 
-      const body = await requestJson(
+      const { bytes } = await request(
         endpoint,
         'application/json',
         MAX_CATALOG_BYTES,
         'CATALOG_UNREACHABLE',
         signal,
       );
+      let body: unknown;
+      try {
+        body = JSON.parse(Buffer.from(bytes).toString('utf8'));
+      } catch (err) {
+        throw new AddOnCatalogError('CATALOG_UNREACHABLE', `${endpoint} did not return JSON: ${String(err)}`);
+      }
 
       const parsed = catalogSchema.safeParse(body);
       if (!parsed.success) {
@@ -467,76 +463,21 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
       return parsed.data;
     },
 
-    async pinRelease(entry, signal) {
+    async fetchTarball(entry, signal) {
       await assertEnabled();
-
-      const url = `${registryBase}/${entry.npmPackage.replace('/', '%2f')}`;
-      const body = await requestJson(
-        url,
-        // The abbreviated packument: smaller, and it carries `dist`.
-        'application/vnd.npm.install-v1+json',
-        MAX_PACKUMENT_BYTES,
-        'PACKUMENT_UNREACHABLE',
-        signal,
-      );
-
-      const packument = packumentSchema.safeParse(body);
-      if (!packument.success) {
-        throw new AddOnCatalogError(
-          'PACKUMENT_UNREACHABLE',
-          `packument for ${entry.npmPackage} is not readable`,
-        );
-      }
-
-      // D9: the EXACT version, never a dist-tag. `latest` is never consulted.
-      const published = packument.data.versions[entry.version];
-      if (published === undefined) {
-        throw new AddOnCatalogError(
-          'VERSION_NOT_PUBLISHED',
-          `${entry.npmPackage}@${entry.version} is not published`,
-        );
-      }
-      const fromPackument = published.dist.integrity;
-      if (fromPackument === undefined) {
-        throw new AddOnCatalogError(
-          'VERSION_NOT_PUBLISHED',
-          `${entry.npmPackage}@${entry.version} has no dist.integrity`,
-        );
-      }
-
-      // D7: the two legs must agree. They share an origin only at publish time,
-      // so a disagreement means one of them was tampered with at rest.
-      if (fromPackument !== entry.integrity) {
-        throw new AddOnCatalogError(
-          'LEDGER_MISMATCH',
-          `registry reports ${fromPackument} for ${entry.npmPackage}@${entry.version}, ` +
-            `the release ledger records ${entry.integrity}`,
-        );
-      }
-
-      assertRegistryHost(published.dist.tarball);
-
-      return {
-        key: entry.key,
-        npmPackage: entry.npmPackage,
-        version: entry.version,
-        integrity: fromPackument,
-        tarballUrl: published.dist.tarball,
-      };
-    },
-
-    async fetchTarball(pinned, signal) {
-      await assertEnabled();
-      // Re-checked here rather than trusted from `pinRelease`: this is the call
-      // that actually opens a socket, so it carries its own host check.
-      assertRegistryHost(pinned.tarballUrl);
+      // D9: the EXACT version the row names. `latest` is never consulted, and
+      // there is no index on the download host to consult it in.
+      const url = downloadUrlFor(entry.key, entry.version, downloadBase);
 
       const { bytes } = await request(
-        pinned.tarballUrl,
+        url,
         'application/octet-stream',
         MAX_TARBALL_BYTES,
         'TARBALL_UNREACHABLE',
         signal,
+        // The catalog offers a version the download host does not have. Named
+        // on its own: it is a publishing fault, not a network one (48 §4).
+        'TARBALL_NOT_FOUND',
       );
       return bytes;
     },

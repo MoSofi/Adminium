@@ -5,6 +5,7 @@ import {
   EnvValidationError,
   formatEnvErrorTable,
   loadEnv,
+  parseImageHostSource,
   SELF_ORIGIN_SENTINEL,
 } from '../src/config/env.js';
 
@@ -275,6 +276,76 @@ describe('loadEnv — the `self` sentinel (29-app-surfaces.md D2, 29-T01)', () =
         makeStderr(),
       ),
     ).toThrow(EnvValidationError);
+  });
+});
+
+describe('loadEnv — ADMINIUM_CSP_IMG_HOSTS', () => {
+  it('parses a trimmed CSV into normalized, de-duplicated host sources', () => {
+    const env = loadEnv(
+      {
+        ADMINIUM_SECRET: SECRET,
+        ADMINIUM_CSP_IMG_HOSTS:
+          ' https://images.unsplash.com , HTTPS://Images.Unsplash.com/ ,https://*.cdn.example.com,http://192.168.1.20:9000',
+      },
+      makeStderr(),
+    );
+    // One origin written two ways is one source, and case never survives into
+    // the header — CSP host matching ignores it anyway.
+    expect(env.ADMINIUM_CSP_IMG_HOSTS).toEqual([
+      'https://images.unsplash.com',
+      'https://*.cdn.example.com',
+      'http://192.168.1.20:9000',
+    ]);
+  });
+
+  it('treats unset and empty as the built-in policy', () => {
+    expect(loadEnv({ ADMINIUM_SECRET: SECRET }, makeStderr()).ADMINIUM_CSP_IMG_HOSTS).toBeUndefined();
+    expect(
+      loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_CSP_IMG_HOSTS: ' , ' }, makeStderr())
+        .ADMINIUM_CSP_IMG_HOSTS,
+    ).toBeUndefined();
+  });
+
+  it('refuses every value that would admit images from anywhere, or corrupt the header', () => {
+    for (const value of [
+      '*', // any host
+      'https:', // any host over a scheme
+      'https://*', // any host, spelled as a wildcard
+      'https://*.com', // a whole top-level domain
+      'images.unsplash.com', // no scheme: CSP would read it relative to the page's
+      'ftp://images.example.com',
+      'https://images.example.com/photos', // a path CSP matches as a prefix
+      "'self'",
+      'data:',
+      'https://images.example.com;script-src *', // a smuggled directive
+      'https://images..example.com',
+      'https://-images.example.com',
+      'https://images.example.com:70000',
+    ]) {
+      expect(parseImageHostSource(value), value).toBeNull();
+      expect(
+        () => loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_CSP_IMG_HOSTS: value }, makeStderr()),
+        value,
+      ).toThrow(EnvValidationError);
+    }
+  });
+
+  it('names every refused entry in one boot, not one per restart', () => {
+    const stderr = makeStderr();
+    expect(() =>
+      loadEnv(
+        {
+          ADMINIUM_SECRET: SECRET,
+          ADMINIUM_CSP_IMG_HOSTS: 'https://ok.example.com,*,https://bad.example.com/path',
+        },
+        stderr,
+      ),
+    ).toThrow(EnvValidationError);
+    const out = stderr.output();
+    expect(out).toContain('ADMINIUM_CSP_IMG_HOSTS');
+    expect(out).toContain('"*", "https://bad.example.com/path" are not an image origin');
+    // The hint says what a good value looks like, not just that this one is bad.
+    expect(out).toContain('e.g. https://images.example.com');
   });
 });
 

@@ -5,7 +5,7 @@ sidebar:
   order: 10
 ---
 
-Add-ons are npm packages that extend a deployment — extra blocks, data packs,
+Add-ons are packages that extend a deployment — extra blocks, data packs,
 integrations — installed and managed from **Workspace settings → Add-ons**. Every package,
 whatever its source, goes through the same pipeline on the way in: its sha512
 hash is verified against a pinned value, the archive is unpacked under hardened
@@ -73,36 +73,43 @@ code:
 
 | Host | What it serves |
 |---|---|
-| `adminium.dev` | The catalog index — a static JSON file of a few KB. |
-| `registry.npmjs.org` | The package metadata (to pin the exact version and hash) and the tarball itself. |
+| `adminium.dev` | The catalog index — a static JSON file of a few KB, listing each add-on's exact version and the sha512 its release recorded. |
+| `downloads.adminium.dev` | The add-on files themselves, one `.tgz` per released version. |
 
-There is no third host, no redirect following, and no `latest` resolution — an
-install pins an exact `package@version` whose integrity must agree with the
-release ledger before the download is accepted.
+There is no third host, no redirect following, and no `latest` resolution. The
+server builds each download address itself, from the add-on's key and exact
+version — `https://downloads.adminium.dev/add-ons/<key>/<key>-<version>.tgz` —
+and the downloaded bytes must match the sha512 the catalog carries before
+anything is unpacked. The catalog takes that value from the release ledger, never
+from the download host, so the folder that serves the file is never the one
+vouching for it.
 
 :::caution[What an online install discloses]
-Downloading from the npm registry is an ordinary HTTPS request, which means npm
-learns your deployment's **IP address** and the **exact package and version**
-you pulled, at that moment. That is the entire reason the catalog is opt-in
-rather than on: the bundled set exists so that nobody has to accept even that
-disclosure just to use add-ons.
+Both are ordinary HTTPS requests. Refreshing the catalog tells `adminium.dev`
+your deployment's **IP address** and **Adminium version**; downloading tells
+**Cloudflare**, which serves `downloads.adminium.dev`, the same two things plus
+the **exact add-on and version** you pulled, at that moment. That is the entire
+reason the catalog is opt-in rather than on: the bundled set exists so that
+nobody has to accept even that disclosure just to use add-ons.
 :::
 
 ## Sideloading: air-gapped installs
 
 An install with no outbound network can still add packages the bundle does not
-carry. On any connected machine:
+carry. On any connected machine, download the file from the add-on's page on
+[adminium.dev/marketplace](https://adminium.dev/marketplace), or straight from
+its address:
 
 ```bash
-npm pack @adminiumjs/add-on-<key>
+curl -fO https://downloads.adminium.dev/add-ons/<key>/<key>-<version>.tgz
 ```
 
-That writes `adminiumjs-add-on-<key>-<version>.tgz` in the current directory.
-Look up the expected sha512 for that key and version in `RELEASES.json` in the
-[`Adminiumjs/add-ons`](https://github.com/Adminiumjs/add-ons) repository — the
-publish pipeline records every released tarball's integrity there — then move
-the tarball to the air-gapped machine and upload it through the **sideload
-card** on the Add-ons page, pasting the expected hash.
+Note the sha512 fingerprint shown beside the Download link. The same value is
+recorded in `RELEASES.json` in the
+[`Adminiumjs/add-ons`](https://github.com/Adminiumjs/add-ons) repository, where
+the release pipeline writes it only after reading the file back from
+`downloads.adminium.dev`. Then move the file to the air-gapped machine, upload it
+through the **sideload card** on the Add-ons page, and paste the fingerprint.
 
 Sideloading is a first-class source, not an escape hatch: the uploaded bytes go
 through the same hash verification and hardened unpack as a bundled or

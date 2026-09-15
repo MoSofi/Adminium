@@ -206,10 +206,11 @@ export interface StagedPackage {
  *
  * `expectedSha512` is not a convenience. Sideload runs the IDENTICAL
  * verify-then-hardened-unpack path a download does — one code path for
- * bundled, npm and upload — so an air-gapped operator gets the same guarantees
- * rather than a softer set. The value is the `integrity` field
- * `npm pack --json` prints, which is a plain sha512 of the tarball, so the
- * person doing the sideloading can produce it without trusting this page.
+ * bundled, downloaded and uploaded packages — so an air-gapped operator gets the
+ * same guarantees rather than a softer set. The value is the sha512 fingerprint
+ * every release publishes beside its Download link (48 D9), a plain sha512 of
+ * the tarball, so the person doing the sideloading can carry it without trusting
+ * this page.
  *
  * Which add-on the bytes are — its key and version — is not sent. The server
  * reads it from the package's own `manifest.json` and returns it.

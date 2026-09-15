@@ -31,6 +31,8 @@
     "icon-core-check": "node scripts/gen-icon-core.mjs --check",
     "i18n-check": "pnpm --filter @adminium/i18n i18n:check",
     "a11y-keys-check": "node packages/i18n/scripts/gen-a11y-keys.mjs --check",
+    "cross-package-tests-check": "node scripts/check-cross-package-tests.mjs --phase=source",
+    "cross-package-dist-tests-check": "node scripts/check-cross-package-tests.mjs --phase=dist",
     "generate-notices": "node scripts/generate-notices.mjs",
     "changeset": "changeset"
   },

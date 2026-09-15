@@ -61,7 +61,8 @@
  *   pnpm preflight              the full local-runnable set (what `verify` +
  *                               `dep-graph` cover, minus the service legs)
  *   pnpm preflight --quick      the fast gates only: spdx, tailwind utilities,
- *                               the a11y-key and icon-core lists, lint,
+ *                               the a11y-key and icon-core lists, the
+ *                               cross-package tests that need no build, lint,
  *                               typecheck
  *   pnpm preflight --with-a11y  adds the axe sweep (slow: needs a built ui)
  *   pnpm preflight --with-e2e   adds the sqlite e2e leg (slowest; needs dists)
@@ -115,6 +116,16 @@ const STEPS = [
     tier: 'quick',
   },
   {
+    // In `quick` as well: about 5 s, and green in a fresh clone with nothing built.
+    // Same reason the `test` step cannot stand in for it: each file's package
+    // suite replays from turbo's cache, locally as on CI, after a change
+    // confined to the file it reads (the script's table names them).
+    id: 'cross-package-tests',
+    cmd: 'pnpm run cross-package-tests-check',
+    why: 'the unit tests that read outside their package re-run uncached (the five that need no build)',
+    tier: 'quick',
+  },
+  {
     // Split out of the `turbo` step below so `--quick` is what its name says.
     // Same tasks, so turbo's cache makes the full run pay for them only once.
     id: 'lint+typecheck',
@@ -135,6 +146,13 @@ const STEPS = [
     id: 'test',
     cmd: 'pnpm turbo run test --concurrency=2',
     why: 'every unit suite with its coverage floors, at CI\'s bounded concurrency',
+    tier: 'full',
+  },
+  {
+    // Straight after `test`, as in ci.yml: these six need built packages.
+    id: 'cross-package-dist-tests',
+    cmd: 'pnpm run cross-package-dist-tests-check',
+    why: 'the same, for the six that need a built workspace package',
     tier: 'full',
   },
   { id: 'check-offline-assets', cmd: 'pnpm run check-offline-assets', why: 'no remote URL in the shipped bundles outside the reviewed allowlist', tier: 'full' },

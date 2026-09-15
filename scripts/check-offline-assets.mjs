@@ -97,8 +97,8 @@ const DEFAULT_ROOTS = [
  *     ALLOWED_HOSTS entry certifies that a string is NEVER FETCHED. The server
  *     contains `telemetry.adminium.dev` (fetched when telemetry is on),
  *     `api.github.com` (fetched when the update check is on) and now
- *     `adminium.dev` + `registry.npmjs.org` (fetched when the add-on catalog is
- *     on). Allowlisting those would mean writing "never fetched" next to four
+ *     `adminium.dev` + `downloads.adminium.dev` (fetched when the add-on catalog
+ *     is on). Allowlisting those would mean writing "never fetched" next to four
  *     hostnames that are fetched — which does not tighten this gate, it empties
  *     it, and it would do so silently for every future entry too.
  *
@@ -319,15 +319,15 @@ const ALLOWED_HOSTS = [
     test: /^adminium\.dev$/,
     optIn: true,
     why:
-      'the add-on catalog feed (32-add-on-distribution.md D2/D8; apps/server/src/add-ons/catalog.ts). Listed for the day the server is scanned or a main-process surface links it — it is fetched ONLY when the default-off ' +
+      'the add-on catalog feed (32-add-on-distribution.md D8, 48-self-hosted-downloads.md D7; apps/server/src/add-ons/catalog.ts). Listed for the day the server is scanned or a main-process surface links it — it is fetched ONLY when the default-off ' +
       '`addOns.catalogEnabled` setting is on AND `ADMINIUM_NETWORK_FEATURES` is on, either veto being sufficient. `add-on-network-isolation.test.ts` records connection attempts and asserts the recorder stays empty under either',
   },
   {
-    test: /^registry\.npmjs\.org$/,
+    test: /^downloads\.adminium\.dev$/,
     optIn: true,
     why:
-      'the npm packument + tarball, the other half of the add-on catalog (D2). Same two vetoes and the same recording-thrower proof as adminium.dev above. ' +
-      'npm is an INSTALL-TIME dependency only — nothing reaches it at boot or at serve time, so a deployment that never installs an add-on never contacts it',
+      'the add-on files, the other half of the add-on catalog (48-self-hosted-downloads.md D1/D4). Same two vetoes and the same recording-thrower proof as adminium.dev above. ' +
+      'An INSTALL-TIME dependency only — nothing reaches it at boot or at serve time, so a deployment that never downloads an add-on never contacts it',
   },
   {
     test: /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/,

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Fetch the bundled add-on set (32 D3, tasks 32-T11/32-T12).
+ * Fetch the bundled add-on set (32 D3, tasks 32-T11/32-T12; 48-self-hosted-downloads.md D1).
  *
  *   node scripts/release/fetch-add-ons-bundle.mjs <outDir> [--pins <file>]
  *
  * Downloads the exact-pinned first-party add-on tarballs from
- * `registry.npmjs.org` and writes, for each pin, the pair the server's boot
+ * `downloads.adminium.dev` and writes, for each pin, the pair the server's boot
  * seed (`apps/server/src/add-ons/store.ts` seedBundledPackages) expects in a
  * FLAT directory:
  *
@@ -27,8 +27,8 @@
  *     `crypto.timingSafeEqual` over the raw digest bytes BEFORE anything is
  *     written to its final name (temp-then-rename; a mismatch deletes the temp
  *     and exits 1 naming the key);
- *   - redirects are refused (`redirect: 'error'`) — the registry serves these
- *     URLs directly, and a redirect is how a request leaves the pinned host;
+ *   - redirects are refused (`redirect: 'error'`) — the download host serves
+ *     these files directly, and a redirect is how a request leaves it;
  *   - responses are read under a size cap, so a misbehaving endpoint cannot
  *     balloon the build.
  *
@@ -46,10 +46,8 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
-/** The only registry this script will talk to (32 D2). */
-const REGISTRY_BASE = 'https://registry.npmjs.org';
-/** Published names are `@adminiumjs/add-on-<key>`; see scripts/release/publish-npm.mjs. */
-const NPM_SCOPE = 'adminiumjs';
+/** The only host this script will talk to (48 D1): the release files' download folder. */
+const DOWNLOAD_BASE = 'https://downloads.adminium.dev';
 
 /** Aligned with the seed's filename grammar in apps/server/src/add-ons/store.ts. */
 const KEY_RE = /^[a-z][a-z0-9-]*$/;
@@ -126,7 +124,7 @@ async function loadPins(pinsPath) {
     }
     if (typeof pin.integrity !== 'string' || !SRI_RE.test(pin.integrity)) {
       // A pin without a verifiable integrity is refused outright — this script
-      // never falls back to "whatever the registry says".
+      // never falls back to "whatever the download host serves".
       fail(`pin ${pin.key}: "integrity" is missing or not a sha512 SRI string`);
     }
     if (seen.has(pin.key)) fail(`pin ${pin.key}: listed twice`);
@@ -149,14 +147,17 @@ function digestsMatch(bytes, integrity) {
 }
 
 /**
- * Download one tarball, reading the body under {@link MAX_TARBALL_BYTES}.
- * Scoped-package tarball URL shape, verified against the live registry:
- *   https://registry.npmjs.org/@<scope>/<name>/-/<name>-<version>.tgz
+ * Download one tarball, reading the body under {@link MAX_TARBALL_BYTES}, from
+ * the address the server builds for the same key and version (48 D4):
+ *   https://downloads.adminium.dev/add-ons/<key>/<key>-<version>.tgz
  */
 async function download(pin) {
-  const name = `add-on-${pin.key}`;
-  const url = `${REGISTRY_BASE}/@${NPM_SCOPE}/${name}/-/${name}-${pin.version}.tgz`;
-  const response = await fetch(url, { redirect: 'error' });
+  const url = `${DOWNLOAD_BASE}/add-ons/${pin.key}/${pin.key}-${pin.version}.tgz`;
+  const response = await fetch(url, {
+    redirect: 'error',
+    // Build machines are not browsers either; say what is asking (48 §4).
+    headers: { 'user-agent': 'Adminium-build/fetch-add-ons-bundle' },
+  });
   if (!response.ok || response.body === null) {
     throw new Error(`GET ${url} → ${response.status}`);
   }
@@ -199,7 +200,10 @@ async function main() {
     try {
       bytes = await download(pin);
     } catch (err) {
-      fail(`${pin.key}: download failed: ${err instanceof Error ? err.message : String(err)}`);
+      // undici reports every transport failure as a bare "fetch failed"; the
+      // cause (ENOTFOUND, a TLS error, the refused redirect) is what says why.
+      const cause = err instanceof Error && err.cause instanceof Error ? ` (${err.cause.message})` : '';
+      fail(`${pin.key}: download failed: ${err instanceof Error ? err.message : String(err)}${cause}`);
     }
 
     if (!digestsMatch(bytes, pin.integrity)) {
@@ -207,8 +211,8 @@ async function main() {
       // survives either, then refuse loudly enough to stop the whole build.
       await rm(`${target}.partial`, { force: true });
       fail(
-        `${pin.key}: integrity mismatch — the registry served bytes that do not match the pinned ` +
-          `sha512 for ${fileName}. Refusing to write it.`,
+        `${pin.key}: integrity mismatch — the download host served bytes that do not match the ` +
+          `pinned sha512 for ${fileName}. Refusing to write it.`,
       );
     }
 

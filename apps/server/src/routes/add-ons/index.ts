@@ -28,11 +28,12 @@
  *
  * 32-add-on-distribution.md §4.3 amends §5.1's `POST` to take a
  * `{ key, version }` reference into the on-disk store. The bytes are already
- * verified against the hash the npm packument and the release ledger agreed
- * on, and the tree is RE-VERIFIED here against its unpack-time pin before a
- * single byte is parsed — the data volume is shared, writable state, so
- * install never re-trusts bare disk bytes. A route that accepted a manifest
- * document would be a route that installs code nobody checked.
+ * verified against an independent hash — the bundled pin, the catalog row's
+ * ledger value, or the operator's own — and the tree is RE-VERIFIED here
+ * against its unpack-time pin before a single byte is parsed — the data
+ * volume is shared, writable state, so install never re-trusts bare disk
+ * bytes. A route that accepted a manifest document would be a route that
+ * installs code nobody checked.
  *
  * ─── The DDL runs BEFORE the meta row is written ───────────────────────────
  *
@@ -84,6 +85,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   CATALOG_ENABLED_SETTING,
   catalogSchema,
+  isCurrentCatalogFormat,
   pickLocalized,
   type CatalogClient,
 } from '../../add-ons/catalog.js';
@@ -617,7 +619,14 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          * installs have no cache and fall through to the manifest, which is the
          * case that stops the card being blank where it matters most.
          */
-        const parsedCatalog = cached === null ? null : catalogSchema.safeParse(cached.document);
+        // A cache in an earlier feed format (a server upgraded from 0.2.8 or
+        // before still holds its last v1 feed) counts as no cache: its rows are
+        // not offered, and `catalogFetchedAt` below says "never" so the page
+        // asks for a refresh instead of showing a fetch time for a list it hid.
+        const parsedCatalog =
+          cached === null || !isCurrentCatalogFormat(cached.document)
+            ? null
+            : catalogSchema.safeParse(cached.document);
         const feed = new Map(
           parsedCatalog?.success === true
             ? parsedCatalog.data.addOns.map((entry) => [entry.key, entry] as const)
@@ -715,7 +724,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         entries.sort((a, b) => (a.key < b.key ? -1 : 1));
         return {
           addOns: entries,
-          catalogFetchedAt: cached?.fetchedAt ?? null,
+          catalogFetchedAt: parsedCatalog?.success === true ? (cached?.fetchedAt ?? null) : null,
           onlineEnabled: (await deps.catalog?.isEnabled()) ?? false,
         };
       },
@@ -844,13 +853,13 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         // D4: sideload is a first-class source, not an escape hatch. It runs
         // the IDENTICAL verify-then-hardened-unpack path as a download — one
-        // code path for bundled, npm and upload — so an air-gapped operator
-        // gets the same guarantees, not a softer set.
+        // code path for bundled, downloaded and uploaded packages — so an
+        // air-gapped operator gets the same guarantees, not a softer set.
         const body = request.body;
         if (!Buffer.isBuffer(body) || body.byteLength === 0) {
           throw new ValidationFailedError(
-            'Send the package as a raw `application/octet-stream` body — the .tgz that ' +
-              '`npm pack @adminiumjs/add-on-<key>` produces.',
+            'Send the package as a raw `application/octet-stream` body — the add-on’s .tgz, ' +
+              'as downloaded from https://downloads.adminium.dev.',
           );
         }
         const { key, version, expectedSha512 } = request.query;

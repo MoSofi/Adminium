@@ -49,6 +49,39 @@ const emptyToUndefined = (value: unknown): unknown => (value === '' ? undefined 
  */
 export const SELF_ORIGIN_SENTINEL = 'self';
 
+/**
+ * One `ADMINIUM_CSP_IMG_HOSTS` entry as the CSP host-source it becomes, or
+ * `null` when it is not one this server will write into a header.
+ *
+ * Accepted: an explicit `https://` or `http://` scheme, a host (optionally led
+ * by `*.` for its subdomains), an optional port, and an optional trailing
+ * slash — normalized to lowercase with the slash dropped, so two spellings of
+ * one origin compare equal.
+ *
+ * Refused, each for a reason that is about the header rather than taste:
+ *
+ *  - a bare `*`, or a scheme alone (`https:`) — either one allows images from
+ *    ANY host, which is the exact thing this allow-list exists not to do: an
+ *    injected script could beacon data out through image requests;
+ *  - `*.com`-style wildcards (a single label after `*.`) — a whole top-level
+ *    domain is not an image host;
+ *  - a path — CSP would match it as a PREFIX, which reads like an exact rule
+ *    and is not one;
+ *  - quotes, keywords and whitespace — `'unsafe-inline'`, `data:` and friends
+ *    are not hosts, and a stray `;` would start a new directive.
+ */
+export function parseImageHostSource(value: string): string | null {
+  const match = /^(https?):\/\/(\*\.)?([a-z0-9.-]+)(?::(\d{1,5}))?\/?$/i.exec(value.trim());
+  if (match === null) return null;
+  const [, scheme = '', wildcard = '', host = '', port] = match;
+  const labels = host.toLowerCase().split('.');
+  const label = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+  if (!labels.every((part) => label.test(part))) return null;
+  if (wildcard !== '' && labels.length < 2) return null;
+  if (port !== undefined && (Number(port) < 1 || Number(port) > 65535)) return null;
+  return `${scheme.toLowerCase()}://${wildcard}${labels.join('.')}${port === undefined ? '' : `:${port}`}`;
+}
+
 export const envSchema = z.object({
   ADMINIUM_SECRET: z
     .string({ error: 'is required' })
@@ -427,6 +460,60 @@ export const envSchema = z.object({
         return origins;
       }),
   ),
+
+  /**
+   * Extra image origins for the Content-Security-Policy `img-src` directive —
+   * the dashboard's and every hosted app surface's, since the policy is one
+   * header on everything this server sends.
+   *
+   * WHY AN OPERATOR NEEDS IT. The policy allows images from this origin (plus
+   * the basemap tiles the map widgets draw), which is right for the dashboard's
+   * own assets and wrong for the apps it hosts: a till's menu, a shop's
+   * products and a studio's services store their pictures as URLs in the
+   * operator's OWN tables, pointing wherever the operator keeps them. Under the
+   * default the browser refuses every one, and the app shows broken images.
+   *
+   * AN ALLOW-LIST, NEVER A SCHEME. `https:` would have been one line and would
+   * let any script that ever lands on this origin send data anywhere as an
+   * image request. Naming hosts keeps that door as narrow as the operator's
+   * actual image hosting — see {@link parseImageHostSource} for what counts.
+   *
+   * Unset ⇒ exactly the built-in policy, byte for byte.
+   */
+  ADMINIUM_CSP_IMG_HOSTS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const entries = value
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0);
+        if (entries.length === 0) return undefined;
+        const hosts: string[] = [];
+        const refused: string[] = [];
+        for (const entry of entries) {
+          const source = parseImageHostSource(entry);
+          if (source === null) refused.push(entry);
+          else if (!hosts.includes(source)) hosts.push(source);
+        }
+        if (refused.length > 0) {
+          // Every bad entry named at once: fixing a list one boot at a time is
+          // how a config ends up half-applied.
+          ctx.addIssue({
+            code: 'custom',
+            message:
+              `${refused.map((entry) => `"${entry}"`).join(', ')} ` +
+              `${refused.length === 1 ? 'is' : 'are'} not an image origin — name a scheme and host, ` +
+              'e.g. https://images.example.com',
+          });
+          return z.NEVER;
+        }
+        return hosts;
+      }),
+  ),
 })
   .superRefine((env, ctx) => {
     // The disjointness rule from ADMINIUM_PUBLIC_API_ORIGINS' comment. Checked
@@ -485,6 +572,8 @@ const ENV_HINTS: Record<string, string> = {
     'CSV of exact origins allowed to hand this instance a connection string, e.g. https://adminium.dev — unset disables the bridge entirely',
   ADMINIUM_PUBLIC_API_ORIGINS:
     'CSV of exact origins allowed to reach /api/v1/public, plus the literal `self` for surfaces this instance hosts itself — unset means the public API is not registered at all; must be disjoint from ADMINIUM_CORS_ORIGINS',
+  ADMINIUM_CSP_IMG_HOSTS:
+    'CSV of image origins the dashboard and hosted app surfaces may load pictures from, e.g. https://images.example.com — a leading *. covers subdomains; no bare *, scheme alone or path',
 };
 
 export class EnvValidationError extends Error {

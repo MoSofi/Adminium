@@ -79,7 +79,7 @@ export interface StagedApp {
 }
 
 /**
- * The sha512 of a file, in npm's SRI spelling.
+ * The sha512 of a file, in Subresource-Integrity spelling (`sha512-<base64>`).
  *
  * ── WHAT THIS HASH IS AND IS NOT WORTH ─────────────────────────────────────
  *
@@ -90,7 +90,7 @@ export interface StagedApp {
  *
  * It is still the right default, because the alternative is asking every
  * operator to paste a hash by hand for a file they just picked off their own
- * disk. An operator who HAS an independent one — `npm pack --json` prints it —
+ * disk. An operator who HAS an independent one — every release publishes it —
  * can paste it, and then the check is real end to end: their value is what
  * gets sent, and the server's constant-time compare is what fails.
  */

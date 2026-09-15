@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two acquisition job kinds (32-add-on-distribution.md §4.3, D10).
+ * The two acquisition job kinds (32-add-on-distribution.md §4.3, D10;
+ * 48-self-hosted-downloads.md D3/D4).
  *
  * WHY JOBS AND NOT REQUEST HANDLERS. A download is a multi-second, multi-step
- * network operation (packument → ledger cross-check → tarball → verify →
- * hardened unpack), and the jobs substrate already carries every property that
+ * network operation (catalog row → download → verify → hardened unpack), and
+ * the jobs substrate already carries every property that
  * needs: retries with attempt counts, cooperative cancellation, and — the one
  * that decides it — progress published on the `jobs:<jobId>` WS topic, which
  * the Studio page consumes for free (26 §5.3's argument, applied to
@@ -13,7 +14,7 @@
  *
  * `add-on-download` IS INTERNAL-ONLY. Its payload names a `(key, version)` that
  * the route resolves against the CACHED CATALOG — that is where the integrity
- * value comes from, and it is the whole trust chain (D7). A `jobs.manage`
+ * value comes from, and it is the whole trust chain (48 D3). A `jobs.manage`
  * holder who could hand-craft this payload through the generic `POST /jobs`
  * would be choosing their own integrity value, which is the same as having
  * none. The registry's `internal` flag exists for exactly this class of payload
@@ -31,6 +32,7 @@ import { z } from 'zod';
 import {
   AddOnCatalogError,
   catalogSchema,
+  isCurrentCatalogFormat,
   type CatalogClient,
   type CatalogEntry,
 } from '../add-ons/catalog.js';
@@ -115,6 +117,15 @@ async function entryFromCache(
       'no catalog has been fetched yet; refresh the catalog before downloading',
     );
   }
+  // A server upgraded from 0.2.8 or earlier still holds the v1 feed it last
+  // fetched. That is not a malformed catalog, it is an old one — and the fix
+  // is the operator's one click, so say that rather than "not readable".
+  if (!isCurrentCatalogFormat(cached.document)) {
+    throw new AddOnCatalogError(
+      'UNKNOWN_ADD_ON',
+      'the cached catalog is from an earlier version of Adminium; refresh the catalog before downloading',
+    );
+  }
   const parsed = catalogSchema.safeParse(cached.document);
   if (!parsed.success) {
     throw new AddOnCatalogError('CATALOG_MALFORMED', 'the cached catalog is not readable');
@@ -146,34 +157,19 @@ export function registerAddOnAcquireHandlers(
       const entry = await entryFromCache(deps.store, key, version);
       if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
-      // D7 legs 1 + 2: pin from the packument, cross-check against the ledger
-      // value the catalog carries. A disagreement never reaches the network.
-      ctx.progress(20, { step: 'pin', message: 'Pinning the published version' });
-      let pinned;
-      try {
-        pinned = await deps.catalog.pinRelease(entry, ctx.signal);
-      } catch (err) {
-        await audit(
-          deps,
-          'add-on.verify-refused',
-          key,
-          { version, reason: err instanceof AddOnCatalogError ? err.reason : 'UNKNOWN' },
-          payload.userId,
-        );
-        throw err;
-      }
-      if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
-
-      ctx.progress(40, { step: 'download', message: `Downloading ${label}` });
+      // 48 D4: the client builds the address from the row's key and exact
+      // version. The row's `integrity` goes to the store below, untouched: the
+      // download host never supplies the value its own bytes are checked by.
+      ctx.progress(20, { step: 'download', message: `Downloading ${label}` });
       let tarball;
       try {
-        tarball = await deps.catalog.fetchTarball(pinned, ctx.signal);
+        tarball = await deps.catalog.fetchTarball(entry, ctx.signal);
       } catch (err) {
-        // Audited like the other two legs. A download that dies at the transport
-        // — a redirect off the registry, an over-cap body, a timeout — is
-        // exactly the kind of event §4.3 wants on the record, and leaving it as
-        // the one silent leg would have made the audit trail's completeness a
-        // matter of which failure happened to occur.
+        // Audited like the verify and unpack legs. A download that dies at the
+        // transport — a redirect off the download host, a 404, an over-cap
+        // body, a timeout — is exactly the kind of event §4.3 wants on the
+        // record, and leaving it as the one silent leg would have made the
+        // audit trail's completeness a matter of which failure happened to occur.
         await audit(
           deps,
           'add-on.download-failed',
@@ -186,7 +182,8 @@ export function registerAddOnAcquireHandlers(
       if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
       // Verify + hardened unpack + atomic stage, all inside the store. A hash
-      // mismatch or a hostile archive is refused there and audited here.
+      // mismatch or a hostile archive is refused there and audited here, under
+      // the same two actions the upload route uses for the same two refusals.
       ctx.progress(70, { step: 'verify', message: 'Verifying and unpacking' });
       let staged;
       try {
@@ -194,13 +191,13 @@ export function registerAddOnAcquireHandlers(
           key,
           version,
           tarball,
-          expectedIntegrity: pinned.integrity,
+          expectedIntegrity: entry.integrity,
         });
       } catch (err) {
         const reason = (err as { reason?: string }).reason ?? 'UNKNOWN';
         await audit(
           deps,
-          'add-on.unpack-refused',
+          reason === 'INTEGRITY_MISMATCH' ? 'add-on.verify-refused' : 'add-on.unpack-refused',
           key,
           { version, reason, bytes: tarball.byteLength },
           payload.userId,
@@ -213,7 +210,7 @@ export function registerAddOnAcquireHandlers(
         deps,
         'add-on.staged',
         key,
-        { version, integrity: staged.tree.integrity, source: 'npm', files: Object.keys(staged.tree.files).length },
+        { version, integrity: staged.tree.integrity, source: 'download', files: Object.keys(staged.tree.files).length },
         payload.userId,
       );
 
@@ -267,6 +264,18 @@ export function registerAddOnAcquireHandlers(
 }
 
 /**
+ * One attempt per download: a refused download is final (48 A16).
+ *
+ * A released file never changes, so a download refused for its fingerprint, a
+ * hostile archive, a 404 or a mismatched address is refused identically on
+ * every retry. With the worker's default of 3 attempts, one click cost three
+ * downloads, three audit rows and about 90 seconds of backoff before the page
+ * could say "failed". A transient network failure now costs the operator one
+ * more click instead.
+ */
+export const ADD_ON_DOWNLOAD_MAX_ATTEMPTS = 1;
+
+/**
  * Enqueue one download, idempotent per `(key, version)`.
  *
  * The route calls this rather than `POST /jobs` — see the internal-only note in
@@ -285,6 +294,7 @@ export async function enqueueAddOnDownload(
       ...(input.userId === undefined ? {} : { userId: input.userId }),
     },
     dedupeKey: downloadDedupeKey(input.key, input.version),
+    maxAttempts: ADD_ON_DOWNLOAD_MAX_ATTEMPTS,
   });
 }
 

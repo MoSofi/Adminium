@@ -104,7 +104,7 @@ export default {
       "file": "Fichier du paquet (.tgz)",
       "hint": "Pour un serveur sans internet. Vérifié exactement comme un téléchargement, il lui faut donc l’empreinte fournie.",
       "sha": "Intégrité (sha512-…)",
-      "shaHint": "La valeur `integrity` affichée par `npm pack --json`. Refusé si les octets n’y correspondent pas.",
+      "shaHint": "L’empreinte sha512- publiée avec la version, affichée à côté de son lien de téléchargement sur adminium.dev/marketplace. Refusé si les octets n’y correspondent pas.",
       "submit": "Téléverser",
       "title": "Téléverser un paquet",
       "uploaded": {
@@ -541,11 +541,11 @@ export default {
       "failed": "Échec de l’installation",
       "bundle": {
         "title": "Téléverser le paquet de l’application",
-        "hint": "Le .tgz produit par `npm pack` pour une surface compilée — il contient manifest.json et un dossier staff/ ou customer/.",
+        "hint": "Le fichier de publication de l’app (.tgz) — il contient manifest.json et un dossier staff/ ou customer/.",
         "file": "Fichier du paquet (.tgz)",
         "fileHint": "Rien n’est créé tant que vous n’avez pas confirmé à l’étape du plan de schéma.",
         "integrity": "Intégrité (facultatif)",
-        "integrityHint": "Collez la valeur sha512- de `npm pack --json` pour que le serveur vérifie ces octets exacts. Laissée vide, elle est calculée ici."
+        "integrityHint": "Collez l’empreinte sha512- publiée avec la version pour que le serveur vérifie ces octets exacts. Laissée vide, elle est calculée ici."
       },
       "database": {
         "title": "Dans quelle base de données installer ?",

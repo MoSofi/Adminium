@@ -19,7 +19,7 @@ import { gzipSync } from 'fflate';
 import { auditRepo, createSqliteMetaDb, firstRun, jobsRepo, type MetaDb } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Catalog, CatalogClient, CatalogEntry, PinnedRelease } from '../src/add-ons/catalog.js';
+import type { Catalog, CatalogClient, CatalogEntry } from '../src/add-ons/catalog.js';
 import { AddOnCatalogError } from '../src/add-ons/catalog.js';
 import { createAddOnStore, sha512Integrity, type AddOnStore } from '../src/add-ons/store.js';
 import {
@@ -78,7 +78,6 @@ const INTEGRITY = sha512Integrity(TARBALL);
 
 const ENTRY: CatalogEntry = {
   key: 'design-studio',
-  npmPackage: '@adminiumjs/add-on-design-studio',
   version: '1.0.0',
   integrity: INTEGRITY,
   provides: [],
@@ -92,7 +91,7 @@ const ENTRY: CatalogEntry = {
 };
 
 const CATALOG: Catalog = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   generatedAt: '2026-08-29T00:00:00Z',
   addOns: [ENTRY],
 };
@@ -103,13 +102,6 @@ function stubCatalog(overrides: Partial<CatalogClient> = {}): CatalogClient {
     isEnabled: async () => true,
     networkFeaturesAllowed: () => true,
     fetchCatalog: async () => CATALOG,
-    pinRelease: async (entry): Promise<PinnedRelease> => ({
-      key: entry.key,
-      npmPackage: entry.npmPackage,
-      version: entry.version,
-      integrity: entry.integrity,
-      tarballUrl: `https://registry.npmjs.org/${entry.npmPackage}/-/x-${entry.version}.tgz`,
-    }),
     fetchTarball: async () => TARBALL,
     ...overrides,
   };
@@ -217,7 +209,7 @@ describe('add-on-download', () => {
     expect(registryWith(stubCatalog()).get(ADD_ON_DOWNLOAD_KIND)?.internal).toBe(true);
   });
 
-  it('pins, downloads, verifies, unpacks and stages the package', async () => {
+  it('downloads, verifies, unpacks and stages the package', async () => {
     const registry = registryWith(stubCatalog());
     const ctx = context();
     const result = await registry
@@ -230,19 +222,15 @@ describe('add-on-download', () => {
     // The tree pin was recorded, so 26's install can re-verify it.
     await expect(store.verifyTree('design-studio', '1.0.0')).resolves.toBeDefined();
 
-    expect(ctx.steps.map((s) => s.step)).toEqual([
-      'catalog',
-      'pin',
-      'download',
-      'verify',
-      'staged',
-    ]);
+    // No pin step (48 D3): the catalog row's integrity is the whole trust
+    // chain, and it goes to the store untouched.
+    expect(ctx.steps.map((s) => s.step)).toEqual(['catalog', 'download', 'verify', 'staged']);
     expect(ctx.steps.at(-1)?.pct).toBe(100);
 
     const rows = await auditRows();
     expect(rows.map((r) => r.action)).toEqual(['add-on.staged']);
     expect(rows[0]?.changes).toMatchObject({
-      after: { key: 'design-studio', version: '1.0.0', source: 'npm' },
+      after: { key: 'design-studio', version: '1.0.0', source: 'download' },
     });
   });
 
@@ -270,25 +258,10 @@ describe('add-on-download', () => {
     expect(fetchTarball).not.toHaveBeenCalled();
   });
 
-  it('audits a verify refusal when the registry and the ledger disagree', async () => {
-    const registry = registryWith(
-      stubCatalog({
-        pinRelease: async () => {
-          throw new AddOnCatalogError('LEDGER_MISMATCH', 'registry and ledger disagree');
-        },
-      }),
-    );
-    await expect(
-      registry.get(ADD_ON_DOWNLOAD_KIND)!.run({ key: 'design-studio', version: '1.0.0' }, context()),
-    ).rejects.toMatchObject({ reason: 'LEDGER_MISMATCH' });
-
-    const rows = await auditRows();
-    expect(rows.map((r) => r.action)).toEqual(['add-on.verify-refused']);
-    expect(rows[0]?.changes).toMatchObject({ after: { reason: 'LEDGER_MISMATCH' } });
-    expect(await store.keys()).toEqual([]);
-  });
-
-  it('audits an unpack refusal when the delivered bytes are not what was pinned', async () => {
+  it('audits a verify refusal when the downloaded bytes are not what the catalog row names', async () => {
+    // The download host serves other bytes than the release ledger recorded —
+    // tampered, corrupted, or a challenge page with a 200. The store refuses
+    // them against the row's integrity, and the row is the only hash involved.
     const tampered = packageTarball({ 'manifest.json': '{}', 'dist/client.js': 'PWNED' });
     const registry = registryWith(stubCatalog({ fetchTarball: async () => tampered }));
 
@@ -297,9 +270,51 @@ describe('add-on-download', () => {
     ).rejects.toMatchObject({ reason: 'INTEGRITY_MISMATCH' });
 
     const rows = await auditRows();
-    expect(rows.map((r) => r.action)).toEqual(['add-on.unpack-refused']);
+    // The same action the upload route records for the same refusal.
+    expect(rows.map((r) => r.action)).toEqual(['add-on.verify-refused']);
     expect(rows[0]?.changes).toMatchObject({ after: { reason: 'INTEGRITY_MISMATCH' } });
     expect(await store.keys()).toEqual([]);
+  });
+
+  it('audits an unpack refusal when bytes that match their hash are a hostile archive', async () => {
+    // A matching hash proves where the bytes came from, not that they are safe
+    // to unpack: the hardened unpack still runs, and refuses.
+    const hostile = packageTarball({ '../escape.txt': 'x', 'manifest.json': '{}' });
+    await store.writeCatalogCache(
+      { ...CATALOG, addOns: [{ ...ENTRY, integrity: sha512Integrity(hostile) }] },
+      1_700_000_000_000,
+    );
+    const registry = registryWith(stubCatalog({ fetchTarball: async () => hostile }));
+
+    await expect(
+      registry.get(ADD_ON_DOWNLOAD_KIND)!.run({ key: 'design-studio', version: '1.0.0' }, context()),
+    ).rejects.toMatchObject({ reason: 'PATH_TRAVERSAL' });
+
+    const rows = await auditRows();
+    expect(rows.map((r) => r.action)).toEqual(['add-on.unpack-refused']);
+    expect(rows[0]?.changes).toMatchObject({ after: { reason: 'PATH_TRAVERSAL' } });
+    expect(await store.keys()).toEqual([]);
+  });
+
+  it('asks for a refresh, without downloading, when the cache holds an earlier feed format', async () => {
+    // A server upgraded from 0.2.8 still holds the last v1 feed it fetched.
+    await store.writeCatalogCache(
+      {
+        schemaVersion: 1,
+        generatedAt: '2026-08-29T00:00:00Z',
+        addOns: [{ ...ENTRY, npmPackage: '@adminiumjs/add-on-design-studio' }],
+      },
+      1_700_000_000_000,
+    );
+    const fetchTarball = vi.fn();
+    const registry = registryWith(stubCatalog({ fetchTarball: fetchTarball as never }));
+
+    const failure = registry
+      .get(ADD_ON_DOWNLOAD_KIND)!
+      .run({ key: 'design-studio', version: '1.0.0' }, context());
+    await expect(failure).rejects.toMatchObject({ reason: 'UNKNOWN_ADD_ON' });
+    await expect(failure).rejects.toThrow(/refresh the catalog/);
+    expect(fetchTarball).not.toHaveBeenCalled();
   });
 
   it('stops on cancellation without staging anything', async () => {
@@ -320,20 +335,12 @@ describe('add-on-download', () => {
     // and keep filling memory until the request timeout fired. The signal has
     // to reach the client.
     const seen: Array<AbortSignal | undefined> = [];
+    const asked: Array<{ key: string; version: string }> = [];
     const registry = registryWith(
       stubCatalog({
-        pinRelease: async (entry, signal) => {
+        fetchTarball: async (entry, signal) => {
           seen.push(signal);
-          return {
-            key: entry.key,
-            npmPackage: entry.npmPackage,
-            version: entry.version,
-            integrity: entry.integrity,
-            tarballUrl: `https://registry.npmjs.org/x/-/x-${entry.version}.tgz`,
-          };
-        },
-        fetchTarball: async (_pinned, signal) => {
-          seen.push(signal);
+          asked.push({ key: entry.key, version: entry.version });
           return TARBALL;
         },
       }),
@@ -341,15 +348,33 @@ describe('add-on-download', () => {
 
     const ctx = context();
     await registry.get(ADD_ON_DOWNLOAD_KIND)!.run({ key: 'design-studio', version: '1.0.0' }, ctx);
-    expect(seen).toHaveLength(2);
-    for (const signal of seen) expect(signal).toBe(ctx.signal);
+    expect(seen).toEqual([ctx.signal]);
+    // And the client is handed the cached row's own key and exact version.
+    expect(asked).toEqual([{ key: 'design-studio', version: '1.0.0' }]);
   });
 
-  it('audits a transport failure on the tarball leg', async () => {
+  it('audits a download the host does not have', async () => {
     const registry = registryWith(
       stubCatalog({
         fetchTarball: async () => {
-          throw new AddOnCatalogError('REDIRECTED', 'the registry tried to bounce us');
+          throw new AddOnCatalogError('TARBALL_NOT_FOUND', 'the download host answered 404');
+        },
+      }),
+    );
+    await expect(
+      registry.get(ADD_ON_DOWNLOAD_KIND)!.run({ key: 'design-studio', version: '1.0.0' }, context()),
+    ).rejects.toMatchObject({ reason: 'TARBALL_NOT_FOUND' });
+
+    const rows = await auditRows();
+    expect(rows.map((r) => r.action)).toEqual(['add-on.download-failed']);
+    expect(rows[0]?.changes).toMatchObject({ after: { reason: 'TARBALL_NOT_FOUND' } });
+  });
+
+  it('audits a transport failure on the download leg', async () => {
+    const registry = registryWith(
+      stubCatalog({
+        fetchTarball: async () => {
+          throw new AddOnCatalogError('REDIRECTED', 'the download host tried to bounce us');
         },
       }),
     );
@@ -399,5 +424,14 @@ describe('enqueue idempotency (D10)', () => {
     const stored = await jobsRepo(meta).findById(job.id);
     expect(stored?.kind).toBe(ADD_ON_DOWNLOAD_KIND);
     expect(stored?.payload).toMatchObject({ key: 'design-studio', userId: 'usr_1' });
+  });
+
+  it('gives a download exactly one attempt, so a refusal is final (48 A16)', async () => {
+    const job = await enqueueAddOnDownload(meta, { key: 'design-studio', version: '1.0.0' });
+    expect(job.maxAttempts).toBe(1);
+    expect((await jobsRepo(meta).findById(job.id))?.maxAttempts).toBe(1);
+    // A refresh is a different animal: the feed can recover between attempts.
+    const refresh = await enqueueCatalogRefresh(meta);
+    expect(refresh.maxAttempts).toBe(3);
   });
 });

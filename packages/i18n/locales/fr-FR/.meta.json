@@ -13869,7 +13869,7 @@
   },
   "studio.addOns.sideload.shaHint": {
     "status": "mt",
-    "srcHash": "acf2d4d7916d"
+    "srcHash": "37872ed86ae8"
   },
   "studio.addOns.sideload.submit": {
     "status": "mt",
@@ -15181,7 +15181,7 @@
   },
   "studio.hostedApps.install.bundle.hint": {
     "status": "mt",
-    "srcHash": "3f5f6c113c69"
+    "srcHash": "ec5af2c90b50"
   },
   "studio.hostedApps.install.bundle.integrity": {
     "status": "mt",
@@ -15189,7 +15189,7 @@
   },
   "studio.hostedApps.install.bundle.integrityHint": {
     "status": "mt",
-    "srcHash": "a3dc02e7f963"
+    "srcHash": "44ce763fded4"
   },
   "studio.hostedApps.install.bundle.title": {
     "status": "mt",

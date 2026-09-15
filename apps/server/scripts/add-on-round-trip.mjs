@@ -124,7 +124,7 @@ const KEEP = process.argv.includes('--keep');
  *
  * Not a separate script, because the thing being asserted is that it IS the
  * same loop: the bundled set browses and installs, a sideloaded tarball with an
- * operator-supplied hash installs, and every path that would reach a registry
+ * operator-supplied hash installs, and every path that would reach the network
  * refuses without trying. A second script would drift from this one and would
  * stop proving that.
  */
@@ -133,9 +133,11 @@ const AIR_GAPPED = process.argv.includes('--air-gapped');
 /**
  * `--online-catalog` adds 32 acceptance #1's CATALOG LEG on the end of the
  * default loop: switch the online catalog on, refresh from the real
- * `adminium.dev/marketplace/catalog.json`, download one add-on from the real
- * registry (packument pin → ledger cross-check → hardened unpack → staged),
- * and install it from the stage. It reaches the live internet by design —
+ * `adminium.dev/marketplace/v2/catalog.json`, download one add-on from the real
+ * `downloads.adminium.dev` (catalog row → download → verify against the row's
+ * ledger integrity → hardened unpack → staged), install it from the stage, and
+ * refuse a copy of that file with one bit flipped
+ * (48-self-hosted-downloads.md §3 gate 6). It reaches the live internet by design —
  * that is the acceptance — so it is a flag rather than the default, and it
  * contradicts `--air-gapped` outright.
  */
@@ -214,7 +216,7 @@ async function api(method, path, { body, raw, query, cookie: as = cookie, header
  * Polls `GET /api/v1/jobs/:id` until the job leaves `queued`/`running`, and
  * returns the terminal status string. The online leg's two jobs both talk to
  * the live internet, so the deadline is generous rather than tight — a slow
- * registry is not a failed acceptance.
+ * download host is not a failed acceptance.
  */
 async function waitForJob(jobId, deadlineMs = 120_000) {
   const startedAt = Date.now();
@@ -223,6 +225,10 @@ async function waitForJob(jobId, deadlineMs = 120_000) {
     // The jobs route wraps its view: `{ data: { status, … } }` (§1.5 shape).
     const jobStatus = res.json?.data?.status ?? `HTTP ${String(res.status)}`;
     if (jobStatus !== 'pending' && jobStatus !== 'queued' && jobStatus !== 'running') {
+      // A failed job's reason is the one thing its status cannot say.
+      if (jobStatus !== 'succeeded' && typeof res.json?.data?.lastError === 'string') {
+        info(`job ${jobId} lastError: ${res.json.data.lastError.slice(0, 300)}`);
+      }
       return jobStatus;
     }
     if (Date.now() - startedAt > deadlineMs) return `timed out as ${jobStatus}`;
@@ -451,22 +457,28 @@ async function main() {
   info([...kinds].map(([k, v]) => `${k}=${v}`).join('  '));
 
   for (const [key, kind] of kinds) {
+    // Both refusals below send the body shape the route accepts, `{credentials}`.
+    // An earlier draft sent `{values}`, which the schema refused before either
+    // rule ran, so both checks passed without testing the rule they name.
     if (kind === 'none') {
-      const res = await api('POST', `/api/v1/add-ons/${key}/connect`, { body: { values: {} } });
+      const res = await api('POST', `/api/v1/add-ons/${key}/connect`, {
+        body: { credentials: { anything: 'x' } },
+      });
       check(
-        res.status >= 400,
+        res.status === 422 && /needs no connection/.test(res.json?.error?.message ?? ''),
         `${key}: connect kind "none" refuses a credential (${String(res.status)}) — there is nothing to connect`,
       );
     }
     if (kind === 'api-key') {
       // The manifest's own `secret: true` setting keys; anything else is
-      // refused, which is asserted right after.
-      const manifestKeys = await api('GET', `/api/v1/add-ons/${key}/plan`);
-      void manifestKeys;
+      // refused, and refused by name.
       const bad = await api('POST', `/api/v1/add-ons/${key}/connect`, {
-        body: { values: { not_a_real_setting: 'x' } },
+        body: { credentials: { not_a_real_setting: 'x' } },
       });
-      check(bad.status >= 400, `${key}: an unknown credential field is refused (${String(bad.status)})`);
+      check(
+        bad.status === 422 && (bad.json?.error?.details?.unknown ?? []).includes('not_a_real_setting'),
+        `${key}: an unknown credential field is refused by name (${String(bad.status)})`,
+      );
     }
     if (kind === 'oauth2') {
       // The operator's OWN registration with the provider. The client secret
@@ -551,7 +563,7 @@ async function main() {
 
   // ── 32 acceptance #2 — the same loop, with no network at all ─────────────
   if (AIR_GAPPED) {
-    step('32 acceptance #2 — every path to a registry refuses, without trying');
+    step('32 acceptance #2 — every path to the network refuses, without trying');
 
     const browse = await api('GET', '/api/v1/add-ons/catalog');
     check(browse.status === 200, `browsing still works offline (${String(browse.status)})`);
@@ -575,7 +587,7 @@ async function main() {
     const refresh = await api('POST', '/api/v1/add-ons/catalog/refresh');
     check(
       refresh.status >= 400,
-      `refresh refuses (${String(refresh.status)}) rather than reaching a registry`,
+      `refresh refuses (${String(refresh.status)}) rather than reaching the network`,
     );
 
     const download = await api('POST', '/api/v1/add-ons/download', {
@@ -597,7 +609,7 @@ async function main() {
 
   // ── 32 acceptance #1 — the catalog leg, against the real feed ─────────────
   if (ONLINE_CATALOG) {
-    step('32 acceptance #1 — the catalog leg: live feed, live registry, one real download');
+    step('32 acceptance #1 — the catalog leg: live v2 feed, live download host, one real download');
 
     const toggled = await api('PUT', '/api/v1/add-ons/catalog', { body: { enabled: true } });
     check(
@@ -615,7 +627,7 @@ async function main() {
     const refreshOutcome = await waitForJob(refresh.json.jobId);
     check(
       refreshOutcome === 'succeeded',
-      `catalog-refresh job ${refreshOutcome} — adminium.dev answered with the live feed`,
+      `catalog-refresh job ${refreshOutcome} — adminium.dev answered with the live v2 feed`,
     );
 
     const browse = await api('GET', '/api/v1/add-ons/catalog');
@@ -631,10 +643,11 @@ async function main() {
     // feed's contribution is proven two checks down instead, where a
     // discarded key can only be listed at all because the remote feed lists it.
 
-    // One REAL download: packument pin → ledger cross-check → tarball →
-    // hardened unpack → staged. Uninstall AND discard the upload-era stage
-    // first — a stage survives uninstall by design, and the first draft of
-    // this leg read that leftover as proof of a download that never ran.
+    // One REAL download: catalog row → downloads.adminium.dev → verify against
+    // the row's ledger integrity → hardened unpack → staged. Uninstall AND
+    // discard the upload-era stage first — a stage survives uninstall by
+    // design, and the first draft of this leg read that leftover as proof of a
+    // download that never ran.
     await api('DELETE', '/api/v1/add-ons/holiday-calendars');
     await api('DELETE', '/api/v1/add-ons/staged/holiday-calendars/1.0.0');
     const cleared = await api('GET', '/api/v1/add-ons/catalog');
@@ -657,7 +670,7 @@ async function main() {
     const dlOutcome = await waitForJob(dl.json.jobId);
     check(
       dlOutcome === 'succeeded',
-      `add-on-download job ${dlOutcome} — registry.npmjs.org served bytes matching pin AND ledger`,
+      `add-on-download job ${dlOutcome} — downloads.adminium.dev served bytes matching the ledger`,
     );
 
     const after = await api('GET', '/api/v1/add-ons/catalog');
@@ -673,6 +686,45 @@ async function main() {
     );
     const cleanup = await api('DELETE', '/api/v1/add-ons/holiday-calendars');
     check(cleanup.status === 200, 'and uninstalls again, leaving the loop where it started');
+
+    // A BIT-FLIPPED FILE IS REFUSED (48 §3 gate 6). The live host cannot be
+    // made to serve wrong bytes, so the flip happens here: this script fetches
+    // the same file from downloads.adminium.dev, changes one bit, and uploads it
+    // against the fingerprint the release recorded. Upload and download stage
+    // through one integrity check (store.stage → INTEGRITY_MISMATCH →
+    // `add-on.verify-refused`), so the server must refuse it and stage nothing.
+    // The download stage from above is discarded first, or "nothing staged"
+    // would be reading that leftover.
+    await api('DELETE', '/api/v1/add-ons/staged/holiday-calendars/1.0.0');
+    const released = PACKAGES.find((p) => p.key === 'holiday-calendars');
+    const served = await fetch(
+      'https://downloads.adminium.dev/add-ons/holiday-calendars/holiday-calendars-1.0.0.tgz',
+      { redirect: 'error', headers: { 'user-agent': 'adminium-round-trip' } },
+    );
+    const servedBytes = Buffer.from(await served.arrayBuffer());
+    const servedSri = `sha512-${createHash('sha512').update(servedBytes).digest('base64')}`;
+    check(
+      served.status === 200 && released !== undefined && servedSri === released.sha512,
+      `downloads.adminium.dev serves the released bytes to this script too (${String(served.status)})`,
+    );
+    const flipped = Buffer.from(servedBytes);
+    flipped[flipped.length >> 1] ^= 0x01;
+    const refused = await api('POST', '/api/v1/add-ons/upload', {
+      query: { key: 'holiday-calendars', version: '1.0.0', expectedSha512: released?.sha512 ?? servedSri },
+      raw: flipped,
+    });
+    check(
+      refused.status === 422 && refused.json?.error?.details?.reason === 'INTEGRITY_MISMATCH',
+      `a copy with one bit flipped is refused against that fingerprint (${String(refused.status)} ${String(refused.json?.error?.details?.reason)})`,
+    );
+    const afterFlip = await api('GET', '/api/v1/add-ons/catalog');
+    const flipRow = (afterFlip.json?.addOns ?? []).find((a) => a.key === 'holiday-calendars');
+    check(flipRow?.state === 'available', `and nothing was staged (${String(flipRow?.state)})`);
+    const flipAudit = await api('GET', '/api/v1/audit', { query: { limit: 100 } });
+    check(
+      (flipAudit.json?.data ?? flipAudit.json?.entries ?? []).some((r) => r.action === 'add-on.verify-refused'),
+      'and the refusal is audited as add-on.verify-refused',
+    );
   }
 
   // ── acceptance #5 — the egress refusal ────────────────────────────────────
@@ -742,9 +794,36 @@ async function main() {
 
   // ── acceptance #7 — no secret reaches the browser ─────────────────────────
   step('acceptance #7 — nothing in the list a browser reads is a credential');
+  // A NEEDLE FOR THE VALUE, NOT THE NAME. Since 34 §7.9 every add-on DTO carries
+  // its manifest's `settings` declaration so Studio can generate the form, and
+  // shipping-dhl declares a secret whose key IS `api_key` (label `…setting.apiKey`).
+  // Searching a reply for those names now finds the form's description and says
+  // nothing about secrets. So a real connect stores values nobody could guess,
+  // and the check is that they never come back. `connected` is asserted first:
+  // a connect that silently stored nothing would pass the absence checks by
+  // having nothing to leak.
+  const beforeConnect = await api('GET', '/api/v1/add-ons');
+  const holder = (beforeConnect.json?.addOns ?? []).find((a) => a.connectKind === 'api-key');
+  if (holder !== undefined) {
+    const secretKeys = (holder.settings ?? []).filter((s) => s.secret === true).map((s) => s.key);
+    const sentinel = `rt-secret-${String(process.pid)}-${String(Date.now())}`;
+    const credentials = Object.fromEntries(secretKeys.map((k, i) => [k, `${sentinel}-${String(i)}`]));
+    const connected = await api('POST', `/api/v1/add-ons/${holder.key}/connect`, { body: { credentials } });
+    check(
+      connected.status === 200 && connected.json?.addOn?.connected === true,
+      `${holder.key}: connected with ${String(secretKeys.length)} secret value(s) that must never come back (${String(connected.status)})`,
+    );
+    check(!connected.text.includes(sentinel), 'the connect reply carries none of them');
+    for (const path of ['/api/v1/add-ons', '/api/v1/add-ons/catalog', '/api/v1/bootstrap']) {
+      const res = await api('GET', path);
+      check(res.status === 200 && !res.text.includes(sentinel), `${path} carries none of them (${String(res.status)})`);
+    }
+  } else {
+    info('(no installed add-on connects with an API key, so no secret was stored to look for)');
+  }
   const final = await api('GET', '/api/v1/add-ons');
   const asBrowserSeesIt = JSON.stringify(final.json);
-  for (const needle of ['api_key', 'apiKey', 'accessToken', 'refreshToken', 'client_secret', PASSWORD]) {
+  for (const needle of ['accessToken', 'refreshToken', 'client_secret', PASSWORD]) {
     check(!asBrowserSeesIt.includes(needle), `the reply carries no "${needle}"`);
   }
 
