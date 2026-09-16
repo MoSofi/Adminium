@@ -74,7 +74,11 @@ code:
 | Host | What it serves |
 |---|---|
 | `adminium.dev` | The catalog index — a static JSON file of a few KB, listing each add-on's exact version and the sha512 its release recorded. |
-| `downloads.adminium.dev` | The add-on files themselves, one `.tgz` per released version. |
+| `downloads.adminium.dev` | The add-on files themselves, one `.tgz` per released version, under `/add-ons/`. |
+
+The same two hosts serve **apps**, under their own feed and their own `/apps/` folder, behind a
+switch of their own — see [Installing apps](/self-hosting/installing-apps/). Turning this one on
+says nothing about that one.
 
 There is no third host, no redirect following, and no `latest` resolution. The
 server builds each download address itself, from the add-on's key and exact

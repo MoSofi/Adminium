@@ -140,6 +140,11 @@ const AIR_GAPPED = process.argv.includes('--air-gapped');
  * (48-self-hosted-downloads.md §3 gate 6). It reaches the live internet by design —
  * that is the acceptance — so it is a flag rather than the default, and it
  * contradicts `--air-gapped` outright.
+ *
+ * It then runs the SAME leg for APPS (48 §6b G8): their own switch, their own
+ * feed document, and a real app file from the same bucket — the two halves of
+ * the marketplace share one transport and one bucket, so proving one proves
+ * nothing about the other.
  */
 const ONLINE_CATALOG = process.argv.includes('--online-catalog');
 if (ONLINE_CATALOG && AIR_GAPPED) {
@@ -605,6 +610,34 @@ async function main() {
       installed.length > 0,
       `${String(installed.length)} add-on(s) installed from an uploaded tarball with its own hash`,
     );
+
+    /*
+     * THE APP CATALOGUE IS A SECOND SWITCH (48 R2), so it is a second set of
+     * paths to the network — and an air-gap that covered only the add-on half
+     * would be no air-gap at all. Same four questions, asked of `/apps`.
+     */
+    const appBrowse = await api('GET', '/api/v1/apps/catalog');
+    check(
+      appBrowse.status === 200 && appBrowse.json?.onlineEnabled === false,
+      `the apps shelf browses offline and says so (${String(appBrowse.status)}, onlineEnabled=${String(appBrowse.json?.onlineEnabled)})`,
+    );
+    const appToggled = await api('PUT', '/api/v1/apps/catalog', { body: { enabled: true } });
+    check(
+      appToggled.json?.onlineEnabled === false && appToggled.json?.vetoed === true,
+      `the app switch is saved and VETOED by the environment (${JSON.stringify(appToggled.json)})`,
+    );
+    const appRefresh = await api('POST', '/api/v1/apps/catalog/refresh');
+    check(
+      appRefresh.status >= 400,
+      `the app refresh refuses (${String(appRefresh.status)}) rather than reaching the network`,
+    );
+    const appDownload = await api('POST', '/api/v1/apps/download', {
+      body: { key: 'clients', version: '0.1.1' },
+    });
+    check(
+      appDownload.status >= 400,
+      `the app download refuses (${String(appDownload.status)}) — uploading a bundle is the only way in here`,
+    );
   }
 
   // ── 32 acceptance #1 — the catalog leg, against the real feed ─────────────
@@ -649,7 +682,9 @@ async function main() {
     // design, and the first draft of this leg read that leftover as proof of a
     // download that never ran.
     await api('DELETE', '/api/v1/add-ons/holiday-calendars');
-    await api('DELETE', '/api/v1/add-ons/staged/holiday-calendars/1.0.0');
+    for (const packed of PACKAGES.filter((p) => p.key === 'holiday-calendars')) {
+      await api('DELETE', `/api/v1/add-ons/staged/holiday-calendars/${packed.version}`);
+    }
     const cleared = await api('GET', '/api/v1/add-ons/catalog');
     const clearedRow = (cleared.json?.addOns ?? []).find((a) => a.key === 'holiday-calendars');
     check(
@@ -660,8 +695,17 @@ async function main() {
       clearedRow?.source === 'catalog',
       `and that row exists only because the LIVE FEED lists it (source: ${String(clearedRow?.source)})`,
     );
+    /*
+     * THE VERSION COMES OFF THE ROW, never from this file. The first draft
+     * asked for 1.0.0 because that was what the feed listed the day it was
+     * written; the 1.0.1 release made that a download of a version the cached
+     * catalog no longer has, and the leg failed for a reason that had nothing
+     * to do with the property under test.
+     */
+    const offered = clearedRow?.version;
+    check(typeof offered === 'string', `the feed offers holiday-calendars@${String(offered)}`);
     const dl = await api('POST', '/api/v1/add-ons/download', {
-      body: { key: 'holiday-calendars', version: '1.0.0' },
+      body: { key: 'holiday-calendars', version: offered },
     });
     check(
       dl.status === 200 && typeof dl.json?.jobId === 'string',
@@ -678,7 +722,7 @@ async function main() {
     check(row?.state === 'staged', `holiday-calendars is staged (${String(row?.state)})`);
 
     const reinstall = await api('POST', '/api/v1/add-ons', {
-      body: { key: 'holiday-calendars', version: '1.0.0', attachTo: [] },
+      body: { key: 'holiday-calendars', version: offered, attachTo: [] },
     });
     check(
       reinstall.status === 200,
@@ -695,22 +739,35 @@ async function main() {
     // `add-on.verify-refused`), so the server must refuse it and stage nothing.
     // The download stage from above is discarded first, or "nothing staged"
     // would be reading that leftover.
-    await api('DELETE', '/api/v1/add-ons/staged/holiday-calendars/1.0.0');
-    const released = PACKAGES.find((p) => p.key === 'holiday-calendars');
+    await api('DELETE', `/api/v1/add-ons/staged/holiday-calendars/${String(offered)}`);
+    /*
+     * The fingerprint compared against is THE FEED'S, read from the feed
+     * itself. Not the browse row's `integrity` — that is the sha256 of the
+     * unpacked TREE, a different thing about a different artefact, and
+     * comparing a tarball's sha512 to it fails every time (it did). Not a local
+     * pack's either: a tarball on this machine is a copy, and the point of this
+     * check is what the release recorded. The address comes from the server's
+     * own constant, so the script cannot drift from it.
+     */
+    const { CATALOG_ENDPOINT } = await import(
+      new URL(`file://${join(serverRoot, 'dist', 'add-ons', 'catalog.js')}`)
+    );
+    const feed = await (await fetch(CATALOG_ENDPOINT, { redirect: 'error' })).json();
+    const feedRow = (feed.addOns ?? []).find((a) => a.key === 'holiday-calendars');
     const served = await fetch(
-      'https://downloads.adminium.dev/add-ons/holiday-calendars/holiday-calendars-1.0.0.tgz',
+      `https://downloads.adminium.dev/add-ons/holiday-calendars/holiday-calendars-${String(offered)}.tgz`,
       { redirect: 'error', headers: { 'user-agent': 'adminium-round-trip' } },
     );
     const servedBytes = Buffer.from(await served.arrayBuffer());
     const servedSri = `sha512-${createHash('sha512').update(servedBytes).digest('base64')}`;
     check(
-      served.status === 200 && released !== undefined && servedSri === released.sha512,
-      `downloads.adminium.dev serves the released bytes to this script too (${String(served.status)})`,
+      served.status === 200 && feedRow !== undefined && servedSri === feedRow.integrity,
+      `downloads.adminium.dev serves the bytes the feed vouches for (${String(served.status)}, ${servedSri === feedRow?.integrity ? 'sha512 matches' : `${servedSri} vs ${String(feedRow?.integrity)}`})`,
     );
     const flipped = Buffer.from(servedBytes);
     flipped[flipped.length >> 1] ^= 0x01;
     const refused = await api('POST', '/api/v1/add-ons/upload', {
-      query: { key: 'holiday-calendars', version: '1.0.0', expectedSha512: released?.sha512 ?? servedSri },
+      query: { key: 'holiday-calendars', version: offered, expectedSha512: feedRow?.integrity ?? servedSri },
       raw: flipped,
     });
     check(
@@ -725,6 +782,116 @@ async function main() {
       (flipAudit.json?.data ?? flipAudit.json?.entries ?? []).some((r) => r.action === 'add-on.verify-refused'),
       'and the refusal is audited as add-on.verify-refused',
     );
+
+    // ── 48 G8 — the APP leg, against the live app feed ────────────────────
+    /*
+     * The same loop for micro-SaaS apps: their own switch, their own document
+     * (`/marketplace/v2/apps.json`), and a real file out of the same bucket
+     * under `/apps/`. It stops at STAGED rather than installing: an app install
+     * needs a connection and writes tables, and this script seeds no connection
+     * — the install half is `apps/e2e/tests/app-install.spec.ts` and
+     * `apps/server/test/app-install.test.ts`. What only this can prove is that
+     * a row nothing local knows about became a file on disk, out of the real
+     * feed and the real host.
+     */
+    step('48 G8 — the app leg: live apps.json, live download host, one real app file');
+
+    const appSwitch = await api('PUT', '/api/v1/apps/catalog', { body: { enabled: true } });
+    check(
+      appSwitch.status === 200 &&
+        appSwitch.json?.onlineEnabled === true &&
+        appSwitch.json?.vetoed === false,
+      `the app switch turns on, un-vetoed (${JSON.stringify(appSwitch.json)})`,
+    );
+
+    const appRefresh = await api('POST', '/api/v1/apps/catalog/refresh');
+    check(
+      appRefresh.status === 200 && typeof appRefresh.json?.jobId === 'string',
+      `app-catalog-refresh enqueued (${String(appRefresh.status)})`,
+    );
+    const appRefreshOutcome = await waitForJob(appRefresh.json.jobId);
+    check(
+      appRefreshOutcome === 'succeeded',
+      `app-catalog-refresh job ${appRefreshOutcome} — adminium.dev answered with the live apps feed`,
+    );
+
+    const appBrowse = await api('GET', '/api/v1/apps/catalog');
+    check(
+      typeof appBrowse.json?.catalogFetchedAt === 'number',
+      'the apps shelf carries the fetch timestamp rather than null',
+    );
+    /*
+     * Nothing app-shaped is resident here, so every row IS the feed's — the
+     * opposite of the add-on half above, where local rows win the merge. The
+     * key and version are read off the row rather than written here: the feed
+     * lists whatever the pinned ledgers hold, and a hardcoded version would
+     * fail the day an app is released.
+     */
+    const installable = (appBrowse.json?.apps ?? []).filter(
+      (a) => a.source === 'catalog' && a.state === 'available' && a.needsNewerAdminium === null,
+    );
+    check(
+      installable.length > 0,
+      `the live app feed offers ${String(installable.length)} installable app(s) this server can take`,
+    );
+    const target = installable[0];
+    if (target !== undefined) {
+      info(`downloading ${target.key}@${target.version}`);
+      const appDl = await api('POST', '/api/v1/apps/download', {
+        body: { key: target.key, version: target.version },
+      });
+      check(
+        appDl.status === 200 && typeof appDl.json?.jobId === 'string',
+        `app download enqueued (${String(appDl.status)})`,
+      );
+      const appDlOutcome = await waitForJob(appDl.json.jobId);
+      check(
+        appDlOutcome === 'succeeded',
+        `app-download job ${appDlOutcome} — downloads.adminium.dev served bytes matching the feed's fingerprint`,
+      );
+
+      const appAfter = await api('GET', '/api/v1/apps/catalog');
+      const appRow = (appAfter.json?.apps ?? []).find((a) => a.key === target.key);
+      check(
+        appRow?.state === 'staged' && appRow?.source === 'disk',
+        `${String(target.key)} is on disk now, not merely offered (state: ${String(appRow?.state)}, source: ${String(appRow?.source)})`,
+      );
+
+      const appAudit = await api('GET', '/api/v1/audit', { query: { limit: 100 } });
+      check(
+        (appAudit.json?.data ?? appAudit.json?.entries ?? []).some(
+          (r) => r.action === 'app.staged',
+        ),
+        'and the download is audited as app.staged',
+      );
+
+      // Leave the stage as it was found.
+      const discarded = await api(
+        'DELETE',
+        `/api/v1/apps/staged/${String(target.key)}/${String(target.version)}`,
+      );
+      check(discarded.status === 200, 'and the downloaded stage is discarded again');
+    }
+
+    /*
+     * A release this server is TOO OLD FOR is listed and refused before any
+     * address is built (G8-D2). Only checked when the live feed happens to
+     * carry one — asserting it unconditionally would fail the day every
+     * released app is installable, which is the state we want.
+     */
+    const tooNew = (appBrowse.json?.apps ?? []).find((a) => a.needsNewerAdminium !== null);
+    if (tooNew !== undefined) {
+      const refusedDl = await api('POST', '/api/v1/apps/download', {
+        body: { key: tooNew.key, version: tooNew.needsNewerAdminium.version },
+      });
+      check(
+        refusedDl.status >= 400 &&
+          refusedDl.json?.error?.details?.reason === 'REQUIRES_NEWER_ADMINIUM',
+        `${String(tooNew.key)}@${String(tooNew.needsNewerAdminium.version)} is refused as REQUIRES_NEWER_ADMINIUM (${String(refusedDl.status)})`,
+      );
+    } else {
+      info('(the live app feed lists nothing this server is too old for)');
+    }
   }
 
   // ── acceptance #5 — the egress refusal ────────────────────────────────────

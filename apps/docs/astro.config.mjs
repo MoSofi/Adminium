@@ -197,6 +197,7 @@ export default defineConfig({
             { label: 'Telemetry', link: '/self-hosting/telemetry/' },
             { label: 'Export & restore', link: '/self-hosting/export-zip/' },
             { label: 'Installing add-ons', link: '/self-hosting/installing-add-ons/' },
+            { label: 'Installing apps', link: '/self-hosting/installing-apps/' },
           ],
         },
         {
