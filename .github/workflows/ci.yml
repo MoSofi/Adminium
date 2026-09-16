@@ -16,9 +16,15 @@ jobs:
   verify:
     name: verify
     runs-on: ubuntu-latest
-    # 25, not 20: collecting v8 coverage adds roughly 15% to the test leg, and a
-    # cache-cold verify is the run with no headroom.
-    timeout-minutes: 25
+    # 40, not 25: the 0.2.9 wave (the app catalogue's 65 new server and dashboard
+    # tests) pushed a cache-cold verify past the old ceiling and the job was cut
+    # mid-`turbo run test` — GitHub reports that as "cancelled", which reads like
+    # somebody pressed a button rather than like a budget. The leg is genuinely
+    # long: coverage everywhere, `--concurrency=2`, and TEST_POSTGRES_URL /
+    # TEST_MYSQL_URL un-skip the live adapter suites that a laptop never runs.
+    # At the cut it had finished dashboard (179 files), server (206) and desktop
+    # (18) in 14 minutes and was still inside the remaining packages.
+    timeout-minutes: 40
     services:
       # M9 wave-1 follow-up: TEST_MYSQL_URL un-skips the @adminium/adapter-mysql
       # live suite (packages/adapter-mysql/test/harness.ts env gate).
