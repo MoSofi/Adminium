@@ -44,9 +44,16 @@ function tarball(files: Record<string, string>): Buffer {
   return Buffer.from(gzipSync(Buffer.concat(members.map((m) => Buffer.from(m)))));
 }
 
-/** The key both specs use, so neither leaves a staged package behind. */
+/** The key the app specs share, so none leaves a staged package behind. */
 export const APP_KEY = 'e2e-desk';
 export const APP_VERSION = '1.0.0';
+/**
+ * A second version of the same app, for the update leg (48 G8-D6). Staging it
+ * beside 1.0.0 is what gives the installed row an update that needs NO
+ * download — which is how `app-catalogue.spec.ts` exercises Update without this
+ * suite ever reaching downloads.adminium.dev.
+ */
+export const APP_NEXT_VERSION = '1.1.0';
 
 /** Marks the served bundle, so "is this really our bundle" is one assertion. */
 export const STAFF_MARK = 'e2e-app-staff';
@@ -86,13 +93,13 @@ const TABLES = {
   ],
 } as const;
 
-function manifest(shape: keyof typeof TABLES): Record<string, unknown> {
+function manifest(shape: keyof typeof TABLES, version: string): Record<string, unknown> {
   return {
     kind: 'app',
     manifestVersion: 1,
     key: APP_KEY,
     name: 'E2E Desk',
-    version: APP_VERSION,
+    version,
     publisher: { id: 'adminium', name: 'Adminium', url: 'https://adminium.dev' },
     license: 'AGPL-3.0-only',
     description: { key: 'mft.e2e.desc', fallback: 'A bundle built by the e2e suite.' },
@@ -120,11 +127,19 @@ export interface Bundle {
   integrity: string;
 }
 
-export function appBundle(shape: keyof typeof TABLES = 'reuse'): Bundle {
+/**
+ * `version` also lands IN THE SERVED HTML, which is the only way a test can
+ * tell one version's tree from another's over HTTP: an update that swapped the
+ * row but kept serving the old files would otherwise answer exactly the same.
+ */
+export function appBundle(
+  shape: keyof typeof TABLES = 'reuse',
+  version: string = APP_VERSION,
+): Bundle {
   const buffer = tarball({
-    'manifest.json': JSON.stringify(manifest(shape)),
-    'staff/index.html': `<!doctype html><html lang="en"><head><title>Staff</title></head><body data-app="${STAFF_MARK}">Staff</body></html>`,
-    'customer/index.html': `<!doctype html><html lang="en"><head><title>Customer</title></head><body data-app="${CUSTOMER_MARK}">Customer</body></html>`,
+    'manifest.json': JSON.stringify(manifest(shape, version)),
+    'staff/index.html': `<!doctype html><html lang="en"><head><title>Staff</title></head><body data-app="${STAFF_MARK}" data-version="${version}">Staff</body></html>`,
+    'customer/index.html': `<!doctype html><html lang="en"><head><title>Customer</title></head><body data-app="${CUSTOMER_MARK}" data-version="${version}">Customer</body></html>`,
     'staff/surface.json': JSON.stringify({
       v: 1,
       appLabels: { 'en-US': 'E2E Desk' },

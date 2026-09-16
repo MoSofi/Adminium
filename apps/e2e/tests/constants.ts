@@ -126,6 +126,20 @@ export function sqliteSourcePath(): string {
 }
 
 /**
+ * Where the boot script records its data dir (`scripts/e2e-server.mjs` writes
+ * the identical path).
+ *
+ * The data dir is a per-boot mkdtemp — two servers run at once — so a spec that
+ * needs to place a file inside it reads the path from here rather than guessing
+ * it. Used by the app-catalogue leg, which seeds the cached catalogue document
+ * by hand: writing it for real is a refresh JOB that fetches adminium.dev, and
+ * this suite never reaches the internet.
+ */
+export function dataDirPointerPath(): string {
+  return join(tmpdir(), `adminium-e2e-datadir-${String(PORT)}.txt`);
+}
+
+/**
  * The DSN the T15 golden-enrichment wizard leg types in, per engine. sqlite uses
  * the deterministic seeded file; postgres/mysql point the new connection at the
  * already-seeded `E2E_DATABASE` (a second connection to the same DB, as the

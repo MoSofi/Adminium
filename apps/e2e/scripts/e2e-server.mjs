@@ -24,7 +24,7 @@
  */
 
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createServer as createHttpServer } from 'node:http';
@@ -113,6 +113,22 @@ const [{ loadCliEnv, openRuntime, composeServer }, { hashPassword }, { firstRun,
 // --- source database per engine -------------------------------------------------------
 
 const tempDir = mkdtempSync(join(tmpdir(), 'adminium-e2e-'));
+
+/**
+ * WHERE THE DATA DIR IS, at a path a spec can derive from the port.
+ *
+ * The data dir itself stays an mkdtemp: two servers (the shared one and the
+ * first-run one) run at once and a fixed path would have them share a store.
+ * But a spec sometimes has to put a file INTO it — the app catalogue's cache
+ * (48 G8-D3) is written only by a refresh JOB that fetches adminium.dev, and an
+ * e2e run must never reach the internet, so the cached document is seeded by
+ * hand instead. Same reasoning as `sqliteSourcePath()` in tests/constants.ts:
+ * one deterministic path both processes compute, rather than a temp path one of
+ * them has to guess.
+ */
+const dataDirPointer = join(tmpdir(), `adminium-e2e-datadir-${String(PORT)}.txt`);
+writeFileSync(dataDirPointer, tempDir, { mode: 0o600 });
+
 /** Deterministic sqlite source file (set in prepareSourceDb) — removed on exit. */
 let sqliteSourceFile = null;
 const fixture = (engineDir, file) =>
@@ -232,6 +248,7 @@ let smtpSink = null;
 let sinkHttp = null;
 const cleanup = () => {
   rmSync(tempDir, { recursive: true, force: true });
+  rmSync(dataDirPointer, { force: true });
   if (sqliteSourceFile !== null) rmSync(sqliteSourceFile, { force: true });
 };
 

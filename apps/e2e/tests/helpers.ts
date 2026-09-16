@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { readFileSync } from 'node:fs';
+
 import { expect, type Page } from '@playwright/test';
 
-import { ADMIN_EMAIL, ADMIN_PASSWORD, SEED_CONNECTION_NAME } from './constants.js';
+import {
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  SEED_CONNECTION_NAME,
+  dataDirPointerPath,
+} from './constants.js';
 
 /**
  * Land in the app shell as the seeded super admin.
@@ -78,4 +85,20 @@ export function gridSearch(page: Page, table: string | RegExp) {
  */
 export function recordPage(page: Page) {
   return page.locator('[data-part="page-record"]');
+}
+
+/**
+ * The running server's data dir, from the pointer its boot script wrote.
+ *
+ * Only for a spec that must place a file where the server will read it; the
+ * store's own routes are the way in everywhere else.
+ */
+export function serverDataDir(): string {
+  try {
+    return readFileSync(dataDirPointerPath(), 'utf8').trim();
+  } catch {
+    throw new Error(
+      `no data-dir pointer at ${dataDirPointerPath()} — is this run using scripts/e2e-server.mjs?`,
+    );
+  }
 }

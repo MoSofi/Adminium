@@ -8,6 +8,14 @@
  * violations is the gate; lesser counts are annotated per state so a
  * regression in them is visible in the report.
  *
+ * The online app catalogue adds two more (48 §6b G8-D7): the shelf with
+ * catalogue rows on it — a switch, a warn-toned "needs a newer Adminium" line
+ * and a disabled Install, none of which the offline shelf paints — and the
+ * update consent dialog, which is a second DDL block inside a modal. Both are
+ * reached WITHOUT the network: the cached catalogue document is written into
+ * the store by hand and the update is to a version already on disk, exactly as
+ * `app-catalogue.spec.ts` does it.
+ *
  * THE SWEEP ASSERTS IT ANALYSED SOMETHING. An `AxeBuilder` pointed at a
  * selector that matches nothing returns zero violations and reports success, so
  * every state also asserts a floor on `passes` — without it this file could go
@@ -23,11 +31,14 @@
  * Theme is the signed-in user's own pref, restored afterwards, because the
  * suite shares one seeded account and runs serially.
  */
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
-import { APP_KEY, APP_VERSION, appBundle } from './appBundle.js';
-import { signIn, seededConnectionId } from './helpers.js';
+import { APP_KEY, APP_NEXT_VERSION, APP_VERSION, appBundle } from './appBundle.js';
+import { signIn, seededConnectionId, serverDataDir } from './helpers.js';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 const BLOCKING = new Set(['critical', 'serious']);
@@ -104,6 +115,55 @@ async function installOverApi(page: Page, connectionId: string): Promise<void> {
   expect(installed.ok(), await installed.text()).toBe(true);
 }
 
+/**
+ * The cached catalogue document, written where the store reads it.
+ *
+ * A refresh is a JOB that fetches adminium.dev, and no sweep is worth an
+ * outbound call from CI — the file is the same one it would have written.
+ */
+function catalogueCacheFile(): string {
+  return join(serverDataDir(), 'apps', '.catalog-cache.json');
+}
+
+async function withCatalogueOnline(page: Page): Promise<void> {
+  mkdirSync(join(serverDataDir(), 'apps'), { recursive: true });
+  writeFileSync(
+    catalogueCacheFile(),
+    `${JSON.stringify({
+      fetchedAt: Date.now(),
+      document: {
+        schemaVersion: 2,
+        generatedAt: new Date().toISOString(),
+        apps: [
+          {
+            key: 'e2e-future',
+            version: '2.0.0',
+            integrity: 'sha512-Yy5rnBbCoEEyi5SFAhXCd3gWGpQaqBRjocnSlS0cOG0=',
+            // The website's short locale codes, which is what the feed carries.
+            name: { en: 'E2E Future' },
+            tagline: { en: 'A release this server is too old for.' },
+            categories: ['operations'],
+            capabilities: [],
+            publisher: 'Adminium',
+            sides: ['staff'],
+            // No Adminium has this, so the warn line is earned, not rigged.
+            minAdminiumVersion: '99.0.0',
+          },
+        ],
+      },
+    })}\n`,
+    { mode: 0o600 },
+  );
+  const reply = await page.request.put('/api/v1/apps/catalog', { data: { enabled: true } });
+  expect(reply.ok(), await reply.text()).toBe(true);
+}
+
+/** Leaves the shared instance offline again, with no document to offer. */
+async function catalogueOffline(page: Page): Promise<void> {
+  await page.request.put('/api/v1/apps/catalog', { data: { enabled: false } }).catch(() => undefined);
+  rmSync(catalogueCacheFile(), { force: true });
+}
+
 /** Drives the wizard to the plan step with the DDL preview open. */
 async function toPlanStep(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Install an app' }).click();
@@ -122,6 +182,10 @@ test.describe('/studio/apps under axe', () => {
   test.afterAll(async ({ browser }) => {
     const page = await browser.newPage();
     await page.request.delete(`/api/v1/apps/${APP_KEY}`).catch(() => undefined);
+    await page.request
+      .delete(`/api/v1/apps/staged/${APP_KEY}/${APP_NEXT_VERSION}`)
+      .catch(() => undefined);
+    await catalogueOffline(page);
     await page.request.patch('/api/v1/me/prefs', { data: { theme: null, locale: null } }).catch(() => undefined);
     await page.close();
   });
@@ -205,6 +269,45 @@ test.describe('/studio/apps under axe', () => {
       await expect(page.getByRole('article').filter({ hasText: 'E2E Desk' })).toBeVisible();
       await sweep(page, `${theme} · page, one app installed`, tally, testInfo);
 
+      // ── the shelf with the online catalogue on ───────────────────
+      await withCatalogueOnline(page);
+      await page.reload();
+      const blocked = page.getByRole('article').filter({ hasText: 'E2E Future' });
+      // Without this the sweep could pass over a shelf the switch never reached.
+      await expect(blocked.getByText('Needs Adminium 99.0.0 or later')).toBeVisible();
+      await sweep(page, `${theme} · page, catalogue rows on the shelf`, tally, testInfo);
+
+      // ── the update consent dialog ──────────────────────────
+      /*
+       * A newer version on disk whose schema needs a table nothing has, so the
+       * page asks before creating it (48 G8-D7). Staged, never applied: this
+       * sweep cancels, and cancelling an update writes nothing, the same
+       * discipline as the plan step above.
+       */
+      const next = appBundle('create', APP_NEXT_VERSION);
+      const query = new URLSearchParams({
+        key: APP_KEY,
+        version: APP_NEXT_VERSION,
+        expectedSha512: next.integrity,
+      });
+      const uploaded = await page.request.post(`/api/v1/apps/upload?${query.toString()}`, {
+        headers: { 'content-type': 'application/octet-stream' },
+        data: next.buffer,
+      });
+      expect(uploaded.ok(), await uploaded.text()).toBe(true);
+      await page.reload();
+      await page.getByRole('button', { name: 'Update' }).click();
+      await expect(page.getByText(`Update ${APP_KEY} to v${APP_NEXT_VERSION}`)).toBeVisible({
+        timeout: 30_000,
+      });
+      await expect(page.getByText('CREATE TABLE e2e_app_probe')).toBeVisible();
+      await sweep(page, `${theme} · update consent dialog`, tally, testInfo, '[role="dialog"]');
+      await page.getByRole('button', { name: 'Cancel' }).click();
+
+      await page.request.delete(`/api/v1/apps/staged/${APP_KEY}/${APP_NEXT_VERSION}`);
+      await catalogueOffline(page);
+      await page.reload();
+
       await page.getByRole('button', { name: 'Uninstall' }).first().click();
       await expect(page.getByText(/tables it created in your database are left alone/i)).toBeVisible();
       await sweep(page, `${theme} · uninstall dialog`, tally, testInfo, '[role="dialog"]');
@@ -216,7 +319,7 @@ test.describe('/studio/apps under axe', () => {
         type: 'axe-summary',
         description: `${theme}: ${String(tally.states)} states, ${String(tally.minor)} lesser`,
       });
-      expect(tally.states, 'no state was swept').toBeGreaterThanOrEqual(8);
+      expect(tally.states, 'no state was swept').toBeGreaterThanOrEqual(10);
       expect(tally.failures.join('\n\n')).toBe('');
     });
   }
