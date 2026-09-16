@@ -1,5 +1,72 @@
 # @adminium/i18n
 
+## 0.2.9
+
+### Patch Changes
+
+- ad014d7: **Add-ons download from downloads.adminium.dev instead of the npm registry.**
+  With browsing online switched on, the catalog comes from
+  `https://adminium.dev/marketplace/v2/catalog.json`, and each add-on from
+  `https://downloads.adminium.dev/add-ons/<key>/<key>-<version>.tgz`. The server
+  builds that address itself from the catalog's key and exact version, and the
+  downloaded bytes must still match the sha512 the release recorded before
+  anything is unpacked. `registry.npmjs.org` is no longer contacted. Browsing
+  online stays off by default, and `ADMINIUM_NETWORK_FEATURES=off` and the
+  desktop app's air-gap mode still veto it.
+  
+  After upgrading, refresh the catalog once. A catalog cached by an earlier
+  version is in the old format, so until the refresh the Add-ons page lists only
+  what is already on disk, and a download asks for the refresh.
+  
+  The bundled add-ons in the Docker image and the desktop app are fetched from
+  the same host when they are built, against the same pinned hashes.
+  
+  The sideload card and the app upload step now point to the sha512 fingerprint
+  published with each release, instead of `npm pack --json`.
+  
+  If you filter the audit log: a finished download records `source: 'download'`
+  (it was `'npm'`), a download whose bytes do not match is recorded as
+  `add-on.verify-refused` (the same action as a refused upload), and download
+  failures carry the reasons `TARBALL_NOT_FOUND` and `DOWNLOAD_ADDRESS_MISMATCH`.
+  `PACKUMENT_UNREACHABLE`, `VERSION_NOT_PUBLISHED`, `LEDGER_MISMATCH` and
+  `FOREIGN_TARBALL_HOST` no longer occur.
+- 962671c: **Hosted apps can browse, download and update from the online app catalogue.**
+  *Studio → Hosted apps* now lists released apps beside the ones your build
+  shipped and the ones you uploaded. Installing one downloads it from
+  `https://downloads.adminium.dev/apps/<key>/<key>-<version>.tgz`, checks the
+  bytes against the fingerprint the release recorded, unpacks it under the same
+  hardened limits as an upload, and then opens the usual install wizard — nothing
+  is created in your database until you confirm the schema plan.
+  
+  Browsing online is **its own switch**, `apps.catalogEnabled`, separate from the
+  add-on one and **off by default**: a deployment may want apps listed online and
+  add-ons not, or the reverse. `ADMINIUM_NETWORK_FEATURES=off` and the desktop
+  app's air-gap mode veto it exactly as they veto the add-on catalogue, and with
+  it off nothing from a cached list is offered at all. Browsing stays a disk read;
+  **Check for newer** is the separate, explicit action that fetches
+  `https://adminium.dev/marketplace/v2/apps.json`.
+  
+  **Installed apps can be updated.** A newer version — already on disk, or offered
+  by the catalogue — puts Update on the app's row. New tables are shown to you as
+  DDL before they are created, in the database the app already uses; a table that
+  exists but is missing columns the new version needs refuses the update and names
+  them; nothing is altered or dropped. The app keeps its row, its connection and
+  its mounts, and older versions are removed from disk only after the update
+  succeeds.
+  
+  Every released app declares the oldest Adminium it runs on. A release that needs
+  a newer one is listed with the version it needs and cannot be installed, rather
+  than being hidden.
+  
+  New endpoints, all behind `manifests.manage`: `PUT /api/v1/apps/catalog`,
+  `POST /api/v1/apps/catalog/refresh`, `POST /api/v1/apps/download` and
+  `POST /api/v1/apps/{key}/update`. `GET /api/v1/apps/catalog` keeps its shape and
+  gains `source`, `state`, `updateTo`, `updateStaged` and `needsNewerAdminium` per
+  row, plus `onlineEnabled` and `catalogFetchedAt`. Audit actions:
+  `app.catalog-toggled`, `app.catalog-refreshed`, `app.catalog-refresh-failed`,
+  `app.staged` (with `source: 'download'`), `app.verify-refused`,
+  `app.download-failed` and `app.updated`.
+
 ## 0.2.8
 
 ### Patch Changes

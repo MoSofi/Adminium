@@ -1,5 +1,28 @@
 # @adminium/desktop
 
+## 0.2.9
+
+### Patch Changes
+
+- 4cba736: **The bundled add-on set moves to 1.0.1, and gains Invoices.** The Docker image
+  and the desktop app now bake in seven add-ons instead of six — barcode-labels,
+  design-studio, holiday-calendars, import-canva, **invoices**, personalizer and
+  shipping-dhl — fetched at build time from `downloads.adminium.dev` against the
+  fingerprints the release recorded.
+  
+  Each of these releases also states the oldest Adminium it runs on truthfully;
+  the 1.0.0 files all claimed `1.0.0`, which no released server has ever been.
+  Nothing enforces that claim for add-ons yet, but the shipped set no longer lies
+  about it.
+- Updated dependencies [ad014d7]
+- Updated dependencies [962671c]
+- Updated dependencies [4cba736]
+- Updated dependencies [ad014d7]
+  - @adminium/server@0.2.9
+  - @adminium/adapter-mysql@0.2.9
+  - @adminium/adapter-postgres@0.2.9
+  - @adminium/adapter-sqlite@0.2.9
+
 ## 0.2.8
 
 ### Patch Changes
