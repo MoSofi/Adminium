@@ -77,7 +77,10 @@ export type CatalogRefusal =
   | 'RESPONSE_TOO_LARGE'
   | 'TARBALL_NOT_FOUND'
   | 'TARBALL_UNREACHABLE'
-  | 'UNKNOWN_ADD_ON';
+  | 'UNKNOWN_ADD_ON'
+  | 'UNKNOWN_APP'
+  /** An app whose manifest names a minimum Adminium above this server's version (48 §6b G8-D2). */
+  | 'REQUIRES_NEWER_ADMINIUM';
 
 /**
  * Response caps and a wall-clock budget.
@@ -221,14 +224,20 @@ export function isCurrentCatalogFormat(document: unknown): boolean {
  * and the base's origin. A version's pre-release tail may hold `.` or `+`; the
  * check is what proves neither changes where the request goes. Pure — no I/O.
  */
-export function downloadUrlFor(key: string, version: string, base = `https://${DOWNLOAD_HOST}`): string {
+export function downloadUrlFor(
+  key: string,
+  version: string,
+  base = `https://${DOWNLOAD_HOST}`,
+  /** `apps` for an app release (48 D1); add-ons are the default and every existing caller. */
+  folder: 'add-ons' | 'apps' = 'add-ons',
+): string {
   if (!ADD_ON_KEY_PATTERN.test(key) || !EXACT_VERSION_PATTERN.test(version)) {
     throw new AddOnCatalogError(
       'DOWNLOAD_ADDRESS_MISMATCH',
       `refusing to build a download address from ${JSON.stringify(key)}@${JSON.stringify(version)}`,
     );
   }
-  const path = `/add-ons/${key}/${key}-${version}.tgz`;
+  const path = `/${folder}/${key}/${key}-${version}.tgz`;
   const origin = new URL(base).origin;
   const url = new URL(path, origin);
   if (url.pathname !== path || url.origin !== origin) {
@@ -238,6 +247,122 @@ export function downloadUrlFor(key: string, version: string, base = `https://${D
     );
   }
   return url.href;
+}
+
+/**
+ * Every outbound request the catalog clients make, add-ons and apps alike
+ * (48-self-hosted-downloads.md §6b G8-D4), with the three transport
+ * properties the exact-hostname ruling actually requires.
+ *
+ * `redirect: 'manual'` IS THE LOAD-BEARING ONE. `fetch` follows redirects by
+ * default, and the address is fixed *before* the request — so with the
+ * default, a host answering `302 Location: https://evil.example/x.tgz` would
+ * be followed silently and the "exactly two hostnames" guarantee (24 D14)
+ * would hold only on paper. A redirect is therefore a typed REFUSAL rather
+ * than something to re-check and follow: both hosts are first-party, neither
+ * has any business bouncing us, and "refuse and say where it tried to send
+ * us" is a far better failure than a redirect-following loop with a host
+ * check in it.
+ */
+export async function boundedRequest(
+  fetchImpl: typeof globalThis.fetch,
+  url: string,
+  accept: string,
+  maxBytes: number,
+  what: CatalogRefusal,
+  signal?: AbortSignal,
+  notFound?: CatalogRefusal,
+): Promise<{ bytes: Uint8Array; response: Response }> {
+  // The caller's cancellation composed with our own budget. A job that is
+  // cancelled mid-download must actually stop the request: checking
+  // `ctx.signal.aborted` BETWEEN steps cannot interrupt an await already in
+  // flight, so without this a cancelled download held a socket and kept
+  // filling memory until the 30s timeout fired.
+  const budget = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const composed = signal === undefined ? budget : AbortSignal.any([signal, budget]);
+
+  let response: Response;
+  try {
+    response = await fetchImpl(url, {
+      headers: { accept, 'user-agent': USER_AGENT },
+      redirect: 'manual',
+      signal: composed,
+    });
+  } catch (err) {
+    throw new AddOnCatalogError(what, `request to ${url} failed: ${String(err)}`);
+  }
+
+  // `redirect: 'manual'` surfaces a 3xx as an ordinary response (an opaque
+  // one in some runtimes, where `status` reads 0) rather than following it.
+  if (response.status === 0 || (response.status >= 300 && response.status < 400)) {
+    throw new AddOnCatalogError(
+      'REDIRECTED',
+      `${url} answered with a redirect to ${response.headers.get('location') ?? '<opaque>'}; ` +
+        'the download channel does not follow redirects',
+    );
+  }
+  if (response.status === 404 && notFound !== undefined) {
+    throw new AddOnCatalogError(notFound, `${url} responded 404`);
+  }
+  if (!response.ok) {
+    throw new AddOnCatalogError(what, `${url} responded ${response.status}`);
+  }
+
+  // A declared over-cap length is refused before a byte is read; a body that
+  // lies about its length is caught by the streaming cap below.
+  const declared = Number(response.headers.get('content-length') ?? Number.NaN);
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    throw new AddOnCatalogError(
+      'RESPONSE_TOO_LARGE',
+      `${url} declares ${declared} bytes, over the ${maxBytes}-byte limit`,
+    );
+  }
+
+  const body = response.body;
+  if (body === null) {
+    // No stream to meter (an empty body, or a stubbed Response in a test):
+    // fall back to the buffered read, still bounded by the check above.
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > maxBytes) {
+      throw new AddOnCatalogError(
+        'RESPONSE_TOO_LARGE',
+        `${url} returned ${bytes.byteLength} bytes, over the ${maxBytes}-byte limit`,
+      );
+    }
+    return { bytes, response };
+  }
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        // Cancel rather than drain: the point is to stop receiving.
+        await reader.cancel();
+        throw new AddOnCatalogError(
+          'RESPONSE_TOO_LARGE',
+          `${url} sent more than the ${maxBytes}-byte limit`,
+        );
+      }
+      chunks.push(value);
+    }
+  } catch (err) {
+    if (err instanceof AddOnCatalogError) throw err;
+    throw new AddOnCatalogError(what, `reading ${url} failed: ${String(err)}`);
+  }
+
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return { bytes, response };
 }
 
 export interface CatalogClientDeps {
@@ -314,119 +439,15 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
 
   const doFetch = (): typeof globalThis.fetch => deps.fetchImpl ?? globalThis.fetch;
 
-  /**
-   * Every outbound request this module makes, with the three transport
-   * properties the exact-hostname ruling actually requires.
-   *
-   * `redirect: 'manual'` IS THE LOAD-BEARING ONE. `fetch` follows redirects by
-   * default, and the address is fixed *before* the request — so with the
-   * default, a host answering `302 Location: https://evil.example/x.tgz` would
-   * be followed silently and the "exactly two hostnames" guarantee (24 D14)
-   * would hold only on paper. A redirect is therefore a typed REFUSAL rather
-   * than something to re-check and follow: both hosts are first-party, neither
-   * has any business bouncing us, and "refuse and say where it tried to send
-   * us" is a far better failure than a redirect-following loop with a host
-   * check in it.
-   */
-  async function request(
+  const request = (
     url: string,
     accept: string,
     maxBytes: number,
     what: CatalogRefusal,
     signal?: AbortSignal,
     notFound?: CatalogRefusal,
-  ): Promise<{ bytes: Uint8Array; response: Response }> {
-    // The caller's cancellation composed with our own budget. A job that is
-    // cancelled mid-download must actually stop the request: checking
-    // `ctx.signal.aborted` BETWEEN steps cannot interrupt an await already in
-    // flight, so without this a cancelled download held a socket and kept
-    // filling memory until the 30s timeout fired.
-    const budget = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-    const composed = signal === undefined ? budget : AbortSignal.any([signal, budget]);
-
-    let response: Response;
-    try {
-      response = await doFetch()(url, {
-        headers: { accept, 'user-agent': USER_AGENT },
-        redirect: 'manual',
-        signal: composed,
-      });
-    } catch (err) {
-      throw new AddOnCatalogError(what, `request to ${url} failed: ${String(err)}`);
-    }
-
-    // `redirect: 'manual'` surfaces a 3xx as an ordinary response (an opaque
-    // one in some runtimes, where `status` reads 0) rather than following it.
-    if (response.status === 0 || (response.status >= 300 && response.status < 400)) {
-      throw new AddOnCatalogError(
-        'REDIRECTED',
-        `${url} answered with a redirect to ${response.headers.get('location') ?? '<opaque>'}; ` +
-          'the add-on channel does not follow redirects',
-      );
-    }
-    if (response.status === 404 && notFound !== undefined) {
-      throw new AddOnCatalogError(notFound, `${url} responded 404`);
-    }
-    if (!response.ok) {
-      throw new AddOnCatalogError(what, `${url} responded ${response.status}`);
-    }
-
-    // A declared over-cap length is refused before a byte is read; a body that
-    // lies about its length is caught by the streaming cap below.
-    const declared = Number(response.headers.get('content-length') ?? Number.NaN);
-    if (Number.isFinite(declared) && declared > maxBytes) {
-      throw new AddOnCatalogError(
-        'RESPONSE_TOO_LARGE',
-        `${url} declares ${declared} bytes, over the ${maxBytes}-byte limit`,
-      );
-    }
-
-    const body = response.body;
-    if (body === null) {
-      // No stream to meter (an empty body, or a stubbed Response in a test):
-      // fall back to the buffered read, still bounded by the check above.
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      if (bytes.byteLength > maxBytes) {
-        throw new AddOnCatalogError(
-          'RESPONSE_TOO_LARGE',
-          `${url} returned ${bytes.byteLength} bytes, over the ${maxBytes}-byte limit`,
-        );
-      }
-      return { bytes, response };
-    }
-
-    const reader = body.getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    try {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value === undefined) continue;
-        total += value.byteLength;
-        if (total > maxBytes) {
-          // Cancel rather than drain: the point is to stop receiving.
-          await reader.cancel();
-          throw new AddOnCatalogError(
-            'RESPONSE_TOO_LARGE',
-            `${url} sent more than the ${maxBytes}-byte limit`,
-          );
-        }
-        chunks.push(value);
-      }
-    } catch (err) {
-      if (err instanceof AddOnCatalogError) throw err;
-      throw new AddOnCatalogError(what, `reading ${url} failed: ${String(err)}`);
-    }
-
-    const bytes = new Uint8Array(total);
-    let at = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, at);
-      at += chunk.byteLength;
-    }
-    return { bytes, response };
-  }
+  ): Promise<{ bytes: Uint8Array; response: Response }> =>
+    boundedRequest(doFetch(), url, accept, maxBytes, what, signal, notFound);
 
   return {
     isEnabled,

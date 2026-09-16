@@ -36,15 +36,25 @@
  */
 
 import {
+  compareSemver,
   isAddOnManifest,
   planInstall,
   validateManifest,
   type InstallPlan,
   type Manifest,
 } from '@adminium/manifest';
-import { auditRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
+import { auditRepo, manifestsRepo, settingsRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
+import { AddOnCatalogError, pickLocalized } from '../../add-ons/catalog.js';
+import {
+  APP_CATALOG_ENABLED_SETTING,
+  appCatalogSchema,
+  isCurrentAppCatalogFormat,
+  meetsMinimum,
+  type AppCatalogClient,
+  type AppCatalogEntry,
+} from '../../apps/catalog.js';
 import { surfacesOfInstalled, type InstalledApps } from '../../apps/installed.js';
 import type { AppSchemaTarget } from '../../apps/schema-target.js';
 import type { AppStore } from '../../apps/store.js';
@@ -53,19 +63,30 @@ import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusa
 import { SURFACE_SIDES, type SurfaceSide } from '../../cli/surfaces-root.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import {
+  appEntryFromCache,
+  enqueueAppCatalogRefresh,
+  enqueueAppDownload,
+} from '../../jobs/app-acquire.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { APP_VERSION } from '../../version.js';
 import {
   appCatalogReply,
+  appCatalogSettingsBody,
+  appCatalogSettingsReply,
   appInstallPlanReply,
+  appJobReply,
   appKeyParams,
   appListReply,
   discardStagedAppReply,
+  downloadAppBody,
   installAppBody,
   installedAppReply,
   planAppBody,
   stagedAppParams,
   stagedAppReply,
   uninstallAppReply,
+  updateAppReply,
   uploadAppQuery,
   type AppInstallPlanDto,
 } from './schema.js';
@@ -108,10 +129,20 @@ export interface AppRoutesDeps {
    * that does is refused with a reason rather than half-applied.
    */
   schemaTarget?: AppSchemaTarget | undefined;
+  /**
+   * The online app catalog (48 §6b G8-D3). The SAME client the acquisition
+   * jobs use, so the routes' gate and the jobs' cannot disagree about whether
+   * the catalog is on. Absent = off: nothing is offered, refreshed or
+   * downloaded, and browsing lists the store alone.
+   */
+  catalog?: AppCatalogClient | undefined;
+  /** Tests only; production compares minimums with the running version. */
+  serverVersion?: string | undefined;
 }
 
 export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
+  const serverVersion = deps.serverVersion ?? APP_VERSION;
 
   /** The sides a staged tree actually carries, in serve order. */
   function sidesOf(files: Record<string, string>): SurfaceSide[] {
@@ -243,6 +274,63 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           plan.create.length > 0 || plan.reuse.some((t) => t.missingColumns.length > 0),
       },
     };
+  }
+
+  /**
+   * Create the tables a manifest needs on one connection, or refuse.
+   *
+   * Shared by install and update so the two cannot disagree about what an app
+   * may do to a database. The plan is RECOMPUTED here rather than taken from a
+   * request: a client-supplied plan is a client-supplied list of tables to
+   * create, and the preview route exists to be read, not to be replayed.
+   *
+   * @param verb How a refusal describes the attempt: `installed` or `updated`.
+   */
+  async function createTables(
+    key: string,
+    manifest: Manifest,
+    connectionId: string,
+    verb: 'installed' | 'updated',
+  ): Promise<{ created: string[]; reused: string[] }> {
+    if (deps.schemaTarget === undefined) {
+      throw new ValidationFailedError(
+        `"${key}" needs tables, and this server has no connection layer to create them in.`,
+        { reason: 'DDL_UNAVAILABLE' },
+      );
+    }
+
+    const { plan, dto } = await planFor(manifest, connectionId);
+    if (!plan.installable) {
+      throw new ValidationFailedError(`"${key}" cannot be ${verb} on this database.`, {
+        reason: 'PLAN_REFUSED',
+        problems: dto.problems,
+      });
+    }
+    /*
+     * A table that EXISTS but is missing columns the app needs is refused
+     * rather than altered, the same rule 26-T02 set for add-ons: creating a
+     * table an app asked for is one conversation, and altering one the
+     * operator already owns is a different one that is theirs to have.
+     *
+     * It holds for an update too (48 G8-D6), even where the table is one the
+     * app's own earlier version created: telling those apart needs provenance
+     * nothing records yet.
+     */
+    const short = plan.reuse.filter((table) => table.missingColumns.length > 0);
+    if (short.length > 0) {
+      throw new ValidationFailedError(
+        `"${key}" needs columns that are missing from tables this database already has.`,
+        {
+          reason: 'COLUMNS_REQUIRED',
+          tables: short.map((table) => ({
+            ref: table.ref,
+            missingColumns: table.missingColumns,
+          })),
+        },
+      );
+    }
+
+    return deps.schemaTarget.apply(plan, manifest, connectionId);
   }
 
   async function auditAppEvent(
@@ -457,13 +545,71 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         schema: { response: { 200: appCatalogReply } },
       },
-      async () => {
-        const rows = await manifests.list('app');
+      async (request) => {
+        const [rows, keys, cached, prefs] = await Promise.all([
+          manifests.list('app'),
+          deps.store.keys(),
+          deps.store.readCatalogCache(),
+          // A META read, not a network one: the feed carries eight locales per
+          // row and the reply carries the one this operator reads (40 D2).
+          userPrefsRepo(deps.meta).resolve(request.user?.id ?? null),
+        ]);
         const installedByKey = new Map(rows.map((m) => [m.row.manifestKey, m.row.version]));
+        const locale = prefs.locale;
+        /*
+         * OFF MEANS NOTHING IS OFFERED FROM THE CACHE. A cache written while
+         * the switch was on outlives it being turned off, and listing its rows
+         * then would offer downloads the download route refuses, under a page
+         * saying browsing online is off. The cached taglines still translate
+         * disk rows: reading a file already on disk is not an outbound call.
+         */
+        const online = (await deps.catalog?.isEnabled()) ?? false;
+
+        /*
+         * The cached app catalog, or nothing. A cache that is not in the format
+         * this server reads counts as none, and `catalogFetchedAt` then says
+         * "never" so the page asks for a refresh rather than showing a fetch
+         * time for a list it is not offering.
+         */
+        const parsedCatalog =
+          cached === null || !isCurrentAppCatalogFormat(cached.document)
+            ? null
+            : appCatalogSchema.safeParse(cached.document);
+        const feed = new Map<string, AppCatalogEntry>(
+          parsedCatalog?.success === true
+            ? parsedCatalog.data.apps.map((entry) => [entry.key, entry] as const)
+            : [],
+        );
+
+        /**
+         * What the catalog adds for an installed app: a newer release this
+         * server can take, or one it cannot and why (G8-D2).
+         */
+        function catalogUpdate(
+          key: string,
+          installedVersion: string,
+        ): { usable: string | null; blocked: { version: string; minAdminiumVersion: string } | null } {
+          const listed = feed.get(key);
+          if (
+            !online ||
+            listed === undefined ||
+            compareSemver(listed.version, installedVersion) <= 0
+          ) {
+            return { usable: null, blocked: null };
+          }
+          return meetsMinimum(listed.minAdminiumVersion, serverVersion)
+            ? { usable: listed.version, blocked: null }
+            : {
+                usable: null,
+                blocked: { version: listed.version, minAdminiumVersion: listed.minAdminiumVersion },
+              };
+        }
 
         const apps = [];
-        for (const key of await deps.store.keys()) {
-          const version = (await deps.store.versions(key))[0];
+        // Everything in the store first: it needs no network to be true.
+        for (const key of keys) {
+          const versions = await deps.store.versions(key);
+          const version = versions[0];
           if (version === undefined) continue;
 
           /*
@@ -496,22 +642,206 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             // Unreadable is a state, not an error — see the schema's note.
           }
 
-          const installedVersion = installedByKey.get(key) ?? null;
+          const listed = feed.get(key);
+          const current = installedByKey.get(key) ?? null;
+          let updateTo: string | null = null;
+          let needsNewerAdminium: { version: string; minAdminiumVersion: string } | null = null;
+          if (current !== null) {
+            // Disk and catalog both count; the newer usable one wins.
+            const onDisk = compareSemver(version, current) > 0 ? version : null;
+            const { usable, blocked } = catalogUpdate(key, current);
+            updateTo =
+              onDisk !== null && (usable === null || compareSemver(onDisk, usable) >= 0)
+                ? onDisk
+                : usable;
+            // A blocked release older than what is already usable is not news.
+            needsNewerAdminium =
+              blocked !== null && (updateTo === null || compareSemver(blocked.version, updateTo) > 0)
+                ? blocked
+                : null;
+          }
+
           apps.push({
             key,
             version,
             name,
-            description,
+            // The feed's line in the operator's language, else the manifest's
+            // English fallback — the add-on page's order (40 D3).
+            description: pickLocalized(listed?.tagline, locale) ?? description,
             categories,
             publisher,
             capabilities,
             sides: surfacesOfInstalled(deps.store, { key, version }).map((s) => s.side),
-            installed: installedVersion !== null,
-            installedVersion: installedVersion === version ? null : installedVersion,
+            installed: current !== null,
+            installedVersion: current === version ? null : current,
             readable,
+            source: 'disk' as const,
+            state: current === null ? ('staged' as const) : ('installed' as const),
+            updateTo,
+            updateStaged: updateTo !== null && versions.includes(updateTo),
+            needsNewerAdminium,
           });
         }
-        return { apps };
+
+        // Then what only the catalog offers. `source: 'catalog'` is the honest
+        // label: installing one of these downloads it first.
+        const onDisk = new Set(apps.map((row) => row.key));
+        for (const entry of online ? feed.values() : []) {
+          if (onDisk.has(entry.key)) continue;
+          const current = installedByKey.get(entry.key) ?? null;
+          const { usable, blocked } =
+            current === null
+              ? meetsMinimum(entry.minAdminiumVersion, serverVersion)
+                ? { usable: null, blocked: null }
+                : {
+                    usable: null,
+                    blocked: { version: entry.version, minAdminiumVersion: entry.minAdminiumVersion },
+                  }
+              : catalogUpdate(entry.key, current);
+          apps.push({
+            key: entry.key,
+            version: entry.version,
+            name: pickLocalized(entry.name, locale) ?? entry.key,
+            description: pickLocalized(entry.tagline, locale) ?? '',
+            categories: entry.categories,
+            publisher: entry.publisher,
+            capabilities: entry.capabilities,
+            sides: entry.sides,
+            // Installed with no package in the store is a damaged install, not
+            // an available one; it is still named so the page shows it.
+            installed: current !== null,
+            installedVersion: current === null || current === entry.version ? null : current,
+            readable: true,
+            source: 'catalog' as const,
+            state: current === null ? ('available' as const) : ('installed' as const),
+            updateTo: usable,
+            updateStaged: false,
+            needsNewerAdminium: blocked,
+          });
+        }
+
+        apps.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+        return {
+          apps,
+          catalogFetchedAt: parsedCatalog?.success === true ? (cached?.fetchedAt ?? null) : null,
+          onlineEnabled: online,
+        };
+      },
+    );
+
+    app.put(
+      '/apps/catalog',
+      {
+        /*
+         * `manifests.manage`, NOT `settings.manage` (26 D3): the switch that
+         * decides whether this deployment talks to adminium.dev belongs with
+         * installing apps, not with renaming the workspace.
+         */
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { body: appCatalogSettingsBody, response: { 200: appCatalogSettingsReply } },
+      },
+      async (request) => {
+        const settings = settingsRepo(deps.meta);
+        const before = (await settings.get(APP_CATALOG_ENABLED_SETTING)) === true;
+        const { enabled } = request.body;
+        await settings.set(APP_CATALOG_ENABLED_SETTING, enabled, {
+          updatedBy: request.user?.id ?? null,
+        });
+
+        await auditRepo(deps.meta).append({
+          actorKind: 'user',
+          actorId: request.user?.id ?? null,
+          actorLabel: request.user?.email ?? 'unknown',
+          category: 'app',
+          action: 'app.catalog-toggled',
+          changes: { before: { onlineEnabled: before }, after: { onlineEnabled: enabled } },
+        });
+
+        // The EFFECTIVE state: an environment veto outranks the stored setting,
+        // and the reply says so rather than a switch that springs back.
+        const allowed = deps.catalog?.networkFeaturesAllowed() ?? false;
+        return { onlineEnabled: enabled && allowed, vetoed: enabled && !allowed };
+      },
+    );
+
+    app.post(
+      '/apps/catalog/refresh',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('worker') },
+        schema: { response: { 200: appJobReply } },
+      },
+      async (request) => {
+        // Checked HERE as well as inside the job, so pressing the button gets
+        // an answer rather than a job that quietly reports "disabled".
+        if (deps.catalog === undefined || !(await deps.catalog.isEnabled())) {
+          throw new ValidationFailedError(
+            'The online app catalog is off. The apps bundled with this build, and any you ' +
+              'upload, are available without it.',
+            { reason: 'CATALOG_DISABLED' },
+          );
+        }
+        const job = await enqueueAppCatalogRefresh(deps.meta, {
+          userId: request.user?.id ?? undefined,
+        });
+        return { jobId: job.id };
+      },
+    );
+
+    app.post(
+      '/apps/download',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('worker') },
+        schema: { body: downloadAppBody, response: { 200: appJobReply } },
+      },
+      async (request) => {
+        const { key, version } = request.body;
+        if (deps.catalog === undefined || !(await deps.catalog.isEnabled())) {
+          throw new ValidationFailedError(
+            'The online app catalog is off, so nothing can be downloaded. Upload the app’s ' +
+              'bundle instead, or switch the catalog on.',
+            { reason: 'CATALOG_DISABLED' },
+          );
+        }
+
+        /*
+         * The cached row and its minimum, checked before a job exists (G8-D2),
+         * so the page is told at once. The job checks both again: the cache may
+         * be refreshed between this reply and the run.
+         */
+        let entry: AppCatalogEntry;
+        try {
+          entry = await appEntryFromCache(deps.store, key, version);
+        } catch (error) {
+          if (error instanceof AddOnCatalogError) {
+            throw new ValidationFailedError(error.message, { reason: error.reason });
+          }
+          throw error;
+        }
+        if (!meetsMinimum(entry.minAdminiumVersion, serverVersion)) {
+          throw new ValidationFailedError(
+            `"${key}" ${version} needs Adminium ${entry.minAdminiumVersion} or later; this ` +
+              `server is ${serverVersion}. Upgrade Adminium to install it.`,
+            {
+              reason: 'REQUIRES_NEWER_ADMINIUM',
+              minAdminiumVersion: entry.minAdminiumVersion,
+              serverVersion,
+            },
+          );
+        }
+
+        // Enqueued through the repo, NEVER through `POST /jobs`: the kind is
+        // internal-only because its integrity value comes from the cached
+        // catalog, and a caller who could hand-craft the payload would be
+        // choosing their own.
+        const job = await enqueueAppDownload(deps.meta, {
+          key,
+          version,
+          userId: request.user?.id ?? undefined,
+        });
+        return { jobId: job.id };
       },
     );
 
@@ -601,10 +931,6 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          * completes the install rather than colliding with it. The reverse
          * order would leave an app registered against tables that are not
          * there, which is the state a surface cannot recover from on its own.
-         *
-         * The plan is RECOMPUTED here rather than taken from the request. A
-         * client-supplied plan is a client-supplied list of tables to create,
-         * and the preview route exists to be read, not to be replayed.
          */
         const wanted = manifest.requiredSchema?.tables ?? [];
         let applied: { created: string[]; reused: string[] } | undefined;
@@ -616,41 +942,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               { reason: 'NO_CONNECTION', tables: wanted.map((table) => table.ref) },
             );
           }
-          if (deps.schemaTarget === undefined) {
-            throw new ValidationFailedError(
-              `"${key}" needs tables, and this server has no connection layer to create them in.`,
-              { reason: 'DDL_UNAVAILABLE' },
-            );
-          }
-
-          const { plan, dto } = await planFor(manifest, connectionId);
-          if (!plan.installable) {
-            throw new ValidationFailedError(`"${key}" cannot be installed on this database.`, {
-              reason: 'PLAN_REFUSED',
-              problems: dto.problems,
-            });
-          }
-          /*
-           * A table that EXISTS but is missing columns the app needs is refused
-           * rather than altered, the same rule 26-T02 set for add-ons: creating
-           * a table an app asked for is one conversation, and altering one the
-           * operator already owns is a different one that is theirs to have.
-           */
-          const short = plan.reuse.filter((table) => table.missingColumns.length > 0);
-          if (short.length > 0) {
-            throw new ValidationFailedError(
-              `"${key}" needs columns that are missing from tables this database already has.`,
-              {
-                reason: 'COLUMNS_REQUIRED',
-                tables: short.map((table) => ({
-                  ref: table.ref,
-                  missingColumns: table.missingColumns,
-                })),
-              },
-            );
-          }
-
-          applied = await deps.schemaTarget.apply(plan, manifest, connectionId);
+          applied = await createTables(key, manifest, connectionId, 'installed');
         }
 
         // Re-installing the same key replaces the row rather than adding a
@@ -698,6 +990,134 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             prefix: surface.prefix,
             navAvailable: surface.manifest !== null,
           })),
+        };
+      },
+    );
+
+    app.post(
+      '/apps/:key/update',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: appKeyParams, response: { 200: updateAppReply } },
+      },
+      /*
+       * AN UPDATE IS NOT A REINSTALL (48 G8-D6, modelled on 26-T17).
+       *
+       * The installed row moves to the new version, so what the operator chose
+       * at install survives it: the connection its tables live in and its staff
+       * surface reads (29 D9), and where its surfaces are placed. An
+       * uninstall/install pair would drop both and ask again.
+       *
+       * It takes the newest STAGED version above the installed one. Getting it
+       * onto disk is the download's job (or an upload's); this route never
+       * reaches the network.
+       */
+      async (request) => {
+        const { key } = request.params;
+        const userId = request.user?.id ?? null;
+        const userLabel = request.user?.email ?? 'unknown';
+
+        const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+        if (installed === undefined) throw new NotFoundError(`"${key}" is not installed.`);
+
+        const from = installed.row.version;
+        const to = (await deps.store.versions(key)).find(
+          (candidate) => compareSemver(candidate, from) > 0,
+        );
+        if (to === undefined) {
+          throw new NotFoundError(
+            `No newer version of "${key}" than ${from} is staged. Download or upload one first.`,
+          );
+        }
+
+        // Re-hash and re-validate, exactly as install does: an update cannot
+        // carry past the checks what an install could not.
+        let manifest: Manifest;
+        try {
+          manifest = await verifiedManifest(key, to);
+        } catch (error) {
+          await auditAppEvent(
+            'app.verify-refused',
+            { key, version: to, from, reason: refusalReason(error) },
+            userId,
+            userLabel,
+          );
+          throw error;
+        }
+
+        const surfaces = surfacesOfInstalled(deps.store, { key, version: to });
+        if (surfaces.length === 0) {
+          throw new ValidationFailedError(`"${key}@${to}" carries no surface to serve.`, {
+            reason: 'NO_SURFACE',
+          });
+        }
+
+        /*
+         * Tables against the connection the installed row ALREADY has, never a
+         * new one: switching databases is an uninstall and an install, where
+         * the operator is asked. New tables are created; a table missing columns
+         * refuses the update (COLUMNS_REQUIRED) and leaves the running version
+         * untouched.
+         */
+        const wanted = manifest.requiredSchema?.tables ?? [];
+        const connectionId = installed.row.connectionId;
+        let applied: { created: string[]; reused: string[] } | undefined;
+        if (wanted.length > 0) {
+          if (connectionId === null) {
+            throw new ValidationFailedError(
+              `"${key}" ${to} needs ${String(wanted.length)} table(s), and ${from} was installed ` +
+                'without a connection. Uninstall it and install it against the database it should read.',
+              { reason: 'NO_CONNECTION', tables: wanted.map((table) => table.ref) },
+            );
+          }
+          applied = await createTables(key, manifest, connectionId, 'updated');
+        }
+
+        await manifests.setVersion(installed.row.id, { version: to, document: manifest });
+        await deps.installed.refresh();
+
+        // D11: older versions go only AFTER the new one is recorded and served,
+        // so a failure anywhere above leaves the running version on disk.
+        const pruned: string[] = [];
+        for (const old of await deps.store.versions(key)) {
+          if (compareSemver(old, to) >= 0) continue;
+          await deps.store.removeVersion(key, old);
+          pruned.push(old);
+        }
+
+        await auditAppEvent(
+          'app.updated',
+          {
+            key,
+            from,
+            to,
+            pruned,
+            sides: surfaces.map((s) => s.side),
+            ...(connectionId === null ? {} : { connectionId }),
+            ...(applied === undefined ? {} : { created: applied.created, reused: applied.reused }),
+          },
+          userId,
+          userLabel,
+        );
+
+        return {
+          app: {
+            key,
+            version: to,
+            ...(applied === undefined ? {} : { schema: applied }),
+            source: installed.row.source,
+            installedAt: installed.row.installedAt,
+            connectionId,
+            sides: surfaces.map((surface) => ({
+              side: surface.side,
+              prefix: surface.prefix,
+              navAvailable: surface.manifest !== null,
+            })),
+          },
+          from,
+          to,
+          pruned,
         };
       },
     );

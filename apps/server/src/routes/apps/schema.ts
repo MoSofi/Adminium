@@ -182,11 +182,12 @@ export const appListReply = z.object({
 /**
  * One app this instance could install, as the browse surface shows it.
  *
- * Everything here is read off DISK — the bundled set staged at boot plus
- * anything uploaded. Browsing never reaches the network, which is what makes
- * the page work identically on an air-gapped install (40 §4.3, restated for
- * apps in 47 step 4) and what stops a page load becoming an outbound call
- * nobody asked for.
+ * Everything here is read off DISK — the packages in the app store (the bundled
+ * set staged at boot, uploads, downloads) plus the app catalog the last refresh
+ * cached there (48 §6b G8-D3). Browsing never reaches the network, which is
+ * what makes the page work identically on an air-gapped install (40 §4.3,
+ * restated for apps in 47 step 4) and what stops a page load becoming an
+ * outbound call nobody asked for.
  */
 export const appCatalogEntry = z.object({
   key: appKey,
@@ -215,9 +216,73 @@ export const appCatalogEntry = z.object({
    * hiding them is how a store grows packages nobody can account for.
    */
   readable: z.boolean(),
+  /**
+   * Where the row comes from. `disk`: a package in the app store, installable
+   * with no network. `catalog`: offered only by the cached app catalog, so
+   * installing it downloads first.
+   */
+  source: z.enum(['disk', 'catalog']),
+  /** `available` rows are catalog-only; `staged` rows are on disk and not installed. */
+  state: z.enum(['installed', 'staged', 'available']),
+  /**
+   * For an installed app: the newest version above the installed one that this
+   * server can use, from disk or from the catalog. A catalog version whose
+   * minimum is above this server does not count (see `needsNewerAdminium`).
+   */
+  updateTo: z.string().nullable(),
+  /** True when `updateTo` is already in the store, so updating needs no download. */
+  updateStaged: z.boolean(),
+  /**
+   * A catalog version this server cannot take, and why (48 G8-D2): the
+   * available row itself, or an installed app's newer release. Listed so the
+   * page can say "needs Adminium 0.2.9" instead of hiding the app.
+   */
+  needsNewerAdminium: z
+    .object({ version: z.string(), minAdminiumVersion: z.string() })
+    .nullable(),
 });
 
-export const appCatalogReply = z.object({ apps: z.array(appCatalogEntry) });
+export const appCatalogReply = z.object({
+  apps: z.array(appCatalogEntry),
+  /** When the cached app catalog was fetched; null when none is cached (or it is unreadable). */
+  catalogFetchedAt: z.number().nullable(),
+  /** Whether online browsing is on: `ADMINIUM_NETWORK_FEATURES` AND `apps.catalogEnabled`. */
+  onlineEnabled: z.boolean(),
+});
+
+/**
+ * The online app catalog's switch (48 R2, G8-D3): its own setting,
+ * `apps.catalogEnabled`, beside the add-on one and never the same.
+ *
+ * On `manifests.manage` rather than under `/settings/*` for the add-on switch's
+ * reason (26 D3): whether this deployment talks to adminium.dev is not the
+ * authority to rename a workspace.
+ */
+export const appCatalogSettingsBody = z.object({ enabled: z.boolean() });
+
+export const appCatalogSettingsReply = z.object({
+  /** The EFFECTIVE state: an environment veto keeps it off whatever was stored. */
+  onlineEnabled: z.boolean(),
+  /** True when `ADMINIUM_NETWORK_FEATURES` is overriding the stored setting. */
+  vetoed: z.boolean(),
+});
+
+export const appJobReply = z.object({ jobId: z.string() });
+
+/** One catalog release to download into the store (48 G8-D5). */
+export const downloadAppBody = z.object({
+  key: appKey,
+  version: z.string().min(1).max(64),
+});
+
+/** An update's receipt (48 G8-D6). */
+export const updateAppReply = z.object({
+  app: installedAppReply,
+  from: z.string(),
+  to: z.string(),
+  /** Older version directories removed once the update succeeded (D11). */
+  pruned: z.array(z.string()),
+});
 
 export const stagedAppParams = z.object({
   key: appKey,

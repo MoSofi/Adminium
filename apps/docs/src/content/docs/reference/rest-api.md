@@ -86,7 +86,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/about/*` | 2 | Build version, edition, and the update check |
 | `/api/v1/add-ons/*` | 18 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
-| `/api/v1/apps/*` | 7 | Micro-SaaS apps installed into this instance — upload a built bundle, browse what is staged or shipped with the build, plan its tables against a connection, install, discard a staged version, and uninstall |
+| `/api/v1/apps/*` | 11 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install, update, discard a staged version, and uninstall |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
 | `/api/v1/automation-runs/*` | 3 | Every execution of a rule — the last seven days, the three status filters, one run’s full step-by-step trace, and today’s counters |
@@ -194,8 +194,12 @@ DELETE /api/v1/api-keys/{id}
 GET /api/v1/apps
 POST /api/v1/apps/upload
 GET /api/v1/apps/catalog
+PUT /api/v1/apps/catalog
+POST /api/v1/apps/catalog/refresh
+POST /api/v1/apps/download
 POST /api/v1/apps/plan
 POST /api/v1/apps/install
+POST /api/v1/apps/{key}/update
 DELETE /api/v1/apps/staged/{key}/{version}
 DELETE /api/v1/apps/{key}
 ```

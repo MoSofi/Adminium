@@ -53,9 +53,9 @@ const DESCRIPTIONS = {
     'install from a verified package, enable or disable per host, and uninstall',
   'api-keys': 'Issue, list and revoke API keys',
   apps:
-    'Micro-SaaS apps installed into this instance — upload a built bundle, browse what is ' +
-    'staged or shipped with the build, plan its tables against a connection, install, ' +
-    'discard a staged version, and uninstall',
+    'Micro-SaaS apps installed into this instance — upload a built bundle or download one ' +
+    'from the opt-in online catalog, browse what is staged or offered, plan its tables ' +
+    'against a connection, install, update, discard a staged version, and uninstall',
   audit: 'The audit log — list and read single entries',
   automations:
     'Automation rules — the trigger, the steps and the branches between them; ' +

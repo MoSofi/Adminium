@@ -918,6 +918,12 @@ describe('the bundled app set (47 step 4)', () => {
         installed: false,
         installedVersion: null,
         readable: true,
+        // 48 G8-D3: a disk row, with no catalog cached to offer anything newer.
+        source: 'disk',
+        state: 'staged',
+        updateTo: null,
+        updateStaged: false,
+        needsNewerAdminium: null,
       },
     ]);
 

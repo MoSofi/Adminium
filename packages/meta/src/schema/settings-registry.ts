@@ -404,6 +404,11 @@ export const SETTINGS_REGISTRY = {
   // costs a fresh install nothing. `ADMINIUM_NETWORK_FEATURES=off` and the
   // desktop's air-gap mode both override it downward; nothing overrides it up.
   'addOns.catalogEnabled': def(z.boolean(), false, 'Browse the online add-on catalog (opt-in outbound call)', P),
+  // The app catalog's own switch (48-self-hosted-downloads.md §6b, R2: two switches, not
+  // one). Off by default for the add-on switch's reason: browsing online discloses this
+  // deployment's IP, the time and the exact app and version it pulls. The bundled set and
+  // uploads keep Hosted apps useful with it off, and the same two overrides force it down.
+  'apps.catalogEnabled': def(z.boolean(), false, 'Browse the online app catalog (opt-in outbound call)', P),
   // ── NOT portable ──────────────────────────────────────────────────────────
   // Everything below identifies THIS instance, records that something already
   // happened to it, or answers a question about the MACHINE it runs on. A

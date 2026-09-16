@@ -78,6 +78,7 @@ import { documentRoutes } from './routes/documents/index.js';
 import { createAddOnStore, seedBundledPackages } from './add-ons/store.js';
 import { createInstalledApps } from './apps/installed.js';
 import { createAppSchemaTarget } from './apps/schema-target.js';
+import { createAppCatalogClient } from './apps/catalog.js';
 import { createAppStore } from './apps/store.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
 import { createDestinationResolver } from './files/destinations.js';
@@ -90,6 +91,7 @@ import {
   enqueueCatalogRefresh,
   registerAddOnAcquireHandlers,
 } from './jobs/add-on-acquire.js';
+import { enqueueAppCatalogRefresh, registerAppAcquireHandlers } from './jobs/app-acquire.js';
 import { registerAddOnEventHandlers } from './jobs/add-on-events.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
 import { registerAutomationRunHandler } from './jobs/automation-run.js';
@@ -202,6 +204,15 @@ export const CATALOG_REFRESH_SCHEDULE_NAME = 'add-on-catalog-refresh';
 export const CATALOG_REFRESH_CRON = '0 5 * * *';
 /** Same fleet-desynchronization reasoning as the telemetry ping. */
 export const CATALOG_REFRESH_JITTER_MS = 60 * 60 * 1000;
+
+/**
+ * Daily app catalog refresh (48-self-hosted-downloads.md §6b G8-D3), half an
+ * hour after the add-on one so the two never contend. The same terms: a no-op
+ * unless `ADMINIUM_NETWORK_FEATURES` and `apps.catalogEnabled` are both on, and
+ * registered unconditionally because registering a schedule is not consent.
+ */
+export const APP_CATALOG_REFRESH_SCHEDULE_NAME = 'app-catalog-refresh';
+export const APP_CATALOG_REFRESH_CRON = '30 5 * * *';
 
 /**
  * Where the image and the desktop build park the bundled add-on tarballs (D3).
@@ -405,6 +416,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * it.
    */
   const appStore = createAppStore({ dataDir: env.ADMINIUM_DATA_DIR });
+  /*
+   * ONE app catalog client for the routes and the acquisition jobs, so the gate
+   * the page is told about and the gate a job obeys cannot disagree (48 G8-D3).
+   * Constructing it makes no call: every method checks
+   * `ADMINIUM_NETWORK_FEATURES` and `apps.catalogEnabled` before a URL exists,
+   * pinned by `app-network-isolation.test.ts`.
+   */
+  const appCatalog = createAppCatalogClient({
+    meta,
+    networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+  });
   const appManifests = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
   const installedApps = createInstalledApps({
     store: appStore,
@@ -1094,6 +1116,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // The same shared core the add-on target runs, given the connection
           // the operator picked instead of one inferred from a host.
           schemaTarget: createAppSchemaTarget({ meta, manager }),
+          catalog: appCatalog,
         }),
       );
       // The add-on runtime (26 §5.1). Registered unconditionally: an instance
@@ -1222,6 +1245,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     CATALOG_REFRESH_SCHEDULE_NAME,
     CATALOG_REFRESH_CRON,
     async () => enqueueCatalogRefresh(meta),
+    { jitterMs: CATALOG_REFRESH_JITTER_MS },
+  );
+
+  // App acquisition (48 §6b G8-D3/D5): the add-on jobs' twins, behind the app
+  // catalog's own switch and cached in the app store.
+  registerAppAcquireHandlers(jobs.registry, { meta, store: appStore, catalog: appCatalog });
+  jobs.scheduler.registerSchedule(
+    APP_CATALOG_REFRESH_SCHEDULE_NAME,
+    APP_CATALOG_REFRESH_CRON,
+    async () => enqueueAppCatalogRefresh(meta),
     { jitterMs: CATALOG_REFRESH_JITTER_MS },
   );
 
