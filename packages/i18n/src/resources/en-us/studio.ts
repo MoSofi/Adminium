@@ -585,6 +585,9 @@ export default {
         "title": "Install {app}",
         "hint": "This app came with your build and is already on disk. Nothing is created until you confirm the schema plan."
       },
+      "downloaded": {
+        "hint": "Downloaded from the online app catalogue and checked against its published fingerprint. Nothing is created until you confirm the schema plan."
+      },
       "uploaded": {
         "hint": "Read from the manifest.json inside the bundle you uploaded. Nothing is created until you confirm the schema plan.",
         "replace": "Upload a different bundle"
@@ -604,7 +607,11 @@ export default {
       "stagedTitle": "Uploaded but not installed",
       "stagedHint": "Discard one you decided against, or upload the same key again to replace it.",
       "discard": "Discard",
-      "installedAt": "installed {when}"
+      "installedAt": "installed {when}",
+      "updatesAvailable": "{count, plural, one {# update available} other {# updates available}}",
+      "updateTo": "Update to v{version}",
+      "needsNewer": "v{version} needs Adminium {minimum} or later",
+      "update": "Update"
     },
     "browse": {
       "title": "Apps you can install",
@@ -619,7 +626,34 @@ export default {
       "noMatchBody": "Try a different term, or another category.",
       "emptyTitle": "No apps are available to install",
       "emptyBody": "Apps shipped with this build appear here. Point ADMINIUM_BUNDLED_APPS at a directory of app bundles, or upload one yourself.",
-      "unreadable": "This package’s manifest could not be read. It cannot be installed — discard it below."
+      "unreadable": "This package’s manifest could not be read. It cannot be installed — discard it below.",
+      "subtitleOnline": "Apps that came with this build, plus those in the online catalogue. Installing one downloads it if needed and creates the tables it needs — nothing happens until you confirm the plan.",
+      "neverChecked": "The online catalogue is on but has not been checked yet. Check for newer to list its apps.",
+      "refresh": "Check for newer",
+      "toggle": "Browse the online app catalogue",
+      "emptyOnlineBody": "The online catalogue is on, but nothing is listed yet. Check for newer to fetch it.",
+      "fromCatalog": "Online",
+      "needsNewer": "Needs Adminium {version} or later"
+    },
+    "job": {
+      "refreshTitle": "Checking the online app catalogue",
+      "downloadTitle": "Downloading {app}",
+      "body": "Fetching and verifying. Nothing is installed or changed until you say so.",
+      "failed": "The job did not finish. Nothing was installed or changed."
+    },
+    "update": {
+      "title": "Update {app} to v{version}",
+      "subtitle": "This version needs tables the installed one did not have.",
+      "body": "They are created in the database this app already uses. Tables that are already there are not changed.",
+      "cancel": "Cancel",
+      "confirm": "Update",
+      "close": "Close",
+      "done": "{app} updated to v{version}",
+      "missingColumns": "Missing: {tables}."
+    },
+    "veto": {
+      "title": "This deployment cannot browse online",
+      "body": "The setting is saved, but network features are off for this server and that wins. Installed apps keep working, and you can still upload one yourself."
     }
   },
   "hub": {

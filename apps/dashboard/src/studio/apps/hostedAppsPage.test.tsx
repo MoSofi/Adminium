@@ -113,7 +113,7 @@ function stubFetch(options: StubOptions = {}) {
     // The shelf (47 step 4b) suspends on this. Checked BEFORE `/api/v1/apps`,
     // which would otherwise swallow it as a prefix.
     if (url === '/api/v1/apps/catalog' && method === 'GET') {
-      return Promise.resolve(jsonResponse(200, { apps: [] }));
+      return Promise.resolve(jsonResponse(200, { apps: [], catalogFetchedAt: null, onlineEnabled: false }));
     }
     if (url === '/api/v1/apps' && method === 'GET') {
       return Promise.resolve(jsonResponse(200, { apps: [], staged: [] }));

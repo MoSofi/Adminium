@@ -585,6 +585,9 @@ export default {
         "title": "安裝 {app}",
         "hint": "這個應用程式隨你的建置附帶，已經在磁碟上。在你確認結構計畫之前不會建立任何東西。"
       },
+      "downloaded": {
+        "hint": "已從線上應用程式目錄下載，並依其公布的指紋驗證。在你確認結構計畫之前不會建立任何東西。"
+      },
       "uploaded": {
         "hint": "讀取自你上傳的安裝包中的 manifest.json。在你確認結構計畫之前不會建立任何東西。",
         "replace": "上傳其他安裝包"
@@ -604,7 +607,11 @@ export default {
       "stagedTitle": "已上傳但未安裝",
       "stagedHint": "捨棄你決定不用的那一個，或再次上傳相同識別碼以取代它。",
       "discard": "捨棄",
-      "installedAt": "安裝於 {when}"
+      "installedAt": "安裝於 {when}",
+      "updatesAvailable": "{count, plural, other {# 個可用更新}}",
+      "updateTo": "更新至 v{version}",
+      "needsNewer": "v{version} 需要 Adminium {minimum} 或更新版本",
+      "update": "更新"
     },
     "browse": {
       "title": "可安裝的應用程式",
@@ -619,7 +626,34 @@ export default {
       "noMatchBody": "換個關鍵字，或換個分類試試。",
       "emptyTitle": "沒有可安裝的應用程式",
       "emptyBody": "隨此建置附帶的應用程式會顯示在這裡。把 ADMINIUM_BUNDLED_APPS 指向一個應用程式包目錄，或自行上傳一個。",
-      "unreadable": "無法讀取這個包的資訊清單，因此無法安裝——請在下方捨棄它。"
+      "unreadable": "無法讀取這個包的資訊清單，因此無法安裝——請在下方捨棄它。",
+      "subtitleOnline": "隨此建置附帶的應用程式，以及線上目錄中的應用程式。安裝時會視需要下載並建立所需的資料表——在你確認計畫之前不會發生任何事。",
+      "neverChecked": "線上目錄已開啟，但尚未檢查。檢查更新以列出其中的應用程式。",
+      "refresh": "檢查更新",
+      "toggle": "瀏覽線上應用程式目錄",
+      "emptyOnlineBody": "線上目錄已開啟，但還沒有列出任何內容。檢查更新以取得目錄。",
+      "fromCatalog": "線上",
+      "needsNewer": "需要 Adminium {version} 或更新版本"
+    },
+    "job": {
+      "refreshTitle": "正在檢查線上應用程式目錄",
+      "downloadTitle": "正在下載 {app}",
+      "body": "正在取得並驗證。在你同意之前不會安裝或變更任何東西。",
+      "failed": "工作未完成。沒有安裝或變更任何東西。"
+    },
+    "update": {
+      "title": "將 {app} 更新至 v{version}",
+      "subtitle": "此版本需要已安裝版本沒有的資料表。",
+      "body": "這些資料表會建立在此應用程式已在使用的資料庫中。既有的資料表不會變更。",
+      "cancel": "取消",
+      "confirm": "更新",
+      "close": "關閉",
+      "done": "{app} 已更新至 v{version}",
+      "missingColumns": "缺少：{tables}。"
+    },
+    "veto": {
+      "title": "此部署無法線上瀏覽",
+      "body": "設定已儲存，但此伺服器關閉了網路功能，以此為準。已安裝的應用程式仍可使用，你也仍可以自行上傳應用程式。"
     }
   },
   "hub": {

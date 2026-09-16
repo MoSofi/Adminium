@@ -12,7 +12,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2402 entries. */
+/** `namespace:key` — 2407 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'automations:canvas.insert',
   'automations:canvas.remove',
@@ -1533,6 +1533,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hostedApps.browse.emptyTitle',
   'studio:hostedApps.browse.noMatch',
   'studio:hostedApps.browse.search',
+  'studio:hostedApps.browse.toggle',
   'studio:hostedApps.domains.hostLabel',
   'studio:hostedApps.domains.instanceLabel',
   'studio:hostedApps.domains.issuesTitle',
@@ -1564,6 +1565,10 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hostedApps.surfaces.connectionLabel',
   'studio:hostedApps.surfaces.placementLabel',
   'studio:hostedApps.title',
+  'studio:hostedApps.update.close',
+  'studio:hostedApps.update.subtitle',
+  'studio:hostedApps.update.title',
+  'studio:hostedApps.veto.title',
   'studio:hub.action.pausedHint',
   'studio:hub.action.reintrospect',
   'studio:hub.action.test',

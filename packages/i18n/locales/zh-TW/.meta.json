@@ -15067,9 +15067,17 @@
     "status": "mt",
     "srcHash": "4eac1a224c6f"
   },
+  "studio.hostedApps.browse.emptyOnlineBody": {
+    "status": "mt",
+    "srcHash": "0dec2f21784a"
+  },
   "studio.hostedApps.browse.emptyTitle": {
     "status": "mt",
     "srcHash": "10eb0021d37e"
+  },
+  "studio.hostedApps.browse.fromCatalog": {
+    "status": "mt",
+    "srcHash": "c3e839df6084"
   },
   "studio.hostedApps.browse.install": {
     "status": "mt",
@@ -15079,6 +15087,14 @@
     "status": "mt",
     "srcHash": "7bb4405cdfc9"
   },
+  "studio.hostedApps.browse.needsNewer": {
+    "status": "mt",
+    "srcHash": "9b6dfebd4b15"
+  },
+  "studio.hostedApps.browse.neverChecked": {
+    "status": "mt",
+    "srcHash": "a25de36d3c39"
+  },
   "studio.hostedApps.browse.noMatch": {
     "status": "mt",
     "srcHash": "b83e5c59e4d8"
@@ -15086,6 +15102,10 @@
   "studio.hostedApps.browse.noMatchBody": {
     "status": "mt",
     "srcHash": "8668ff69294d"
+  },
+  "studio.hostedApps.browse.refresh": {
+    "status": "mt",
+    "srcHash": "10c2f9845adb"
   },
   "studio.hostedApps.browse.search": {
     "status": "mt",
@@ -15095,9 +15115,17 @@
     "status": "mt",
     "srcHash": "6e1846f4768d"
   },
+  "studio.hostedApps.browse.subtitleOnline": {
+    "status": "mt",
+    "srcHash": "5899828d5437"
+  },
   "studio.hostedApps.browse.title": {
     "status": "mt",
     "srcHash": "a9f7d8319996"
+  },
+  "studio.hostedApps.browse.toggle": {
+    "status": "mt",
+    "srcHash": "aabf0b71fc2b"
   },
   "studio.hostedApps.browse.unreadable": {
     "status": "mt",
@@ -15255,6 +15283,10 @@
     "status": "mt",
     "srcHash": "7bb4405cdfc9"
   },
+  "studio.hostedApps.install.downloaded.hint": {
+    "status": "mt",
+    "srcHash": "b0225de4f44e"
+  },
   "studio.hostedApps.install.failed": {
     "status": "mt",
     "srcHash": "50c51c746f14"
@@ -15383,6 +15415,10 @@
     "status": "mt",
     "srcHash": "1000d23ea658"
   },
+  "studio.hostedApps.installed.needsNewer": {
+    "status": "mt",
+    "srcHash": "c103be102327"
+  },
   "studio.hostedApps.installed.stagedHint": {
     "status": "mt",
     "srcHash": "7e68ddb85057"
@@ -15398,6 +15434,18 @@
   "studio.hostedApps.installed.uninstall": {
     "status": "mt",
     "srcHash": "a735da1d32d7"
+  },
+  "studio.hostedApps.installed.update": {
+    "status": "mt",
+    "srcHash": "fb91e24fa52d"
+  },
+  "studio.hostedApps.installed.updateTo": {
+    "status": "mt",
+    "srcHash": "e248a79033f8"
+  },
+  "studio.hostedApps.installed.updatesAvailable": {
+    "status": "mt",
+    "srcHash": "67cce9a5a0df"
   },
   "studio.hostedApps.instances.add": {
     "status": "mt",
@@ -15438,6 +15486,22 @@
   "studio.hostedApps.instances.title": {
     "status": "mt",
     "srcHash": "86d67413e7f1"
+  },
+  "studio.hostedApps.job.body": {
+    "status": "mt",
+    "srcHash": "ebcdbe706237"
+  },
+  "studio.hostedApps.job.downloadTitle": {
+    "status": "mt",
+    "srcHash": "e357c400646f"
+  },
+  "studio.hostedApps.job.failed": {
+    "status": "mt",
+    "srcHash": "0b4c99aaf879"
+  },
+  "studio.hostedApps.job.refreshTitle": {
+    "status": "mt",
+    "srcHash": "62f5f6b2e4f2"
   },
   "studio.hostedApps.subtitle": {
     "status": "mt",
@@ -15498,6 +15562,46 @@
   "studio.hostedApps.title": {
     "status": "mt",
     "srcHash": "de3fad131687"
+  },
+  "studio.hostedApps.update.body": {
+    "status": "mt",
+    "srcHash": "5970be2d1f98"
+  },
+  "studio.hostedApps.update.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.hostedApps.update.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.hostedApps.update.confirm": {
+    "status": "mt",
+    "srcHash": "fb91e24fa52d"
+  },
+  "studio.hostedApps.update.done": {
+    "status": "mt",
+    "srcHash": "da5ceaf8f12b"
+  },
+  "studio.hostedApps.update.missingColumns": {
+    "status": "mt",
+    "srcHash": "5d2f4c1163fe"
+  },
+  "studio.hostedApps.update.subtitle": {
+    "status": "mt",
+    "srcHash": "491f0512d320"
+  },
+  "studio.hostedApps.update.title": {
+    "status": "mt",
+    "srcHash": "7948b51cf2ad"
+  },
+  "studio.hostedApps.veto.body": {
+    "status": "mt",
+    "srcHash": "c082ef949f0e"
+  },
+  "studio.hostedApps.veto.title": {
+    "status": "mt",
+    "srcHash": "07d6b1ab25ea"
   },
   "studio.hub.action.delete": {
     "srcHash": "f6fdbe48dc54",

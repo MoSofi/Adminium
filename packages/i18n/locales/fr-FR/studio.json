@@ -575,6 +575,9 @@
         "title": "Installer {app}",
         "hint": "Cette application est livrée avec votre version et se trouve déjà sur le disque. Rien n’est créé tant que vous n’avez pas confirmé le plan de schéma."
       },
+      "downloaded": {
+        "hint": "Téléchargée depuis le catalogue d’applications en ligne et vérifiée d’après son empreinte publiée. Rien n’est créé tant que vous n’avez pas confirmé le plan de schéma."
+      },
       "uploaded": {
         "hint": "Lu dans le manifest.json du paquet que vous avez téléversé. Rien n’est créé tant que vous n’avez pas confirmé le plan de schéma.",
         "replace": "Téléverser un autre paquet"
@@ -594,7 +597,11 @@
       "stagedTitle": "Téléversés mais non installés",
       "stagedHint": "Écartez celui que vous avez renoncé à installer, ou téléversez à nouveau la même clé pour le remplacer.",
       "discard": "Écarter",
-      "installedAt": "installé {when}"
+      "installedAt": "installé {when}",
+      "updatesAvailable": "{count, plural, one {# mise à jour disponible} other {# mises à jour disponibles}}",
+      "updateTo": "Mettre à jour vers v{version}",
+      "needsNewer": "v{version} nécessite Adminium {minimum} ou plus récent",
+      "update": "Mettre à jour"
     },
     "browse": {
       "title": "Applications installables",
@@ -609,7 +616,34 @@
       "noMatchBody": "Essayez un autre terme, ou une autre catégorie.",
       "emptyTitle": "Aucune application à installer",
       "emptyBody": "Les applications livrées avec cette version apparaissent ici. Faites pointer ADMINIUM_BUNDLED_APPS vers un dossier de paquets, ou téléversez-en un.",
-      "unreadable": "Le manifeste de ce paquet n’a pas pu être lu. Il ne peut pas être installé — écartez-le ci-dessous."
+      "unreadable": "Le manifeste de ce paquet n’a pas pu être lu. Il ne peut pas être installé — écartez-le ci-dessous.",
+      "subtitleOnline": "Les applications livrées avec cette version, plus celles du catalogue en ligne. En installer une la télécharge si besoin et crée les tables nécessaires — rien ne se passe avant que vous confirmiez le plan.",
+      "neverChecked": "Le catalogue en ligne est activé mais n’a pas encore été consulté. Recherchez des nouveautés pour afficher ses applications.",
+      "refresh": "Rechercher des nouveautés",
+      "toggle": "Parcourir le catalogue d’applications en ligne",
+      "emptyOnlineBody": "Le catalogue en ligne est activé, mais rien n’est encore listé. Recherchez des nouveautés pour le récupérer.",
+      "fromCatalog": "En ligne",
+      "needsNewer": "Nécessite Adminium {version} ou plus récent"
+    },
+    "job": {
+      "refreshTitle": "Consultation du catalogue d’applications en ligne",
+      "downloadTitle": "Téléchargement de {app}",
+      "body": "Récupération et vérification. Rien n’est installé ni modifié sans votre accord.",
+      "failed": "La tâche ne s’est pas terminée. Rien n’a été installé ni modifié."
+    },
+    "update": {
+      "title": "Mettre à jour {app} vers v{version}",
+      "subtitle": "Cette version a besoin de tables que la version installée n’avait pas.",
+      "body": "Elles sont créées dans la base de données que cette application utilise déjà. Les tables existantes ne sont pas modifiées.",
+      "cancel": "Annuler",
+      "confirm": "Mettre à jour",
+      "close": "Fermer",
+      "done": "{app} mise à jour vers v{version}",
+      "missingColumns": "Manquant : {tables}."
+    },
+    "veto": {
+      "title": "Ce déploiement ne peut pas consulter le catalogue en ligne",
+      "body": "Le réglage est enregistré, mais les fonctions réseau sont coupées sur ce serveur et cela prime. Les applications installées continuent de fonctionner, et vous pouvez toujours en téléverser une."
     }
   },
   "hub": {

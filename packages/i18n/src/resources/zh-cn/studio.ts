@@ -585,6 +585,9 @@ export default {
         "title": "安装 {app}",
         "hint": "这个应用随你的构建附带，已经在磁盘上。在你确认架构计划之前不会创建任何内容。"
       },
+      "downloaded": {
+        "hint": "已从在线应用目录下载，并按其公布的指纹校验。在你确认架构计划之前不会创建任何内容。"
+      },
       "uploaded": {
         "hint": "读取自你上传的安装包中的 manifest.json。在你确认架构计划之前不会创建任何内容。",
         "replace": "上传其他安装包"
@@ -604,7 +607,11 @@ export default {
       "stagedTitle": "已上传但未安装",
       "stagedHint": "丢弃你决定不用的那个，或再次上传同一标识以替换它。",
       "discard": "丢弃",
-      "installedAt": "安装于 {when}"
+      "installedAt": "安装于 {when}",
+      "updatesAvailable": "{count, plural, other {# 个可用更新}}",
+      "updateTo": "更新到 v{version}",
+      "needsNewer": "v{version} 需要 Adminium {minimum} 或更高版本",
+      "update": "更新"
     },
     "browse": {
       "title": "可安装的应用",
@@ -619,7 +626,34 @@ export default {
       "noMatchBody": "换个关键词，或换个分类试试。",
       "emptyTitle": "没有可安装的应用",
       "emptyBody": "随此构建附带的应用会显示在这里。把 ADMINIUM_BUNDLED_APPS 指向一个应用包目录，或自行上传一个。",
-      "unreadable": "无法读取该包的清单，因此无法安装——请在下方丢弃它。"
+      "unreadable": "无法读取该包的清单，因此无法安装——请在下方丢弃它。",
+      "subtitleOnline": "随此构建附带的应用，以及在线目录中的应用。安装时会按需下载并创建所需的表——在你确认计划之前不会发生任何事。",
+      "neverChecked": "在线目录已开启，但尚未检查。检查更新以列出其中的应用。",
+      "refresh": "检查更新",
+      "toggle": "浏览在线应用目录",
+      "emptyOnlineBody": "在线目录已开启，但还没有列出任何内容。检查更新以获取目录。",
+      "fromCatalog": "在线",
+      "needsNewer": "需要 Adminium {version} 或更高版本"
+    },
+    "job": {
+      "refreshTitle": "正在检查在线应用目录",
+      "downloadTitle": "正在下载 {app}",
+      "body": "正在获取并校验。在你同意之前不会安装或更改任何内容。",
+      "failed": "任务未完成。没有安装或更改任何内容。"
+    },
+    "update": {
+      "title": "将 {app} 更新到 v{version}",
+      "subtitle": "此版本需要已安装版本没有的表。",
+      "body": "这些表会创建在此应用已在使用的数据库中。已有的表不会被更改。",
+      "cancel": "取消",
+      "confirm": "更新",
+      "close": "关闭",
+      "done": "{app} 已更新到 v{version}",
+      "missingColumns": "缺少：{tables}。"
+    },
+    "veto": {
+      "title": "此部署无法在线浏览",
+      "body": "设置已保存，但此服务器关闭了网络功能，以此为准。已安装的应用仍可使用，你也仍可以自行上传应用。"
     }
   },
   "hub": {

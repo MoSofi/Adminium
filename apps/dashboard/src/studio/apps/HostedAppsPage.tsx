@@ -62,6 +62,7 @@ import {
 } from './hostedAppsApi.js';
 import { connectionsQuery } from '../hub/ConnectionsHub.js';
 import { AppBrowser } from './AppBrowser.js';
+import { AppAcquisitionAlerts, UpdateConsentDialog, useAppAcquisition } from './appAcquisition.js';
 import { InstallAppWizard } from './InstallAppWizard.js';
 import { InstalledAppsCard } from './InstalledAppsCard.js';
 
@@ -85,8 +86,10 @@ export function HostedAppsPage() {
   const [installing, setInstalling] = useState(false);
   /** The shelf app the wizard opens on, when it was opened from a card. */
   const [chosen, setChosen] = useState<
-    { key: string; version: string; name: string } | undefined
+    { key: string; version: string; name: string; downloaded?: boolean } | undefined
   >(undefined);
+  /** The online app catalog: switch, check for newer, download, update (48 G8-D7). */
+  const acquisition = useAppAcquisition();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<DomainIssue[]>([]);
@@ -140,18 +143,35 @@ export function HostedAppsPage() {
         </Alert>
       )}
 
+      <UpdateConsentDialog state={acquisition} />
+      <AppAcquisitionAlerts state={acquisition} origin="shelf" />
+
       {/*
         * The shelf sits above the installed list, which is the order the comp
         * puts its two screens in: browse, then manage.
         */}
       <AppBrowser
+        busy={acquisition.busy}
+        onToggleOnline={(next) => void acquisition.toggleOnline(next)}
+        onRefresh={() => void acquisition.refreshCatalog()}
         onInstall={(app) => {
+          if (app.source === 'catalog') {
+            // Not on disk yet: download it, then open the wizard on what landed.
+            void acquisition.installFromCatalog(app, (downloaded) => {
+              setChosen(downloaded);
+              setInstalling(true);
+            });
+            return;
+          }
           setChosen({ key: app.key, version: app.version, name: app.name });
           setInstalling(true);
         }}
       />
 
+      <AppAcquisitionAlerts state={acquisition} origin="installed" />
       <InstalledAppsCard
+        busy={acquisition.busy}
+        onUpdate={(app, row) => void acquisition.update(app, row)}
         onInstall={() => {
           setChosen(undefined);
           setInstalling(true);

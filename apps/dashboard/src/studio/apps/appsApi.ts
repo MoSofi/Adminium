@@ -5,6 +5,12 @@
  *
  * Shapes mirror the server's Zod replies (`routes/apps/schema.ts`) — the
  * copied-mirror convention: change both together.
+ *
+ * ── BROWSING IS NOT FETCHING (48 §6b G8-D3) ────────────────────────────────
+ * `GET /apps/catalog` reads the app store plus whatever the last refresh of the
+ * online app catalog cached; it never reaches the network on its own. Refresh,
+ * download and update are separate, explicit actions, and the two that fetch
+ * are JOBS the page follows to the end.
  */
 import { queryOptions } from '@tanstack/react-query';
 
@@ -44,6 +50,7 @@ export function installedAppsQuery() {
 
 export interface CatalogApp {
   key: string;
+  /** The version on disk, or for a catalog-only row the version it offers. */
   version: string;
   name: string;
   description: string;
@@ -56,6 +63,23 @@ export interface CatalogApp {
   installedVersion: string | null;
   /** False = the package's manifest could not be read; shown so it can be discarded. */
   readable: boolean;
+  /** `disk`: in the app store. `catalog`: offered online only, so installing downloads first. */
+  source: 'disk' | 'catalog';
+  state: 'installed' | 'staged' | 'available';
+  /** For an installed app: the newest version above it this server can take. */
+  updateTo: string | null;
+  /** True when `updateTo` is already on disk, so updating needs no download. */
+  updateStaged: boolean;
+  /** A catalog release this server is too old for, and the version it needs (G8-D2). */
+  needsNewerAdminium: { version: string; minAdminiumVersion: string } | null;
+}
+
+export interface AppCatalogReply {
+  apps: CatalogApp[];
+  /** When the online app catalog was last cached; null when never. */
+  catalogFetchedAt: number | null;
+  /** Network features AND the app catalog switch. */
+  onlineEnabled: boolean;
 }
 
 export const APP_CATALOG_QUERY_KEY = ['app-catalog'] as const;
@@ -63,8 +87,89 @@ export const APP_CATALOG_QUERY_KEY = ['app-catalog'] as const;
 export function appCatalogQuery() {
   return queryOptions({
     queryKey: APP_CATALOG_QUERY_KEY,
-    queryFn: () => api.get<{ apps: CatalogApp[] }>('/api/v1/apps/catalog'),
+    queryFn: () => api.get<AppCatalogReply>('/api/v1/apps/catalog'),
   });
+}
+
+/**
+ * The online app catalog's switch — its own, never the add-on one (48 R2).
+ *
+ * Returns the EFFECTIVE state: `ADMINIUM_NETWORK_FEATURES=off` vetoes the
+ * setting, and `vetoed` is how the page explains a switch that did not move.
+ */
+export function setAppCatalogEnabled(
+  enabled: boolean,
+): Promise<{ onlineEnabled: boolean; vetoed: boolean }> {
+  return api.put<{ onlineEnabled: boolean; vetoed: boolean }>('/api/v1/apps/catalog', { enabled });
+}
+
+/** Fetch the online app catalog again. A job; follow it with {@link followAppJob}. */
+export function refreshAppCatalog(): Promise<{ jobId: string }> {
+  return api.post<{ jobId: string }>('/api/v1/apps/catalog/refresh');
+}
+
+/**
+ * Download one catalog release into the app store. A job; follow it with
+ * {@link followAppJob}. The server checks the bytes against the catalog's own
+ * fingerprint, and refuses at once a release this server is too old for.
+ */
+export function downloadApp(key: string, version: string): Promise<{ jobId: string }> {
+  return api.post<{ jobId: string }>('/api/v1/apps/download', { key, version });
+}
+
+/**
+ * Move an installed app to the newest version already on disk (G8-D6). Same
+ * row, same connection; new tables are created and a table short of columns
+ * refuses the update.
+ */
+export function updateApp(
+  key: string,
+): Promise<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }> {
+  return api.post<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }>(
+    `/api/v1/apps/${encodeURIComponent(key)}/update`,
+  );
+}
+
+/** Mirrors the jobs route's view of a download or refresh. */
+export interface AppJobView {
+  id: string;
+  status: 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+  progress: { pct: number; step?: string | null; message?: string | null } | null;
+  lastError: string | null;
+}
+
+/** Poll cadence while a job runs. Exported so a suite can shorten it. */
+export const APP_JOB_POLL_MS = 400;
+
+/**
+ * Follow a job to the end, reporting progress; resolves on success and throws
+ * the job's own error otherwise.
+ *
+ * Polled rather than socket-subscribed, as the add-ons page does it: nothing to
+ * tear down when the page unmounts mid-download, and testable without a socket.
+ * Without following it, the page said "done" the moment a download was merely
+ * QUEUED.
+ */
+export async function followAppJob(
+  jobId: string,
+  options: {
+    onProgress: (progress: { pct: number; message: string | null }) => void;
+    /** The sentence to throw when the job failed without saying why. */
+    failed: string;
+    pollMs?: number;
+  },
+): Promise<void> {
+  for (;;) {
+    const { data: job } = await api.get<{ data: AppJobView }>(
+      `/api/v1/jobs/${encodeURIComponent(jobId)}`,
+    );
+    options.onProgress({ pct: job.progress?.pct ?? 0, message: job.progress?.message ?? null });
+    if (job.status === 'succeeded') return;
+    if (job.status === 'failed' || job.status === 'cancelled') {
+      throw new Error(job.lastError ?? options.failed);
+    }
+    await new Promise((resolve) => setTimeout(resolve, options.pollMs ?? APP_JOB_POLL_MS));
+  }
 }
 
 export interface StagedApp {

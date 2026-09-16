@@ -575,6 +575,9 @@
         "title": "Installér {app}",
         "hint": "Denne app fulgte med dit build og ligger allerede på disken. Der oprettes intet, før du bekræfter skemaplanen."
       },
+      "downloaded": {
+        "hint": "Downloadet fra onlinekataloget over apps og kontrolleret mod dets offentliggjorte fingeraftryk. Der oprettes intet, før du bekræfter skemaplanen."
+      },
       "uploaded": {
         "hint": "Læst fra manifest.json i den pakke, du uploadede. Der oprettes intet, før du bekræfter skemaplanen.",
         "replace": "Upload en anden pakke"
@@ -594,7 +597,11 @@
       "stagedTitle": "Uploadet, men ikke installeret",
       "stagedHint": "Kassér den, du har fravalgt, eller upload den samme nøgle igen for at erstatte den.",
       "discard": "Kassér",
-      "installedAt": "installeret {when}"
+      "installedAt": "installeret {when}",
+      "updatesAvailable": "{count, plural, one {# opdatering tilgængelig} other {# opdateringer tilgængelige}}",
+      "updateTo": "Opdatér til v{version}",
+      "needsNewer": "v{version} kræver Adminium {minimum} eller nyere",
+      "update": "Opdatér"
     },
     "browse": {
       "title": "Apps du kan installere",
@@ -609,7 +616,34 @@
       "noMatchBody": "Prøv et andet ord eller en anden kategori.",
       "emptyTitle": "Ingen apps er tilgængelige",
       "emptyBody": "Apps, der følger med dette build, vises her. Lad ADMINIUM_BUNDLED_APPS pege på en mappe med app-pakker, eller upload selv en.",
-      "unreadable": "Pakkens manifest kunne ikke læses. Den kan ikke installeres — kassér den nedenfor."
+      "unreadable": "Pakkens manifest kunne ikke læses. Den kan ikke installeres — kassér den nedenfor.",
+      "subtitleOnline": "Apps, der fulgte med dette build, plus dem i onlinekataloget. En installation downloader appen efter behov og opretter de nødvendige tabeller — der sker intet, før du bekræfter planen.",
+      "neverChecked": "Onlinekataloget er slået til, men er ikke tjekket endnu. Søg efter nyere for at vise dets apps.",
+      "refresh": "Søg efter nyere",
+      "toggle": "Gennemse onlinekataloget over apps",
+      "emptyOnlineBody": "Onlinekataloget er slået til, men intet er vist endnu. Søg efter nyere for at hente det.",
+      "fromCatalog": "Online",
+      "needsNewer": "Kræver Adminium {version} eller nyere"
+    },
+    "job": {
+      "refreshTitle": "Tjekker onlinekataloget over apps",
+      "downloadTitle": "Downloader {app}",
+      "body": "Henter og kontrollerer. Intet installeres eller ændres, før du siger til.",
+      "failed": "Jobbet blev ikke færdigt. Intet blev installeret eller ændret."
+    },
+    "update": {
+      "title": "Opdatér {app} til v{version}",
+      "subtitle": "Denne version kræver tabeller, som den installerede ikke havde.",
+      "body": "De oprettes i den database, appen allerede bruger. Tabeller, der allerede findes, ændres ikke.",
+      "cancel": "Annullér",
+      "confirm": "Opdatér",
+      "close": "Luk",
+      "done": "{app} opdateret til v{version}",
+      "missingColumns": "Mangler: {tables}."
+    },
+    "veto": {
+      "title": "Denne installation kan ikke gennemse online",
+      "body": "Indstillingen er gemt, men netværksfunktioner er slået fra på denne server, og det vejer tungest. Installerede apps virker fortsat, og du kan stadig selv uploade en."
     }
   },
   "hub": {

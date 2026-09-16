@@ -585,6 +585,9 @@ export default {
         "title": "{app} installieren",
         "hint": "Diese App kam mit Ihrem Build und liegt bereits auf der Festplatte. Es wird nichts angelegt, bevor Sie den Schemaplan bestätigen."
       },
+      "downloaded": {
+        "hint": "Aus dem Online-App-Katalog heruntergeladen und gegen seinen veröffentlichten Fingerabdruck geprüft. Es wird nichts angelegt, bevor Sie den Schemaplan bestätigen."
+      },
       "uploaded": {
         "hint": "Aus der manifest.json im hochgeladenen Paket gelesen. Es wird nichts angelegt, bevor Sie den Schemaplan bestätigen.",
         "replace": "Anderes Paket hochladen"
@@ -604,7 +607,11 @@ export default {
       "stagedTitle": "Hochgeladen, aber nicht installiert",
       "stagedHint": "Verwerfen Sie, wogegen Sie sich entschieden haben, oder laden Sie denselben Schlüssel erneut hoch, um ihn zu ersetzen.",
       "discard": "Verwerfen",
-      "installedAt": "installiert {when}"
+      "installedAt": "installiert {when}",
+      "updatesAvailable": "{count, plural, one {# Update verfügbar} other {# Updates verfügbar}}",
+      "updateTo": "Update auf v{version}",
+      "needsNewer": "v{version} benötigt Adminium {minimum} oder neuer",
+      "update": "Aktualisieren"
     },
     "browse": {
       "title": "Apps, die Sie installieren können",
@@ -619,7 +626,34 @@ export default {
       "noMatchBody": "Versuchen Sie einen anderen Begriff oder eine andere Kategorie.",
       "emptyTitle": "Keine Apps zum Installieren verfügbar",
       "emptyBody": "Apps, die mit diesem Build geliefert werden, erscheinen hier. Lassen Sie ADMINIUM_BUNDLED_APPS auf ein Verzeichnis mit App-Paketen zeigen, oder laden Sie selbst eines hoch.",
-      "unreadable": "Das Manifest dieses Pakets konnte nicht gelesen werden. Es lässt sich nicht installieren — verwerfen Sie es unten."
+      "unreadable": "Das Manifest dieses Pakets konnte nicht gelesen werden. Es lässt sich nicht installieren — verwerfen Sie es unten.",
+      "subtitleOnline": "Apps, die mit diesem Build geliefert wurden, dazu die aus dem Online-Katalog. Eine Installation lädt die App bei Bedarf herunter und legt die benötigten Tabellen an — bis Sie den Plan bestätigen, passiert nichts.",
+      "neverChecked": "Der Online-Katalog ist aktiv, wurde aber noch nicht geprüft. Suchen Sie nach Neuerem, um seine Apps aufzulisten.",
+      "refresh": "Nach Neuerem suchen",
+      "toggle": "Online-App-Katalog durchsuchen",
+      "emptyOnlineBody": "Der Online-Katalog ist aktiv, aber noch ist nichts aufgelistet. Suchen Sie nach Neuerem, um ihn abzurufen.",
+      "fromCatalog": "Online",
+      "needsNewer": "Benötigt Adminium {version} oder neuer"
+    },
+    "job": {
+      "refreshTitle": "Online-App-Katalog wird geprüft",
+      "downloadTitle": "{app} wird heruntergeladen",
+      "body": "Wird geladen und geprüft. Installiert oder geändert wird erst auf Ihr Wort.",
+      "failed": "Der Vorgang wurde nicht abgeschlossen. Es wurde nichts installiert oder geändert."
+    },
+    "update": {
+      "title": "{app} auf v{version} aktualisieren",
+      "subtitle": "Diese Version braucht Tabellen, die die installierte nicht hatte.",
+      "body": "Sie werden in der Datenbank angelegt, die diese App bereits nutzt. Bereits vorhandene Tabellen werden nicht verändert.",
+      "cancel": "Abbrechen",
+      "confirm": "Aktualisieren",
+      "close": "Schließen",
+      "done": "{app} auf v{version} aktualisiert",
+      "missingColumns": "Es fehlen: {tables}."
+    },
+    "veto": {
+      "title": "Diese Installation kann nicht online suchen",
+      "body": "Die Einstellung ist gespeichert, aber Netzwerkfunktionen sind für diesen Server aus, und das gilt. Installierte Apps laufen weiter, und Sie können selbst eine hochladen."
     }
   },
   "hub": {

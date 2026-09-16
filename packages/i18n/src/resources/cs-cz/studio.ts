@@ -585,6 +585,9 @@ export default {
         "title": "Nainstalovat {app}",
         "hint": "Tato aplikace přišla s vaším buildem a už je na disku. Dokud nepotvrdíte plán schématu, nic se nevytvoří."
       },
+      "downloaded": {
+        "hint": "Staženo z online katalogu aplikací a ověřeno podle zveřejněného otisku. Dokud nepotvrdíte plán schématu, nic se nevytvoří."
+      },
       "uploaded": {
         "hint": "Načteno ze souboru manifest.json v balíčku, který jste nahráli. Dokud nepotvrdíte plán schématu, nic se nevytvoří.",
         "replace": "Nahrát jiný balíček"
@@ -604,7 +607,11 @@ export default {
       "stagedTitle": "Nahráno, ale nenainstalováno",
       "stagedHint": "Zahoďte ten, který jste zavrhli, nebo nahrajte stejný klíč znovu a nahraďte jej.",
       "discard": "Zahodit",
-      "installedAt": "nainstalováno {when}"
+      "installedAt": "nainstalováno {when}",
+      "updatesAvailable": "{count, plural, one {# dostupná aktualizace} few {# dostupné aktualizace} many {# dostupné aktualizace} other {# dostupných aktualizací}}",
+      "updateTo": "Aktualizovat na v{version}",
+      "needsNewer": "v{version} vyžaduje Adminium {minimum} nebo novější",
+      "update": "Aktualizovat"
     },
     "browse": {
       "title": "Aplikace k instalaci",
@@ -619,7 +626,34 @@ export default {
       "noMatchBody": "Zkuste jiný výraz nebo jinou kategorii.",
       "emptyTitle": "Není k dispozici žádná aplikace",
       "emptyBody": "Aplikace dodané s tímto buildem se objeví zde. Nasměrujte ADMINIUM_BUNDLED_APPS na adresář s balíčky, nebo nějaký nahrajte.",
-      "unreadable": "Manifest tohoto balíčku nelze přečíst. Nelze jej nainstalovat — níže jej zahoďte."
+      "unreadable": "Manifest tohoto balíčku nelze přečíst. Nelze jej nainstalovat — níže jej zahoďte.",
+      "subtitleOnline": "Aplikace dodané s tímto buildem a k tomu ty z online katalogu. Instalace aplikaci v případě potřeby stáhne a vytvoří potřebné tabulky — dokud plán nepotvrdíte, nic se nestane.",
+      "neverChecked": "Online katalog je zapnutý, ale ještě nebyl zkontrolován. Vyhledejte novinky a zobrazí se jeho aplikace.",
+      "refresh": "Vyhledat novinky",
+      "toggle": "Procházet online katalog aplikací",
+      "emptyOnlineBody": "Online katalog je zapnutý, ale zatím v něm nic není. Vyhledejte novinky a načtěte ho.",
+      "fromCatalog": "Online",
+      "needsNewer": "Vyžaduje Adminium {version} nebo novější"
+    },
+    "job": {
+      "refreshTitle": "Kontrola online katalogu aplikací",
+      "downloadTitle": "Stahuje se {app}",
+      "body": "Stahování a ověřování. Nic se nenainstaluje ani nezmění, dokud to neschválíte.",
+      "failed": "Úloha nebyla dokončena. Nic se nenainstalovalo ani nezměnilo."
+    },
+    "update": {
+      "title": "Aktualizovat {app} na v{version}",
+      "subtitle": "Tato verze potřebuje tabulky, které nainstalovaná verze neměla.",
+      "body": "Vytvoří se v databázi, kterou tato aplikace už používá. Existující tabulky se nemění.",
+      "cancel": "Zrušit",
+      "confirm": "Aktualizovat",
+      "close": "Zavřít",
+      "done": "{app} aktualizováno na v{version}",
+      "missingColumns": "Chybí: {tables}."
+    },
+    "veto": {
+      "title": "Toto nasazení nemůže procházet online",
+      "body": "Nastavení je uložené, ale síťové funkce jsou na tomto serveru vypnuté a to má přednost. Nainstalované aplikace dál fungují a stále můžete aplikaci nahrát sami."
     }
   },
   "hub": {

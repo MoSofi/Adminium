@@ -370,6 +370,12 @@ describe('the install wizard', () => {
   });
 });
 
+/** Whether the app catalogue was read again after the call that changed what is on disk. */
+function catalogueReadAfter(method: string, url: string): boolean {
+  const at = calls.findIndex((call) => call.method === method && call.url === url);
+  return at !== -1 && calls.slice(at + 1).some((call) => call.method === 'GET' && call.url === '/api/v1/apps/catalog');
+}
+
 describe('the installed list', () => {
   it('says the tables survive an uninstall, and asks for the key back', async () => {
     installed = {
@@ -390,7 +396,7 @@ describe('the installed list', () => {
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={client}>
-        <InstalledAppsCard onInstall={() => {}} />
+        <InstalledAppsCard onInstall={() => {}} onUpdate={() => {}} />
       </QueryClientProvider>,
     );
 
@@ -418,9 +424,11 @@ describe('the installed list', () => {
       );
     });
     // An uninstall also removes the key's package from disk, so the shelf
-    // card that offered it is gone too.
+    // card that offered it is gone too. This card reads the catalogue itself
+    // (for its update pills), so the invalidation re-reads it at once rather
+    // than leaving it marked stale.
     await waitFor(() => {
-      expect(client.getQueryState(APP_CATALOG_QUERY_KEY)?.isInvalidated).toBe(true);
+      expect(catalogueReadAfter('DELETE', '/api/v1/apps/clinic')).toBe(true);
     });
   });
 
@@ -431,7 +439,7 @@ describe('the installed list', () => {
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={client}>
-        <InstalledAppsCard onInstall={() => {}} />
+        <InstalledAppsCard onInstall={() => {}} onUpdate={() => {}} />
       </QueryClientProvider>,
     );
 
@@ -448,7 +456,7 @@ describe('the installed list', () => {
     });
     // The shelf lists what is on disk, and a discarded package no longer is.
     await waitFor(() => {
-      expect(client.getQueryState(APP_CATALOG_QUERY_KEY)?.isInvalidated).toBe(true);
+      expect(catalogueReadAfter('DELETE', '/api/v1/apps/staged/clinic/1.0.0')).toBe(true);
     });
   });
 });
@@ -468,6 +476,11 @@ describe('the app shelf (47 step 4b)', () => {
         installed: false,
         installedVersion: null,
         readable: true,
+        source: 'disk',
+        state: 'staged',
+        updateTo: null,
+        updateStaged: false,
+        needsNewerAdminium: null,
       },
       {
         key: 'shopfront',
@@ -481,6 +494,11 @@ describe('the app shelf (47 step 4b)', () => {
         installed: true,
         installedVersion: null,
         readable: true,
+        source: 'disk',
+        state: 'installed',
+        updateTo: null,
+        updateStaged: false,
+        needsNewerAdminium: null,
       },
       {
         key: 'broken',
@@ -494,15 +512,22 @@ describe('the app shelf (47 step 4b)', () => {
         installed: false,
         installedVersion: null,
         readable: false,
+        source: 'disk',
+        state: 'staged',
+        updateTo: null,
+        updateStaged: false,
+        needsNewerAdminium: null,
       },
     ],
+    catalogFetchedAt: null,
+    onlineEnabled: false,
   };
 
   function renderShelf(onInstall: (app: CatalogApp) => void = () => {}) {
     installed = CATALOG as never;
     return render(
       <QueryClientProvider client={createQueryClient()}>
-        <AppBrowser onInstall={onInstall} />
+        <AppBrowser onInstall={onInstall} onToggleOnline={() => {}} onRefresh={() => {}} />
       </QueryClientProvider>,
     );
   }

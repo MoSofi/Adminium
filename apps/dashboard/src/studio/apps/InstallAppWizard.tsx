@@ -40,9 +40,11 @@
  *  the app's key and version are read from the manifest inside it.
  *
  *  **D5 — no source step.** The comp's first screen chooses marketplace or
- *  upload. There is no feed yet (47 O1), so the choice has one option; the
- *  upload tile becomes the first step directly. The step returns with the
- *  marketplace.
+ *  upload. The marketplace choice is made on the shelf instead, which now lists
+ *  the online app catalog too (48 G8-D7): clicking a card IS choosing the
+ *  marketplace, and the page downloads a catalog-only app before opening this
+ *  wizard on it. "Install an app" is the upload tile. A source step here would
+ *  be a second copy of the shelf, asking a question the click already answered.
  */
 import { useState } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
@@ -105,7 +107,15 @@ export interface InstallAppWizardProps {
    * CARD was clicked, the bundle step becomes the comp's confirmation of the
    * app you chose, and Upload stays the other way in.
    */
-  preselected?: { key: string; version: string; name: string } | undefined;
+  preselected?:
+    | {
+        key: string;
+        version: string;
+        name: string;
+        /** True when the page just downloaded it from the online app catalog. */
+        downloaded?: boolean | undefined;
+      }
+    | undefined;
 }
 
 export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps) {
@@ -262,10 +272,15 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
                     'studio:hostedApps.install.uploaded.hint',
                     'Read from the manifest.json inside the bundle you uploaded. Nothing is created until you confirm the schema plan.',
                   )
-                : t(
-                    'studio:hostedApps.install.chosen.hint',
-                    'This app came with your build and is already on disk. Nothing is created until you confirm the schema plan.',
-                  )}
+                : preselected.downloaded === true
+                  ? t(
+                      'studio:hostedApps.install.downloaded.hint',
+                      'Downloaded from the online app catalogue and checked against its published fingerprint. Nothing is created until you confirm the schema plan.',
+                    )
+                  : t(
+                      'studio:hostedApps.install.chosen.hint',
+                      'This app came with your build and is already on disk. Nothing is created until you confirm the schema plan.',
+                    )}
             </p>
           </div>
           <Card>
