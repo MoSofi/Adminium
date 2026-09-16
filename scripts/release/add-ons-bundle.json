@@ -4,33 +4,38 @@
   "addOns": [
     {
       "key": "barcode-labels",
-      "version": "1.0.0",
-      "integrity": "sha512-DFNoYAcJEx1KZtPZK1GTTuZDq+/qpZ9k5/hL0QLYD9xJG0VWdawLDkktkNnoXpNgQkUR2XXhaMGUjZ1CYihPwA=="
+      "version": "1.0.1",
+      "integrity": "sha512-HZ5fSpWh9DwEAKKg2wAkzVpw50IvRNn/GrZooNkoqiQ7iOi1UnyjdxZ+H1FumbFnSfqzAMwLUUCPAYBtZttpGA=="
     },
     {
       "key": "design-studio",
-      "version": "1.0.0",
-      "integrity": "sha512-/1L7egbr8kj89Bcn3NGnBzV0vfTipQjqSjEcA9rZ2HmoZGvhGJwp6DZzQxjnU+qvw5YCkM5Gmj9PBDouUlkEyQ=="
+      "version": "1.0.1",
+      "integrity": "sha512-vm0SVJ/gJfOf8YQfrIAR/CzFsb1hI4bOOmKKwfvrLUDIefWoggj2yjigiScCemqp+7eSGx3Gmo9EFXrfa98L+Q=="
     },
     {
       "key": "holiday-calendars",
-      "version": "1.0.0",
-      "integrity": "sha512-AjZzZeLlBF+o5am/jXk69gnzjxm4urqye2Z4FamU/CjiezjDs9OihSyqAAt8qfIRuQJXzrFxJZn0nUirOc0hkQ=="
+      "version": "1.0.1",
+      "integrity": "sha512-CsMS3LhSw/yMuuhAOgv3SlT0U23JDGP0VCG5EPsi94goEr1lH8UJPV4VxSihW7ujcpIxYmgyEB7LVlV64HldfA=="
     },
     {
       "key": "import-canva",
-      "version": "1.0.0",
-      "integrity": "sha512-GDfCrLRmnMMhfuHuzZdMn4wpiBYHeHc1Z3049D/VoZWpwHWKddXrZ401hv5Nwwi/FNKsbMRpJ4kxCTOBBn/QPg=="
+      "version": "1.0.1",
+      "integrity": "sha512-08ar6CoJ+xPlM8HFRvBscLDkXWpTbkqGX1NYBtnJ+u1840egaq9KaFPRu3zSJD3cri9k88QgQshvpgYyHjNz7A=="
+    },
+    {
+      "key": "invoices",
+      "version": "1.0.1",
+      "integrity": "sha512-0opqtFbBF1XBCNnRRm9cnQHA/Guct4eKG8aQYvcPJ0OIpiKZsjRO0t0u40s8oiUQWiX7Y4RjETe58aYltKHBeg=="
     },
     {
       "key": "personalizer",
-      "version": "1.0.0",
-      "integrity": "sha512-kVJ029dTIndC0Pim/SwN3RamiU38hr1vGSUts/yysvd/iaUaFQ7N1oi30S09u2kP9D93oasxwmxqPKDiXRcg6w=="
+      "version": "1.0.1",
+      "integrity": "sha512-7RP1guJJ/z+5nMEn4TSlriPzV/f1ykiqjXaKqZ0KGZKa+6ja6GKQ0FEuQZdlPWHO2mSR5FnzM5WVWKM/9ZTk+Q=="
     },
     {
       "key": "shipping-dhl",
-      "version": "1.0.0",
-      "integrity": "sha512-2/pMeVBIuyNRFQNfjHl1IEDi7ls6gD42AZ/FwFrkOGoj5CJHPO4XeD6FLkNLqkABsdNwLdBWjGju2gWyM4PKKA=="
+      "version": "1.0.1",
+      "integrity": "sha512-+YijL3EDPETk3UNjJ1vq0JADoJRFzHDqiS2QH3p6vZ0MYPf9ceyNycIEjlVbI97L831NeAPt5BhFq6iaJ8K4Kg=="
     }
   ]
 }
