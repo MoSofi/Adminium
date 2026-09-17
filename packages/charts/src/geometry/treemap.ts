@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure treemap geometry (`chart-treemap`, research/widget-registry.md §2):
+ * Pure treemap geometry (`chart-treemap`, research/widget-registry.md):
  * squarified slice-and-dice layout (Bruls/Huizing/van Wijk) over a flat,
  * value-weighted category list. DOM-free and deterministic so scheduled-report
- * workers rasterize the identical layout the browser renders (04 §7.1).
+ * workers rasterize the identical layout the browser renders.
  *
  * RTL: the caller mirrors the x axis (`mirrorTiles`) — the layout math itself
- * stays orientation-neutral (categorical part-to-whole mirrors per §7.4).
+ * stays orientation-neutral (categorical part-to-whole mirrors).
  */
 
 export interface TreemapInput {

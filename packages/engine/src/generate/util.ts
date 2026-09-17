@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shared helpers for the generator (05-introspection-engine.md generation
- * section, 09-generated-app.md §2.2 slug rules).
+ * Shared helpers for the generator (generation section, slug rules).
  *
  * Everything here is pure and deterministic — `generatePages()` promises
- * "same inputs, same output" (05 §9), so no randomness, no Date.now().
+ * "same inputs, same output", so no randomness, no Date.now().
  */
 
 import { sha256Hex } from '../snapshot/sha256.js';
 
 /**
- * Meta `id` columns are char(36) (07-meta-store.md §2.1); generated page ids
- * are `page_<slug>` (5 + slug), so slugs cap at 31 characters.
+ * Meta `id` columns are char(36); generated page ids are `page_<slug>` (5 +
+ * slug), so slugs cap at 31 characters.
  */
 export const MAX_SLUG_LENGTH = 31;
 
-/** `Order_Details` / `orderDetails` → `order-details` (kebab-case, 09 §2.2). */
+/** `Order_Details` / `orderDetails` → `order-details` (kebab-case). */
 export function slugify(name: string): string {
   const slug = name
     .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
@@ -74,11 +73,11 @@ function sortKeysDeep(value: unknown): unknown {
 }
 
 /**
- * `generated_hash` for a page document (01-architecture.md §6.1 / 04 §6.3):
- * sha256 over the canonical (sorted-keys) JSON of the envelope with the
- * embedded `config.generatedHash` itself excluded. M5 regeneration compares
- * this against the stored document to tell user-edited pages ("user delta
- * wins") from untouched generated ones (updated in place).
+ * `generated_hash` for a page document: sha256 over the canonical
+ * (sorted-keys) JSON of the envelope with the embedded
+ * `config.generatedHash` itself excluded. M5 regeneration compares this
+ * against the stored document to tell user-edited pages ("user delta wins")
+ * from untouched generated ones (updated in place).
  */
 /**
  * How many characters of the slug fit into a connection-scoped page id:

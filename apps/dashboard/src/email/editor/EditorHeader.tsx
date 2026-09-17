@@ -7,7 +7,7 @@
  * Back is NOT here: the shell's topbar owns the back affordance (published
  * through `PageActions backTo`), and the D1 guard is a router blocker, so the
  * topbar's Back, the sidebar and the browser all run it — one Back on screen,
- * not two (§6.1 departure). The shell scrolls the PAGE, with its own sticky
+ * not two (departure). The shell scrolls the PAGE, with its own sticky
  * topbar, so this header sticks just under it (`--adm-topbar-h`, measured by
  * the editor) rather than at the comp's `top: 0`.
  *

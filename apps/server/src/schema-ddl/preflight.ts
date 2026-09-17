@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Preflight — 35-schema-authoring.md §3.4, §6, D5, 35-T07.
+ * Preflight.
  *
  * ─── What this turns a confirm dialog into ─────────────────────────────────
  *
  * "This may affect other parts of your app" is an adjective. "This drops a
  * column two pages, one saved view and one public API key depend on, and the
  * key will stop answering within 30 seconds" is a fact the operator can act
- * on. Preflight is what produces the second kind, by asking the questions §6
+ * on. Preflight is what produces the second kind, by asking the questions
  * enumerates against the real meta store rather than guessing.
  *
  * ─── The one with the largest blast radius, first ──────────────────────────
@@ -60,9 +60,9 @@ export interface PreflightInput {
     db: Parameters<typeof checkPrivileges>[0];
     dialect: Parameters<typeof checkPrivileges>[1];
   };
-  /** Ceiling above which a rewrite is refused rather than warned (35 O2). */
+  /** Ceiling above which a rewrite is refused rather than warned. */
   rewriteRefuseAbove?: number;
-  /** Row count above which a rewrite is warned about (35 O2). */
+  /** Row count above which a rewrite is warned about. */
   rewriteWarnAbove?: number;
   /**
    * D18's one door through the row ceiling.
@@ -133,7 +133,7 @@ export async function preflight(input: PreflightInput): Promise<PreflightResult>
   const warnAbove = input.rewriteWarnAbove ?? DEFAULT_REWRITE_WARN_ABOVE;
   const refuseAbove = input.rewriteRefuseAbove ?? DEFAULT_REWRITE_REFUSE_ABOVE;
 
-  // --- 1. privileges, per target (D17, 35-T34) -----------------------------
+  // --- 1. privileges, per target (D17) -----------------------------
   if (input.privileges !== undefined) {
     /*
      * A table this plan is CREATING cannot be owned yet, so it must never be
@@ -172,7 +172,7 @@ export async function preflight(input: PreflightInput): Promise<PreflightResult>
     }
   }
 
-  // --- 2. row counts for the steps that rewrite (§3.4) ---------------------
+  // --- 2. row counts for the steps that rewrite ---------------------
   if (input.countRows !== undefined) {
     const tables = [
       ...new Set(input.steps.filter((s) => touchesEveryRow(s)).map((s) => s.table)),
@@ -312,7 +312,7 @@ export async function preflight(input: PreflightInput): Promise<PreflightResult>
     });
   }
 
-  // --- 3. dependent objects (§6) -------------------------------------------
+  // --- 3. dependent objects -------------------------------------------
   const destructive = input.steps.filter(
     (s) => s.kind === 'drop-table' || s.kind === 'drop-column' || s.hazard === 'lossy',
   );
@@ -324,7 +324,7 @@ export async function preflight(input: PreflightInput): Promise<PreflightResult>
 }
 
 /**
- * Enumerate what §6 says a drop or rename breaks. Every lookup here is a real
+ * Enumerate what says a drop or rename breaks. Every lookup here is a real
  * query; nothing is inferred from naming.
  */
 async function addDependents(
@@ -358,7 +358,7 @@ async function addDependents(
   }
 
   /*
-   * The largest blast radius in the table (§6): a scope that stops compiling
+   * The largest blast radius in the table: a scope that stops compiling
    * takes the whole KEY dark, not just the resource that named the table.
    *
    * ─── Why this probe reads the document as TEXT ─────────────────────────────
@@ -410,7 +410,7 @@ async function addDependents(
   }
 
   // A table an installed add-on declares is not the operator's to drop while
-  // the add-on is attached (§6). `requiredSchema` is validated at install and
+  // the add-on is attached. `requiredSchema` is validated at install and
   // never re-checked; this is the lookup that makes it a live guard.
   const manifests = await manifestsRepo(meta, {} as never)
     .list()
@@ -485,7 +485,7 @@ async function addDependents(
     }
 
     if (step.kind === 'drop-table' || step.kind === 'drop-column') {
-      // §6's "not repaired" row, stated rather than left to be discovered.
+      // The "not repaired" row, stated rather than left to be discovered.
       add(step.id, {
         kind: 'not-repaired',
         message:

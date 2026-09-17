@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `progress-log-console` (annex §12) — terminal-style streaming checklist: mono
- * log lines, done lines get a green check, the active line gets a spinner, with
- * a paired determinate progress bar + mono %. Variants: `live` (streamed server
+ * `progress-log-console` (annex) — terminal-style streaming checklist: mono log
+ * lines, done lines get a green check, the active line gets a spinner, with a
+ * paired determinate progress bar + mono %. Variants: `live` (streamed server
  * events) and `static-terminal` (the CLI-simulation card). Evidence: Connect
  * Database, See It In Action, API & Backend, Adminium Landing.
  *
  * This is where long-running server tasks (introspection, import, export,
- * deploy) surface in the generated app (annex §12 auto-instantiation), so it
+ * deploy) surface in the generated app (annex auto-instantiation), so it
  * accepts BOTH `record-list` (a finished run's rows) and `stream` (a live WS
  * channel's append-only snapshot) — `capabilities.realtime` marks it bindable
- * over WS (04 §5.3).
+ * over WS.
  *
  * Built fresh rather than lifted from `apps/dashboard/src/studio/connect/
- * LogConsole.tsx`: a widget may never import an app (04 §2.1), and the annex's
- * contract adds the progress bar + variants the Studio console does not have.
- * The Studio wizard keeps its own console.
+ * LogConsole.tsx`: a widget may never import an app, and the annex's contract
+ * adds the progress bar + variants the Studio console does not have. The
+ * Studio wizard keeps its own console.
  */
 
 import { EmptyState, MonoText, ProgressBar, Spinner, cn } from '@adminium/ui';
@@ -84,8 +84,8 @@ export function logLinesOf(
 
 /**
  * The bar value: the newest line carrying a `pct` wins; with none, progress is
- * derived from how many lines have completed (annex §12: "may be derived from
- * step index").
+ * derived from how many lines have completed (annex: "may be derived from step
+ * index").
  */
 export function progressPctOf(lines: readonly LogLine[]): number {
   for (let index = lines.length - 1; index >= 0; index -= 1) {

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure tilegram / grid-choropleth geometry (research/widget-registry.md §2
+ * Pure tilegram / grid-choropleth geometry (research/widget-registry.md
  * `chart-choropleth-grid`): region tiles tinted by value, label text flipping
  * to the on-accent color on dark tiles, low→high legend. DOM-free and
- * deterministic (04 §7.1).
+ * deterministic.
  *
- * RTL policy (04 §7.4): the US tilegram is a geographic LTR island (its tiles
- * never mirror, like `map-bubble`); the compact `grid` layout is a categorical
- * flow and mirrors its columns under `rtl`. Legends/tooltips mirror at the
- * widget layer via logical CSS.
+ * RTL policy: the US tilegram is a geographic LTR island (its tiles never
+ * mirror, like `map-bubble`); the compact `grid` layout is a categorical flow
+ * and mirrors its columns under `rtl`. Legends/tooltips mirror at the widget
+ * layer via logical CSS.
  */
 import { heatLevel, heatTextLight, rampColorVar } from './heat.js';
 

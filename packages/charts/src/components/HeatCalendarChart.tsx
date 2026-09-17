@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-heatmap-calendar` primitive (research/widget-registry.md §2): GitHub-
+ * `chart-heatmap-calendar` primitive (research/widget-registry.md): GitHub-
  * style week×day contribution grid with intensity levels, month markers, a
  * weekday gutter, a less→more legend and per-day native tooltips. Intrinsic cell
  * geometry (the widget wrapper adds horizontal scroll, annex "horizontal
  * scroll"). Token-only colors, mount fade with reduced-motion fallback,
- * `data-export-node` raster marker. Week columns run right→left in RTL (04 §7.4).
+ * `data-export-node` raster marker. Week columns run right→left in RTL.
  */
 import type { ReactNode } from 'react';
 import { tagForLocale } from '@adminium/i18n';

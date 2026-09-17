@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Route registration (08-server-api.md §1.2): each resource directory under
- * `src/routes/<resource>/` exports a plugin; all of them mount here under the
- * single `/api/v1` prefix. New resources (auth, users, data, …) join this list
- * in later waves.
+ * Route registration: each resource directory under `src/routes/<resource>/`
+ * exports a plugin; all of them mount here under the single `/api/v1` prefix.
+ * New resources (auth, users, data, …) join this list in later waves.
  */
 import type { FastifyInstance } from 'fastify';
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The flattened en-US key surface (23-runtime-translations.md §6.1).
+ * The flattened en-US key surface.
  *
  * The Translations editor has to let an admin find one message among ~2,800,
  * and the server has to answer "is this a real key?" on every write. Both run
@@ -75,10 +75,10 @@ export function sourceKeyCount(): number {
  *
  * The editor groups by this rather than by namespace. The namespace axis was
  * badly unbalanced when this was written — `common` and `ui` held effectively
- * every key — and 10-T06 evened it out somewhat by moving the console's 971
- * messages into `studio` where they belonged. It is still the wrong primary
- * navigation and a fine secondary filter: an admin looking for a string knows
- * which SCREEN it was on, not which bundle it ships in.
+ * every key — evened it out somewhat by moving the console's 971 messages
+ * into `studio` where they belonged. It is still the wrong primary navigation
+ * and a fine secondary filter: an admin looking for a string knows which
+ * SCREEN it was on, not which bundle it ships in.
  */
 export function keyGroup(key: string): string {
   const dot = key.indexOf('.');

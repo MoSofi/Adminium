@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests for the MySQL `QueryEngine` serialization policy
- * (05-introspection-engine.md §3 `TypeSerializer`, 08-server-api.md §3.7).
+ * (`TypeSerializer`).
  *
  * Pure module — no `mysql2`, no `kysely`, no server. The lossless rules are
  * asserted as round-trips: an UNSIGNED BIGINT primary key exceeds

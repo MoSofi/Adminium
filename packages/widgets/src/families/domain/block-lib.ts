@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK BUILDER — pure helpers behind `document-canvas` and the 22 `block-*`
- * document-vocabulary widgets (annex §13).
+ * document-vocabulary widgets (annex).
  *
  * JSX-free and DOM-free on purpose: money recomputation, payload projection and
  * the reorder algebra are all pure functions of their inputs, so they are
  * golden-testable and `blocks-config.ts` can import them for `demoData` without
- * dragging component code into the eager registry chunk (04 §2.3).
+ * dragging component code into the eager registry chunk.
  *
- * MONEY + DATES go through the `@adminium/i18n` Intl layer (10 §4). `getFormatters`
- * already applies the data-context numeral policy (latn digits + gregorian for
- * mono cells), so callers never pass a `-u-nu-latn` tag themselves.
+ * MONEY + DATES go through the `@adminium/i18n` Intl layer. `getFormatters` already
+ * applies the data-context numeral policy (latn digits + gregorian for mono cells),
+ * so callers never pass a `-u-nu-latn` tag themselves.
  *
  * TOTALS ARE DERIVED, NEVER STORED — the annex's canvas "live-recomputing
  * totals" is `computeTotals` below: `block-totals-summary`, `block-tax-breakdown`
@@ -44,7 +44,7 @@ import type {
  * `renderEmail` turns them into MIME. The canvas has to speak the SAME strings
  * or a stored template loads as an empty document and a canvas-authored block
  * never reaches an inbox. But `apps/server` may not import `@adminium/widgets`
- * and this package may not import the server (01 §2.3, enforced by
+ * and this package may not import the server (enforced by
  * `.dependency-cruiser.cjs` `server-no-ui-widgets-charts` /
  * `widgets-no-meta-adapters-server`), and there is no runtime package both
  * sides depend on — so the vocabulary crosses the boundary the way the LLM
@@ -76,7 +76,7 @@ export function isEmailBlockKind(value: unknown): value is EmailBlockKind {
 }
 
 /**
- * The 22 `block-*` registry ids, in annex §13 bullet order — the INVOICE and
+ * The 22 `block-*` registry ids, in annex bullet order — the INVOICE and
  * REPORT vocabulary. `BLOCK_IDS` below adds the email kinds to them.
  */
 export const DOCUMENT_BLOCK_IDS = [
@@ -126,10 +126,10 @@ export function isBlockId(value: unknown): value is BlockId {
 export const DOC_TYPES = ['invoice', 'report', 'email'] as const;
 
 /**
- * The blocks each document surface starts with (annex §13 evidence column —
- * which comp each block is cited from). `document-canvas` falls back to these
- * when a doc row carries no `blockOrder[]`, which is what makes a freshly
- * seeded doc render something useful instead of an empty page.
+ * The blocks each document surface starts with (annex evidence column — which
+ * comp each block is cited from). `document-canvas` falls back to these when
+ * a doc row carries no `blockOrder[]`, which is what makes a freshly seeded
+ * doc render something useful instead of an empty page.
  */
 export const DOC_TYPE_BLOCKS: Readonly<Record<DocType, readonly BlockId[]>> = {
   invoice: [
@@ -175,7 +175,7 @@ export const BLOCK_DEMO_EPOCH = Date.UTC(2026, 5, 1);
 export const BLOCK_DAY_MS = 86_400_000;
 
 /**
- * Currency formatting for a money figure (10 §4.4 — the code comes from the
+ * Currency formatting for a money figure (the code comes from the
  * doc/column metadata, never from the viewer's locale).
  *
  * `|| 'USD'` rather than `??`: `format.currency: ''` is schema-valid (the shared
@@ -242,7 +242,7 @@ export function maskMethod(method: string, last4?: string | undefined): string {
 }
 
 /**
- * The canvas's live-recomputing totals (annex §13): subtotal from the line
+ * The canvas's live-recomputing totals (annex): subtotal from the line
  * items, discount off the subtotal, tax on the discounted base, total due.
  *
  * Every figure is derived here and nowhere else, so `block-totals-summary`,
@@ -393,7 +393,7 @@ export function blockOrderOf(
 }
 
 /**
- * Project the canvas's single doc object onto ONE block's own §3 payload.
+ * Project the canvas's single doc object onto ONE block's own payload.
  *
  * The money blocks are DERIVED from the doc's `items` + `rates` rather than read
  * from storage — that is the annex's "live-recomputing totals", and it is what
@@ -484,7 +484,7 @@ export interface BlockBindingSource {
 /**
  * Resolve `config.binding` to the `{ connectionId, table }` a mutate intent
  * needs. The descriptor names the table at `binding.source.name` (+ an optional
- * `schema` qualifier for Postgres) — NOT `binding.table` (04 §5).
+ * `schema` qualifier for Postgres) — NOT `binding.table`.
  *
  * `null` for an unbound (demo) widget: an edit then has nowhere to go, so the
  * blocks skip emitting rather than inventing a table name.

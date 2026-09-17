@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `composeTemplate` — the page-template composition engine (04-widget-registry.md
- * §10, task 04-T07).
+ * `composeTemplate` — the page-template composition engine.
  *
  * Fills each manifest slot with the highest-scoring **accepted** candidate,
  * repeating slots take the top-N, unfilled *optional* slots are dropped or
@@ -13,9 +12,9 @@
  * WHAT THIS IS NOT: the return value is an **in-memory intermediate**. Nothing
  * here persists, and nothing here builds the stored envelope — the Engine wraps
  * `ComposedPage` into `v`/`kind`/`id`/`template`/`title`/`source`/`nav`/`access`/
- * `config` (01-architecture.md §6.1) with `layout` under `config.layout` and
- * `toolbar`/`overlays` in the template's config body. Keeping the wrap out of
- * this package is what lets `@adminium/widgets` stay free of engine imports.
+ * `config` with `layout` under `config.layout` and `toolbar`/`overlays` in the
+ * template's config body. Keeping the wrap out of this package is what lets
+ * `@adminium/widgets` stay free of engine imports.
  *
  * DETERMINISM: generation output is content-hashed (`generated_hash`, H5), so a
  * re-run over an unchanged schema must produce a byte-identical page. Every
@@ -29,16 +28,17 @@ import { GRID_COLUMNS } from '../grid/layout-math.js';
 import { pageTemplateManifests } from './manifests.js';
 import { slotCapacity, type PageTemplate, type TemplateSlot } from './template-schema.js';
 
-/** Registry id of the widget used for `fallback: 'empty-state'` slots (annex §12). */
+/** Registry id of the widget used for `fallback: 'empty-state'` slots (annex).
+ * */
 export const EMPTY_STATE_WIDGET_ID = 'empty-state';
 
 /**
- * Envelope `kind` per template (09-generated-app.md §3.2 mapping table). Grid-
- * composed dashboards are `kind: 'dashboard'`; every other template the
- * Generated App renders is `kind: 'page'`. Checked in rather than derived: the
- * §10 manifest schema has no `kind` field (and must not grow one — it is the
- * published contract third-party manifests are written against), and the
- * mapping is a property of the *envelope* spec, not of the template's layout.
+ * Envelope `kind` per template (mapping table). Grid- composed dashboards are
+ * `kind: 'dashboard'`; every other template the Generated App renders is
+ * `kind: 'page'`. Checked in rather than derived: the manifest schema has no
+ * `kind` field (and must not grow one — it is the published contract
+ * third-party manifests are written against), and the mapping is a property of
+ * the *envelope* spec, not of the template's layout.
  */
 const DASHBOARD_KIND_TEMPLATES: ReadonlySet<string> = new Set(['page-dashboard', 'page-hub-home']);
 
@@ -50,17 +50,17 @@ export function templateKind(templateId: string): ComposedPageKind {
 }
 
 /**
- * One ranked widget the Engine's candidate rules (04-T08/T15) emitted for this
- * page. `shape` is the contract the candidate's binding produces — it is what a
- * slot's `accepts.shapes` matches on; `widget` is what `accepts.widgets` matches
- * on. `config` is passed through verbatim into the layout item (it already
- * carries `title` + `binding`, exactly as `@adminium/engine/generate` builds
- * them today).
+ * One ranked widget the Engine's candidate rules emitted for this page. `shape`
+ * is the contract the candidate's binding produces — it is what a slot's
+ * `accepts.shapes` matches on; `widget` is what `accepts.widgets` matches on.
+ * `config` is passed through verbatim into the layout item (it already carries
+ * `title` + `binding`, exactly as `@adminium/engine/generate` builds them
+ * today).
  */
 export interface TemplateCandidate {
   /** Registry id — must be a registered widget (`ctx.isRegistered` enforces it). */
   widget: string;
-  /** The data-contract shape this candidate's binding produces (04 §3). */
+  /** The data-contract shape this candidate's binding produces. */
   shape: DataShape;
   /** Higher wins. Ties break deterministically on widget id, then input order. */
   score: number;
@@ -96,8 +96,8 @@ export interface ComposeWarning {
 }
 
 /**
- * The in-memory intermediate (04 §10). `type` is the envelope `kind` the Engine
- * must wrap this into (09 §3.2).
+ * The in-memory intermediate. `type` is the envelope `kind` the Engine must
+ * wrap this into before storing it.
  */
 export interface ComposedPage {
   type: ComposedPageKind;
@@ -128,7 +128,8 @@ export interface ComposeContext {
   makeInstanceId?: (slot: string, index: number, candidate: TemplateCandidate) => string;
 }
 
-/** Does `slot.accepts` admit this candidate? (04 §10 — shape contract OR id allowlist.) */
+/** Does `slot.accepts` admit this candidate? (shape contract OR id allowlist.)
+ * */
 export function slotAccepts(slot: TemplateSlot, candidate: TemplateCandidate): boolean {
   const byWidget = slot.accepts.widgets?.includes(candidate.widget) ?? false;
   const byShape = slot.accepts.shapes?.includes(candidate.shape) ?? false;

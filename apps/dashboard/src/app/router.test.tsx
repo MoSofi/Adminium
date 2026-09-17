@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Router guards + shell integration (09-generated-app.md §2.3):
+ * Router guards + shell integration:
  * - unauthenticated `/` → `/login?returnTo=…`;
  * - authenticated `/` → first Workspace nav item, sidebar renders the nav
  *   tree from bootstrap, PageRenderer stub shows the Wave B note;
@@ -117,8 +117,8 @@ describe('system-state routes', () => {
   });
 
   /**
-   * 11-electron.md §8.2 row 1: hosted-plan surfaces are "not rendered at all"
-   * outside Cloud. `/state/suspended` is the one the SPA can reach — the 402
+   * Hosted-plan surfaces are "not rendered at all" outside Cloud.
+   * `/state/suspended` is the one the SPA can reach — the 402
    * workspace-suspended screen, which a self-host/desktop instance can never
    * legitimately produce.
    */
@@ -137,7 +137,7 @@ describe('system-state routes', () => {
   });
 
   /**
-   * ─── THE DESKTOP APP'S FRONT DOOR (11-electron.md §6, §2.2 step 8) ─────────
+   * ─── THE DESKTOP APP'S FRONT DOOR ──────────────────────────────────────────
    *
    * `apps/desktop/src/main/index.ts`'s `appUrl({ firstRun: true, … })` navigates
    * the BrowserWindow to `<origin>/desktop/setup` on EVERY launch with no

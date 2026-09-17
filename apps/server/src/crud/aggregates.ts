@@ -14,10 +14,9 @@
  * THIS FILE IS NOW ONLY THE PARSER. Everything downstream of the parse —
  * relation resolution, masking, SQL, normalization — moved to `measures.ts`,
  * and a parsed `agg=` spec is up-converted into a `count` measure and
- * resolved by the same code that resolves `compute=`
- * (36-derived-columns.md D15). One resolver, one compiler, one masking
- * policy: a parallel legacy path would drift, and what it would drift on is a
- * permission check.
+ * resolved by the same code that resolves `compute=`. One resolver, one
+ * compiler, one masking policy: a parallel legacy path would drift, and what
+ * it would drift on is a permission check.
  *
  * The GRAMMAR itself is byte-frozen (D1). It has exactly one free token and
  * an operand tree does not fit under any encoding, so richer aggregates

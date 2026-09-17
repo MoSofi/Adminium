@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * §6 step 1's three bridge calls. The module's own rule is what is tested:
- * every function answers `null` with no bridge rather than throwing, because
- * this code is reachable from a browser tab pointed at `/desktop/setup` and a
+ * The three bridge calls. The module's own rule is what is tested: every
+ * function answers `null` with no bridge rather than throwing, because this
+ * code is reachable from a browser tab pointed at `/desktop/setup` and a
  * `TypeError` there is a worse answer than "this affordance does not exist".
  *
  * The one non-obvious call is `chooseDataDir`, which must NOT send a

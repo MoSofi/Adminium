@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * React bindings for `@adminium/i18n` (separate entry so the framework-free
- * core — server emails, jobs, CLI — never pulls React in; §2.2). Deliberately
- * thin: an `I18nProvider` that re-renders its subtree on `languageChanged`
- * plus hooks bound to the active locale. The `t()` call signature matches the
+ * core — server emails, jobs, CLI — never pulls React in). Deliberately thin:
+ * an `I18nProvider` that re-renders its subtree on `languageChanged` plus
+ * hooks bound to the active locale. The `t()` call signature matches the
  * dashboard's key+fallback convention.
  */
 import {
@@ -28,8 +28,8 @@ export interface I18nContextValue {
   locale: LocaleId;
   /**
    * Bumps whenever resolved text changes without the language changing —
-   * i.e. when runtime overrides are applied (23 §4.4). Hooks depend on it so
-   * memoized consumers re-render on an admin's edit, not only on a switch.
+   * i.e. when runtime overrides are applied. Hooks depend on it so memoized
+   * consumers re-render on an admin's edit, not only on a switch.
    */
   revision: number;
 }
@@ -80,7 +80,7 @@ export function useLocale(): LocaleId {
   return useI18nContext('useLocale()').locale;
 }
 
-/** `true` iff the active locale reads right-to-left (10 §5). */
+/** `true` iff the active locale reads right-to-left. */
 export function useRtl(): boolean {
   return isRtlLocale(useI18nContext('useRtl()').locale);
 }
@@ -93,7 +93,7 @@ export function useT(): (key: string, fallback: string, args?: Record<string, un
       i18n.t(key, { defaultValue: fallback, ...args }),
     // `locale` and `revision` are dependencies on purpose: a language switch
     // OR a runtime-override change re-binds the callback, so memoized
-    // consumers re-render with fresh strings either way (23 §4.4).
+    // consumers re-render with fresh strings either way.
     [i18n, locale, revision],
   );
 }
@@ -128,7 +128,7 @@ export function useMaybeT(): (key: string, fallback: string, args?: Record<strin
   );
 }
 
-/** Locale-bound Intl formatters (10 §4.1) — `useFmt().number(…)` etc. */
+/** Locale-bound Intl formatters — `useFmt().number(…)` etc. */
 export function useFmt(): Formatters {
   const { locale } = useI18nContext('useFmt()');
   return getFormatters(tagForLocale(locale));

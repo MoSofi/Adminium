@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Review-screen header (§10.3): a run summary (path · model-or-"BYO" · snapshot
- * · counts agree/conflict/new/rejects) plus the bulk controls — an "Accept all
- * ≥ threshold" confidence slider driving a bulk-select action that can never
- * pick `rejects-heuristic` or `user-locked` rows (acceptance criterion 12).
+ * Review-screen header: a run summary (path · model-or-"BYO" · snapshot ·
+ * counts agree/conflict/new/rejects) plus the bulk controls — an "Accept all ≥
+ * threshold" confidence slider driving a bulk-select action that can never pick
+ * `rejects-heuristic` or `user-locked` rows (acceptance criterion 12).
  */
 import { Badge, Button, MonoText, Slider } from '@adminium/ui';
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Which tables point AT this one, and by which column
- * (34-invoices-add-on.md §3.7 step 3 — the collection picker's seed).
+ * (the collection picker's seed).
  *
  * ─── THIS IS THE PIPELINE'S JOIN RULE, NOT A TASTE FILTER ──────────────────
  *
@@ -23,7 +23,7 @@
  * `lineItems` reports the classifier's `line-items` role, which needs two
  * foreign keys plus qty × rate numerics. A one-FK child like `invoice_items`
  * is therefore NOT tagged and must still be pickable — the tag sorts the list
- * and never shortens it (§3.7's "suggestion, never selection").
+ * and never shortens it ("suggestion, never selection").
  */
 
 import type { EffectiveModel } from './effective-schema.js';

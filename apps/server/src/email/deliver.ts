@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * RENDER ONE MESSAGE AND HAND IT TO THE RELAY — the last few lines of every
- * send path, in one place (42-automations-and-workflow-logs.md D15, 42-T09).
+ * send path, in one place.
  *
  * Two callers, and they arrived from different directions. The campaign
- * runner (39 D11) sends in-process, one recipient at a time, because a
- * campaign's report is "18,240 sent · 12 failed" and that count only exists
- * if the sender waited for each answer. The automation email step needs the
- * same thing for a different reason: Workflow Logs draws the SMTP reply as
- * the step's log line — "250 OK · delivered to jordan@acme.io" — and a queued
- * `email.send` job cannot produce that, because by the time the relay answers,
- * the run has long since finished.
+ * runner sends in-process, one recipient at a time, because a campaign's
+ * report is "18,240 sent · 12 failed" and that count only exists if the sender
+ * waited for each answer. The automation email step needs the same thing for a
+ * different reason: Workflow Logs draws the SMTP reply as the step's log line
+ * — "250 OK · delivered to jordan@acme.io" — and a queued `email.send` job
+ * cannot produce that, because by the time the relay answers, the run has long
+ * since finished.
  *
  * So both render here and both get the reply back.
  *

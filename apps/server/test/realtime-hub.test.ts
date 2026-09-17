@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * RealtimeHub + channel grammar + subscribe-time authorization
- * (08-server-api.md §3, M2-T07).
+ * RealtimeHub + channel grammar + subscribe-time
+ * authorization.
  */
 import { describe, expect, it } from 'vitest';
 

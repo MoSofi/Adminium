@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `diffTableDefinitions` — the DEFINITION-level diff. 35-schema-authoring.md
- * §3.2, 35-T31.
+ * `diffTableDefinitions` — the DEFINITION-level diff.
  *
  * ─── Why `diffModels` cannot be used for this ──────────────────────────────
  *
@@ -82,7 +81,7 @@ const namedConstraintSchema = z.strictObject({
 });
 
 const fkShapeSchema = z.strictObject({
-  /** The catalog's own name, when it gave one — what a DROP needs (35-T33). */
+  /** The catalog's own name, when it gave one — what a DROP needs. */
   constraintName: z.string().nullable(),
   columns: z.array(z.string()),
   toTable: z.string(),

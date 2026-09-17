@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Theming axis types for ThemeProvider (02-design-system.md §4.1).
- * Axis value unions come from `@adminium/tokens` so the DOM attributes,
- * Storybook toolbar and provider can never drift apart; the locale union and
- * the pref/resolved shapes live here because they are UI-runtime concerns.
+ * Theming axis types for ThemeProvider. Axis value unions come from
+ * `@adminium/tokens` so the DOM attributes, Storybook toolbar and provider
+ * can never drift apart; the locale union and the pref/resolved shapes live
+ * here because they are UI-runtime concerns.
  */
 import type {
   Accent,
@@ -14,7 +14,7 @@ import type {
 } from '@adminium/tokens';
 import { DEFAULT_PREFS } from '@adminium/tokens';
 
-/** The 8 COMPILED locales (02-design-system.md §4.1). */
+/** The 8 COMPILED locales. */
 export const LOCALES = [
   'en_US',
   'de_DE',
@@ -29,8 +29,8 @@ export type BuiltinLocale = (typeof LOCALES)[number];
 
 /**
  * Any locale the instance may resolve to — the compiled eight plus whatever
- * an admin created at runtime (23-runtime-translations.md §5). `(string & {})`
- * keeps literal autocomplete for the eight.
+ * an admin created at runtime. `(string & {})` keeps literal autocomplete for
+ * the eight.
  *
  * This package deliberately does NOT depend on `@adminium/i18n`, so it cannot
  * look a custom locale up. Direction therefore arrives one of two ways — an
@@ -56,7 +56,7 @@ export interface ResolvedTheme {
   dir: Dir;
 }
 
-/** Baseline of the resolution order (BRIEF §7 via `@adminium/tokens`). */
+/** Baseline of the resolution order (BRIEF via `@adminium/tokens`). */
 export const BASELINE_PREFS: ThemePrefs = { ...DEFAULT_PREFS };
 
 /** Direction of the COMPILED locales; `null` for anything else. */
@@ -73,7 +73,7 @@ export function builtinLocaleDir(locale: string): Dir | null {
  * order is: an injected resolver (the app has the registry) → the compiled
  * table → the cached `dir` axis from the last resolved paint → `ltr`. The
  * cached axis is what keeps a custom RTL locale from flashing on pre-auth
- * screens, where no bootstrap payload exists yet (23 §5.4).
+ * screens, where no bootstrap payload exists yet.
  */
 export function dirForLocale(
   locale: Locale,
@@ -85,7 +85,7 @@ export function dirForLocale(
 /**
  * BCP-47 form of a locale for the `lang` attribute (`ar_EG` → `ar-EG`).
  * Replaces EVERY underscore: a single replacement leaves `zh-Hant_TW`, which
- * is not a valid tag (23 §5.5).
+ * is not a valid tag.
  */
 export function langForLocale(locale: Locale): string {
   return locale.replaceAll('_', '-');

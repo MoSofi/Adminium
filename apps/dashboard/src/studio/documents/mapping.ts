@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The mapping editor's rules (34-invoices-add-on.md §3.7 steps 2–4; 34-T14).
+ * The mapping editor's rules (steps 2–4).
  *
  * Pure functions, tested on their own, because this is where the page's real
  * decisions live: which columns may fill which slot, which tables are worth
@@ -11,16 +11,15 @@
  * Nothing here mentions tax, totals or line items. A slot is a `type` and a
  * `required` flag; a column is a logical type and a semantic tag. That is the
  * whole vocabulary, and it is what lets a folio provider or a certificate
- * provider drive this same page unchanged — which is the claim §7.5 makes
- * about the pipeline and this page has to keep on the screen.
+ * provider drive this same page unchanged — which is the claim makes about
+ * the pipeline and this page has to keep on the screen.
  *
  * ─── SUGGESTION, NEVER SELECTION ───────────────────────────────────────────
  *
  * Every ranking below orders a list; none of them picks. The engine's
- * `line-items` inference in particular is a hint (§3.7 step 3) — a one-FK
- * child like `invoice_items` has to be chosen explicitly, because a wrong
- * guess here silently maps a document to the wrong rows and looks like
- * success.
+ * `line-items` inference in particular is a hint — a one-FK child like
+ * `invoice_items` has to be chosen explicitly, because a wrong guess here
+ * silently maps a document to the wrong rows and looks like success.
  */
 
 import type { OutlineSlot } from './api.js';
@@ -31,7 +30,7 @@ import type { OutlineSlot } from './api.js';
  * A SUPERSET of `SourceColumn` from `/automations/sources`, which this page
  * reuses rather than adding a second introspection endpoint: that route
  * already returns every connection's tables with their columns AND the
- * caller's per-table grants, which is steps 2, 3 and 7 of §3.7 in one call.
+ * caller's per-table grants, which is steps 2, 3 and 7 of in one call.
  * `semantic` is the one thing it does not carry, so it is optional and the
  * ranking degrades to the logical type without it.
  */
@@ -65,7 +64,7 @@ export interface TableFacts {
 }
 
 /**
- * Tables the profile reads that the CALLER cannot (§3.7 step 7, D16).
+ * Tables the profile reads that the CALLER cannot.
  *
  * Shown before saving, not discovered at render: a profile mapped by somebody
  * who cannot read one of its tables produces documents that fail for them and
@@ -119,7 +118,7 @@ export function columnsForSlot(
 }
 
 /**
- * Tables worth offering first as a document's header (§3.7 step 2).
+ * Tables worth offering first as a document's header.
  *
  * A table carrying a `money` column, or one with a child table pointing at it,
  * is what a document is usually drawn from. Everything else stays on the list,
@@ -136,7 +135,7 @@ export function rankTables(tables: readonly TableFacts[]): TableFacts[] {
 }
 
 /**
- * May this slot be given a value typed into the editor (§3.7 step 4)?
+ * May this slot be given a value typed into the editor?
  *
  * OPTIONAL SCALARS, and slots the engine fills — the plan's own scope, plus
  * O26's line that a `default: sequence` slot may be overridden by an authored
@@ -154,7 +153,7 @@ export function mayTypeValue(slot: Pick<OutlineSlot, 'type' | 'required' | 'defa
 }
 
 /**
- * The child tables worth offering first for a collection slot (§3.7 step 3).
+ * The child tables worth offering first for a collection slot.
  *
  * SUGGESTION, NEVER SELECTION — the list is ordered and never shortened. The
  * engine's `line-items` role needs two foreign keys plus qty × rate numerics,
@@ -245,7 +244,7 @@ export function toMapping(bindings: Bindings): Record<string, unknown> {
   return mapping;
 }
 
-/** The typed per-profile overrides, which live beside the mapping (§3.7 step 4). */
+/** The typed per-profile overrides, which live beside the mapping. */
 export function toLiterals(bindings: Bindings): Record<string, string> {
   const literals: Record<string, string> = {};
   for (const [slotId, binding] of Object.entries(bindings)) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The BOOT-PATH slice of the i18n client (23-runtime-translations.md §4.7).
+ * The BOOT-PATH slice of the i18n client.
  *
  * Split out from `./i18n.ts` deliberately. The override layer runs before the
  * first paint, so whatever it imports lands in the dashboard's entry chunk —

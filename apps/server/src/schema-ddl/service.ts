@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The plan and apply services — 35-schema-authoring.md §3.2–§3.5, D2, D3, D10,
- * 35-T10, 35-T35, 35-T36.
+ * The plan and apply services.
  *
  * ─── Plan and apply are two calls, and the seam between them is a checksum ─
  *
@@ -17,13 +16,13 @@
  *   2. the DATABASE moved — somebody ran DDL in psql. The snapshot is
  *      unchanged, so the checksum matches, and the plan is built on a shape
  *      that no longer exists. Detecting this needs a targeted re-introspection
- *      of the touched tables at apply time (35-T35), which is what
+ * of the touched tables at apply time, which is what
  *      `introspect({tableFilter})` is for.
  *
  * ─── The ledger is written before the first statement ──────────────────────
  *
- * D3/35-T36. MySQL commits every DDL statement implicitly, so an apply cannot
- * be transactional there and a crash halfway leaves no in-process record. The
+ * D3/. MySQL commits every DDL statement implicitly, so an apply cannot be
+ * transactional there and a crash halfway leaves no in-process record. The
  * `running` row is what makes a killed worker legible afterwards.
  */
 import {
@@ -90,7 +89,7 @@ export interface SchemaPlan extends Omit<DdlPlan, 'steps'> {
    * drops anything not declared in it.
    */
   ceilings: CeilingGate[];
-  /** A previous apply that never reported an outcome (35-T36). */
+  /** A previous apply that never reported an outcome. */
   unfinished: { id: string; startedAt: number } | null;
 }
 
@@ -111,7 +110,7 @@ export async function planSchemaEdit(input: PlanServiceInput): Promise<SchemaPla
     throw new ValidationFailedError('This schema edit cannot be applied.', { issues });
   }
 
-  // --- 2. rename first, so the diff sees renames (35-T03) ------------------
+  // --- 2. rename first, so the diff sees renames ------------------
   const { model: renamed, applied } = applyRenames(input.actual, input.edit.renames);
 
   /*
@@ -120,7 +119,7 @@ export async function planSchemaEdit(input: PlanServiceInput): Promise<SchemaPla
    *
    * `applyRenames` rewrites `public.reservations` to `public.table_bookings`
    * throughout the actual model — that is what makes the diff see a rename
-   * instead of a drop plus an add (35-T03). But the client loaded the table as
+   * instead of a drop plus an add. But the client loaded the table as
    * `public.reservations` and sends it back under that id with a new `name`, so
    * without this map the planner finds no actual table with the desired id and
    * plans a CREATE of a table that already exists.
@@ -146,9 +145,9 @@ export async function planSchemaEdit(input: PlanServiceInput): Promise<SchemaPla
   );
   /*
    * `addColumns` → a desired table that is the ACTUAL table plus the new
-   * columns (38 D6). Grouped first, so two additions to one table are one
-   * desired model and therefore one diff rather than two that overwrite each
-   * other in `planDdl`'s map.
+   * columns. Grouped first, so two additions to one table are one desired
+   * model and therefore one diff rather than two that overwrite each other
+   * in `planDdl`'s map.
    *
    * Resolved through `renamedIds` for the same reason `idOf` is: an edit may
    * rename a table and add a column to it in one go, and the client names it
@@ -418,11 +417,11 @@ export interface ApplyServiceInput extends PlanServiceInput {
   superAdmin: boolean;
   /** DSN crypto, for the rename repair's connection-settings rewrite (D33). */
   crypto?: Parameters<typeof repairAfterRename>[0]['crypto'];
-  /** Re-introspect the touched tables, for the live-drift check (35-T35). */
+  /** Re-introspect the touched tables, for the live-drift check. */
   reintrospect?: (tableIds: readonly string[]) => Promise<DatabaseModel | null>;
   /**
    * Re-introspect ONE table, for the SQLite rebuild's step 12 — the compare
-   * that turns "it ran" into "it is what the plan promised" (§7).
+   * that turns "it ran" into "it is what the plan promised".
    */
   reintrospectTable?: (tableId: string) => Promise<TableModel | null>;
   /** Progress callback for the job runner. */
@@ -465,7 +464,7 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
     );
   }
 
-  // --- live drift: did the DATABASE move? (35-T35) -------------------------
+  // --- live drift: did the DATABASE move? -------------------------
   if (input.reintrospect !== undefined) {
     const touched = [...new Set(plan.steps.map((s) => s.table))];
     const live = await input.reintrospect(touched);
@@ -482,7 +481,7 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
     }
   }
 
-  // --- the ledger row, BEFORE the first statement (D3, 35-T36) -------------
+  // --- the ledger row, BEFORE the first statement (D3) -------------
   const ledger = schemaChangesRepo(input.meta);
   const outcomes: StepOutcome[] = plan.steps.map((step) => ({
     id: step.id,

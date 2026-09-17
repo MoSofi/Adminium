@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `merge.ts` — deterministic chunk reduce + the `PROMPT_MERGE_V1` orchestration
- * (06-llm-assist.md §4.5, acceptance criterion 7).
+ * (acceptance criterion 7).
  *
  * The map phase (see `prompt/chunker.ts`) produces one `LlmResponseV1` per chunk.
  * This module reduces them back to one:
@@ -17,11 +17,11 @@
  *    responses (acceptance criterion 7: "order-independent").
  *
  * 2. **LLM reduce prompt** ({@link buildMergePrompt}). For a richer cross-chunk
- *    grouping, `PROMPT_MERGE_V1` (§4.5, shipped verbatim in `prompt/templates`)
- *    receives only the per-chunk `navGroups`/`dashboards` plus the full
- *    table-name list and returns one consolidated global result;
- *    {@link applyGlobalMerge} folds that back onto the deterministic per-table
- *    merge (re-running the deterministic global consolidation defensively).
+ * grouping, `PROMPT_MERGE_V1` (shipped verbatim in `prompt/templates`) receives
+ *    only the per-chunk `navGroups`/`dashboards` plus the full table-name list
+ *    and returns one consolidated global result; {@link applyGlobalMerge} folds
+ *    that back onto the deterministic per-table merge (re-running the
+ *    deterministic global consolidation defensively).
  *
  * Determinism: no `Date.now`/`Math.random`; canonical (sorted-key) JSON drives
  * every tie-break. Browser-safe: only pure-TS/Zod imports.
@@ -164,12 +164,12 @@ interface NavGroupAcc {
   tables: Set<string>;
 }
 
-/** Max nav groups allowed by the response schema (§6.1: `navGroups.max(7)`). */
+/** Max nav groups allowed by the response schema (`navGroups.max(7)`). */
 const MAX_NAV_GROUPS = 7;
 
 /**
  * Consolidate nav-group proposals from every chunk into one coherent set where
- * **each table appears in exactly one group** (§4.5). Same-id groups union their
+ * **each table appears in exactly one group**. Same-id groups union their
  * tables; a table proposed under several groups is assigned to the group with
  * the highest confidence (ties by id) and removed from the rest; empty groups
  * drop out. If more than 7 groups survive, the lowest-priority groups' tables
@@ -258,7 +258,7 @@ interface DashboardAcc {
   widgets: Map<string, WidgetSuggestion>;
 }
 
-/** Max dashboards / widgets-per-dashboard allowed by the schema (§6.1). */
+/** Max dashboards / widgets-per-dashboard allowed by the schema. */
 const MAX_DASHBOARDS = 6;
 const MAX_WIDGETS = 8;
 
@@ -368,10 +368,11 @@ export function mergeChunkResponses(responses: readonly LlmResponseV1[]): LlmRes
   return LlmResponseV1.parse(notes.length > 0 ? { ...base, notes } : base);
 }
 
-// ─── LLM reduce prompt (PROMPT_MERGE_V1 orchestration, §4.5) ──────────────────
+// ─── LLM reduce prompt (PROMPT_MERGE_V1 orchestration) ────────────────────────
 
 export interface MergePromptOptions {
-  /** Full qualified table-name list for the whole schema, injected into the prompt (§4.5). */
+  /** Full qualified table-name list for the whole schema, injected into the
+   * prompt. */
   allTableNames: readonly string[];
 }
 
@@ -391,7 +392,7 @@ function fillToken(text: string, token: string, value: string): string {
 }
 
 /**
- * Build the `PROMPT_MERGE_V1` reduce prompt (§4.5): it embeds only each chunk's
+ * Build the `PROMPT_MERGE_V1` reduce prompt: it embeds only each chunk's
  * partial `navGroups`/`dashboards` and the full table-name list, reusing the v1
  * system section verbatim. Used only for the optional LLM consolidation of the
  * global sections when a run was chunked.

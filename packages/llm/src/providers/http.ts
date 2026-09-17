@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shared fetch plumbing for the provider clients (06-llm-assist.md §3): one
- * JSON request helper with a timeout, deterministic error mapping to
- * `ProviderError`, and — the security-critical part (acceptance §10) — a secret
- * scrubber that guarantees the API key never survives into a thrown/logged
- * surface. Global `fetch` only; no SDKs, browser-safe.
+ * Shared fetch plumbing for the provider clients: one JSON request helper with
+ * a timeout, deterministic error mapping to `ProviderError`, and — the
+ * security-critical part (acceptance) — a secret scrubber that guarantees the
+ * API key never survives into a thrown/logged surface. Global `fetch` only; no
+ * SDKs, browser-safe.
  */
 import {
   DEFAULT_TIMEOUT_MS,
@@ -27,8 +27,8 @@ export function scrubSecret(text: string, secret: string | undefined): string {
 }
 
 /**
- * Return an error safe to attach as a `ProviderError.cause` (acceptance §10): the
- * key must not survive into ANY logged/inspected surface, and consumers walk the
+ * Return an error safe to attach as a `ProviderError.cause` (acceptance): the key
+ * must not survive into ANY logged/inspected surface, and consumers walk the
  * `[cause]` chain (`console.error`, `util.inspect`, pino/winston serializers).
  * The original error's `message` — and its `stack`, which embeds the message —
  * can echo an outgoing Authorization header, so when the secret appears anywhere
@@ -139,7 +139,7 @@ async function safeText(res: Response): Promise<string> {
 }
 
 /**
- * Response budget for the connectivity ping. §3.1 calls `test()` a "1-token
+ * Response budget for the connectivity ping. `test()` is a "1-token
  * ping" and for a plain chat model one token is all it takes; a reasoning model
  * spends its budget on thinking BEFORE it writes anything, so a budget of 1
  * guarantees a reply with no assistant text in it. 16 is still far below a

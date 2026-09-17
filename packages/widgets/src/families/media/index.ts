@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `media` family public surface (annex §8) — the file/media components
+ * `media` family public surface (annex) — the file/media components
  * (file-browser, upload-dropzone, upload-progress-list, attachment-list,
  * image-board, link-list) plus the TRACK MEDIA registry metadata. Component code
  * is also reachable through each definition's `lazy()` ref, so the registry still
- * emits one chunk per family (04 §2.3); this barrel is for direct
- * template/story composition and tests. Registry metadata lives in
- * `media-track.definitions.ts`; schemas + demo generators in `media-config.ts`.
+ * emits one chunk per family; this barrel is for direct template/story
+ * composition and tests. Registry metadata lives in `media-track.definitions.ts`;
+ * schemas + demo generators in `media-config.ts`.
  */
 export {
   FileBrowser,

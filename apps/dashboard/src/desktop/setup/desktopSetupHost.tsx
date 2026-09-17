@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/desktop/setup` — the first-run wizard's host (11-electron.md §6, task
- * 11-T07).
+ * `/desktop/setup` — the first-run wizard's host.
  *
  * The four steps are `steps/`; the rules are `desktopSetupState.ts`; this is the
  * thing that owns the state, the async, and the order. Same split as
@@ -11,11 +10,11 @@
  * ─── THIS IS THE APP'S FRONT DOOR ────────────────────────────────────────────
  *
  * `main/index.ts`'s `appUrl({ firstRun: true })` navigates the BrowserWindow
- * straight to `/desktop/setup` on every launch with no `config.json` (§2.2
- * step 8), and `config.json` is not written until this wizard finishes. So if
- * this screen does not render, the app has no way to become usable — the user
- * cannot create the super-admin, so `firstRun` stays true, so the next launch
- * lands in exactly the same place.
+ * straight to `/desktop/setup` on every launch with no `config.json`, and
+ * `config.json` is not written until this wizard finishes. So if this screen
+ * does not render, the app has no way to become usable — the user cannot
+ * create the super-admin, so `firstRun` stays true, so the next launch lands
+ * in exactly the same place.
  *
  * That is not hypothetical: this module was missing and `router.tsx` had no
  * `/desktop/setup` route, so the shipped tree navigated every fresh install to
@@ -67,13 +66,14 @@ import { DataLocationStep } from './steps/DataLocationStep.js';
 import { GenerateStep, type PreparePhase } from './steps/GenerateStep.js';
 import { SourceStep } from './steps/SourceStep.js';
 
-/** The native picker's file filter for card 2 (§6: `.sqlite`, `.db`, `.sqlite3`). */
+/** The native picker's file filter for card 2 (`.sqlite`, `.db`, `.sqlite3`).
+ * */
 const SQLITE_PICKER = { kind: 'sqlite' } as const;
 
 export function DesktopSetupHost(): ReactNode {
   const router = useRouter();
   const capabilities = useCapabilities();
-  // `useThemePrefs`, not `useTheme`: §6 step 3's picker sets a PREFERENCE, and
+  // `useThemePrefs`, not `useTheme`: the picker sets a PREFERENCE, and
   // `system` is one of its three answers. `useTheme` hands back the RESOLVED
   // mode, which has already collapsed `system` into light/dark — seeding the
   // picker from it would silently turn "follow the OS" into whatever the OS
@@ -125,10 +125,10 @@ export function DesktopSetupHost(): ReactNode {
   /**
    * ─── THE CSRF TOKEN, ON A RESUME ───────────────────────────────────────────
    *
-   * Everything step 4 does mutates with the session step 3 created, and §7 item
-   * 4 requires the session-bound token from any such call (`app/api.ts`). This
-   * route never runs `appRoute`'s bootstrap — that is the whole reason it hangs
-   * off the router root — so the token reaches it by exactly two paths.
+   * Everything step 4 does mutates with the session step 3 created, requires
+   * the session-bound token from any such call (`app/api.ts`). This route never
+   * runs `appRoute`'s bootstrap — that is the whole reason it hangs off the
+   * router root — so the token reaches it by exactly two paths.
    *
    * On the straight-line walk it arrives with step 3's own reply
    * (`setup/setupApi.ts`), and `await`ing here is then a no-op.
@@ -159,8 +159,8 @@ export function DesktopSetupHost(): ReactNode {
     }
   }, [queryClient]);
 
-  // §6 step 3: "Locale/theme pickers pre-filled from OS locale + system theme".
-  // Seeded once, and only into a field the user has not touched (`null` means
+  // "Locale/theme pickers pre-filled from OS locale + system theme". Seeded
+  // once, and only into a field the user has not touched (`null` means
   // untouched) — re-deriving on every render would fight the picker.
   const locale = state.locale ?? localeFromNavigator() ?? 'en_US';
   const themePref = state.theme ?? prefs.theme;
@@ -197,7 +197,7 @@ export function DesktopSetupHost(): ReactNode {
       }
       if (result.status === 'cloud-sync-blocked') {
         // The main process REFUSED and wrote nothing. Render its verdict; the
-        // acknowledge button calls again with the flag §6 requires.
+        // acknowledge button calls again with the flag requires.
         setCloudSync(result.warning);
         return;
       }
@@ -243,9 +243,9 @@ export function DesktopSetupHost(): ReactNode {
         email: account.email.trim(),
         password: account.password,
         name: account.name.trim(),
-        // §6 does not put the telemetry screen in this wizard — desktop's answer
-        // lives in Settings → About (§13), and `config.telemetryOptIn` defaults
-        // off (§2.3). Both OFF here is that default, stated rather than implied.
+        // The telemetry screen is not in this wizard — desktop's answer
+        // lives in Settings → About, and `config.telemetryOptIn` defaults
+        // off. Both OFF here is that default, stated rather than implied.
         consent: { telemetry: false, updateCheck: false },
       }),
     onSuccess: () => {
@@ -273,7 +273,7 @@ export function DesktopSetupHost(): ReactNode {
   // ─── Step 4 ────────────────────────────────────────────────────────────────
 
   /**
-   * §6 step 4's front half: create the source the user chose in step 2, then
+   * The front half: create the source the user chose in step 2, then
    * introspect it. The session from step 3 is what finally authorizes this.
    *
    * ─── RUN EXACTLY ONCE, AND WHY THAT NEEDS SAYING ─────────────────────────
@@ -315,7 +315,7 @@ export function DesktopSetupHost(): ReactNode {
     } catch (error) {
       const conflict = error instanceof ApiError ? demoConflictConnectionId(error.details) : null;
       if (conflict !== null) {
-        // §6 card 4's 409: a connection already points at the demo file. No
+        // The demo card's 409: a connection already points at the demo file. No
         // retry can ever succeed, so adopt it rather than offer a dead button.
         patch({ connectionId: conflict });
         setPhase('ready');
@@ -384,11 +384,11 @@ export function DesktopSetupHost(): ReactNode {
   }, [state.step]);
 
   /**
-   * §6: "Finish writes `config.json` and lands on the Generated App dashboard."
+   * "Finish writes `config.json` and lands on the Generated App dashboard."
    *
    * The WRITE is `setSingleUser` — `config.json` is the main process's file
-   * (§2.3) and this is the only value in it §6 asks the wizard for. Everything
-   * else in that file is either already correct (the dataDir, committed in step
+   * and this is the only value in it asks the wizard for. Everything else in
+   * that file is either already correct (the dataDir, committed in step
    * 1) or a default the About screen owns.
    */
   const finish = (): void => {
@@ -481,7 +481,7 @@ export function DesktopSetupHost(): ReactNode {
                 if (file !== null) patch({ sqliteFile: file });
               });
             }}
-            // §8.2's rule, and the reason this reads `resolved`: a build with no
+            // The rule, and the reason this reads `resolved`: a build with no
             // seed script has no demo route, and "we have not asked yet" is not
             // "there is no demo". Until the probe answers, the card explains
             // itself rather than offering a button that would 404.

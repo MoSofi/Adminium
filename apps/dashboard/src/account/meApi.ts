@@ -12,7 +12,7 @@
  * fields independently optional rather than pairing them.
  *
  * SYNC NOTE: the reply shape mirrors `apps/server/src/routes/me/schema.ts`
- * (`meReply`), which wraps the §1.4 `{ data: … }` envelope around the same
+ * (`meReply`), which wraps the `{ data: … }` envelope around the same
  * `authUserView` the bootstrap payload carries — so a successful patch can
  * seed `['bootstrap']` instead of forcing a second round trip.
  */

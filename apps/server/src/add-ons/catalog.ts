@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The add-on catalog client (32-add-on-distribution.md §4.2, D8/D9;
- * 48-self-hosted-downloads.md D3/D4/D7).
+ * The add-on catalog client.
  *
  * Built on the telemetry client's precedent (`../telemetry/service.ts`): a
  * hardcoded first-party endpoint constant, an injectable `fetchImpl` so tests
@@ -11,19 +10,19 @@
  * `add-on-network-isolation.test.ts` prove D8's claim with a recording thrower
  * rather than by trusting a caught error.
  *
- * TWO HOSTNAMES, EXACTLY (24 D14). `adminium.dev` serves the few-KB catalog
- * index; `downloads.adminium.dev` serves the files. Both are module constants,
- * and so is every address this client requests: a download URL is BUILT HERE
- * from a catalog row's key and exact version (48 D4), never read out of remote
- * data. The feed carries no URL and no package name, so there is nothing in it
- * that could point a download at another host or another file. (Its v1
- * predecessor named an npm package, and constraining that field to one value
- * was the only thing standing between whoever served the feed and a download of
- * any package they liked.)
+ * TWO HOSTNAMES, EXACTLY. `adminium.dev` serves the few-KB catalog index;
+ * `downloads.adminium.dev` serves the files. Both are module constants, and so
+ * is every address this client requests: a download URL is BUILT HERE from a
+ * catalog row's key and exact version, never read out of remote data. The feed
+ * carries no URL and no package name, so there is nothing in it that could
+ * point a download at another host or another file. (Its v1 predecessor named
+ * an npm package, and constraining that field to one value was the only thing
+ * standing between whoever served the feed and a download of any package they
+ * liked.)
  *
- * WHERE THE FINGERPRINT COMES FROM (48 D3). The catalog row's `integrity` — the
- * release ledger's value, carried by a feed the website builds from the ledger
- * at a pinned SHA. Never from the download host: a folder that supplied both the
+ * WHERE THE FINGERPRINT COMES FROM. The catalog row's `integrity` — the release
+ * ledger's value, carried by a feed the website builds from the ledger at a
+ * pinned SHA. Never from the download host: a folder that supplied both the
  * bytes and the hash they are checked against would be checking them against
  * themselves. The STORE verifies the downloaded bytes against it, in constant
  * time, before anything is unpacked.
@@ -51,7 +50,7 @@ import { z } from 'zod';
 import { APP_VERSION } from '../version.js';
 
 /**
- * The static feed the website emits (48 D7). Never serves files.
+ * The static feed the website emits. Never serves files.
  *
  * `v2` IS A NEW ADDRESS, NOT A NEW FIELD. Released servers (0.2.3–0.2.8) parse
  * `/marketplace/catalog.json` with a `.strict()` v1 schema, so any change to
@@ -60,7 +59,7 @@ import { APP_VERSION } from '../version.js';
  */
 export const CATALOG_ENDPOINT = 'https://adminium.dev/marketplace/v2/catalog.json';
 
-/** The only host this client downloads a file from (48 D1/D4). */
+/** The only host this client downloads a file from. */
 export const DOWNLOAD_HOST = 'downloads.adminium.dev';
 
 /** The settings-registry key behind D8's default-off browse-online toggle. */
@@ -79,7 +78,8 @@ export type CatalogRefusal =
   | 'TARBALL_UNREACHABLE'
   | 'UNKNOWN_ADD_ON'
   | 'UNKNOWN_APP'
-  /** An app whose manifest names a minimum Adminium above this server's version (48 §6b G8-D2). */
+  /** An app whose manifest names a minimum Adminium above this server's version
+   * (b G8-D2). */
   | 'REQUIRES_NEWER_ADMINIUM';
 
 /**
@@ -96,7 +96,8 @@ export const MAX_TARBALL_BYTES = 32 * 1024 * 1024;
 /** Per-request budget: a host that accepts a connection and never answers. */
 export const REQUEST_TIMEOUT_MS = 30_000;
 
-/** Every request says what it is; bot protection judges a bare runtime harshly (48 §4). */
+/** Every request says what it is; bot protection judges a bare runtime harshly.
+ * */
 export const USER_AGENT = `Adminium/${APP_VERSION}`;
 
 export class AddOnCatalogError extends Error {
@@ -112,7 +113,7 @@ export class AddOnCatalogError extends Error {
 /**
  * The feed's wire schema.
  *
- * 17 §2 IS ENFORCED BY CONSTRUCTION, NOT BY OMISSION: the object is `.strict()`,
+ * THE ABSENCE OF PRICING IS ENFORCED BY CONSTRUCTION, NOT BY OMISSION: the object is `.strict()`,
  * so a feed carrying `price`, `licenseKey`, `tier`, or an availability teaser is
  * REFUSED rather than quietly ignored. A deferred-monetization rule that only
  * held because nobody happened to send the field would not be a rule.
@@ -120,8 +121,8 @@ export class AddOnCatalogError extends Error {
 const localizedSchema = z.record(z.string(), z.string());
 
 /**
- * One string out of a feed-supplied localized record, for a product locale
- * (40-add-on-browsing.md D2).
+ * One string out of a feed-supplied localized record, for a product
+ * locale.
  *
  * ── WHY THIS IS NOT A LOOKUP ────────────────────────────────────────────────
  *
@@ -142,7 +143,7 @@ const localizedSchema = z.record(z.string(), z.string());
  *     and Simplified would silently render as English;
  *  3. the language subtag — `en_US` → `en`, `ar_EG` → `ar`, which is how six of
  *     the eight resolve;
- *  4. `en`, the one key 32 §3 requires every feed row to carry.
+ * 4. `en`, the one key requires every feed row to carry.
  *
  * Returns `null` rather than a placeholder when every leg misses: the caller
  * knows what it has locally (a staged manifest's name, or the key) and this
@@ -172,7 +173,7 @@ export const catalogEntrySchema = z
   .object({
     key: z.string().regex(ADD_ON_KEY_PATTERN),
     version: z.string().regex(EXACT_VERSION_PATTERN),
-    /** The release ledger's value, `sha512-<base64>` (48 D3). */
+    /** The release ledger's value, `sha512-<base64>`. */
     integrity: z.string().regex(/^sha512-[A-Za-z0-9+/]+={0,2}$/),
     provides: z
       .array(z.object({ contract: z.string(), version: z.number().int().positive() }).strict())
@@ -216,8 +217,8 @@ export function isCurrentCatalogFormat(document: unknown): boolean {
 }
 
 /**
- * The one address a release of `key` at exactly `version` is downloaded from
- * (48 D1/D4): `https://downloads.adminium.dev/add-ons/<key>/<key>-<version>.tgz`.
+ * The one address a release of `key` at exactly `version` is downloaded
+ * from: `https://downloads.adminium.dev/add-ons/<key>/<key>-<version>.tgz`.
  *
  * Built, then CHECKED: the grammars rule out every character that could move the
  * address, and the parsed URL must still carry exactly the path that was built
@@ -228,7 +229,8 @@ export function downloadUrlFor(
   key: string,
   version: string,
   base = `https://${DOWNLOAD_HOST}`,
-  /** `apps` for an app release (48 D1); add-ons are the default and every existing caller. */
+  /** `apps` for an app release; add-ons are the default and every existing
+   * caller. */
   folder: 'add-ons' | 'apps' = 'add-ons',
 ): string {
   if (!ADD_ON_KEY_PATTERN.test(key) || !EXACT_VERSION_PATTERN.test(version)) {
@@ -251,17 +253,17 @@ export function downloadUrlFor(
 
 /**
  * Every outbound request the catalog clients make, add-ons and apps alike
- * (48-self-hosted-downloads.md §6b G8-D4), with the three transport
- * properties the exact-hostname ruling actually requires.
+ * (b G8-D4), with the three transport properties the exact-hostname
+ * ruling actually requires.
  *
  * `redirect: 'manual'` IS THE LOAD-BEARING ONE. `fetch` follows redirects by
  * default, and the address is fixed *before* the request — so with the
  * default, a host answering `302 Location: https://evil.example/x.tgz` would
- * be followed silently and the "exactly two hostnames" guarantee (24 D14)
- * would hold only on paper. A redirect is therefore a typed REFUSAL rather
- * than something to re-check and follow: both hosts are first-party, neither
- * has any business bouncing us, and "refuse and say where it tried to send
- * us" is a far better failure than a redirect-following loop with a host
+ * be followed silently and the "exactly two hostnames" guarantee would hold
+ * only on paper. A redirect is therefore a typed REFUSAL rather than
+ * something to re-check and follow: both hosts are first-party, neither has
+ * any business bouncing us, and "refuse and say where it tried to send us"
+ * is a far better failure than a redirect-following loop with a host
  * check in it.
  */
 export async function boundedRequest(
@@ -473,7 +475,7 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
       const parsed = catalogSchema.safeParse(body);
       if (!parsed.success) {
         // A field the schema does not know about is a REFUSAL, not a warning:
-        // that is how 17 §2's "no price fields by construction" is enforced.
+        // that is how "no price fields by construction" is enforced.
         throw new AddOnCatalogError(
           'CATALOG_MALFORMED',
           `catalog does not match the expected schema: ${parsed.error.issues
@@ -497,7 +499,7 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
         'TARBALL_UNREACHABLE',
         signal,
         // The catalog offers a version the download host does not have. Named
-        // on its own: it is a publishing fault, not a network one (48 §4).
+        // on its own: it is a publishing fault, not a network one.
         'TARBALL_NOT_FOUND',
       );
       return bytes;

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Edit-mode dashboard canvas (04-widget-registry.md §6.2). Renders the working
- * draft on Track GRID's edit-mode `DashboardGrid` (dnd-kit drag, SE-corner
- * resize, keyboard a11y — all owned by the grid) and layers the builder chrome:
- * a configure / duplicate / remove toolbar and a selection ring. The grip is the
- * grid's own `GridDragHandle` (bound to the item's drag activator through grid
- * context). Widgets render from deterministic demo data — the canvas edits
- * layout + config, not live queries.
+ * Edit-mode dashboard canvas. Renders the working draft on Track GRID's
+ * edit-mode `DashboardGrid` (dnd-kit drag, SE-corner resize, keyboard a11y — all
+ * owned by the grid) and layers the builder chrome: a configure / duplicate /
+ * remove toolbar and a selection ring. The grip is the grid's own
+ * `GridDragHandle` (bound to the item's drag activator through grid context).
+ * Widgets render from deterministic demo data — the canvas edits layout +
+ * config, not live queries.
  *
  * `onLayoutChange` feeds every settled move/resize back into the builder draft;
  * `getSizing` enforces each widget's registry resize floor.
@@ -43,7 +43,7 @@ export interface BuilderGridProps {
   onLayoutChange: (layout: PageLayout) => void;
 }
 
-/** Localized grid drag/resize labels + a11y announcements (04 §6.2). */
+/** Localized grid drag/resize labels + a11y announcements. */
 const gridLabels: GridEditLabelsInput = {
   dragHandle: (title) => t('ui:grid.dragHandle', 'Drag to move {title}', { title }),
   resizeHandle: (title) => t('ui:grid.resizeHandle', 'Resize {title}', { title }),
@@ -73,7 +73,7 @@ export function BuilderGrid({
   onRemove,
   onLayoutChange,
 }: BuilderGridProps) {
-  // The canvas must preview what the PAGE will render, and §7's offline policy
+  // The canvas must preview what the PAGE will render, offline policy
   // decides that: `WidgetHost` mounts `resolveOfflineWidgetId(item.widget)`, so
   // the demo data below has to come from the same id. Reading the stored id here
   // fed a map-bubble's lat/lng points to the choropleth tilegram on desktop —
@@ -81,7 +81,7 @@ export function BuilderGrid({
   const runtimeEnv = useWidgetRuntimeEnv();
 
   // The floor has to come from the definition that ACTUALLY MOUNTS, not the one
-  // stored. §7's offline policy swaps `map-bubble` (min 6×8) for
+  // stored. The offline policy swaps `map-bubble` (min 6×8) for
   // `map-choropleth-grid` (min 4×6) on desktop, so reading the stored id pinned
   // the tilegram to a floor its own component does not need. Same class of bug
   // the comment at the top of this component records fixing for demo data — the
@@ -112,7 +112,7 @@ export function BuilderGrid({
         // Remove buttons below act on what the user PLACED — a "Bubble map" is
         // still what they added and still what they would configure.
         const name = definition !== undefined ? widgetDisplayName(definition) : humanize(item.widget);
-        // The RESOLVED definition owns the demo data, because §7's policy decides
+        // The RESOLVED definition owns the demo data, because policy decides
         // which component `WidgetHost` mounts and the two have different data
         // contracts. Same id ⇒ same object in every online runtime.
         const rendered = getWidget(resolveOfflineWidgetId(item.widget, runtimeEnv));

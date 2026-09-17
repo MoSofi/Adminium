@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The file field and the grid's file chip, drawn
- * (38-files-library-and-attachments.md 38-T05; closes 27-T50).
+ * (closes).
  *
  * ─── Why these did not exist ───────────────────────────────────────────────
  *
@@ -9,8 +9,8 @@
  * Storybook: `families/tables/demo-data.ts` has no file column, `DataGrid`'s
  * stories carry no `file` block, and no story anywhere referenced the chip. So
  * two things were true at once — the a11y sweep reported zero violations for
- * this feature, and it had never rendered a pixel of it (27-T50, 27-T58's
- * second half). A baseline over nothing is not a baseline.
+ * this feature, and it had never rendered a pixel of it (second half). A
+ * baseline over nothing is not a baseline.
  *
  * `tags: ['vrt']` opts these into the Playwright matrix
  * (packages/ui/vrt/vrt.spec.ts): {light,dark} × {ltr,rtl}. Baselines are
@@ -159,7 +159,7 @@ export function MultipleAtCap(): ReactNode {
 }
 
 /**
- * The grid cell, in the three shapes a row can show (37 D24, 38 D20).
+ * The grid cell, in the three shapes a row can show.
  *
  * The thumbnail is a real data URI rather than a network image: the dashboard's
  * CSP is `default-src 'self'` and a story that fetched a remote image would

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LLM provider-config helpers for the routes (06-llm-assist.md §3.2).
+ * LLM provider-config helpers for the routes.
  *
  * Owns the three things `GET/PUT /config`, `POST /config/test` and `GET /models`
  * share: reading the `llm.*` settings into the safe reply shape (key redacted to
@@ -27,17 +27,17 @@ import type { LlmConfigPutBody, LlmConfigReply } from './schema.js';
  * Loopback policy for the provider `baseUrl`. Cloud-metadata endpoints are
  * refused unconditionally inside the guard itself; this decides loopback only.
  *
- * `ollama` is carved out, because it is DEFINED as a local endpoint (06 §3.1:
- * "`baseUrl` default `http://localhost:11434`") and `createOllamaClient` falls
- * back to that exact address when nothing is stored — down a path
- * {@link resolveProviderClient} never guards, since it skips the check when
- * `baseUrl` is null. Blocking loopback here therefore refuses the explicit
- * spelling of a dial the code already performs implicitly: it stops no attacker,
- * and makes the one keyless, no-cloud, no-network provider the single one an
- * install running with `NODE_ENV=production` cannot configure. Same call the
- * desktop makes for its local databases (`apps/desktop/src/server/index.ts`) and
- * the SMTP guard makes for a 127.0.0.1 relay (`email/config.ts`) — "production"
- * is a packaging flag, not a trust boundary.
+ * `ollama` is carved out, because it is DEFINED as a local endpoint ("`baseUrl`
+ * default `http://localhost:11434`") and `createOllamaClient` falls back to that
+ * exact address when nothing is stored — down a path {@link
+ * resolveProviderClient} never guards, since it skips the check when `baseUrl`
+ * is null. Blocking loopback here therefore refuses the explicit spelling of a
+ * dial the code already performs implicitly: it stops no attacker, and makes the
+ * one keyless, no-cloud, no-network provider the single one an install running
+ * with `NODE_ENV=production` cannot configure. Same call the desktop makes for
+ * its local databases (`apps/desktop/src/server/index.ts`) and the SMTP guard
+ * makes for a 127.0.0.1 relay (`email/config.ts`) — "production" is a packaging
+ * flag, not a trust boundary.
  *
  * Every other provider keeps the production rule. `openai-compatible` is the one
  * that takes an arbitrary, possibly attacker-suggested URL — the actual vector.
@@ -47,7 +47,7 @@ function outboundGuardOpts(provider: ProviderId | null): DsnGuardOptions {
   return { blockLoopback: process.env.NODE_ENV === 'production' };
 }
 
-/** How many trailing characters of the key the safe reply exposes (§3.2). */
+/** How many trailing characters of the key the safe reply exposes. */
 const KEY_LAST_N = 4;
 
 /** Test seam — construct a client from a resolved config (default: real client). */
@@ -112,8 +112,8 @@ export interface WriteLlmConfigContext {
  * Persist a config write. `provider` is always set; `model`/`baseUrl`/
  * `maxOutputTokens` are set only when present in the body (absent ⇒ untouched).
  * The API key is AES-256-GCM-encrypted before storage; an empty-string `apiKey`
- * clears it; an absent `apiKey` leaves the stored key untouched (§3.2 — there is
- * no read-back, so the UI omits the field to keep the existing key).
+ * clears it; an absent `apiKey` leaves the stored key untouched (there is no
+ * read-back, so the UI omits the field to keep the existing key).
  */
 export async function writeLlmConfig(
   settings: SettingsRepo,

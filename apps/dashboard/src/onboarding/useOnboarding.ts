@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Onboarding query + dismissal (M5-T06). The state is admin-only (the server
- * guards it with `system:connections:manage`), so the query is gated on the
+ * Onboarding query + dismissal. The state is admin-only (the server guards
+ * it with `system:connections:manage`), so the query is gated on the
  * caller's roles to avoid a guaranteed 403 for editors/viewers.
  *
  * `staleTime: 0` keeps the reactive checklist honest — every mount/navigation

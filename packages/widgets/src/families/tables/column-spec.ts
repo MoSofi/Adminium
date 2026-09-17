@@ -12,8 +12,7 @@ import type {
 
 /**
  * Column-spec helpers for the `tables` family + `page-crud` template
- * (research/widget-registry.md §3 "column defs generated from schema";
- * 01-architecture.md §6.1 `config.columns`).
+ * (research/widget-registry.md; `config.columns`).
  *
  * The schema + types themselves live in the page-config pure leaf
  * (`../../page-config/grid-column-spec.ts`) so the generator leaf's crud-body
@@ -45,7 +44,7 @@ export {
 
 /**
  * Stored `GridTone` → `@adminium/ui` tone. `'muted'` (the generator/LLM
- * fallback for enum values outside the §7.1 rule-7 keyword map) renders as the
+ * fallback for enum values outside the rule-7 keyword map) renders as the
  * neutral treatment (surface-3 + fg-muted) — the ui vocabulary has no separate
  * muted tone.
  */
@@ -101,11 +100,11 @@ function toEpoch(value: unknown): number {
 }
 
 /**
- * Type-aware cell comparator — THE Data Table string-mrr sort fix
- * (research/ia-mapping.md §5 item 4): pg serializes `int8`/`decimal` as
- * strings (01 §5 type rules) and client-added rows may carry strings too, so
- * numeric columns coerce through `Number()` and NEVER fall back to the
- * lexicographic path ("980" < "6100", not "6100" < "980").
+ * Type-aware cell comparator — THE Data Table string-mrr sort fix: pg
+ * serializes `int8`/`decimal` as strings (type rules) and client-added rows
+ * may carry strings too, so numeric columns coerce through `Number()` and
+ * NEVER fall back to the lexicographic path ("980" < "6100", not "6100" <
+ * "980").
  */
 export function compareCellValues(column: GridColumnSpec, a: unknown, b: unknown): number {
   const aNull = a === null || a === undefined;
@@ -133,7 +132,7 @@ export function compareCellValues(column: GridColumnSpec, a: unknown, b: unknown
  * an optional exponent. Deliberately NOT `Number(v)`: Postgres and MySQL hand
  * every decimal back as a string, and coercing one loses digits past 15
  * significant figures — the difference between `$1,234,567,890,123,456,789.55`
- * and `…800.00` (36-derived-columns.md D7).
+ * and `…800.00`.
  */
 const DECIMAL_INPUT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
@@ -163,11 +162,11 @@ function isWholeInput(value: number | string): boolean {
  * Locale/currency formatting for money cells (Intl, config override wins).
  *
  * `decimals` is OPTIONAL and its absence keeps the historical behaviour
- * exactly: fraction digits flip per value (`Number.isInteger(x) ? 0 : 2`),
+ * exactly: fraction digits flip per value (`Number.isInteger(x) ? 0: 2`),
  * which is how one column renders `$1,234` directly above `$1,234.50`.
  * `GroupedSummaryTable` calls this with `{locale}` only and must not move, so
- * the flip stays the default rather than becoming a special case
- * (36-derived-columns.md 36-T14). A column that wants a stable width says so.
+ * the flip stays the default rather than becoming a special case. A column
+ * that wants a stable width says so.
  */
 export function formatMoney(
   value: unknown,
@@ -197,7 +196,7 @@ const DEFAULT_DISPLAY_DECIMALS = 2;
 
 /**
  * Render one value through an explicit {@link ColumnDisplay} block — the
- * opt-in override of the semantic chain (36-derived-columns.md D8).
+ * opt-in override of the semantic chain.
  *
  * The percent branch is the reason `percentScale` is mandatory: `8` means 8%
  * in a 0-100 `tax_rate` column and 800% in a 0-1 ratio column, and `Intl`'s
@@ -253,7 +252,7 @@ export function formatRelativeTime(value: unknown, options?: { locale?: string |
   if (Number.isNaN(time)) return String(value ?? '');
   const delta = time - (options?.now ?? Date.now());
   const magnitude = Math.abs(delta);
-  // Grid-cell relative time is a mono/data cell → latn digits (§4.2); the
+  // Grid-cell relative time is a mono/data cell → latn digits; the
   // format layer's relative() is prose-only, so pin the numbering here.
   const formatter = new Intl.RelativeTimeFormat(latnDataTag(options?.locale ?? 'en-US'), {
     numeric: 'auto',
@@ -269,7 +268,7 @@ export function formatRelativeTime(value: unknown, options?: { locale?: string |
 export function formatAbsoluteTime(value: unknown, locale?: string): string {
   const time = value instanceof Date ? value : new Date(String(value));
   if (Number.isNaN(time.getTime())) return String(value ?? '');
-  // Data context (latn digits + gregorian, §4.2) via the format layer.
+  // Data context (latn digits + gregorian) via the format layer.
   return getFormatters(locale ?? 'en-US').dateTime(time);
 }
 
@@ -310,7 +309,7 @@ export function formatCalendarDate(value: unknown, locale?: string): string {
   return getFormatters(locale ?? 'en-US').date(new Date(`${day}T00:00:00Z`), 'medium', { timeZone: 'UTC' });
 }
 
-/** Stable row id from the spec's PK columns (composite → JSON tuple, §2.7.2). */
+/** Stable row id from the spec's PK columns (composite → JSON tuple). */
 export function rowIdOf(columns: readonly GridColumnSpec[], row: GridRow): string {
   const pk = columns.filter((column) => column.primaryKey);
   if (pk.length === 0) return JSON.stringify(row);
@@ -318,7 +317,7 @@ export function rowIdOf(columns: readonly GridColumnSpec[], row: GridRow): strin
   return JSON.stringify(pk.map((column) => row[column.name]));
 }
 
-/** The row's display value ("key field", 09 §8.3) — confirm words, titles. */
+/** The row's display value ("key field") — confirm words, titles. */
 export function displayValueOf(columns: readonly GridColumnSpec[], row: GridRow): string {
   const display = columns.find((column) => column.isDisplay) ?? columns.find((column) => column.semantic === 'person-name');
   if (display !== undefined) {

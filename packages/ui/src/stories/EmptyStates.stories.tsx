@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Empty-states gallery — the exemplar port of Empty States.dc.html
- * (M1-T05). All six designed states compose the `EmptyState` component (and
- * its presets) and demonstrate the anatomy rule verbatim: every empty view
- * shares "an icon, a headline, a line of guidance, and a primary action".
- * Calm states (no results, all caught up) get outline CTAs per the comp; only
- * urgent states earn a filled primary (accent) or destructive (danger) button.
+ * Empty-states gallery — the exemplar port of Empty States.dc.html. All six
+ * designed states compose the `EmptyState` component (and its presets) and
+ * demonstrate the anatomy rule verbatim: every empty view shares "an icon, a
+ * headline, a line of guidance, and a primary action". Calm states (no
+ * results, all caught up) get outline CTAs per the comp; only urgent states
+ * earn a filled primary (accent) or destructive (danger) button.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { CheckCheck, CloudOff, Lock, Plus, RefreshCw, Sparkles, UploadCloud } from 'lucide-react';

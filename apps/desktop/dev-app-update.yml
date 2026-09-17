@@ -1,8 +1,8 @@
-# Dev / test update feed (11-electron.md §11, 11-T16).
+# Dev / test update feed.
 #
 # A packaged build reads `app-update.yml`, which electron-builder generates from
-# the electron-builder.yml `publish` block (11-T13). This file is its stand-in
-# for the two contexts that have no generated one:
+# the electron-builder.yml `publish` block. This file is its stand-in for the
+# two contexts that have no generated one:
 #
 #   * `pnpm --filter @adminium/desktop dev`, where the app is unpacked and
 #     electron-updater (with `forceDevUpdateConfig`) looks for THIS file next to

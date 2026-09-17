@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Studio role gate (09 §8.1): Studio routes require role ≥ Admin. Editors
- * and viewers keep the shell and get the `forbidden` system state inside the
- * content outlet — never a blank screen. (The server independently guards
- * every Studio API with `system:connections:manage` and friends.)
+ * Studio role gate: Studio routes require role ≥ Admin. Editors and viewers
+ * keep the shell and get the `forbidden` system state inside the content
+ * outlet — never a blank screen. (The server independently guards every
+ * Studio API with `system:connections:manage` and friends.)
  */
 import { useSuspenseQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';

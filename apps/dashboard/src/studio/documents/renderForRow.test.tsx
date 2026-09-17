@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * §3.7 step 8 — "Render for row…" (34-invoices-add-on.md; 34-T14).
+ * "Render for row…".
  *
  * The two things worth pinning here are the two that are silently wrong rather
  * than broken: which key the row is drawn by, and whether the drawn document

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * UpdateManager — `electron-updater` integration (11-electron.md §11), owned by
- * 11-T16.
+ * UpdateManager — `electron-updater` integration.
  *
  * ─── The one CORRECTNESS rule, restated because everything else bends to it ──
  *
  * `mode: "disabled"` (and `ADMINIUM_DISABLE_UPDATES=1`, resolved by
  * {@link resolveUpdateMode}) means the updater is **never initialized** — not
- * initialized-then-idle. §7 and the acceptance criteria promise an air-gapped
+ * initialized-then-idle. The offline contract promises an air-gapped
  * install makes zero non-loopback requests, and the offline smoke test asserts
  * it. `electron-updater`'s `autoUpdater` is a lazily-instantiated module getter
  * that, in some configurations, kicks a check on construction; so the rule here
@@ -21,23 +20,23 @@
  * ─── Why this module injects everything ──────────────────────────────────────
  *
  * A real launch needs a display and a signed artifact, so the Playwright
- * `_electron` suite (11-T20) is where the packaged updater actually runs. What a
- * unit suite CAN pin — and must, because the correctness rule lives here — is
- * that `disabled` touches nothing, that `notify` schedules a launch check and a
- * daily one while `manual` schedules neither, and that autoUpdater events are
- * translated into the ONE §4 notification pipeline. So the updater
- * ({@link UpdaterPort}), the timers ({@link UpdateScheduler}) and the event sink
- * ({@link CreateUpdateManagerOptions.emit}) are all ports; `main/index.ts` binds
- * the real ones.
+ * `_electron` suite is where the packaged updater actually runs. What a unit
+ * suite CAN pin — and must, because the correctness rule lives here — is that
+ * `disabled` touches nothing, that `notify` schedules a launch check and a daily
+ * one while `manual` schedules neither, and that autoUpdater events are
+ * translated into the ONE notification pipeline. So the updater ({@link
+ * UpdaterPort}), the timers ({@link UpdateScheduler}) and the event sink ({@link
+ * CreateUpdateManagerOptions.emit}) are all ports; `main/index.ts` binds the
+ * real ones.
  */
 
 import type { DesktopUpdateCheckResult, DesktopUpdateEvent } from '../preload/api.js';
 import type { UpdateMode } from './config.js';
 
-// ─── Feed & schedule constants (§11) ─────────────────────────────────────────
+// ─── Feed & schedule constants ───────────────────────────────────────────────
 
 /**
- * §11: the feed is the `MoSofi/Adminium` repo's GitHub Releases, and the tag
+ * The feed is the `MoSofi/Adminium` repo's GitHub Releases, and the tag
  * series is `desktop-vX.Y.Z` — which this module resolves ITSELF rather than
  * letting electron-updater's GitHub provider do it.
  *
@@ -92,7 +91,7 @@ import type { UpdateMode } from './config.js';
 export const FEED_REPO = { owner: 'MoSofi', repo: 'Adminium' } as const;
 
 /**
- * §2.4 / §14 external-link policy: the human download page, offered when the
+ * The external-link policy: the human download page, offered when the
  * running package cannot self-replace (deb/rpm, {@link canSelfUpdate}).
  *
  * Derived from {@link FEED_REPO} rather than spelled out again — the two named
@@ -151,14 +150,14 @@ export const RESOLVE_TIMEOUT_MS = 10_000;
  */
 export const DESKTOP_TAG_PATTERN = /^desktop-v\d+\.\d+\.\d+$/;
 
-/** §11 `notify`: "check on launch (after a 30 s grace)". */
+/** `notify`: "check on launch (after a 30 s grace)". */
 export const LAUNCH_CHECK_GRACE_MS = 30_000;
 
-/** §11 `notify`: "+ every 24 h". */
+/** `notify`: "+ every 24 h". */
 export const PERIODIC_CHECK_MS = 24 * 60 * 60 * 1000;
 
 /**
- * §11: "Also forced by env `ADMINIUM_DISABLE_UPDATES=1` (fleet admins)." Read by
+ * "Also forced by env `ADMINIUM_DISABLE_UPDATES=1` (fleet admins)." Read by
  * {@link resolveUpdateMode}; the value is exactly `"1"` (a truthy-string check
  * would let `ADMINIUM_DISABLE_UPDATES=0` disable updates, which is the opposite
  * of what a fleet admin who typed a `0` meant).
@@ -169,7 +168,7 @@ export const DISABLE_UPDATES_ENV = 'ADMINIUM_DISABLE_UPDATES';
 
 /**
  * The mode this launch actually runs in: `config.updates.mode`, unless the env
- * kill-switch forces `disabled` (§11).
+ * kill-switch forces `disabled`.
  *
  * Pure and exported so the env override is assertable without a boot — the env
  * path to `disabled` is one of the two the acceptance criteria name ("the
@@ -182,7 +181,7 @@ export function resolveUpdateMode(configMode: UpdateMode, env: NodeJS.ProcessEnv
 }
 
 /**
- * Can the running package replace itself in place? (§11)
+ * Can the running package replace itself in place?
  *
  * macOS (dmg/zip) and Windows (nsis) always can. On Linux only the **AppImage**
  * can — "AppImage auto-updates via the same feed; deb/rpm get notify-only
@@ -201,11 +200,11 @@ export function canSelfUpdate(platform: NodeJS.Platform, env: NodeJS.ProcessEnv)
     const appImage = env.APPIMAGE;
     return typeof appImage === 'string' && appImage.length > 0;
   }
-  // No other platform is a §10 build target; treat it as non-self-replacing.
+  // No other platform is a build target; treat it as non-self-replacing.
   return false;
 }
 
-// ─── Release resolution (§11) ────────────────────────────────────────────────
+// ─── Release resolution ──────────────────────────────────────────────────────
 
 /**
  * Compare two `desktop-v` tags by `major.minor.patch`. Returns <0, 0, >0.
@@ -265,7 +264,7 @@ export function feedForTag(tag: string): UpdaterFeed {
 // ─── Ports (the electron-updater surface, narrowed) ──────────────────────────
 
 /**
- * §11: a `generic` feed pinned to ONE resolved release's asset directory.
+ * A `generic` feed pinned to ONE resolved release's asset directory.
  *
  * `useMultipleRangeRequest: false` is not optional and not cosmetic.
  * `BaseGitHubProvider` hardcodes it false; the generic branch of
@@ -291,8 +290,9 @@ export interface DesktopRelease {
   /**
    * The GitHub release body, carried because the `generic` provider does NOT
    * back-fill `releaseNotes`/`releaseName` — `GitHubProvider` took those from
-   * the Atom feed, and our `latest*.yml` carry neither key. Without it the §4
-   * `available` event's `message` would go from populated to always-undefined.
+   * the Atom feed, and our `latest*.yml` carry neither key. Without it the
+   * `available` event's `message` would go from populated to
+   * always-undefined.
    *
    * HONEST CAVEAT: nothing renders that message today. `DesktopUpdateToaster`
    * and the About card both read only `event.version`
@@ -308,7 +308,7 @@ export interface DesktopRelease {
 /** `builder-util-runtime`'s `UpdateInfo`, narrowed to what an event needs. */
 export interface UpdaterInfo {
   readonly version: string;
-  /** The GitHub release body (§11 "release notes … rendered in-app"), or a list. */
+  /** The GitHub release body, or a list. */
   readonly releaseNotes?: string | ReadonlyArray<unknown> | null | undefined;
   readonly releaseName?: string | null | undefined;
 }
@@ -363,9 +363,9 @@ export interface UpdaterPort {
 // ─── Ports (timers) ──────────────────────────────────────────────────────────
 
 /**
- * The two schedules §11 asks for, as an injectable seam so the unit suite can
- * fire them by hand rather than waiting 30 s (or 24 h). Each returns a canceller
- * that {@link UpdateManager.dispose} calls.
+ * The two schedules asks for, as an injectable seam so the unit suite can fire
+ * them by hand rather than waiting 30 s (or 24 h). Each returns a canceller that
+ * {@link UpdateManager.dispose} calls.
  */
 export interface UpdateScheduler {
   /** Run `fn` once, `ms` from now. */
@@ -399,25 +399,25 @@ export const nodeUpdateScheduler: UpdateScheduler = {
 // ─── The manager ─────────────────────────────────────────────────────────────
 
 export interface CreateUpdateManagerOptions {
-  /** §11: `notify` (default) | `manual` | `disabled`. Env override pre-applied. */
+  /** `notify` (default) | `manual` | `disabled`. Env override pre-applied. */
   mode: UpdateMode;
   /**
    * Resolve the electron-updater `autoUpdater`. Called at most ONCE, and NEVER
    * in `disabled` mode — accessing the export constructs the platform updater
-   * (§11's correctness rule). A function rather than a value so a disabled boot
-   * can avoid even loading the library (`main/index.ts` `require`s it in here).
+   * (correctness rule). A function rather than a value so a disabled boot can
+   * avoid even loading the library (`main/index.ts` `require`s it in here).
    */
   getUpdater: () => UpdaterPort;
   /**
-   * Push a §4 update event into the ONE notification pipeline (`onUpdateEvent`,
-   * §11). The renderer turns it into an `adminium_notifications` entry.
+   * Push a update event into the ONE notification pipeline (`onUpdateEvent`).
+   * The renderer turns it into an `adminium_notifications` entry.
    */
   emit: (event: DesktopUpdateEvent) => void;
   /** {@link canSelfUpdate} for this launch: deb/rpm route downloads to GitHub. */
   canSelfUpdate: boolean;
   /** Injected for the suite; defaults to {@link nodeUpdateScheduler}. */
   scheduler?: UpdateScheduler | undefined;
-  /** §9's main log. Failed checks are logged here and stay silent (§11). */
+  /** The main log. Failed checks are logged here and stay silent. */
   log?: ((line: string) => void) | undefined;
   /** Releases page override (tests); defaults to {@link RELEASES_URL}. */
   releasesUrl?: string | undefined;
@@ -427,15 +427,15 @@ export interface CreateUpdateManagerOptions {
    * Injected so the unit suite never reaches the network — the same seam
    * `apps/server/src/telemetry/update-check.ts` uses. Defaults to
    * `globalThis.fetch`, and is never CALLED in `disabled` mode (no manager) nor
-   * before an explicit check in `manual` mode, which the §7 air-gap criterion
+   * before an explicit check in `manual` mode, which the air-gap criterion
    * requires and the suite asserts.
    */
   fetchImpl?: typeof globalThis.fetch | undefined;
 }
 
-/** §4's three update methods, plus teardown. */
+/** The three update methods, plus teardown. */
 export interface UpdateManager {
-  /** §4: `{ status: "available" | "none" | "error"; version? }`. Never throws. */
+  /** `{ status: "available" | "none" | "error"; version? }`. Never throws. */
   checkForUpdates(): Promise<DesktopUpdateCheckResult>;
   downloadUpdate(): Promise<void>;
   quitAndInstall(): void;
@@ -447,9 +447,9 @@ export interface UpdateManager {
  * Build the updater for `opts.mode`, or `null` when there must not be one.
  *
  * `null` is the whole contract for `disabled`: `main/ipc.ts`'s `updates` getter
- * answers §4 `UNAVAILABLE` for it, and — because {@link CreateUpdateManagerOptions.getUpdater}
- * is not called on this path — electron-updater's `autoUpdater` is never
- * constructed and never touches the network.
+ * answers `UNAVAILABLE` for it, and — because {@link CreateUpdateManagerOptions.getUpdater} is
+ * not called on this path — electron-updater's `autoUpdater` is never constructed and never
+ * touches the network.
  */
 export function createUpdateManager(opts: CreateUpdateManagerOptions): UpdateManager | null {
   // THE correctness rule, and the first line for a reason: everything below this
@@ -469,10 +469,10 @@ export function createUpdateManager(opts: CreateUpdateManagerOptions): UpdateMan
   let resolved: DesktopRelease | null = null;
 
   // Construct + configure ONCE, now that a non-disabled mode has committed us to
-  // an updater. `autoDownload: false` is §11's "downloads only on user action";
+  // an updater. `autoDownload: false` is "downloads only on user action";
   // `autoInstallOnAppQuit: false` keeps install on the explicit "Restart to
   // update" (`quitAndInstall`) rather than surprising the user on an ordinary
-  // quit; `allowPrerelease`/`allowDowngrade: false` are §11 verbatim.
+  // quit; `allowPrerelease`/`allowDowngrade: false` are.
   const updater = opts.getUpdater();
   updater.autoDownload = false;
   updater.autoInstallOnAppQuit = false;
@@ -487,7 +487,7 @@ export function createUpdateManager(opts: CreateUpdateManagerOptions): UpdateMan
   // NO `setFeedURL` here. The feed names one resolved release, so it is set in
   // `check()` immediately before each check — which is also what lets a
   // long-running app pick up a release published after launch. Construction must
-  // stay network-free (the §7 air-gap criterion and the offline smoke test).
+  // stay network-free (the air-gap criterion and the offline smoke test).
 
   updater.on('update-available', (payload) => {
     const info = payload as UpdaterInfo;
@@ -507,11 +507,11 @@ export function createUpdateManager(opts: CreateUpdateManagerOptions): UpdateMan
     emit({ type: 'downloaded', version: info.version });
   });
   updater.on('error', (payload) => {
-    // LOG ONLY — no notification. §11: "Failed checks in notify mode log and
+    // LOG ONLY — no notification: "Failed checks in notify mode log and
     // stay silent (offline is normal)." The autoUpdater fires this event for a
     // failed CHECK just as much as a failed download, so raising a notification
     // here would turn every offline launch into an error toast. The one error
-    // §11 does surface — a download the user actually started — is emitted from
+    // does surface — a download the user actually started — is emitted from
     // `downloadUpdate` below, where the intent is unambiguous.
     log(`[updater] error: ${payload instanceof Error ? payload.message : String(payload)}`);
   });
@@ -534,16 +534,16 @@ export function createUpdateManager(opts: CreateUpdateManagerOptions): UpdateMan
       if (result === null || !result.isUpdateAvailable) return { status: 'none' };
       return { status: 'available', version: result.updateInfo.version };
     } catch (error) {
-      // §11: "Failed checks in notify mode log and stay silent (offline is
-      // normal)." Returned as `error` for an explicit caller (the About/Settings
-      // button awaits this), never thrown and never emitted as a notification.
+      // "Failed checks in notify mode log and stay silent (offline is normal)."
+      // Returned as `error` for an explicit caller (the About/Settings button
+      // awaits this), never thrown and never emitted as a notification.
       log(`[updater] check failed: ${error instanceof Error ? error.message : String(error)}`);
       return { status: 'error' };
     }
   };
 
   const cancels: Array<() => void> = [];
-  // §11: `notify` checks on launch after a 30 s grace + every 24 h; `manual`
+  // `notify` checks on launch after a 30 s grace + every 24 h; `manual`
   // never auto-checks (Help → "Check for updates…" only). `disabled` never
   // reaches here.
   if (opts.mode === 'notify') {
@@ -555,7 +555,7 @@ export function createUpdateManager(opts: CreateUpdateManagerOptions): UpdateMan
     checkForUpdates: check,
     async downloadUpdate(): Promise<void> {
       if (!canSelf) {
-        // deb/rpm/pacman (§11 "no self-replace"): the SPA's Download action lands
+        // deb/rpm/pacman: the SPA's Download action lands
         // here, and the honest answer is the GitHub page — surfaced as the error
         // message the bridge carries to the user.
         throw new Error(
@@ -565,7 +565,7 @@ export function createUpdateManager(opts: CreateUpdateManagerOptions): UpdateMan
       try {
         await updater.downloadUpdate();
       } catch (error) {
-        // The one error §11 surfaces as a notification: a download the user
+        // The one error surfaces as a notification: a download the user
         // STARTED ("Download → progress") that then stalled. Distinct from a
         // failed check, which stays silent (the `error` listener above only
         // logs). Emitted AND rethrown, so the SPA's button and the notification
@@ -606,7 +606,7 @@ function releaseNotesText(info: UpdaterInfo, resolved: DesktopRelease | null): s
 
 /**
  * Fetch the releases list and pick our newest one. `null` on any failure — the
- * caller maps that to §4 `error`, never to "up to date".
+ * caller maps that to `error`, never to "up to date".
  *
  * Deliberately a plain GET with no credentials and no payload: an update check
  * is not a telemetry channel. `Accept` pins the API version so a future default
@@ -619,7 +619,7 @@ function releaseNotesText(info: UpdaterInfo, resolved: DesktopRelease | null): s
  * would NOT fix that case — the requests come from different processes — so it
  * is not implemented here rather than implemented for the appearance of a fix.
  * What matters is that exhaustion is honest: a 403 returns null, which `check()`
- * maps to §4 `error`, never to "you are on the latest version".
+ * maps to `error`, never to "you are on the latest version".
  */
 async function resolveRelease(
   apiUrl: string,
@@ -635,7 +635,7 @@ async function resolveRelease(
       // that drops rather than resets — a captive portal or a silently
       // blackholing firewall — so an explicit "Check for updates…" would hang
       // for five minutes with no feedback. The abort rejects, and `check()`'s
-      // catch maps that to §4 `error`.
+      // catch maps that to `error`.
       signal: AbortSignal.timeout(RESOLVE_TIMEOUT_MS),
     });
     if (!response.ok) return null;
@@ -673,7 +673,7 @@ function nextPageUrl(linkHeader: string | null): string | null {
   return null;
 }
 
-/** electron-updater reports `percent` as a float; §4's event is an integer 0–100. */
+/** electron-updater reports `percent` as a float; the bridge event is an integer 0–100. */
 function clampPercent(percent: number): number {
   if (!Number.isFinite(percent)) return 0;
   return Math.max(0, Math.min(100, Math.round(percent)));

@@ -8,7 +8,7 @@ import { IconTile, type Tone } from '../icon-tile/index.js';
 
 export type DrawerSize = 'sm' | 'md' | 'lg';
 
-/** Size → inline size (380/480/640, research/design-system.md §3 Tier 3). */
+/** Size → inline size (380/480/640, research/design-system.md Tier 3). */
 const drawerSizeClasses: Record<DrawerSize, string> = {
   sm: 'w-[380px]',
   md: 'w-[480px]',
@@ -27,8 +27,8 @@ export interface DrawerProps extends ComponentPropsWithRef<typeof DialogPrimitiv
   size?: DrawerSize | undefined;
   /**
    * Where the sheet comes from. `end` (default) is the side drawer; `bottom`
-   * is the phone-width sheet the Export Builder comp draws (41-export-builder.md
-   * D13): full width, 84vh tall at most, 20px top radius, sliding up.
+   * is the phone-width sheet the Export Builder comp draws: full width, 84vh
+   * tall at most, 20px top radius, sliding up.
    */
   side?: DrawerSide | undefined;
   /** Extra classes for the sheet panel. */
@@ -42,7 +42,7 @@ export interface DrawerProps extends ComponentPropsWithRef<typeof DialogPrimitiv
  * Drawer — side sheet on Radix Dialog sliding in from `inset-inline-end`
  * (logical → mirrors in RTL); `nb-slide` entrance, same scrim as Modal;
  * compose with `DrawerHeader` / `DrawerBody` / `DrawerFooter`
- * (research/design-system.md §3 Tier 3).
+ * (research/design-system.md Tier 3).
  */
 export function Drawer({
   size = 'md',

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Onboarding client (M5-T06) — thin typed wrappers over the onboarding-state
+ * Onboarding client — thin typed wrappers over the onboarding-state
  * endpoints. Shapes mirror the server Zod reply
  * (`apps/server/src/routes/onboarding/schema.ts`); the copied-mirror
  * convention from app/bootstrap.ts applies — change both together.

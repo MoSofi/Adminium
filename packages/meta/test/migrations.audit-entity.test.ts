@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0016 backfill (30-record-pages.md WS-A): audit rows written BEFORE the
- * entity columns existed get their denormalized keys derived from the stored
- * RecordRef JSON, so pre-existing per-record activity shows up on day one —
- * and rows whose entity this reader cannot parse stay NULL rather than
- * failing the wave. Runs the real migration list split at 0015/0016 on every
- * available dialect.
+ * Wave 0016 backfill (WS-A): audit rows written BEFORE the entity columns
+ * existed get their denormalized keys derived from the stored RecordRef JSON,
+ * so pre-existing per-record activity shows up on day one — and rows whose
+ * entity this reader cannot parse stay NULL rather than failing the wave.
+ * Runs the real migration list split at 0015/0016 on every available dialect.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 

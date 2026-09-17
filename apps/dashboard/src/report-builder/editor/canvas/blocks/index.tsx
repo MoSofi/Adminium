@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The block registry: kind → body (43-report-builder.md Appendix B; the
- * comp's twenty-five `sc-if` branches, 315-339).
+ * The block registry: kind → body (the comp's twenty-five `sc-if`
+ * branches, 315-339).
  *
  * The switch narrows on the union's discriminant, so a kind added to
  * `ReportBlockKind` without a body here is a TYPE error, not a blank card.

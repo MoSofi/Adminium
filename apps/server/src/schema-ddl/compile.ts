@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The executor — one function per step kind, `(step, ctx) → CompiledQuery[]`.
- * 35-schema-authoring.md §3.3, D2, 35-T05.
  *
  * ─── The invariant this file exists to keep ────────────────────────────────
  *
@@ -315,12 +314,12 @@ export function columnDefinition(
 }
 
 // ---------------------------------------------------------------------------
-// MySQL algorithm assertions (§5, D4)
+// MySQL algorithm assertions
 // ---------------------------------------------------------------------------
 
 /**
  * Append MySQL's `ALGORITHM=`/`LOCK=` assertion so the SERVER enforces the
- * hazard this plan predicted. Where §5 says `safe`, the statement demands
+ * hazard this plan predicted. Where says `safe`, the statement demands
  * `ALGORITHM=INSTANT`; where it says `locking` without a rewrite,
  * `ALGORITHM=INPLACE, LOCK=NONE`. A server that cannot honour the clause
  * FAILS the statement rather than silently copying the table — which turns
@@ -328,8 +327,8 @@ export function columnDefinition(
  *
  * MariaDB is left alone: it has a fifth algorithm (`NOCOPY`) MySQL lacks and
  * from 11.2 defaults `ALTER TABLE` to `ALGORITHM=COPY, LOCK=NONE`, so emitting
- * MySQL's set at it is a real divergence — and CI runs no MariaDB service
- * (§12), so an assertion nobody can test is a liability, not a safeguard.
+ * MySQL's set at it is a real divergence — and CI runs no MariaDB service, so
+ * an assertion nobody can test is a liability, not a safeguard.
  */
 export function mysqlAlgorithmClause(
   hazard: DdlStep['hazard'],
@@ -342,7 +341,7 @@ export function mysqlAlgorithmClause(
 }
 
 // ---------------------------------------------------------------------------
-// The session rails (§5)
+// The session rails
 // ---------------------------------------------------------------------------
 
 /**
@@ -562,7 +561,7 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
         relation.onUpdate === null ? '' : ` ON UPDATE ${fkAction(relation.onUpdate)}`,
       ].join('');
       // NOT VALID on postgres: the constraint is enforced for new rows
-      // immediately and validated later under a gentler lock (§3.3). The
+      // immediately and validated later under a gentler lock. The
       // planner decides when, by emitting a `validate-fk` step beside this one.
       const notValid =
         dialect === 'postgres' && step.dependsOn.length === 0 && stepHasValidatePartner(step)
@@ -709,7 +708,7 @@ function compileCreateTable(step: DdlStep, ctx: CompileContext): CompiledQuery[]
    * a key is an error there, not a warning.
    *
    * Found by inserting a row through the generated page — the last clause of
-   * §10 criterion 1, and the only step of the round trip that no test performed.
+   * criterion 1, and the only step of the round trip that no test performed.
    */
   const singleKey =
     table.primaryKey.length === 1
@@ -761,7 +760,7 @@ function compileCreateTable(step: DdlStep, ctx: CompileContext): CompiledQuery[]
   }
 
   /*
-   * The table's links, inline (planner §2's note).
+   * The table's links, inline (planner note).
    *
    * SQLite is the reason this is here rather than in a following `add-fk`
    * step: it has no `ALTER TABLE … ADD CONSTRAINT`, so a new table's foreign

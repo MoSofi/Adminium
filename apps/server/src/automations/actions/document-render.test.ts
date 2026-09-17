@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `document.render` automation step (34-invoices-add-on.md §7.2 as ruled
- * by D55; 34-T10).
+ * The `document.render` automation step (as ruled by D55).
  *
  * The pipeline itself is tested in `documents/render.test.ts`, so what is
  * pinned here is what belongs to the STEP: how each of the pipeline's three

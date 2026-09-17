@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Onboarding surface (M5-T06): the progress ring, the reactive checklist at
- * /welcome (steps ✓ come straight from server-derived state), and the shell
- * entry banner whose dismissal persists per user.
+ * Onboarding surface: the progress ring, the reactive checklist at /welcome
+ * (steps ✓ come straight from server-derived state), and the shell entry
+ * banner whose dismissal persists per user.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import {

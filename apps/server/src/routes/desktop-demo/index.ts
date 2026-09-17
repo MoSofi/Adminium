@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `POST /api/v1/desktop/demo-database` — 11-electron.md §6 step 2 card 4
- * ("Explore the demo database"), task 11-T08.
+ * `POST /api/v1/desktop/demo-database` — card 4 ("Explore the demo
+ * database"), task.
  *
  * ─── THE DESKTOP GATE ────────────────────────────────────────────────────────
  *
- * Same shape as §5's `auth/desktop-session.ts`, and for the same reason:
- * EXISTENCE is the gate. `compose.ts` registers this factory only when
+ * Same shape `auth/desktop-session.ts`, and for the same reason: EXISTENCE is
+ * the gate. `compose.ts` registers this factory only when
  * `ADMINIUM_RUNTIME=desktop` AND `ADMINIUM_DEMO_SEED_SCRIPT` names a script, so
  * a self-host or Docker instance does not have the route at all — it 404s there,
  * which no runtime check inside a handler could improve on. Both halves of the
@@ -14,12 +14,12 @@
  * boot with no seed script has nothing to run, so the route would be an
  * unreachable surface, and the wizard hides the card instead.
  *
- * Where this route deliberately DIFFERS from the §5 route: no loopback check.
- * §2.4 makes loopback unconditional for the boot-token exchange because that
- * route mints a super-admin session with no password — it is a credential door,
- * and §8.3 puts a LAN on the other side of it. This one creates a database and
- * registers a connection: the same act `POST /connections` performs, from the
- * same authenticated principal, under the same grant. An admin who may connect a
+ * Where this route deliberately DIFFERS from the route: no loopback check. The boundary
+ * makes loopback unconditional for the boot-token exchange because that route
+ * mints a super-admin session with no password — it is a credential door, puts a
+ * LAN on the other side of it. This one creates a database and registers a
+ * connection: the same act `POST /connections` performs, from the same
+ * authenticated principal, under the same grant. An admin who may connect a
  * production Postgres over the LAN may certainly seed a demo SQLite file, and
  * refusing them would be security theatre — the authorization that matters is
  * `system:connections:manage`, which is what guards it.
@@ -74,7 +74,7 @@ export function desktopDemoRoutes(deps: DesktopDemoRoutesDeps): FastifyPluginAsy
         // `connection.create`, not a bespoke `demo.create`: the audit reader's
         // question is "where did this connection come from?", and the answer
         // belongs in the same action every other connection writes. The demo-ness
-        // rides in `changes` — the same way §5's route records that a login used
+        // rides in `changes` — the same way route records that a login used
         // a boot token rather than inventing a second kind of login.
         await app.rbac.audit(request, {
           category: 'connection',

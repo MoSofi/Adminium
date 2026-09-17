@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Every label the editor prints for a section, an optional block, a custom
- * type or a seeded row (34-invoices-add-on.md Appendix E §I1–I8; the comp's
- * `insMeta` 1565, `optionalSecs()` 1257-1265, `customDefs()` 1266-1272,
- * `newCustom` 1274-1281, `addItem` 1356, `addCustomRow` 1315), in one place
- * so the canvas, the inspector and the Add-section modal never disagree.
+ * type or a seeded row (the comp's `insMeta` 1565, `optionalSecs()`
+ * 1257-1265, `customDefs()` 1266-1272, `newCustom` 1274-1281, `addItem`
+ * 1356, `addCustomRow` 1315), in one place so the canvas, the inspector and
+ * the Add-section modal never disagree.
  *
  * Every string is an `invoices:` key with the comp's English as its inline
  * fallback — byte-identical to `locales/en-US/invoices.json` (the deferred
  * namespace gate, `i18n/invoicesNamespace.test.ts`). Three of them are the
  * lexicon's, not the comp's (34 Appendix D.2): *Invoice to* for the comp's
  * column label, *Charge schedule* for the recurring hint, and the two custom
- * hints re-worded so the built bytes pass the 17 §2 substring sweep.
+ * hints re-worded so the built bytes pass the substring sweep.
  */
 import { t } from '../../i18n/t.js';
 import type { CustomSectionType } from '../model/envelope.js';

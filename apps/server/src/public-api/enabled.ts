@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The runtime off switch's read path (28-public-surface.md §3.5 level 2, D10).
+ * The runtime off switch's read path (level 2, D10).
  *
  * ── WHY A CACHE, ON A SETTING NOBODY CHANGES ───────────────────────────────
  * `settingsRepo.get()` is an UNCACHED bare SELECT — there is no settings cache

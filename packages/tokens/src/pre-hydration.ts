@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pre-hydration script — flash prevention. See 02-design-system.md §4.3.
+ * Pre-hydration script — flash prevention.
  *
  * Inlined (as a string) as the FIRST <script> in <head> of apps/dashboard/index.html,
  * the Electron renderer HTML and Storybook's preview-head.html, before any stylesheet
@@ -24,5 +24,5 @@ export const preHydrationScript =
   'var l=s.getItem("adminium-locale");' +
   // split/join, not replace: `replace("_","-")` swaps only the FIRST
   // underscore, so a three-subtag id like `zh_Hant_TW` would stamp the invalid
-  // tag `zh-Hant_TW` (23 §5.5).
+  // tag `zh-Hant_TW`.
   'if(l)d.setAttribute("lang",l.split("_").join("-"))}catch(e){}})();';

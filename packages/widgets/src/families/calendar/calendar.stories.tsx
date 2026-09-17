@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK CAL `calendar` family stories (annex §5): each widget's loaded variant,
- * the four WidgetFrame states through WidgetHost (acceptance #4), and light/dark
- * × LTR/RTL matrices (acceptance #9). The 7-column month grid and the
- * resource×day schedule grid are logical CSS grids, so a `dir="rtl"` wrapper
- * genuinely reverses the column order (real mirroring, not a bare attribute).
- * Widgets resolve through a LOCAL registry override so stories work before the
- * green loop merges the definitions into the global map. Payloads are the same
- * seeded generators `demoData` uses.
+ * TRACK CAL `calendar` family stories (annex): each widget's loaded variant, the
+ * four WidgetFrame states through WidgetHost (acceptance #4), and light/dark ×
+ * LTR/RTL matrices (acceptance #9). The 7-column month grid and the resource×day
+ * schedule grid are logical CSS grids, so a `dir="rtl"` wrapper genuinely
+ * reverses the column order (real mirroring, not a bare attribute). Widgets
+ * resolve through a LOCAL registry override so stories work before the green
+ * loop merges the definitions into the global map. Payloads are the same seeded
+ * generators `demoData` uses.
  */
 import type { ReactNode } from 'react';
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The SPA half of §11's auto-update, owned by 11-T16 ("notification-center
- * integration / SPA surfaces").
+ * The SPA half of auto-update, owned by ("notification-center integration
+ * / SPA surfaces").
  *
  * ─── What was dead before this file ──────────────────────────────────────────
  *
@@ -14,25 +14,24 @@
  * a channel with zero listeners and was dropped, and even a manually-discovered
  * update could not be downloaded or installed in-app. The whole pipeline was
  * green-but-broken: built and unit-tested in the main process, output falling off
- * the end because the renderer never consumed it (11-electron.md §11 acceptance:
- * "surfaces availability … downloads only on user action, and installs on
- * restart").
+ * the end because the renderer never consumed it ("surfaces availability …
+ * downloads only on user action, and installs on restart").
  *
  * ─── The two surfaces this file gives those events ───────────────────────────
  *
- *  - {@link useDesktopUpdateFlow} drives §13's About → Updates card: it subscribes
- *    to `onUpdateEvent`, tracks the available → downloading → downloaded lifecycle,
- *    and exposes the `download()` / `install()` actions the card's buttons call.
- *    This is where "downloads only on user action, and installs on restart" lives.
+ * - {@link useDesktopUpdateFlow} drives About → Updates card: it subscribes to
+ *  `onUpdateEvent`, tracks the available → downloading → downloaded lifecycle, and
+ *  exposes the `download()` / `install()` actions the card's buttons call. This is
+ *  where "downloads only on user action, and installs on restart" lives.
  *  - {@link DesktopUpdateToaster} is mounted app-wide by `AppShell` so a `notify`
  *    mode user who is NOT on the About page still learns a version shipped — the
  *    "surfaces availability" half. The real notification center is still the M7
- *    placeholder (09-T15), so a toast is the honest minimal surface; when that
- *    center lands it should consume `onUpdateEvent` here instead.
+ * placeholder, so a toast is the honest minimal surface; when that center lands
+ *    it should consume `onUpdateEvent` here instead.
  *
  * ─── Why the bridge access is guarded ────────────────────────────────────────
  *
- * `onUpdateEvent` / `downloadUpdate` / `quitAndInstall` are §4 native affordances:
+ * `onUpdateEvent` / `downloadUpdate` / `quitAndInstall` are native affordances:
  * absent on self-host and Cloud (no bridge), and — in tests — absent on a partial
  * bridge stub. Every entry point here funnels through {@link getDesktopApi} and a
  * `typeof … === 'function'` check, so a browser tab, a self-host deploy, and a
@@ -47,14 +46,14 @@ import { t } from '../i18n/t.js';
 import { getDesktopApi } from '../lib/desktop-runtime.js';
 import { useAppToasts } from '../pages/toasts.js';
 
-// ─── Guarded bridge access (§4) ──────────────────────────────────────────────
+// ─── Guarded bridge access ───────────────────────────────────────────────────
 
 /**
- * Subscribe to §11's `onUpdateEvent` broadcasts. Returns an unsubscriber that is
- * safe to call even when there is no bridge (self-host / Cloud) or the bridge is
- * a partial stub without the channel — in which case NOTHING is subscribed and
- * the returned function is a no-op. This is the single reader §11's main-process
- * emitter was missing.
+ * Subscribe to `onUpdateEvent` broadcasts. Returns an unsubscriber that is safe
+ * to call even when there is no bridge (self-host / Cloud) or the bridge is a
+ * partial stub without the channel — in which case NOTHING is subscribed and the
+ * returned function is a no-op. This is the single reader main-process emitter
+ * was missing.
  */
 export function subscribeDesktopUpdateEvents(cb: (event: DesktopUpdateEvent) => void): () => void {
   const desktop = getDesktopApi();
@@ -62,19 +61,21 @@ export function subscribeDesktopUpdateEvents(cb: (event: DesktopUpdateEvent) => 
   return desktop.onUpdateEvent(cb);
 }
 
-/** §4 `downloadUpdate()` — the caller §11's download action never had. No-op with no bridge. */
+/** `downloadUpdate()` — the caller download action never had. No-op with no
+ * bridge. */
 async function downloadDesktopUpdate(): Promise<void> {
   await getDesktopApi()?.downloadUpdate();
 }
 
-/** §4 `quitAndInstall()` — the caller §11's "Restart to update" never had. No-op with no bridge. */
+/** `quitAndInstall()` — the caller "Restart to update" never had. No-op with
+ * no bridge. */
 export async function installDesktopUpdate(): Promise<void> {
   await getDesktopApi()?.quitAndInstall();
 }
 
-// ─── The About-card flow (§13) ───────────────────────────────────────────────
+// ─── The About-card flow ─────────────────────────────────────────────────────
 
-/** §11's update lifecycle as the About card renders it. */
+/** The update lifecycle as the About card renders it. */
 export type DesktopUpdatePhase = 'idle' | 'available' | 'downloading' | 'downloaded' | 'error';
 
 export interface DesktopUpdateFlowState {
@@ -83,7 +84,8 @@ export interface DesktopUpdateFlowState {
   version: string | null;
   /** 0–100 while downloading. */
   percent: number;
-  /** A download error's message (§11 only emits `error` for a download the user started). */
+  /** A download error's message (only emits `error` for a download the user
+   * started). */
   errorMessage: string | null;
 }
 
@@ -101,8 +103,9 @@ const initialFlowState: DesktopUpdateFlowState = {
 };
 
 /**
- * Fold §11's events (and the two user actions) into the card's phase. A pure
- * reducer so the transitions are assertable without a bridge — the same testing
+ * Fold events (and the two user actions) into the card's phase. A pure
+ * reducer so the transitions are assertable without a bridge — the same
+ * testing
  * seam `updates.ts` uses on the main side.
  */
 export function desktopUpdateFlowReducer(
@@ -138,7 +141,7 @@ export function desktopUpdateFlowReducer(
             errorMessage: null,
           };
         case 'error':
-          // §11 emits `error` only for a download the user STARTED (a failed
+          // `error` is emitted only for a download the user STARTED (a failed
           // CHECK stays silent), so treating it as a download failure is exact.
           return { ...state, phase: 'error', errorMessage: event.message ?? null };
       }
@@ -152,17 +155,17 @@ function clampPercent(percent: number | undefined): number {
 }
 
 export interface DesktopUpdateFlow extends DesktopUpdateFlowState {
-  /** §11 "downloads only on user action" — the About card's Download button. */
+  /** The About card's Download button. */
   download: () => void;
-  /** §11 "installs on restart" — the About card's Restart-to-install button. */
+  /** The About card's Restart-to-install button. */
   install: () => void;
   /** Seed the flow from a manual `checkForUpdates()` that returned `available`. */
   markAvailable: (version: string | undefined) => void;
 }
 
 /**
- * The About → Updates card's controller: subscribes to §11's events and exposes
- * the download/install actions. Idle and inert off the desktop shell (the guard
+ * The About → Updates card's controller: subscribes to events and exposes the
+ * download/install actions. Idle and inert off the desktop shell (the guard
  * in {@link subscribeDesktopUpdateEvents}), so the card renders the same on
  * self-host — it simply never leaves `idle`.
  */
@@ -179,7 +182,7 @@ export function useDesktopUpdateFlow(): DesktopUpdateFlow {
     downloadDesktopUpdate().catch((error: unknown) => {
       // A self-replaceable target that stalled ALSO emits an `error` event (so
       // this is idempotent); a deb/rpm target rejects here WITHOUT an event,
-      // carrying §11's "download from GitHub" message — the user's only signal.
+      // carrying "download from GitHub" message — the user's only signal.
       dispatch({
         kind: 'download-fail',
         message: error instanceof Error ? error.message : String(error),
@@ -201,12 +204,12 @@ export function useDesktopUpdateFlow(): DesktopUpdateFlow {
   return { ...state, download, install, markAvailable };
 }
 
-// ─── The app-wide notify surface (§11) ───────────────────────────────────────
+// ─── The app-wide notify surface ─────────────────────────────────────────────
 
 /**
  * Mounted once by `AppShell` (inside the toast provider): the app-global surface
  * that keeps `notify` mode from being silently dead. When the scheduled check
- * finds a version, §11 broadcasts `available`; this raises a toast with a "View"
+ * finds a version, broadcasts `available`; this raises a toast with a "View"
  * action to the About panel, so the user hears about it wherever they are — not
  * only if they happen to open About. On `downloaded` it offers "Restart now".
  *

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The demo database — seed the file, register the connection (11-electron.md §6
- * step 2 card 4, task 11-T08).
+ * The demo database — seed the file, register the connection (card 4, task).
  *
  * ─── WHY THE SEED SCRIPT IS LOADED BY PATH ───────────────────────────────────
  *
@@ -10,14 +9,14 @@
  * (.dependency-cruiser.cjs, rule `desktop-shell-only`), and it points that way
  * because self-host and Docker run this same server with no desktop package
  * within a mile of them. So the shell TELLS the server where the script is
- * (`ADMINIUM_DEMO_SEED_SCRIPT`, §2.2's env block) and the server imports that
- * path at runtime. `compose.ts` already loads `@adminium/widgets` by file path
- * for the same boundary reason; this is that pattern, not a new one.
+ * (`ADMINIUM_DEMO_SEED_SCRIPT`, env block) and the server imports that path at
+ * runtime. `compose.ts` already loads `@adminium/widgets` by file path for the
+ * same boundary reason; this is that pattern, not a new one.
  *
  * ─── WHY THE SERVER OPENS THE FILE, NOT THE SCRIPT ───────────────────────────
  *
- * §2.1: "The server is the only data owner." The script is a pure description of
- * a schema and its rows; the `better-sqlite3` handle it writes through is opened
+ * "The server is the only data owner." The script is a pure description of a
+ * schema and its rows; the `better-sqlite3` handle it writes through is opened
  * here, by the process that owns every other database handle in the app. That
  * also keeps the script free of module resolution — see its header.
  */
@@ -32,7 +31,7 @@ import { pathToFileURL } from 'node:url';
 import { AppError } from '../../errors.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 
-/** §6: "creates `<dataDir>/databases/demo.sqlite`". Both halves are spec'd. */
+/** "creates `<dataDir>/databases/demo.sqlite`". Both halves are spec'd. */
 export const DEMO_DATABASE_DIR = 'databases';
 export const DEMO_DATABASE_FILE = 'demo.sqlite';
 
@@ -57,7 +56,7 @@ export interface DemoDatabaseResult {
 
 export interface DemoDatabaseDeps {
   manager: ConnectionManager;
-  /** `ADMINIUM_DATA_DIR` — the demo lands under it (§2.2/§6). */
+  /** `ADMINIUM_DATA_DIR` — the demo lands under it. */
   dataDir: string;
   /** Absolute path to `demo-seed.mjs` (`ADMINIUM_DEMO_SEED_SCRIPT`). */
   seedScriptPath: string;
@@ -74,7 +73,7 @@ export interface DemoDatabaseDeps {
  * `import()` the seed script. The `file://` URL is required, not cosmetic: an
  * absolute Windows path (`C:\…`) is not a valid ESM specifier and throws
  * `ERR_UNSUPPORTED_ESM_URL_SCHEME`, which would make this route fail on exactly
- * one of the three platforms §10 ships.
+ * one of the three platforms ships.
  */
 export async function importDemoSeeder(scriptPath: string): Promise<DemoSeeder> {
   const module: unknown = await import(pathToFileURL(scriptPath).href);
@@ -94,7 +93,7 @@ export function demoDatabaseFile(dataDir: string): string {
   return join(resolve(dataDir), DEMO_DATABASE_DIR, DEMO_DATABASE_FILE);
 }
 
-/** §6: "registered in `adminium_connections` as `sqlite:<absolute path>`". */
+/** "registered in `adminium_connections` as `sqlite:<absolute path>`". */
 export function demoDsn(file: string): string {
   return `sqlite:${file}`;
 }
@@ -102,7 +101,7 @@ export function demoDsn(file: string): string {
 /**
  * Create the demo database and register it.
  *
- * THREE STATES, because §6 promises the connection is "deletable afterwards from
+ * THREE STATES, because promises the connection is "deletable afterwards from
  * Data Connections … nothing special" — and deleting a connection does not
  * delete the file behind it. So:
  *
@@ -111,8 +110,8 @@ export function demoDsn(file: string): string {
  *      connection would silently discard whatever they had done to it.
  *   2. The file exists but no connection does (they deleted it and came back)
  *      ⇒ adopt the file as-is. NOT re-seeded: the app never destroys data the
- *      user could have edited (§9's ethos — even `restore` only moves data
- *      aside), and a demo they had been playing in is exactly that.
+ * user could have edited (ethos — even `restore` only moves data aside), and
+ *      a demo they had been playing in is exactly that.
  *   3. Neither ⇒ seed, then register.
  *
  * State 2 is the one worth having: without it, deleting the demo connection
@@ -146,7 +145,7 @@ export async function createDemoDatabaseHandler(
 
   // The same probe `POST /connections` runs, for the same reasons: it decides
   // `readOnly` and it is what `enforceMetaPlacement` reads. A demo file cannot
-  // BE the meta store (§2.1 puts that at `<dataDir>/meta.db`), but the check is
+  // BE the meta store (puts that at `<dataDir>/meta.db`), but the check is
   // cheap and asserting placement here rather than assuming it means the day
   // someone changes either path, this fails loudly instead of quietly sharing.
   const summary = await deps.manager.testDsn('sqlite', dsn);
@@ -185,8 +184,8 @@ export async function createDemoDatabaseHandler(
  * empty database the instant the seeder started, and left it there for good if
  * anything went wrong in the ~800 ms that followed: the app quits mid-seed, the
  * disk fills, or `journal_mode = WAL` fails because dataDir is on a network or
- * synced share (the exact placement 11-T03's sync-folder detection exists to
- * warn about).
+ * synced share (the exact placement sync-folder detection exists to warn
+ * about).
  *
  * Nothing removed that file, and state 2 above adopts any `demo.sqlite` it finds
  * BY DESIGN — so the wreckage was claimed as "a demo the user had been playing

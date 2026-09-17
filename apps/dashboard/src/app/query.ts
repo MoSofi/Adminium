@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TanStack Query client + the API-error → system-state mapping consumed by
- * route `errorComponent`s (09-generated-app.md §2.3, §6.1).
+ * route `errorComponent`s.
  */
 import { QueryClient } from '@tanstack/react-query';
 
 import { ApiError } from './api.js';
 
 /**
- * The 13 system states (09-generated-app.md §6.1, incl. `suspended` and
- * `connection-paused`).
+ * The 13 system states (incl. `suspended` and `connection-paused`).
  */
 export const SYSTEM_STATE_IDS = [
   'not-found',
@@ -42,8 +41,8 @@ export function isSystemStateId(value: string): value is SystemStateId {
 
 /**
  * Maps a thrown query/loader error to the system state that should render
- * (§6.1 trigger column). Detection order: browser offline signal, canonical
- * API codes, then network-level failures (fetch rejects with TypeError).
+ * (trigger column). Detection order: browser offline signal, canonical API
+ * codes, then network-level failures (fetch rejects with TypeError).
  */
 export function stateIdForError(error: unknown): SystemStateId {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'offline';

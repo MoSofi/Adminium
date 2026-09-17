@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/** Zod request/response schemas for `routes/pages/` (08-server-api.md §2.6). */
+/** Zod request/response schemas for `routes/pages/`. */
 
 import { PAGE_TEMPLATE_IDS } from '@adminium/engine';
 import { pagePaddingSchema, pageWidthSchema } from '@adminium/engine/config';
@@ -10,8 +10,8 @@ import { pageLayoutSchema } from './layout-schema.js';
 export const pageParams = z.object({ pageId: z.string().min(1) });
 
 /**
- * The five fixed sidebar buckets (09 §2.2). Restated here rather than imported
- * from `routes/bootstrap/schema.ts` only because that module is the *reply*
+ * The five fixed sidebar buckets. Restated here rather than imported from
+ * `routes/bootstrap/schema.ts` only because that module is the *reply*
  * contract; both derive from `NAV_GROUP_KEYS`, and `navGroupsMatchBootstrap`
  * in the route test pins them together so the duplicate cannot drift.
  * `buildNavTree` silently drops a row whose group is outside this set, so
@@ -125,7 +125,7 @@ export const pagePatchBody = z
     padding: pagePaddingSchema.nullish(),
     /** Content column, on the same "null clears" contract as `padding`. */
     width: pageWidthSchema.nullish(),
-    /** 08 §2.6 optimistic concurrency — the revision the client last read. */
+    /** Optimistic concurrency — the revision the client last read. */
     expectedRevision: z.number().int().min(1).optional(),
   })
   .refine(
@@ -169,12 +169,12 @@ export const pageMutationReply = z.object({ data: pageSummary });
 export const okReply = z.object({ data: z.object({ ok: z.literal(true) }) });
 
 /**
- * The stored envelope is returned verbatim (07-meta-store.md §3.17: the
- * envelope persists into `adminium_pages.config` unchanged) — the client
- * validates it against `pageEnvelopeSchema` after running config migrations,
- * so the transport schema stays permissive by design (never-crash, 09 §3.1).
- * On read the server resolves `config.layout` (per-user override wins over the
- * shared default, 04-widget-registry.md §6.3) before returning it.
+ * The stored envelope is returned verbatim (the envelope persists into
+ * `adminium_pages.config` unchanged) — the client validates it against
+ * `pageEnvelopeSchema` after running config migrations, so the transport
+ * schema stays permissive by design (never-crash). On read the server resolves
+ * `config.layout` (per-user override wins over the shared default) before
+ * returning it.
  */
 export const pageReply = z.object({
   data: z.unknown(),
@@ -184,17 +184,16 @@ export const pageReply = z.object({
   /**
    * Per-caller write capabilities for the envelope's source table — the same
    * `table:<connectionId>:<table>:<create|update|delete>` grants the data
-   * routes enforce, so the client only renders affordances that will not 403
-   * (30-record-pages.md D4). Present only for table-bound envelopes read under
-   * RBAC; absent means "not computed" (the client keeps its permissive
-   * default), never "denied".
+   * routes enforce, so the client only renders affordances that will not 403.
+   * Present only for table-bound envelopes read under RBAC; absent means "not
+   * computed" (the client keeps its permissive default), never "denied".
    */
   canCreate: z.boolean().optional(),
   canUpdate: z.boolean().optional(),
   canDelete: z.boolean().optional(),
   /**
-   * Whether the caller may attach a file to a record of this table
-   * (37-files-and-storage.md D11, §3.5).
+   * Whether the caller may attach a file to a record of this
+   * table.
    *
    * Stated separately from `canUpdate` even though it resolves from the same
    * grant, because the two diverge on a READ-ONLY source: the record cannot be
@@ -228,8 +227,8 @@ export const pageReply = z.object({
 
 /**
  * `PATCH /pages/:pageId/layout` writes the SHARED default layout into
- * `adminium_pages.config.layout`. Body is a full `pageLayout` document
- * (04-widget-registry.md §6.1). Reply echoes the persisted layout.
+ * `adminium_pages.config.layout`. Body is a full `pageLayout`
+ * document. Reply echoes the persisted layout.
  */
 export const pageLayoutPatchBody = pageLayoutSchema;
 export const pageLayoutReply = z.object({ data: z.object({ layout: pageLayoutSchema }) });

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * One table, as a diagram node — 35-schema-authoring.md §3.7, 35-T20.
+ * One table, as a diagram node.
  *
  * Token-only styling: no inline `style`, no raw hex (02's enforcement rule).
  * The node draws its own handles because xyflow needs an anchor per side; the

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The internal placement, host side (29-app-surfaces.md D5/D6/D7 — 29-T10/T12).
+ * The internal placement, host side.
  *
  * Three things are worth testing here and one is not. The bridge's WIRE
  * behaviour is proven at the child end (`embed.test.ts` in each app repo,
@@ -108,9 +108,9 @@ describe('activeHostedItem — longest match', () => {
 
 /**
  * The hosted section's OWN rows. The platform rail carries an `Invoices` row of
- * its own (`/invoices`, 34-invoices-add-on.md 34-T48), so a document-wide
- * `getByRole('link', { name: 'Invoices' })` finds two — and D7's claim is about
- * the app's section, not the rail around it.
+ * its own (`/invoices`), so a document-wide `getByRole('link', { name:
+ * 'Invoices' })` finds two — and D7's claim is about the app's section, not the
+ * rail around it.
  */
 function hostedLink(name: string): HTMLElement {
   const section = document.querySelector('[data-part="nav-hosted-app"]');

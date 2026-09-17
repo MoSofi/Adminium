@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `addOn` manifest block (24-marketplace-wave-4.md §5.3) and its validation
- * rules. Lives here rather than in `@adminium/manifest` because the rules are
- * assertions ABOUT the registries in this package — a slot id or a contract id
- * is only meaningful against the closed lists in `slots.ts` / `contracts.ts`.
+ * The `addOn` manifest block and its validation rules. Lives here rather than
+ * in `@adminium/manifest` because the rules are assertions ABOUT the registries
+ * in this package — a slot id or a contract id is only meaningful against the
+ * closed lists in `slots.ts` / `contracts.ts`.
  *
  * `@adminium/manifest` imports this to build the `kind: "add-on"` branch of its
  * discriminated union.
@@ -24,7 +24,7 @@ export const ADD_ON_CATEGORIES = ['artwork', 'delivery', 'payments', 'email', 'd
 export const addOnCategorySchema = z.enum(ADD_ON_CATEGORIES);
 export type AddOnCategory = (typeof ADD_ON_CATEGORIES)[number];
 
-/** How the shop supplies credentials, if at all (§5.6). */
+/** How the shop supplies credentials, if at all. */
 export const CONNECT_KINDS = ['none', 'api-key', 'oauth2'] as const;
 export const connectKindSchema = z.enum(CONNECT_KINDS);
 export type ConnectKind = (typeof CONNECT_KINDS)[number];
@@ -121,7 +121,7 @@ export const addOnBlockSchema = z
     message: 'CONTRACT_UNKNOWN: a consumed contract is not in the registry at that version',
     path: ['consumes'],
   })
-  // §5.6 — an oauth2 connect must name where it authorizes.
+  // An oauth2 connect must name where it authorizes.
   .refine(
     (b) =>
       b.connect.kind !== 'oauth2' ||
@@ -134,7 +134,7 @@ export const addOnBlockSchema = z
 
 export type AddOnBlock = z.infer<typeof addOnBlockSchema>;
 
-/** Issue codes the validators emit (13 §3.2 convention, extended by 24 §5.3). */
+/** Issue codes the validators emit. */
 export const ADD_ON_ISSUE_CODES = [
   'ATTACH_TARGET_UNKNOWN',
   'SLOT_UNKNOWN',

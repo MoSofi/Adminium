@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Builder-local layout placement helpers (04-widget-registry.md §6.2 "Adding
- * widgets"). The builder needs to place, clone, remove and re-configure grid
- * items on the working-copy layout without touching the grid internals Track
- * GRID owns (`packages/widgets/src/grid`).
+ * Builder-local layout placement helpers. The builder needs to place, clone,
+ * remove and re-configure grid items on the working-copy layout without
+ * touching the grid internals Track GRID owns (`packages/widgets/src/grid`).
  *
  * Placement itself (`findFirstFit`) and top-gravity compaction (`compactVertical`)
  * are Track GRID's exported geometry (`@adminium/widgets`); this module reuses
@@ -20,7 +19,7 @@ import {
 } from '@adminium/widgets';
 import type { LayoutItem, PageLayout } from '@adminium/widgets/page-config';
 
-/** Reserved config key carrying builder-locked config paths (04 §9 Tier A). */
+/** Reserved config key carrying builder-locked config paths (tier A). */
 export const LOCKED_CONFIG_KEY = '__locked';
 
 let idCounter = 0;
@@ -111,7 +110,7 @@ export function updateItemConfig(
   };
 }
 
-/** Locked config paths stamped on an item (04 §9 Tier A derived/LLM-locked). */
+/** Locked config paths stamped on an item (Tier A derived/LLM-locked). */
 export function lockedPathsOf(config: Record<string, unknown> | undefined): string[] {
   const raw = config?.[LOCKED_CONFIG_KEY];
   return Array.isArray(raw) ? raw.filter((entry): entry is string => typeof entry === 'string') : [];

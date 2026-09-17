@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Widget-data plumbing for the PLANNING archetype bindings — `page-board`,
- * `page-calendar`, `page-scheduler` (09-generated-app.md §7.5/§7.6).
+ * `page-calendar`, `page-scheduler`.
  *
  * Archetype pages are `kind: 'page'` envelopes, so the dashboard's
  * `useDashboardData` (kind-gated to `'dashboard'`) never extracts their
@@ -10,7 +10,7 @@
  *
  * - **extraction**: `config.layout.items[].config.binding` → validated
  *   query descriptors; invalid ones become per-instance error states,
- *   never a crash (04 §5.1).
+ * never a crash.
  * - **shape normalization**: the engine persists `calendar-events`-shaped
  *   descriptors, but the server compiler supports the M4 shape set only
  *   (single-metric, metric+delta, timeseries, categorical, record-list,
@@ -19,8 +19,8 @@
  * - **date windowing**: the template's visible window (calendar range
  *   toolbar, scheduler week nav) rides `dateRange.start`/`dateRange.end`
  *   params; `withDateWindow` appends the matching late-bound `param`
- *   filters to the PRIMARY item's descriptor (04 §5.1 — the server drops
- *   the filter while the param is unset).
+ * filters to the PRIMARY item's descriptor (the server drops the filter
+ *   while the param is unset).
  * - **fetching**: one `POST /api/v1/widget-data/batch` per page mount under
  *   `['widget-data', pageId, 'planning', params]`; WS `widget-data:*` /
  *   `table:*` invalidations refetch automatically — which is also what
@@ -116,8 +116,8 @@ export function planningWindowTargetOf(
 
 /**
  * Append the late-bound `dateRange.*` window filters to the target item's
- * descriptor (04 §5.1). Idempotent: an already-windowed descriptor is left
- * alone, and untargeted requests (KPI aggregates) pass through untouched.
+ * descriptor. Idempotent: an already-windowed descriptor is left alone,
+ * and untargeted requests (KPI aggregates) pass through untouched.
  */
 export function withDateWindow(
   requests: readonly WidgetDataRequest[],
@@ -146,8 +146,7 @@ export type PlanningStates = Record<string, WidgetDataState>;
 /**
  * Per-instance data states for a planning page: ONE deduped batch round trip
  * for the bound items (invalid bindings map to error states); `undefined`
- * when the page has nothing bound — the template then runs full demo mode
- * (04 §5.3).
+ * when the page has nothing bound — the template then runs full demo mode.
  */
 export function usePlanningStates(
   page: PageEnvelope,
@@ -187,7 +186,7 @@ export function usePlanningStates(
         continue;
       }
       if (query.isError) {
-        // Whole-batch transport failure → per-widget error states (09 §4.1).
+        // Whole-batch transport failure → per-widget error states.
         states[request.instanceId] = { status: 'error', error: query.error, refetch };
         continue;
       }

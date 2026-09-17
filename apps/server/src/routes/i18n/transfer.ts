@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Translation import/export (23-runtime-translations.md §3.6, T21).
+ * Translation import/export.
  *
  * JSON, not CSV, and that is a deliberate refusal rather than an omission:
  * the stated workflow is "export → send to a translator → import", i.e. the

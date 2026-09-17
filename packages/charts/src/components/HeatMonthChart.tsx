@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-heat-month` primitive (research/widget-registry.md §2): a 7-column
+ * `chart-heat-month` primitive (research/widget-registry.md): a 7-column
  * month grid with day numbers and up to 5 intensity levels + a day-of-week
  * header. Intrinsic cell geometry (DonutChart precedent). Token-only colors,
  * mount fade with reduced-motion fallback, `data-export-node` raster marker.
- * Day-of-week columns mirror in RTL (04 §7.4).
+ * Day-of-week columns mirror in RTL.
  */
 import type { ReactNode } from 'react';
 import { tagForLocale } from '@adminium/i18n';

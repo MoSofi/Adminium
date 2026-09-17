@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `domain` family public surface (annex §13) — the two M7 exit-criteria widgets
+ * `domain` family public surface (annex) — the two M7 exit-criteria widgets
  * (`org-chart`, `gantt-chart`) plus their registry metadata and pure geometry.
  * Component code is also reachable through each definition's `lazy()` ref, so
- * the registry still emits one chunk per family (04 §2.3); this barrel is for
- * direct template/story composition and tests. Registry metadata lives in
+ * the registry still emits one chunk per family; this barrel is for direct
+ * template/story composition and tests. Registry metadata lives in
  * `domain-track.definitions.ts`.
  *
- * TRACK BUILDER (M7 Wave 4) added the §13 DOCUMENT half below: `document-canvas`
- * and its 22-block shared library. The ops/billing/API cards land beside them.
+ * TRACK BUILDER (M7 Wave 4) added the DOCUMENT half below: `document-canvas` and
+ * its 22-block shared library. The ops/billing/API cards land beside them.
  */
 export {
   OrgChart,
@@ -234,7 +234,7 @@ export {
 } from './blocks-config.js';
 export { blocksTrackDefinitions } from './blocks-track.definitions.js';
 
-// ── TRACK OPS (M7 Wave 4): the §13 ops / billing / API / marketing tail ──────
+// ── TRACK OPS (M7 Wave 4): the ops / billing / API / marketing tail ──────────
 // The eighteen ids that close the annex catalog at 176/176.
 
 export { SloMonitorCardView, SloMonitorCardWidget } from './SloMonitorCard.js';

@@ -22,11 +22,10 @@ export interface RadioCardProps
    *
    * `row` (default) is the one every existing caller renders: a bare leading
    * glyph beside a 13px title. `tile` and `stack` are the two the onboarding
-   * comps draw (`designs/Onboarding.dc.html`, 45-onboarding.md §3) — a 40px
-   * accent-filling icon tile, leading with a description or centred above a
-   * label — and they are here rather than hand-rolled in the wizard because
-   * the Radix item underneath is what makes arrow keys and `aria-checked`
-   * work, and it is not exported.
+   * comps draw — a 40px accent-filling icon tile, leading with a description
+   * or centred above a label — and they are here rather than hand-rolled in
+   * the wizard because the Radix item underneath is what makes arrow keys
+   * and `aria-checked` work, and it is not exported.
    */
   layout?: 'row' | 'tile' | 'stack' | undefined;
 }
@@ -59,9 +58,9 @@ const LAYOUT = {
 
 /**
  * RadioCard — selectable card variant of the radio item
- * (research/design-system.md §3 Tier 2): full-card click target, selected =
+ * (research/design-system.md Tier 2): full-card click target, selected =
  * accent border + accent-soft bg + check indicator. Must be rendered inside
- * a `RadioGroup` (../radio); arrow keys move and select between cards.
+ * a `RadioGroup` (./radio); arrow keys move and select between cards.
  */
 export function RadioCard({
   layout = 'row',

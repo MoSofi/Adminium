@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the users resource (08-server-api.md §2.15). The user
- * projection EXTENDS `authUserView` rather than restating it: that object is
- * the audited safe projection of `adminium_users` (§7 item 6), so
- * `passwordHash`, `totpSecretEncrypted` and `recoveryCodes` cannot reappear
- * here by a later edit adding a field.
+ * Zod schemas for the users resource. The user projection EXTENDS
+ * `authUserView` rather than restating it: that object is the audited safe
+ * projection of `adminium_users`, so `passwordHash`, `totpSecretEncrypted`
+ * and `recoveryCodes` cannot reappear here by a later edit adding a field.
  *
  * The one-time invite token appears in exactly two replies — the invite and
- * the resend — mirroring the api-keys one-time reveal (§2.16). Nothing else
- * on this resource ever serializes token material.
+ * the resend — mirroring the api-keys one-time reveal. Nothing else on this
+ * resource ever serializes token material.
  */
 import { z } from 'zod';
 
@@ -96,7 +95,7 @@ export const userPatchBody = z.object({
   email: z.string().trim().min(3).max(320).optional(),
   /**
    * `invited` is not settable — it is the invite route's outcome, and the
-   * activation flow (§2.1) is what leaves it.
+   * activation flow is what leaves it.
    */
   status: z.enum(['active', 'suspended']).optional(),
 });

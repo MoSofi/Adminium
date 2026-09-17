@@ -30,7 +30,7 @@ export type SearchInputProps = SearchInputBaseProps &
 /**
  * SearchInput — Search icon + borderless input inside a bordered `--surface-2`
  * pill, optional `Kbd` "⌘K" chip and clear button
- * (research/design-system.md §3 Tier 2).
+ * (research/design-system.md Tier 2).
  */
 export function SearchInput({
   className,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `cn()` — the single class-composition utility for `@adminium/ui`
- * (03-component-library.md §2, §3.1).
+ * `cn()` — the single class-composition utility for
+ * `@adminium/ui`.
  *
  * clsx handles conditional/array inputs; tailwind-merge resolves conflicting
  * Tailwind utilities so the consumer `className` (always passed last by
@@ -50,8 +50,7 @@ export function cn(...inputs: ClassValue[]): string {
 export type CssVarMap = Record<`--${string}`, string | number | null | undefined>;
 
 /**
- * `cssVars()` — typed builder for CSS-custom-property bags
- * (03-component-library.md §3.4).
+ * `cssVars()` — typed builder for CSS-custom-property bags.
  *
  * The JSX `style` prop is banned (`adminium/no-style-prop`); its single
  * sanctioned escape hatch is an INLINE object literal whose every key is a

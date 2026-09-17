@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-dashboard` envelope generation — one per FK-cluster domain, cap 3
- * for v1 (research/widget-registry.md §14 trigger, §15 decision summary).
+ * for v1 (research/widget-registry.md trigger, decision summary).
  *
- * The §15 widget set (4 KPIs, hero `chart-line-area`, `chart-donut`) is
- * assembled by `@adminium/widgets/generate`'s `emitDomainDashboardCandidates`
- * and laid out by `composeTemplate` against the `page-dashboard` manifest —
- * geometry comes from the manifest's v2 slot areas, not hand-stamped x/y/w/h.
- * This module keeps only what the leaf cannot know: the §6.1 envelope wrap,
- * nav placement, and the stored `config.domain` block (`ComposedPage` carries
+ * The widget set (4 KPIs, hero `chart-line-area`, `chart-donut`) is assembled
+ * by `@adminium/widgets/generate`'s `emitDomainDashboardCandidates` and laid
+ * out by `composeTemplate` against the `page-dashboard` manifest — geometry
+ * comes from the manifest's v2 slot areas, not hand-stamped x/y/w/h. This
+ * module keeps only what the leaf cannot know: the envelope wrap, nav
+ * placement, and the stored `config.domain` block (`ComposedPage` carries
  * none of them). Domain detection itself stays in `./domains.js`.
  */
 
@@ -32,14 +32,14 @@ export interface DashboardBuildContext {
   slug: string;
   title: string;
   navOrder: number;
-  /** Live registry membership test, threaded to H4 (04 §10). */
+  /** Live registry membership test, threaded to H4. */
   isRegistered?: ((widgetId: string) => boolean) | undefined;
 }
 
 export interface DashboardBuildResult {
   /**
    * Unhashed, unvalidated envelope — `generatePages` stamps + validates it.
-   * `null` ⇔ the domain has no time axis at all (05 §8 trigger requires ≥ 1
+   * `null` ⇔ the domain has no time axis at all (trigger requires ≥ 1
    * timestamp) or composition failed — the caller records a warning.
    */
   envelope: Record<string, unknown> | null;
@@ -47,7 +47,7 @@ export interface DashboardBuildResult {
 }
 
 /**
- * §8 trigger in the pre-migration signature (`DatabaseModel` + `TableModel[]`):
+ * The trigger in the pre-migration signature (`DatabaseModel` + `TableModel[]`):
  * a domain can host a dashboard only with ≥ 1 time axis. Kept as public API of
  * the self-host package (the root re-exports this module); `generatePages`
  * itself asks the leaf's `domainHasDashboardSignal` over the shared candidate
@@ -66,7 +66,7 @@ export function hasDashboardSignal(
   );
 }
 
-/** Build the `page-dashboard` envelope for a domain and wrap it per §6.1. */
+/** Build the `page-dashboard` envelope for a domain and wrap it. */
 export function buildDashboardEnvelope(
   domain: Domain,
   model: readonly CandidateTableInput[],

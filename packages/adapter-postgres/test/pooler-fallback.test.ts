@@ -2,11 +2,11 @@
 /**
  * Connection-pooler fallback (`src/index.ts`).
  *
- * 05 §4.1's session settings are sent in the startup packet because that costs
- * no round trips and cannot race the pool's hand-off. A transaction-pooling
- * proxy refuses that packet outright — and the connection string Neon shows you
- * first is exactly such a proxy, so the refusal made Adminium unable to read a
- * Neon database at all:
+ * The session settings are sent in the startup packet because that costs no
+ * round trips and cannot race the pool's hand-off. A transaction-pooling proxy
+ * refuses that packet outright — and the connection string Neon shows you first
+ * is exactly such a proxy, so the refusal made Adminium unable to read a Neon
+ * database at all:
  *
  *   postgres query failed: unsupported startup parameter in options:
  *   statement_timeout. Please use unpooled connection or remove this parameter

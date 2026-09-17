@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `FileStore` — the one seam every byte Adminium stores goes through
- * (37-files-and-storage.md §3.1, D1, D18).
+ * `FileStore` — the one seam every byte Adminium stores goes
+ * through.
  *
  * Above it: exports, imports, the branding logo, schema files, report
  * snapshots, uploads, and (34) rendered documents. Below it: three drivers and
@@ -83,8 +83,8 @@ export interface PutUploadInput {
   /** Attach at creation, when the record already exists. */
   entity?: RecordRef | null | undefined;
   /**
-   * The connection this file belongs to when no record claims it yet (38 D4).
-   * Ignored when `entity` is given, which carries its own.
+   * The connection this file belongs to when no record claims it yet. Ignored
+   * when `entity` is given, which carries its own.
    */
   entityConnectionId?: string | undefined;
   /**
@@ -142,8 +142,8 @@ export interface FileStore {
   remove(file: ByteLocation): Promise<void>;
 
   /**
-   * The upload path (§3.3): spool → sniff → allowlist → driver → row. Used by
-   * the `/files` routes; the byte-level methods above are what the pre-existing
+   * The upload path: spool → sniff → allowlist → driver → row. Used by the
+   * `/files` routes; the byte-level methods above are what the pre-existing
    * artifact pipelines use, because they have already decided what they are
    * writing and do not go through a content gate.
    */

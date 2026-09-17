@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `SchemaEdit` — the desired-state document a client authors, and the closed
- * vocabulary it may author in. 35-schema-authoring.md §3.1, D30, 35-T02.
+ * vocabulary it may author in.
  *
  * ─── Why this is not `TableModel` ──────────────────────────────────────────
  *
@@ -166,8 +166,8 @@ export const desiredTableSchema = z.strictObject({
 export type DesiredTable = z.infer<typeof desiredTableSchema>;
 
 /**
- * Add ONE column to a table that already exists — the narrow door
- * (38-files-library-and-attachments.md D6).
+ * Add ONE column to a table that already exists — the narrow
+ * door.
  *
  * WHY THIS EXISTS BESIDE `upsertTables`, WHICH CAN ALREADY DO IT. `upsertTables`
  * asks the caller to restate the WHOLE table, and only a caller holding the
@@ -229,9 +229,9 @@ export type SchemaEdit = z.infer<typeof schemaEditSchema>;
 
 /**
  * Every way an edit can be refused before a plan is even attempted. These are
- * the §4 refusal codes that are decidable from the document plus the snapshot,
+ * the refusal codes that are decidable from the document plus the snapshot,
  * without a database round trip; the privilege and row-count refusals live in
- * preflight (35-T34, 35-T07) because they need one.
+ * preflight because they need one.
  */
 export const EDIT_ISSUE_CODES = [
   'INVALID_IDENTIFIER',
@@ -276,7 +276,7 @@ export interface EditValidationContext {
   /**
    * True when Adminium's own meta tables live in THIS database — the condition
    * that makes the `adminium_` namespace reachable through a source connection
-   * (35 §4 `META_NAMESPACE`). The server passes `sameDatabase(metaDsn, dataDsn)`.
+   * (`META_NAMESPACE`). The server passes `sameDatabase(metaDsn, dataDsn)`.
    */
   metaSharesDatabase: boolean;
   /** Reserved-word predicate; injected so the check is testable in isolation. */
@@ -720,7 +720,7 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
  */
 /**
  * The desired model for an `addColumns` edit: the snapshot's OWN table, with
- * the new columns appended (38-files-library-and-attachments.md D6).
+ * the new columns appended.
  *
  * THE POINT IS WHAT IS *NOT* REBUILT. Every existing column is passed through
  * byte-for-byte — its native `dbType`, its unauthorable default, its generation

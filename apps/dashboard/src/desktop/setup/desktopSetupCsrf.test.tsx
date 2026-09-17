@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/desktop/setup` and the §7-item-4 CSRF token (08-server-api.md), on the path
- * the straight-line walk does not cover: a RESUME.
+ * `/desktop/setup` and the -item-4 CSRF token, on the path the straight-line
+ * walk does not cover: a RESUME.
  *
  * The wizard is the only surface in the app that holds a session without ever
  * having bootstrapped — it is a child of the router ROOT, because on a fresh

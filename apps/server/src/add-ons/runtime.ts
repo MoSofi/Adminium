@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The add-on runtime: loading server halves, and the provider registry
- * (26-add-on-runtime.md §5.2, D4; 26-T09).
+ * The add-on runtime: loading server halves, and the provider
+ * registry.
  *
  * ─── This is the module that runs other people's code ──────────────────────
  *
  * O1 was ratified on 2026-08-29 on the plan's recorded recommendation: server
- * halves run IN-PROCESS, with 24 D13's first-party publisher gate doing the
- * real work. That is a deliberate ruling rather than an inherited one, and it
- * is what this file implements. Everything below is written on the assumption
- * that an add-on's server half is trusted-because-first-party and NOT
- * sandboxed — which is exactly why the loading discipline is narrow:
+ * halves run IN-PROCESS, with first-party publisher gate doing the real work.
+ * That is a deliberate ruling rather than an inherited one, and it is what
+ * this file implements. Everything below is written on the assumption that an
+ * add-on's server half is trusted-because-first-party and NOT sandboxed —
+ * which is exactly why the loading discipline is narrow:
  *
  *  - **Only from the installed bundle on local disk** (D4, verbatim: "no add-on
  *    server code is loaded from anywhere but the installed bundle on local
@@ -27,7 +27,7 @@
  *
  * ─── Why the registry is rebuilt rather than mutated ───────────────────────
  *
- * §5.2 says the map is "built at boot and on every install/disconnect". Rebuilt
+ * The map is "built at boot and on every install/disconnect". Rebuilt
  * whole, not patched: an incremental registry has to get removal exactly right
  * on every path (uninstall, disconnect, disable-per-host, upgrade), and the
  * failure mode of getting it wrong is a stale provider still answering for an
@@ -82,7 +82,7 @@ export interface SlotFillEntry {
   order: number;
 }
 
-/** A `single` slot claimed more than once (§5.2). */
+/** A `single` slot claimed more than once. */
 export interface SlotConflict {
   slot: string;
   /** The add-on whose fill is used — lowest `order`, then key. */
@@ -290,8 +290,8 @@ export function resolveProvider(
  * was mapped against, because the mapping's slot ids belong to that
  * provider's `describe(kind)` and mean nothing to another. Rendering an
  * invoice profile through `barcode-labels` because it sorts first would be a
- * silent, catastrophic answer — 34 §0.3 trap 11, named there precisely
- * because the two calls look interchangeable.
+ * silent, catastrophic answer — trap 11, named there precisely because the
+ * two calls look interchangeable.
  *
  * So the pipeline reads the whole list and picks by key
  * ({@link providerByKey}), and this is also what `GET /documents/kinds` needs:

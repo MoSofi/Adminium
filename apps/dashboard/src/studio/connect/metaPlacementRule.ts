@@ -2,17 +2,17 @@
 /**
  * Can Adminium's own tables live in the database you just connected?
  *
- * The 01-architecture.md §3.1 decision tree, as a CODE rather than a sentence —
- * the wizard-side mirror of `ConnectionManager.enforceMetaPlacement`, which
- * re-validates independently and answers 409 META_PLACEMENT_INVALID on bypass.
+ * The decision tree, as a CODE rather than a sentence — the wizard-side mirror
+ * of `ConnectionManager.enforceMetaPlacement`, which re-validates independently
+ * and answers 409 META_PLACEMENT_INVALID on bypass.
  *
  * It lives in its own module because two wizards now ask the question and they
  * cannot share the words: the Studio's copy is in the lazily-loaded `studio`
  * namespace, which nothing outside `src/studio` may read, and first-run
- * onboarding (45-onboarding.md §2 step 4) needs the same RULE with its own
- * strings. A second copy of the rule would drift, and the two front doors would
- * disagree about the same database — which is exactly the class of defect that
- * put the meta question in front of a browser user in the first place.
+ * onboarding needs the same RULE with its own strings. A second copy of the
+ * rule would drift, and the two front doors would disagree about the same
+ * database — which is exactly the class of defect that put the meta question in
+ * front of a browser user in the first place.
  */
 import type { DsnPrivileges } from '../api.js';
 

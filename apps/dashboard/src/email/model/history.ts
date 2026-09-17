@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Undo/redo over the unsaved document (39-email-templates-and-campaigns.md
- * D1; the comp's `pushHist`/`undo`/`redo`, 1025-1032): a stack of SNAPSHOTS,
- * sixty deep, of whatever the editor holds — name, category, status and the
- * envelope together, so one undo step reverts one edit whatever it touched.
+ * Undo/redo over the unsaved document (the comp's `pushHist`/`undo`/`redo`,
+ * 1025-1032): a stack of SNAPSHOTS, sixty deep, of whatever the editor holds
+ * — name, category, status and the envelope together, so one undo step
+ * reverts one edit whatever it touched.
  *
  * Snapshots are serialized strings, as in the comp: cheap to compare (a push
  * that repeats the top of the stack is dropped, so focusing a field twice

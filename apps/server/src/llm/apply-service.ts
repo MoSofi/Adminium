@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Server-side apply EXECUTOR (06-llm-assist.md §8.3, T10b).
+ * Server-side apply EXECUTOR (b).
  *
  * The transactional counterpart to the browser-safe pure planner
  * (`@adminium/llm` `buildApplyPlan`, T10a): it turns a reviewed run + the
  * accepted suggestion-id set into ordered write descriptors and executes them in
  * ONE `@adminium/meta` transaction — upserting `adminium_schema_overrides`
  * (`origin: 'llm'`, `llm_run_id`) and `adminium_pages` (nav groups, template
- * pages, dashboard pages) per §8.3.
+ * pages, dashboard pages).
  *
- * Architecture (01 §2.3): provider network + prompt building live elsewhere; the
- * planner is pure and browser-safe; only THIS layer touches the DB. It builds on
- * T07's run-service (status machine, review persistence) and the T09 diff.
+ * Architecture: provider network + prompt building live elsewhere; the planner
+ * is pure and browser-safe; only THIS layer touches the DB. It builds on T07's
+ * run-service (status machine, review persistence) and the T09 diff.
  *
- * The three §8.3 invariants it enforces at the write layer:
+ * The three invariants it enforces at the write layer:
  *  - **Provenance (user > llm).** Overrides are upserted through
  *    {@link llmOverridesRepo}, which only ever reads/writes `origin: 'llm'` rows —
  *    a user edit is never touched or superseded. The plan additionally excludes
@@ -29,7 +29,7 @@
  * After a durable apply the optional {@link ApplyServiceDeps.regenerate} hook
  * runs the existing generation path so pages pick up the new overrides
  * (localized labels flow through the schema-override i18n layer, never the static
- * locale bundles — §8.3 / 10-i18n-theming.md).
+ * locale bundles).
  */
 
 import { createHash } from 'node:crypto';
@@ -73,7 +73,7 @@ import { RunNotFoundError, type RunService } from './run-service.js';
 
 // ─── Errors ──────────────────────────────────────────────────────────────────
 
-/** applyRun targeted a run that is not in the `validated` state (§7.4). */
+/** applyRun targeted a run that is not in the `validated` state. */
 export class RunNotApplicableError extends Error {
   override name = 'RunNotApplicableError';
   constructor(readonly runId: string, readonly status: string) {
@@ -81,7 +81,8 @@ export class RunNotApplicableError extends Error {
   }
 }
 
-/** applyRun targeted a run whose snapshot is missing — validation always needs it (§7.4). */
+/** applyRun targeted a run whose snapshot is missing — validation always needs
+ * it. */
 export class SnapshotNotFoundError extends Error {
   override name = 'SnapshotNotFoundError';
   constructor(readonly snapshotId: string) {
@@ -135,7 +136,7 @@ export interface ApplyResult {
   run: LlmRun;
   plan: ApplyPlan;
   summary: ApplyPlanSummary;
-  /** Accepted/rejected suggestion-id lists persisted on the run (§8.3). */
+  /** Accepted/rejected suggestion-id lists persisted on the run. */
   review: LlmRunReview;
   /** True when some actionable suggestion was rejected → `partially_applied`. */
   partial: boolean;
@@ -148,7 +149,7 @@ export interface ApplyRunOptions {
   appliedBy?: string | null;
 }
 
-/** Context handed to the post-apply regeneration hook (§8.3 step 3). */
+/** Context handed to the post-apply regeneration hook. */
 export interface RegenerateContext {
   connectionId: string;
   snapshotId: string;
@@ -161,22 +162,23 @@ export interface ApplyServiceDeps {
   /** T07 run-service — read the run + drive the applied/partially_applied transition. */
   runService: RunService;
   /**
-   * Post-apply regeneration (§8.3 step 3): rerun the existing generation path so
-   * pages reflect the new overrides. Injected (not hard-wired) so the executor
-   * stays testable without a live source connection; the route layer supplies the
+   * Post-apply regeneration: rerun the existing generation path so pages reflect
+   * the new overrides. Injected (not hard-wired) so the executor stays testable
+   * without a live source connection; the route layer supplies the
    * `runGeneration`-backed implementation. Generated pages are regenerated;
-   * `origin: 'llm'` pages this apply created are preserved (never pruned), and
-   * a generated page whose `(table, template)` pair one of them already covers
-   * is dropped from that run rather than re-created beside it (`generate/run.ts`).
+   * `origin: 'llm'` pages this apply created are preserved (never pruned), and a
+   * generated page whose `(table, template)` pair one of them already covers is
+   * dropped from that run rather than re-created beside it (`generate/run.ts`).
    */
   regenerate?: (ctx: RegenerateContext) => Promise<void> | void;
   /**
    * `LLM_WIDGET_DATA_CONTRACTS` — widget id → the data shapes it accepts,
-   * injected as data because the server tree may not import `@adminium/widgets`
-   * (01 §2.3). Threaded into `buildApplyPlan` so a widget's query descriptor
-   * asks for a shape that widget can actually read; omitted, the planner falls
-   * back to inferring the shape from the bound columns, which is what bound
-   * every time-columned KPI card as a `timeseries` it could not render.
+   * injected as data because the server tree may not import
+   * `@adminium/widgets`. Threaded into `buildApplyPlan` so a widget's query
+   * descriptor asks for a shape that widget can actually read; omitted, the
+   * planner falls back to inferring the shape from the bound columns, which is
+   * what bound every time-columned KPI card as a `timeseries` it could not
+   * render.
    */
   widgetContracts?: Readonly<Record<string, readonly string[]>> | undefined;
   /** Clock override — tests. */
@@ -226,9 +228,9 @@ function pageIdFor(connectionId: string, suggestionId: string): string {
 }
 
 /**
- * Map an existing `origin: 'user'` override to the §8.1 suggestion-id it locks,
- * so the diff can mark that suggestion `user-locked` (provenance user > llm).
- * Ops with no LLM-refinement counterpart (exclude/hidden/semanticType) return null.
+ * Map an existing `origin: 'user'` override to the suggestion-id it locks, so
+ * the diff can mark that suggestion `user-locked` (provenance user > llm). Ops
+ * with no LLM-refinement counterpart (exclude/hidden/semanticType) return null.
  *
  * Only `user` rows lock. `auto` rows — the introspector's proposed PII masks —
  * deliberately do not: they are the engine's guess, and letting them lock would
@@ -261,9 +263,10 @@ function userLockedSuggestionId(o: SchemaOverride): string | null {
 }
 
 /**
- * Diff rows that are accept/reject units for review accounting (§8.2).
- * `heuristic-only` (the LLM offered nothing) and `user-locked` (§8.2 provenance:
- * a user edit is never superseded) are not offered for acceptance at all.
+ * Diff rows that are accept/reject units for review accounting.
+ * `heuristic-only` (the LLM offered nothing) and `user-locked`
+ * (provenance: a user edit is never superseded) are not offered for
+ * acceptance at all.
  */
 export const ACTIONABLE_STATUSES: ReadonlySet<SuggestionDiff['status']> = new Set([
   'agree',
@@ -273,10 +276,10 @@ export const ACTIONABLE_STATUSES: ReadonlySet<SuggestionDiff['status']> = new Se
 ]);
 
 /**
- * The headless form of the review screen's "Accept all ≥ N" bulk control
- * (§10.3). Lives here, beside {@link ACTIONABLE_STATUSES}, because "which rows
- * may be accepted" is a diff-semantics question — the CLI's `--yes-above` and
- * any future bulk-apply caller must not each decide it for themselves.
+ * The headless form of the review screen's "Accept all ≥ N" bulk control.
+ * Lives here, beside {@link ACTIONABLE_STATUSES}, because "which rows may be
+ * accepted" is a diff-semantics question — the CLI's `--yes-above` and any
+ * future bulk-apply caller must not each decide it for themselves.
  *
  * Only actionable rows qualify, so a threshold of 0 still cannot accept a
  * `user-locked` row.
@@ -402,7 +405,7 @@ export function createApplyService(deps: ApplyServiceDeps) {
   }
 
   /**
-   * Apply a validated run's accepted suggestions (§8.3). Recomputes the diff +
+   * Apply a validated run's accepted suggestions. Recomputes the diff +
    * plan, executes the writes transactionally, persists the review + terminal run
    * status (`applied` / `partially_applied`), then fires the regeneration hook.
    */
@@ -435,8 +438,8 @@ export function createApplyService(deps: ApplyServiceDeps) {
 
     const appliedRun = await runService.markApplied(runId, { appliedBy, partial, review });
 
-    // Post-apply regeneration (§8.3 step 3) — after the writes are durable so a
-    // regeneration failure cannot roll back a successful apply.
+    // Post-apply regeneration — after the writes are durable so a regeneration
+    // failure cannot roll back a successful apply.
     if (deps.regenerate !== undefined) {
       await deps.regenerate({
         connectionId: run.connectionId,
@@ -506,7 +509,7 @@ function pageSourceTable(config: unknown): string | null {
  * insert `public-orders-page-board` right beside it — same template, same bound
  * table, two rows, two nav groups. The bound table lives in the config JSON, so
  * the match is made in JS rather than SQL. A page counts whatever its state: a
- * parked seed (06 §8.3 materialization) is retried by every later run, so
+ * parked seed (materialization) is retried by every later run, so
  * skipping it here would only defer the duplicate.
  */
 async function pageCoversCoordinate(
@@ -555,7 +558,7 @@ async function upsertTemplatePage(
   // must too.
   const slug = slugify(`${w.table}-${w.template}`);
   const title = titleCase(localName(w.table));
-  // Minimal §8.3 seed `{ type, table, config, source: 'llm' }`; the full page body
+  // Minimal seed `{ type, table, config, source: 'llm' }`; the full page body
   // is materialized by the regeneration hook from the active snapshot
   // (runGeneration → generate/materialize-llm.ts, wired in cli/runtime.ts).
   const config = { source: { connectionId: plan.connectionId, table: w.table }, llmRunId: plan.llmRunId ?? null };
@@ -588,7 +591,7 @@ async function upsertDashboardPage(
   const id = pageIdFor(plan.connectionId, w.suggestionId);
   const slug = slugify(`dashboard-${w.dashboard}`);
   const title = w.label.en_US ?? titleCase(w.domain);
-  // `config.layout` carries the bound widgets (04-widget-registry.md §6.1).
+  // `config.layout` carries the bound widgets.
   const config = {
     domain: w.domain,
     tables: w.tables,
@@ -688,14 +691,15 @@ async function upsertPageRow(tmeta: MetaDb, input: PageRowInput): Promise<void> 
 }
 
 /**
- * Stamp `nav_group` + `nav_order` onto every persisted page of each member table (§8.3 `group`).
+ * Stamp `nav_group` + `nav_order` onto every persisted page of each member
+ * table (`group`).
  *
  * Only until the next generation run: `upsertGenerated` rewrites a generated
  * row's nav columns from its regenerated envelope, which carries the heuristic
- * 09 §2.2 group. Making the accepted placement durable instead is NOT a fix on
- * its own — `buildNavTree` (routes/bootstrap) renders only the five fixed
- * groups and drops every other row, so a page that keeps its domain group
- * disappears from the sidebar. See the note in `generate/run.ts`.
+ * group. Making the accepted placement durable instead is NOT a fix on its own
+ * — `buildNavTree` (routes/bootstrap) renders only the five fixed groups and
+ * drops every other row, so a page that keeps its domain group disappears from
+ * the sidebar. See the note in `generate/run.ts`.
  */
 async function applyNavGroup(
   tmeta: MetaDb,

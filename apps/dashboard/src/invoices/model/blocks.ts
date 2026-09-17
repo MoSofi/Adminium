@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The block vocabulary (34-invoices-add-on.md Appendix F; the comp's
- * `blockOrder` 1114, `gate` 1490, `optionalSecs()` 1257-1265, `customDefs()`
- * 1266-1272): the 23 built-in blocks, which 18 of them a `*Show` flag gates,
- * the four user-authored section types, and the inspector's section keys.
+ * The block vocabulary (the comp's `blockOrder` 1114, `gate` 1490,
+ * `optionalSecs()` 1257-1265, `customDefs()` 1266-1272): the 23 built-in
+ * blocks, which 18 of them a `*Show` flag gates, the four user-authored
+ * section types, and the inspector's section keys.
  *
- * THE GATE FILTERS, IT NEVER GHOSTS (34 O19). The comp drops an off block from
- * the canvas before rendering (1493), so the "Add <section>" ghost buttons in
- * its markup can never appear; an off block comes back through the
- * Add-section modal, whose *Standard blocks* row lists exactly the off ones
- * (1653). {@link visibleBlocks} is that filter, keeping each block's index in
- * the UNFILTERED order because drag/drop and the between-block insert speak
- * pre-filter indexes (1491-1493, 1359, 1300-1305).
+ * THE GATE FILTERS, IT NEVER GHOSTS. The comp drops an off block from the
+ * canvas before rendering (1493), so the "Add <section>" ghost buttons in its
+ * markup can never appear; an off block comes back through the Add-section
+ * modal, whose *Standard blocks* row lists exactly the off ones (1653). {@link
+ * visibleBlocks} is that filter, keeping each block's index in the UNFILTERED
+ * order because drag/drop and the between-block insert speak pre-filter
+ * indexes (1491-1493, 1359, 1300-1305).
  *
  * `BLOCK_VOCABULARY` is the 27-kind list a CI gate holds equal to the add-on
- * renderer's (34-T50): a kind added to one tree only must go red.
+ * renderer's: a kind added to one tree only must go red.
  */
 import { DEFAULT_BLOCK_ORDER, type CustomSection, type CustomSectionType, type InvoiceBody } from './envelope.js';
 
@@ -258,8 +258,7 @@ export const CUSTOM_TYPES: readonly { type: CustomSectionType; icon: string }[] 
 
 /**
  * The 27 kinds the canvas can draw — the list the vocabulary gate compares
- * with the add-on renderer's (34-T50). Sorted so two trees' lists diff
- * cleanly.
+ * with the add-on renderer's. Sorted so two trees' lists diff cleanly.
  */
 export const BLOCK_VOCABULARY: readonly string[] = [...BUILTIN_BLOCK_KEYS, 'custom.text', 'custom.image', 'custom.kv', 'custom.gallery'].sort();
 

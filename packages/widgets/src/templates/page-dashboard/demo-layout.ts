@@ -2,14 +2,14 @@
 /**
  * The default `page-dashboard` demo layout — a straight port of the
  * "Adminium Dashboard" comp's core composition per the template manifest
- * areas (04 §10): a 4-card KPI row (3×3 each), the hero line-area (8×6),
- * the donut breakdown (4×6), a secondary bar chart, and the recent
+ * areas: a 4-card KPI row (3×3 each), the hero line-area (8×6), the
+ * donut breakdown (4×6), a secondary bar chart, and the recent
  * mini-table slot. `mini-table` ships with the tables family (page-crud
  * slice); until it registers, WidgetHost renders the `widget-missing`
- * fallback card — by design, never a crash (04 §2.2).
+ * fallback card — by design, never a crash.
  *
  * No bindings → every widget renders `demoData(hash(instanceId))`
- * (04 §5.3 demo mode). Used by Storybook, tests and first-run states.
+ * (demo mode). Used by Storybook, tests and first-run states.
  */
 
 import type { PageLayout } from '../../page-config/index.js';

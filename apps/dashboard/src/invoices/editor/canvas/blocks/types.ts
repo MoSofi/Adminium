@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What every canvas block receives: the body it draws, the ONE totals
- * derivation (34-invoices-add-on.md Appendix E §C10 — six consumers, one
- * `totalsOf`), the edits surface, and the selection.
+ * derivation (six consumers, one `totalsOf`), the edits surface,
+ * and the selection.
  */
 import type { DocumentEdits } from '../../../model/edits.js';
 import type { InvoiceBody } from '../../../model/envelope.js';

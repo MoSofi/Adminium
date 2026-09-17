@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/report-builder` — the manager (43-report-builder.md 43-T05). The route's
- * search carries what a link can ask for: `kind` picks the tab (templates by
- * default, the comp's initial state, 439).
+ * `/report-builder` — the manager. The route's search carries what a link
+ * can ask for: `kind` picks the tab (templates by default, the comp's
+ * initial state, 439).
  */
 import { useSearch } from '@tanstack/react-router';
 

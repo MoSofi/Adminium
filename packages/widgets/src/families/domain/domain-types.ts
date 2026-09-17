@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Data-contract shapes for the `domain` family (annex §13).
+ * Data-contract shapes for the `domain` family (annex).
  *
- * `org-chart` binds the canonical `hierarchy/tree` envelope (04 §3 —
- * `Tree { roots: TreeNode[] }`, `TreeNode { id, label, meta?, children[] }`),
- * and ALSO tolerates the flat self-referencing `record-list` a real people table
- * actually returns (`manager_id → id`), adapting it to a tree at the component
- * boundary. `gantt-chart` binds a `record-list` of task rows carrying start/end
- * (+ optional progress / phase / owner) columns — §3 has no gantt-specific
- * envelope, and the annex derives the phase→tasks grouping "from start/end date
- * columns + progress + phase FK", which is exactly a record-list projection.
+ * `org-chart` binds the canonical `hierarchy/tree` envelope (`Tree { roots:
+ * TreeNode[] }`, `TreeNode { id, label, meta?, children[] }`), and ALSO
+ * tolerates the flat self-referencing `record-list` a real people table actually
+ * returns (`manager_id → id`), adapting it to a tree at the component boundary.
+ * `gantt-chart` binds a `record-list` of task rows carrying start/end (+
+ * optional progress / phase / owner) columns — has no gantt-specific envelope,
+ * and the annex derives the phase→tasks grouping "from start/end date columns +
+ * progress + phase FK", which is exactly a record-list projection.
  *
  * Both envelopes carry `total` so the host's shared `isEmptyByShape` predicate
  * routes the empty state on it (the `calendar` family carries resource payloads
@@ -18,7 +18,7 @@
 
 // --- org-chart (`hierarchy/tree`) ---------------------------------------------
 
-/** Per-person detail hung off a `TreeNode` (04 §3 `meta`); annex §13 fields. */
+/** Per-person detail hung off a `TreeNode` (`meta`); annex fields. */
 export interface OrgNodeMeta {
   /** Job title — "VP Engineering". */
   role?: string | undefined;
@@ -30,7 +30,7 @@ export interface OrgNodeMeta {
   tone?: string | undefined;
 }
 
-/** One person in the reporting tree (04 §3 `TreeNode`). */
+/** One person in the reporting tree (`TreeNode`). */
 export interface OrgNode {
   id: string;
   label: string;
@@ -90,7 +90,7 @@ export interface GanttModel {
   todayDay: number | null;
 }
 
-/** The `record-list` envelope gantt binds (04 §3 `RecordList`). */
+/** The `record-list` envelope gantt binds (`RecordList`). */
 export interface GanttData {
   rows: Record<string, unknown>[];
   total: number;

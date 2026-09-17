@@ -60,7 +60,7 @@ export {
 };
 
 /**
- * TRACK BUILDER — the STATUS/APPROVAL half of the annex §13 document-block
+ * TRACK BUILDER — the STATUS/APPROVAL half of the annex document-block
  * vocabulary:
  *
  *   `block-loyalty-banner`, `block-recurring-banner`, `block-delivery-stepper`,
@@ -71,7 +71,7 @@ export {
  * which is what keeps these correct in RTL and in clause-reordering languages.
  *
  * NEVER WRITES: `block-approval`'s Approve/Reject and `block-terms-checkbox`'s
- * toggle emit `mutate` intents; the host commits them (04 §2.1).
+ * toggle emit `mutate` intents; the host commits them.
  */
 
 // ── block-loyalty-banner ────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ export function BlockDeliveryStepperWidget({ config, data }: WidgetProps<BlockDe
   return (
     // RTL: the connector rail is a flex row, so the whole stepper mirrors with
     // the writing direction — the steps are a sequence in reading order, not a
-    // time axis, so mirroring is correct here (10 §5.5).
+    // time axis, so mirroring is correct here.
     <ol data-widget="block-delivery-stepper" data-testid={config.testId} className="flex w-full items-start">
       {steps.map((step, index) => (
         <li key={step.id} data-part="step" data-state={step.state} className="flex min-w-0 flex-1 flex-col items-center">
@@ -249,9 +249,9 @@ export function BlockSignatureWidget({ config, data }: WidgetProps<BlockSignatur
 // ── block-terms-checkbox ────────────────────────────────────────────────────
 
 /**
- * `form-state` (04 §3): the payload IS this control's own state, so it is never
- * "empty" — the shared predicate correctly never routes it to the empty card,
- * and an absent payload just means "unchecked, default label".
+ * `form-state`: the payload IS this control's own state, so it is never "empty"
+ * — the shared predicate correctly never routes it to the empty card, and an
+ * absent payload just means "unchecked, default label".
  */
 export function BlockTermsCheckboxWidget({ config, data, onEvent }: WidgetProps<BlockTermsCheckboxConfig>) {
   const t = useMaybeT();

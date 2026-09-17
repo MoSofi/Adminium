@@ -1,30 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The twelve starters behind the New modal — the comp's `starterDefs` and
- * `seedExtras` (`designs/Email Templates.dc.html` 825-841, 891-920),
- * re-themed for the OPERATOR's audience (39-email-templates-and-campaigns.md
- * D10, Appendix B; 39-T07).
+ * `seedExtras` (825-841, 891-920), re-themed for the OPERATOR's audience.
  *
- * WHY THEY GO THROUGH `t()` LIKE THE BUILT-INS. *Add language* (39 D3) creates
- * a linked copy in another locale; for a family minted from a starter that
- * copy is the starter rendered through the target locale's translator, which
- * is what makes the language menu worth having. A starter stored as
- * client-side English JSON could only ever be copied verbatim. So every
- * string here is a `email:starters.*` key with the English as its
- * default, and the ICU arguments are the `{{placeholder}}` literals the
- * renderer fills per send — `builtins.ts`'s seed model, reused.
+ * WHY THEY GO THROUGH `t()` LIKE THE BUILT-INS. *Add language* creates a
+ * linked copy in another locale; for a family minted from a starter that copy
+ * is the starter rendered through the target locale's translator, which is
+ * what makes the language menu worth having. A starter stored as client-side
+ * English JSON could only ever be copied verbatim. So every string here is a
+ * `email:starters.*` key with the English as its default, and the ICU
+ * arguments are the `{{placeholder}}` literals the renderer fills per send —
+ * `builtins.ts`'s seed model, reused.
  *
  * WHAT CHANGED FROM THE COMP, AND WHY (Appendix B). The comp's starters are
  * Adminium-the-vendor's mail: `no-reply@adminium.io`, "500 Market St", the
  * "Team plan", a 14-day trial. Seeded copy is user-visible, so it is swept by
- * the 17 §2 grep (the Appendix B substring list, over built bytes — which is
- * why this comment does not spell the words out). Four starters are re-themed under that rule and because
- * a built-in already owns their flow: *Password reset* → **Delivery update**,
- * *Trial ending* → **Appointment reminder**, *Team invite* → **Feedback
- * request**, *Trial expired* → **Account paused**. Every starter says
- * `{{appName}}`, never "Adminium"; `{{first_name}}`/`{{name}}`, never
- * `{{workspace}}`; no street address, no vendor domain. The words the sweep
- * would catch are spelled out in Appendix B; a test greps the English for them.
+ * the grep (the Appendix B substring list, over built bytes — which is why this comment does not
+ * spell the words out). Four starters are re-themed under that rule and because a built-in already
+ * owns their flow: *Password reset* → **Delivery update**, *Trial ending* → **Appointment
+ * reminder**, *Team invite* → **Feedback request**, *Trial expired* → **Account paused**. Every
+ * starter says `{{appName}}`, never "Adminium"; `{{first_name}}`/`{{name}}`, never `{{workspace}}`;
+ * no street address, no vendor domain. The words the sweep would catch are spelled out in Appendix
+ * B; a test greps the English for them.
  *
  * Nothing here duplicates a built-in flow: the reset and the invite stay the
  * product's, seeded by `builtins.ts`.
@@ -58,9 +55,10 @@ const STARTER_SET: ReadonlySet<string> = new Set(EMAIL_STARTER_KEYS);
 
 /**
  * The `{{vars}}` each starter's copy uses BEYOND the workspace-user set
- * (`appName`, `name`, `first_name`, `email` — 39 D18) — locale-independent, so the editor's chips and the test-send
+ * (`appName`, `name`, `first_name`, `email`) — locale-independent, so
+ * the editor's chips and the test-send
  * samples need no translator. `receipt_pdf` is the generated attachment's
- * token, resolved from `vars` at enqueue (39 D8).
+ * token, resolved from `vars` at enqueue.
  */
 export const STARTER_VARS: Readonly<Record<EmailStarterKey, readonly string[]>> = {
   welcome: [],
@@ -522,7 +520,7 @@ export function starterFooter(t: Translate): string {
  * One starter rendered for a locale: the comp's `buildBlocks` (heading ·
  * body · [box] · cta) with the topic's extras spliced in before the CTA, the
  * shared footer, and — for the three the comp tints — a brand carrying only
- * the accent (name and sender fall back to the workspace, 39 D6).
+ * the accent (name and sender fall back to the workspace).
  */
 export function renderStarter(key: EmailStarterKey, t: Translate): EmailStarter {
   const copy = starterCopy(key, t);
@@ -572,10 +570,10 @@ export function starterCards(t: Translate): EmailStarterCard[] {
 }
 
 /**
- * Sample values for a test send (39 §3.1 `test-send`): plausible, obviously
+ * Sample values for a test send (`test-send`): plausible, obviously
  * fake, and covering every var a starter uses. `receipt_pdf` is deliberately
  * absent — a generated attachment whose token is not a known file id is
- * skipped with a warning, which is exactly the contract (39 D8).
+ * skipped with a warning, which is exactly the contract.
  */
 export function starterSampleVars(ctx: { appName: string; origin: string; to: string }): Record<string, string> {
   return {

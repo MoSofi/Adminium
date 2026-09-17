@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * React-query keys for the invoice documents (34-invoices-add-on.md §3.9).
- * Everything hangs off `['invoices']` so one invalidation after a mutation
- * refreshes the manager's list, its counts and any open detail together.
+ * React-query keys for the invoice documents. Everything hangs off
+ * `['invoices']` so one invalidation after a mutation refreshes the
+ * manager's list, its counts and any open detail together.
  */
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
 

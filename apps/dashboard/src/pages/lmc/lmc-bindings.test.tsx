@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LOGS/MEDIA/CHAT binding tests (09-generated-app.md §4.1, §7.8/§7.9):
- * `usePageWidgetStates` batches `kind: 'page'` layouts under the shared
- * widget-data key; the log binding derives the live-tail channel from the log
- * slot's stored descriptor; the chat binding re-queries the messages child
- * scoped to the selected conversation (thread select → messages query) and
- * runs sends through the CRUD API against the MESSAGES table with the undo
- * toast; the files binding routes the preview through the record child route.
+ * LOGS/MEDIA/CHAT binding tests: `usePageWidgetStates` batches `kind: 'page'`
+ * layouts under the shared widget-data key; the log binding derives the
+ * live-tail channel from the log slot's stored descriptor; the chat binding
+ * re-queries the messages child scoped to the selected conversation (thread
+ * select → messages query) and runs sends through the CRUD API against the
+ * MESSAGES table with the undo toast; the files binding routes the preview
+ * through the record child route.
  *
  * The three template components ship in `packages/widgets/src/templates/*`
  * (fully tested there) but are not in the checked-out dist until assembly
@@ -365,11 +365,11 @@ describe('PageChatBinding', () => {
       expect(create).toBeDefined();
       expect(create?.url).toBe('/api/v1/data/conn_1/public.conv_messages');
       /*
-       * `sender_email` is 33 §7.3 arriving. The send used to stamp no author at
-       * all, so a staff reply came back with nothing for `ownAuthors` to match
-       * and rendered on the OTHER side of the thread — on the one page that
-       * exists to answer somebody. The column is the DETECTED one, not a
-       * hard-coded name: this fixture's messages table calls it `sender_email`.
+       * `sender_email` is arriving. The send used to stamp no author at all, so
+       * a staff reply came back with nothing for `ownAuthors` to match and
+       * rendered on the OTHER side of the thread — on the one page that exists
+       * to answer somebody. The column is the DETECTED one, not a hard-coded
+       * name: this fixture's messages table calls it `sender_email`.
        */
       expect(create?.body).toEqual({
         values: { body: 'Hi there', conversation_id: 'c1', sender_email: 'ava@adminium.io' },
@@ -384,7 +384,7 @@ describe('PageChatBinding', () => {
 
   it('subscribes to BOTH its tables and refetches when either one is written', async () => {
     /*
-     * 33-T11. The header of this binding used to claim realtime invalidations
+     * The header of this binding used to claim realtime invalidations
      * refreshed an open thread; the invalidation map does fire on a
      * `widget-data:*` frame, but nothing had subscribed to the channel, so the
      * frames went to a socket this page was not on. The operator's inbox went
@@ -501,7 +501,7 @@ describe('usePageWidgetStates', () => {
     await waitFor(() => {
       expect(latest.current?.states['log']?.status).toBe('success');
     });
-    // Unbound instances are absent — the template's demo path (04 §5.3).
+    // Unbound instances are absent — the template's demo path.
     expect(latest.current?.states['kpi-row-1']).toBeUndefined();
     // The batch landed in the shared cache root so realtime invalidation hits it.
     expect(client.getQueryCache().find({ queryKey: ['widget-data', logPage.id, {}] })).toBeDefined();

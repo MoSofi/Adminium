@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure, DOM-free layout for the correlation charts (research/widget-registry.md
- * §2): `chart-scatter-bubble`, `chart-hexbin`, `chart-correlation-matrix`,
- * `chart-parallel-coordinates`. Server-safe (04 §7.1). Horizontal value /
- * grid / axis order mirrors in RTL; the vertical value axis stays pixel-down.
+ * Pure, DOM-free layout for the correlation charts
+ * (research/widget-registry.md): `chart-scatter-bubble`, `chart-hexbin`,
+ * `chart-correlation-matrix`, `chart-parallel-coordinates`. Server-safe.
+ * Horizontal value / grid / axis order mirrors in RTL; the vertical value axis
+ * stays pixel-down.
  */
 import { linePath } from './lineArea.js';
 import { extent, niceTicks } from '../utils/stats.js';
@@ -167,7 +168,7 @@ const SQRT3 = Math.sqrt(3);
 /**
  * Pointy-top hex-grid centers fitted to the box. Odd rows offset by half a
  * column so the tessellation interlocks; columns mirror in RTL. Callers map a
- * per-cell count to fill alpha and omit sparse (null/0) cells (annex §2).
+ * per-cell count to fill alpha and omit sparse (null/0) cells (annex).
  */
 export function hexbinLayout(options: HexbinLayoutOptions): HexbinLayout {
   const { rows, cols, width, height, rtl } = options;

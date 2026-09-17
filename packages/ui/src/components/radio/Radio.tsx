@@ -32,8 +32,8 @@ export interface RadioProps
 
 /**
  * Radio — dot radio, 18px circle on `--surface-2`; checked = accent border +
- * accent dot (research/design-system.md §3 Tier 2). Card-styled selection
- * lives in `RadioCard`.
+ * accent dot (research/design-system.md Tier 2). Card-styled selection lives
+ * in `RadioCard`.
  */
 export function Radio({ label, description, className, id, ...props }: RadioProps) {
   const generatedId = useId();

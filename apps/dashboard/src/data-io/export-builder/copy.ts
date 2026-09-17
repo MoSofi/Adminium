@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Every string the Export Builder shows, as literal `t()` keys under
- * `dataio.builder.*` (41-export-builder.md Appendix A, D20). Literal keys and
- * exhaustive maps rather than assembled ones: an assembled key cannot be
- * checked against the eight bundles and renders as a raw dotted string when it
- * misses (10 §2.5). The fallbacks are the comp's copy, byte for byte.
+ * `dataio.builder.*`. Literal keys and exhaustive maps rather than assembled
+ * ones: an assembled key cannot be checked against the eight bundles and
+ * renders as a raw dotted string when it misses. The fallbacks are the comp's
+ * copy, byte for byte.
  */
 import type { MeasureFn } from '@adminium/engine/config';
 

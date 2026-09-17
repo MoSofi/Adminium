@@ -14,8 +14,8 @@
  * left the sibling `lazy(() => import('./tables-track-f-components.js'))` refs
  * buying nothing. Holding them here (the boards/domain/media `*-config`
  * convention) lets the definitions import metadata only, so the components stay
- * reachable exclusively through the lazy barrel (04 §2.3, acceptance #3;
- * enforced by `qa/chunk-budget.test.ts`).
+ * reachable exclusively through the lazy barrel (acceptance #3; enforced by
+ * `qa/chunk-budget.test.ts`).
  *
  * The component files re-export these symbols, so the family barrel, stories and
  * tests keep their existing import points.
@@ -51,7 +51,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-// ── card-gallery (annex §3) ────────────────────────────────────────────────
+// ── card-gallery (annex) ───────────────────────────────────────────────────
 const thumbnailMode = z.enum(['none', 'icon', 'monogram', 'doc-preview']);
 /** The `card-gallery` thumbnail treatment (the component's prop type). */
 export type CardThumbnailMode = z.infer<typeof thumbnailMode>;
@@ -80,7 +80,7 @@ const INTEGRATIONS = [
 ] as const;
 const STATUS_META: Record<string, string> = { connected: 'Synced 2h ago', available: 'Not connected', error: 'Action required' };
 
-/** Deterministic `record-list` of gallery cards (04 §7.7). */
+/** Deterministic `record-list` of gallery cards. */
 export function cardGalleryDemoData(seed: number): { data: GalleryCard[] } {
   const random = mulberry32(seed || 1);
   void random();
@@ -95,7 +95,7 @@ export function cardGalleryDemoData(seed: number): { data: GalleryCard[] } {
   return { data };
 }
 
-// ── grouped-summary-table (annex §3) ───────────────────────────────────────
+// ── grouped-summary-table (annex) ──────────────────────────────────────────
 export const groupedSummaryTableConfigSchema = widgetSharedConfigSchema.extend({
   expandable: z.boolean().default(true),
   totalsRow: z.boolean().default(true),
@@ -112,7 +112,7 @@ const REGIONS = [
   { key: 'latam', label: 'Latin America', services: ['API'] },
 ] as const;
 
-/** Deterministic grouped-summary payload (04 §7.7). */
+/** Deterministic grouped-summary payload. */
 export function groupedSummaryTableDemoData(seed: number): GroupedSummaryData {
   const random = mulberry32(seed || 1);
   const columns: AggColumn[] = [
@@ -154,7 +154,7 @@ export function groupedSummaryTableDemoData(seed: number): GroupedSummaryData {
   return { data: groups, columns, totals };
 }
 
-// ── log-table (annex §3) ───────────────────────────────────────────────────
+// ── log-table (annex) ──────────────────────────────────────────────────────
 export const logTableConfigSchema = widgetSharedConfigSchema.extend({
   rowAction: z.enum(['retry', 'download', 'inspect', 'none']).default('inspect'),
   search: z.boolean().default(true),
@@ -188,7 +188,7 @@ const LOG_TEMPLATES = [
 ] as const;
 const LOG_ACTORS = ['Ada Lovelace', 'System', 'api-gw', 'Grace Hopper', 'cron'] as const;
 
-/** Deterministic DESC-ordered `record-list` of log rows (04 §7.7). */
+/** Deterministic DESC-ordered `record-list` of log rows. */
 export function logTableDemoData(seed: number): { data: LogRow[] } {
   const random = mulberry32(seed || 1);
   const base = Date.UTC(2026, 6, 14, 14, 30, 0);
@@ -204,7 +204,7 @@ export function logTableDemoData(seed: number): { data: LogRow[] } {
   return { data };
 }
 
-// ── master-list (annex §3) ─────────────────────────────────────────────────
+// ── master-list (annex) ────────────────────────────────────────────────────
 export const masterListConfigSchema = widgetSharedConfigSchema.extend({
   titleField: z.string().default('name'),
   subtitleField: z.string().optional(),
@@ -232,7 +232,7 @@ const RULES = [
 ] as const;
 const OWNERS = ['Ada Lovelace', 'Grace Hopper', 'Alan Turing', 'Katherine Johnson'] as const;
 
-/** Deterministic `record-list` of automation rules (04 §7.7). */
+/** Deterministic `record-list` of automation rules. */
 export function masterListDemoData(seed: number): { data: GridRow[] } {
   const random = mulberry32(seed || 1);
   const base = Date.UTC(2026, 6, 14, 9, 0, 0);
@@ -249,7 +249,7 @@ export function masterListDemoData(seed: number): { data: GridRow[] } {
   return { data };
 }
 
-// ── schema-tree (annex §3) ─────────────────────────────────────────────────
+// ── schema-tree (annex) ────────────────────────────────────────────────────
 export const schemaTreeConfigSchema = widgetSharedConfigSchema.extend({
   expandDepth: z.number().int().min(0).max(4).default(1),
   showTypes: z.boolean().default(true),
@@ -264,7 +264,8 @@ const TABLES = [
 ] as const;
 const VIEWS = [{ name: 'active_customers', rows: 6120, cols: [['id', 'int8', {}], ['email', 'varchar', {}]] }] as const;
 
-/** Deterministic `hierarchy/tree` introspection payload — schema is fixed, so seed-independent (04 §7.7). */
+/** Deterministic `hierarchy/tree` introspection payload — schema is fixed, so
+ * seed-independent. */
 export function schemaTreeDemoData(seed: number): { roots: SchemaNode[] } {
   void seed;
   const tableNodes: SchemaNode[] = TABLES.map((table) => ({
@@ -304,7 +305,7 @@ export function schemaTreeDemoData(seed: number): { roots: SchemaNode[] } {
   };
 }
 
-// ── toggle-matrix (annex §3) ───────────────────────────────────────────────
+// ── toggle-matrix (annex) ──────────────────────────────────────────────────
 const cellMode = z.enum(['toggle', 'readonly', 'read-write-pair']);
 /** The `toggle-matrix` cell interaction mode (the component's prop type). */
 export type ToggleCellMode = z.infer<typeof cellMode>;
@@ -336,7 +337,7 @@ const ROLES: MatrixColumn[] = [
   { id: 'viewer', label: 'Viewer' },
 ];
 
-/** Deterministic `matrix` payload — RBAC permissions × roles (04 §7.7). */
+/** Deterministic `matrix` payload — RBAC permissions × roles. */
 export function toggleMatrixDemoData(seed: number): MatrixData {
   const random = mulberry32(seed || 1);
   const cells: Record<string, Record<string, boolean>> = {};

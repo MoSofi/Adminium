@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The staged validation pipeline (06-llm-assist.md §7.2).
+ * The staged validation pipeline.
  *
- *   1 extract   → recover the JSON object (fences/prose stripped, truncation
- *                 detected)                                     — fatal
- *   2 parse     → `JSON.parse`                                  — fatal
- *   3 version   → `schema_version` supported; model-declared `error` key
- *                                                               — fatal
- *   4 zod       → `LlmResponseV1.safeParse`, issues mapped to paths — fatal
- *   5 locale    → every localized object has exactly the run's locales — per-item
- *   6 referential → §7.3 cross-checks vs the snapshot + registries — per-item
- *   7 run-bind  → `run_id` present and ≠ ctx.runId                — warning
+ * 1 extract → recover the JSON object (fences/prose stripped, truncation
+ *   detected) — fatal 2 parse → `JSON.parse` — fatal 3 version → `schema_version`
+ *   supported; model-declared `error` key — fatal 4 zod →
+ *   `LlmResponseV1.safeParse`, issues mapped to paths — fatal 5 locale → every
+ *   localized object has exactly the run's locales — per-item 6 referential →
+ *   cross-checks vs the snapshot + registries — per-item 7 run-bind → `run_id`
+ *   present and ≠ ctx.runId — warning
  *
  * Fatal errors reject the whole run (`response` is absent). Per-item errors drop
  * only the offending suggestion (and its dependents) and let the rest through —
@@ -36,9 +34,10 @@ import { LlmResponseV1, negotiateSchemaVersion } from './schema.js';
  * stage-7 expected run id.
  */
 export interface ValidationContext extends ReferentialContext {
-  /** Expected run id (the ULID embedded in the prompt). Enables the §7.2 stage-7 warning. */
+  /** Expected run id (the ULID embedded in the prompt). Enables the stage-7
+   * warning. */
   runId?: string;
-  /** Override for `SUPPORTED_SCHEMA_VERSIONS` (testable forward-compat, §4.3). */
+  /** Override for `SUPPORTED_SCHEMA_VERSIONS` (testable forward-compat). */
   supportedVersions?: readonly string[];
 }
 
@@ -53,8 +52,8 @@ export interface ValidationResult {
 
 /**
  * Validate a raw model reply against the run's snapshot and registries. Runs the
- * full §7.2 pipeline; returns the cleaned response plus every error/warning with
- * a precise JSON path. Never throws.
+ * full pipeline; returns the cleaned response plus every error/warning with a
+ * precise JSON path. Never throws.
  */
 export function validateResponse(rawText: string, ctx: ValidationContext): ValidationResult {
   const warnings: LlmValidationError[] = [];

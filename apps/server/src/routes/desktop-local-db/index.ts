@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `POST /api/v1/desktop/local-database` — 11-electron.md §6 step 2 card 1
- * ("Create a new local database"), task 11-T07.
+ * `POST /api/v1/desktop/local-database` — card 1 ("Create a new local
+ * database"), task.
  *
  * ─── THE DESKTOP GATE ────────────────────────────────────────────────────────
  *
- * EXISTENCE is the gate, exactly as it is for `desktop-demo` and §5's
+ * EXISTENCE is the gate, exactly as it is for `desktop-demo`
  * `auth/desktop-session.ts`: `compose.ts` registers this factory only when
  * `ADMINIUM_RUNTIME=desktop`, so self-host and Docker do not have the route at
  * all. That is not a formality here — the route's whole subject is
  * `<dataDir>/databases/`, a directory that exists because the shell created it
- * and passed `ADMINIUM_DATA_DIR` (§2.2). On a Docker deployment `<dataDir>` is a
+ * and passed `ADMINIUM_DATA_DIR`. On a Docker deployment `<dataDir>` is a
  * container path nobody can reach with a file dialog, so a "create a local
  * database" button there would create a file the user can neither find, back up,
  * nor delete.
  *
  * No loopback check, for `desktop-demo`'s reason: this creates a database and
  * registers a connection — the same act `POST /connections` performs, from the
- * same principal, under the same `system:connections:manage` grant. The §5 route
- * is loopback-only because it mints a session with no password; this one does
- * not.
+ * same principal, under the same `system:connections:manage` grant. The route is
+ * loopback-only because it mints a session with no password; this one does not.
  */
 
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';

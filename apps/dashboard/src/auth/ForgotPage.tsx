@@ -4,19 +4,19 @@
  * shows the sent state on 200 (no user enumeration); resend reuses the same
  * endpoint (3/hour bucket).
  *
- * SMTP GATE (11-electron.md §8.2, email row): this is the SPA's one real email
- * send, so it is the one surface that row governs today. Without a configured
- * relay the server has nowhere to post the token — the reset mail is not
- * delayed, it does not exist — and "Check your email" would be a lie told to
- * someone locked out of their account, who would then wait for it. `Empty
- * States.dc.html`'s rule is the fix: never hide, always explain.
+ * SMTP GATE (email row): this is the SPA's one real email send, so it is the
+ * one surface that row governs today. Without a configured relay the server
+ * has nowhere to post the token — the reset mail is not delayed, it does not
+ * exist — and "Check your email" would be a lie told to someone locked out of
+ * their account, who would then wait for it. `Empty States.dc.html`'s rule is
+ * the fix: never hide, always explain.
  *
- * The explanation is deliberately NOT §8.2's "Configure SMTP to send email" +
- * link. That copy is written for an admin looking at a Send button inside the
- * app; nobody on this screen is signed in, and a link to Settings would bounce
- * them to the login they cannot get past. "When possible" is the operative
- * clause of the rule — the possible action here is asking someone who IS signed
- * in, so that is what it says.
+ * The explanation is deliberately NOT "Configure SMTP to send email" + link.
+ * That copy is written for an admin looking at a Send button inside the app;
+ * nobody on this screen is signed in, and a link to Settings would bounce them
+ * to the login they cannot get past. "When possible" is the operative clause of
+ * the rule — the possible action here is asking someone who IS signed in, so
+ * that is what it says.
  */
 import { useRouter } from '@tanstack/react-router';
 import { useState } from 'react';

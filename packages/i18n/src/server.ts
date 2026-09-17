@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Server-side i18n (10-i18n-theming.md §7.6, 23-runtime-translations.md §9).
+ * Server-side i18n.
  *
  * A Node instance over the same bundles, for the surfaces that render text
  * outside the browser: system email, scheduled-report subjects, job output.
@@ -9,14 +9,14 @@
  *
  * Runtime overrides ride along, so an operator who reworded something in the
  * Translations editor sees it in their mail too. The caller supplies them
- * (this package cannot reach the meta store; the 01-architecture.md §2.3
- * import matrix keeps it dependency-free).
+ * (this package cannot reach the meta store; the import matrix keeps it
+ * dependency-free).
  *
  * CONCURRENCY NOTE: a long-lived server creates one of these per recipient
  * locale, repeatedly, from a process-global compiled bundle. That is only
  * safe because `createI18n` deep-clones before handing anything to i18next
- * (23-T01) — without it, the first override applied would rewrite the
- * compiled English for every later instance in the process.
+ * — without it, the first override applied would rewrite the compiled
+ * English for every later instance in the process.
  */
 
 import type { I18nInstance } from './create-i18n.js';

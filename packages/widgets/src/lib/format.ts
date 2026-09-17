@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Metric formatting shared by the KPI + charts families (annex §1 config:
+ * Metric formatting shared by the KPI + charts families (annex config:
  * `format` currency/percent/duration/compact; research/widget-registry.md
  * Conventions — numbers/dates via `Intl`). Pure module: no React, no DOM.
  */
@@ -24,7 +24,7 @@ export interface MetricFormatOptions {
  * runtime defaults apply — an empty BCP-47 locale or ISO-4217 code is accepted
  * by the (free-string) config schema but makes `Intl` throw "Incorrect locale
  * information provided", which would crash the widget on an otherwise-valid
- * stored config (surfaced by the 04-T17 config-schema fuzz).
+ * stored config (surfaced by the config-schema fuzz).
  */
 export function formatOptionsOf(config: Pick<WidgetSharedConfig, 'format'>): MetricFormatOptions {
   const locale = config.format?.locale?.trim();
@@ -58,7 +58,7 @@ export function formatMetricValue(
   opts: MetricFormatOptions = {},
 ): string {
   // Metric values are mono/KPI cells → data context (latn digits, aligned in
-  // every locale incl. ar_EG) via the @adminium/i18n format layer (§4.2).
+  // every locale incl. ar_EG) via the @adminium/i18n format layer.
   const fmt = getFormatters(opts.locale ?? 'en-US');
   switch (format) {
     case 'compact':

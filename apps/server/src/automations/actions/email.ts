@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SEND EMAIL (42-automations-and-workflow-logs.md D15, D16, 42-T09).
+ * SEND EMAIL.
  *
  * --- Why this sends in-process instead of queueing ------------------------
  *
@@ -10,7 +10,7 @@
  * "250 OK · delivered to jordan@acme.io" (Workflow Logs 144). A queued send
  * answers minutes later, by which time the run has finished and there is
  * nothing left to write the line onto. The campaign runner made the same
- * trade for the same reason (39 D11), and both now share `email/deliver.ts`.
+ * trade for the same reason, and both now share `email/deliver.ts`.
  *
  * --- Why it FAILS on unconfigured SMTP ------------------------------------
  *
@@ -19,7 +19,7 @@
  * silence for a password-reset that nobody asked for and the wrong one here —
  * an operator who builds a rule around an email and gets a green run that
  * sent nothing has been lied to. So this step fails loudly, the run goes red,
- * and the message names the settings page (39 D8's argument).
+ * and the message names the settings page (argument).
  *
  * --- The recipient, and the one masked column it may read -----------------
  *
@@ -72,7 +72,7 @@ async function resolve(action: EmailAction, ctx: ActionContext) {
   const template = await resolveEmailTemplate(ctx.meta, action.templateKey, locale);
   if (template === null) {
     // Present but archived or switched off is an operator decision, and
-    // falling back to another template would send the wrong mail (39 D4).
+    // falling back to another template would send the wrong mail.
     const exists = await existsInAnyLocale(ctx.meta, action.templateKey, locale);
     throw new ActionFailure(
       exists

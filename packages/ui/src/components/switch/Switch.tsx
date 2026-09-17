@@ -11,8 +11,8 @@ export type SwitchProps = Omit<
 
 /**
  * Switch — Radix switch, 40x23 track, 19px white knob, accent when on /
- * `--surface-3` when off, .18s knob travel (research/design-system.md §3
- * Tier 2). Space/Enter toggle; label wiring via `Label htmlFor` or
+ * `--surface-3` when off.18s knob travel (research/design-system.md Tier
+ * 2). Space/Enter toggle; label wiring via `Label htmlFor` or
  * `FormField`. Knob travel mirrors in RTL.
  */
 export function Switch({ className, ...props }: SwitchProps) {

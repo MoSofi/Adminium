@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Connection-config → database file path normalization — 05 §4.3: the SQLite
+ * Connection-config → database file path normalization: the SQLite
  * connection config is a FILE PATH, not a DSN, but the engine accepts the
  * common DSN spellings and normalizes them here:
  *

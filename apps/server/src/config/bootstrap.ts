@@ -8,10 +8,10 @@ import { z } from 'zod';
 import { ENC_TOKEN_PREFIX } from './secrets.js';
 
 /**
- * Bootstrap file `<dataDir>/adminium.json` (01-architecture.md §7.2). The
- * meta DSN cannot live in the meta store itself (chicken-and-egg), so when
- * it is not provided by `ADMINIUM_META_URL` the first-run wizard persists it
- * here, AES-256-GCM-encrypted with the key derived from `ADMINIUM_SECRET`.
+ * Bootstrap file `<dataDir>/adminium.json`. The meta DSN cannot live in the
+ * meta store itself (chicken-and-egg), so when it is not provided by
+ * `ADMINIUM_META_URL` the first-run wizard persists it here,
+ * AES-256-GCM-encrypted with the key derived from `ADMINIUM_SECRET`.
  * Environment always wins over this file.
  */
 export const BOOTSTRAP_FILENAME = 'adminium.json';

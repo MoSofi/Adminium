@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two desktop-only setup endpoints (11-electron.md §6 step 2).
+ * The two desktop-only setup endpoints.
  *
  * `createLocalDatabase` builds its body by OMISSION — `schemaFile` is absent
  * for a blank database, `format: 'auto'` is absent because "auto" is the

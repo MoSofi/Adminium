@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A document mapping's trigger IS an automation (34-invoices-add-on.md §3.7's
- * last line, as ruled by D55). This keeps the two in step.
+ * A document mapping's trigger IS an automation (last line, as ruled by D55).
+ * This keeps the two in step.
  *
  * ─── WHY THERE IS NO TRIGGER TABLE FOR THIS TO WRITE ──────────────────────
  *
- * §7.2 designed `adminium_record_triggers`. The owner ruled reuse on
+ * `adminium_record_triggers` was designed for this. The owner ruled reuse on
  * 2026-09-10 (D55) because plan 42 had already built the matcher, the 60 s
  * undo window, the per-row dedupe key and the delay-by-origin rule that
  * section specified — and because O4's only objection, that
@@ -29,7 +29,7 @@
  * ─── `watch: false`, AND THE UI PROMISES IT ───────────────────────────────
  *
  * 42's record trigger can ALSO poll, so that rows written straight into the
- * database are noticed. A document mapping must not: §3.7 step 5's note tells
+ * database are noticed. A document mapping must not: the step-5 note tells
  * the operator, in eight languages, that "rows added by an import or written
  * straight into the database do not draw anything — only writes through
  * Adminium do" (D10). Leaving the poller on would make that sentence false and
@@ -174,10 +174,10 @@ export async function syncProfileTrigger(
 /**
  * Re-assert every rule an add-on's mappings own.
  *
- * Uninstall disables the mappings (§7.10); this carries that through to the
- * rules, so a write cannot enqueue a render for a provider that is gone. It is
- * separate from `syncProfileTrigger` because it runs over a SET and must not
- * need each profile's previous state.
+ * Uninstall disables the mappings; this carries that through to the rules, so
+ * a write cannot enqueue a render for a provider that is gone. It is separate
+ * from `syncProfileTrigger` because it runs over a SET and must not need each
+ * profile's previous state.
  */
 export async function syncTriggersForAddOn(
   meta: MetaDb,

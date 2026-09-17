@@ -1,22 +1,21 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The demo database — 11-electron.md §6 Step 2 card 4 ("Explore the demo
- * database"), task 11-T08.
+ * The demo database — Step 2 card 4 ("Explore the demo database"), task.
  *
- * Ava Reyes runs operations at a small SaaS company (research/BRIEF.md §4). Her
- * team ships a product, staffs a support rota, and bills customers, and this
- * file is that company as a SQLite schema: nine tables sized to trigger every
- * page type in research/ia-mapping.md §3.1 that the generator can key on.
+ * Ava Reyes runs operations at a small SaaS company. Her team ships a product,
+ * staffs a support rota, and bills customers, and this file is that company as
+ * a SQLite schema: nine tables sized to trigger every page type that the
+ * generator can key on.
  *
  * ─── WHY A SCRIPT AND NOT A .sqlite FILE ─────────────────────────────────────
  *
- * §6: "Ships as a seed script, not a prebuilt binary — keeps the installer small
- * and the seed reviewable." A checked-in binary would also rot silently: the
- * schema below is a FIXTURE FOR THE GENERATOR, and the only way to know it still
- * earns its pages is to re-seed and re-generate. `demo-seed.test.ts` does exactly
- * that, so a classifier change that stops triggering the kanban breaks a test
- * instead of shipping a boring demo.
+ * "Ships as a seed script, not a prebuilt binary — keeps the installer small and
+ * the seed reviewable." A checked-in binary would also rot silently: the schema
+ * below is a FIXTURE FOR THE GENERATOR, and the only way to know it still earns
+ * its pages is to re-seed and re-generate. `demo-seed.test.ts` does exactly that,
+ * so a classifier change that stops triggering the kanban breaks a test instead
+ * of shipping a boring demo.
  *
  * ─── WHY IT TAKES A `Database` CONSTRUCTOR ───────────────────────────────────
  *
@@ -40,23 +39,23 @@
  * ─── THE SCHEMA IS LOAD-BEARING; READ THIS BEFORE EDITING IT ─────────────────
  *
  * Column NAMES and DECLARED TYPES here are inputs to the classifier
- * (05-introspection-engine.md §7.1) and the §14 archetype triggers. Three traps,
- * each of which silently costs a page rather than failing loudly:
+ * and the archetype triggers. Three traps, each of which silently costs a
+ * page rather than failing loudly:
  *
  *  1. **Enum columns MUST be `VARCHAR(n)` with n ≤ 32, never `TEXT`.** The
- *     `status-workflow` rule (§7.1 row 7) gates on `maxLength <= 32`, and a
- *     SQLite `TEXT` column introspects with `maxLength: null` — which the rule
- *     reads as "unbounded" and skips. `status TEXT CHECK (status IN (…))` is
+ * `status-workflow` rule (row 7) gates on `maxLength <= 32`, and a SQLite
+ *     `TEXT` column introspects with `maxLength: null` — which the rule reads
+ *     as "unbounded" and skips. `status TEXT CHECK (status IN (…))` is
  *     therefore NOT a kanban trigger; `status VARCHAR(16) CHECK (…)` is.
  *  2. **Enums come from `CHECK (col IN ('a','b'))` and nothing else.** SQLite has
  *     no enum type, so `adapter-sqlite` synthesizes one per column-level CHECK of
  *     exactly that shape. Reformat the CHECK and the enum disappears.
- *  3. **One table earns at most ONE archetype** (04-widget-registry.md §8 H2:
- *     highest-scoring trigger wins). Every table below is shaped so its intended
- *     archetype OUTSCORES the runners-up; the per-table notes record the margin.
- *     Adding a column can flip a winner — e.g. giving `tickets` a messages-shaped
- *     child table would turn its queue into a chat page, because `tickets` is in
- *     the annex §9 conversation-container vocabulary.
+ * 3. **One table earns at most ONE archetype** (H2: highest-scoring trigger
+ *  wins). Every table below is shaped so its intended archetype OUTSCORES the
+ *  runners-up; the per-table notes record the margin. Adding a column can flip a
+ *  winner — e.g. giving `tickets` a messages-shaped child table would turn its
+ * queue into a chat page, because `tickets` is in the annex
+ *  conversation-container vocabulary.
  */
 
 /* -------------------------------------------------------------------- rng */
@@ -104,13 +103,13 @@ function isoTimestamp(offsetDays, minuteOfDay = 0) {
 /**
  * An initials avatar as a self-contained `data:` URI.
  *
- * §7 IS WHY. "The desktop build must be fully functional with the network cable
+ * THE OFFLINE CONTRACT IS WHY. "The desktop build must be fully functional with the network cable
  * unplugged, forever" — and `contacts.avatar_url` is not decoration here, it is
  * the signal that earns the table its `card-gallery` directory page. A plausible
  * `https://…/avatars/001.png` would therefore put SIXTY network requests on the
  * first page of the demo: sixty broken images offline, and sixty entries in the
- * offline smoke test's blocked-request log, which §7 requires to be empty. A
- * demo that only looks right online is not a demo of THIS product.
+ * offline smoke test's blocked-request log, which requires to be empty. A demo
+ * that only looks right online is not a demo of THIS product.
  *
  * `hsl()` rather than hex because the repo does not write raw hex colours, and
  * the hue is derived from the row so the gallery is stable and varied at once.
@@ -127,12 +126,12 @@ function avatarDataUri(initials, hue) {
 /* ----------------------------------------------------------------- schema */
 
 /**
- * The DDL. Per-table comments record which §3.1 page type the table exists to
+ * The DDL. Per-table comments record which page type the table exists to
  * trigger and what it beats — the margins are the reason the columns are what
  * they are.
  */
 export const DEMO_SCHEMA_SQL = `
--- §3.1 row 11 (directory) + row 12 (org chart). people shape + self-FK
+-- Row 11 (directory) + row 12 (org chart). people shape + self-FK
 -- "manager_id" ⇒ page-directory @0.935 filled by org-chart @0.9 (which outscores
 -- card-gallery @0.825 — hence no avatar column here; contacts carries that).
 CREATE TABLE employees (
@@ -150,7 +149,7 @@ CREATE TABLE employees (
   updated_at TIMESTAMP NOT NULL
 );
 
--- §3.1 row 11 (directory cards) + row 15 (segment builder: plan / lifecycle /
+-- Row 11 (directory cards) + row 15 (segment builder: plan / lifecycle /
 -- country / mrr are the filterable attributes) + row 5 (mrr_amount x signed_up_at
 -- is the numeric x timestamp pair the dashboard KPIs and charts bind to).
 -- avatar_url ⇒ card-gallery fills the directory slot; no self-FK, so no org-chart
@@ -174,7 +173,7 @@ CREATE TABLE contacts (
   updated_at TIMESTAMP NOT NULL
 );
 
--- §3.1 row 4 (record overview): the hub record. Four inbound FKs — phases,
+-- Row 4 (record overview): the hub record. Four inbound FKs — phases,
 -- tasks, allocations, and expenses-by-proxy — are what give its CRUD detail page
 -- its related-record tabs. It also earns a board of its own (@0.798) off its
 -- status enum, which is Project Board.dc.html and welcome.
@@ -193,7 +192,7 @@ CREATE TABLE projects (
   updated_at TIMESTAMP NOT NULL
 );
 
--- §3.1 row 8 (gantt). start_date/end_date pair + progress_pct + project_id ⇒
+-- Row 8 (gantt). start_date/end_date pair + progress_pct + project_id ⇒
 -- page-master-detail @0.8, whose detail slot takes gantt-chart @0.935 over
 -- detail-key-value @0.7. Carries NO person FK and NO status enum on purpose:
 -- either would let the scheduler or the board outscore the gantt.
@@ -207,7 +206,7 @@ CREATE TABLE project_phases (
   notes TEXT
 );
 
--- §3.1 row 6 (kanban + swimlanes). All five status values are kanban-shaped
+-- Row 6 (kanban + swimlanes). All five status values are kanban-shaped
 -- (⇒ the full name-match bonus) and workstream is the second categorical column
 -- that turns the board into a swimlane grid: page-board @0.924, clear of the
 -- scheduler (@0.779), calendar (@0.75), queue (@0.741) and master-detail (@0.6).
@@ -229,7 +228,7 @@ CREATE TABLE tasks (
   updated_at TIMESTAMP NOT NULL
 );
 
--- §3.1 row 7 (calendar). "releases" is in the events-table vocabulary but NOT in
+-- Row 7 (calendar). "releases" is in the events-table vocabulary but NOT in
 -- the audit/log vocabulary — a table named *_events would classify as a LOG and
 -- take page-log-viewer @0.88 instead, which is why this table is not called that.
 -- environment is the category enum (Release Calendar.dc.html's env filter) and is
@@ -246,7 +245,7 @@ CREATE TABLE releases (
   created_at TIMESTAMP NOT NULL
 );
 
--- §3.1 row 9 (matrix scheduler). person FK x date x shift-type ⇒ page-scheduler
+-- Row 9 (matrix scheduler). person FK x date x shift-type ⇒ page-scheduler
 -- @0.902 filled by schedule-matrix, just clear of the calendar (@0.863) which
 -- fires on the same date column. No created_at: with the employee FK present it
 -- would put this table one verb-ish column away from the log shape.
@@ -261,7 +260,7 @@ CREATE TABLE shifts (
   notes TEXT
 );
 
--- §3.1 row 10 (ticket queue). Every status value is approval-vocabulary and NONE
+-- Row 10 (ticket queue). Every status value is approval-vocabulary and NONE
 -- is kanban-vocabulary — that is what makes this a queue (@0.858) and not a board
 -- (which would not fire at all). Has no messages-shaped child table on purpose:
 -- "tickets" is a conversation-container name, so a comments table would trigger
@@ -284,7 +283,7 @@ CREATE TABLE tickets (
   updated_at TIMESTAMP NOT NULL
 );
 
--- §3.1 row 13 (capacity/allocation). person + hours + project ⇒ page-scheduler
+-- Row 13 (capacity/allocation). person + hours + project ⇒ page-scheduler
 -- @0.82 filled by capacity-board. Carries no date and no enum so the shift-matrix
 -- branch cannot claim it, and four non-FK columns so it is not read as a join
 -- table (which would strip it of pages entirely).
@@ -300,7 +299,7 @@ CREATE TABLE allocations (
 
 /* ------------------------------------------------------------------- data */
 
-/** The persona (BRIEF §4) — employee 1, and the root of the org chart. */
+/** The persona (BRIEF) — employee 1, and the root of the org chart. */
 export const DEMO_PERSONA = { name: 'Ava Reyes', email: 'ava@adminium.io' };
 
 const FIRST_NAMES = [
@@ -561,11 +560,11 @@ export function buildDemoRows() {
 /* ------------------------------------------------------------------- seed */
 
 /**
- * §9's durability settings. `journal_mode = WAL` persists in the file; the other
+ * The durability settings. `journal_mode = WAL` persists in the file; the other
  * three are per-connection and are re-applied by `adapter-sqlite` when the server
  * opens the database for real. They are set here anyway because this script also
  * runs standalone, and a seed that crashed halfway through a non-WAL write is
- * exactly the corruption §9 exists to prevent.
+ * exactly the corruption exists to prevent.
  */
 function applyDemoPragmas(db) {
   db.pragma('journal_mode = WAL');
@@ -613,7 +612,7 @@ export function seedDemoDatabase(db) {
   });
   insertAll();
 
-  // §9: leave the file self-contained at rest rather than trailing a -wal the
+  // Leave the file self-contained at rest rather than trailing a -wal the
   // caller would have to know to checkpoint.
   db.pragma('wal_checkpoint(TRUNCATE)');
   return Object.fromEntries(INSERT_ORDER.map((table) => [table, rows[table].length]));

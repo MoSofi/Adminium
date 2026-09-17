@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Postgres introspection — 05-introspection-engine.md §4.1.
+ * Postgres introspection.
  *
  * Reads `pg_catalog`, not `information_schema` (too slow at 500 tables): a
  * FIXED set of 7 set-based catalog queries regardless of table count, joined
@@ -8,8 +8,9 @@
  * `CatalogExecutor` (any `sql → rows` function) so the assembly logic is
  * testable without the `pg` driver; `src/index.ts` wires it to the pool.
  *
- * THE "SCHEMA ONLY" INVARIANT (05 §10): every statement here references
- * `pg_catalog.*` exclusively — no user table is ever touched during setup.
+ * THE "SCHEMA ONLY" INVARIANT: every statement here references
+ * `pg_catalog.*` exclusively — no user table is ever touched during
+ * setup.
  */
 import {
   AdapterError,
@@ -45,9 +46,9 @@ export interface IntrospectContext {
 }
 
 /**
- * Static dialect capabilities — 05 §2.1 (probe refines per-connection).
- * Canonical values live in the engine's capability matrix (M9-T04) so the
- * wizard's degradation copy and the adapter never disagree.
+ * Static dialect capabilities — (probe refines per-connection). Canonical
+ * values live in the engine's capability matrix so the wizard's
+ * degradation copy and the adapter never disagree.
  */
 export const POSTGRES_CAPABILITIES: AdapterCapabilities = {
   ...ENGINE_CAPABILITY_MATRIX.postgres,
@@ -95,15 +96,15 @@ export function interpretProbe(row: CatalogRow): ProbeResult {
   };
 }
 
-/** Migration/meta tables hidden behind "show system tables" — 05 §8.2. */
+/** Migration/meta tables hidden behind "show system tables". */
 const SYSTEM_TABLE_PATTERN =
   /^(adminium_|knex_migrations)|^(_prisma_migrations|schema_migrations|ar_internal_metadata|django_migrations|sqlite_sequence)$/;
 
-/** Enum values are capped at 256 with a warning — 05 §10. */
+/** Enum values are capped at 256 with a warning. */
 const ENUM_VALUE_CAP = 256;
 
 // ---------------------------------------------------------------------------
-// Catalog SQL (fixed set — CI asserts ≤ 12 statements, 05 §10)
+// Catalog SQL (fixed set — CI asserts ≤ 12 statements)
 // ---------------------------------------------------------------------------
 
 function quoteLiteral(value: string): string {
@@ -164,7 +165,7 @@ WHERE c.relkind IN ('r', 'p', 'v', 'm') AND ${pred}
 ORDER BY n.nspname, c.relname`;
 }
 
-/** Guarded separately: permission failures degrade to sizeBytes null (05 §4.1). */
+/** Guarded separately: permission failures degrade to sizeBytes null. */
 function sizesSql(pred: string): string {
   return `
 SELECT c.oid::int8 AS rel_oid,
@@ -303,14 +304,14 @@ function strArray(value: unknown): string[] {
     const inner = value.slice(1, -1);
     if (inner === '') return [];
     // Identifiers needing quotes ("a,b") are split naively here; catalog column
-    // names with embedded commas/quotes are out of scope for v1 (noted 05 §4.1).
+    // names with embedded commas/quotes are out of scope for v1 (noted).
     return inner.split(',').map((s) => s.replace(/^"(.*)"$/, '$1'));
   }
   return [];
 }
 
 // ---------------------------------------------------------------------------
-// CHECK (col IN (...)) → EnumDef synthesis — 05 §4.1
+// CHECK (col IN (...)) → EnumDef synthesis
 // ---------------------------------------------------------------------------
 
 /**
@@ -503,9 +504,9 @@ export async function introspectPostgres(
       values = values.slice(0, ENUM_VALUE_CAP);
     }
     // `CREATE TYPE x AS ENUM ()` is legal Postgres, and the IR requires an
-    // EnumDef to carry at least one value (05 §2.1). Emitting the empty def
-    // made `parseDatabaseModel` reject the whole model, so a database holding
-    // one empty enum could not be introspected at all. A valueless enum has
+    // EnumDef to carry at least one value. Emitting the empty def made
+    // `parseDatabaseModel` reject the whole model, so a database holding one
+    // empty enum could not be introspected at all. A valueless enum has
     // nothing to render anyway: drop the def and say so.
     if (values.length === 0) {
       warnings.push({
@@ -601,7 +602,7 @@ export async function introspectPostgres(
       mapped = { logicalType: 'enum', maxLength: null, numericPrecision: null, numericScale: null };
       enumRef = resolveEnumRef(`${str(row['type_schema']) ?? ''}.${str(row['type_name']) ?? ''}`);
     } else if (typtype === 'd') {
-      // Domain: logical type from the base, domain name kept in dbType (05 §4.1).
+      // Domain: logical type from the base, domain name kept in dbType.
       mapped = mapPostgresType(str(row['base_db_type']) ?? dbType);
       if (str(row['base_typtype']) === 'e') {
         mapped = { ...mapped, logicalType: 'enum' };
@@ -610,7 +611,7 @@ export async function introspectPostgres(
         );
       }
     } else if (isArray) {
-      // Array: isArray set, element logicalType (05 §4.1); dbType stays 'type[]'.
+      // Array: isArray set, element logicalType; dbType stays 'type[]'.
       if (str(row['elem_typtype']) === 'e') {
         mapped = {
           logicalType: 'enum',
@@ -709,11 +710,11 @@ export async function introspectPostgres(
         selfReferential: table.id === toTableId,
         confidence: 1,
         // `conname` is already selected by constraintsSql; keeping it is what
-        // makes a DROP CONSTRAINT addressable (35-schema-authoring.md 35-T33) —
-        // `Relation.id` is derived and names nothing the catalog knows.
+        // makes a DROP CONSTRAINT addressable — `Relation.id` is derived and
+        // names nothing the catalog knows.
         constraintName: name ?? null,
       });
-      // Convenience per-column mirror of the declared FK (05 §2.1).
+      // Convenience per-column mirror of the declared FK.
       columns.forEach((columnName, position) => {
         const column = table.columns.find((c) => c.name === columnName);
         const refColumn = refColumns[position];
@@ -738,7 +739,7 @@ export async function introspectPostgres(
       partial: bool(row['is_partial']),
     };
     table.indexes.push(index);
-    // Covered by a single-column unique constraint/index (05 §2.1).
+    // Covered by a single-column unique constraint/index.
     if (index.unique && !index.partial && index.expression === null && index.columns.length === 1) {
       const column = table.columns.find((c) => c.name === index.columns[0]);
       if (column !== undefined) column.isUnique = true;

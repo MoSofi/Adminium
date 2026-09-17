@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The guarded outbound client an add-on's server half is handed
- * (26-add-on-runtime.md §5.5, D4; 24 D14).
+ * The guarded outbound client an add-on's server half is
+ * handed.
  *
  * ─── Declaring is not enforcing, and this is the wave where that matters ────
  *
- * 24 D14 rules that an add-on's egress is an exact-hostname allow-list, and
+ * An add-on's egress is an exact-hostname allow-list, and
  * until now that list was a field in a JSON document nobody consulted at
  * runtime. `validate.ts` refuses `outbound-http` without a non-empty list
  * (`NETWORK_ALLOW_REQUIRED`), which makes the DECLARATION well-formed and stops
@@ -13,9 +13,9 @@
  *
  * ─── What this actually enforces, stated without overclaim ─────────────────
  *
- * §5.5 says a call to an undeclared host "fails at the socket". **It does not,
- * and it cannot while 24 D13 stands.** An add-on's server half runs in this
- * process with no sandbox, so it can reach `globalThis.fetch`, `node:net`, or
+ * A call to an undeclared host was meant to "fail at the socket". **It does not,
+ * and it cannot while stands.** An add-on's server half runs in this process
+ * with no sandbox, so it can reach `globalThis.fetch`, `node:net`, or
  * `node:http` directly, and nothing short of a process-level permission model
  * or a child process could stop it. What this module provides is a client that
  * REFUSES, handed to the add-on so it has no reason to build its own — and
@@ -79,7 +79,7 @@ export interface AddOnHttpClientOptions {
    * Whether the manifest declares the `outbound-http` capability.
    *
    * FALSE MEANS REFUSE EVERYTHING, including hosts that somehow appear in
-   * `allow`. §5.5: "An add-on that declares no `outbound-http` capability gets
+   * `allow`. "An add-on that declares no `outbound-http` capability gets
    * a client that refuses everything." The capability is the consent the
    * operator gave; the allow-list only narrows it.
    */
@@ -225,13 +225,13 @@ export function createAddOnHttpClient(opts: AddOnHttpClientOptions): AddOnHttpCl
 /**
  * The client for ONE installed add-on, with its refusals wired to the audit log.
  *
- * This is the seam 26-T09/T10 hand to an add-on's server half: the add-on never
- * constructs a client, it is given this one. Built from the manifest rather
- * than from arguments, so the allow-list a call is checked against is
- * necessarily the one the operator consented to at install — there is no way to
- * pass a wider list than the manifest declares.
+ * This is the seam hand to an add-on's server half: the add-on never constructs
+ * a client, it is given this one. Built from the manifest rather than from
+ * arguments, so the allow-list a call is checked against is necessarily the one
+ * the operator consented to at install — there is no way to pass a wider list
+ * than the manifest declares.
  *
- * §5.5 asks for refusals in the audit trail, and they go in under the `add-on`
+ * Refusals belong in the audit trail, and they go in under the `add-on`
  * category as `add-on.egress-refused`. That row is the whole operator-facing
  * value of this guard: an add-on quietly trying to reach a host it never
  * declared is exactly the thing nobody would otherwise find out about.

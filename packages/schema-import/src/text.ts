@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared string-scanning primitives for the hand-rolled parsers. Everything
- * here is dependency-free by design (05-introspection-engine.md §5: no ANTLR,
- * no runtime `typescript` dependency — tokenizer level only).
+ * here is dependency-free by design (no ANTLR, no runtime `typescript`
+ * dependency — tokenizer level only).
  */
 
 export interface ScanOptions {

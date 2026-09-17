@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Sequelize model parser — 05-introspection-engine.md §5.2 row 5, tokenizer
- * level: `sequelize.define('name', {attrs}, {options})` and
- * `class X extends Model {}` + `X.init({attrs}, {options})` forms.
- * `DataTypes.*` map, `allowNull` / `unique` / `primaryKey` / `autoIncrement` /
- * `defaultValue` / `references: {model, key}`. Table names are taken verbatim
- * (Sequelize would pluralize model names at runtime — warned).
+ * Sequelize model parser, tokenizer level: `sequelize.define('name', {attrs},
+ * {options})` and `class X extends Model {}` + `X.init({attrs}, {options})`
+ * forms. `DataTypes.*` map, `allowNull` / `unique` / `primaryKey` /
+ * `autoIncrement` / `defaultValue` / `references: {model, key}`. Table names
+ * are taken verbatim (Sequelize would pluralize model names at runtime —
+ * warned).
  */
 import type { ColumnDefault, DatabaseModel, FkAction, LogicalType } from '@adminium/engine';
 

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 5 — meta-storage placement (M5-T03, 01-architecture.md §3.1):
- * same-DB (`adminium_*` tables beside your source tables) vs separate-DB
- * (second DSN + probe requiring canWrite ∧ canDDL). A read-only or DDL-less
- * source disables the same-DB card with the META_PLACEMENT_INVALID
- * explanation — and the server manager independently enforces the same rule
- * (409 on bypass, connections/manager.ts).
+ * Step 5 — meta-storage placement: same-DB (`adminium_*` tables beside your
+ * source tables) vs separate-DB (second DSN + probe requiring canWrite ∧
+ * canDDL). A read-only or DDL-less source disables the same-DB card with
+ * the META_PLACEMENT_INVALID explanation — and the server manager
+ * independently enforces the same rule (409 on bypass,
+ * connections/manager.ts).
  *
  * ── THIS STEP MOVES THE STORE ───────────────────────────────────────────────
  * It did not always. For as long as the Studio has had a meta step, the meta

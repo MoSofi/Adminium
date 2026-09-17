@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * /settings/defaults integration (10-i18n-theming.md §7.3): super-admin
- * gating, adoption meters, the full-object PUT on save + success toast, and
- * the `settings.defaults.updated` realtime mapping → bootstrap invalidation.
+ * /settings/defaults integration: super-admin gating, adoption meters, the
+ * full-object PUT on save + success toast, and the
+ * `settings.defaults.updated` realtime mapping → bootstrap invalidation.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -107,7 +107,7 @@ describe('GlobalDefaultsPage', () => {
     expect(screen.getByRole('heading', { name: 'Appearance defaults' })).toBeDefined();
     expect(screen.getByRole('heading', { name: 'Language & region defaults' })).toBeDefined();
 
-    // Explainer copy (§7.3 exact copy, en-US source).
+    // Explainer copy (exact copy, en-US source).
     expect(screen.getByText(/apply to all users unless they override them/)).toBeDefined();
 
     // Adoption meters from the payload — ICU-formatted per axis.
@@ -136,7 +136,7 @@ describe('GlobalDefaultsPage', () => {
     await waitFor(() => {
       expect(putCalls).toHaveLength(1);
     });
-    // Full-object write (§7.2) — all four axes, changed or not.
+    // Full-object write — all four axes, changed or not.
     expect(putCalls[0]?.body).toEqual({
       theme: 'system',
       accent: 'teal',

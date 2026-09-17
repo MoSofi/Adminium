@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * Four-state gate — 04-widget-registry.md acceptance #4 / 04-T17 (2):
- * every registered widget renders all four WidgetFrame states through
- * WidgetHost with the correct skeleton silhouette, per-widget empty copy, and a
- * working error Retry that re-issues the query. Runs over the full delivered
- * Wave-1 set (each in an isolated single-widget registry).
+ * Four-state gate — #4 / (2): every registered widget renders all four
+ * WidgetFrame states through WidgetHost with the correct skeleton silhouette,
+ * per-widget empty copy, and a working error Retry that re-issues the query.
+ * Runs over the full delivered Wave-1 set (each in an isolated single-widget
+ * registry).
  *
  * A `loaded`-state render that throws inside the widget is caught by the
  * WidgetErrorBoundary and surfaces here as an unexpected `role="alert"` — so

@@ -10,7 +10,7 @@ import type { ActivityItem } from './feeds-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `activity-feed` (annex §4) — rows of a tone-tinted icon tile + an "actor
+ * `activity-feed` (annex) — rows of a tone-tinted icon tile + an "actor
  * action target" sentence (bold actor/target, mono target names) + a relative
  * mono timestamp, with an optional "View all" drill-through link. Binds to a
  * `record-list` of audit/event rows.
@@ -18,7 +18,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `feeds-config`
 // module, and the row shape in `feeds-types`, so the registry metadata graph
-// never reaches this component file (04 §2.3). Re-exported here to keep
+// never reaches this component file. Re-exported here to keep
 // existing import points stable.
 export { activityFeedConfigSchema, activityFeedDemoData } from './feeds-config.js';
 export type { ActivityFeedConfig } from './feeds-config.js';

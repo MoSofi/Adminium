@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Registry-parity gate — 04-widget-registry.md acceptance #1 / 04-T17 (1).
+ * Registry-parity gate — #1 / (1).
  *
  * Diffs the delivered widget registry against the checked-in annex-catalog
  * extraction and FAILS ON DRIFT. Four invariants, now scoped to ALL 13 families
@@ -120,8 +120,8 @@ describe('registry parity — live green-loop wiring (acceptance #1)', () => {
  *
  * Nothing else catches this today: `WidgetHost` passes `definition.descriptionKey`
  * to `WidgetFrame` as `info` and the frame renders it raw, with no `t()` — a
- * documented interim state until 04-T06 wires the translator. So a dangling key
- * is currently invisible, and the moment the translator lands it turns into the
+ * documented interim state until wires the translator. So a dangling key is
+ * currently invisible, and the moment the translator lands it turns into the
  * literal string `widgets.charts.lineArea.description` in the info popover.
  *
  * The 35 ids below are the M4 charts/tables slice, which shipped `description`

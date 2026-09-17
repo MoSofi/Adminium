@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/** Unit tests for the §5.1 permission grammar (src/rbac/permissions.ts). */
+/** Unit tests for the permission grammar (src/rbac/permissions.ts). */
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -79,7 +79,7 @@ describe('parseGrant / parsePermission', () => {
     expect(SYSTEM_ACTION_KEYS).toContain('exports.manage');
     expect(SYSTEM_ACTION_KEYS).toContain('imports.manage');
     expect(SYSTEM_ACTION_KEYS).toContain('reports.manage');
-    // The jobs keys (08 §2.17): routes/jobs + the realtime hub enforce
+    // The jobs keys: routes/jobs + the realtime hub enforce
     // system:jobs:read|manage, so both MUST be in the closed set or the
     // grant is unparseable and no role can ever hold it.
     expect(SYSTEM_ACTION_KEYS).toContain('jobs.read');

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `connection-status` (annex §12) — spinner→success banner (pos-soft, check
+ * `connection-status` (annex) — spinner→success banner (pos-soft, check
  * circle) for connect/test flows, with an optional per-row Test action that
  * re-issues the check. Evidence: Adminium Console, Data Connections.
  *
  * The widget is a projection of bound `{state, host, detail}` — it never runs the
- * check itself. Test emits a `mutate` intent the host executes (04 §2.1), which
- * is what re-issues the probe and pushes a new payload back down.
+ * check itself. Test emits a `mutate` intent the host executes, which is what
+ * re-issues the probe and pushes a new payload back down.
  */
 
 import { Button, MonoText, Spinner, cn } from '@adminium/ui';

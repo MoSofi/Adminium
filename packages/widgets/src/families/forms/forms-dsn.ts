@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The DSN grammar behind `connection-string-field` (annex §10) — PURE module
- * (zod-free, React-free, JSX-free, and deliberately free of user-visible copy).
+ * The DSN grammar behind `connection-string-field` (annex) — PURE module
+ * (zod-free, React-free, JSX-free, and deliberately free of user-visible
+ * copy).
  *
  * LIFTED FROM THE STUDIO WIZARD. This logic was born in
- * `apps/dashboard/src/studio/connect/wizardState.ts` (M9-T04); the wizard is now
- * a CONSUMER of this module rather than a second implementation. Two reasons:
+ * `apps/dashboard/src/studio/connect/wizardState.ts`; the wizard is now a
+ * CONSUMER of this module rather than a second implementation. Two reasons:
  * `@adminium/widgets` may never import `apps/*` (so a shared rule has to live on
  * this side), and two ideas of "what is a valid DSN" would inevitably drift —
  * the wizard would reject a connection string this widget accepts, or vice
@@ -14,8 +15,8 @@
  * narrower 3-engine vocabulary, its host/port *fields* form (the inverse of this
  * grammar), and the copy it maps the codes below onto.
  *
- * LOCALE POLICY (04 §2): widgets are locale-agnostic, so validation returns a
- * CODE, never a message — the caller owns the copy. That is also what lets the
+ * LOCALE POLICY: widgets are locale-agnostic, so validation returns a CODE,
+ * never a message — the caller owns the copy. That is also what lets the
  * wizard keep its existing `t()` strings while sharing the RULE.
  *
  * ENGINE VOCABULARY: `allowed` is a parameter, not a constant, because the annex
@@ -25,7 +26,7 @@
  * the grammar to do it.
  */
 
-/** Every scheme family the DSN grammar can NAME (annex §10 `protocols`). */
+/** Every scheme family the DSN grammar can NAME (annex `protocols`). */
 export const DSN_ENGINES = ['postgres', 'mysql', 'sqlite', 'mongodb', 'mssql'] as const;
 export type DsnEngine = (typeof DSN_ENGINES)[number];
 
@@ -89,7 +90,7 @@ export function dsnPlaceholder(engine: DsnEngine): string {
 }
 
 /**
- * The host a DSN points at (annex §10: "host parsing") — `null` for SQLite (a
+ * The host a DSN points at (annex: "host parsing") — `null` for SQLite (a
  * file path has no host) and for anything unparseable.
  *
  * The authority's LAST `@` separates credentials from host, not the first: an
@@ -180,8 +181,8 @@ export const DSN_PROVIDER_CHIPS: readonly DsnProviderChip[] = [
 
 /**
  * The chips for one engine — shown only for the engine they belong to, so the
- * Postgres row stays Postgres-relevant (M9-T04). `allowed` additionally hides
- * chips for engines the host cannot connect to at all.
+ * Postgres row stays Postgres-relevant. `allowed` additionally hides chips
+ * for engines the host cannot connect to at all.
  */
 export function providerChipsFor(engine: DsnEngine, allowed: readonly DsnEngine[] = DSN_ENGINES): DsnProviderChip[] {
   if (!allowed.includes(engine)) return [];

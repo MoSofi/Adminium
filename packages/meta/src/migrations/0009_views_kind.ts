@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0009 — `adminium_views.kind` (04-widget-registry.md §6.3, 07-meta-store.md
- * §3.18).
+ * Wave 0009 — `adminium_views.kind`.
  *
  * A saved-views row now carries a `kind` discriminator: `'filters'` (the M5
  * saved page-crud grid state) or `'layout'` (a per-user dashboard layout

@@ -8,7 +8,7 @@
  * by calling the same service. `adminium import-zip` is the inverse.
  *
  * The distinction the docs insist on and this command's copy repeats: the export
- * is **server + config, not source code** (BRIEF §3). Adminium interprets
+ * is **server + config, not source code** (BRIEF). Adminium interprets
  * configuration at runtime; it never emits an app.
  */
 

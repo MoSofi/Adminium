@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Hosted-apps data layer (29-app-surfaces.md §3.1, 29-T17) over
- * `/api/v1/surfaces` (`apps/server/src/routes/surfaces-admin/`).
+ * Hosted-apps data layer over `/api/v1/surfaces`
+ * (`apps/server/src/routes/surfaces-admin/`).
  *
  * Shapes mirror the server's Zod replies (`routes/surfaces-admin/schema.ts`) —
  * the copied-mirror convention: change both together.
@@ -16,7 +16,7 @@ export type StaffPlacement = 'internal' | 'external';
 export interface SurfaceDomainTarget {
   appKey: string;
   side: SurfaceSide;
-  /** Which instance this host serves; absent is the app's own mount (29 D9). */
+  /** Which instance this host serves; absent is the app's own mount. */
   instance?: string;
 }
 
@@ -26,14 +26,14 @@ export interface SurfaceSummaryDto {
   side: SurfaceSide;
   /** URL prefix the surface serves under, e.g. `/apps/clients/staff`. */
   prefix: string;
-  /** False = "predates the toolkit; internal placement unavailable" (29 D7). */
+  /** False = "predates the toolkit; internal placement unavailable". */
   navAvailable: boolean;
   navItems: number;
-  /** Staff surfaces only (29 D9); null on customer surfaces. */
+  /** Staff surfaces only; null on customer surfaces. */
   staffPlacement: StaffPlacement | null;
   /**
-   * Staff surfaces only: which connection this surface reads (29 D9). Null is
-   * unbound — the app infers "the only connection serving", right on a
+   * Staff surfaces only: which connection this surface reads. Null is unbound
+   * — the app infers "the only connection serving", right on a
    * single-connection instance and a guess on any other.
    */
   connectionId: string | null;
@@ -111,7 +111,7 @@ export interface DomainRow {
   host: string;
   appKey: string;
   side: SurfaceSide;
-  /** Instance this host serves; `''` is the app's own mount (29 D9). */
+  /** Instance this host serves; `''` is the app's own mount. */
   instance: string;
 }
 
@@ -160,7 +160,7 @@ export function domainIssuesFrom(error: unknown): DomainIssue[] {
   );
 }
 
-/** Customer app keys, for the mint flow's optional binding (29-T15). */
+/** Customer app keys, for the mint flow's optional binding. */
 export function customerAppKeys(reply: SurfacesListReply): string[] {
   return reply.surfaces
     .filter((surface) => surface.side === 'customer')

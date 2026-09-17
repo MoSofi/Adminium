@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The three byte drivers against ONE contract (37-files-and-storage.md D30,
- * 37-T04/T05/T06).
+ * The three byte drivers against ONE contract.
  *
  * `local` always runs. `webdav` always runs too, against the in-process stub,
  * and additionally against `TEST_WEBDAV_URL` when one is set. `s3` runs against
- * `TEST_S3_URL` — MinIO in CI (37-T09), skipped locally with the reason printed
- * in the test name, never silently.
+ * `TEST_S3_URL` — MinIO in CI, skipped locally with the reason printed in the
+ * test name, never silently.
  *
  * TEST_S3_URL grammar: `http://<accessKey>:<secretKey>@<host>:<port>/<bucket>`.
  */

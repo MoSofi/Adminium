@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure-geometry tests for the distribution & correlation charts (04-T09):
+ * Pure-geometry tests for the distribution & correlation charts:
  * deterministic path strings (Node-vs-golden, no DOM), RTL mirroring of the
  * horizontal axis/grid/order, and structural invariants. The golden strings
  * are byte-identical across Node and browser because the geometry is DOM-free
- * (04 §7.1 raster-export contract).
+ * (raster-export contract).
  */
 import { describe, expect, it } from 'vitest';
 

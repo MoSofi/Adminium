@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two placement settings, cached (29-app-surfaces.md D9).
+ * The two placement settings, cached.
  *
  * ── WHY THESE ARE CACHED AND `settingsRepo.get()` IS NOT ───────────────────
  * There is no settings cache in this server; `get()` is a bare SELECT. That is
@@ -119,12 +119,12 @@ export function createSurfaceSettings(opts: SurfaceSettingsOptions): SurfaceSett
 /**
  * Is this app's staff surface blended into the dashboard?
  *
- * DEFAULT INTERNAL. Hosted is the normal case (28 D25), the whole point of this
- * wave is that an operator should not need a second place to go, and an
- * operator who wants the app on its own is opting OUT — a decision they make
- * once, in Studio, and which is therefore worth storing. The inverse default
- * would leave every freshly installed app invisible until someone found a
- * toggle they had no reason to look for.
+ * DEFAULT INTERNAL. Hosted is the normal case, the whole point of this wave is
+ * that an operator should not need a second place to go, and an operator who
+ * wants the app on its own is opting OUT — a decision they make once, in
+ * Studio, and which is therefore worth storing. The inverse default would leave
+ * every freshly installed app invisible until someone found a toggle they had
+ * no reason to look for.
  */
 export function staffPlacementOf(settings: SurfaceSettings, appKey: string): StaffPlacement {
   return settings.apps[appKey]?.staff ?? 'internal';

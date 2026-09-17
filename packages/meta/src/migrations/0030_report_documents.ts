@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0030 — report documents: the AUTHORED source behind `/report-builder`
- * (43-report-builder.md §3.2; 43-T02).
+ * Wave 0030 — report documents: the AUTHORED source behind
+ * `/report-builder`.
  *
  * ─── Three tables now carry the word "report"; this is the builder's ───────
  *
@@ -13,7 +13,7 @@
  * wrong one at every layer, which is why this table, its prefix (`rpt`), its
  * route and its namespace all say `report-builder` rather than `reports`.
  *
- * ─── One table, two kinds (§3.2) ───────────────────────────────────────────
+ * ─── One table, two kinds ──────────────────────────────────────────────────
  *
  * The comp holds templates and reports in one object model behind
  * `arrName(kind)` (comp 511), so `kind` is a column rather than a second
@@ -35,10 +35,10 @@
  *
  * ─── Why `origin_id` has no foreign key ────────────────────────────────────
  *
- * A report remembers the template it was built from (43 D6/O3). That is a
- * SOFT reference on purpose: deleting a template must not unmake, cascade
- * into, or null out a report an operator already published — the report is
- * its own document from the moment it exists. `created_by` keeps the named
+ * A report remembers the template it was built from. That is a SOFT
+ * reference on purpose: deleting a template must not unmake, cascade into,
+ * or null out a report an operator already published — the report is its
+ * own document from the moment it exists. `created_by` keeps the named
  * table-level FK to users (0026/0027's spelling), because a deleted user
  * leaving a dangling id is exactly the row the SET NULL exists for.
  *
@@ -49,8 +49,7 @@
  * (`duplicate` 555). The repo keeps that arithmetic (min − 1,
  * shift-and-insert) on this column; `(kind, position)` is the manager's list
  * index. There is no second index here: this comp has no topics, no language
- * variations and no group-by (43 §5 item 3), so no family question exists to
- * answer.
+ * variations and no group-by, so no family question exists to answer.
  *
  * ─── Denormalised for the list ─────────────────────────────────────────────
  *

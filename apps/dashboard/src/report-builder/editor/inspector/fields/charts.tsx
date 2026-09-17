@@ -3,11 +3,11 @@
  * The four data field groups (comp 383-387): the KPI metrics, the bar/line
  * data points, and the table's rows — all three through one `RowsEditor`.
  *
- * THE KPI ROW GAINS A THIRD FIELD (43 D27/O8). The comp renders a delta on
- * the canvas (317, 622) and its Metrics rows carry Label + Value only (383),
- * so a metric added in the app can never show one — `onAddKpi` even seeds
- * `delta: ''` (646). *Delta* is the Value field's own shape at 64 px, and the
- * canvas colour rule (`−`/`-` red, else green) is unchanged.
+ * THE KPI ROW GAINS A THIRD FIELD. The comp renders a delta on the canvas
+ * (317, 622) and its Metrics rows carry Label + Value only (383), so a metric
+ * added in the app can never show one — `onAddKpi` even seeds `delta: ''`
+ * (646). *Delta* is the Value field's own shape at 64 px, and the canvas
+ * colour rule (`−`/`-` red, else green) is unchanged.
  */
 import { cn } from '@adminium/ui';
 

@@ -14,22 +14,22 @@
  * Every render of such a string is a thrown-and-swallowed exception, and the
  * rendered text is correct by accident.
  *
- * It also breaks the moment translations become editable at runtime
- * (23-runtime-translations.md §4.6): a perfectly valid override that writes
- * `{count, number}` instead of `{count}` keeps the same argument name, passes
- * every name-based check, and then renders raw ICU source to users — because
- * the literal token the `.replace` looked for is no longer there. The write
- * validator defends this with argument-TYPE parity; this rule keeps new call
- * sites from relying on that defence in the first place.
+ * It also breaks the moment translations become editable at runtime: a
+ * perfectly valid override that writes `{count, number}` instead of `{count}`
+ * keeps the same argument name, passes every name-based check, and then
+ * renders raw ICU source to users — because the literal token the `.replace`
+ * looked for is no longer there. The write validator defends this with
+ * argument-TYPE parity; this rule keeps new call sites from relying on that
+ * defence in the first place.
  *
  * NOT reported: `.replace` on a value that is not a translator call — notably
  * `labels.shiftCount.replace('{n}', …)` inside `@adminium/widgets`, where the
  * template is a caller-supplied prop and interpolating it is the documented
- * i18n-agnostic component contract (10-i18n-theming.md §2.4).
+ * i18n-agnostic component contract.
  *
  * Escape hatch: `// i18n-literal-token: <reason>` on the line above.
  *
- * Spec: 23-runtime-translations.md §4.6.
+ * See: https://docs.adminium.dev/anatomy/decisions/i18n-rules/
  */
 
 /** Call targets treated as translators. */

@@ -26,8 +26,7 @@ import {
 } from '../page-dashboard/data-adapter.js';
 
 /**
- * `page-chat` template renderer (09-generated-app.md §7.9; annex §14 — comp:
- * Chat).
+ * `page-chat` template renderer (annex — comp: Chat).
  *
  * Renders the stored `config.layout` of a chat archetype page: the required
  * `inbox` slot as a directly-composed `conversation-inbox` over the
@@ -62,7 +61,7 @@ export interface PageChatLabels {
 export interface PageChatProps {
   /** The page's `config.layout` document (raw — validated here). */
   layout: unknown;
-  /** Transport for bound widgets; absent → demo mode (04 §5.3). */
+  /** Transport for bound widgets; absent → demo mode. */
   adapter?: DashboardDataAdapter | undefined;
   params?: Record<string, unknown> | undefined;
   /** Host/test override — wins over adapter/demo resolution per instance. */
@@ -197,7 +196,7 @@ export function PageChat({
     [scopedRows, messageMap, ownAuthors],
   );
 
-  // --- optimistic echo (09 §7.9 "send appends … optimistic echo") ---------------
+  // --- optimistic echo ---------------
   const [pending, setPending] = useState<ChatMessage[]>([]);
   const pendingSeq = useRef(0);
   const messages = useMemo(() => {

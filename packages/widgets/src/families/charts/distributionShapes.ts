@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Distribution & correlation charts group (04-T09): config schemas, §3 envelope
+ * Distribution & correlation charts group: config schemas, envelope
  * narrowing, and deterministic seeded demo payloads for the seven widgets
  * `chart-boxplot`, `chart-violin`, `chart-ridgeline`, `chart-scatter-bubble`,
  * `chart-hexbin`, `chart-correlation-matrix`, `chart-parallel-coordinates`.
  *
  * This module is chart-primitive-free (only the seeded PRNG is pulled from
  * @adminium/charts) so the registry metadata, demo generators, and narrowing
- * guards stay verifiable without loading the family's component chunk (04 §2.3).
- * Demo payloads use `mulberry32` off an FNV-hashed seed — no Date.now/random,
- * byte-identical across runs and platforms (04 §7.7).
+ * guards stay verifiable without loading the family's component chunk. Demo
+ * payloads use `mulberry32` off an FNV-hashed seed — no Date.now/random,
+ * byte-identical across runs and platforms.
  */
 import { mulberry32 } from '@adminium/charts';
 import { z } from 'zod';
@@ -61,7 +61,7 @@ export interface DistributionData {
   groups: DistributionGroupData[];
 }
 
-/** Narrows the §3 `distribution` envelope; null on a malformed payload. */
+/** Narrows the `distribution` envelope; null on a malformed payload. */
 export function asDistribution(data: unknown): DistributionData | null {
   const r = rec(data);
   if (r === null || !Array.isArray(r.groups)) return null;
@@ -99,7 +99,7 @@ export interface MatrixData {
   cells: (number | null)[][];
 }
 
-/** Narrows the §3 `matrix` envelope to numeric/null cells; null on malformed. */
+/** Narrows the `matrix` envelope to numeric/null cells; null on malformed. */
 export function asMatrix(data: unknown): MatrixData | null {
   const r = rec(data);
   if (r === null || !Array.isArray(r.rowKeys) || !Array.isArray(r.colKeys) || !Array.isArray(r.cells)) {
@@ -124,7 +124,7 @@ export interface RecordListData {
   total: number;
 }
 
-/** Narrows the §3 `record-list` envelope; null on malformed. */
+/** Narrows the `record-list` envelope; null on malformed. */
 export function asRecordList(data: unknown): RecordListData | null {
   const r = rec(data);
   if (r === null || !Array.isArray(r.rows)) return null;
@@ -152,7 +152,7 @@ export function rowString(row: Rec, field: string): string | undefined {
 // --- config schemas ----------------------------------------------------------
 
 export const chartBoxplotConfigSchema = widgetSharedConfigSchema.extend({
-  /** Value-axis unit label (annex §2 `unit`). */
+  /** Value-axis unit label (annex `unit`). */
   unit: z.string().optional(),
   showAxis: z.boolean().default(true),
   showCategoryLabels: z.boolean().default(true),
@@ -168,7 +168,7 @@ export const chartViolinConfigSchema = widgetSharedConfigSchema.extend({
 export type ChartViolinConfig = z.infer<typeof chartViolinConfigSchema>;
 
 export const chartRidgelineConfigSchema = widgetSharedConfigSchema.extend({
-  /** Peak height as a multiple of the row step (annex §2 `overlap`). */
+  /** Peak height as a multiple of the row step (annex `overlap`). */
   overlap: z.number().min(0.5).max(3).default(1.5),
   showLabels: z.boolean().default(true),
   height: z.number().int().min(120).max(600).default(260),
@@ -178,9 +178,9 @@ export type ChartRidgelineConfig = z.infer<typeof chartRidgelineConfigSchema>;
 export const chartScatterBubbleConfigSchema = widgetSharedConfigSchema.extend({
   xField: z.string().default('team_size'),
   yField: z.string().default('revenue'),
-  /** Optional bubble-size dimension (annex §2 bubble radius). */
+  /** Optional bubble-size dimension (annex bubble radius). */
   rField: z.string().optional(),
-  /** Optional category → color legend (annex §2 `segments`). */
+  /** Optional category → color legend (annex `segments`). */
   segmentField: z.string().optional(),
   trendLine: z.boolean().default(true),
   axisLabels: z.boolean().default(true),
@@ -203,16 +203,16 @@ export const chartCorrelationMatrixConfigSchema = widgetSharedConfigSchema.exten
 export type ChartCorrelationMatrixConfig = z.infer<typeof chartCorrelationMatrixConfigSchema>;
 
 export const chartParallelCoordinatesConfigSchema = widgetSharedConfigSchema.extend({
-  /** Ordered numeric columns rendered as vertical axes (annex §2 `axes`). */
+  /** Ordered numeric columns rendered as vertical axes (annex `axes`). */
   axes: z.array(z.string()).min(2).default(['speed', 'reach', 'cost', 'roi']),
-  /** Optional category column driving polyline color (annex §2 `colorBy`). */
+  /** Optional category column driving polyline color (annex `colorBy`). */
   colorBy: z.string().optional(),
   showAxisLabels: z.boolean().default(true),
   height: z.number().int().min(120).max(600).default(280),
 });
 export type ChartParallelCoordinatesConfig = z.infer<typeof chartParallelCoordinatesConfigSchema>;
 
-// --- deterministic demo payloads (§3 envelopes) ------------------------------
+// --- deterministic demo payloads (envelopes) ------------------------------
 
 function round(value: number): number {
   return Math.round(value);

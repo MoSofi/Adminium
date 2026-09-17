@@ -46,7 +46,7 @@ const squareClasses =
 /**
  * Pagination — 32px square page buttons (active = accent fill), mono numbers,
  * RTL-mirrored chevrons, ellipsis windowing
- * (research/design-system.md §3 Tier 3).
+ * (research/design-system.md Tier 3).
  */
 export function Pagination({
   page,

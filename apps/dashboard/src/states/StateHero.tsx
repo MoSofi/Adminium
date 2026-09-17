@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * StateHero — the `page-system-state` hero (09-generated-app.md §6.1),
- * composed per System States.dc.html: giant mono status code behind a
- * 64px tone-soft glyph tile, headline + guidance, optional diagnostics
- * readout (db-unreachable), CTA row, and the faded Adminium mark.
+ * StateHero — the `page-system-state` hero, composed per System
+ * States.dc.html: giant mono status code behind a 64px tone-soft glyph
+ * tile, headline + guidance, optional diagnostics readout
+ * (db-unreachable), CTA row, and the faded Adminium mark.
  *
  * Renders full-bleed (`fullPage`) for app-wide failures and inline inside the
  * content outlet for page-scoped ones (shell + nav stay usable).

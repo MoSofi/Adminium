@@ -25,9 +25,9 @@ const toneBarBg: Record<Tone, string> = {
 };
 
 /**
- * Default auto-dismiss durations in ms (03-component-library.md §7.2).
- * The imperative queue manager that actually fires dismissal is wave 2 —
- * here the duration only drives the visual `nb-toastbar` countdown.
+ * Default auto-dismiss durations in ms. The imperative queue manager
+ * that actually fires dismissal is wave 2 — here the duration only
+ * drives the visual `nb-toastbar` countdown.
  */
 export const TOAST_DEFAULT_DURATIONS: Record<ToastVariant, number | null> = {
   success: 2600,
@@ -64,9 +64,8 @@ export interface ToastProps extends Omit<ComponentPropsWithRef<'div'>, 'title'> 
  * Toast — single toast primitive: icon tile · title · description · optional
  * action · close · bottom timer bar (`nb-toastbar` scaleX). Slide-in via
  * `nb-toastin`, RTL-mirrored to `nb-toastin-rtl`
- * (research/design-system.md §3 Tier 3). Queue semantics (max 4,
- * auto-dismiss, `toast.*` imperative API) are wave 2 — this is the
- * controlled primitive.
+ * (research/design-system.md Tier 3). Queue semantics (max 4, auto-dismiss,
+ * `toast.*` imperative API) are wave 2 — this is the controlled primitive.
  */
 export function Toast({
   variant = 'info',

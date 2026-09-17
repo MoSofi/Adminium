@@ -28,7 +28,7 @@
  * everything else still gets the envelope. The test asserts both, because
  * getting this backwards is invisible until someone opens the link.
  *
- * ─── Domain attachment (29-app-surfaces.md D3/D4, 29-T06) ────────────────────
+ * ─── Domain attachment ───────────────────────────────────────────────────────
  *
  * A mapping in `surfaces.domains` is `host → {appKey, side}`. On a request
  * whose `Host` matches one, this instance answers AS that surface: the path is
@@ -77,9 +77,9 @@ declare module 'fastify' {
      */
     surfaceForUrl: (url: string) => HostedSurface | null;
     /**
-     * The surface a request's `Host` is mapped to (29 D3), or null — null for
-     * every request on an instance with no `surfaces.domains` entries, which is
-     * what keeps unmapped hosts byte-identical to the pre-domain behaviour.
+     * The surface a request's `Host` is mapped to, or null — null for every
+     * request on an instance with no `surfaces.domains` entries, which is what
+     * keeps unmapped hosts byte-identical to the pre-domain behaviour.
      */
     surfaceForHost: (request: FastifyRequest) => Promise<HostedSurface | null>;
     /**
@@ -99,8 +99,8 @@ declare module 'fastify' {
       reply: FastifyReply,
     ) => Promise<boolean>;
     /**
-     * Cached `surfaces.apps` / `surfaces.domains` (29-app-surfaces.md D9), or
-     * null on a boot with no meta store.
+     * Cached `surfaces.apps` / `surfaces.domains`, or null on a boot with no
+     * meta store.
      *
      * Decorated here rather than created per consumer because three of them
      * need the SAME cache: Host routing reads it per request, `/bootstrap`
@@ -115,23 +115,23 @@ declare module 'fastify' {
 export interface SurfacesPluginOptions {
   surfaces?: readonly HostedSurface[] | undefined;
   /**
-   * Installed apps (47-app-installation.md D2), re-read on install and
-   * uninstall. Absent ⇒ this composition serves only what boot discovered.
+   * Installed apps, re-read on install and uninstall. Absent ⇒ this
+   * composition serves only what boot discovered.
    */
   installed?: InstalledApps | undefined;
   /** Absent ⇒ no placement settings; every surface stays where it is mounted. */
   metaDb?: MetaDb | undefined;
   /**
-   * Opens `token_encrypted` for the `surface-config.json` route (29 D10).
-   * Absent ⇒ the route is not registered and a hosted customer surface can
-   * only be configured by baked `VITE_` vars.
+   * Opens `token_encrypted` for the `surface-config.json` route. Absent ⇒
+   * the route is not registered and a hosted customer surface can only be
+   * configured by baked `VITE_` vars.
    */
   crypto?: DsnCrypto | undefined;
 }
 
 /**
- * The paths a MAPPED host still serves from the dashboard (29 D4) — what makes
- * a mapped staff domain sign-in-able at all: the gate's `302 /login?next=…`
+ * The paths a MAPPED host still serves from the dashboard — what makes a
+ * mapped staff domain sign-in-able at all: the gate's `302 /login?next=…`
  * lands on the dashboard's login screen ON that host, `POST
  * /api/v1/auth/login` sets the session cookie FOR that host (CSRF leg A
  * already derives its expectation from `Host`), and the redirect back to
@@ -254,7 +254,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
     const installed = opts.installed ?? null;
 
     /*
-     * THE TWO SOURCES, AS ONE LIST (47-app-installation.md D4).
+     * THE TWO SOURCES, AS ONE LIST.
      *
      * Boot-discovered surfaces come from a directory the operator points at and
      * cannot change while the process runs; installed surfaces come from a
@@ -269,8 +269,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
      *
      * BOOT WINS on a key collision: those surfaces own registered routes, which
      * an installed app's hook must not shadow. The install route refuses the
-     * collision up front (47 D4), so this ordering is the second line of that
-     * rule rather than the statement of it.
+     * collision up front, so this ordering is the second line of that rule
+     * rather than the statement of it.
      */
     const allSurfaces = (): readonly HostedSurface[] =>
       installed === null ? surfaces : [...surfaces, ...installed.current()];
@@ -331,9 +331,9 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
     );
 
     /*
-     * The mapped-host serve (29 D3), as a ROOT-LEVEL hook rather than a route:
-     * the dashboard's static wildcard owns `/` and every real dashboard file,
-     * so by the time the router has matched, a mapped host would already be
+     * The mapped-host serve, as a ROOT-LEVEL hook rather than a route: the
+     * dashboard's static wildcard owns `/` and every real dashboard file, so
+     * by the time the router has matched, a mapped host would already be
      * getting dashboard bytes. Running before dispatch is the only place the
      * Host decision can override that — and because the hook is registered
      * AFTER the auth plugin's, `request.user` is populated when the staff gate
@@ -411,7 +411,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
     });
 
     /*
-     * EXTRA INSTANCES of an app, at `/apps/<appKey>/<slug>/<side>/…` (29 D9).
+     * EXTRA INSTANCES of an app, at `/apps/<appKey>/<slug>/<side>/…`.
      *
      * A HOOK, not registered routes, and for the same reason Host routing is a
      * hook: instances live in settings and an operator adds one in Studio. Routes
@@ -458,8 +458,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
     });
 
     /*
-     * INSTALLED APPS, at their own mount `/apps/<appKey>/<side>/…`
-     * (47-app-installation.md D2).
+     * INSTALLED APPS, at their own mount
+     * `/apps/<appKey>/<side>/…`.
      *
      * A HOOK for the same reason the instance mount above is one, and here the
      * reason is sharper: routes are fixed at boot, and an install happens while
@@ -515,10 +515,9 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         });
 
         /*
-         * Served-not-baked customer configuration (29 D10, 29-T16). An EXACT
-         * route in the same scope as the static mount: exact beats wildcard in
-         * the router, so it shadows any `surface-config.json` a build might
-         * have left on disk.
+         * Served-not-baked customer configuration. An EXACT route in the same
+         * scope as the static mount: exact beats wildcard in the router, so it
+         * shadows any `surface-config.json` a build might have left on disk.
          *
          * BOTH SIDES ARE SERVED, for opposite reasons. The customer document
          * carries a publishable key. The STAFF document carries no key — staff
@@ -529,10 +528,10 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
          *
          * The document is exactly as public as the bundle it configures: the
          * publishable key already ships inside a public JS file on every
-         * standalone build (28 §3.3 made it re-readable in Studio for that
-         * reason). Serving it here is the same exposure with rotation made
-         * cheap — rotate in Studio, reload the page, no rebuild — which is why
-         * the reply is `no-store`.
+         * standalone build (made it re-readable in Studio for that reason).
+         * Serving it here is the same exposure with rotation made cheap —
+         * rotate in Studio, reload the page, no rebuild — which is why the
+         * reply is `no-store`.
          */
         const metaDb = opts.metaDb;
         const crypto = opts.crypto;
@@ -555,7 +554,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
             const key = await publicKeysRepo(metaDb).newestLiveByApp(surface.appKey, 'customer');
             if (key === null) {
               // The standard coded envelope; the app's hard-stop renders it as
-              // the legible "not connected" screen (28 D24's failure surface).
+              // the legible "not connected" screen (failure surface).
               throw new NotFoundError('No live publishable key is bound to this surface.', {
                 appKey: surface.appKey,
               });
@@ -568,8 +567,9 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         await scope.register(fastifyStatic, {
           root: surface.root,
           prefix: `${surface.prefix}/`,
-          // Only ONE registration may decorate `reply.sendFile`; the dashboard's
-          // has it. These serve through the route handler instead.
+          // Only ONE registration may decorate `reply.sendFile`, and
+          // plugins/static.ts owns it, dashboard or not. These serve through
+          // the route handler instead.
           decorateReply: false,
           wildcard: true,
         });

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * App-level toast queue (09-generated-app.md §4.1 mutations + undo): one
- * `useToastQueue` + `ToastStack` mounted by AppShell; pages push through
- * context. `useUndoToast` is the undo-first mutation companion — a successful
- * mutation's `undoToken` becomes a 5.2 s toast whose Undo action calls
- * `POST /api/v1/data/undo/:token` and invalidates the data + widget caches.
+ * App-level toast queue (mutations + undo): one `useToastQueue` +
+ * `ToastStack` mounted by AppShell; pages push through context.
+ * `useUndoToast` is the undo-first mutation companion — a successful
+ * mutation's `undoToken` becomes a 5.2 s toast whose Undo action calls `POST
+ * /api/v1/data/undo/:token` and invalidates the data + widget caches.
  */
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, type ReactNode } from 'react';

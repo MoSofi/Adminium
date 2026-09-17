@@ -582,7 +582,7 @@ describe('introspectPostgres — column types', () => {
     const column = model.tables[0]!.columns[0]!;
     expect(column.logicalType).toBe('varchar');
     expect(column.maxLength).toBe(320);
-    // 05 §4.1: the domain NAME stays as dbType so the UI can show it.
+    // The domain NAME stays as dbType so the UI can show it.
     expect(column.dbType).toBe('email_address');
     expect(column.enumRef).toBeNull();
   });

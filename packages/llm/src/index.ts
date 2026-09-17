@@ -3,26 +3,26 @@
  * `@adminium/llm` — headless LLM-assist: provider clients, prompt builder,
  * response contract + validation, EnrichmentSet normalization/diff, and the
  * BYO round-trip. Browser-safe (pure Zod / pure TS + global `fetch`); consumed
- * by both `@adminium/server` and `@adminium/dashboard`. See 06-llm-assist.md.
+ * by both `@adminium/server` and `@adminium/dashboard`.
  *
  * This is the single top-level barrel: it re-exports every subdir barrel. The
  * tracks own their own subdir barrels; this file stitches them together.
  */
 export const PACKAGE_NAME = '@adminium/llm';
 
-// Shared contract types (§2, §7.1) + the encrypted-key crypto contract (§3.2).
+// Shared contract types + the encrypted-key crypto contract.
 export * from './types.js';
 export * from './crypto.js';
 
-// Response contract + validation pipeline (§6, §7).
+// Response contract + validation pipeline.
 export * from './response/index.js';
 
-// Prompt builder + chunker (§4, §5).
+// Prompt builder + chunker.
 export * from './prompt/index.js';
 
-// Direct-API provider clients (§3).
+// Direct-API provider clients.
 export * from './providers/index.js';
 
-// Apply: EnrichmentSet normalization + field-by-field diff (§8).
+// Apply: EnrichmentSet normalization + field-by-field diff.
 export * from './apply/index.js';
 export { NAV_GROUP_MAX } from './nav-group.js';

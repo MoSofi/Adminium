@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Deterministic "valid config" sampler for the config-schema fuzz harness
- * (04-widget-registry.md acceptance #4/#17 spirit, 04-T17 (3)): generate N
- * random *valid* configs from a widget's Zod schema and assert render never
- * crashes.
+ * (#4/#17 spirit, (3)): generate N random *valid* configs from a widget's
+ * Zod schema and assert render never crashes.
  *
  * Rather than reflect over Zod internals (version-fragile), it lowers the schema
  * to JSON Schema via Zod v4's `z.toJSONSchema` and samples instances from that
@@ -43,8 +42,8 @@ interface JsonSchema {
 /**
  * Top-level config fields the sampler never populates: `binding` holds a full
  * recursive QueryDescriptor whose valid instances are non-trivial and which the
- * demo/render path treats as absent anyway (04 §5.3). Leaving it out keeps every
- * sample valid without special-casing the descriptor grammar.
+ * demo/render path treats as absent anyway. Leaving it out keeps every sample
+ * valid without special-casing the descriptor grammar.
  */
 const SKIP_FIELDS = new Set(['binding']);
 

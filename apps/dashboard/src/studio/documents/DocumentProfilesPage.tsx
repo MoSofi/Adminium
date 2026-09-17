@@ -1,30 +1,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/documents` — the document MAPPINGS (34-invoices-add-on.md §3.7,
- * §7.8 as amended; 34-T14).
+ * `/studio/documents` — the document MAPPINGS (as amended).
  *
  * ─── WHAT THIS PAGE IS, AFTER THE REDESIGN ─────────────────────────────────
  *
- * NOT the authoring surface. §7.8's own amendment moved that to `/invoices`,
+ * NOT the authoring surface. An amendment moved that to `/invoices`,
  * which is where somebody writes a document; this page binds a KIND to a
  * TABLE — which columns fill which slots, what fires it, where it goes. That
  * split is also the right grant split: authoring is everyday operator work,
  * and a mapping decides what an add-on may read, which is
  * `system:manifests:manage`.
  *
- * ─── IT IS ABSENT WHEN NO PROVIDER IS INSTALLED (24 D6) ────────────────────
+ * ─── IT IS ABSENT WHEN NO PROVIDER IS INSTALLED ────────────────────────────
  *
  * Not empty — absent. A Studio page listing a feature the deployment does not
- * have is a page that exists to advertise, and 24 D6 is explicit that with the
- * add-on off there is no affordance at all.
+ * have is a page that exists to advertise, is explicit that with the add-on
+ * off there is no affordance at all.
  *
  * ─── EVERY LABEL BELONGS TO THE PROVIDER ───────────────────────────────────
  *
  * `kind.label`, `slot.label`, `slot.help` are eight-locale records the add-on
  * carries (D14). This page picks the viewer's locale out of them. There is no
  * invoice vocabulary anywhere in this file — a folio or certificate provider
- * drives the same page unchanged, which is the claim §7.5 makes about the
- * pipeline and this page has to keep true on screen.
+ * drives the same page unchanged, which is the claim makes about the pipeline
+ * and this page has to keep true on screen.
  */
 
 import { Alert, Button, Card, Input, Select, Spinner } from '@adminium/ui';
@@ -89,7 +88,7 @@ export function DocumentProfilesPage() {
   const profiles = useQuery({ queryKey: [...documentsKey, 'profiles'], queryFn: fetchProfiles });
   /*
    * `profile` present = revising a saved mapping, absent = making one. The
-   * editor is the same form either way: §3.7 describes one shape, and a second
+   * editor is the same form either way: one shape is described, and a second
    * "edit" screen would be the place the two drift apart.
    */
   const [editing, setEditing] = useState<{
@@ -102,8 +101,8 @@ export function DocumentProfilesPage() {
   const available = kinds.data ?? [];
   if (available.length === 0) {
     /*
-     * ABSENT, not empty (24 D6). This page has nothing to say on a deployment
-     * with no provider installed, and saying it anyway would be advertising.
+     * ABSENT, not empty. This page has nothing to say on a deployment with no
+     * provider installed, and saying it anyway would be advertising.
      */
     return (
       <Alert tone="info" title={studioT('studio:documents.title', 'Document mappings')}>
@@ -238,7 +237,7 @@ function ProfileList({
 /**
  * The editor.
  *
- * ONE SCROLL, not a wizard. §3.7 numbers eight steps and they are eight
+ * ONE SCROLL, not a wizard. Eight steps are numbered and they are eight
  * SECTIONS here: a mapping is a form somebody revisits — changing which column
  * feeds one slot six months later — and a wizard makes that a five-click
  * journey to reach the field they want. The numbering is kept in the headings
@@ -276,7 +275,7 @@ function ProfileEditor({
     (profile?.deliver as { emailSlot?: string | null } | undefined)?.emailSlot ?? '',
   );
 
-  // The kind's own address fields (§3.7 step 6 needs an `email` slot), and
+  // The kind's own address fields (needs an `email` slot), and
   // whether this deployment could send anything at all.
   const emailSlots = kind.outline.slots.filter((slot) => slot.type === 'email');
   const mailGate = emailSendGate(useCapabilities().flags);
@@ -290,10 +289,10 @@ function ProfileEditor({
         id: row.id,
         label: row.label,
         canRead: row.canRead,
-        // §3.7 step 3's picker seed. Until this was carried through, the field
-        // existed on `TableFacts`, `rankTables` scored on it, and nothing ever
-        // set it — so the "has a child table" half of the ranking had never
-        // once fired.
+        // The picker seed. Until this was carried through, the field existed
+        // on `TableFacts`, `rankTables` scored on it, and nothing ever set it
+        // — so the "has a child table" half of the ranking had never once
+        // fired.
         children: row.children ?? [],
         columns: row.columns.map(
           (column): ColumnFacts => ({
@@ -483,11 +482,10 @@ function ProfileEditor({
             )}
           </p>
           {/*
-            * §3.7 step 6's email half. The choice is a SLOT, not a column: the
-            * address may arrive through a lookup across a foreign key, and by
-            * the time a document exists the slot is the only name that still
-            * means anything — the subject is frozen and the source row may be
-            * gone.
+            * The email half. The choice is a SLOT, not a column: the address
+            * may arrive through a lookup across a foreign key, and by the time
+            * a document exists the slot is the only name that still means
+            * anything — the subject is frozen and the source row may be gone.
             */}
           {emailSlots.length === 0 ? (
             <p className="text-sm text-fg-muted">
@@ -611,7 +609,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 
 /**
  * A collection slot: which child table, and which of its columns fill the
- * slot's own columns (§3.7 step 3).
+ * slot's own columns.
  *
  * ─── TWO DECISIONS, AND THE SECOND DEPENDS ON THE FIRST ────────────────────
  *
@@ -806,8 +804,8 @@ function SlotRow({
             /*
              * Every option is PREFIXED, so that `TYPED` can never collide with
              * a column actually called "typed". The three states this select
-             * carries are §3.7 step 4's whole subject: left alone, read from a
-             * column, or given a value here.
+             * carries are whole subject: left alone, read from a column, or
+             * given a value here.
              */
             value={
               binding.kind === 'column'

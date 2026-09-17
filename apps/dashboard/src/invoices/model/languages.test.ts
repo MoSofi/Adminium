@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The six document languages (34-invoices-add-on.md 34-T47, O23): the fixed
- * order, and `localizeBody` — the comp's `localize` (1203-1207) — which moves
- * exactly three fields and leaves a title the dictionary lacks alone.
+ * The six document languages: the fixed order, and `localizeBody` — the
+ * comp's `localize` (1203-1207) — which moves exactly three fields and leaves
+ * a title the dictionary lacks alone.
  */
 import { describe, expect, it } from 'vitest';
 

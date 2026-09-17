@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * M5-T02 — `settings.includedTables` consumption in the generation pipeline:
+ * `settings.includedTables` consumption in the generation pipeline:
  * the model is restricted to the persisted selection before `generatePages`,
  * join/system tables stay in the relation graph, and dangling FK mirrors /
  * relations to excluded tables are dropped. Offline (pure function).

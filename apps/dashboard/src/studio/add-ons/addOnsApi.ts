@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Add-on data layer (26-T14, 32 §4.4) over `/api/v1/add-ons`
+ * Add-on data layer over `/api/v1/add-ons`
  * (`apps/server/src/routes/add-ons/`).
  *
  * Shapes mirror the server's Zod replies (`routes/add-ons/schema.ts`) — the
@@ -8,15 +8,15 @@
  *
  * ── NOTHING HERE HOLDS A SECRET ────────────────────────────────────────────
  * By construction rather than by care: the server's replies carry no credential
- * value at all (24 D15), only `connected`, `connectionExpiresAt` and the granted
- * scopes. So there is no cache rule to get right, unlike `apiKeysApi` and
+ * value at all, only `connected`, `connectionExpiresAt` and the granted scopes.
+ * So there is no cache rule to get right, unlike `apiKeysApi` and
  * `publicSurfaceApi` which both had to reason about a plaintext. What the
  * connect forms send goes straight out and is never put in a query.
  *
  * ── BROWSING IS NOT FETCHING ───────────────────────────────────────────────
  * `GET /add-ons/catalog` reads what is already on disk plus whatever the last
- * refresh cached; it never reaches the network on its own (32 §4.3). Refresh is
- * a separate, explicit action that enqueues a job — which is why this file has
+ * refresh cached; it never reaches the network on its own. Refresh is a
+ * separate, explicit action that enqueues a job — which is why this file has
  * both, and why the page presents them as different things rather than as a
  * list that silently updates itself.
  */
@@ -41,7 +41,7 @@ export interface AddOnDto {
   name: string;
   version: string;
   connectKind: ConnectKind;
-  /** Whether a credential is stored. Never the credential (24 D15). */
+  /** Whether a credential is stored. Never the credential. */
   connected: boolean;
   connectionExpiresAt: number | null;
   attachments: AddOnAttachment[];
@@ -49,13 +49,13 @@ export interface AddOnDto {
   provides: { contract: string; version: number }[];
   networkAllow: string[];
   /**
-   * The manifest's own `settings[]` (34 §7.9), so the panel can GENERATE its
-   * form instead of hard-coding one. That hard-coded form was a single
-   * `api_key` input, and `shipping-dhl` has declared two secrets since wave 4
-   * — its connect could not be completed from this page at all.
+   * The manifest's own `settings[]`, so the panel can GENERATE its form
+   * instead of hard-coding one. That hard-coded form was a single `api_key`
+   * input, and `shipping-dhl` has declared two secrets since wave 4 — its
+   * connect could not be completed from this page at all.
    */
   settings: AddOnSettingDeclaration[];
-  /** The stored NON-SECRET values. A credential is never read back (24 D15). */
+  /** The stored NON-SECRET values. A credential is never read back. */
   settingValues: Record<string, unknown>;
   bundles: { path: string; url: string; integrity: string }[];
 }
@@ -77,9 +77,9 @@ export interface AddOnSettingDeclaration {
 export interface CatalogEntry {
   key: string;
   /**
-   * Already resolved to the caller's locale by the server (40 D2) — the feed
-   * carries eight and the reply carries one. Never a key: the route that used
-   * to answer `entry.name['en_US']` against a feed keyed `en`/`zh-cn` labelled
+   * Already resolved to the caller's locale by the server — the feed carries
+   * eight and the reply carries one. Never a key: the route that used to
+   * answer `entry.name['en_US']` against a feed keyed `en`/`zh-cn` labelled
    * every catalogue row with its own slug.
    */
   name: string;
@@ -89,9 +89,9 @@ export interface CatalogEntry {
   upgradeTo: string | null;
   /** One line, localized where the feed has it; null when nothing has one. */
   tagline: string | null;
-  /** Category slugs, verbatim — an unknown one renders as itself (40 D4). */
+  /** Category slugs, verbatim — an unknown one renders as itself. */
   categories: string[];
-  /** Whether installing will ask for a credential (40 D5). */
+  /** Whether installing will ask for a credential. */
   connectKind: ConnectKind;
 }
 
@@ -102,7 +102,7 @@ export interface CatalogBrowse {
   onlineEnabled: boolean;
 }
 
-/** Mirrors `installPlanDto` — the consent dialog's document (26 §7). */
+/** Mirrors `installPlanDto` — the consent dialog's document. */
 export interface InstallPlan {
   addOnKey: string;
   version: string;
@@ -176,7 +176,7 @@ export async function discardStaged(key: string, version: string): Promise<void>
 }
 
 /**
- * The online-catalog switch (32 §4.4, D8, O1).
+ * The online-catalog switch.
  *
  * Returns the EFFECTIVE state, which is not always what was asked for:
  * `ADMINIUM_NETWORK_FEATURES=off` and desktop air-gap mode veto the setting, so
@@ -208,8 +208,8 @@ export interface StagedPackage {
  * verify-then-hardened-unpack path a download does — one code path for
  * bundled, downloaded and uploaded packages — so an air-gapped operator gets the
  * same guarantees rather than a softer set. The value is the sha512 fingerprint
- * every release publishes beside its Download link (48 D9), a plain sha512 of
- * the tarball, so the person doing the sideloading can carry it without trusting
+ * every release publishes beside its Download link, a plain sha512 of the
+ * tarball, so the person doing the sideloading can carry it without trusting
  * this page.
  *
  * Which add-on the bytes are — its key and version — is not sent. The server
@@ -304,7 +304,7 @@ export async function completeOAuth(
 }
 
 /**
- * Save the non-secret half of an add-on's settings (34 §7.9, D14).
+ * Save the non-secret half of an add-on's settings.
  *
  * A PARTIAL patch: the panel edits one field at a time, and sending the whole
  * object back is how one tab's stale copy silently reverts another's save.

@@ -13,8 +13,8 @@ import { Tooltip } from '../tooltip/Tooltip.js';
 
 /**
  * Square icon button, radius 10 (`rounded-md`), sizes 28/32/34/38px. Hover →
- * surface-3, active scale .9 via the tokens `.nb-ib` interaction class
- * (research/design-system.md §3 Tier 1).
+ * surface-3, active scale.9 via the tokens `.nb-ib` interaction class
+ * (research/design-system.md Tier 1).
  */
 export const iconButtonVariants = cva(
   'nb-ib inline-flex shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg ' +

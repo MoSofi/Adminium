@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Public types for @adminium/schema-import — 05-introspection-engine.md §5.
+ * Public types for @adminium/schema-import.
  *
  * The short `Format` names are the user-facing vocabulary of the import
  * wizard and the `/api/v1/schema-import/parse` route; they map 1:1 onto the

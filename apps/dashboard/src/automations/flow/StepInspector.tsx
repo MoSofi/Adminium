@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The step inspector (`designs/Automation Rules.dc.html` 105-157, 572-595;
- * 42-automations-and-workflow-logs.md FILL F3, FILL F5, 42-T21).
+ * The step inspector (105-157, 572-595; FILL F3, FILL F5).
  *
  * The comp draws a 368 px right-hand sheet with five things: the step's name,
  * a description, a Condition card, two branch labels and a "Continue on

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `useWidgetStream` — the client half of the `stream` binding (04-widget-registry.md
- * §5.3). A stream widget (realtime-feed, live log-table tail, unread-badge)
- * calls this with the server-returned `channel` + `snapshot` (bound mode) or a
- * demo seed (unbound/preview mode); it subscribes over the injected
- * {@link StreamTransport}, folds events into a bounded newest-first buffer, and
- * exposes the buffer, an unread counter, a connection flag, pause/resume, and an
- * optimistic `prepend`.
+ * `useWidgetStream` — the client half of the `stream` binding. A stream widget
+ * (realtime-feed, live log-table tail, unread-badge) calls this with the
+ * server-returned `channel` + `snapshot` (bound mode) or a demo seed
+ * (unbound/preview mode); it subscribes over the injected {@link StreamTransport},
+ * folds events into a bounded newest-first buffer, and exposes the buffer, an unread
+ * counter, a connection flag, pause/resume, and an optimistic `prepend`.
  *
  * Transport is injected via {@link StreamTransportProvider} (bound mode) or
  * built in-hook from the deterministic demo generator (unbound mode). The hook

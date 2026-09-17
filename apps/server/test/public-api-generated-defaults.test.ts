@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 33-T10 — `{ "$generate": "uuid" | "now" }` in a public scope's `defaults`
- * (33-live-chat-add-on.md §7.1, D14; O5 ruled 2026-09-01 as D21).
+ * `{ "$generate": "uuid" | "now" }` in a public scope's `defaults`
+ * (ruled 2026-09-01 as D21).
  *
  * Three things are worth proving and they are proved in three different ways,
  * because they fail in three different places:
@@ -10,9 +10,9 @@
  *      literal that merely looks like one is not mistaken for either. Pure, so
  *      it is exhaustive rather than representative.
  *   2. THE ROUND TRIP, ON ALL THREE DIALECTS. This is the one the design was
- *      most likely to get wrong, and 33 §12 says so in advance: `install-ddl`
- *      maps `timestamptz` to `datetime` on mysql, and `datetime` refuses the
- *      ISO instant with its `T` and `Z` that postgres and sqlite want. A test
+ * most likely to get wrong, says so in advance: `install-ddl` maps
+ *      `timestamptz` to `datetime` on mysql, and `datetime` refuses the ISO
+ *      instant with its `T` and `Z` that postgres and sqlite want. A test
  *      that ran on sqlite alone would be green and wrong.
  *   3. THE UPDATE PATH DOES NOT MINT. Asserted here at the unit level and in
  *      `public-api-isolation.test.ts` over the real route; a sentinel resolved
@@ -111,8 +111,8 @@ describe('the instant, per dialect', () => {
   });
 
   it("strips the T and the Z for mysql's datetime, and keeps UTC", () => {
-    // 33 §12's named risk. `datetime` has no zone to carry one, so the literal
-    // must denote the same instant postgres and sqlite are holding.
+    // The named risk. `datetime` has no zone to carry one, so the literal must
+    // denote the same instant postgres and sqlite are holding.
     expect(instantFor('mysql', now)).toBe('2026-09-06 12:34:56.789');
   });
 });
@@ -321,10 +321,10 @@ describe.skipIf(MYSQL_URL === undefined)('generated defaults round-trip on mysql
 
   it('writes a minted id and instant that `datetime` accepts, and reads both back', async () => {
     /*
-     * THE RISK 33 §12 NAMED. An ISO instant with its `T` and `Z` is what the
-     * other two dialects want and what this column refuses; `instantFor`
-     * reshapes it, and this is the only place that reshaping is checked
-     * against a real MySQL rather than against a string.
+     * THE RISK NAMED. An ISO instant with its `T` and `Z` is what the other
+     * two dialects want and what this column refuses; `instantFor` reshapes
+     * it, and this is the only place that reshaping is checked against a
+     * real MySQL rather than against a string.
      *
      * It also exercises `insertRow`'s mysql branch, which has no RETURNING and
      * re-selects by the primary key it was handed — reachable here precisely

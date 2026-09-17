@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-wizard` template (04 §10 archetype 12; 09-generated-app.md §11.1) —
- * the stepped-flow shell the Import Wizard (and future guided flows) mounts
- * in: a numbered step rail, the active step's content region, and a footer
- * slot for the host's Back/Next controls.
+ * `page-wizard` template (archetype 12) — the stepped-flow shell the Import
+ * Wizard (and future guided flows) mounts in: a numbered step rail, the
+ * active step's content region, and a footer slot for the host's Back/Next
+ * controls.
  *
  * PRESENTATIONAL AND HOST-DRIVEN, the PageCrud discipline: the template owns
  * layout and step affordances only. Which step is active, what each step
  * renders (upload-dropzone, column-mapping-table, validation-issues-list,
- * progress-bar — the §11.1 composition), and whether Next is allowed are the
+ * progress-bar — the composition), and whether Next is allowed are the
  * HOST's decisions, flowing in as props; the template never fetches, never
  * validates, never imports. Step states derive from order (before active =
  * done) unless the host overrides one (`error` on a failed run).
@@ -40,7 +40,7 @@ export interface PageWizardProps {
    * never clickable (a wizard cannot be fast-forwarded).
    */
   onSelectStep?: ((stepId: string) => void) | undefined;
-  /** The active step's content (the host composes the §11.1 widgets here). */
+  /** The active step's content (the host composes the widgets here). */
   children?: ReactNode;
   /** Host-owned navigation (Back / Next / Run import…). */
   footer?: ReactNode;

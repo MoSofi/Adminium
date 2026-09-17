@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Where an instance's own state lands when nobody named a directory
- * (01-architecture.md §7.1: `ADMINIUM_DATA_DIR`, `--data-dir`).
+ * (`ADMINIUM_DATA_DIR`, `--data-dir`).
  *
  * The schema default is `./data` — RELATIVE, so it means "wherever this process
  * was started". That is exactly right for one shape of install and wrong for
@@ -12,7 +12,7 @@
  *    matches what `docker-compose.yml` and the deploy manifests describe. Every
  *    container and the Electron shell also pass the variable explicitly, so
  *    they never reach this file at all.
- *  - **from a shell, anywhere.** `npx @adminiumjs/adminium` is most often run
+ *  - **from a shell, anywhere.** `npx @adminiumjs/adminium try` is most often run
  *    from whatever directory the user happened to be standing in — a home
  *    directory, `~/Downloads`, a repo that has nothing to do with Adminium.
  *    There `./data` is litter: a `meta.db`, `files/`, `backups/` and
@@ -46,11 +46,10 @@ export const HOME_DATA_DIR_NAME = '.adminium';
 /**
  * Proof that an Adminium instance already lives in `<cwd>/data`.
  *
- * Both are files this product writes and nothing else does — the §7.2 bootstrap
- * file and the §3.1 OD-1 embedded store. A bare `data/` directory is NOT proof:
- * plenty of projects have one full of CSVs, and adopting it because of the name
- * would be how Adminium ends up scattering its state through somebody's
- * dataset folder.
+ * Both are files this product writes and nothing else does — the bootstrap file
+ * and the OD-1 embedded store. A bare `data/` directory is NOT proof: plenty of
+ * projects have one full of CSVs, and adopting it because of the name would be
+ * how Adminium ends up scattering its state through somebody's dataset folder.
  */
 const INSTANCE_MARKERS = ['adminium.json', 'meta.db'] as const;
 

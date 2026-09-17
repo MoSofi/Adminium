@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Audit-log data layer over the already-registered `/api/v1/audit` routes
- * (08-server-api.md §2.14) — no new server surface. The routes have shipped
- * since M7 with no consumer at all; this is that consumer.
+ * — no new server surface. The routes have shipped since M7 with no
+ * consumer at all; this is that consumer.
  *
  * KEYSET, NOT OFFSET. The reply hands back an opaque `nextCursor` and there is
  * no total count, deliberately: an audit log is append-heavy and page 7 of an
@@ -14,7 +14,7 @@
  * `apps/server/src/routes/audit/schema.ts`, and {@link AUDIT_CATEGORIES}
  * mirrors `auditCategorySchema` in `packages/meta/src/schema/json-payloads.ts`
  * (the dashboard has no `@adminium/meta` dependency — copied mirror, per the
- * 01-architecture.md §2.3 matrix). Change them together.
+ * matrix). Change them together.
  */
 import { infiniteQueryOptions } from '@tanstack/react-query';
 
@@ -43,7 +43,7 @@ export interface AuditEntryDto {
   actorId: string | null;
   actorLabel: string;
   category: AuditCategory;
-  /** Dotted verb, e.g. `role.permission.change` (07 §3.11). */
+  /** Dotted verb, e.g. `role.permission.change`. */
   action: string;
   connectionId: string | null;
   entity: Record<string, unknown> | null;
@@ -148,8 +148,8 @@ function imageOf(changes: Record<string, unknown> | null, side: 'before' | 'afte
  * `changes` → the drawer's rows, union of both images' fields in sorted order.
  *
  * Not every category writes both sides: a create has only `after`, a delete
- * only `before`, and `07 §3.11` truncates the whole payload past 16 KB (see
- * {@link isTruncated}). All three are rendered as what they are rather than
+ * only `before`, truncates the whole payload past 16 KB (see {@link
+ * isTruncated}). All three are rendered as what they are rather than
  * flattened into "no changes".
  */
 export function diffRows(changes: Record<string, unknown> | null): DiffRow[] {
@@ -166,7 +166,7 @@ export function diffRows(changes: Record<string, unknown> | null): DiffRow[] {
   });
 }
 
-/** The server dropped part of the payload at the §3.11 16 KB cap. */
+/** The server dropped part of the payload at the 16 KB cap. */
 export function isTruncated(changes: Record<string, unknown> | null): boolean {
   return changes?.['_truncated'] === true;
 }

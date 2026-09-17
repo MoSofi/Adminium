@@ -1,8 +1,8 @@
 name: nightly
 
-# M0 risk mitigation (16-milestones.md M0 risks): a cache misconfiguration in
-# ci.yml could hide real breakage behind stale turbo artifacts. This job runs
-# the full pipeline nightly with `turbo --force`, ignoring every cache layer.
+# M0 risk mitigation (M0 risks): a cache misconfiguration in ci.yml could
+# hide real breakage behind stale turbo artifacts. This job runs the full
+# pipeline nightly with `turbo --force`, ignoring every cache layer.
 
 on:
   schedule:

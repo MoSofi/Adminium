@@ -11,9 +11,8 @@ export interface MonoTextProps extends Omit<React.ComponentPropsWithRef<'span'>,
 
 /**
  * JetBrains Mono + `tabular-nums` wrapper (the comps' `.nb-num`) — mandatory
- * for money, KPIs, IDs, timestamps, counts, connection strings
- * (03-component-library.md §7.4). Never applies locale formatting;
- * that is the caller's job.
+ * for money, KPIs, IDs, timestamps, counts, connection strings. Never
+ * applies locale formatting; that is the caller's job.
  */
 export function MonoText({ className, asChild = false, ...props }: MonoTextProps) {
   const Comp = asChild ? Slot : 'span';

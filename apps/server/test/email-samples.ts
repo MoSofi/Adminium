@@ -10,8 +10,8 @@
  * vocabulary suite fails on a missing one.
  *
  * The editor's own defaults live in `apps/dashboard/src/email/model/blocks.ts`
- * and cannot be imported here (01 §2.3: the server tree may not reach the
- * dashboard), so these mirror the comp's `defaultData` (1143-1171) by hand.
+ * and cannot be imported here (the server tree may not reach the dashboard),
+ * so these mirror the comp's `defaultData` (1143-1171) by hand.
  */
 export const EMAIL_BLOCK_SAMPLES: Record<string, Record<string, unknown>> = {
   'email.heading': { text: 'Reset your password', level: 1 },

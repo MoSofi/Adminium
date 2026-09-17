@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SSE fallback `GET /api/v1/events?channels=a,b` (08-server-api.md §3,
- * M2-T07) for proxies/environments without WebSocket. Same channel model and
- * subscribe-time authorization as `/ws`; events are framed as
+ * SSE fallback `GET /api/v1/events?channels=a,b` for proxies/environments
+ * without WebSocket. Same channel model and subscribe-time authorization as
+ * `/ws`; events are framed as
  *
  *   event: <type>
  *   data: {"channel":…,"type":…,"data":…,"ts":…}
  *
  * with an initial `retry:` hint and `: keep-alive` comments every 25 s.
- * `?topics=` is accepted as an alias (§3 sketch uses "topics").
+ * `?topics=` is accepted as an alias (sketch uses "topics").
  *
  * Register inside the `/api/v1` prefix scope — `registerJobsAndRealtime`
  * (jobs/register.ts) does.
@@ -33,7 +33,7 @@ export const SSE_MAX_CHANNELS = 64;
 export const eventsQuery = z.object({
   /** Comma-separated channel list. */
   channels: z.string().max(4096).optional(),
-  /** Alias per the §3 protocol sketch. */
+  /** Alias per the protocol sketch. */
   topics: z.string().max(4096).optional(),
 });
 export type EventsQuery = z.infer<typeof eventsQuery>;

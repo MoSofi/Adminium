@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * page-builder doc persistence algebra (09-generated-app.md §7.11, M7-T06) —
- * PURE module. The authored document is part of the page's stored layout: it
- * rides in the canvas slot item's `config.doc`, so saving a doc is exactly the
- * EXISTING pages layout write path (PATCH `/pages/:id/layout` for the shared
- * default, PUT `/me/views/:id/layout` for a personal draft) with no new server
- * surface — `layoutItemSchema.config` is an open record, so the doc validates
- * as ordinary instance config.
+ * page-builder doc persistence algebra — PURE module. The authored document is
+ * part of the page's stored layout: it rides in the canvas slot item's
+ * `config.doc`, so saving a doc is exactly the EXISTING pages layout write
+ * path (PATCH `/pages/:id/layout` for the shared default, PUT
+ * `/me/views/:id/layout` for a personal draft) with no new server surface —
+ * `layoutItemSchema.config` is an open record, so the doc validates as
+ * ordinary instance config.
  *
  * Save-as-version rides the EXISTING saved-views API: a version is a
  * `POST /pages/:id/views` row whose config carries `{ v: 1, builderDoc }` —

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * ⌘K command palette (09-generated-app.md §5.2, Command
- * Palette.dc.html): the ui CommandPalette shell, fixed group order —
- * Actions (theme toggle, shortcuts panel, sign out), Navigate (nav-tree
- * entries with their G-chord hints), Recent (mixed-entity localStorage list,
- * ./recent.ts — AppShell records every page navigation / record open), then
- * the async Records group (M4-T06): at ≥ 2 query chars, a debounced
- * `GET /api/v1/search?types=record&limit=3` (../../api/search.ts) merges
- * server record hits; selecting one navigates to `/p/:pageSlug/r/:recordId`.
+ * ⌘K command palette (Command Palette.dc.html): the ui CommandPalette shell,
+ * fixed group order — Actions (theme toggle, shortcuts panel, sign out),
+ * Navigate (nav-tree entries with their G-chord hints), Recent (mixed-entity
+ * localStorage list./recent.ts — AppShell records every page navigation /
+ * record open), then the async Records group: at ≥ 2 query chars, a
+ * debounced `GET /api/v1/search?types=record&limit=3` (././api/search.ts)
+ * merges server record hits; selecting one navigates to
+ * `/p/:pageSlug/r/:recordId`.
  *
  * Honesty rules: while the search is in flight a disabled "Searching…" row
  * renders (never a stale pretend-result); a completed empty search adds
@@ -16,7 +16,7 @@
  * launcher, not a status surface.
  *
  * The "Ask AI" footer renders when bootstrap `llm.enabled` — i.e. once an
- * admin configures a provider in Settings → AI (06-llm-assist.md §3.2).
+ * admin configures a provider in Settings → AI.
  *
  * Loaded lazily by AppShell on the first open (the entry-chunk ratchet,
  * apps/dashboard/scripts/check-entry-budget.mjs — a modal that is closed on
@@ -41,9 +41,9 @@ import { t } from '../../i18n/t.js';
 import { lucideByName } from '../../lib/lucide.js';
 import { pushRecent, readRecent, type RecentEntry } from './recent.js';
 
-/** Debounce for the async Records group (09 §5.2 — snappy but not chatty). */
+/** Debounce for the async Records group (snappy but not chatty). */
 export const SEARCH_DEBOUNCE_MS = 200;
-/** Server minimum — below this the palette stays client-side only (08 §2.9). */
+/** Server minimum — below this the palette stays client-side only. */
 export const SEARCH_MIN_CHARS = 2;
 
 const RECORD_ID_PREFIX = 'record:';
@@ -194,7 +194,7 @@ export function CommandPaletteHost({
       });
     }
 
-    // Async Records group (M4-T06). Server hits matched q against columns the
+    // Async Records group. Server hits matched q against columns the
     // label may not contain, so the current query rides along as a keyword —
     // the palette's client-side filter must never hide a server hit.
     if (needle.length >= SEARCH_MIN_CHARS) {
@@ -212,7 +212,7 @@ export function CommandPaletteHost({
           : records.hits.map((hit) => ({
               id: `${RECORD_ID_PREFIX}${hit.pageSlug} ${hit.recordId}`,
               label: hit.label,
-              // §2.9 "record hits show row context" — the muted subtitle.
+              // The muted subtitle.
               ...(hit.context === undefined ? {} : { description: hit.context }),
               icon: <FileText />,
               keywords: [needle, hit.table],

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the auth resource (08-server-api.md §2.1; naming per §1.5:
- * `<resource><Action><Part>` consts, PascalCase `z.infer` types).
+ * Zod schemas for the auth resource (naming: `<resource><Action><Part>`
+ * consts, PascalCase `z.infer` types).
  */
 import { z } from 'zod';
 
-/** Public projection of `adminium_users` — never hashes/secrets (§7 item 6). */
+/** Public projection of `adminium_users` — never hashes/secrets. */
 export const authUserView = z.object({
   id: z.string(),
   email: z.string(),
@@ -42,7 +42,7 @@ export const authLoginReply = z.object({
 });
 export type AuthLoginReply = z.infer<typeof authLoginReply>;
 
-/** 202 login step-up: the user has TOTP enabled (§2.1). */
+/** 202 login step-up: the user has TOTP enabled. */
 export const authLoginChallengeReply = z.object({
   data: z.object({
     twoFactorRequired: z.literal(true),
@@ -152,13 +152,13 @@ export const authPasswordChangeBody = z.object({
 export type AuthPasswordChangeBody = z.infer<typeof authPasswordChangeBody>;
 
 /**
- * `POST /auth/desktop-session` (11-electron.md §5) — the desktop shell's per-boot
- * token, exchanged for a normal session.
+ * `POST /auth/desktop-session` — the desktop shell's per-boot token, exchanged
+ * for a normal session.
  *
- * The shape is pinned to §2.2 step 4's token (32 bytes, hex) rather than left as
- * a loose string: a body that cannot be the token is rejected by the schema
- * before any comparison runs, and 422-on-malformed keeps the handler's own 401
- * meaning exactly one thing — "well-formed, and wrong".
+ * The shape is pinned to token (32 bytes, hex) rather than left as a loose
+ * string: a body that cannot be the token is rejected by the schema before any
+ * comparison runs, and 422-on-malformed keeps the handler's own 401 meaning
+ * exactly one thing — "well-formed, and wrong".
  */
 export const authDesktopSessionBody = z.object({
   bootToken: z.string().regex(/^[0-9a-fA-F]{64}$/, 'must be 64 hex characters'),

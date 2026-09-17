@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `inline-editable-field` (annex §10) — a text/number/select span rendered as a
+ * `inline-editable-field` (annex) — a text/number/select span rendered as a
  * transparent input inside documents and canvases: click (or Enter/Space) to
- * edit, Enter/blur to commit, Escape to cancel.
- * Evidence: Invoice Builder, Email Templates, Report Builder, See It In Action.
+ * edit, Enter/blur to commit, Escape to cancel. Evidence: Invoice Builder,
+ * Email Templates, Report Builder, See It In Action.
  *
- * Binds §3 `record` — "a bound field path on a doc object" is one row plus a
+ * Binds `record` — "a bound field path on a doc object" is one row plus a
  * column name, which is exactly that shape.
  *
  * COMMIT, NOT DEBOUNCE. The annex describes "debounced dirty tracking", and this
  * widget deliberately commits on an explicit action instead. A debounce timer
  * would emit `mutate` intents the user never confirmed — each one an audited,
  * undoable write — for text they were still in the middle of typing, and would
- * make the widget's own tests depend on wall-clock time (04 §7.7 wants neither).
- * Escape restoring the original value is only meaningful if nothing was written
- * on the way there.
+ * make the widget's own tests depend on wall-clock time (wants neither). Escape
+ * restoring the original value is only meaningful if nothing was written on the
+ * way there.
  */
 
 import { Input, Select, Textarea, cn } from '@adminium/ui';

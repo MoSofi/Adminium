@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/help` (M10-T06): local search over the checked-in index, category cards
- * that double as filter toggles (the `ia-mapping.md` §4 keeper), the filtered
- * empty state, and the deep links out to docs.adminium.dev.
+ * `/help`: local search over the checked-in index, category cards that double
+ * as filter toggles (the keeper), the filtered empty state, and the deep
+ * links out to docs.adminium.dev.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';

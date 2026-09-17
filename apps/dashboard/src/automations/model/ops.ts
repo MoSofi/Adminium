@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Every edit the flow builder can make, as PURE functions over a graph
- * (42-automations-and-workflow-logs.md §3.5; the comp's own rules,
- * Automation Rules 405-449).
+ * (the comp's own rules, Automation Rules 405-449).
  *
  * They are pure for two reasons. The obvious one is that they are the only
  * part of the builder that can be unit-tested without a DOM. The load-bearing

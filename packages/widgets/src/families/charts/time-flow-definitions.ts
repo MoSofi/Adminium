@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family "time, forecast & flow" definitions (04-T09; annex §2 ids
+ * `charts` family "time, forecast & flow" definitions (annex ids
  * chart-multiline, chart-stream, chart-forecast, chart-anomaly,
  * chart-candlestick, chart-bump, chart-timeline-lanes). Metadata only; the green
  * loop spreads `timeFlowChartDefinitions` into the family's registry wiring.
  * Component code loads through the group barrel via `lazy()` so the whole group
- * stays in the one `charts` chunk (04 §2.3). Annex grid heights are rows;
- * `sizing` stores 40px half-units (rows × 2, 04 §6.1).
+ * stays in the one `charts` chunk. Annex grid heights are rows; `sizing` stores
+ * 40px half-units (rows × 2).
  */
 import { lazy } from 'react';
 

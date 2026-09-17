@@ -46,9 +46,9 @@ function Demo({ async }: { async?: boolean }) {
 }
 
 /**
- * Two gates in one confirm (35-schema-authoring.md D18). The first field names
- * the object, the second is a second, differently derived token — here the
- * measured row count — so satisfying one tells you nothing about the other.
+ * Two gates in one confirm. The first field names the object, the second is a
+ * second, differently derived token — here the measured row count — so
+ * satisfying one tells you nothing about the other.
  */
 function SecondFieldDemo() {
   const [open, setOpen] = useState(false);

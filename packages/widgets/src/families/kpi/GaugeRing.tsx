@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `gauge-ring` (annex §1) — an SVG circle with an animated `stroke-dashoffset`
+ * `gauge-ring` (annex) — an SVG circle with an animated `stroke-dashoffset`
  * sweep, a center value and a status caption ("86/100 Healthy", "73% of 5M
  * rows"), plus the annex's footer variants (spent-of-total figures + trend pill,
  * or an avatar stack). Doubles as the budget/allocation donut gauge. Renders only
@@ -17,9 +17,9 @@
  * same policy verbatim). The caption, footer figures and avatar stack around it
  * are ordinary logical-property flex and flip normally.
  *
- * REDUCED MOTION (04 §7.5, mandatory): the sweep animates from empty to its
- * value on mount via `useMountAnimation`, which paints the final frame
- * immediately under `prefers-reduced-motion: reduce`.
+ * REDUCED MOTION (mandatory): the sweep animates from empty to its value on
+ * mount via `useMountAnimation`, which paints the final frame immediately
+ * under `prefers-reduced-motion: reduce`.
  */
 
 import { Avatar, AvatarStack, DeltaPill, MonoText } from '@adminium/ui';
@@ -34,7 +34,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { gaugeRingConfigSchema, gaugeRingDemoData } from './kpi-config.js';
 export type { GaugeRingConfig } from './kpi-config.js';
 

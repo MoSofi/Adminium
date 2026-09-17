@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Test animation's cadence (42-automations-and-workflow-logs.md D14,
- * 42-T23) — the comp's own two numbers, pinned with fake timers.
+ * The Test animation's cadence — the comp's own two numbers, pinned with
+ * fake timers.
  *
  * The assertion that matters is the LAST one: the animation walks the trace's
  * own order and SKIPS the branch the run did not take. The comp lights the

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Saved-view round trip (M5-T06). The property that matters is the one the
- * feature is named after: applying a saved view has to reproduce EXACTLY the
- * query the grid held when it was saved. So the two mappings are tested as a
- * pair — state → config → props — rather than one at a time, and
+ * Saved-view round trip. The property that matters is the one the feature is
+ * named after: applying a saved view has to reproduce EXACTLY the query the
+ * grid held when it was saved. So the two mappings are tested as a pair —
+ * state → config → props — rather than one at a time, and
  * `gridMatchesConfig` is tested against the shapes that are equal in meaning
  * but not in spelling (an omitted search vs `''`, an absent sort vs `null`),
  * because that comparison is what decides whether the toolbar shows the view

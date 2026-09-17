@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page-template registry — the single source of truth for which page templates
- * `@adminium/widgets` can render (04-widget-registry.md §10; 09-generated-app.md
- * §7). The LLM allow-lists (`llm-allowlist.ts`) derive from this map, so a
- * template the runtime cannot mount can never be recommended to, or accepted
- * from, the model (06-llm-assist.md §5 decision 6). A Studio template picker
- * does not exist yet; when one is built it should consume this registry the
- * same way (see `descriptionKey` below for the i18n contract it must follow).
+ * `@adminium/widgets` can render. The LLM allow-lists (`llm-allowlist.ts`)
+ * derive from this map, so a template the runtime cannot mount can never be
+ * recommended to, or accepted from, the model. A Studio template picker does not
+ * exist yet; when one is built it should consume this registry the same way (see
+ * `descriptionKey` below for the i18n contract it must follow).
  *
  * The runtime ships fourteen templates (mirroring `builtinTemplates` in the
  * dashboard's `pages/templates.tsx`):
@@ -15,13 +14,13 @@
  *   - `page-dashboard` — the widget-grid template.
  *   - the twelve M7 wave-2 templates. The nine data-shaped archetypes
  *     (`page-board` … `page-chat`) are recommendable — each is emittable by a
- *     §14 auto-trigger (`archetypes.ts`) and materializable from an accepted
- *     LLM suggestion (`composeRequestedArchetype`). The three tool surfaces
+ * auto-trigger (`archetypes.ts`) and materializable from an accepted LLM
+ *     suggestion (`composeRequestedArchetype`). The three tool surfaces
  *     (`page-builder`, `page-wizard`, `page-settings`) are renderable but NOT
- *     recommendable: they are platform/tool pages, not
- *     per-table archetypes, and the §8.3 materialization path cannot compose
- *     them (no `ARCHETYPE_NAV` placement), so an accepted suggestion could
- *     never become a working page.
+ *     recommendable: they are platform/tool pages, not per-table archetypes,
+ *     and the materialization path cannot compose them (no `ARCHETYPE_NAV`
+ *     placement), so an accepted suggestion could never become a working
+ *     page.
  *
  * New templates register by appending a `PageTemplateDefinition` to
  * `pageTemplateDefinitions`; every list derived from this registry then grows
@@ -39,9 +38,9 @@ export interface PageTemplateDefinition {
   /**
    * Whether the LLM may *recommend* this template for a user table. `page-crud`
    * is always generated for every table, so it is renderable but never
-   * recommendable (06-llm-assist.md §5 decision 6 — "page-crud is always
-   * generated and must not be recommended"). All other templates are
-   * recommendable candidates the model ranks per table.
+   * recommendable ("page-crud is always generated and must not be
+   * recommended"). All other templates are recommendable candidates the model
+   * ranks per table.
    */
   recommendable: boolean;
   /**
@@ -56,10 +55,10 @@ export interface PageTemplateDefinition {
   descriptionKey: string;
   /**
    * Whether the template makes sense as a page of its own — what the Studio
-   * "create page" picker offers. `page-record` is the one `false` today
-   * (30-record-pages.md D1/D3): it renders the `/p/$slug/r/$recordId` child
-   * route of a crud page and has nothing to show without a record id, so
-   * offering it standalone would create dead-end pages. Absent ⇒ true.
+   * "create page" picker offers. `page-record` is the one `false` today: it
+   * renders the `/p/$slug/r/$recordId` child route of a crud page and has
+   * nothing to show without a record id, so offering it standalone would
+   * create dead-end pages. Absent ⇒ true.
    */
   standalone?: boolean;
 }
@@ -74,9 +73,9 @@ export interface PageTemplateDefinition {
 export const PAGE_CRUD_TEMPLATE_ID = 'page-crud';
 
 /**
- * Registry id of the record detail template (30-record-pages.md D3) — same
- * literal-here discipline as `PAGE_CRUD_TEMPLATE_ID` (the component module
- * exports its own constant; a page-templates.test pin keeps them together).
+ * Registry id of the record detail template — same literal-here discipline
+ * as `PAGE_CRUD_TEMPLATE_ID` (the component module exports its own
+ * constant; a page-templates.test pin keeps them together).
  */
 export const PAGE_RECORD_TEMPLATE_ID = 'page-record';
 
@@ -89,7 +88,7 @@ export const PAGE_DASHBOARD_TEMPLATE_ID = 'page-dashboard';
  */
 export const pageTemplateDefinitions: readonly PageTemplateDefinition[] = [
   { id: PAGE_CRUD_TEMPLATE_ID, recommendable: false, descriptionKey: 'templates.pageCrud.description' },
-  // The record detail page (30-record-pages.md D3): rendered on the crud
+  // The record detail page: rendered on the crud
   // page's `/r/$recordId` child route via `config.detail.template`. Never
   // LLM-recommended (it is not a per-table archetype choice) and never
   // offered standalone (a record page without a record id is a dead end).
@@ -104,11 +103,11 @@ export const pageTemplateDefinitions: readonly PageTemplateDefinition[] = [
     recommendable: true,
     descriptionKey: 'templates.pageDashboard.description',
   },
-  // M7 wave 2 — planning archetypes (09 §7.5/§7.6).
+  // M7 wave 2 — planning archetypes.
   { id: 'page-board', recommendable: true, descriptionKey: 'templates.pageBoard.description' },
   { id: 'page-calendar', recommendable: true, descriptionKey: 'templates.pageCalendar.description' },
   { id: 'page-scheduler', recommendable: true, descriptionKey: 'templates.pageScheduler.description' },
-  // People / queues (09 §7.3/§7.4/§7.7).
+  // People / queues.
   { id: 'page-directory', recommendable: true, descriptionKey: 'templates.pageDirectory.description' },
   {
     id: 'page-master-detail',
@@ -120,11 +119,11 @@ export const pageTemplateDefinitions: readonly PageTemplateDefinition[] = [
     recommendable: true,
     descriptionKey: 'templates.pageQueueInbox.description',
   },
-  // Logs / media / chat (09 §7.8/§7.9).
+  // Logs / media / chat.
   { id: 'page-log-viewer', recommendable: true, descriptionKey: 'templates.pageLogViewer.description' },
   { id: 'page-files', recommendable: true, descriptionKey: 'templates.pageFiles.description' },
   { id: 'page-chat', recommendable: true, descriptionKey: 'templates.pageChat.description' },
-  // Builder / wizard / settings (09 §7.11, §11.1, §8.2) — tool surfaces: the
+  // Builder / wizard / settings — tool surfaces: the
   // LLM must never recommend them per table (see module docblock).
   { id: 'page-builder', recommendable: false, descriptionKey: 'templates.pageBuilder.description' },
   { id: 'page-wizard', recommendable: false, descriptionKey: 'templates.pageWizard.description' },

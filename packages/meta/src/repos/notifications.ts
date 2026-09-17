@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * notificationsRepo — adminium_notifications (07-meta-store.md §3.20): one row
- * per in-app notification. Write-once rows read later, so `kind` is the
- * stable, translatable key and `title`/`body` are the en-US fallback for a
- * client that does not know the kind (the backup/notify.ts convention — the
- * first producer — now shared by every producer through this repo).
+ * notificationsRepo — adminium_notifications: one row per in-app notification.
+ * Write-once rows read later, so `kind` is the stable, translatable key and
+ * `title`/`body` are the en-US fallback for a client that does not know the
+ * kind (the backup/notify.ts convention — the first producer — now shared by
+ * every producer through this repo).
  *
  * Keyset pagination: `(created_at DESC, id DESC)` — ids are monotonic ULIDs,
- * so the pair is a stable total order (08-server-api.md §1.5).
+ * so the pair is a stable total order.
  */
 
 import type { Selectable } from 'kysely';
@@ -55,7 +55,7 @@ export interface ListNotificationsOptions {
   before?: NotificationCursor | undefined;
 }
 
-/** System-actor events render actor "Adminium" (09-generated-app.md §5.4). */
+/** System-actor events render actor "Adminium". */
 export const SYSTEM_ACTOR_LABEL = 'Adminium';
 
 function decode(row: Selectable<AdminiumNotificationsTable>): Notification {
@@ -124,7 +124,7 @@ export function notificationsRepo(meta: MetaDb) {
       return rows.map(decode);
     },
 
-    /** The nav-badge / bell number (09 §5.4 `unread-count`). */
+    /** The nav-badge / bell number (`unread-count`). */
     async unreadCount(userId: string): Promise<number> {
       const row = await db
         .selectFrom('adminium_notifications')

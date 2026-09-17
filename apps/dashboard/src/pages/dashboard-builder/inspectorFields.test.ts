@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Inspector field derivation (04-T14): the config inspector's fields are
- * generated from a widget's Zod config schema — primitive kinds only, composite
- * fields skipped, locked paths flagged.
+ * Inspector field derivation: the config inspector's fields are generated from
+ * a widget's Zod config schema — primitive kinds only, composite fields
+ * skipped, locked paths flagged.
  */
 import { describe, expect, it } from 'vitest';
 import { getWidget } from '@adminium/widgets';

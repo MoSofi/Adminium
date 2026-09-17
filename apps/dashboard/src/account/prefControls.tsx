@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shared preference-axis controls (10-i18n-theming.md §7.3/§7.4): theme and
- * density segmented controls, the accent swatch row, and the locale select
- * with native names from the @adminium/i18n registry. Used by both the
- * per-user Preferences page (/account/preferences) and the super-admin
- * Global Defaults page (/settings/defaults).
+ * Shared preference-axis controls: theme and density segmented controls,
+ * the accent swatch row, and the locale select with native names from the
+ * @adminium/i18n registry. Used by both the per-user Preferences page
+ * (/account/preferences) and the super-admin Global Defaults page
+ * (/settings/defaults).
  */
 import type { ReactNode } from 'react';
 import { availableLocales, dirForLocale, localeEntry, type LocaleId } from '@adminium/i18n/registry';
@@ -31,9 +31,9 @@ export function densityLabel(value: Density): string {
 }
 
 /**
- * Accent → literal bundle key (10-i18n-theming.md §2.5). `satisfies` — not a
- * type annotation — so a ninth palette in `ACCENTS` is a compile error here
- * rather than a swatch whose aria-label renders as `prefs.accent.<new>`.
+ * Accent → literal bundle key. `satisfies` — not a type annotation — so a
+ * ninth palette in `ACCENTS` is a compile error here rather than a swatch
+ * whose aria-label renders as `prefs.accent.<new>`.
  */
 const ACCENT_LABEL_KEY = {
   indigo: 'prefs.accent.indigo',
@@ -55,7 +55,7 @@ export function localeLabel(value: LocaleId): string {
 }
 
 /**
- * The locales a picker may offer (23 §3.1).
+ * The locales a picker may offer.
  *
  * `availableLocales()` is the runtime registry — compiled defaults merged
  * under the admin's `adminium_locales` rows — filtered to `enabled`. The
@@ -102,7 +102,7 @@ export function DensityControl(props: {
 }
 
 /**
- * Swatch row (§7.3 "SwatchPicker" comp gap): radiogroup of the 8 palettes.
+ * Swatch row (comp gap): radiogroup of the 8 palettes.
  *
  * Each swatch must preview the accent it OFFERS, in the theme currently on screen — and the two
  * accent ramps differ (accents.css: `black` is #111111 in light, #c9c9d4 in dark), so painting

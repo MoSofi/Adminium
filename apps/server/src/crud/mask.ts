@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Field-level PII read masking (08-server-api.md §5.3): callers without the
- * unmask permission receive masked columns as `null` plus a `_masked`
- * sibling marker so the UI renders the masked-cell treatment. Secret
- * columns (05 §7.1 rule 1) never appear at all.
+ * Field-level PII read masking: callers without the unmask permission
+ * receive masked columns as `null` plus a `_masked` sibling marker so the
+ * UI renders the masked-cell treatment. Secret columns never appear at all.
  *
- * PERMISSION MAPPING NOTE: 08 §5.1 names a `table:<t>:read_pii` action and
- * 05 §7.2 a `data.unmask_pii` grant; the v1 grammar shipped in M2
+ * PERMISSION MAPPING NOTE: a `table:<t>:read_pii` action is
+ * `data.unmask_pii` grant; the v1 grammar shipped in M2
  * (rbac/permissions.ts + meta's closed SYSTEM_ACTION_KEYS) has neither.
  * Until the grammar grows the action (M5 remap/roles work), unmasking is
  * granted by `system:connections:manage` — admins and super-admins see PII,
@@ -26,7 +25,7 @@ export async function canReadPii(request: FastifyRequest): Promise<boolean> {
 
 export type Row = Record<string, unknown>;
 
-/** Strip secret columns and mask PII columns on one row (§5.3 rules 1–3). */
+/** Strip secret columns and mask PII columns on one row (rules 1–3). */
 export function maskRow(row: Row, table: ResolvedTable, unmasked: boolean): Row {
   const out: Row = {};
   const maskedHere: string[] = [];

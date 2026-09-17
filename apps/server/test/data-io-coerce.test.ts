@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Import-time cell coercion (M7-T07, data-io/coerce.ts): strict per-type
- * parsing, the two §11.1 auto-resolutions (trim, empty→NULL when nullable),
- * and issue codes for everything that does not parse.
+ * Import-time cell coercion (data-io/coerce.ts): strict per-type parsing,
+ * the two auto-resolutions (trim, empty→NULL when nullable), and issue
+ * codes for everything that does not parse.
  */
 import { describe, expect, it } from 'vitest';
 

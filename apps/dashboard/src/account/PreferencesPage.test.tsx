@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * /account/preferences integration (10-i18n-theming.md §7.4): inheritance
- * badges from the raw NULL-per-axis prefs, override → PATCH payload via the
- * app-root `onPrefChange` wiring, and per-axis reset → explicit `null`.
+ * /account/preferences integration: inheritance badges from the raw
+ * NULL-per-axis prefs, override → PATCH payload via the app-root
+ * `onPrefChange` wiring, and per-axis reset → explicit `null`.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -140,7 +140,7 @@ describe('PreferencesPage', () => {
       expect(screen.getAllByText('Workspace default')).toHaveLength(4);
     });
     // The optimistic session override is dropped, so the workspace default
-    // applies visually right away — not only after a reload (ThemeProvider §4.2).
+    // applies visually right away — not only after a reload (ThemeProvider).
     expect(document.documentElement.getAttribute('data-density')).toBe('comfortable');
   });
 

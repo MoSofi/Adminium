@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `addColumns` — the narrow door for adding one column to a table that already
- * exists (38-files-library-and-attachments.md D6, 38-T16).
+ * exists.
  *
  * ─── Why the wide door could not be used ───────────────────────────────────
  *

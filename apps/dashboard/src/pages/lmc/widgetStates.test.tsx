@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Widget-data states for the LOGS/MEDIA/CHAT archetype pages (09 §14).
+ * Widget-data states for the LOGS/MEDIA/CHAT archetype pages.
  *
  * `extractPageBindings` is the deliberately UNNORMALIZED extractor of the three
  * — unlike `usePageTemplateData` and `planningData` it rewrites no shape, so a
@@ -176,7 +176,7 @@ describe('usePageWidgetStates', () => {
     });
     expect((result.current.states['log']?.error as Error).message).toBe('boom');
     expect(result.current.states['log']?.refetch).toBe(result.current.refetch);
-    // Unbound instances stay absent — the template's demo path (04 §5.3).
+    // Unbound instances stay absent — the template's demo path.
     expect(result.current.states['unbound']).toBeUndefined();
   });
 

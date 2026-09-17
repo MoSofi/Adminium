@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `@adminium/widgets/binding` — the `stream` data-binding layer (04-widget-registry.md
- * §5.3): the transport contract + provider, the bounded newest-first buffer,
- * the deterministic demo stream, channel naming, and the `useWidgetStream`
- * hook. The host app injects a concrete WS/SSE transport; widgets consume the
- * hook. Kept out of the React-free `@adminium/widgets/page-config` leaf.
+ * `@adminium/widgets/binding` — the `stream` data-binding layer: the transport
+ * contract + provider, the bounded newest-first buffer, the deterministic demo stream,
+ * channel naming, and the `useWidgetStream` hook. The host app injects a concrete
+ * WS/SSE transport; widgets consume the hook. Kept out of the React-free
+ * `@adminium/widgets/page-config` leaf.
  */
 
 export type {

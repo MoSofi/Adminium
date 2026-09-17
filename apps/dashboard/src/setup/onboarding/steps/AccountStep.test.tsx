@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 3 — the account fields (45-onboarding.md §2).
+ * Step 3 — the account fields.
  *
  * Both password fields can be unmasked, independently: someone choosing a
  * password they must retype in the next field is exactly who needs to see it.

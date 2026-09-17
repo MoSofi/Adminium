@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * The "Derived numbers" card (36-derived-columns.md 36-T18 / D30).
+ * The "Derived numbers" card.
  *
  * Three properties, each of which a different half of the plan depends on:
  * every preset must produce a block the SHIPPED parser accepts (an invalid one

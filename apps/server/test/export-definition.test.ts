@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A builder-made export DEFINITION through the real route and the real job
- * (41-export-builder.md §3.3, §3.4, D1, D6, D7, §5).
+ * A builder-made export DEFINITION through the real route and the real
+ * job.
  *
  * The properties that matter, each pinned below:
  *
@@ -318,7 +318,7 @@ describe('export definitions (route + job)', () => {
 
   it('a definition row ignores a page id on the job payload', async () => {
     // A page whose derived block defines the SAME `subtotal` id: threading it
-    // as well would claim the alias twice and 422 the read (41 §0.3).
+    // as well would claim the alias twice and 422 the read.
     const page = await pagesRepo(t.meta).create({
       id: newId('page'),
       slug: `invoices-${newId('page')}`,

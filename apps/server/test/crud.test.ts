@@ -204,7 +204,7 @@ describe.skipIf(!AVAILABLE)('records CRUD (live PG, Northwind)', () => {
       'Adminium Test Brew',
     );
 
-    // PG unique-violation mapping (§2.7.2).
+    // PG unique-violation mapping.
     const dupe = await t.app.inject({
       method: 'POST',
       url: `/api/v1/data/${connId}/public.products`,

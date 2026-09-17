@@ -3,7 +3,7 @@
  * Wave 0023 (schema authoring): `adminium_schema_changes` lands with its
  * ledger semantics, and `can_ddl` / `diagram_layout` land on
  * `adminium_connections` with pre-wave rows reading as "never probed" rather
- * than as "no" (35-schema-authoring.md §3.5, 35-T09).
+ * than as "no".
  *
  * Runs the real migration list split at 0022/0023 on every available dialect,
  * because the two ALTERs and the FK are where a portable-DDL mistake shows up

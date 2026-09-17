@@ -5,9 +5,9 @@ import type { WidgetSkeleton } from '../registry/types.js';
 
 /**
  * Per-family skeleton silhouettes for the WidgetFrame `skeleton` state and
- * for lazy-chunk Suspense fallbacks (04 §4). Built from the ui `Skeleton`
- * shimmer; the container carries `aria-busy` (individual bones are
- * aria-hidden per ui convention).
+ * for lazy-chunk Suspense fallbacks. Built from the ui `Skeleton` shimmer;
+ * the container carries `aria-busy` (individual bones are aria-hidden per
+ * ui convention).
  */
 export interface SkeletonSilhouetteProps {
   variant: WidgetSkeleton;

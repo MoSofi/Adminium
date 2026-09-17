@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * In-process polling worker over `adminium_jobs` (01-architecture.md §5
- * background path, 07-meta-store.md §3.12, M2-T07).
+ * In-process polling worker over `adminium_jobs` (background path).
  *
  * Loop: claim via the portable UPDATE guard (`jobsRepo.claim`) → parse the
  * payload against the registered handler's schema → run the handler with a
  * progress/log/cancel context → `complete` or `fail` with exponential backoff
  * (base 30 s, doubling, capped at 1 h) until `maxAttempts`, after which the
  * row lands in terminal `failed` (the dead-letter state). One failing job
- * never kills the process (08-server-api.md §6.10); `stop()` drains in-flight
- * jobs before resolving (graceful shutdown).
+ * never kills the process; `stop()` drains in-flight jobs before resolving
+ * (graceful shutdown).
  *
  * Progress is kept in-memory (`getProgress`) and published on `jobs:<jobId>`
  * — the meta schema has no progress column in wave 0001, and the worker runs
- * in-process with the API (01 §5), so route reads stay consistent.
+ * in-process with the API, so route reads stay consistent.
  */
 
 import { hostname } from 'node:os';
@@ -50,9 +49,9 @@ export interface JobWorkerOptions {
   concurrency?: number | undefined;
   /** Idle poll delay; default {@link JOB_POLL_INTERVAL_MS}. */
   pollIntervalMs?: number | undefined;
-  /** `<hostname>:<pid>` per §3.12 unless overridden (tests). */
+  /** `<hostname>:<pid>` unless overridden (tests). */
   workerId?: string | undefined;
-  /** First-retry delay; default 30 s (§3.12 / repo constant). */
+  /** First-retry delay; default 30 s (/ repo constant). */
   backoffBaseMs?: number | undefined;
   /** Retry-delay ceiling; default 1 h. */
   backoffMaxMs?: number | undefined;
@@ -116,8 +115,8 @@ export class JobWorker {
   }
 
   /**
-   * Cooperative cancel (08 §2.17): aborts the run's signal if this worker is
-   * executing the job. Returns whether a running job was signalled.
+   * Cooperative cancel: aborts the run's signal if this worker is executing
+   * the job. Returns whether a running job was signalled.
    */
   requestCancel(jobId: string): boolean {
     const entry = this.running.get(jobId);
@@ -192,7 +191,7 @@ export class JobWorker {
         void this.launch(job);
       }
     } catch (err) {
-      // e.g. meta DB briefly unreachable — log and keep polling (§6.10).
+      // e.g. meta DB briefly unreachable — log and keep polling.
       this.logger.error({ workerId: this.workerId, err }, 'job poll failed');
     }
     this.schedulePoll(this.pollIntervalMs);

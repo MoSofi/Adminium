@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Adminium-owned migration runner (07-meta-store.md §4).
+ * Adminium-owned migration runner.
  *
  * - Up-only, append-only, sequential migrations (src/migrations/).
  * - `adminium_migrations` ledger (name PK, checksum, applied_at, duration_ms,
@@ -143,7 +143,8 @@ async function ensureLedger(db: Kysely<MetaDB>, dialect: MetaDialect): Promise<v
     .execute();
 }
 
-/** SQLite enforces FKs per connection; must run before any FK-dependent work (§2.2). */
+/** SQLite enforces FKs per connection; must run before any FK-dependent work.
+ * */
 export async function enableSqliteForeignKeys(db: Kysely<MetaDB>): Promise<void> {
   await sql`PRAGMA foreign_keys = ON`.execute(db);
 }

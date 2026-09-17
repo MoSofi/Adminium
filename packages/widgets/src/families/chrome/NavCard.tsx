@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `nav-card` (annex §11) — clickable surface card: tinted icon tile, title,
- * 2-line description, hover lift + sliding arrow; for hub/landing pages inside
- * the admin. Evidence: Home.
+ * `nav-card` (annex) — clickable surface card: tinted icon tile, title, 2-line
+ * description, hover lift + sliding arrow; for hub/landing pages inside the
+ * admin. Evidence: Home.
  *
  * Renders a GRID of cards from one `record-list` (the annex's contract is a
  * `{name, desc, icon, href, tint}` LIST, and `columns` is its config), so one
@@ -35,7 +35,7 @@ export interface NavCardItem {
   tint: Tint;
 }
 
-/** Project the §3 `record-list` payload onto hub cards. */
+/** Project the `record-list` payload onto hub cards. */
 export function navCardsOf(data: unknown, config: NavCardConfig): NavCardItem[] {
   const rows = recordRowsOf(data);
   const out: NavCardItem[] = [];

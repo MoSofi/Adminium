@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The completion notification (11-electron.md §9: "Completion raises an
+ * The completion notification ("Completion raises an
  * `adminium_notifications` entry with 'Show in folder'").
  *
  * Originally a hand-rolled insert — the first producer in the product, which
@@ -13,11 +13,11 @@
  *
  * Every other affordance in that table is a link the SPA can follow. Revealing a
  * file in Finder/Explorer is not: it is `shell.showItemInFolder`, which lives in
- * the main process behind §4's bridge. So the row carries the PATH in `entity`
- * and leaves `action_url` null, and the notification centre renders the button
- * only when `window.adminiumDesktop` exists (§4's detection contract). On
- * self-host the same row, if it ever appeared, would render as a plain "backup
- * finished" line — which is the correct degradation rather than a dead button.
+ * the main process behind bridge. So the row carries the PATH in `entity` and
+ * leaves `action_url` null, and the notification centre renders the button only
+ * when `window.adminiumDesktop` exists (detection contract). On self-host the
+ * same row, if it ever appeared, would render as a plain "backup finished" line
+ * — which is the correct degradation rather than a dead button.
  *
  * ─── Language ────────────────────────────────────────────────────────────────
  *

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `drawer-form` (annex §10) — side-drawer create/edit flow with the full field
- * set; appends the record on submit. The >5-field counterpart of `modal-wizard`
- * (annex §10 auto-instantiation: "≤5 fields → modal-wizard, more → drawer-form
- * or full page"). Evidence: Scheduled Reports.
+ * `drawer-form` (annex) — side-drawer create/edit flow with the full field set;
+ * appends the record on submit. The >5-field counterpart of `modal-wizard`
+ * (annex auto-instantiation: "≤5 fields → modal-wizard, more → drawer-form or
+ * full page"). Evidence: Scheduled Reports.
  *
  * Wraps @adminium/ui's `Drawer` (Radix — focus trap, Esc/overlay close, the
  * inline-end slide) and shares `FormFields` with `modal-wizard`.
  *
- * WRITE MODEL (04 §2.1): submit emits an `insert` INTENT and awaits the host's
- * commit before closing, so a rejected write leaves the drawer open with the
- * user's input intact rather than silently discarding it.
+ * WRITE MODEL: submit emits an `insert` INTENT and awaits the host's commit
+ * before closing, so a rejected write leaves the drawer open with the user's
+ * input intact rather than silently discarding it.
  */
 
 import { Button, Drawer, DrawerBody, DrawerFooter, DrawerHeader } from '@adminium/ui';

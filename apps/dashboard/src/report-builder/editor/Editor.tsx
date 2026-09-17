@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The report editor (43-report-builder.md Appendix A E1–E11, 43-T06): the
- * header, the palette, the canvas and the inspector over ONE draft that only
- * `save()` sends (D4/O6, inheriting 34 O22 → 39 D1's model).
+ * The report editor (E1–E11): the header, the palette, the canvas and the
+ * inspector over ONE draft that only `save()` sends (D4/O6, inheriting
+ * model).
  *
  * THE GUARD. A router blocker asks before any navigation away from a dirty
  * draft — the topbar's Back, the sidebar, the browser's own back — and

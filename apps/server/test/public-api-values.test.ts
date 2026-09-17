@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `prepareValues` — what a stranger's POST actually becomes before it reaches
- * the operator's database (28-public-surface.md §3.2, D3; 33 §7.1).
+ * the operator's database.
  *
  * ── WHY THIS FILE DID NOT EXIST UNTIL NOW ──────────────────────────────────
  *
  * The function lived inside the route plugin, so exercising it meant composing
  * a server, a meta store, a connection, a scope row and a minted key. Nothing
  * did. The one function that decides what an anonymous caller may write had no
- * direct test, while 28 §1.1 says in as many words that this is
+ * direct test, while the review said in as many words that this is
  * "security-critical new code [that] needs property tests, not unit tests".
- * 33-T10 gave it a second job — resolving `$generate` sentinels — which is
- * when the absence stopped being tolerable.
+ * It got a second
+ * job — resolving `$generate` sentinels — which is when the absence stopped
+ * being tolerable.
  *
  * The four rules it holds, in the order they matter:
  *
@@ -84,7 +85,7 @@ describe('only writable columns survive', () => {
   });
 
   it('refuses a column that is merely defaulted, not writable', () => {
-    // The acceptance criterion's own list (33 §10.6): a visitor cannot set
+    // The acceptance criterion's own list: a visitor cannot set
     // `sender_kind`, and it is proved by SENDING it rather than by reading the
     // scope back.
     expect(

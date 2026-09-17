@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `email.campaign-run` job — one run of one campaign to its audience
- * (39-email-templates-and-campaigns.md D11, D12; 39-T15).
+ * The `email.campaign-run` job — one run of one campaign to its
+ * audience.
  *
  * ONE JOB PER RUN, an in-process loop over the recipients, NO per-recipient
  * job rows and NO sealed envelopes: nothing rendered is stored. The run row
@@ -16,16 +16,16 @@
  *
  * DELIVERY IS SEQUENTIAL on today's one-connection-per-message transport
  * (D11): a run of ten thousand is tens of minutes with visible progress on
- * `jobs:<id>`; pooling is a transport change with its own tests (§5).
+ * `jobs:<id>`; pooling is a transport change with its own tests.
  *
  * ONE RETRY, THEN A COUNTED FAILURE. A relay's transient refusal is retried
  * once after a short pause; a second refusal counts the address as failed and
  * moves on — a campaign must not stall on one bad mailbox, and the run's
  * `failures` is where an operator finds it.
  *
- * CANCELLATION IS COOPERATIVE (08 §2.17). `POST /email-runs/:id/cancel` on a
- * running run aborts the worker's signal; this loop checks it before every
- * send, records `cancelled` with the counts so far, and stops.
+ * CANCELLATION IS COOPERATIVE. `POST /email-runs/:id/cancel` on a running
+ * run aborts the worker's signal; this loop checks it before every send,
+ * records `cancelled` with the counts so far, and stops.
  *
  * `maxAttempts: 1` — a run that throws (no SMTP, a vanished campaign) is
  * terminal with its reason on the row; re-running a campaign is an operator's
@@ -185,7 +185,7 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
         for (let attempt = 1; attempt <= 2; attempt += 1) {
           try {
             // The render-and-send core is shared with the automation email
-            // step (42 D15); the retry above it and the per-variation pack
+            // step; the retry above it and the per-variation pack
             // caching below it are this runner's own.
             await deliverPrepared({
               transport,

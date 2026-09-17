@@ -13,10 +13,10 @@ export { imageBoardConfigSchema, imageBoardDemoData };
 export type { ImageBoardConfig };
 
 /**
- * `image-board` (annex §8) — the moodboard grid of droppable image slots with
+ * `image-board` (annex) — the moodboard grid of droppable image slots with
  * captions and an Add-image slot. Niche but broadly useful: any table with an
  * image-URL column (product photos, property listings, design refs) auto-
- * instantiates onto it (annex §8).
+ * instantiates onto it (annex).
  *
  * An EMPTY slot is a first-class state, not a loading artefact: the annex's
  * droppable placeholder ("Drop reference") is what an unfilled row renders. A

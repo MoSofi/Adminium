@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/api/v1/documents` — the register, its bytes, and the mappings behind it
- * (34-invoices-add-on.md §7.5; 34-T12).
+ * `/api/v1/documents` — the register, its bytes, and the mappings behind
+ * it.
  *
  * ─── EVERY ROUTE NAMES ITS OWN GUARD ───────────────────────────────────────
  *

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CALL WEBHOOK, and the Slack preset over it (42-automations-and-workflow-
- * logs.md D19, D10, 42-T10).
+ * logs.md D19, D10).
  *
  * --- Why "Slack message" is this action and not another one ---------------
  *

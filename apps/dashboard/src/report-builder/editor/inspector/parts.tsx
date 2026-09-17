@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The inspector's shared parts (43-report-builder.md Appendix A I3, I7-I10;
- * the comp's 349-428): the 11 px uppercase eyebrow the comp repeats ~40
- * times, the divider, the option pill (`statusOptions` 634, `apprOptions`
- * 658, `recurOptions` 659), the 30 px swatch (633), the dashed *Add ...* row,
- * the 38x22 toggle (`trackStyle` / `knob` 640-641), the boxed `.nb-fld` input
- * (55-56) as text, textarea and unit-suffixed fields, the file-input label
- * every upload affordance is, and the small note under a control.
+ * The inspector's shared parts (I3, I7-I10; the comp's 349-428): the 11 px
+ * uppercase eyebrow the comp repeats ~40 times, the divider, the option pill
+ * (`statusOptions` 634, `apprOptions` 658, `recurOptions` 659), the 30 px
+ * swatch (633), the dashed *Add...* row, the 38x22 toggle (`trackStyle` /
+ * `knob` 640-641), the boxed `.nb-fld` input (55-56) as text, textarea and
+ * unit-suffixed fields, the file-input label every upload affordance is, and
+ * the small note under a control.
  *
  * A COPY of the invoice inspector's `parts.tsx`, minus its *Remove section*
  * footer - this comp has no optional-section flags, it has 25 self-contained
- * blocks (43 D7: copy the chrome, import nothing; the third copy is where an
+ * blocks (copy the chrome, import nothing; the third copy is where an
  * extraction starts paying, and that is O7's 27 row).
  *
  * Native inputs styled as the comp's `.nb-fld`, not `@adminium/ui`'s `Input`

@@ -25,8 +25,8 @@ import { z } from 'zod';
  * an unreadable button, and `?? t(…)` cannot fall back from a string that is
  * present but blank).
  *
- * Parsing is tolerant, per the never-crash rules (09 §3.1): a malformed block
- * degrades to `null` and the page renders its defaults.
+ * Parsing is tolerant, per the never-crash rules: a malformed block degrades
+ * to `null` and the page renders its defaults.
  */
 
 /**

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The email block registry — the comp's `blockDefs` / `pickerCats` /
- * `defaultData` / `blockSchema` (`designs/Email Templates.dc.html`
- * 1108-1231) as data, keyed by the server's `email.*` kinds
- * (39-email-templates-and-campaigns.md Appendix C, D5, D16).
+ * `defaultData` / `blockSchema` (1108-1231) as data, keyed by the
+ * server's `email.*` kinds.
  *
  * PURE DATA, NO REACT. The canvas, the inspector and the picker all read
  * this one table, so a kind exists exactly once on the dashboard side.
@@ -11,13 +10,13 @@
  * `EMAIL_BLOCK_KINDS` IS A COPY OF THE RENDERER'S LIST, AND A GATE HOLDS THE
  * TWO TOGETHER. The server (`apps/server/src/email/render.ts`) owns the wire
  * vocabulary of `adminium_email_templates.blocks`; the dashboard may not
- * import server code (01-architecture.md §2.3), so the list is declared here
- * again and `scripts/check-email-block-vocab.mjs` fails CI when the two
- * differ in membership or order, or when a kind listed here has no entry in
+ * import server code, so the list is declared here again and
+ * `scripts/check-email-block-vocab.mjs` fails CI when the two differ in
+ * membership or order, or when a kind listed here has no entry in
  * `EMAIL_BLOCKS` below. Change one and the other in the same commit.
  *
- * Two kinds are renderable but NOT in the picker (39 D5): `email.spacer`
- * (the comp folds spacer into "Divider / spacer" with a `line` flag) and
+ * Two kinds are renderable but NOT in the picker: `email.spacer` (the comp
+ * folds spacer into "Divider / spacer" with a `line` flag) and
  * `email.footer` (the comp's footer is a fixed envelope field). Both keep an
  * entry here so a legacy row still opens with every block recognised.
  *
@@ -271,7 +270,8 @@ export const EMAIL_BLOCKS: Readonly<Record<EmailBlockKind, EmailBlockDef>> = {
     fields: [f('freq', 'Frequency', 'input'), f('next', 'Next issue date', 'input'), f('note', 'Schedule note', 'input')],
   }),
   'email.loyalty': def('email.loyalty', 'Loyalty points', 'award', 'Rewards balance', 'Loyalty', {
-    // The comp's "tier" data key is `level` here: the 17 §2 grep runs over built bytes (Appendix B).
+    // The comp's "tier" data key is `level` here: the grep runs over built
+    // bytes (Appendix B).
     fields: [f('balance', 'Balance', 'mono'), f('earned', 'Earned', 'mono'), f('level', 'Level', 'input')],
   }),
   'email.delivery': def('email.delivery', 'Delivery timeline', 'truck', 'Fulfilment status', 'Delivery', {
@@ -323,8 +323,8 @@ export const EMAIL_PICKER_GROUPS: readonly { key: 'content' | 'commerce' | 'lega
 
 /**
  * What a freshly added block holds (comp `defaultData`, 1143-1171), re-themed
- * for the operator's audience (39 D10, Appendix B): no vendor name, no plan
- * words, `{{appName}}` where the comp said Adminium.
+ * for the operator's audience: no vendor name, no plan words, `{{appName}}`
+ * where the comp said Adminium.
  */
 export function defaultBlockData(kind: EmailBlockKind): Record<string, unknown> {
   switch (kind) {

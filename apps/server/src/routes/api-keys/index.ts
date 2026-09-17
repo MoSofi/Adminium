@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * API-key routes (08-server-api.md §2.16, M2-T06): list, create with the
- * one-time secret reveal (`adm_sk_…` stored SHA-256-hashed + short prefix for
- * display/lookup), and revoke. Keys act with a role's permissions — scopes
- * are that role's §5.1 grant set. Guarded by `system:api-keys:manage`
- * (meta closed-set key `api-keys.manage`). Mutations audit under the
- * `system` category (§7.2 matrix).
+ * API-key routes: list, create with the one-time secret reveal (`adm_sk_…`
+ * stored SHA-256-hashed + short prefix for display/lookup), and revoke. Keys
+ * act with a role's permissions — scopes are that role's grant set. Guarded
+ * by `system:api-keys:manage` (meta closed-set key `api-keys.manage`).
+ * Mutations audit under the `system` category (matrix).
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { apiKeysRepo, permissionsRepo, rolesRepo, type ApiKey } from '@adminium/meta';
@@ -87,7 +86,7 @@ export const apiKeysRoutes: FastifyPluginAsyncZod = async (app) => {
         action: 'api-key.create',
         changes: { after: { apiKeyId: row.id, name: row.name, prefix: row.prefix, roleId: role.id } },
       });
-      // The ONLY place the full key is ever serialized (§2.16 one-time reveal).
+      // The ONLY place the full key is ever serialized (one-time reveal).
       return reply.status(201).send({ apiKey: toDto(row), key: generated.key, scopes });
     },
   );

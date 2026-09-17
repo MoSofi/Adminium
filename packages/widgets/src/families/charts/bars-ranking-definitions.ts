@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family "bars & ranking" definitions (04-T09; annex §2 ids
- * chart-bullet, chart-ranking-bars, chart-pareto, chart-waterfall,
- * chart-marimekko, chart-stacked-bar-100, chart-slope). Metadata only; the
- * green loop spreads `barsRankingChartDefinitions` into the family's
- * `chartsWidgetDefinitions`. Component code loads through the group barrel via
- * `lazy()` so the whole group stays in the one `charts` chunk (04 §2.3).
- * Annex grid heights are rows; `sizing` stores 40px half-units (rows × 2, 04 §6.1).
+ * `charts` family "bars & ranking" definitions (annex ids chart-bullet,
+ * chart-ranking-bars, chart-pareto, chart-waterfall, chart-marimekko,
+ * chart-stacked-bar-100, chart-slope). Metadata only; the green loop spreads
+ * `barsRankingChartDefinitions` into the family's `chartsWidgetDefinitions`.
+ * Component code loads through the group barrel via `lazy()` so the whole
+ * group stays in the one `charts` chunk. Annex grid heights are rows; `sizing`
+ * stores 40px half-units (rows × 2).
  */
 import { lazy } from 'react';
 

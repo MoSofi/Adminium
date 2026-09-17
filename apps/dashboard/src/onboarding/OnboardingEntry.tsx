@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Onboarding entry (M5-T06): the proactive surfacing of the setup checklist
- * for admins. Mounted by StudioSettingsPage (/studio/settings) only — not
+ * Onboarding entry: the proactive surfacing of the setup checklist for
+ * admins. Mounted by StudioSettingsPage (/studio/settings) only — not
  * shell-global — so it never competes for attention on other routes.
  *
  * - Incomplete & not dismissed → a dismissible Banner ("Finish setting up…"),

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Direct-API enrichment progress (06-llm-assist.md §10.2 step 3).
+ * Direct-API enrichment progress.
  *
  * Regression for the StrictMode double-invoke hang: main.tsx wraps the app in
  * <React.StrictMode>, which runs each effect setup→cleanup→setup on the same

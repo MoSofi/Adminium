@@ -8,8 +8,8 @@ import type { BoardCardData } from './board-lib.js';
 
 /**
  * dnd-kit interaction layer shared by `kanban-board` and `kanban-swimlane-grid`
- * (annex §6). Confined to boards/ so dnd-kit stays out of every other family's
- * chunk (04 §2.3 chunk budget). Two concerns live here:
+ * (annex). Confined to boards/ so dnd-kit stays out of every other family's
+ * chunk (chunk budget). Two concerns live here:
  *
  *  1. The optimistic-move state machine (`useBoardMoves`): an override map keyed
  *     by card id, an optimistic apply + rollback-on-rejection for the pointer

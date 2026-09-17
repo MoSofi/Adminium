@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Playwright config for the DESKTOP `_electron` suite (11-electron.md §7 +
- * acceptance criteria, task 11-T20).
+ * Playwright config for the DESKTOP `_electron` suite (+ acceptance
+ * criteria, task).
  *
  * SEPARATE from `playwright.config.ts` (the 3-engine server/dashboard matrix) on
  * purpose, and this is the whole gating story:

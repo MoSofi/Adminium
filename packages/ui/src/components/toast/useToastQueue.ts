@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { TOAST_DEFAULT_DURATIONS } from './Toast.js';
 import type { ToastActionSpec, ToastItem, ToastVariant } from './Toast.js';
 
-/** Max simultaneously visible toasts (03-component-library.md §7.2). */
+/** Max simultaneously visible toasts. */
 export const MAX_VISIBLE_TOASTS = 4;
 
 /** Auto-dismiss duration for toasts carrying an action (Undo/Download). */
@@ -94,12 +94,11 @@ function resolveDuration(options: {
 }
 
 /**
- * useToastQueue — imperative toast queue manager
- * (03-component-library.md §7.2): max 4 visible newest-first,
- * overflow queues FIFO and enters as older toasts dismiss, per-variant
- * auto-dismiss, pause-on-hover (JS timers + CSS timer bar), undo-action
- * toasts and promise toasts (loading → success/error). Mount one queue per
- * app next to a single `ToastStack`.
+ * useToastQueue — imperative toast queue manager: max 4 visible
+ * newest-first, overflow queues FIFO and enters as older toasts dismiss,
+ * per-variant auto-dismiss, pause-on-hover (JS timers + CSS timer bar),
+ * undo-action toasts and promise toasts (loading → success/error). Mount
+ * one queue per app next to a single `ToastStack`.
  */
 export function useToastQueue(): UseToastQueueReturn {
   const [toasts, setToasts] = useState<ToastItem[]>([]);

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Condition card (`designs/Automation Rules.dc.html` 124-137;
- * 42-automations-and-workflow-logs.md D18, FILL F5).
+ * The Condition card (124-137, FILL F5).
  *
  * The comp's three controls — Field, operator, Value — with two changes it
  * could not have drawn:

@@ -10,7 +10,7 @@ import type { ResolvedFile } from '../../families/tables/cells.js';
 import { formatRefList, parseRefList } from '../../page-config/file-refs.js';
 
 /**
- * The `file` field kind's editor (37-files-and-storage.md §3.9, D14, 37-T17).
+ * The `file` field kind's editor.
  *
  * THIS IS THE FIRST ASYNC FIELD IN `RecordForm`, and that is the whole
  * difficulty. Every other field is a value the form already has; this one is a
@@ -106,8 +106,8 @@ function formatBytes(bytes: number): string {
  * therefore unlabelled everywhere it has ever rendered.
  *
  * Nothing caught it because nothing drew it: no story rendered a file field
- * until 38-T05, so the a11y sweep had been reporting zero violations for a
- * feature it had never loaded (27-T50, 27-T58).
+ * until, so the a11y sweep had been reporting zero violations for a feature
+ * it had never loaded.
  */
 function pickerLabel(column: GridColumnSpec, t: ReturnType<typeof useMaybeT>): string {
   // The VISIBLE control's own words, rather than a label written twice. The
@@ -309,7 +309,7 @@ function FileUploadField({
 }
 
 /**
- * The `multiple` column's editor (38-files-library-and-attachments.md D19).
+ * The `multiple` column's editor.
  *
  * WHAT IS DIFFERENT FROM THE SINGLE FIELD, AND WHY EACH DIFFERENCE EXISTS:
  *

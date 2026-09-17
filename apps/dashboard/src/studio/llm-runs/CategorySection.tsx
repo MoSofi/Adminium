@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * One collapsible category section of the review screen (§10.3 body): a header
- * with the group icon, localized name, a total-count badge and an accepted
- * count, plus a per-category select-all (tri-state) that never selects
+ * One collapsible category section of the review screen (body): a header with
+ * the group icon, localized name, a total-count badge and an accepted count,
+ * plus a per-category select-all (tri-state) that never selects
  * `rejects-heuristic` or `user-locked` rows (acceptance criterion 12). The body
  * is the group's `SuggestionRow` list.
  */
@@ -20,7 +20,7 @@ export interface CategorySectionProps {
   group: ReviewGroup;
   selected: ReadonlySet<string>;
   readOnly: boolean;
-  /** Collapsed by default when the whole group agrees (§8.2). */
+  /** Collapsed by default when the whole group agrees. */
   defaultCollapsed: boolean;
   onToggleRow: (id: string, next: boolean) => void;
   onSelectAll: (ids: readonly SuggestionDiff[], next: boolean) => void;

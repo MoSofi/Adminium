@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Streamgraph stacking geometry (`chart-stream`, research/widget-registry.md
- * §2): centered ("silhouette") stacked bands over time. Pure + DOM-free; the
+ * Streamgraph stacking geometry (`chart-stream`, research/widget-registry.md):
+ * centered ("silhouette") stacked bands over time. Pure + DOM-free; the
  * component supplies the pixel x/y scales, this returns value-space band edges
  * and a golden-testable pixel area-path builder.
  */

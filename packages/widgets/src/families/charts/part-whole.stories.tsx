@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Stories for the part-to-whole & hierarchy charts (04-T09 / acceptance #4):
- * each widget's loaded variant plus the four WidgetFrame states through
- * WidgetHost — loaded / skeleton / empty (per-widget copy) / error+Retry ×
- * LTR & RTL. Demo payloads are the same deterministic seeded generators the
- * registry's `demoData` uses, so stories match demo mode exactly. Widgets are
- * referenced by id so the story never imports the lazy chart chunk directly.
+ * Stories for the part-to-whole & hierarchy charts (/ acceptance #4): each
+ * widget's loaded variant plus the four WidgetFrame states through WidgetHost
+ * — loaded / skeleton / empty (per-widget copy) / error+Retry × LTR & RTL.
+ * Demo payloads are the same deterministic seeded generators the registry's
+ * `demoData` uses, so stories match demo mode exactly. Widgets are referenced
+ * by id so the story never imports the lazy chart chunk directly.
  */
 import { ChartDirectionContext } from '@adminium/charts';
 
@@ -87,8 +87,8 @@ export const WordCloud = {
 };
 
 /**
- * LTR vs RTL — categorical part-to-whole layouts mirror (04 §7.4). The charts
- * read direction from `ChartDirectionContext` (via `useChartDir`), not the DOM
+ * LTR vs RTL — categorical part-to-whole layouts mirror. The charts read
+ * direction from `ChartDirectionContext` (via `useChartDir`), not the DOM
  * `dir` attribute, so the context provider is what mirrors the SVG geometry.
  */
 export const Rtl = {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Review step — 35-schema-authoring.md §3.6, D2, D4, D8, 35-T14.
+ * The Review step.
  *
  * Every step, with its hazard, the reason for that hazard, the facts preflight
  * found, and the exact SQL that will run.

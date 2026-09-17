@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The §4.2 statistics collector, backed by a live {@link ConnectionManager}.
+ * The statistics collector, backed by a live {@link ConnectionManager}.
  *
  * `createPromptService` takes `collectStats` as an INJECTED dependency and falls
  * back to `NO_STATS` (an empty array) when nobody supplies one — which is the
@@ -11,14 +11,14 @@
  * mean the same thing: the same aggregates, from the same query, through the
  * same privacy rules.
  *
- * PRIVACY (06 §4.2, and why this file passes the classified model down rather
- * than a bare column list): the adapter decides what is safe to look at, and it
- * can only do that if it knows which columns the classifier flagged
- * `secret`/`pii`. Sample-free is the default — with `sampling` null NO cell
- * value leaves the database, only row counts, null fractions and distinct
- * counts. Under sampling opt-in the adapter still refuses sampled values and
- * min/max for PII-suspected or secret columns; that refusal is the adapter's,
- * and this module's job is simply to hand it the flags it needs to make it.
+ * PRIVACY (and why this file passes the classified model down rather than a
+ * bare column list): the adapter decides what is safe to look at, and it can
+ * only do that if it knows which columns the classifier flagged `secret`/`pii`.
+ * Sample-free is the default — with `sampling` null NO cell value leaves the
+ * database, only row counts, null fractions and distinct counts. Under sampling
+ * opt-in the adapter still refuses sampled values and min/max for PII-suspected
+ * or secret columns; that refusal is the adapter's, and this module's job is
+ * simply to hand it the flags it needs to make it.
  *
  * DEGRADATION. A table that cannot be profiled (dropped since introspection, a
  * permission gap, a timeout) is SKIPPED, not fatal: the prompt is an
@@ -54,7 +54,7 @@ export interface ConnectionStatsCollectorDeps {
 }
 
 /**
- * §4.2 aggregates for every non-system table in the run's model, collected over
+ * Aggregates for every non-system table in the run's model, collected over
  * the connection's DATA role (the introspect role may not read rows at all).
  */
 export const DEFAULT_MAX_STATS_TABLES = 200;

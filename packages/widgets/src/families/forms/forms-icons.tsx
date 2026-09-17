@@ -29,9 +29,9 @@ import { DEFAULT_SEVERITY_TONE, ISSUE_SEVERITIES } from './forms-lib.js';
 import type { IssueSeverity } from './forms-lib.js';
 
 /**
- * The `forms` family's CLOSED glyph vocabulary (annex §10). Separated from
+ * The `forms` family's CLOSED glyph vocabulary (annex). Separated from
  * `forms-lib.ts` so that module stays JSX-free and the registry-metadata graph
- * (`forms-config.ts`) never pulls `lucide-react` into the eager chunk (04 §2.3).
+ * (`forms-config.ts`) never pulls `lucide-react` into the eager chunk.
  *
  * WHY A CLOSED MAP: option cards, toggle rows and issue rows carry an icon NAME
  * from config or from a payload row. Resolving through a fixed map means neither
@@ -59,7 +59,7 @@ export function formIcon(name: string | undefined): ReactNode | undefined {
   return FORM_ICONS[name];
 }
 
-/** The default glyph per issue severity (annex §10 `validation-issues-list`). */
+/** The default glyph per issue severity (annex `validation-issues-list`). */
 const SEVERITY_ICON: Record<IssueSeverity, ReactNode> = {
   info: <Info />,
   warn: <TriangleAlert />,
@@ -71,7 +71,7 @@ export function severityIcon(severity: IssueSeverity): ReactNode {
 }
 
 /**
- * The glyph per `question-builder` palette type (annex §10). Keyed by the CLOSED
+ * The glyph per `question-builder` palette type (annex). Keyed by the CLOSED
  * `QuestionKind` vocabulary rather than by a config-supplied name, so the palette
  * is total by construction — every enabled kind has a glyph, and no manifest can
  * ask for one that does not.

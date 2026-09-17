@@ -10,15 +10,15 @@ import type { SchemaNode, SchemaNodeKind } from './tables-track-f-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `schema-tree` (annex §3) — an introspected hierarchy explorer:
- * schema → tables (row counts, view badge) → columns with PK/FK/UQ badges and
- * pg types. Binds to the `hierarchy/tree` shape from introspection metadata.
+ * `schema-tree` (annex) — an introspected hierarchy explorer: schema → tables
+ * (row counts, view badge) → columns with PK/FK/UQ badges and pg types. Binds
+ * to the `hierarchy/tree` shape from introspection metadata.
  */
 
 // Config schema + deterministic demo payload live in the pure
 // `tables-track-f-config` module, and the node shape in
 // `tables-track-f-types`, so the registry metadata graph never reaches this
-// component file (04 §2.3). Re-exported here to keep existing import points
+// component file. Re-exported here to keep existing import points
 // stable.
 export { schemaTreeConfigSchema, schemaTreeDemoData } from './tables-track-f-config.js';
 export type { SchemaTreeConfig } from './tables-track-f-config.js';

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The sheet's shared pieces (comp CSS 51-53; 43-report-builder.md Appendix A
- * C2, C5): the borderless inline input and textarea (`.nb-in`), the light
- * palette's literals, and the image-file reader every upload label shares.
+ * The sheet's shared pieces (comp CSS 51-53; C2, C5): the borderless inline
+ * input and textarea (`.nb-in`), the light palette's literals, and the
+ * image-file reader every upload label shares.
  *
  * THE SHEET IS ALWAYS LIGHT (D10): the paper has one palette whatever the
  * theme, so the greys here are light literals like the invoice `PaperShell`'s
@@ -45,7 +45,7 @@ export const POS_TEXT = 'text-[#0a6b4c]';
 /**
  * The warn and danger inks, one step darker than the comp's `--warn`
  * (`#b25e09`) and `--danger` (`#d1293d`) — the same departure the green above
- * is, measured the same way (43-T14's sweep found both):
+ * is, measured the same way (sweep found both):
  *
  *   `#b25e09` on the warn wash `#fbf0e2` is 4.14:1 and FAILS WCAG AA — it is
  *   the late-fee callout's title (328) and the *Pending* approval pill (326).

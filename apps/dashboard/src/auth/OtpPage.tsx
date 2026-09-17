@@ -48,7 +48,7 @@ export function OtpPage() {
               clearChallenge();
               router.options.context.queryClient.clear();
               // The surface gate's target needs a DOCUMENT navigation — same
-              // rule as LoginPage.finish (29 D4), same path-only guard.
+              // rule as LoginPage.finish, same path-only guard.
               if (challenge.next !== null) {
                 window.location.assign(challenge.next);
                 return;

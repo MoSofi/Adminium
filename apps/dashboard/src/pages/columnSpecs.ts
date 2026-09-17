@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `config.columns[]` → validated `GridColumnSpec[]` — shared by the crud and
- * record bindings (30-record-pages.md WS-C), which render the same stored
- * body from two routes. Invalid entries are dropped with a console warning,
- * never a crash (09 §3.1).
+ * record bindings (WS-C), which render the same stored body from two routes.
+ * Invalid entries are dropped with a console warning, never a crash.
  */
 import { parseCrudDerived } from '@adminium/engine/config';
 import {
@@ -21,8 +20,7 @@ import {
  * alias into `ORDER BY`, so `order=<alias>` is a hard 422 that blanks the
  * whole page. The config PATCH route validates nothing about `columns[]`, so
  * a hand-edited `sortable:true` would reach the wire; forcing it closed on the
- * READ path is the only place that cannot be bypassed
- * (36-derived-columns.md D14).
+ * READ path is the only place that cannot be bypassed.
  */
 export function parseColumns(config: Record<string, unknown>, pageId: string): GridColumnSpec[] {
   const raw = config['columns'];
@@ -128,9 +126,9 @@ export function withFkDisplay(columns: readonly GridColumnSpec[]): FkDisplayPlan
 
 /**
  * Server cap on correlated subqueries per read — `agg=` and `compute=`'s
- * measures SHARE it (apps/server/src/crud/aggregates.ts MAX_AGGREGATES,
- * 36-derived-columns.md D13), so the client budget has to be shared too or a
- * page authored to one limit plus a measure hard-422s.
+ * measures SHARE it (apps/server/src/crud/aggregates.ts MAX_AGGREGATES), so
+ * the client budget has to be shared too or a page authored to one limit
+ * plus a measure hard-422s.
  */
 const MAX_PROJECTIONS = 12;
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Saved-views query + mutations for one page-crud page (M5-T06). Kept separate
- * from the switcher UI so the binding can auto-apply a default view on load and
- * the switcher stays presentational.
+ * Saved-views query + mutations for one page-crud page. Kept separate from the
+ * switcher UI so the binding can auto-apply a default view on load and the
+ * switcher stays presentational.
  */
 
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

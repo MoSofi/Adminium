@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Croner-based schedule registry (08-server-api.md §2 jobs plugin, BRIEF §3:
- * croner + no Redis; M2-T07). Each named schedule fires an enqueue function;
- * a no-overlap guard skips the tick when the previously enqueued job is
- * still pending/running, and optional jitter de-synchronizes fleets.
+ * Croner-based schedule registry (jobs plugin, BRIEF: croner + no Redis).
+ * Each named schedule fires an enqueue function; a no-overlap guard skips
+ * the tick when the previously enqueued job is still pending/running, and
+ * optional jitter de-synchronizes fleets.
  *
  * Timezone is fixed to UTC for now — it becomes settings-driven
- * (`adminium_settings`) in a later wave (10-i18n-theming.md).
+ * (`adminium_settings`) in a later wave.
  */
 
 import { Cron } from 'croner';

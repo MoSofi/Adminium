@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-treemap` primitive (research/widget-registry.md §2): squarified
+ * `chart-treemap` primitive (research/widget-registry.md): squarified
  * slice-and-dice tiles, area/alpha by value, in-tile labels above a threshold.
  * Tiles fill with the accent alpha ramp (theme-safe text contrast); the RTL x
  * axis mirrors via `mirrorTiles`. Colors are tokens only; the geometry is pure
- * so a report worker rasterizes the identical layout (04 §7.1/§7.6).
+ * so a report worker rasterizes the identical layout.
  */
 import type { ReactNode } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';

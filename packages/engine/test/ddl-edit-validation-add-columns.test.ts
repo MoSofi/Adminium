@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `addColumns` — the gates on the narrow door
- * (35-schema-authoring.md §4, 38-files-library-and-attachments.md D6).
+ * `addColumns` — the gates on the narrow door.
  *
  * `test/ddl-edit.test.ts` exercises `validateSchemaEdit` through `upsertTables`.
  * The tail of that function — the loop that guards the OTHER door, the one an

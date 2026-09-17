@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "New rule" (`designs/Automation Rules.dc.html` 45-72, 601;
- * 42-automations-and-workflow-logs.md D12, FILL F1, F4, 42-T22).
+ * "New rule" (45-72, 601, FILL F1, F4).
  *
  * The comp's two-state dialog: a form (name, When, Then, "Enable
  * immediately"), then a success panel with a big check.
@@ -34,7 +33,7 @@
  * event, then — for the three record events only — a `Combobox` for the
  * table, which is the searchable control the design system reserves for
  * exactly this case ("kept native for plain forms — searchable/rich cases
- * are `Combobox`", `Select.tsx`). §4.1's row for comp 55 asked for a
+ * are `Combobox`", `Select.tsx`). The comp's row 55 asked for a
  * Combobox here and the first build shipped a `Select`; this is that
  * correction too. Field chrome, order and copy stay the comp's own, and F4's
  * "{connection} · {table}" prefix still applies with several connections.

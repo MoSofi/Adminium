@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Django `models.py` parser — 05-introspection-engine.md §5.2 row 7. Pure
+ * Django `models.py` parser. Pure
  * line grammar per `class X(models.Model):` block. Field map per the
  * assignment (CharField(max_length) … ForeignKey/OneToOneField/
  * ManyToManyField), `choices=` → CHECK-style enum, `class Meta: db_table`,

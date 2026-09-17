@@ -9,7 +9,7 @@ import type { MasterListConfig } from './tables-track-f-config.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `master-list` (annex §3) — selectable rich list rows driving a detail pane:
+ * `master-list` (annex) — selectable rich list rows driving a detail pane:
  * owner avatar, title/subtitle, status pill, optional inline toggle, progress
  * %, and per-row stats, filtered by a chip bar. Row selection is the primary
  * interaction (feeds a sibling detail widget); the inline toggle emits a
@@ -18,7 +18,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure
 // `tables-track-f-config` module so the registry metadata graph never reaches
-// this component file (04 §2.3). Re-exported here to keep existing import
+// this component file. Re-exported here to keep existing import
 // points stable.
 export { masterListConfigSchema, masterListDemoData } from './tables-track-f-config.js';
 export type { MasterListConfig } from './tables-track-f-config.js';

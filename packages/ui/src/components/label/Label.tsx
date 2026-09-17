@@ -6,7 +6,7 @@ import { cn } from '../../lib/cn.js';
 export type LabelProps = Omit<React.ComponentPropsWithRef<'label'>, 'style'>;
 
 /**
- * Field label: 12px/600 on `--fg` (research/design-system.md §3 Tier 1).
+ * Field label: 12px/600 on `--fg` (research/design-system.md Tier 1).
  * Required-asterisk and control wiring belong to `FormField` (Tier 2).
  */
 export function Label({ className, ...props }: LabelProps) {

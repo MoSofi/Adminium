@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Living design-tokens reference — the exemplar port of the UI Kit "Design
- * tokens" section (Adminium UI Kit.dc.html, M1-T05). Semantic color
- * values are read live via getComputedStyle for BOTH themes (the effect stamps
- * `data-theme` light→dark on the root inside one synchronous block — no paint
- * in between — then restores the toolbar value), so the table always shows the
- * real resolved values, accent included. The accent row re-derives
- * `--accent-soft` at runtime per swatch with the canonical 10%/12% color-mix
- * recipe (research/design-system.md §1.1).
+ * tokens" section (Adminium UI Kit.dc.html). Semantic color values are read
+ * live via getComputedStyle for BOTH themes (the effect stamps `data-theme`
+ * light→dark on the root inside one synchronous block — no paint in between —
+ * then restores the toolbar value), so the table always shows the real
+ * resolved values, accent included. The accent row re-derives `--accent-soft`
+ * at runtime per swatch with the canonical 10%/12% color-mix recipe
+ * (research/design-system.md).
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ACCENTS, VIZ_PALETTE, accentHex, type Accent } from '@adminium/tokens';

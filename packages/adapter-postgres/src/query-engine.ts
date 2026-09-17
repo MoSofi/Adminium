@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `createQueryEngine()` — the Kysely dialect factory for the pooled data
- * connection (05-introspection-engine.md §3 `QueryEngine`, 08-server-api.md
- * §3.7 "query port").
+ * connection (`QueryEngine`).
  *
  * `@adminium/engine` does not depend on `kysely`, so `QueryEngine.dialect`
  * is typed opaquely there; `@adminium/server` casts it to `kysely.Dialect`
@@ -42,9 +41,9 @@ export function createQueryEngine(config: DataConnectionConfig | string): QueryE
   }
   const poolMax = typeof config === 'string' ? undefined : config.poolMax;
 
-  // 05 §4.1's statement budget, on the pool that reads ROWS — the one place it
-  // was missing. The adapter's pools have carried it since M3; this one was
-  // built bare, so a runaway CRUD query had no server-side bound at all: no
+  // The statement budget, on the pool that reads ROWS — the one place it was
+  // missing. The adapter's pools have carried it since M3; this one was built
+  // bare, so a runaway CRUD query had no server-side bound at all: no
   // `statement_timeout`, nothing to stop a bad filter from scanning until the
   // client gave up. `buildSessionSettings(_, false)` is the same call the
   // adapter's data role makes, so the two cannot drift apart.
@@ -59,7 +58,7 @@ export function createQueryEngine(config: DataConnectionConfig | string): QueryE
   // So on a transaction pooler this pool keeps working, without a server-side
   // budget, exactly as it did before. Every mechanism that would impose one
   // there (a session-level `SET` on a checkout) leaks the setting onto whatever
-  // backend the pooler hands the next tenant, which is precisely what 05 §4.1
+  // backend the pooler hands the next tenant, which is precisely what
   // refuses to do. Direct endpoints — every non-pooled host, plus session
   // poolers — get the budget.
   const statementTimeoutMs = Math.floor(

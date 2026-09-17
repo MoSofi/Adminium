@@ -53,7 +53,7 @@ const defaultFilter = (option: ComboboxOption, query: string): boolean =>
   option.label.toLowerCase().includes(query.trim().toLowerCase());
 
 /**
- * Combobox — searchable single-select (research/design-system.md §3 Tier 2):
+ * Combobox — searchable single-select (research/design-system.md Tier 2):
  * Input chrome + chevron; typing filters the option list in an anchored
  * Radix Popover panel; rows take a `leading` slot (avatars) and an optional
  * description; empty state via `emptyText`.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `table-inclusion-checklist` (annex §10) — scrollable toggleable table list:
+ * `table-inclusion-checklist` (annex) — scrollable toggleable table list:
  * custom checkbox, mono name, human row counts, PII warning badges,
  * suggested-dashboard tag chips, and an included/total header count.
  * Evidence: Adminium Console, Auth & Onboarding, Connect Database.
@@ -32,7 +32,7 @@ export { tableInclusionChecklistConfigSchema, tableInclusionChecklistDemoData };
 export type { TableInclusionChecklistConfig };
 
 /**
- * Project the §3 `record-list` payload onto includable tables (annex §10:
+ * Project the `record-list` payload onto includable tables (annex:
  * "introspected tables {name, rowCount, pii?, tag?, included}").
  *
  * `pii` is read as a COUNT or a flag: an introspector that reports
@@ -74,7 +74,7 @@ export function initialInclusion(data: unknown, config: TableInclusionChecklistC
   }
   // No `included` column at all ⇒ nobody has chosen yet ⇒ apply the >100k rule.
   // An `included` column that happens to be all-false is a real choice, and must
-  // NOT be overwritten by the default (05; M5-T02).
+  // NOT be overwritten by the default (05).
   return new Set(sawColumn ? explicit : defaultIncludedIds(tables));
 }
 
@@ -88,9 +88,9 @@ export interface TableInclusionChecklistProps {
    * concern the widget has no way to know about and must not guess at.
    */
   renderRowMeta?: ((table: InclusionTable) => ReactNode) | undefined;
-  /** Annex §10 `piiDetection`. */
+  /** Annex `piiDetection`. */
   piiDetection?: boolean | undefined;
-  /** Annex §10 `maxHeight`, in px. */
+  /** Annex `maxHeight`, in px. */
   maxHeight?: number | undefined;
   /** `{included}` / `{total}` are substituted. Omit to hide the header count. */
   countTemplate?: string | undefined;
@@ -125,7 +125,7 @@ export function TableInclusionChecklist({
   // t(); an explicit caller label still wins.
   const resolvedPiiLabel = piiLabel ?? t('ui:widgets.forms.tableInclusionChecklist.pii', 'PII');
   const resolvedHighVolumeLabel = highVolumeLabel ?? t('ui:widgets.forms.tableInclusionChecklist.highVolume', 'high volume');
-  // Join/system tables are never listed (annex §10). Filtering HERE, not at the
+  // Join/system tables are never listed (annex). Filtering HERE, not at the
   // call site, keeps the rule with the data: a caller that forgot would silently
   // offer to build dashboards on a join table.
   const visible = tables.filter((table) => !table.preHidden);
@@ -198,9 +198,9 @@ export function TableInclusionChecklist({
 }
 
 /**
- * The registry binding (annex §10). Binds the §3 `record-list` shape — an empty
- * table list is genuinely empty, so the frame's empty state is the right answer
- * and this widget does not fake one.
+ * The registry binding (annex). Binds the `record-list` shape — an empty table
+ * list is genuinely empty, so the frame's empty state is the right answer and
+ * this widget does not fake one.
  *
  * WRITE MODEL: one `update` intent per toggle carrying the WHOLE inclusion set,
  * not a delta. The stored value is a set (`settings.includedTables`), so sending

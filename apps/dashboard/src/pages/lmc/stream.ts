@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * App-lifetime stream transport singleton for the live-tail templates
- * (page-log-viewer's WS tail — 04-widget-registry.md §5.3).
+ * (page-log-viewer's WS tail).
  *
  * `createStreamTransport` (src/api/streamTransport.ts) already reference-
  * counts channels and tears the socket down when the last subscriber leaves,
  * so ONE lazily-created instance can back every live page for the session —
- * exactly the "single multiplexed connection" §5.3 asks for. Kept in its own
+ * exactly the "single multiplexed connection" asks for. Kept in its own
  * module (not a React context bootstrap in AppShell) so only pages that
  * actually stream ever open the connection.
  */

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-path validation-error list for the BYO paste screen (06-llm-assist.md
- * §7.2). Every error renders verbatim — code · JSON path · human sentence
- * (+ optional hint) — with a "Copy errors for your AI tool" button that copies
- * the §7.5 repair message, the copy-paste analogue of the direct path's
- * automated repair turn (§7.5).
+ * Per-path validation-error list for the BYO paste screen. Every error renders
+ * verbatim — code · JSON path · human sentence (+ optional hint) — with a
+ * "Copy errors for your AI tool" button that copies the repair message, the
+ * copy-paste analogue of the direct path's automated repair turn.
  */
 import { CircleAlert, TriangleAlert } from 'lucide-react';
 import { Badge, MonoText } from '@adminium/ui';

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The image block's field group (comp 381 as *Placeholder caption*, plus
- * 43 D26/O4's fill).
+ * fill).
  *
  * THE FILL, AND WHY IT IS ONE. The comp draws the image block as a dashed
  * striped placeholder with a mono caption (321) and offers no upload anywhere
  * for it — while the SAME comp draws Upload / Replace / Remove for the
  * document background (360-367). This group takes that pattern verbatim: with
  * a picture, a 46 × 34 thumb, *Replace* (a file label) and *Remove* (danger
- * text); without one, a dashed *Upload image* label. The caps are 34 D44's,
- * shared with the background (`readImageFile`), and the refusal is the
- * editor's toast.
+ * text); without one, a dashed *Upload image* label. The caps are, shared
+ * with the background (`readImageFile`), and the refusal is the editor's
+ * toast.
  */
 import { cn } from '@adminium/ui';
 

@@ -236,15 +236,14 @@
   harness defects that hid them.
   
   `a11y-baseline.json` held 162 fingerprints for four weeks. 111 of them do not
-  reproduce at all.
-  The sweep runs over the Storybook build, and that build was measuring something
-  the product does not look like: `storybook.css` `@source`d only `packages/ui`
-  while `.storybook/main.ts` has loaded the widgets and charts stories since
-  04-T17, so every widget story rendered unstyled; and nothing painted `--bg` on
-  the preview body, so under `data-theme="dark"` stories drew dark-theme
-  foregrounds on Storybook's white body — axe resolves `color-contrast` against
-  the nearest opaque ancestor, so the translucent tone tints composited over white
-  and reported pairs the product never renders.
+  reproduce at all. The sweep runs over the Storybook build, and that build was
+  measuring something the product does not look like: `storybook.css` `@source`d
+  only `packages/ui` while `.storybook/main.ts` has loaded the widgets and charts
+  stories since, so every widget story rendered unstyled; and nothing painted `--bg`
+  on the preview body, so under `data-theme="dark"` stories drew dark-theme
+  foregrounds on Storybook's white body — axe resolves `color-contrast` against the
+  nearest opaque ancestor, so the translucent tone tints composited over white and
+  reported pairs the product never renders.
   
   Fixing both exposed violations the unstyled build had concealed. 128 were found
   and fixed rather than baselined:
@@ -495,3 +494,13 @@
 
 - Updated dependencies
   - @adminium/tokens@0.1.0
+
+---
+
+*A note on the entries above.* Some of them cited the internal work plan this
+repository was built from — a document filename, a section, or a task id. That
+plan was never published, so those citations were dead ends for every reader but
+their author, and they were reworded on 2026-09-17. No entry's substance
+changed: only the references went. The reasoning they pointed at is public now,
+one short page per decision, at
+<https://docs.adminium.dev/anatomy/decisions/>.

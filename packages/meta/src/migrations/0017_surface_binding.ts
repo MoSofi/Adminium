@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0017 — key ↔ app-surface binding (29-app-surfaces.md D10, 29-T15).
+ * Wave 0017 — key ↔ app-surface binding.
  *
  * A hosted CUSTOMER surface is configured at serve time, not bake time: the
  * surfaces plugin answers `GET /apps/<key>/customer/surface-config.json` with
@@ -13,8 +13,8 @@
  * nullable because binding is optional: a key minted for a standalone build
  * or a third-party integration belongs to no hosted surface and stays NULL.
  *
- * Planned as `0016_surface_binding` (29 D10); renumbered to 0017 because
- * plan 30's `0016_audit_entity` shipped first and the list is append-only.
+ * Planned as `0016_surface_binding`; renumbered to 0017 because plan
+ * 30's `0016_audit_entity` shipped first and the list is append-only.
  */
 
 import type { Kysely } from 'kysely';

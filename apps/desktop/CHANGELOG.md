@@ -78,18 +78,17 @@
 - a44a0ff: The ghcr image and the desktop build now carry the six first-party add-ons as
   a pre-verified bundled set.
   
-  The boot seed (32 D3) has existed since the store landed, but nothing ever put
-  a bundle where it looks — every image and installer shipped an empty Add-ons
-  page and called the air-gap story done. Now a release script
-  (`scripts/release/fetch-add-ons-bundle.mjs`) downloads the six tarballs at
-  build time against exact version + sha512 pins
-  (`scripts/release/add-ons-bundle.json`, copied from the release ledger — never
-  `latest`, no redirects, timing-safe digest comparison, refusal on any
-  unpinnable entry), and writes the flat
-  `<key>-<version>.tgz` + `.tgz.integrity` layout the seed reads. The Docker
-  build parks it at `/app/add-ons-bundle`, which the runtime stage's CWD makes
-  the server's own default; desktop-release.yml parks it in
-  `resources/add-ons-bundle` next to the demo seed.
+  The boot seed has existed since the store landed, but nothing ever put a bundle
+  where it looks — every image and installer shipped an empty Add-ons page and
+  called the air-gap story done. Now a release script
+  (`scripts/release/fetch-add-ons-bundle.mjs`) downloads the six tarballs at build
+  time against exact version + sha512 pins (`scripts/release/add-ons-bundle.json`,
+  copied from the release ledger — never `latest`, no redirects, timing-safe
+  digest comparison, refusal on any unpinnable entry), and writes the flat
+  `<key>-<version>.tgz` + `.tgz.integrity` layout the seed reads. The Docker build
+  parks it at `/app/add-ons-bundle`, which the runtime stage's CWD makes the
+  server's own default; desktop-release.yml parks it in `resources/add-ons-bundle`
+  next to the demo seed.
   
   The desktop shell now closes the loop in both directions: `buildServerEnv`
   points `ADMINIUM_BUNDLED_ADD_ONS` at the packaged directory (only when it
@@ -278,3 +277,13 @@
   - @adminium/adapter-postgres@0.1.0
   - @adminium/adapter-sqlite@0.1.0
   - @adminium/server@0.1.0
+
+---
+
+*A note on the entries above.* Some of them cited the internal work plan this
+repository was built from — a document filename, a section, or a task id. That
+plan was never published, so those citations were dead ends for every reader but
+their author, and they were reworded on 2026-09-17. No entry's substance
+changed: only the references went. The reasoning they pointed at is public now,
+one short page per decision, at
+<https://docs.adminium.dev/anatomy/decisions/>.

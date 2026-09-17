@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/** Handlers for the system resource (08-server-api.md §1.2 route-module layout). */
+/** Handlers for the system resource (route-module layout). */
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql } from 'kysely';
 
@@ -27,9 +27,9 @@ export function healthz(): SystemHealthzReply {
 }
 
 /**
- * READINESS (01-architecture.md §4.1 lists `/readyz` beside `/healthz`): can
- * this instance actually serve a request? That means the meta store — without
- * it every authenticated route 500s, however alive the process is.
+ * READINESS (lists `/readyz` beside `/healthz`): can this instance actually
+ * serve a request? That means the meta store — without it every authenticated
+ * route 500s, however alive the process is.
  *
  * Load balancers and orchestrators key traffic on THIS, not on `healthz`: an
  * instance whose Postgres has died or been partitioned away is live but
@@ -60,10 +60,10 @@ export interface SystemInfoDeps {
 }
 
 /**
- * Build/runtime info + the §8.2 capability flags (11-electron.md §8.1/§8.2).
- * `dialect` reports the connected meta store, or `null` when the server booted
- * without one (the wave-1 behavior the schema still allows, and what a
- * pre-bootstrap install looks like).
+ * Build/runtime info + the capability flags. `dialect` reports the
+ * connected meta store, or `null` when the server booted without one (the
+ * wave-1 behavior the schema still allows, and what a pre-bootstrap install
+ * looks like).
  *
  * NO FLAG HERE IS A CONSTANT. `runtime`, `networkFeaturesAllowed` and `lanShare`
  * come off the environment this process was booted with, `smtpConfigured` off
@@ -73,7 +73,7 @@ export interface SystemInfoDeps {
  * SMTP to send email" state showing on a page whose Send button now works.
  *
  * `lanShare` is env-derived and therefore constant for a process lifetime — but
- * that is the whole truth of it, not a limitation: §8.3 applies the toggle by
+ * that is the whole truth of it, not a limitation: the toggle is applied by
  * RE-FORKING this process (`config.json` → `ADMINIUM_HOST` → a new child), so a
  * change of answer and a change of process are the same event. There is no
  * moment at which a fresh read here would say something this boot's environment
@@ -103,7 +103,7 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
  * Is `adminium_settings.email.smtp` set?
  *
  * THE TRY/CATCH IS THE POINT, and it is the same argument {@link readyz} makes
- * one function up. This route was a pure function until the §8.2 flags arrived;
+ * one function up. This route was a pure function until the flags arrived;
  * adding a database read to it means a meta-store blip — or one row of stored
  * JSON that no longer parses — can now throw, and an unhandled throw here costs
  * the caller the WHOLE reply, including `runtime` and `networkFeaturesAllowed`,

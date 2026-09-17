@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard layout-persistence client (04-T13): the typed wrappers hit the
- * documented endpoints, the shared/personal save hooks debounce a burst of
- * layouts into a single request (with `flush()` forcing the pending one), reset
- * issues a DELETE, and `resolvedLayoutFromDocument` extracts the server-resolved
- * layout the renderer reads.
+ * Dashboard layout-persistence client: the typed wrappers hit the documented
+ * endpoints, the shared/personal save hooks debounce a burst of layouts into a
+ * single request (with `flush()` forcing the pending one), reset issues a
+ * DELETE, and `resolvedLayoutFromDocument` extracts the server-resolved layout
+ * the renderer reads.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';

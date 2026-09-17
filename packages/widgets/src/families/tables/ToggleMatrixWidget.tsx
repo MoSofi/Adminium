@@ -9,7 +9,7 @@ import type { MatrixData, MatrixRow } from './tables-track-f-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `toggle-matrix` (annex §3) — an interactive boolean grid (rows =
+ * `toggle-matrix` (annex) — an interactive boolean grid (rows =
  * permissions/events, columns = roles/channels/tables) built on the ui
  * `ToggleMatrix` primitive: tri-state cells, locked columns, grouped iconized
  * sections, and dirty diff dots. Powers RBAC, RLS, and notification matrices.
@@ -20,7 +20,7 @@ import type { WidgetProps } from '../../registry/types.js';
 // Config schema + deterministic demo payload live in the pure
 // `tables-track-f-config` module, and the matrix shapes in
 // `tables-track-f-types`, so the registry metadata graph never reaches this
-// component file (04 §2.3). Re-exported here to keep existing import points
+// component file. Re-exported here to keep existing import points
 // stable.
 export { toggleMatrixConfigSchema, toggleMatrixDemoData } from './tables-track-f-config.js';
 export type { ToggleMatrixConfig } from './tables-track-f-config.js';

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * snapshotsRepo — adminium_schema_snapshots (07-meta-store.md §3.14).
+ * snapshotsRepo — adminium_schema_snapshots.
  *
  * Immutable record of one introspection / schema-import run. The `schema`
- * JSON is the normalized schema model owned by 05-introspection-engine.md —
- * opaque here. Exactly one snapshot per connection is active; activation is
- * app-enforced inside a transaction. Equal checksum to the latest snapshot
- * ⇒ no-op (the existing row is returned, nothing is inserted).
+ * JSON is the normalized schema model the engine owns, opaque here. Exactly one
+ * snapshot per connection is active; activation is app-enforced inside a
+ * transaction. Equal checksum to the latest snapshot ⇒ no-op (the existing
+ * row is returned, nothing is inserted).
  */
 
 import type { Selectable } from 'kysely';
@@ -115,7 +115,7 @@ export function snapshotsRepo(meta: MetaDb) {
   return {
     /**
      * Persist a snapshot; inside one transaction the previous active row is
-     * deactivated so exactly one stays active per connection (§3.14). Equal
+     * deactivated so exactly one stays active per connection. Equal
      * checksum to the latest snapshot short-circuits to a no-op.
      */
     async create(input: CreateSnapshotInput, at: number = Date.now()): Promise<CreateSnapshotResult> {

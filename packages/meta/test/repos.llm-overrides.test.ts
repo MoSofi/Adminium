@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * llmOverridesRepo — the LLM slice of adminium_schema_overrides (06-llm-assist.md §8.3).
+ * llmOverridesRepo — the LLM slice of adminium_schema_overrides.
  *
  * Locks the write-layer contract the apply-EXECUTOR relies on: an idempotent
  * upsert keyed on (connection, op, table, column) that supersedes in place, a

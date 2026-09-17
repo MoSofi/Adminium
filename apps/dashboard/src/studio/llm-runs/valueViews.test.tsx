@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Review value-view rendering (06-llm-assist.md §10.3). Two things are pinned
- * here.
+ * Review value-view rendering. Two things are pinned here.
  *
  * The RTL-correctness of the relation direction arrow (acceptance #14
  * "RTL-correct in ar_EG"): the literal U+2192 is not a bidi-mirrored glyph, so

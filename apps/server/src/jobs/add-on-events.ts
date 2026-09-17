@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Add-on event handlers, as job kinds (26-add-on-runtime.md §5.3, 26-T10).
+ * Add-on event handlers, as job kinds.
  *
  * ─── Why job kinds and not a parallel runner ───────────────────────────────
  *
- * §5.3, and it is the same argument as reusing `adminium_manifests`: the worker
+ * And it is the same argument as reusing `adminium_manifests`: the worker
  * already resolves handlers through a registry keyed by `job.kind`, already
  * retries with attempt counts, already supports cooperative cancellation, and
  * already publishes progress on `jobs:<jobId>`. An add-on that books a parcel
@@ -79,7 +79,7 @@ export interface AddOnEventContext {
   http: AddOnHttpClient;
   /** The decrypted credential envelope, or null when it is not connected. */
   credential: Record<string, unknown> | null;
-  /** Report progress; rides `jobs:<jobId>` unchanged (§5.3). */
+  /** Report progress; rides `jobs:<jobId>` unchanged. */
   progress(pct: number, info?: { step?: string; message?: string }): void;
   log(message: string, data?: Record<string, unknown>): void;
   signal: AbortSignal;

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The pure edits over a report body (43-report-builder.md §3.5; the comp's
- * `patchBlock` 534, `addBlock` 535, `moveBlock` 537, `delBlock` 538,
- * `reorderBlock` 539, `updArr`/`addArr`/`delArr` 540-542, `updRow`/`addRow`/
- * `delRow` 543-545). Every function takes a body and returns a new one;
- * nothing here touches React, history or the network.
+ * The pure edits over a report body (the comp's `patchBlock` 534, `addBlock`
+ * 535, `moveBlock` 537, `delBlock` 538, `reorderBlock` 539,
+ * `updArr`/`addArr`/`delArr` 540-542, `updRow`/`addRow`/ `delRow` 543-545).
+ * Every function takes a body and returns a new one; nothing here touches
+ * React, history or the network.
  *
- * ─── EVERY INDEX IS THE BLOCK'S INDEX IN `blocks[]` (43 §0.3 trap 2) ───────
+ * ─── EVERY INDEX IS THE BLOCK'S INDEX IN `blocks[]` (trap 2) ───────────────
  *
  * `invoices/model/ops.ts` carries three ordering rules because its canvas
  * FILTERS an off block out before rendering, so a drop index is a

@@ -22,15 +22,15 @@ export { attachmentListConfigSchema, attachmentListDemoData };
 export type { AttachmentListConfig };
 
 /**
- * `attachment-list` (annex §8) — file rows: a type-colour-coded icon chip, the
+ * `attachment-list` (annex) — file rows: a type-colour-coded icon chip, the
  * filename, a mono size, and hover download/delete actions. The detail-page /
  * rail counterpart of `file-browser` (Chat shared files, Vision Board files,
  * Report Builder attachments block), and the auto-instantiation target for a
- * `bytea`/storage-URL column or one named `file|attachment|…` (annex §8).
+ * `bytea`/storage-URL column or one named `file|attachment|…` (annex).
  *
  * Delete emits a `mutate` intent; download emits `drill-through` on the row's
- * URL. The widget never writes and never fetches (08 §2.11 — no files routes
- * yet); the host owns both.
+ * URL. The widget never writes and never fetches (no files routes yet); the
+ * host owns both.
  */
 
 export interface Attachment {

@@ -16,8 +16,8 @@ export interface WidgetMissingConfig {
 }
 
 /**
- * Fallback card for unknown registry ids in stored page configs (04 §2.2).
- * Page configs written by older/newer versions or uninstalled manifests must
+ * Fallback card for unknown registry ids in stored page configs. Page
+ * configs written by older/newer versions or uninstalled manifests must
  * never crash a dashboard — this system-family card names the missing id.
  */
 export function WidgetMissingCard({ config }: WidgetProps<WidgetMissingConfig>) {

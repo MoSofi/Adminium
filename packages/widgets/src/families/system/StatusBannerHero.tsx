@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `status-banner-hero` (annex §12) — state-driven hero whose bg/border/icon/
+ * `status-banner-hero` (annex) — state-driven hero whose bg/border/icon/
  * title derive from the WORST child state (up/degraded/down), with an inline
  * end-aligned mono KPI trio. Evidence: Status Page.
  *
@@ -129,7 +129,7 @@ export function StatusBannerHeroWidget({ config, data }: WidgetProps<StatusBanne
   const states = rows.map((row) => oneOf(row[config.stateField], SERVICE_STATES, 'up'));
   const state = worstServiceState(states);
 
-  // The KPI trio reads off the FIRST row (annex §12: the hero's stats are the
+  // The KPI trio reads off the FIRST row (annex: the hero's stats are the
   // roll-up the payload carries alongside the service list).
   const first = rows[0];
   const stats = (config.stats ?? []).map((stat) => ({

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Static presentation metadata for the onboarding steps (M5-T06). The server
- * owns each step's `done` (reactive derivation); this owns its icon, copy keys
- * and CTA target. Keyed by the server `OnboardingStepKey`. Microcopy keepers
- * per research/ia-mapping.md §4 (per-task minute estimates, sample-domain tone).
+ * Static presentation metadata for the onboarding steps. The server owns each
+ * step's `done` (reactive derivation); this owns its icon, copy keys and CTA
+ * target. Keyed by the server `OnboardingStepKey`. Microcopy keepers
+ * (per-task minute estimates, sample-domain tone).
  */
 
 import type { IconName } from '@adminium/ui';

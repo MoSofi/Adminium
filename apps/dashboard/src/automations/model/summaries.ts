@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two generated sentences the comp shows and never explains
- * (42-automations-and-workflow-logs.md Appendix A "Default node text").
+ * The two generated sentences the comp shows and never
+ * explains.
  *
  *  - the RULE CARD's trigger line — "User signs up" in the comp's seed data
  *    (Automation Rules 223), which here is generated from the trigger;

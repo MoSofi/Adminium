@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `usage-meter` — quota-consumption card (annex §1): label, "used of
+ * `usage-meter` — quota-consumption card (annex): label, "used of
  * limit" mono text, horizontal progress bar; bar and caption flip to
  * warn/danger tones past the thresholds. Powers billing quotas, storage
  * and AI-credit sidebars.
@@ -16,7 +16,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { usageMeterConfigSchema, usageMeterDemoData } from './kpi-config.js';
 export type { UsageMeterConfig } from './kpi-config.js';
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The table designer — 35-schema-authoring.md §3.6, D30, D31, 35-T12.
+ * The table designer.
  *
  * ─── The vocabulary on screen IS the vocabulary on the wire ────────────────
  *
@@ -40,8 +40,8 @@ const PRECISE: ReadonlySet<AuthorableType> = new Set(['decimal']);
 /**
  * The identifier rule, checked where the person is typing.
  *
- * `^[a-z][a-z0-9_]*$` is the server's gate (35 §4 `INVALID_IDENTIFIER`) and it
- * is not advisory: these strings reach SQL, and `install-ddl.ts` relies on the
+ * `^[a-z][a-z0-9_]*$` is the server's gate (`INVALID_IDENTIFIER`) and it is
+ * not advisory: these strings reach SQL, and `install-ddl.ts` relies on the
  * same regex to keep authored text out of emitted statements. Letting the
  * field accept "f as s" and refusing it four clicks later at Review is a worse
  * version of the same refusal — the person has already built the table.
@@ -377,12 +377,11 @@ export function TableDesigner({
                 </div>
 
                 {/*
-                  * The link (35 D13). Offered on every column rather than only on
-                  * ones named `*_id`, because guessing from a name is how a
-                  * designer refuses the link somebody actually wants — but the
-                  * primary key is excluded, since a table's own key pointing at
-                  * another table is a different (and rarer) thing than a
-                  * reference column.
+                  * The link. Offered on every column rather than only on ones
+                  * named `*_id`, because guessing from a name is how a designer
+                  * refuses the link somebody actually wants — but the primary key
+                  * is excluded, since a table's own key pointing at another table
+                  * is a different (and rarer) thing than a reference column.
                   */}
                 {linkTargets.length > 0 && !table.primaryKey.includes(column.name) ? (
                   <div className="contents">

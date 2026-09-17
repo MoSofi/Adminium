@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The capability consent surface (11-electron.md §12) — the OAuth-scope pattern
- * from `Integrations.dc.html`, as a modal.
+ * The capability consent surface — the OAuth-scope pattern from
+ * `Integrations.dc.html`, as a modal.
  *
- * §12: installing a manifest that declares capabilities shows a consent step
- * ("THIS WILL ALLOW <app> TO… Print to receipt printers"). This is that step,
- * built as a reusable component so the v1 home for it (Settings → Desktop →
- * {@link CapabilitiesCard}) and the M14 manifest-install flow that follows render
- * the exact same card. It decides nothing — it presents the scopes and reports
- * the user's choice; the caller writes the grant.
+ * Installing a manifest that declares capabilities shows a consent step ("THIS
+ * WILL ALLOW <app> TO… Print to receipt printers"). This is that step, built as a
+ * reusable component so the v1 home for it (Settings → Desktop → {@link
+ * CapabilitiesCard}) and the M14 manifest-install flow that follows render the
+ * exact same card. It decides nothing — it presents the scopes and reports the
+ * user's choice; the caller writes the grant.
  */
 import { ShieldCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -22,13 +22,13 @@ export interface ConsentScope {
   id: string;
   /** A small leading icon (e.g. a printer). */
   icon: ReactNode;
-  /** The scope sentence, already localized (§12: "Print to receipt printers"). */
+  /** The scope sentence, already localized ("Print to receipt printers"). */
   text: string;
 }
 
 export interface CapabilityConsentCardProps {
   open: boolean;
-  /** The app requesting access — `<app>` in §12's copy. */
+  /** The app requesting access — `<app>` copy. */
   appName: string;
   scopes: readonly ConsentScope[];
   /** True while the grant write is in flight — the Allow button shows a spinner. */

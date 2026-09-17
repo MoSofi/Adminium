@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK TABLES-CAL-BOARDS `calendar` M7 Wave-4 TAIL stories (annex §5): each
+ * TRACK TABLES-CAL-BOARDS `calendar` M7 Wave-4 TAIL stories (annex): each
  * widget's loaded variant, the four WidgetFrame states through WidgetHost
  * (acceptance #4), and light/dark × LTR/RTL matrices with REAL geometry
  * mirroring (acceptance #9 — the RTL frames set `dir="rtl"` so the upcoming
@@ -11,7 +11,7 @@
  *
  * Every date-sensitive story pins `referenceTime`/`referenceDate` to the family's
  * fixed demo anchor, so a VRT capture is byte-stable and never depends on the day
- * CI happens to run (04 §7.7).
+ * CI happens to run.
  */
 import type { ReactNode } from 'react';
 

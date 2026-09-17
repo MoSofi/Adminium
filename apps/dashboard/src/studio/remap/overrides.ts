@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Override document model + dirty-state buffer for the schema remap editor
- * (05-introspection-engine.md overrides, 07-meta-store.md §3.15).
+ * (overrides).
  *
  * The op/value vocabulary below MIRRORS the server contract — the Zod shapes
  * in `apps/server/src/routes/schema/schema.ts` (`overridesPutBody`) and
@@ -19,7 +19,7 @@
  * the FULL document (the route replaces the connection's override set).
  */
 
-// --- op vocabulary (§3.15 mirror) -------------------------------------------
+// --- op vocabulary (mirror) -------------------------------------------
 
 export const RELATION_OP_CARDINALITIES = [
   'many-to-one',

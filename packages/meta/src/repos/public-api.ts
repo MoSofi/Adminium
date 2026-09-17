@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * publicScopesRepo / publicKeysRepo — the public surface's meta rows
- * (28-public-surface.md §3.2–§3.3, migration `0014_public_surface`).
+ * (migration `0014_public_surface`).
  *
  * Deliberately NOT part of `apiKeysRepo`. A publishable key differs from an
  * `adm_sk_` key in two ways that both reach the storage layer: its secret is
@@ -152,7 +152,7 @@ export interface CreatePublicKeyInput {
   tokenEncrypted: string;
   scopeId: string;
   side: string;
-  /** Hosted app surface this key is bound to (29 D10), or absent/null. */
+  /** Hosted app surface this key is bound to, or absent/null. */
   appKey?: string | null;
   /** JSON array narrowing the instance origin list; `[]` = no narrowing. */
   origins?: string[];
@@ -194,7 +194,7 @@ export function publicKeysRepo(meta: MetaDb) {
      * measure; the prefix is a public display fragment and leaks nothing.
      *
      * Revocation and expiry are NOT filtered here either — the caller decides,
-     * so it can answer every failure identically on the wire (§3.2) instead of
+     * so it can answer every failure identically on the wire instead of
      * letting "no row" and "revoked row" take different code paths.
      */
     async findByPrefix(prefix: string): Promise<PublicKey[]> {
@@ -224,20 +224,20 @@ export function publicKeysRepo(meta: MetaDb) {
     },
 
     /**
-     * The `surface-config.json` lookup (29 D10): the newest key for this app's
-     * side that is neither revoked nor expired. Rotation keeps the row (and so
-     * the binding); revoking the newest key falls back to the next live one, so
-     * an operator can stage a replacement before killing the old key.
+     * The `surface-config.json` lookup: the newest key for this app's side that
+     * is neither revoked nor expired. Rotation keeps the row (and so the
+     * binding); revoking the newest key falls back to the next live one, so an
+     * operator can stage a replacement before killing the old key.
      */
     /**
      * The newest live key for an app whose SCOPE points at one connection.
      *
      * What `newestLiveByApp` answers once per app, this answers once per
-     * database — the customer half of app instances (29 D9). A customer surface
-     * has never named its connection directly and does not start now: its key
-     * names a scope and the scope names the connection, so selecting the right
-     * key IS selecting the right database, and nothing new has to be kept in
-     * sync with anything.
+     * database — the customer half of app instances. A customer surface has
+     * never named its connection directly and does not start now: its key names
+     * a scope and the scope names the connection, so selecting the right key IS
+     * selecting the right database, and nothing new has to be kept in sync with
+     * anything.
      *
      * A join, not two queries: the pair "newest, and belonging to this
      * connection" has to be decided together, or a scope moved between

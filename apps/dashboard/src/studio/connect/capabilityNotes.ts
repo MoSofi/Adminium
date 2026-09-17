@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-engine capability degradation copy (M9-T04, gap-analysis §2.1).
+ * Per-engine capability degradation copy (gap-analysis).
  *
  * The FACTS come from @adminium/engine's capability matrix (the same module
  * the adapters re-export their static capabilities from); this file only

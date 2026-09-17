@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The invoice document envelope — what one `adminium_invoice_documents` row's
- * `body` MEANS (34-invoices-add-on.md §3.9, Appendix F; the comp's `base()`,
- * `designs/Invoice Builder.dc.html` 1083-1115).
+ * `body` MEANS (the comp's `base()`, 1083-1115).
  *
  * ONE SHAPE FOR TEMPLATES AND INVOICES. The comp holds both collections in
  * the same object model (`arrName(kind)`); the row's `kind`, `name`, `status`,
@@ -12,11 +11,11 @@
  * strings the operator typed, never floats: a document of record must not
  * drift by a cent between a save and a reload, and the comp's own inputs are
  * plain text fields (424-443, 845-846). `model/money.ts` is the one place
- * that turns them into integer minor units (34 D20, O25).
+ * that turns them into integer minor units.
  *
- * IMAGES ARE INLINE `data:` URIs (34 O18 — the comp's `readImg`, 1324-1328):
- * the five fixed slots (1112) plus one per image section and three per image
- * row, all capped by `IMAGE_DATA_URL_MAX` and, together, by `BODY_BYTES_MAX`.
+ * IMAGES ARE INLINE `data:` URIs (the comp's `readImg`, 1324-1328): the five
+ * fixed slots (1112) plus one per image section and three per image row, all
+ * capped by `IMAGE_DATA_URL_MAX` and, together, by `BODY_BYTES_MAX`.
  */
 
 export type InvoiceDocumentKind = 'template' | 'invoice';
@@ -406,11 +405,11 @@ function customSection(raw: Record<string, unknown>): CustomSection | null {
 }
 
 /**
- * The composition, reconciled (34-T47's orphan rule): every built-in key
- * exactly once, `cus:` keys only for sections that exist, and every existing
- * section referenced — an unreferenced one is appended rather than lost. The
- * comp renders an orphan key as an empty draggable block (1512); a decode
- * here never does.
+ * The composition, reconciled (orphan rule): every built-in key exactly
+ * once, `cus:` keys only for sections that exist, and every existing section
+ * referenced — an unreferenced one is appended rather than lost. The comp
+ * renders an orphan key as an empty draggable block (1512); a decode here
+ * never does.
  */
 export function reconcileBlockOrder(order: readonly string[], custom: readonly CustomSection[]): string[] {
   const customKeys = new Set(custom.map((section) => `cus:${section.id}`));

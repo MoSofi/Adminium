@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/** The Invoice details panel (comp 825-832): number (mono), the two dates, the terms and the PO number (mono). The number is authored text (34 O26). */
+/** The Invoice details panel (comp 825-832): number (mono), the two dates, the
+ * terms and the PO number (mono). The number is authored text. */
 import { t } from '../../../../i18n/t.js';
 import { TextField } from '../parts.js';
 import type { PanelProps } from '../panelProps.js';

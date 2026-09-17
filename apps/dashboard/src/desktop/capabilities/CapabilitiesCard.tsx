@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Settings → Desktop → "App permissions" (11-electron.md §12).
+ * Settings → Desktop → "App permissions".
  *
- * The v1 home for capability consent + revoke. §12 puts these "on the manifest
- * detail page"; the marketplace that owns that page is M14 (13-marketplace.md),
- * so until it lands this panel is where a super admin sees what this computer's
- * hardware can do and manages which app may reach it — reusing the very
- * components ({@link CapabilityConsentCard}) the future install flow will.
+ * The v1 home for capability consent + revoke. These belong "on the manifest
+ * detail page"; the marketplace that owns that page is M14, so until it lands
+ * this panel is where a super admin sees what this computer's hardware can do
+ * and manages which app may reach it — reusing the very components ({@link
+ * CapabilityConsentCard}) the future install flow will.
  *
- * The whole §12 pipeline is clickable here: the bridge reports each capability's
+ * The whole pipeline is clickable here: the bridge reports each capability's
  * status (`stub` for v1's printer), "Allow…" opens the consent card, approving
  * writes a grant (`POST`), the grant then shows with a Revoke control (`DELETE`),
  * and the main-process host gates real invokes on exactly that grant.
  *
- * v1 offers consent for one concrete app — the POS micro-SaaS (13-marketplace.md
- * §10), the reason §12 exists — under its reserved manifest id. Grants written by
- * a future marketplace install (any manifest id) still appear and revoke here.
+ * v1 offers consent for one concrete app — the POS micro-SaaS, the reason exists
+ * — under its reserved manifest id. Grants written by a future marketplace
+ * install (any manifest id) still appear and revoke here.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Printer, Usb } from 'lucide-react';
@@ -36,10 +36,9 @@ import { CapabilityConsentCard } from './CapabilityConsentCard.js';
 import { capabilityStatuses, CAPABILITY_CATALOG, type CapabilityStatus } from './model.js';
 
 /**
- * The reserved id + name of the first micro-SaaS this shell is built for
- * (13-marketplace.md §10). Until the M14 storefront supplies real manifest ids,
- * this is the app the consent flow grants to — a real, forward-looking
- * authorization, not a placeholder.
+ * The reserved id + name of the first micro-SaaS this shell is built for. Until
+ * the M14 storefront supplies real manifest ids, this is the app the consent
+ * flow grants to — a real, forward-looking authorization, not a placeholder.
  */
 const POS_APP = { manifestId: 'com.adminium.pos', name: 'Adminium POS' } as const;
 
@@ -73,7 +72,7 @@ export function CapabilitiesCard(): ReactNode {
   const descriptors = useQuery(capabilityDescriptorsQuery());
 
   // Desktop-only panel (its parent page 404s off-desktop), so the runtime is
-  // 'desktop' here — the helper's cross-runtime `unavailable` branch is the §12
+  // 'desktop' here — the helper's cross-runtime `unavailable` branch is the
   // contract for a future manifest page and is covered by `model.test.ts`.
   const effective = capabilityStatuses('desktop', descriptors.data ?? null);
   const statusById = new Map(effective.map((d) => [d.id, d.status]));

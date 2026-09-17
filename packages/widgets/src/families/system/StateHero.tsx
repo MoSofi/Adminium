@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `state-hero` (annex §12) — parameterized full-page status: optional giant mono
+ * `state-hero` (annex) — parameterized full-page status: optional giant mono
  * HTTP code, tone-tinted icon chip, title, body, primary/secondary CTAs. The 404
  * variant adds a floating decorative ornament + quick-link chips.
  *
  * Built fresh in the widgets package rather than lifted from
  * `apps/dashboard/src/states/StateHero.tsx`: the app's hero is bound to that
  * app's `SystemStateSpec`/`stateMap` module, its router, and its `t()` — a widget
- * may never import an app (04 §2.1), and the annex's contract here is the
- * generic `stateMap` keyed by view id. The app keeps its own shell hero.
+ * may never import an app, and the annex's contract here is the generic
+ * `stateMap` keyed by view id. The app keeps its own shell hero.
  */
 
 import { Button, MonoText, cn } from '@adminium/ui';

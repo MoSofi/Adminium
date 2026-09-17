@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-scheduler` template (09-generated-app.md §7.6; 04 §10) — the component
- * the dashboard PageRenderer mounts for `template: 'page-scheduler'` envelopes,
- * plus the interactive ShiftMatrix (click-to-cycle shift writes, M7-T03).
+ * `page-scheduler` template — the component the dashboard PageRenderer mounts
+ * for `template: 'page-scheduler'` envelopes, plus the interactive ShiftMatrix
+ * (click-to-cycle shift writes).
  */
 export {
   PAGE_SCHEDULER_TEMPLATE_ID,

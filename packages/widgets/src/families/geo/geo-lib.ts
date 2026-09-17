@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shared helpers for the `geo` family (annex §7) — the seeded PRNG the demo
+ * Shared helpers for the `geo` family (annex) — the seeded PRNG the demo
  * generators use, the `geo-points` envelope reader, the bubble radius scale, the
  * theme-following Carto tile URLs, and the binding → event-source read.
  *
@@ -27,12 +27,12 @@ export function mulberry32(seed: number): () => number {
 
 /**
  * Fixed demo epoch so `demoData(seed)` is byte-identical across runs and
- * platforms (04 §7.7). Matches the communication family's `CHAT_DEMO_EPOCH`.
- * No `Date.now()` / `Math.random()` may appear anywhere in this family.
+ * platforms. Matches the communication family's `CHAT_DEMO_EPOCH`. No
+ * `Date.now()` / `Math.random()` may appear anywhere in this family.
  */
 export const GEO_DEMO_EPOCH = Date.UTC(2026, 6, 14, 12, 0, 0);
 
-// ── the §3 `geo-points` envelope ────────────────────────────────────────────
+// ── the `geo-points` envelope ───────────────────────────────────────────────
 
 /**
  * One plotted place. `lat`/`lng` are present for `map-bubble` (the annex's
@@ -48,7 +48,7 @@ export interface GeoPoint {
   values: Record<string, number>;
 }
 
-/** Column names the reader maps a raw `record-list` row through (04 §5). */
+/** Column names the reader maps a raw `record-list` row through. */
 export interface GeoFieldConfig {
   nameField: string;
   codeField: string;
@@ -86,9 +86,9 @@ const NEVER_METRIC = new Set(['id', 'lat', 'lng', 'latitude', 'longitude', 'code
 /**
  * Read a `geo-points` payload.
  *
- * TWO ENVELOPES, DELIBERATELY. The canonical §3 shape is `{ points: [...] }`
- * with a per-point `values` map — the same shape `chart-choropleth-grid`
- * consumes, and the one `isEmptyByShape['geo-points']` tests. But the annex §7
+ * TWO ENVELOPES, DELIBERATELY. The canonical shape is `{ points: [...] }` with
+ * a per-point `values` map — the same shape `chart-choropleth-grid` consumes,
+ * and the one `isEmptyByShape['geo-points']` tests. But the annex
  * auto-instantiation rule (`geo.lat-lng-pair` in registry/candidates.ts) binds
  * `map-bubble` to a plain `select` over the source table, so a LIVE instance
  * receives raw `{ rows: [...] }` whose lat/lng/metric columns are named by
@@ -127,7 +127,7 @@ export function geoPointsOf(data: unknown, fields: GeoFieldConfig): GeoPoint[] {
   });
 }
 
-/** Rows from either envelope: the §3 `{ points }`, or a raw `{ rows }` select. */
+/** Rows from either envelope: the `{ points }`, or a raw `{ rows }` select. */
 function rawRowsOf(data: unknown): Record<string, unknown>[] {
   if (Array.isArray(data)) return data as Record<string, unknown>[];
   if (typeof data !== 'object' || data === null) return [];
@@ -238,9 +238,9 @@ export const DEFAULT_ZOOM = 2;
 
 /**
  * The `{connectionId, table}` pair a `record-open` / `drill-through` event
- * carries, read off the widget's query descriptor (04 §5.1: `binding.source.name`
- * is the table/view — NOT `binding.table`). Tolerant of a `table`-spelled source
- * and of an absent binding, so a demoData-backed instance still emits sensibly.
+ * carries, read off the widget's query descriptor (`binding.source.name` is the
+ * table/view — NOT `binding.table`). Tolerant of a `table`-spelled source and of
+ * an absent binding, so a demoData-backed instance still emits sensibly.
  */
 export function sourceOf(binding: unknown): { connectionId?: string | undefined; table: string } {
   const descriptor = binding as

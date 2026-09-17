@@ -6,7 +6,7 @@ import { widgetSharedConfigSchema } from './shared-config.js';
 import { defineWidget } from './types.js';
 import type { WidgetDefinition } from './types.js';
 
-/** Registry id of the unknown-widget fallback (04 §2.2). */
+/** Registry id of the unknown-widget fallback. */
 export const WIDGET_MISSING_ID = 'widget-missing';
 
 export const widgetMissingConfigSchema = widgetSharedConfigSchema.extend({
@@ -16,8 +16,8 @@ export const widgetMissingConfigSchema = widgetSharedConfigSchema.extend({
 /**
  * The `widget-missing` fallback definition — a `system`-family card naming the
  * missing id. Rendered whenever a stored page config references a registry id
- * that is not installed; it must never crash a dashboard (04 §2.2). Lazy like
- * every other widget so registry metadata stays free of component code.
+ * that is not installed; it must never crash a dashboard. Lazy like every
+ * other widget so registry metadata stays free of component code.
  */
 export const widgetMissingDefinition: WidgetDefinition = defineWidget({
   id: WIDGET_MISSING_ID,

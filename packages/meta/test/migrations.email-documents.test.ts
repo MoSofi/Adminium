@@ -2,7 +2,7 @@
 /**
  * Wave 0026 (email documents): `adminium_email_templates` gains the envelope
  * the comp needs, and the two new tables land (39-email-templates-and-
- * campaigns.md §3.2, 39-T01).
+ * campaigns.md).
  *
  * Runs the real migration list split at 0025/0026 on every available dialect:
  * the `created_by` FK on the ALTER is spelled per engine (inline REFERENCES on
@@ -71,7 +71,7 @@ for (const dialect of TEST_DIALECTS) {
       const row = await emailTemplatesRepo(t.meta).findById('tpl_PRE0026');
       expect(row).not.toBeNull();
       // The trailing footer BLOCK is the envelope's footer now, and gone from
-      // the blocks the caller sees; the row itself is untouched (39 D5).
+      // the blocks the caller sees; the row itself is untouched.
       expect(row?.footer).toBe('Paste this link: {{resetUrl}}');
       expect(row?.blocks.map((b) => b['block'])).toEqual(['email.heading', 'email.text', 'email.divider']);
       expect(row).toMatchObject({

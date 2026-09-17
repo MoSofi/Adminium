@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GET /api/v1/pages/:pageId (08-server-api.md §2.6 read surface): returns the
- * stored envelope verbatim under `data`, 404s on missing/disabled pages, and
- * requires an authenticated principal. This is the endpoint the dashboard's
- * PageRenderer loads every /p/$slug route through (09-generated-app.md §2.3).
+ * GET /api/v1/pages/:pageId (read surface): returns the stored envelope
+ * verbatim under `data`, 404s on missing/disabled pages, and requires an
+ * authenticated principal. This is the endpoint the dashboard's PageRenderer
+ * loads every /p/$slug route through.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { pagesRepo, writeBool, type MetaDb } from '@adminium/meta';

@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The card's thumbnail — a miniature of the sheet (43-report-builder.md
- * Appendix A M10; comp 181-187, props 584-591): a 34 × 5 accent kicker bar,
- * the report title at 11 px / 800, up to three KPI boxes each holding a 60 %
- * bar at 50 % accent, then up to six bars whose heights are
- * `max(14, v/max·100)%` with the LAST in full accent and the rest at 30 %.
+ * The card's thumbnail — a miniature of the sheet (M10; comp 181-187, props
+ * 584-591): a 34 × 5 accent kicker bar, the report title at 11 px / 800, up
+ * to three KPI boxes each holding a 60 % bar at 50 % accent, then up to six
+ * bars whose heights are `max(14, v/max·100)%` with the LAST in full accent
+ * and the rest at 30 %.
  *
- * It is drawn from the row's denormalised summary, never from the body
- * (43 D15/D16): the comp derives these numbers by walking every document's
- * blocks, and a live gallery that did that would decode every body to paint
- * itself.
+ * It is drawn from the row's denormalised summary, never from the body: the
+ * comp derives these numbers by walking every document's blocks, and a live
+ * gallery that did that would decode every body to paint itself.
  *
  * The heights are DATA, so they ride inline `style` on a `--h` custom
  * property rather than a class; the accent rides `--adm-report-accent` and
  * the classes read it back. The paper follows the THEME here — the comp
  * paints it `var(--surface)` — because this is a thumbnail in the manager,
- * not the always-light sheet (43 D10).
+ * not the always-light sheet.
  */
 import type { ReportSummaryFacts } from '../api.js';
 

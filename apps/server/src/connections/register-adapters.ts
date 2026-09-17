@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Boot-time adapter registration (01-architecture.md §2.3.1): the server —
- * and only the server — composes concrete adapter packages into the engine's
- * process-wide registry. Adapter packages import `@adminium/engine/adapter`;
- * the engine never imports adapters; everything stays acyclic.
+ * Boot-time adapter registration: the server — and only the server —
+ * composes concrete adapter packages into the engine's process-wide
+ * registry. Adapter packages import `@adminium/engine/adapter`; the engine
+ * never imports adapters; everything stays acyclic.
  *
  * The adapter package is loaded dynamically and duck-checked because the
  * provider export lands in the same wave as this module — a stub package
@@ -52,7 +52,7 @@ export interface RegisterAdaptersResult {
 }
 
 /**
- * The v1 adapter packages — all THREE engines BRIEF §3 ships and the `init`
+ * The v1 adapter packages — all THREE engines BRIEF ships and the `init`
  * wizard offers (PostgreSQL, MySQL/MariaDB, SQLite), and all three that M10's
  * exit criterion names ("connect any of the 3 engines").
  *
@@ -62,8 +62,8 @@ export interface RegisterAdaptersResult {
  * questions, with no hint. Both packages exported working providers the whole
  * time; they were simply never composed in. They are also declared dependencies
  * of `@adminium/server` now, so they resolve inside the deployed image and not
- * just in a workspace checkout (01 §2.3.1: the server, and only the server,
- * composes concrete adapters).
+ * just in a workspace checkout (the server, and only the server, composes
+ * concrete adapters).
  */
 export const ADAPTER_PACKAGES: readonly string[] = [
   '@adminium/adapter-postgres',

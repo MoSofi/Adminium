@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `breadcrumb` (annex §11) — ancestor chain from parent pointers, clickable,
+ * `breadcrumb` (annex) — ancestor chain from parent pointers, clickable,
  * separator glyph, RTL-aware. Evidence: File Manager.
  *
  * Wraps @adminium/ui's `Breadcrumbs`, which already owns the separator chevron
@@ -26,7 +26,7 @@ export interface Crumb {
   href?: string | undefined;
 }
 
-/** Project the §3 `record-list` payload onto the ordered ancestor trail. */
+/** Project the `record-list` payload onto the ordered ancestor trail. */
 export function crumbsOf(data: unknown, config: BreadcrumbConfig): Crumb[] {
   const rows = recordRowsOf(data);
   const out: Crumb[] = [];

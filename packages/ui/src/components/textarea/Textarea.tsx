@@ -20,7 +20,7 @@ export interface TextareaProps
 
 /**
  * Multi-line input with the exact `Input` chrome
- * (research/design-system.md §3 Tier 2).
+ * (research/design-system.md Tier 2).
  */
 export function Textarea({ className, error = false, mono = false, autoResize = false, ...props }: TextareaProps) {
   return (

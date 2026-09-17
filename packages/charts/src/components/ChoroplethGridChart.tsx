@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-choropleth-grid` primitive (research/widget-registry.md §2): a US
- * tilegram (49 state tiles) or compact region grid, tinted by the active metric,
- * label text flipping on dark tiles, a low→high legend + per-tile tooltips.
- * Token-only colors, mount fade with reduced-motion fallback, `data-export-node`
- * raster marker. The tilegram is a geographic LTR island; the `grid` layout
- * mirrors columns in RTL (04 §7.4).
+ * `chart-choropleth-grid` primitive (research/widget-registry.md): a US tilegram
+ * (49 state tiles) or compact region grid, tinted by the active metric, label
+ * text flipping on dark tiles, a low→high legend + per-tile tooltips. Token-only
+ * colors, mount fade with reduced-motion fallback, `data-export-node` raster
+ * marker. The tilegram is a geographic LTR island; the `grid` layout mirrors
+ * columns in RTL.
  */
 import type { ReactNode } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';

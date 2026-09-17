@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The list layout (43-report-builder.md Appendix A M11; comp 214-245): ONE
- * card-styled table with the comp's four columns — Name · Status · Updated ·
- * Actions — and rows that open on click. No group bands: this comp has no
- * grouping (M7). The grid keeps the comp's column recipe; the roles make it a
- * table for assistive tech without giving up the grid.
+ * The list layout (M11; comp 214-245): ONE card-styled table with the comp's
+ * four columns — Name · Status · Updated · Actions — and rows that open on
+ * click. No group bands: this comp has no grouping (M7). The grid keeps the
+ * comp's column recipe; the roles make it a table for assistive tech without
+ * giving up the grid.
  */
 import type { MouseEvent, ReactNode } from 'react';
 import { cn } from '@adminium/ui';

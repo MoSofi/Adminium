@@ -13,8 +13,8 @@
  * The alias grammar all three families share (`/^[A-Za-z_][A-Za-z0-9_]{0,63}$/`)
  * has admitted a leading underscore since `agg=` shipped, so the exclusion has
  * to be stated rather than derived. `compute=` enforces the same list one
- * level up, inside the shared page-config validator (36-derived-columns.md
- * D26) — this is the `lookup=` / `agg=` half of the same rule.
+ * level up, inside the shared page-config validator — this is the `lookup=` /
+ * `agg=` half of the same rule.
  */
 
 import { RESERVED_ROW_KEYS } from '@adminium/engine/config';

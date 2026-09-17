@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GET/PUT /api/v1/settings/defaults (10-i18n-theming.md §7.2, M8-T04):
- * defaults + adoption counts, full-object write with audit (category
- * `settings`) and the `settings.defaults.updated` broadcast on the
- * `config-changed` channel, RBAC denial for non-super-admins.
+ * GET/PUT /api/v1/settings/defaults: defaults + adoption counts,
+ * full-object write with audit (category `settings`) and the
+ * `settings.defaults.updated` broadcast on the `config-changed`
+ * channel, RBAC denial for non-super-admins.
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -172,13 +172,13 @@ describe('settings defaults routes', () => {
     expect(entry?.changes?.before).toMatchObject({ theme: 'system', locale: 'en_US' });
     expect(entry?.changes?.after).toMatchObject(body);
 
-    // Realtime broadcast on the config-changed channel (§7.2).
+    // Realtime broadcast on the config-changed channel.
     const event = t.events.find((e) => e.type === SETTINGS_DEFAULTS_UPDATED);
     expect(event).toBeDefined();
     expect(event?.channel).toBe('config-changed');
     expect(event?.data).toEqual(body);
 
-    // A subsequent GET reflects the new defaults (server-resolved, §7.2).
+    // A subsequent GET reflects the new defaults (server-resolved).
     const after = await t.app.inject({
       method: 'GET',
       url: '/api/v1/settings/defaults',

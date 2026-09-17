@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The §3.1 model-catalog matrix, at the fetcher level.
+ * The model-catalog matrix, at the fetcher level.
  *
  * Each provider's client test already covers its happy path. What is pinned
  * here is the per-provider FALLBACK rule, which is the part that differs

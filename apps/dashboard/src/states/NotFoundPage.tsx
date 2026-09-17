@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Branded 404 (404.dc.html + ia-mapping §4 Surface G keepers):
- * gradient mono numeral with the floating database tile, page-search
+ * Branded 404 (404.dc.html + ia-mapping Surface G keepers): gradient
+ * mono numeral with the floating database tile, page-search
  * recovery, popular-destination chips from the real nav tree (static
  * fallbacks pre-bootstrap), and the `req_…` request-id footer line.
  */

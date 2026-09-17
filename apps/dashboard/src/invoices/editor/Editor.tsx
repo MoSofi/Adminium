@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The invoice editor (34-invoices-add-on.md §3.9, Appendix E §E1-E11, 34-
- * T49): the header, the canvas and the inspector over ONE draft that only
- * `save()` sends (O22 → 39 D1's model).
+ * The invoice editor: the header, the canvas and the
+ * inspector over ONE draft that only `save()` sends (O22 → model).
  *
  * THE GUARD. A router blocker asks before any navigation away from a dirty
  * draft — the topbar's Back, the sidebar, a language switch, the browser's
  * own back — and `beforeunload` covers the tab. One navigation bypasses it
  * on purpose: the one that follows a delete (the row is gone; an unsaved
  * edit to it has nowhere to go). The comp has no guard because it
- * autosaves; the explicit-save model forces this addition (§E4).
+ * autosaves; the explicit-save model forces this addition.
  *
  * SELECTION drives the inspector (the comp's `selSection`, 1044): picking a
  * region on the sheet, a header button (Images) or a modal pick sets it;
@@ -18,7 +17,7 @@
  * (`addOpen.at`, the comp's `addAt` 1283): a between-block chip's pre-filter
  * index, or `null` to append.
  *
- * `totals` is derived ONCE here and handed to every consumer (§C10 — the
+ * `totals` is derived ONCE here and handed to every consumer (the
  * ladder, the QR block, the recurring banner, the multi-currency rows, the
  * tax breakdown and the inspector's Items panel). `Ctrl/⌘+S` saves, inside a
  * field too (`mod+s` is on the shortcut manager's typing allowlist).
@@ -273,8 +272,8 @@ export function Editor({ detail }: EditorProps) {
             onImages={() => setSection('images')}
             onDuplicate={() => duplicate.mutate()}
             onDelete={() => setConfirmDelete(true)}
-            // With no provider installed the primary only saves (O24, 24 D6);
-            // 34-T12's provider read flips the label to *Send invoice* and
+            // With no provider installed the primary only saves (O24);
+            // The provider read flips the label to *Send invoice* and
             // wires the render + delivery behind it.
             onPrimary={() => {
               void save();

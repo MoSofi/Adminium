@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/changelog` — product updates & releases (M10-T06; ports
+ * `/changelog` — product updates & releases (ports
  * `Changelog.dc.html`).
  *
- * PORT NOTES (16-milestones §5 checklist).
+ * PORT NOTES (16-milestones checklist).
  *
- * §5.1 keepers kept: the version-gutter timeline, the New/Improved/Fixed/
+ * Keepers kept: the version-gutter timeline, the New/Improved/Fixed/
  * Security tag taxonomy with its tone mapping, the filter chip row, and —
  * the load-bearing one — **empty-release hiding**: filtering to `Security`
  * shows only the releases that actually carried a security change, never an
  * empty card implying one.
  *
- * §5.2 dates: the comp hardcodes "Jul 10". We store ISO-8601 in the feed and
+ * Dates: the comp hardcodes "Jul 10". We store ISO-8601 in the feed and
  * render it through the @adminium/i18n `Intl` layer, so the one `2026-07-16` in
  * the data reaches an en-US reader as "Jul 16, 2026", a de-DE reader as
  * "16.07.2026", and an ar-EG reader in Arabic-Indic digits.
  *
- * §5.5 known defects NOT copied: the comp's `Subscribe` (RSS) button goes
+ * Known defects NOT copied: the comp's `Subscribe` (RSS) button goes
  * nowhere and there is no feed to subscribe to; a button that lies about a
  * capability is worse than no button. The docs-site link takes its place.
  *
@@ -25,8 +25,8 @@
  * renders `tags` as bare pills and has no slot for the per-change TEXT, while
  * the annex promises "version gutter + tag-pill entry CARDS". The tagged change
  * line is exactly what the filter operates on here, so this page composes the
- * spine from @adminium/ui Tier-1 primitives (16-milestones §5.4 explicitly
- * sanctions "existing Tier 1–3 components AND registered widgets"). Teaching
+ * spine from @adminium/ui Tier-1 primitives (16-milestones explicitly sanctions
+ * "existing Tier 1–3 components AND registered widgets"). Teaching
  * `timeline-vertical` a `changes: {tag, text}[]` field would let this page
  * collapse into it — filed as a follow-up for the widgets owner.
  */

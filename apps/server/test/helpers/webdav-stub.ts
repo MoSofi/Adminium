@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * An in-process WebDAV server, just complete enough to be a conformance target
- * (37-files-and-storage.md D30, 37-T06).
+ * An in-process WebDAV server, just complete enough to be a conformance
+ * target.
  *
  * WHY A STUB RATHER THAN A MOCKED `fetch`. The one thing the WebDAV driver
  * does that is not plain HTTP is recover from a 409 by creating collections,

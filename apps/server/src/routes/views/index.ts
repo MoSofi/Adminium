@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Saved-views routes (M5-T06, 07-meta-store.md §3.18, 08-server-api.md):
+ * Saved-views routes:
  *
  *   GET    /api/v1/pages/:pageId/views            → list (own + shared)
  *   POST   /api/v1/pages/:pageId/views            → create a personal view

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the invoice-documents resource (34-invoices-add-on.md
- * §3.9; 34-T46). SYNC NOTE: the client-side mirror of these shapes is
+ * Zod schemas for the invoice-documents resource. SYNC NOTE: the
+ * client-side mirror of these shapes is
  * `apps/dashboard/src/invoices/api.ts` (type-only copy — the dashboard may
  * not import server runtime code). Change both together; the replies are
  * deliberately UN-enveloped (`{ items, counts }` / bare detail), the email
@@ -22,7 +22,7 @@ export const invoiceSummaryView = z.object({
   lang: invoiceLangSchema,
   /** Which starter minted it; null for blank documents. */
   starter: z.string().nullable(),
-  /** The template an invoice was built from (34 O20); null otherwise. */
+  /** The template an invoice was built from; null otherwise. */
   originId: z.string().nullable(),
   createdAt: z.number(),
   updatedAt: z.number(),
@@ -93,5 +93,5 @@ export const invoicePatchBody = z
 /** One of the six document languages — checked in the route so the 422 names it. */
 export const invoiceAddLanguageBody = z.object({ lang: z.string().min(2).max(8) });
 
-/** `:id` is the template; the invoice takes its name unless one is given (34 O20). */
+/** `:id` is the template; the invoice takes its name unless one is given. */
 export const invoiceFromTemplateBody = z.object({ name: z.string().trim().min(1).max(120).optional() });

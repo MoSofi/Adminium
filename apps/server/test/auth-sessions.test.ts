@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Own-account session and credential management (08-server-api.md §2.1):
- * `GET /auth/sessions`, `DELETE /auth/sessions/:id`,
- * `POST /auth/password/change` — plus the three `auth.*` settings they and
- * their neighbours now enforce (07-meta-store.md §7.1).
+ * Own-account session and credential management: `GET /auth/sessions`,
+ * `DELETE /auth/sessions/:id`, `POST /auth/password/change` — plus the
+ * three `auth.*` settings they and their neighbours now enforce.
  *
  * The point of the last group is that the settings are NOT inert: a workspace
  * that shortens `auth.sessionTtlHours` gets shorter sessions on the very next

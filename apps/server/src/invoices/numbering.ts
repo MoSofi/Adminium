@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Invoice numbers for the authored surface (34-invoices-add-on.md §3.9).
+ * Invoice numbers for the authored surface.
  *
  * The comp mints `'INV-' + (2051 + random)` on create (1382). Here a new
  * invoice takes `INV-` + (1001 + the number of invoices so far), stepped
@@ -10,10 +10,9 @@
  * placeholder {@link TEMPLATE_NUMBER}: a template's number is an example on
  * a design, never a minted one.
  *
- * This is the surface's own counter, not the render register's sequence
- * (34 §3.3, D11): a minted register number lands on the rendered document
- * when that wave ships; until then the authored number is what the sheet
- * shows.
+ * This is the surface's own counter, not the render register's sequence:
+ * a minted register number lands on the rendered document when that wave
+ * ships; until then the authored number is what the sheet shows.
  */
 import type { InvoiceDocumentsRepo } from '@adminium/meta';
 

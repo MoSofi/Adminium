@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-violin` primitive (research/widget-registry.md §2): mirrored density
+ * `chart-violin` primitive (research/widget-registry.md): mirrored density
  * profiles with a median line, one violin per group. Categorical x mirrors in
  * RTL; the value axis stays pixel-down. Token-only colors; fade-in on mount.
  */

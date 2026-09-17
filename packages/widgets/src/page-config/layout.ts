@@ -2,7 +2,7 @@
 import { z } from 'zod';
 
 /**
- * Dashboard grid layout (04-widget-registry.md §6.1).
+ * Dashboard grid layout.
  *
  * 12-column grid; heights are stored in half-row units of 40 px (an annex
  * height of 1.5 rows persists as h: 3).
@@ -23,7 +23,7 @@ export const layoutItemSchema = z.object({
 
 export const pageLayoutSchema = z.object({
   // Internal layout-schema version, stored at config.layout.version — distinct
-  // from the envelope's `v` persisted at config.v (01-architecture.md §6.1).
+  // from the envelope's `v` persisted at config.v.
   version: z.literal(1),
   items: z.array(layoutItemSchema).max(60),
 });

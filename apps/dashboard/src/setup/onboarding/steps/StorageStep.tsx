@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 4 — where Adminium keeps its own data (45-onboarding.md §2, R2).
+ * Step 4 — where Adminium keeps its own data (R2).
  *
  * THE QUESTION THE OWNER RAN INTO. A fresh `npx` install creates an embedded
  * SQLite store and never asks; the choice existed only as step 5 of the Studio's
- * connect wizard, behind a source connection (45 §0.3). This is that question,
- * asked where it is asked — with the local file first and selected, so the
- * lowest-friction path is still one Continue.
+ * connect wizard, behind a source connection. This is that question, asked where
+ * it is asked — with the local file first and selected, so the lowest-friction
+ * path is still one Continue.
  *
  * WHAT EACH ANSWER DOES. `local` writes nothing: the store the server booted on
  * stays where it is. The other two are carried out on Continue by the container
@@ -39,7 +39,7 @@ export function sameDbBlockedReason(
   park = false,
 ): string | null {
   // What the connect step found in there, and what the operator decided about
-  // it (45-T11). Unparked, the relocation would refuse — so the card says so
+  // it. Unparked, the relocation would refuse — so the card says so
   // here rather than failing two screens later, which is how this was found.
   if (existing !== null && existing.occupied.length > 0 && !park) {
     return t(

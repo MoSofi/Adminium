@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Files and storage against the built stack (37-files-and-storage.md §6, task
- * 37-T27).
+ * Files and storage against the built stack.
  *
  * ─── What this file proves, and why it is shaped the way it is ───────────────
  *
@@ -19,9 +18,9 @@
  *     test hands the handler a `Readable` that tears down cleanly; a socket
  *     does not — that difference is what made an over-size upload hang instead
  *     of answering 413. (Two distinct defects sit behind that: the spool's
- *     `stream/promises.pipeline` teardown, 37 §5.2 defect 1, and the route
- *     reading `request.body` rather than `request.raw`. Only a real request
- *     re-proves either.)
+ * `stream/promises.pipeline` teardown, defect 1, and the route reading
+ *     `request.body` rather than `request.raw`. Only a real request re-proves
+ *     either.)
  *  2. **The bytes make the round trip through the local driver.** Upload →
  *     `GET /files/:id/content` → compare buffers, on the built server writing
  *     to a real `<dataDir>/files` root.
@@ -33,8 +32,8 @@
  * ─── What this file deliberately does NOT test, and why (read before adding) ─
  *
  * The seeded Northwind fixture **has no file column and no sidecar page**, so
- * the headline flow of §6 item 1 — "New → attach a PDF → Save, the grid shows
- * a chip, clicking downloads the PDF" — cannot be driven here at all:
+ * the headline flow — "New → attach a PDF → Save, the grid shows a chip,
+ * clicking downloads the PDF" — cannot be driven here at all:
  *
  *  - Generation seeds a `file` block only onto a grid column spec, and only
  *    for a `file-ref`/`image-url`-tagged TEXT column (`crud-body.ts`). Across
@@ -61,18 +60,18 @@
  * belongs with whoever owns `scripts/e2e-server.mjs`.
  *
  * Also unreachable from here, with the reason each time:
- *  - §6 item 2 (every driver, same routes) — needs MinIO and a WebDAV stub as
- *    Playwright-visible services; the driver conformance suite is where that
- *    lives (37-T05/T06), and the s3 leg is `TEST_S3_URL`-gated.
- *  - §6 item 7 (grants, not globals) — the suite has one seeded super admin;
- *    a second, narrower user would have to be created and would outlive this
- *    file. `files-routes.test.ts` covers the 403 shapes.
- *  - §6 item 8's retention half and item 9 (Move files) — both are clock- or
- *    job-driven and finish long after a test would.
- *  - The Files page's per-preset queries (37e / 37-T25) — the page and its
- *    `/files` route exist, and the smoke test below visits it; what is out of
- *    reach here is asserting each rail preset's server round trip, which
- *    `filesPage.test.tsx` covers against a stubbed transport.
+ * - (every driver, same routes) — needs MinIO and a WebDAV stub as
+ *  Playwright-visible services; the driver conformance suite is where that
+ *  lives, and the s3 leg is `TEST_S3_URL`-gated.
+ * - (grants, not globals) — the suite has one seeded super admin; a second,
+ *  narrower user would have to be created and would outlive this file.
+ *  `files-routes.test.ts` covers the 403 shapes.
+ * - retention half and item 9 (Move files) — both are clock- or job-driven
+ *  and finish long after a test would.
+ * - The Files page's per-preset queries (37e /) — the page and its `/files`
+ *  route exist, and the smoke test below visits it; what is out of reach here
+ *  is asserting each rail preset's server round trip, which
+ *  `filesPage.test.tsx` covers against a stubbed transport.
  *
  * ─── State ───────────────────────────────────────────────────────────────────
  *
@@ -211,7 +210,7 @@ test.describe('files routes', () => {
 
       // The MIME on the row is the SNIFFED one, never the client's claim, and
       // `destinationId: null` is the implicit destination — this server's disk
-      // (37 D3), which is what a deployment that configures nothing gets.
+      // , which is what a deployment that configures nothing gets.
       expect(file.mime).toBe('application/pdf');
       expect(file.sizeBytes).toBe(PDF_BYTES.byteLength);
       expect(file.sha256).toMatch(/^[0-9a-f]{64}$/);
@@ -252,7 +251,7 @@ test.describe('files routes', () => {
       const { data: listed } = (await byRecord.json()) as { data: FileView[] };
       expect(listed.map((f) => f.id)).toContain(file.id);
 
-      // ── trash is a round trip, not a delete (37 D12) ──────────────────────
+      // ── trash is a round trip, not a delete ───────────────────────────────
       const deleted = await page.request.delete(`/api/v1/files/${file.id}`);
       expect(deleted.status(), await deleted.text()).toBe(200);
       const { data: trashed } = (await deleted.json()) as { data: FileView };
@@ -287,7 +286,7 @@ test.describe('files routes', () => {
     try {
       // An HTML document is not on the default allowlist under any name, and
       // the refusal names what the bytes actually are — the extension is not
-      // consulted at any point (§6 item 6).
+      // consulted at any point.
       const html = await upload(page.request, {
         filename: 'not-really.png',
         mime: 'image/png',
@@ -300,11 +299,11 @@ test.describe('files routes', () => {
       expect(refusal.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
 
       /*
-       * An upload belongs to a CONNECTION — and, since 38 D4, need not belong
-       * to a table. 37 D11 said "no table, no upload" and this asserted the
-       * 422 it produced; the owner reversed that, so a table-less upload from
-       * the Files page is now a library file and the refusal moved to the
-       * thing that really is required.
+       * An upload belongs to a CONNECTION — and, since, need not belong to a
+       * table. "No table, no upload" was the rule and this asserted the 422 it
+       * produced; the owner reversed that, so a table-less upload from the
+       * Files page is now a library file and the refusal moved to the thing
+       * that really is required.
        */
       const noConnection = await page.request.post(
         `/api/v1/files?${new URLSearchParams({ filename: 'x.pdf' }).toString()}`,
@@ -336,7 +335,7 @@ test.describe('files routes', () => {
       expect(pngInline.headers()['content-disposition']).toContain('inline');
 
       // An SVG is a script container, so it is a download even when the caller
-      // asks for it inline (37 D9).
+      // asks for it inline.
       const svg = await upload(page.request, {
         filename: 'e2e-mark.svg',
         mime: 'image/svg+xml',
@@ -360,7 +359,7 @@ test.describe('files routes', () => {
 test.describe('a column-bound file — the sentence this feature exists for', () => {
   /**
    * "While creating an invoice, attach a PDF and store the link in the invoices
-   * table" — the owner's original ask, and §6 item 1.
+   * table" — the owner's original ask.
    *
    * It runs against `shippers.document_url`, a column the e2e seed adds
    * (`scripts/e2e-server.mjs`) precisely so this flow has somewhere to happen:
@@ -426,7 +425,7 @@ test.describe('a column-bound file — the sentence this feature exists for', ()
       const row = (await saved.json()) as { data: Record<string, unknown> };
       expect(row.data['document_url'], 'the row carries the reference itself').toBe(uploaded.ref);
 
-      // ── and THAT is what attaches it (§3.7) ──────────────────────────────
+      // ── and THAT is what attaches it ─────────────────────────────────────
       const after = await page.request.get(`/api/v1/files/${uploaded.data.id}`);
       const { data: attached } = (await after.json()) as { data: FileView };
       expect(attached.attachedAt, 'the reconcile hook attached it on the write').not.toBeNull();
@@ -499,7 +498,7 @@ test.describe('the Files page', () => {
     await expect(page).toHaveURL(/\/files$/);
     await expect(page.getByRole('heading', { name: 'Files', exact: true })).toBeVisible();
 
-    // The preset rail is the page's whole navigation model (37 §3.8): every
+    // The preset rail is the page's whole navigation model: every
     // entry is a distinct server query, so each must at least be present and
     // clickable before the per-preset assertions in `filesPage.test.tsx` mean
     // anything about a real screen.
@@ -515,10 +514,10 @@ test.describe('the Files page', () => {
     await expect(page.getByRole('button', { name: /empty/i })).toHaveCount(0);
 
     /*
-     * The same copy gate the storage page gets — NARROWED by 38 D10, not
-     * lifted. A bucket has no capacity, so a denominator there would be a
-     * number with nothing behind it and stays banned. This server's own disk
-     * genuinely has a size, and the meter says so as "… on this disk".
+     * The same copy gate the storage page gets — NARROWED by, not lifted. A
+     * bucket has no capacity, so a denominator there would be a number with
+     * nothing behind it and stays banned. This server's own disk genuinely
+     * has a size, and the meter says so as "… on this disk".
      */
     const body = (await page.locator('main').innerText()).toLowerCase();
     // The tail runs to the end of the sentence, but a period INSIDE a figure
@@ -551,12 +550,12 @@ test.describe('storage destinations', () => {
     const list = page.getByTestId('studio-storage-list');
     await expect(list).toBeVisible();
     // The implicit destination is always the first entry and has no row in any
-    // table; with no destination configured it is also the default (§6 item 4).
+    // table; with no destination configured it is also the default.
     await expect(list.getByText("This server's disk")).toBeVisible();
     await expect(page.getByTestId('studio-storage-local-default')).toBeVisible();
 
     // Usage is a bare fact. "N used" — never a denominator, and never any of
-    // the vocabulary 17 §2 bans (37 Appendix D). The positive half of this
+    // the vocabulary bans (37 Appendix D). The positive half of this
     // assertion is what stops the negative half from passing vacuously.
     const usage = page.getByTestId('studio-storage-local-usage');
     await expect(usage).toContainText('used');
@@ -603,7 +602,7 @@ test.describe('storage destinations', () => {
   test('a destination stores its credential and never hands it back', async ({ page }) => {
     await signIn(page);
 
-    // The one §6 item 10 leg an e2e run can reach: the credential goes IN on
+    // The one leg an e2e run can reach: the credential goes IN on
     // create and comes back out of NO read. Points at a closed port on
     // loopback so nothing here depends on a bucket existing.
     const created = await page.request.post('/api/v1/storage/destinations', {
@@ -653,8 +652,7 @@ test.describe('storage destinations', () => {
 });
 
 /**
- * Uploading a file that belongs to no record, through the real dialog
- * (38-files-library-and-attachments.md D4/D17, 38-T12 (a)).
+ * Uploading a file that belongs to no record, through the real dialog.
  *
  * The unit suite drives `UploadFilesDialog` against a stubbed
  * `XMLHttpRequest`; what it cannot prove is that the button exists on the
@@ -731,12 +729,12 @@ test.describe('the Files page uploads', () => {
 
 /**
  * The Attachments card, end to end — and the create dialog driven by a browser
- * (38-files-library-and-attachments.md D6/D19, 38-T12 (b)+(e); closes 27-T60).
+ * ((b)+(e); closes).
  *
- * 27-T60's finding: the column-bound flow was proved at the API level only —
- * the e2e uploaded with `page.request` and PATCHed the row with a reference it
- * had composed itself, so `PageCrudBinding`'s adapter → `RecordForm` submit →
- * CRUD insert had never run outside jsdom against a stub. This drives the real
+ * The finding: the column-bound flow was proved at the API level only — the
+ * e2e uploaded with `page.request` and PATCHed the row with a reference it had
+ * composed itself, so `PageCrudBinding`'s adapter → `RecordForm` submit → CRUD
+ * insert had never run outside jsdom against a stub. This drives the real
  * dialog's real file input.
  *
  * It also drives the DDL: the card plans one `ALTER TABLE … ADD COLUMN`, shows
@@ -881,7 +879,7 @@ test.describe('attachments create the column and the dialog uses it', () => {
       const body = (await rows.json()) as { data: Record<string, unknown>[] };
       const stored = body.data.find((entry) => typeof entry['e2e_attachments'] === 'string');
       expect(stored, 'the new record carries the attachments column').toBeDefined();
-      // A JSON list, which is what a `multiple` column holds (38 D5).
+      // A JSON list, which is what a `multiple` column holds.
       expect(JSON.parse(String(stored?.['e2e_attachments'])) as unknown[]).toHaveLength(2);
 
       const listed = await page.request.get('/api/v1/files?limit=200');
@@ -912,16 +910,16 @@ test.describe('attachments create the column and the dialog uses it', () => {
       /*
        * ONE warm-up read, and no more than one.
        *
-       * An apply re-reads the schema (35 D11), so the next request to touch
-       * this connection pays a reconnect; doing it here keeps that off an
+       * An apply re-reads the schema, so the next request to touch this
+       * connection pays a reconnect; doing it here keeps that off an
        * unrelated spec. It is deliberately a single call: the `api` rate
-       * bucket is 300 requests per minute PER PRINCIPAL
-       * (`plugins/core.ts` RATE_BUCKETS), and this suite is one principal
-       * running serially against one server — so it shares that budget end to
-       * end. An earlier version of this cleanup polled up to 24 times and
-       * pushed the suite over the ceiling, which surfaced as a 429 rendering
-       * the rate-limit page in `workspace-settings` and looked for all the
-       * world like an SMTP bug.
+       * bucket is 300 requests per minute PER PRINCIPAL (`plugins/core.ts`
+       * RATE_BUCKETS), and this suite is one principal running serially
+       * against one server — so it shares that budget end to end. An earlier
+       * version of this cleanup polled up to 24 times and pushed the suite
+       * over the ceiling, which surfaced as a 429 rendering the rate-limit
+       * page in `workspace-settings` and looked for all the world like an
+       * SMTP bug.
        */
       await page.request.get(`/api/v1/pages`);
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * The Upload dialog (38-files-library-and-attachments.md D4, D17; 38-T10).
+ * The Upload dialog.
  *
  * The four claims worth pinning, all of which are about the WIRE or about what
  * survives a failure:

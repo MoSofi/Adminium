@@ -16,8 +16,8 @@ import {
  * The `setup` project (auth.setup.ts) already signed in once and the
  * `chromium` project preloads that session via storageState, so the normal
  * path here is just "open / and see the shell" — the production 5/min
- * `auth-login` bucket (08 §6) is never in play. The UI-login fallback only
- * runs when the saved session is dead (fresh worker after a crash, expiry),
+ * `auth-login` bucket is never in play. The UI-login fallback only runs
+ * when the saved session is dead (fresh worker after a crash, expiry),
  * which stays far under the login budget.
  */
 export async function signIn(page: Page): Promise<void> {
@@ -75,7 +75,7 @@ export function gridSearch(page: Page, table: string | RegExp) {
 }
 
 /**
- * Root of the `page-record` detail template (30-record-pages.md D1).
+ * Root of the `page-record` detail template.
  *
  * The record used to open in a drawer over the list, so these assertions were
  * once `getByRole('dialog')`. It is its own route now — row click, the

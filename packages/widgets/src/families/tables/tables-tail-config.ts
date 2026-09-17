@@ -10,7 +10,7 @@
  * boards/domain/media `*-config` convention, and this family's own
  * `tables-config` / `tables-track-f-config` precedent) lets the definitions
  * import metadata only, so the components stay reachable exclusively through the
- * lazy `tables-tail-components` barrel (04 §2.3, acceptance #3; enforced by
+ * lazy `tables-tail-components` barrel (acceptance #3; enforced by
  * `qa/chunk-budget.test.ts`).
  *
  * The component files re-export these symbols, so the family barrel, stories and
@@ -63,7 +63,7 @@ function sparkSeries(random: () => number, drift: number, points = 8): number[] 
 const toneEnum = z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']);
 const goodDirectionEnum = z.enum(['up', 'down']);
 
-// ── sparkline-table (annex §3) ─────────────────────────────────────────────
+// ── sparkline-table (annex) ────────────────────────────────────────────────
 export const sparklineTableConfigSchema = widgetSharedConfigSchema.extend({
   /** Max metric rows rendered (annex `rows`). */
   rows: z.number().int().min(1).max(24).default(6),
@@ -92,7 +92,7 @@ const SPARK_METRICS: readonly { name: string; good: 'up' | 'down'; unit?: string
   { name: 'Support backlog', good: 'down' },
 ];
 
-/** Deterministic `record-list` of metric rows (04 §7.7). */
+/** Deterministic `record-list` of metric rows. */
 export function sparklineTableDemoData(seed: number): { data: SparkMetricRow[]; total: number } {
   const random = mulberry32(seed || 1);
   const data: SparkMetricRow[] = SPARK_METRICS.map((metric, index) => {
@@ -111,7 +111,7 @@ export function sparklineTableDemoData(seed: number): { data: SparkMetricRow[]; 
   return { data, total: data.length };
 }
 
-// ── top-movers-list (annex §3) ─────────────────────────────────────────────
+// ── top-movers-list (annex) ────────────────────────────────────────────────
 export const topMoversListConfigSchema = widgetSharedConfigSchema.extend({
   /** Top-N by |delta| (annex `n`). */
   n: z.number().int().min(1).max(20).default(5),
@@ -136,7 +136,7 @@ const MOVER_ENTITIES: readonly { name: string; good: 'up' | 'down'; currency?: s
   { name: 'Seats added', good: 'up' },
 ];
 
-/** Deterministic `record-list` ranked by |delta| (annex data contract; 04 §7.7). */
+/** Deterministic `record-list` ranked by |delta| (annex data contract). */
 export function topMoversListDemoData(seed: number): { data: MoverRow[]; total: number } {
   const random = mulberry32(seed || 1);
   const rows: MoverRow[] = MOVER_ENTITIES.map((entity, index) => {
@@ -159,7 +159,7 @@ export function topMoversListDemoData(seed: number): { data: MoverRow[]; total: 
   return { data: rows, total: rows.length };
 }
 
-// ── ranked-entity-list (annex §3) ──────────────────────────────────────────
+// ── ranked-entity-list (annex) ─────────────────────────────────────────────
 export const rankedEntityListConfigSchema = widgetSharedConfigSchema.extend({
   /** Top-N by metric (annex `n`). */
   n: z.number().int().min(1).max(25).default(6),
@@ -189,7 +189,7 @@ const RANKED_REGIONS = [
   'Australia',
 ] as const;
 
-/** Deterministic sorted top-N `record-list` (04 §7.7). */
+/** Deterministic sorted top-N `record-list`. */
 export function rankedEntityListDemoData(seed: number): { data: RankedEntity[]; total: number } {
   const random = mulberry32(seed || 1);
   const rows: RankedEntity[] = RANKED_REGIONS.map((name, index) => ({
@@ -202,7 +202,7 @@ export function rankedEntityListDemoData(seed: number): { data: RankedEntity[]; 
   return { data: rows, total: rows.length };
 }
 
-// ── accordion-list (annex §3) ──────────────────────────────────────────────
+// ── accordion-list (annex) ─────────────────────────────────────────────────
 export const accordionListConfigSchema = widgetSharedConfigSchema.extend({
   /** Single-open (annex "exclusive") vs. multi-open. */
   exclusive: z.boolean().default(false),
@@ -230,7 +230,7 @@ const ENDPOINT_FIELDS: readonly { label: string; value: string }[] = [
   { label: 'created_at', value: 'timestamptz · default now()' },
 ];
 
-/** Deterministic `record-list` of expandable endpoint rows (04 §7.7). */
+/** Deterministic `record-list` of expandable endpoint rows. */
 export function accordionListDemoData(seed: number): { data: AccordionRow[]; total: number } {
   const random = mulberry32(seed || 1);
   const data: AccordionRow[] = ENDPOINTS.map((endpoint, index) => ({
@@ -248,7 +248,7 @@ export function accordionListDemoData(seed: number): { data: AccordionRow[]; tot
   return { data, total: data.length };
 }
 
-// ── comparison-matrix (annex §3) ───────────────────────────────────────────
+// ── comparison-matrix (annex) ──────────────────────────────────────────────
 export const comparisonMatrixConfigSchema = widgetSharedConfigSchema.extend({
   /**
    * Column id visually promoted (annex: "one column visually promoted") — the
@@ -273,10 +273,10 @@ const PLAN_COLUMNS: readonly ComparisonColumn[] = [
 const PLAN_GROUPS = ['Usage', 'Collaboration', 'Security'] as const;
 
 /**
- * Deterministic comparison payload (annex: "static or config-driven rows"; 04
- * §7.7). The catalog of rows is fixed — what the seed varies are the quota
- * numbers, so the payload still threads its seed (the determinism gate's
- * "seed actually threads into the generator" assertion) rather than being a
+ * Deterministic comparison payload (annex: "static or config-driven rows").
+ * The catalog of rows is fixed — what the seed varies are the quota numbers,
+ * so the payload still threads its seed (the determinism gate's "seed
+ * actually threads into the generator" assertion) rather than being a
  * constant the gate would have to allow-list as seed-invariant.
  */
 export function comparisonMatrixDemoData(seed: number): ComparisonMatrixData {
@@ -318,7 +318,7 @@ export function comparisonMatrixDemoData(seed: number): ComparisonMatrixData {
   return { columns: [...PLAN_COLUMNS], rows, groups: [...PLAN_GROUPS] };
 }
 
-// ── chip-cloud (annex §3) ──────────────────────────────────────────────────
+// ── chip-cloud (annex) ─────────────────────────────────────────────────────
 export const chipCloudConfigSchema = widgetSharedConfigSchema.extend({
   /** Chip click behaviour (annex `clickAction`). */
   clickAction: z.enum(['none', 'insert', 'navigate']).default('none'),
@@ -351,9 +351,9 @@ const CHIP_TABLES = [
 ] as const;
 
 /**
- * Deterministic `categorical` payload of discovered-table chips (04 §7.7). The
- * canonical `categorical` envelope (`{ items: [...] }`) is what lets the host's
- * shared `isEmptyByShape` route an empty cloud to the empty state.
+ * Deterministic `categorical` payload of discovered-table chips. The canonical
+ * `categorical` envelope (`{ items: [...] }`) is what lets the host's shared
+ * `isEmptyByShape` route an empty cloud to the empty state.
  */
 export function chipCloudDemoData(seed: number): { items: CloudChip[] } {
   const random = mulberry32(seed || 1);

@@ -14,7 +14,7 @@ export { accordionListConfigSchema, accordionListDemoData };
 export type { AccordionListConfig, AccordionRow };
 
 /**
- * `accordion-list` (annex §3) — expandable rows, single- or multi-open: a header
+ * `accordion-list` (annex) — expandable rows, single- or multi-open: a header
  * with a method/status chip plus a body panel carrying prose and/or a key-value
  * detail block (API & Backend's endpoint accordion, the Landing/Pricing FAQs).
  *
@@ -149,7 +149,7 @@ export function AccordionList({
   );
 }
 
-/** Project an untrusted `record-list` onto `AccordionRow`s (04 §3). */
+/** Project an untrusted `record-list` onto `AccordionRow`s. */
 export function accordionRowsOf(data: unknown): AccordionRow[] {
   return tailRowsOf(data).map((row, index): AccordionRow => {
     const rawFields = row.fields;

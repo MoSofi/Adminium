@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `export-builder` (annex §10) — a config form (format segmented PDF/CSV/XLSX,
+ * `export-builder` (annex) — a config form (format segmented PDF/CSV/XLSX,
  * date range, include-charts switch) driving an idle → running(%) → done
  * (Download) state machine. Evidence: Adminium UI Kit, Metrics Dashboard,
  * Payments, Time Tracking.
@@ -10,7 +10,7 @@
  * runs no export and owns no timer, which is also why the phase is derived
  * (see `exportPhaseOf`) rather than animated locally.
  *
- * Binds §3 `form-state`: the payload is the export's config plus its progress.
+ * Binds `form-state`: the payload is the export's config plus its progress.
  */
 
 import { Button, DateInput, FormField, MonoText, ProgressBar, SegmentedControl, Select, Switch } from '@adminium/ui';
@@ -38,7 +38,7 @@ export interface ExportState {
   email: boolean;
 }
 
-/** Project the §3 `form-state` payload onto the form's initial values. */
+/** Project the `form-state` payload onto the form's initial values. */
 export function exportStateOf(data: unknown, config: ExportBuilderConfig): ExportState {
   const values = formValuesOf(data);
   const formats = config.formats ?? EXPORT_FORMATS;
@@ -188,7 +188,7 @@ export function ExportBuilderWidget({ config, data, onEvent }: WidgetProps<Expor
         )}
         {phase === 'done' && href !== undefined ? (
           // Drill-through, not an <a download>: the host owns navigation and the
-          // signed URL (04 §2.1). A Download button with no href would be a
+          // signed URL. A Download button with no href would be a
           // control that does nothing, so it only renders once there IS one.
           <Button data-part="export-download" iconLeft={<Download />} onClick={() => onEvent({ type: 'drill-through', href })}>
             {config.downloadLabel ?? t('ui:widgets.forms.exportBuilder.download', 'Download')}

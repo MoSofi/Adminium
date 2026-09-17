@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * M9-T05 e2e — the generated app against a live engine (E2E_ENGINE), seeded
+ * The generated app against a live engine (E2E_ENGINE), seeded
  * with the Northwind demo fixture by scripts/e2e-server.mjs:
  *
  *  (a) login/bootstrap as the seeded super admin
@@ -46,7 +46,7 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await expect(alfreds).toBeVisible();
     // Type-aware cells from the same row: person-name text …
     await expect(alfreds).toContainText('Maria Anders');
-    // … and PII columns (phone/fax/address) masked by default (05 §7.2).
+    // … and PII columns (phone/fax/address) masked by default.
     await expect(alfreds).toContainText('••••••');
     // The full fixture subset is present (12 customers).
     await expect(gridRows(page)).toHaveCount(12);
@@ -64,7 +64,7 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await expect(gridRows(page).first()).toContainText('Cactus Comidas para llevar');
   });
 
-  // M9-T05 finding, now fixed: the `q=` quick search compiles per-dialect
+  // Found and fixed: the `q=` quick search compiles per-dialect
   // (apps/server/src/crud/filters.ts compileQuickSearch → compileILike) —
   // postgres `ILIKE`, mysql/sqlite `LOWER(...) LIKE LOWER(...)`. Runs on every
   // engine (was postgres-only when it emitted `ILIKE` unconditionally, which
@@ -87,7 +87,7 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await navLink(page, /Customers/).first().click();
     await expect(gridRows(page)).toHaveCount(12);
 
-    // Route-controlled detail (09 §7.1; 30 D1): /p/customers/r/ALFKI renders
+    // Route-controlled detail: /p/customers/r/ALFKI renders
     // the record PAGE. It drove a drawer over the list until the record got a
     // route of its own, so the list now unmounts behind it.
     await page.goto('/p/customers/r/ALFKI');
@@ -106,7 +106,7 @@ test.describe('generated app on the seeded Northwind connection', () => {
   // (packages/engine/src/generate/crud.ts listColumns appends the missing PK
   // columns; DataGrid filters hidden specs out of the grid), so page-crud
   // resolves BOTH the create form's (required, no-default) PK field and row
-  // ids (rowIdOf) from `config.columns` — closing the M9-T05 create/row-click
+  // ids (rowIdOf) from `config.columns` — closing the create/row-click
   // gap. The final q= quick-search verification now works on every engine (the
   // ILIKE-only compile was fixed — see c3).
   //
@@ -145,11 +145,11 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await expect(recordPage(page)).toContainText('Alfreds Futterkiste');
   });
 
-  // M4-T06 (the last v1 feature): the ⌘K palette's async Records group hits
+  // The ⌘K palette's async Records group hits
   // `GET /api/v1/search` (types=record, limit=3) and a selected hit navigates
   // to the record route. 'cactus' matches one customer's company_name AND the
   // orders rows shipping to it (ship_name carries the same string), so the
-  // customer hit is pinned by its §2.9 row-context subtitle — which also
+  // customer hit is pinned by its row-context subtitle — which also
   // proves the context ships end-to-end. PII columns (phone/address/city)
   // are masked and never match.
   test('(c7) ⌘K palette record search navigates to the record route', async ({ page }) => {
@@ -168,7 +168,7 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await expect(page).toHaveURL(/\/p\/customers\/r\/CACTU/);
     await expect(recordPage(page)).toContainText('Cactus Comidas para llevar');
 
-    // The visit lands in the palette's Recent group (09 §5.2 localStorage).
+    // The visit lands in the palette's Recent group (localStorage).
     await page.keyboard.press('ControlOrMeta+k');
     await expect(
       page
@@ -205,7 +205,7 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await expect(page.getByRole('img', { name: /by Ship Country/i })).toBeVisible();
   });
 
-  // M9-T05 finding, now fixed: time-bucketed widget queries compile per dialect
+  // Found and fixed: time-bucketed widget queries compile per dialect
   // (apps/server/src/widget-data/compiler.ts bucketExpr → date_trunc / strftime
   // / DATE_FORMAT), and rolling-window bounds bind as a UTC string on
   // mysql/sqlite instead of a `Date` (better-sqlite3 rejects `Date`). The hero

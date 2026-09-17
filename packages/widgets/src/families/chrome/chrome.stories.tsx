@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK FCS `chrome` family stories (annex §11): each widget's loaded variant,
- * the four WidgetFrame states through WidgetHost (acceptance #4), and
- * light/dark × LTR/RTL matrices with REAL geometry mirroring (acceptance #9 —
- * the RTL frames set `dir="rtl"` so the breadcrumb chevrons, the nav's
- * icon-then-label rows and end-aligned badges, the nav-card's sliding arrow
- * (`ms-` + `rtl:rotate-180`), the avatar stack's `-ms-2` overlap, and the search
- * facet rail genuinely flip; a bare attribute would prove nothing). Widgets
- * resolve through a LOCAL registry override so the stories work before the green
- * loop merges the definitions into the global map. Payloads are the same seeded
- * generators `demoData` uses.
+ * TRACK FCS `chrome` family stories (annex): each widget's loaded variant, the
+ * four WidgetFrame states through WidgetHost (acceptance #4), and light/dark ×
+ * LTR/RTL matrices with REAL geometry mirroring (acceptance #9 — the RTL frames
+ * set `dir="rtl"` so the breadcrumb chevrons, the nav's icon-then-label rows and
+ * end-aligned badges, the nav-card's sliding arrow (`ms-` + `rtl:rotate-180`),
+ * the avatar stack's `-ms-2` overlap, and the search facet rail genuinely flip;
+ * a bare attribute would prove nothing). Widgets resolve through a LOCAL
+ * registry override so the stories work before the green loop merges the
+ * definitions into the global map. Payloads are the same seeded generators
+ * `demoData` uses.
  */
 import type { ReactNode } from 'react';
 
@@ -87,7 +87,7 @@ const TYPE_META = {
 };
 
 // `referenceTime` pins "now" so the relative stamps are byte-deterministic in
-// VRT captures (shared config, 04 §2.1) — CHROME_DEMO_EPOCH.
+// VRT captures (shared config) — CHROME_DEMO_EPOCH.
 const searchConfig = {
   variant: 'page',
   typeMeta: TYPE_META,
@@ -209,7 +209,7 @@ export const NavCardStates = {
  */
 function matrixCells(key: string) {
   // Instance ids derive from the cell key, never randomised — VRT captures must
-  // be byte-identical across runs (04 §7.7).
+  // be byte-identical across runs.
   return (
     <div className="grid gap-4">
       {host('breadcrumb', `m-crumb-${key}`, {}, breadcrumbDemoData(6), 'success', 'h-20')}

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ShiftMatrix — the INTERACTIVE resource × day scheduling grid the
- * `page-scheduler` template mounts for `schedule-matrix` items
- * (09-generated-app.md §7.6 "Shift scheduler").
+ * `page-scheduler` template mounts for `schedule-matrix` items.
  *
- * The family's `ScheduleMatrix` is display-only; the comp's defect the M7-T03
- * note calls out ("the add-shift modal must write into the grid") is exactly
- * the missing write path. This component owns it:
+ * The family's `ScheduleMatrix` is display-only; the comp's defect the note
+ * calls out ("the add-shift modal must write into the grid") is exactly the
+ * missing write path. This component owns it:
  *
  * - **click-to-cycle**: clicking a shift chip advances its type through the
  *   shift-type order — and past the last type REMOVES the shift — emitting the
@@ -15,8 +14,8 @@
  *   optimistic-move contract).
  * - **click-to-add**: an empty slot in a cell (cap `maxPerCell`, default 2)
  *   shows a quiet "+" that inserts a first-type shift via `onAdd`.
- * - coverage micro-bars per day flag zero-coverage in danger tone (annex §5);
- *   a shift-type legend closes the grid.
+ * - coverage micro-bars per day flag zero-coverage in danger tone (annex); a
+ * shift-type legend closes the grid.
  *
  * Anatomy mirrors the family's ScheduleMatrix (single logical CSS grid,
  * mirrors under RTL; tone tokens only) so the two render identically — this

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Installing a micro-SaaS app from Studio (47-app-installation.md steps 1–3).
+ * Installing a micro-SaaS app from Studio (steps 1–3).
  *
  * The property under test is the one the whole wave exists for: a bundle
  * uploaded through the browser is SERVED — at the app's own mount, on the next
@@ -72,7 +72,7 @@ test.describe('installing an app', () => {
     await expect(page.getByText('Review the schema plan')).toBeVisible();
     await expect(page.getByText('shippers', { exact: true })).toBeVisible();
     // Reuse, not create — and the badge is the only thing that says so, because
-    // there is no choice to offer (47 D2).
+    // there is no choice to offer.
     await expect(page.getByText('Reuse existing')).toBeVisible();
     await expect(page.getByText('0 created · 1 reused')).toBeVisible();
 
@@ -111,7 +111,7 @@ test.describe('installing an app', () => {
     await page.getByRole('button', { name: 'Manage apps' }).click();
     await expect(page.getByText(`/apps/${APP_KEY}/staff/`).first()).toBeVisible();
     // The install joined the SURFACES list too, not just the installed one —
-    // one list, two sources (47 D4).
+    // one list, two sources.
     await expect(page.getByRole('heading', { name: 'Surfaces' })).toBeVisible();
 
     // ── Uninstall asks for the key back, and means it ─────────────────────

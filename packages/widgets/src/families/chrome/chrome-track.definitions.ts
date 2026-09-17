@@ -23,23 +23,23 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * TRACK FCS — `chrome` family registry metadata (annex §11; 04-T10). Metadata
- * only: the components load through the `chrome-track-components` barrel via
- * `lazy(() => import(...))`, so the family stays in ONE lazy chunk and the
- * registry metadata never eagerly pulls component code — or Radix's
- * dialog/popover/tabs — into a sibling family's bundle (04 §2.3; the
- * chunk-budget gate). Schemas + `demoData` come from the PURE `chrome-config.ts`
- * for the same reason. The GREEN LOOP spreads `chromeTrackDefinitions` into the
- * registry map. Widget ids match the annex catalog exactly (acceptance #1).
+ * TRACK FCS — `chrome` family registry metadata (annex). Metadata only: the
+ * components load through the `chrome-track-components` barrel via `lazy(() =>
+ * import(...))`, so the family stays in ONE lazy chunk and the registry metadata
+ * never eagerly pulls component code — or Radix's dialog/popover/tabs — into a
+ * sibling family's bundle (the chunk-budget gate). Schemas + `demoData` come
+ * from the PURE `chrome-config.ts` for the same reason. The GREEN LOOP spreads
+ * `chromeTrackDefinitions` into the registry map. Widget ids match the annex
+ * catalog exactly (acceptance #1).
  *
  * Sizing is the annex's grid note converted to 40px half-units
- * (04 §6.1: `h = round(annexRows × 2)`); widths map 1:1.
+ * (`h = round(annexRows × 2)`); widths map 1:1.
  *
- * SHAPE CHOICES (04 §3): every chrome widget except `shortcuts-panel` binds to a
+ * SHAPE CHOICES: every chrome widget except `shortcuts-panel` binds to a
  * `record-list` — the nav tree, the ⌘K index, the search index, the breadcrumb
  * trail, the tab defs, the hub cards and the people list are all row sets the
- * generator produces (annex §11 auto-instantiation). `shortcuts-panel` is
- * `static`: the host's shortcut manager passes the registered set as config.
+ * generator produces (annex auto-instantiation). `shortcuts-panel` is `static`:
+ * the host's shortcut manager passes the registered set as config.
  *
  * `placement`: `sidebar-nav` is the app-shell rail and `command-palette` /
  * `shortcuts-panel` are portal overlays — none are grid-placed. `breadcrumb`,
@@ -132,7 +132,7 @@ export const shortcutsPanelDefinition: WidgetDefinition = defineWidget({
   family: 'chrome',
   component: lazy(() => import('./chrome-track-components.js').then((m) => ({ default: m.ShortcutsPanelWidget }))),
   configSchema: shortcutsPanelConfigSchema,
-  // annex §11: "static groups of {label, keys[], isSequence}"
+  // annex: "static groups of {label, keys[], isSequence}"
   dataContract: 'static',
   sizing: { minW: 6, minH: 8, defaultW: 8, defaultH: 12 }, // annex "overlay"
   placement: 'overlay',
@@ -154,7 +154,7 @@ export const avatarStackDefinition: WidgetDefinition = defineWidget({
   descriptionKey: 'widgets.chrome.avatarStack.description',
 });
 
-/** Every `chrome` widget delivered by TRACK FCS, in annex §11 order. */
+/** Every `chrome` widget delivered by TRACK FCS, in annex order. */
 export const chromeTrackDefinitions: readonly WidgetDefinition[] = [
   sidebarNavDefinition,
   commandPaletteDefinition,

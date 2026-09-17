@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-scatter-bubble` primitive (research/widget-registry.md §2): SVG scatter
+ * `chart-scatter-bubble` primitive (research/widget-registry.md): SVG scatter
  * with an optional bubble-radius dimension, gridlines, a dashed least-squares
  * trend line, and segment colors. The x value axis mirrors in RTL; y stays
  * pixel-down. Token-only colors; fade-in on mount (radius/opacity settle to

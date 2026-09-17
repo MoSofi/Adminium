@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The shared export row writer (41-export-builder.md §3.3, D6, D7).
+ * The shared export row writer.
  *
  * One writer for the job and the preview, so these are the rules the "Raw
  * file" tab shows AND the rules the downloaded file follows: masked cells

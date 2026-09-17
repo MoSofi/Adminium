@@ -6,15 +6,15 @@
  * lucide manifest (`@adminium/ui` `LUCIDE_ICON_NAMES`)". That symbol existed
  * nowhere in the repo: the only occurrence in the tree was the docblock naming
  * it. `compose.ts` wired `allowedTemplates` and `allowedWidgets` and never
- * `allowedIcons`, so §7.3's unknown-icon warning and its `table` fallback never
- * ran in the shipped product and a model could store any string it invented as a
+ * `allowedIcons`, so unknown-icon warning and its `table` fallback never ran in
+ * the shipped product and a model could store any string it invented as a
  * table's icon — which the dashboard then draws as the neutral fallback AFTER
  * fetching the whole 133.6 KiB icon catalogue to discover the name is dead.
  *
  * The manifest is now generated (`scripts/gen-icon-core.mjs` → `icon-names.ts`)
  * and travels to the server the same way the widget vocabularies do: as DATA,
  * because `apps/server` may import neither `@adminium/ui` nor `@adminium/widgets`
- * (01 §2.3, enforced by `.dependency-cruiser.cjs`).
+ * (enforced by `.dependency-cruiser.cjs`).
  *
  * These cases are HERMETIC — a temp tree, never this checkout. `packages/ui` is
  * not a dependency of `apps/server`, so `turbo run test`'s `^build` does not
@@ -112,7 +112,7 @@ describe('LLM icon manifest resolution', () => {
 
   it('still loads the widget vocabularies when no icon manifest exists anywhere', async () => {
     // Degradation, not failure: the prompt cannot be built without the widget
-    // lists, but it is perfectly buildable without the icon manifest — the §7.3
+    // lists, but it is perfectly buildable without the icon manifest — the
     // icon check simply skips, which is what it is specified to do.
     const moduleUrl = await fakeTree({ snapshot: WIDGET_LISTS });
     const allowed = await loadAllowedVocabularies(moduleUrl);

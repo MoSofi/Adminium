@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The report document envelope on the server — what one
- * `adminium_report_documents` row's `body` MEANS (43-report-builder.md §3.3,
- * Appendix B; the comp's `blk()` / `newBlockContent()` / `fromStarter()`,
- * `designs/Report Builder.dc.html` 474, 536, 494; 43-T03).
+ * `adminium_report_documents` row's `body` MEANS (the comp's `blk()` /
+ * `newBlockContent()` / `fromStarter()`, 474, 536, 494).
  *
  * A DELIBERATE COPY. The dashboard holds the same envelope in its
  * `model/envelope.ts` under `apps/dashboard/src/report-builder`, and the two
@@ -22,7 +21,7 @@
  * its own `title`, `w` and `show`, and `show: false` DIMS a block on the
  * canvas — it never removes it and never re-orders. None of the invoice
  * file's ordering arithmetic applies here, and seventeen kinds that share a
- * NAME with an invoice block do not share its fields (43 §0.3 trap 3).
+ * NAME with an invoice block do not share its fields (trap 3).
  *
  * Three jobs, all pure:
  *
@@ -34,18 +33,17 @@
  *      starter patch) becomes the one complete shape: an absent or malformed
  *      value gets its default, every block is completed for its kind, and a
  *      block of an UNKNOWN kind becomes a labelled `text` placeholder rather
- *      than vanishing (34-T47's orphan rule — a decode never renders an empty
- *      card the operator cannot explain).
- *   3. {@link assertBodyWithinCaps} — the two caps 34 O18 set on inline
- *      images, inherited unchanged: one `data:` URI may be
- *      {@link IMAGE_DATA_URL_MAX} characters, the whole serialized body
- *      {@link BODY_BYTES_MAX} bytes. Both refuse with a 422 whose
- *      `details.code` names the rule and the field. This surface has two
- *      image slots: the document background (comp 360-367) and the `image`
- *      block's own picture (43 D26/O4).
+ * than vanishing (orphan rule — a decode never renders an empty card the
+ *      operator cannot explain).
+ * 3. {@link assertBodyWithinCaps} — the two caps set on inline images,
+ *   inherited unchanged: one `data:` URI may be {@link IMAGE_DATA_URL_MAX}
+ *   characters, the whole serialized body {@link BODY_BYTES_MAX} bytes.
+ *   Both refuse with a 422 whose `details.code` names the rule and the
+ *   field. This surface has two image slots: the document background (comp
+ *   360-367) and the `image` block's own picture.
  *
- * NUMBERS (43 D11). `series[].value` is a JSON number — it is chart geometry
- * and a float is the right type. `lateDays`, `loyBalance` and `loyEarned` are
+ * NUMBERS. `series[].value` is a JSON number — it is chart geometry and a
+ * float is the right type. `lateDays`, `loyBalance` and `loyEarned` are
  * integers. `lateRate`, `mcAmount` and `fx[].rate` are decimal TEXT: they are
  * a document of record's figures, and a document of record must not drift
  * between a save and a reload. Every KPI value and every `amount` stays the
@@ -124,7 +122,7 @@ export interface KpiEntry {
 
 export interface SeriesPoint {
   label: string;
-  /** Chart geometry — a number, the one place a float is right (43 D11). */
+  /** Chart geometry — a number, the one place a float is right. */
   value: number;
 }
 
@@ -227,7 +225,8 @@ export const DEFAULT_ACCENT = '#4f46e5';
 /** The comp's five swatches (633); a starter may carry its own (`health` is `#12805c`). */
 export const ACCENT_SWATCHES: readonly string[] = ['#4f46e5', '#0d9488', '#e5484d', '#ea580c', '#111111'];
 
-// --- the caps (34 O18, inherited) -----------------------------------------------------
+// --- the caps (inherited)
+// -----------------------------------------------------
 
 /** One inline image may be this many characters of data URL (~384 KB of image bytes). */
 export const IMAGE_DATA_URL_MAX = 512 * 1024;
@@ -624,7 +623,7 @@ export function normalizeReportBody(raw: unknown): ReportBody {
   };
 }
 
-// --- the caps (34 O18) ----------------------------------------------------------------
+// --- the caps ----------------------------------------------------------------
 
 /** Every inline image in a body, with the field that holds it — the background and each `image` block's picture. */
 export function inlineImages(body: ReportBody): { field: string; url: string }[] {
@@ -637,9 +636,9 @@ export function inlineImages(body: ReportBody): { field: string; url: string }[]
 
 /**
  * Refuses what a save must not persist, with a 422 whose `details.code` names
- * the rule and `details.field` the slot, so the editor can point at the image
- * (34 O18). The per-image cap counts characters of a `data:` URI; a plain URL
- * is never that long. The body cap counts the serialized bytes the row would
+ * the rule and `details.field` the slot, so the editor can point at the
+ * image. The per-image cap counts characters of a `data:` URI; a plain URL is
+ * never that long. The body cap counts the serialized bytes the row would
  * store.
  */
 export function assertBodyWithinCaps(body: ReportBody): void {

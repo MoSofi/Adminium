@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * manifestsRepo — `adminium_manifests`, its attachments and its credentials
- * (07-meta-store.md §3.32; 26-add-on-runtime.md §4).
+ * manifestsRepo — `adminium_manifests`, its attachments and its
+ * credentials.
  *
  * The table has existed since migration 0006 and until now had no repo, no
  * writer and zero rows — which is how three planning documents came to record a
@@ -13,16 +13,16 @@
  * which hosts it is mounted on and whether it is on for each, and
  * `adminium_add_on_credentials` what secret it was given. Install writes the
  * first two, connect writes the third, disconnect deletes only the third, and
- * uninstall deletes the first and lets the FKs take the rest (26 D5). Splitting
- * them across three repos would put that sequence in the caller, where it is
- * one forgotten delete away from an orphaned secret.
+ * uninstall deletes the first and lets the FKs take the rest. Splitting them
+ * across three repos would put that sequence in the caller, where it is one
+ * forgotten delete away from an orphaned secret.
  *
  * ─── Repos never see key material ─────────────────────────────────────────
  *
- * `CredentialCrypto` is the same closure shape `connectionsRepo` takes for DSNs
- * (01-architecture.md §3/§7): the server builds it from `ADMINIUM_SECRET` and
- * hands it in. Nothing here derives a key, and the ciphertext is the only form
- * a credential takes on this side of the boundary.
+ * `CredentialCrypto` is the same closure shape `connectionsRepo` takes for
+ * DSNs: the server builds it from `ADMINIUM_SECRET` and hands it in. Nothing
+ * here derives a key, and the ciphertext is the only form a credential takes on
+ * this side of the boundary.
  *
  * `licenseKeyEncrypted` is shipped in the table and is never read or written by
  * anything below: 17 defers licences BY NAME, so honouring that costs nothing.
@@ -194,7 +194,7 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
       return out;
     },
 
-    /** Upgrade in place: a new version and document over the same row (26-T17). */
+    /** Upgrade in place: a new version and document over the same row. */
     async setVersion(
       id: string,
       input: { version: string; document: unknown },
@@ -232,7 +232,7 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     },
 
     /**
-     * Enable/disable on ONE host (§5.1's `PATCH`). Per attachment, not per
+     * Enable/disable on ONE host (`PATCH`). Per attachment, not per
      * manifest: an add-on can legitimately be live on one host and off on
      * another, and a single flag would make that unrepresentable.
      */
@@ -254,7 +254,7 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     /**
      * Uninstall: delete the manifest row. Attachments and credentials follow by
      * FK cascade; every table the add-on BROUGHT stays, because nothing here
-     * touches the data source (24 D16 / 26 D5).
+     * touches the data source.
      */
     async uninstall(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_manifests').where('id', '=', id).executeTakeFirst();
@@ -306,7 +306,7 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
 
     /**
      * The decrypted envelope, for the server code that is about to make a call
-     * with it. Never reached by a route that serves a browser (24 D15).
+     * with it. Never reached by a route that serves a browser.
      */
     async getCredential(manifestId: string): Promise<CredentialEnvelope | null> {
       const row = await db

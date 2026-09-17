@@ -1044,7 +1044,7 @@ export function nodeIo(): CliIo {
 }
 
 /**
- * Fixed-width table rendering — the `apply-llm-response` diff table (§10.4) and
+ * Fixed-width table rendering — the `apply-llm-response` diff table and
  * `migrate --status` both print one, and neither should hand-roll padding.
  * Cells are truncated (never wrapped) so a row is always one line.
  */

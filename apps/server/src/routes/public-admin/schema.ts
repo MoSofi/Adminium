@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for MANAGING the public surface (28-public-surface.md §3.3).
+ * Zod schemas for MANAGING the public surface.
  *
  * These are the ADMIN routes — `/public-scopes`, `/public-keys`, and the off
  * switch — served under the ordinary `/api/v1` block behind
@@ -57,8 +57,8 @@ export const publicScopeIdParams = z.object({ id: z.string().min(1) });
  *
  * This is the one place scope issues are shown in full: the operator is the
  * person who wrote the document and must be able to fix it. The anonymous
- * surface still says nothing (§3.2) — that asymmetry is deliberate and is the
- * whole reason the two namespaces are separate.
+ * surface still says nothing — that asymmetry is deliberate and is the whole
+ * reason the two namespaces are separate.
  */
 export const publicScopeIssuesReply = z.object({
   issues: z.array(
@@ -77,7 +77,7 @@ export const publicKeyDto = z.object({
   prefix: z.string(),
   scopeId: z.string(),
   side: z.enum(['staff', 'customer']),
-  /** Hosted app surface this key is bound to (29 D10), or null. */
+  /** Hosted app surface this key is bound to, or null. */
   appKey: z.string().nullable(),
   origins: z.array(z.string()),
   expiresAt: z.number().nullable(),
@@ -95,9 +95,9 @@ export const publicKeyCreateBody = z.object({
   name: z.string().min(1).max(80),
   scopeId: z.string().min(1),
   /**
-   * Bind the key to a hosted app surface (29 D10): the app's manifest key, the
-   * same vocabulary as the surfaces directory. Optional — a key for a
-   * standalone build or an integration is bound to nothing.
+   * Bind the key to a hosted app surface: the app's manifest key, the same
+   * vocabulary as the surfaces directory. Optional — a key for a standalone
+   * build or an integration is bound to nothing.
    */
   appKey: z
     .string()
@@ -122,7 +122,7 @@ export const publicKeyRevealReply = z.object({ token: z.string() });
 export const publicKeyIdParams = z.object({ id: z.string().min(1) });
 export const publicKeyOkReply = z.object({ ok: z.literal(true) });
 
-/** The runtime off switch (§3.5 level 2). */
+/** The runtime off switch (level 2). */
 export const publicApiStateReply = z.object({
   /** Level 2 — the settings boolean the operator controls. */
   enabled: z.boolean(),

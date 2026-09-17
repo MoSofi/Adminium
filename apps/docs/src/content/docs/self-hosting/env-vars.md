@@ -18,7 +18,7 @@ half-configured and fail later.
 | `HOST` | No | `0.0.0.0` | Bind address. `127.0.0.1` to bind loopback only. |
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
 | `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
-| `ADMINIUM_DATA_DIR` | No | `./data`, or `~/.adminium` | Writable directory for files, exports, backups, add-on packages, and the embedded meta store. Docker and the desktop app set it for you. A CLI run that does not: `./data` when the working directory is a project (it holds a `package.json`, a `.git`, a `Dockerfile`, a `go.mod`…) or already holds an Adminium instance, and `~/.adminium` otherwise — so `npx @adminiumjs/adminium` from a home directory leaves nothing behind in it. |
+| `ADMINIUM_DATA_DIR` | No | `./data`, or `~/.adminium` | Writable directory for files, exports, backups, installed apps and add-ons, and the embedded meta store. Put it on a persistent disk: a host that empties it on every deploy loses installed apps and add-ons, whatever else is configured. Docker and the desktop app set it for you. A CLI run that does not: `./data` when the working directory is a project (it holds a `package.json`, a `.git`, a `Dockerfile`, a `go.mod`…) or already holds an Adminium instance, and `~/.adminium` otherwise — so `npx @adminiumjs/adminium try` from a home directory leaves nothing behind in it. A service should always set it, since its working directory decides the default. |
 | `ADMINIUM_STORAGE_URL` | No | *(this server's disk)* | Where uploaded and generated files live. Seeded once, on a boot with no storage destination configured. See below. |
 | `AWS_ENDPOINT_URL_S3` | No | *(unset)* | S3-compatible endpoint. Read **only** by the first-boot storage seed, and only when `ADMINIUM_STORAGE_URL` is unset. See below. |
 | `AWS_REGION` | No | `auto` | Region for the AWS storage variables. |
@@ -34,6 +34,7 @@ half-configured and fail later.
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
+| `ADMINIUM_TRUSTED_PROXIES` | No | `loopback,uniquelocal` | Which connections count as your proxy while `ADMINIUM_TRUST_PROXY` is on. See below. |
 | `ADMINIUM_CORS_ORIGINS` | No | *(off)* | CSV of exact origins for split deployments. **No wildcard.** |
 | `ADMINIUM_BRIDGE_ORIGINS` | No | *(off)* | CSV of exact origins allowed to hand this instance a connection string. **No wildcard.** |
 | `ADMINIUM_PUBLIC_API_ORIGINS` | No | *(off)* | CSV of exact origins allowed to reach the scoped public API — plus the sentinel `self` for pages Adminium hosts itself. Unset means those routes are not registered at all. **No wildcard.** Must not overlap `ADMINIUM_CORS_ORIGINS`. |
@@ -45,6 +46,12 @@ half-configured and fail later.
 
 An empty string is treated as unset, so `FOO= adminium start` behaves like
 `FOO` being absent.
+
+One variable is deliberately not in this list: **`ADMINIUM_PROJECT_DIR`**. It
+names the [project](/projects/) folder a command should use, and it is read
+*before* the project's `.env` is loaded — that is, before the table above is
+validated at all. It is documented with the commands that read it:
+[CLI reference](/reference/cli/#environment).
 
 Anything not on this list is ignored. Adminium validates exactly these — a
 misspelled variable does not fail the boot, it simply does nothing, which is why
@@ -122,7 +129,10 @@ named volume.
 
 It matters in one situation: a runtime with **no persistent local disk**, where
 files written today are gone after the next redeploy. DigitalOcean App Platform
-is the main one. There, set this before the first boot:
+is the main one. A destination keeps files there, but not installed apps or
+add-ons — see
+[Installing apps](/self-hosting/installing-apps/#on-a-host-with-no-persistent-disk).
+Set this before the first boot:
 
 ```yaml
 ADMINIUM_STORAGE_URL: s3://my-space?endpoint=https://nyc3.digitaloceanspaces.com&region=nyc3&pathStyle=0&accessKey=DO00EXAMPLE&secretKey=...
@@ -233,7 +243,10 @@ boot, and the log names it.
 
 The point of the bundled set is the air-gapped case: an instance that can only ever use what came
 with its image is a supported configuration, not a degraded one — the same reason
-`ADMINIUM_BUNDLED_ADD_ONS` exists. Adminium never reaches the network to populate this.
+`ADMINIUM_BUNDLED_ADD_ONS` exists. Adminium never reaches the network to populate this. It is also
+the only way an installed app survives a deploy on a host with no persistent disk: the published
+image carries no apps, so build one that does — see
+[Installing apps](/self-hosting/installing-apps/#on-a-host-with-no-persistent-disk).
 
 To build one from an app checkout:
 
@@ -332,7 +345,45 @@ Turn it **on** when — and only when — a reverse proxy you control is in fron
 ADMINIUM_TRUST_PROXY=on
 ```
 
+With it on, Adminium reads `X-Forwarded-For`, `X-Forwarded-Proto`,
+`X-Forwarded-Host` and `X-Request-Id` only on connections from your proxy (see
+the next variable). From `X-Forwarded-For` it takes the last address, the one
+your proxy added.
+
 → [Behind a reverse proxy](/self-hosting/reverse-proxy/)
+
+## `ADMINIUM_TRUSTED_PROXIES`
+
+Which connections count as your proxy. The default is a connection from this
+machine or from a private network:
+
+```bash
+ADMINIUM_TRUSTED_PROXIES=loopback,uniquelocal
+```
+
+That covers a Caddy or nginx on the same host (`127.0.0.1`), and a proxy
+container on a Docker network (`172.16.0.0/12`). A connection from anywhere else
+is treated as a client, whatever headers it sends.
+
+The default also trusts every other machine on your private network. If any of
+them can reach Adminium's port directly, name your proxy instead. Your list
+replaces the default:
+
+```bash
+ADMINIUM_TRUSTED_PROXIES=127.0.0.1        # Caddy on this host, nothing else
+ADMINIUM_TRUSTED_PROXIES=172.28.0.0/24    # the compose network your proxy is on
+```
+
+Each entry is an IP address, a CIDR range, or one of these names:
+
+| Name | Ranges |
+|---|---|
+| `loopback` | `127.0.0.0/8`, `::1` |
+| `uniquelocal` | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7` |
+| `linklocal` | `169.254.0.0/16`, `fe80::/10` |
+
+Host names such as `caddy` are not accepted. A bad entry stops the boot, and so
+does setting this while `ADMINIUM_TRUST_PROXY` is off.
 
 ## `ADMINIUM_PUBLIC_API_ORIGINS`
 
@@ -401,8 +452,9 @@ that page has nowhere to send it. This setting lets your browser hand the string
 to an Adminium running on your own machine instead. It goes browser →
 `localhost`; adminium.dev is a static site with no server to receive it.
 
-`adminium --bridge` sets this for you, to `https://adminium.dev` and nothing
-else. Set the variable directly only if you run your own copy of that page:
+`adminium try --bridge` sets this for you, to `https://adminium.dev` and
+nothing else (before 0.2.10 it was `adminium --bridge`). Set the variable
+directly only if you run your own copy of that page:
 
 ```bash
 ADMINIUM_BRIDGE_ORIGINS='https://adminium.dev'

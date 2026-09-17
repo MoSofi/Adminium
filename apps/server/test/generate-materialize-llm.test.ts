@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LLM page-row materialization (06-llm-assist.md §8.3 step 3 —
- * `generate/materialize-llm.ts`).
+ * LLM page-row materialization
+ * (`generate/materialize-llm.ts`).
  *
  * The apply executor seeds `origin: 'llm'` page rows with minimal configs the
  * client cannot render (no envelope `v` → `parsePageDocument` throws). These
  * tests pin the repair: after an apply, the materialization pass every
- * `runGeneration` performs expands each seed into a validated §6.1 envelope,
+ * `runGeneration` performs expands each seed into a validated envelope,
  * idempotently, without ever touching a row that is already an envelope.
  */
 
@@ -145,7 +145,7 @@ describe('materializeLlmPages', () => {
       expect(page.isEnabled).toBe(true);
     }
 
-    // The dashboard kept its bound §8.3 layout verbatim; the template pages
+    // The dashboard kept its bound layout verbatim; the template pages
     // materialized as the REQUESTED templates.
     const dashboard = after.find((p) => p.type === 'page-dashboard');
     const layout = (dashboard?.config as { config: { layout: { items: unknown[] } } }).config.layout;
@@ -158,7 +158,7 @@ describe('materializeLlmPages', () => {
 
     // Nav projection sync: the bootstrap tree reads the ROW columns, so a
     // successful expansion writes the envelope's title/group back to the row.
-    // The §8.3 'sales' re-placement (orders ∈ the accepted sales group) wins
+    // The 'sales' re-placement (orders ∈ the accepted sales group) wins
     // over the archetype's fixed group; the un-stamped dashboard adopts the
     // envelope default; titles gain the archetype suffix so the new pages stay
     // distinguishable from their table's page-crud sibling. The parked seed is

@@ -4,11 +4,11 @@ import { BulkActionBar, BulkActionButton } from '@adminium/ui';
 import type { ReactNode } from 'react';
 
 /**
- * `bulk-action-toolbar` (annex §3) — selection-aware toolbar wired to the
- * host grid's selection set: "N selected" + configured actions
+ * `bulk-action-toolbar` (annex) — selection-aware toolbar wired to the host
+ * grid's selection set: "N selected" + configured actions
  * (Export/Delete/Clear per CRUD Admin). Renders nothing while the selection
  * is empty; the page toolbar "morphs" by conditionally rendering this
- * instead of search/filter controls (09 §7.1).
+ * instead of search/filter controls.
  */
 
 export interface BulkAction {

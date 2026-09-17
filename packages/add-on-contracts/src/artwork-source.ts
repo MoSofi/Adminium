@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `artwork-source@1` (24 §5.5) — a way for a customer to supply artwork that is
- * not a plain upload.
+ * `artwork-source@1` — a way for a customer to supply artwork that is not a
+ * plain upload.
  *
  * The asymmetry that makes this contract worth having: the HOST, not the
  * add-on, runs the artwork checks on the returned `ArtworkRef`. Design Studio's

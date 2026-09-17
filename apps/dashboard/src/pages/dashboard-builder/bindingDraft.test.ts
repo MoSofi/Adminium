@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Binding-draft translation + validity (04-widget-registry.md §5.1).
+ * Binding-draft translation + validity.
  *
  * The first block is the acceptance test for the whole binding editor: a widget
  * the user drags in through `placement.ts` starts with NO `binding` key — the

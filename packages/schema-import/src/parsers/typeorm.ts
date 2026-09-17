@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TypeORM entity parser — 05-introspection-engine.md §5.2 row 4, tokenizer
- * level (no TS compiler): `@Entity` classes are located, class-level and
- * property-level decorators parsed with a balance-aware scanner. `@ManyToOne`
- * (+ optional `@JoinColumn`) becomes an FK column; when `@JoinColumn` is
- * absent, the snake_case `<prop>_id` convention is applied with a warning.
- * `@OneToMany` (inverse side) is skipped. Decorator options built from
- * spreads/variables are unresolvable and warn.
+ * TypeORM entity parser, tokenizer level (no TS compiler): `@Entity` classes
+ * are located, class-level and property-level decorators parsed with a
+ * balance-aware scanner. `@ManyToOne` (+ optional `@JoinColumn`) becomes an
+ * FK column; when `@JoinColumn` is absent, the snake_case `<prop>_id`
+ * convention is applied with a warning. `@OneToMany` (inverse side) is
+ * skipped. Decorator options built from spreads/variables are unresolvable
+ * and warn.
  */
 import type { ColumnDefault, DatabaseModel, FkAction } from '@adminium/engine';
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Workflow logs (`/api/v1/automation-runs`, 42-automations-and-workflow-
- * logs.md §3.1, D9, D22, 42-T15). Read-only, behind the same key the rules
- * pages use (D1) — a read-only `automations.read` is a residual (§10).
+ * logs.md). Read-only, behind the same key the rules pages use (D1) — a
+ * read-only `automations.read` is a residual.
  *
  * --- The window is seven days, and that is a decision ---------------------
  *

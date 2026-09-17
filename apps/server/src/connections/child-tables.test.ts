@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The collection picker's seed (34-invoices-add-on.md §3.7 step 3).
+ * The collection picker's seed.
  *
  * Asked here rather than only through `/automations/sources`, because two of
  * the four exclusions cannot be built in that route's fixture at all: the
@@ -42,7 +42,7 @@ const MODEL = {
     table('public.orders'),
     table('public.order_lines', { semantics: { role: 'line-items' } }),
     // One FK and no qty × rate numerics, so the classifier does NOT tag it —
-    // and it still has to be pickable (§3.7's client-portal case).
+    // and it still has to be pickable (client-portal case).
     table('public.invoice_items'),
     table('public.audit_ledger', { system: true }),
     table('public.archived_notes', { excluded: true }),
@@ -76,7 +76,7 @@ describe('the child tables a document mapping can actually read', () => {
   it('offers a child the CLASSIFIER did not tag, which is most of them', () => {
     // The `line-items` rule needs two foreign keys plus qty × rate numerics.
     // A picker that listed only tagged children would hide `invoice_items` —
-    // the exact table §3.7 names as the case that must be picked explicitly.
+    // the exact table names as the case that must be picked explicitly.
     const edges = childTablesFor(MODEL, 'public.orders', OFFERED);
     expect(edges).toContainEqual({
       table: 'public.invoice_items',

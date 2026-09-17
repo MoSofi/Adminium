@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The header's language button and its menu (comp 344-356, 1617-1634;
- * 34-invoices-add-on.md Appendix E §E6, O23): `{CODE} ▾` opens *Language
- * variations* — one row per DOCUMENT language (the comp's six, `model/
- * languages.ts`, not the UI's eight locales): mono code chip · native name ·
- * English label · right-hand state.
+ * O23): `{CODE} ▾` opens *Language variations* — one row per DOCUMENT
+ * language (the comp's six, `model/ languages.ts`, not the UI's eight
+ * locales): mono code chip · native name · English label · right-hand state.
  *
  *   Editing — this document                (fg-subtle)
  *   Open    — a sibling under the topic    (fg-subtle; navigates to it)

@@ -25,11 +25,11 @@ import { OpsEmpty } from './OpsEmpty.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `experiment-variant-compare` (annex §13) — per-variant horizontal conversion
- * bars (width = conv / maxConv), lift-vs-control pills, CONTROL / WINNER badges,
+ * `experiment-variant-compare` (annex) — per-variant horizontal conversion bars
+ * (width = conv / maxConv), lift-vs-control pills, CONTROL / WINNER badges,
  * participant + conversion counts, and the paired significance meter: a
- * confidence bar color-coded ≥95 green / ≥80 amber plus a verdict.
- * Evidence: AB Experiments.
+ * confidence bar color-coded ≥95 green / ≥80 amber plus a verdict. Evidence: AB
+ * Experiments.
  *
  * WINNER IS DERIVED, NEVER BOUND (annex: "winner derived") — and it is derived
  * with the significance gate applied, not from `max(conv)` alone. An experiment

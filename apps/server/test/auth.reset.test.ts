@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Password forgot/reset (08-server-api.md §2.1): the forgot endpoint always
- * answers 200 (no user enumeration), tokens are single-use and expire, and a
- * successful reset revokes every existing session.
+ * Password forgot/reset: the forgot endpoint always answers 200 (no user
+ * enumeration), tokens are single-use and expire, and a successful reset
+ * revokes every existing session.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { auditRepo } from '@adminium/meta';
@@ -83,7 +83,7 @@ describe('POST /auth/password/forgot + /auth/password/reset', () => {
     const ok = await reset(fixture.app, token, newPassword);
     expect(ok.statusCode).toBe(200);
 
-    // Every pre-reset session is revoked (§7 item 7) — cookies stop working.
+    // Every pre-reset session is revoked — cookies stop working.
     for (const cookie of [one.cookie, two.cookie]) {
       const after = await fixture.app.inject({
         method: 'GET',

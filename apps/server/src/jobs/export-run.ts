@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `export-run` job handler (M7-T07, 09-generated-app.md §11.2): drains one
- * adminium_exports request through the crud list pipeline and lands the
- * artifact in file storage.
+ * `export-run` job handler: drains one adminium_exports request through
+ * the crud list pipeline and lands the artifact in file storage.
  *
  * Grants are captured AT REQUEST TIME: the exports route verifies
  * `table:<conn>:<table>:export` and resolves the caller's PII capability
@@ -53,8 +52,8 @@ export const exportRunPayloadSchema = z.object({
   /** PII capability captured at request time (crud/mask.ts). */
   unmasked: z.boolean().default(false),
   /**
-   * The page whose `config.derived` this export computes, when there is one
-   * (36-derived-columns.md D28).
+   * The page whose `config.derived` this export computes, when there is
+   * one.
    *
    * On the PAYLOAD rather than the stored export row deliberately: the row's
    * `source` carries `table`, `viewId` and `filters` and no page id, and
@@ -153,7 +152,7 @@ async function runExport(
    * null and the cell is blank, exactly as it would be on screen. And a
    * payload carrying NO userId refuses every measure, because there is nobody
    * to check against and a file is not a place to discover that. The same
-   * predicate now covers a definition's lookups (41 §3.4).
+   * predicate now covers a definition's lookups.
    *
    * A builder DEFINITION (`source.columns`) carries its own headers, lookups,
    * counts, folds and derived block; the pre-definition shape (every
@@ -224,7 +223,7 @@ async function runExport(
     // refuses when that column is masked for the caller (a masked natural key
     // could be read back out of the cursor). Offset paging asks for nothing a
     // masked reader may not see, so it is the honest fallback rather than a
-    // failed export (41 §3.4).
+    // failed export.
     const pkMasked = table.primaryKey.some((pk) => table.columns.get(pk)?.masked === true);
     const useCursor = table.primaryKey.length > 0 && (payload.unmasked || !pkMasked);
     let cursor = '';
@@ -345,13 +344,12 @@ async function resolveExportDerived(
   const page = await pagesRepo(deps.meta).findById(payload.pageId);
   /*
    * The stored row is the whole ENVELOPE; the template body — `columns`,
-   * `derived` — sits under `config.config`, and `source.table` at the top
-   * (41-export-builder.md §0.3). Until 2026-09-07 this read the top level,
-   * which no real page ever carried, so a saved-view export or a scheduled
-   * report of a page with derived columns wrote none of them — the 36 D28
-   * suite passed only because its fixture was seeded at the wrong level. The
-   * nested body is read first; the top level stays tolerated for any row
-   * written to that shape.
+   * `derived` — sits under `config.config`, and `source.table` at the top.
+   * Until 2026-09-07 this read the top level, which no real page ever
+   * carried, so a saved-view export or a scheduled report of a page with
+   * derived columns wrote none of them — the suite passed only because its
+   * fixture was seeded at the wrong level. The nested body is read first;
+   * the top level stays tolerated for any row written to that shape.
    */
   const envelope = page?.config as { config?: { derived?: unknown }; derived?: unknown } | undefined;
   const block = envelope?.config?.derived ?? envelope?.derived;

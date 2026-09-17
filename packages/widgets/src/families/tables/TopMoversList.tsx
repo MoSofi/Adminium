@@ -28,7 +28,7 @@ export { topMoversListConfigSchema, topMoversListDemoData };
 export type { TopMoversListConfig, MoverRow };
 
 /**
- * `top-movers-list` (annex §3) — the biggest |delta| rows: a tone-tinted icon
+ * `top-movers-list` (annex) — the biggest |delta| rows: a tone-tinted icon
  * tile, the name, a micro sparkline, the value, and a FIXED-WIDTH arrow delta
  * pill so the pills form a clean column instead of ragging with each number's
  * width (annex: "fixed-width arrow delta pill").
@@ -187,7 +187,7 @@ export function TopMoversList({
   );
 }
 
-/** Project an untrusted `record-list` onto `MoverRow`s (04 §3). */
+/** Project an untrusted `record-list` onto `MoverRow`s. */
 export function moverRowsOf(data: unknown): MoverRow[] {
   return tailRowsOf(data).map((row, index): MoverRow => {
     const id = row.id;

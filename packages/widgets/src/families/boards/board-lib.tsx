@@ -4,17 +4,17 @@ import type { Tone } from '@adminium/ui';
 import { mulberry32 } from '@adminium/charts';
 
 /**
- * Shared, framework-light helpers for the `boards` family (annex §6) — a
+ * Shared, framework-light helpers for the `boards` family (annex) — a
  * deterministic seeded PRNG for `demoData`, the card/column/lane vocabulary,
  * tone normalization, column/lane derivation from a record-list, and the
  * grouping used by both `kanban-board` and `kanban-swimlane-grid`.
  *
  * No dnd-kit here: this module is pure so its helpers stay unit-testable and so
  * the heavy interaction code (dnd-kit) is confined to the widget component
- * files (04 §2.3 chunk budget; boards is the only family that pulls dnd-kit).
- * Widgets stay pure (no i18n provider dependency) — labels/announcements arrive
- * as props with English defaults, resolved through @adminium/i18n at the host
- * boundary like the rest of the registry (04 §2, 04-T06).
+ * files (chunk budget; boards is the only family that pulls dnd-kit). Widgets
+ * stay pure (no i18n provider dependency) — labels/announcements arrive as
+ * props with English defaults, resolved through @adminium/i18n at the host
+ * boundary like the rest of the registry.
  */
 
 export { mulberry32 };
@@ -24,7 +24,7 @@ export function pickFrom<T>(random: () => number, items: readonly T[]): T {
   return items[Math.floor(random() * items.length) % items.length] as T;
 }
 
-/** Fixed demo epoch so `demoData(seed)` is byte-identical across runs (04 §7.7). */
+/** Fixed demo epoch so `demoData(seed)` is byte-identical across runs. */
 export const BOARD_DEMO_EPOCH = Date.UTC(2026, 6, 14, 12, 0, 0);
 
 const KNOWN_TONES: ReadonlySet<Tone> = new Set<Tone>(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']);
@@ -187,9 +187,9 @@ export function ownerInitials(owner: string | undefined, locale?: string): strin
 
 /**
  * Normalize an untrusted record-list row into a `BoardCardData`. `columnField`
- * / `laneField` / `titleField` name the source columns (04 §3 record-list). A
- * row missing the column value is bucketed under `''` (an "unassigned" column
- * the caller can surface or hide).
+ * / `laneField` / `titleField` name the source columns (record-list). A row
+ * missing the column value is bucketed under `''` (an "unassigned" column the
+ * caller can surface or hide).
  */
 export function toBoardCard(
   row: Record<string, unknown>,
@@ -230,7 +230,7 @@ export interface BindingSource {
  * (the tables/media convention).
  *
  * NB the descriptor is `binding.source.name` (+ optional `schema`), NOT a flat
- * `binding.table` (04 §5.1).
+ * `binding.table`.
  */
 export function bindingSourceOf(
   binding: { connectionId: string; source: { schema?: string | undefined; name: string } } | undefined,

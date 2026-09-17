@@ -11,8 +11,13 @@ as PID 1 so `docker stop` reaches Fastify as a real `SIGTERM`.
 
 Nothing about the container changes the application. Its `CMD` is
 `adminium start` — the same CLI command a
-[source checkout](/getting-started/quickstart/) runs. One code path, two front
-doors.
+[source checkout](/getting-started/quickstart/#run-from-a-source-checkout) runs.
+One code path, two front doors.
+
+It is also the base of a [project](/projects/) image: `adminium new` writes a
+`Dockerfile` that builds the project and copies it into this image, so
+everything on this page holds there too.
+[Deploy a project](/projects/deploy/).
 
 ## The fastest look
 
@@ -36,7 +41,7 @@ volume. For anything you intend to keep, give it a real meta store: see
 Pin a version rather than `latest` for anything real:
 
 ```bash
-docker run --rm -p 4600:4600 ghcr.io/mosofi/adminium:0.1.0
+docker run --rm -p 4600:4600 ghcr.io/mosofi/adminium:0.2.10
 ```
 
 ## Compose

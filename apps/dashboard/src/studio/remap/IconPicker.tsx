@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Lucide subset grid for the table icon override (`table.label.icon`,
- * 07-meta-store.md §3.15). Kebab-case names, resolved via `lucideByName` so
- * an unknown value can never crash the picker.
+ * Lucide subset grid for the table icon override (`table.label.icon`).
+ * Kebab-case names, resolved via `lucideByName` so an unknown value can
+ * never crash the picker.
  */
 import { cn } from '@adminium/ui';
 

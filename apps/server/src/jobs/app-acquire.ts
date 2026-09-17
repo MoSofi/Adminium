@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * App acquisition jobs (48-self-hosted-downloads.md §6b, G8-D3/D5): refresh the
- * app catalog, and download one release into the app store.
+ * App acquisition jobs (b, G8-D3/D5): refresh the app catalog, and download one
+ * release into the app store.
  *
  * The add-on acquisition jobs' twins (`add-on-acquire.ts`), kept apart because
  * the two catalogs are separate documents behind separate switches (R1, R2),
@@ -10,8 +10,8 @@
  *
  *  - `app-download` IS INTERNAL-ONLY. Its payload names a `(key, version)` that
  *    the job resolves against the CACHED CATALOG, which is where the integrity
- *    value comes from (48 D3). A caller who could hand-craft the payload through
- *    `POST /jobs` would be choosing their own fingerprint.
+ * value comes from. A caller who could hand-craft the payload through `POST
+ *    /jobs` would be choosing their own fingerprint.
  *  - ONE ATTEMPT PER DOWNLOAD (48 A16, R5). A released file never changes, so a
  *    refusal repeats identically on every retry.
  *  - IDEMPOTENT PER `(key, version)` through the repo's `dedupeKey`.

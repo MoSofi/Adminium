@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Storage-credential encryption closures (37-files-and-storage.md D2, D16).
+ * Storage-credential encryption closures.
  *
  * The connection-DSN pattern verbatim (`connections/crypto.ts`), with ONE
  * deliberate difference: a different HKDF salt. `adminium:dsn:v1` and

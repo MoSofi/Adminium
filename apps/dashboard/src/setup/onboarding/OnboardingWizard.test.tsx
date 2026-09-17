@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The wizard's chrome (45-onboarding.md §2, `designs/Onboarding.dc.html`).
+ * The wizard's chrome.
  *
  * The shell is presentational, so what is worth pinning is what it REFUSES to
  * render: no Back on the first step, no Skip on a step that must be answered,

@@ -6,8 +6,8 @@ import { badgeVariants } from '../badge/Badge.js';
 import type { Tone } from '../badge/Badge.js';
 
 /**
- * The four states of the desktop runtime chip (11-electron.md §8.1), verbatim
- * from that table's rows:
+ * The four states of the desktop runtime chip, verbatim from that table's
+ * rows:
  *
  *   | State                                    | Chip                        | Tone        |
  *   | Local DBs only, no sharing               | `Local` (hard-drive icon)   | muted       |
@@ -29,10 +29,10 @@ interface StateStyle {
 }
 
 /**
- * §8.1's tone column, mapped onto the shared `Tone` vocabulary (03 §3.3):
- * "muted" is `neutral` (surface-3 + fg-muted), "accent-soft" is `accent`
- * (accent-soft + accent), "warn" is `warn`. No new tints — the whole point of
- * the vocabulary is that a chip cannot invent a colour.
+ * The tone column, mapped onto the shared `Tone` vocabulary: "muted" is
+ * `neutral` (surface-3 + fg-muted), "accent-soft" is `accent` (accent-soft +
+ * accent), "warn" is `warn`. No new tints — the whole point of the vocabulary
+ * is that a chip cannot invent a colour.
  *
  * ICONS: `hard-drive` for `local` is specified. The rest follow
  * `System States.dc.html`, whose "Database unreachable" state is a
@@ -58,9 +58,9 @@ export interface RuntimeChipProps {
    */
   label: string;
   /**
-   * §8.1: "accent-soft; click → LAN panel". Supplying this renders a real
-   * `<button>` — not a `<span>` with a click handler — so the chip is reachable
-   * by keyboard and announced as actionable. Omit it and the chip is inert
+   * "accent-soft; click → LAN panel". Supplying this renders a real `<button>`
+   * — not a `<span>` with a click handler — so the chip is reachable by
+   * keyboard and announced as actionable. Omit it and the chip is inert
    * presentation, which is the honest rendering of the three states that have
    * nowhere to go.
    */
@@ -77,12 +77,12 @@ export interface RuntimeChipProps {
 
 /**
  * The desktop runtime chip: what this Adminium is, and whether its data is
- * where you think it is (11-electron.md §8.1). Sits in the topbar next to the
- * environment area, desktop only.
+ * where you think it is. Sits in the topbar next to the environment area,
+ * desktop only.
  *
  * Fed by `GET /api/v1/system/info` + a connection-health poll — never by the
- * preload bridge (§8.1 is explicit, and §4 explains why: the server is the
- * authority for feature gating, the bridge only for native affordances).
+ * preload bridge (is explicit, explains why: the server is the authority for
+ * feature gating, the bridge only for native affordances).
  */
 export function RuntimeChip({ state, label, onClick, description, className }: RuntimeChipProps) {
   const { icon: Icon, tone } = STATE_STYLES[state];

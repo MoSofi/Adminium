@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Measures — folds over the rows of a table whose FK points AT the row being
- * listed (36-derived-columns.md §3.4). The compiler behind BOTH projection
- * families: `agg=`'s row counts (up-converted, D15) and `compute=`'s
- * `sum`/`avg`/`min`/`max` over an expression.
+ * listed. The compiler behind BOTH projection families: `agg=`'s row counts
+ * (up-converted, D15) and `compute=`'s `sum`/`avg`/`min`/`max` over an
+ * expression.
  *
  * ONE RESOLVER, ONE COMPILER, ONE MASKING POLICY. `agg=` keeps its wire
  * grammar and its nine pinned tests (`crud/aggregates.ts` is now just that
@@ -126,7 +126,7 @@ export interface ResolveMeasuresOptions {
   onRefusal?: ((refusal: MeasureRefusal) => void) | undefined;
 }
 
-/** What was refused and why — the audit row's payload (36-T09). */
+/** What was refused and why — the audit row's payload. */
 export interface MeasureRefusal {
   alias: string;
   table: string;
@@ -177,7 +177,7 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
       const factors: string[] = [];
       for (const factor of term.factors) {
         // 422 for unknown or secret: a factor is the client naming a column
-        // it wants folded, and a secret column is invisible (05 §7.1 rule 1),
+        // it wants folded, and a secret column is invisible,
         // so naming one is an author mistake and not a degrade.
         const column = view.column(refTable, factor);
         maskedTouched ||= column.masked;

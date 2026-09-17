@@ -2,16 +2,16 @@
 /**
  * TRACK BUILDER — config schemas + deterministic demo generators for
  * `document-canvas` and the 22 `block-*` document-vocabulary widgets
- * (annex §13). PURE module: zod + block-lib/domain-lib only, no React, no
+ * (annex). PURE module: zod + block-lib/domain-lib only, no React, no
  * @adminium/ui, no lucide.
  *
  * WHY THIS EXISTS: `blocks-track.definitions.ts` imports these schemas and
  * `demoData` generators for its registry metadata. If they lived beside the
  * components, importing the metadata would drag every block component into the
  * eager registry chunk — the components load ONLY through
- * `lazy(() => import('./blocks-track-components.js'))` (04 §2.3; the
- * chunk-budget gate walks the transitive metadata graph and enforces exactly
- * this). Same convention as `media-config.ts` / `domain-config.ts`.
+ * `lazy(() => import('./blocks-track-components.js'))` (the chunk-budget gate
+ * walks the transitive metadata graph and enforces exactly this). Same
+ * convention as `media-config.ts` / `domain-config.ts`.
  *
  * ONE MODULE FOR 23 WIDGETS: the annex specifies the blocks as a single shared
  * library ("Document blocks (shared library used by `document-canvas`)") whose
@@ -19,14 +19,15 @@
  * be 23 copies of the same import header for no isolation gain, and they are
  * versioned, reviewed and rendered together.
  *
- * DETERMINISM (04 §7.7): every generator derives from `mulberry32(seed)` and the
- * fixed `BLOCK_DEMO_EPOCH` — never `Math.random()` / `Date.now()`. Distinct
- * seeds must yield distinct payloads (the determinism gate asserts it), so each
- * generator threads the seed into a value the payload actually carries.
+ * DETERMINISM: every generator derives from `mulberry32(seed)` and the fixed
+ * `BLOCK_DEMO_EPOCH` — never `Math.random()` / `Date.now()`. Distinct seeds must
+ * yield distinct payloads (the determinism gate asserts it), so each generator
+ * threads the seed into a value the payload actually carries.
  *
- * LABELS: widgets are locale-agnostic (04 §2) — user-visible copy arrives as
+ * LABELS: widgets are locale-agnostic — user-visible copy arrives as
  * already-translated strings via config, with English developer fallbacks. The
- * dashboard fills them from `t('…')`; en-US entries live at `widgets.domain.*`.
+ * dashboard fills them from `t('…')`; en-US entries live at
+ * `widgets.domain.*`.
  */
 import { z } from 'zod';
 
@@ -75,14 +76,14 @@ function dayAfterEpoch(days: number): string {
   return new Date(BLOCK_DEMO_EPOCH + days * BLOCK_DAY_MS).toISOString();
 }
 
-/** Empty-copy keys every block carries (04 §4 — per-widget empty copy). */
+/** Empty-copy keys every block carries (per-widget empty copy). */
 const emptyCopy = {
   emptyTitle: z.string().optional(),
   emptyBody: z.string().optional(),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// document-canvas (annex §13)
+// document-canvas (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -97,7 +98,7 @@ const emptyCopy = {
  * Literal bundle key per block. Indexed rather than assembled at
  * the render site so every key is visible to the extractor and to the
  * bundle-parity tests, and a 23rd block (or a 21st starter) is a compile error
- * instead of a raw dotted string in the palette (10 §2.5).
+ * instead of a raw dotted string in the palette.
  */
 export const BLOCK_LABEL_KEY = {
   'block-totals-summary': 'ui:templates.builder.blocks.block-totals-summary',
@@ -155,7 +156,7 @@ export const documentCanvasConfigSchema = widgetSharedConfigSchema.extend({
       logo: z.string().optional(),
     })
     .optional(),
-  /** Blocks are click-to-select with an accent outline (annex §13). */
+  /** Blocks are click-to-select with an accent outline (annex). */
   selectable: z.boolean().default(true),
   /** Show the per-block move up/down + remove controls. */
   reorderable: z.boolean().default(true),
@@ -195,8 +196,8 @@ function demoItems(random: () => number, count: number): DocLineItem[] {
 }
 
 /**
- * Deterministic `record` doc (04 §7.7) — an invoice-shaped doc object with the
- * items, rates, flags and `blockOrder[]` the canvas renders. The seed varies the
+ * Deterministic `record` doc — an invoice-shaped doc object with the items,
+ * rates, flags and `blockOrder[]` the canvas renders. The seed varies the
  * document number, the staffed line items and the rates.
  */
 export function documentCanvasDemoData(seed: number): RowData<DocRecord> {
@@ -225,7 +226,7 @@ export function documentCanvasDemoData(seed: number): RowData<DocRecord> {
 // block-line-items / block-totals-summary / block-tax-breakdown (money core)
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Field naming shared by every block that reads line-item rows (04 §5). */
+/** Field naming shared by every block that reads line-item rows. */
 const lineItemFields = {
   idField: z.string().default('id'),
   descField: z.string().default('desc'),
@@ -235,7 +236,7 @@ const lineItemFields = {
 
 /**
  * `block-line-items` — editable qty/rate/desc rows feeding the totals. Edits
- * emit `mutate` intents; the block never writes (04 §2.1).
+ * emit `mutate` intents; the block never writes.
  */
 export const blockLineItemsConfigSchema = widgetSharedConfigSchema.extend({
   ...lineItemFields,
@@ -374,7 +375,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'] as const
  * `block-bar-chart` / `block-line-chart` — the annex's "mini pure-div/SVG
  * charts, currentColor accent. Data: series[]".
  *
- * Both take the §3 `categorical` envelope: the annex gives them the SAME data
+ * Both take the `categorical` envelope: the annex gives them the SAME data
  * note and groups them as one entry, so declaring one shape keeps them
  * interchangeable in a canvas slot (swapping bar↔line must never re-bind the
  * doc). Empty ⇔ no items, via the shared `isEmptyByShape.categorical`.
@@ -682,9 +683,9 @@ export function blockSignatureDemoData(seed: number): RowData<BlockSignature> {
 }
 
 /**
- * `block-terms-checkbox` — toggle + editable label. Declared `form-state`
- * (04 §3): the payload IS the control's own state, so it is never "empty" and
- * the shared predicate correctly never routes it to the empty card.
+ * `block-terms-checkbox` — toggle + editable label. Declared `form-state`:
+ * the payload IS the control's own state, so it is never "empty" and the
+ * shared predicate correctly never routes it to the empty card.
  */
 export const blockTermsCheckboxConfigSchema = widgetSharedConfigSchema.extend({
   labelField: z.string().default('label'),

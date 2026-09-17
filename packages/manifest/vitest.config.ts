@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Coverage floors only — this package had no vitest config, so it ran on
- * defaults and was measured by nothing (15-quality.md §1, task 15-T01).
+ * defaults and was measured by nothing.
  *
  * The numbers are `max(plan floor, measured rounded DOWN)` per axis: green on
  * arrival, and a ratchet that only moves up. Rounding down is not cosmetic —

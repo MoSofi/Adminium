@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure waterfall / bridge layout (`chart-waterfall`, research/widget-registry.md
- * §2): floating bars for signed steps plus total anchors, with connector
- * segments riding the running level. DOM-free. Categorical x mirrors in RTL
- * (band-scale flip); connectors bridge adjacent bars on the correct logical
- * side so they read left→right in LTR and right→left in RTL.
+ * Pure waterfall / bridge layout (`chart-waterfall`,
+ * research/widget-registry.md): floating bars for signed steps plus total
+ * anchors, with connector segments riding the running level. DOM-free.
+ * Categorical x mirrors in RTL (band-scale flip); connectors bridge adjacent
+ * bars on the correct logical side so they read left→right in LTR and right→left
+ * in RTL.
  */
 import { categoricalBandScale } from './scales.js';
 import { niceTicks } from '../utils/stats.js';

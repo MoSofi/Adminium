@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SQLite table-statistics collector — 06-llm-assist.md §4.2.
+ * SQLite table-statistics collector.
  *
  * SQLite is a local file with no server round trip, so an exact `COUNT(*)` is
  * cheap enough to be the row-count of record (`rowCountExact: true`).
@@ -94,7 +94,7 @@ export async function collectSqliteStats(
   const maxScanRows = opts.maxScanRows ?? STATS_MAX_SCAN_ROWS;
   const warnings: string[] = [];
 
-  // 1. Exact row count — cheap on a local file (05 §4.3, 06 §4.2).
+  // 1. Exact row count — cheap on a local file.
   const countRows = await exec(`SELECT count(*) AS n FROM ${qualified}`);
   const rowCountEstimate = num(countRows[0]?.['n']);
   const rowCountExact = rowCountEstimate !== null;

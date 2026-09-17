@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Introspection against the SCHEMA SHAPES a real SQLite file can hold that
- * `northwind` and the §4.3 extras database do not — 05-introspection-engine.md
- * §4.3. Every fixture here is DDL SQLite actually accepts, loaded into a temp
- * file through the better-sqlite3 driver, so the assertions are about the
- * pragma output the adapter really sees:
+ * `northwind` and the extras database do not. Every fixture here is DDL
+ * SQLite actually accepts, loaded into a temp file through the better-sqlite3
+ * driver, so the assertions are about the pragma output the adapter really
+ * sees:
  *
  *   - expression and partial indexes (`pragma_index_info` reports a NULL
  *     column name for an expression part; a PARTIAL unique index does not
@@ -33,7 +33,7 @@ import {
 
 const driverReady = await sqliteDriverAvailable();
 
-/** 300 values — past the 256 cap (05 §10). */
+/** 300 values — past the 256 cap. */
 const CAPPED_ENUM_VALUES = Array.from({ length: 300 }, (_, i) => `v${i}`);
 
 const SHAPES_SQL = `
@@ -133,7 +133,7 @@ describe.skipIf(!driverReady)('exotic-but-real schema shapes', () => {
   it('a PARTIAL unique index does not make its column unique', () => {
     // `UNIQUE … WHERE archived = 0` only constrains the matching subset, so
     // treating the column as globally unique would let the UI offer it as a
-    // lookup key it is not (05 §2.1).
+    // lookup key it is not.
     expect(index('docs_meta', 'docs_meta_slug_live')).toMatchObject({
       columns: ['slug'],
       unique: true,

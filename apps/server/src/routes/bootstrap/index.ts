@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Bootstrap resource (09-generated-app.md §2.1, 01-architecture.md §5):
- * `GET /api/v1/bootstrap` — the single round trip the SPA issues on a cold
- * load. Session-bound; 503 META_NOT_CONFIGURED when the server boots without
- * a meta store (same contract as auth/me).
+ * Bootstrap resource: `GET /api/v1/bootstrap` — the single round trip the
+ * SPA issues on a cold load. Session-bound; 503 META_NOT_CONFIGURED when the
+ * server boots without a meta store (same contract as auth/me).
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 

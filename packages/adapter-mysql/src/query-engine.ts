@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `createQueryEngine()` — the Kysely dialect factory for the pooled data
- * connection (05-introspection-engine.md §3 `QueryEngine`, 08-server-api.md
- * §3.7 "query port").
+ * connection (`QueryEngine`).
  *
  * `@adminium/engine` does not depend on `kysely`, so `QueryEngine.dialect`
  * is typed opaquely there; `@adminium/server` casts it to `kysely.Dialect`

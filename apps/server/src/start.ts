@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Process entrypoint: loadEnv → buildServer → listen, with graceful shutdown
- * on SIGTERM/SIGINT (01-architecture.md §8.1 — the fuller boot sequence gains
- * meta connect/migrations/backup gates in wave 2).
+ * on SIGTERM/SIGINT (the fuller boot sequence gains meta
+ * connect/migrations/backup gates in wave 2).
  */
 import { buildServer, type AdminiumServer } from './app.js';
 import { loadEnv } from './config/env.js';

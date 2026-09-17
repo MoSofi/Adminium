@@ -6,10 +6,10 @@ import { WidgetFrame } from './WidgetFrame.js';
 import type { WidgetSkeleton } from '../registry/types.js';
 
 /**
- * WidgetFrame state stories (04 §4 contract; acceptance criterion #4 —
- * forcing each state shows correct silhouettes, empty copy, and a working
- * Retry). Typed loosely (no @storybook/react-vite devDep here yet — the
- * 04-T17 QA harness wires widgets stories into the workspace Storybook).
+ * WidgetFrame state stories (contract; acceptance criterion #4 — forcing
+ * each state shows correct silhouettes, empty copy, and a working Retry).
+ * Typed loosely (no @storybook/react-vite devDep here yet — the QA
+ * harness wires widgets stories into the workspace Storybook).
  */
 const meta = {
   title: 'Widgets/WidgetFrame',

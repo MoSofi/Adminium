@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The upload spool (37-files-and-storage.md D4).
+ * The upload spool.
  *
  * Every byte Adminium stores lands here FIRST — on this server's own disk,
  * under `<dataDir>/tmp/upload_<ulid>` — and only then goes to the driver.

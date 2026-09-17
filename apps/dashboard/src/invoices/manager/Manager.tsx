@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The invoice manager (34-invoices-add-on.md §3.9, Appendix E §M1–M16): the
- * topbar's title, subtitle and ONE primary *New {template|invoice}*; the
- * toolbar; the gallery or list of cards in optional groups; the empty states;
- * and the card actions.
+ * The invoice manager: the topbar's title, subtitle and ONE primary
+ * *New {template|invoice}*; the toolbar; the gallery or list of cards in
+ * optional groups; the empty states; and the card actions.
  *
  * TWO KINDS, ONE SCREEN. The Templates/Invoices tray filters `kind`; the
  * counts come with every list reply, unfiltered, so the badges never lag the
@@ -11,11 +10,11 @@
  * client-side over the loaded list (comp 1369) — a workspace has tens of
  * documents, not thousands, and a keystroke must not be a round trip.
  *
- * WHAT THE COMP DOES NOT DRAW IS NOT HERE (§M16): no actions menu, no
+ * WHAT THE COMP DOES NOT DRAW IS NOT HERE: no actions menu, no
  * archive, no import, no export. Delete is a hard delete behind the comp's
  * own confirm. Duplicate lands the copy after its source and stays on the
- * manager (comp 1384); the success toast with Undo is the house pattern (39
- * §M11), added on top of the comp.
+ * manager (comp 1384); the success toast with Undo is the house pattern,
+ * added on top of the comp.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';

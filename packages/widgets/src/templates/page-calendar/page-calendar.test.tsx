@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * page-calendar template tests (09-generated-app.md §7.6): record-list rows
- * map onto the month grid via the stored `startColumn`/`titleColumn`
- * vocabulary, day select drives the agenda, agenda/upcoming rows emit
- * record-open, the inline composer inserts on the selected day, legend chips
- * filter, the toolbar range picker publishes `dateRange.*` params, and the
- * invalid-layout branch never crashes.
+ * page-calendar template tests: record-list rows map onto the month grid via
+ * the stored `startColumn`/`titleColumn` vocabulary, day select drives the
+ * agenda, agenda/upcoming rows emit record-open, the inline composer inserts
+ * on the selected day, legend chips filter, the toolbar range picker
+ * publishes `dateRange.*` params, and the invalid-layout branch never
+ * crashes.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';

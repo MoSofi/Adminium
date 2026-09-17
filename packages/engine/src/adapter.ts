@@ -1,22 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `DatabaseAdapter` contract — 05-introspection-engine.md §3, with the
- * three-connection privilege model of 01-architecture.md §3.
+ * The `DatabaseAdapter` contract, with its three-connection privilege model.
  *
  * `@adminium/engine` defines this interface but never imports adapter
  * packages; `@adminium/server` composes concrete adapters at boot through
- * the registry (01-architecture.md §2.3.1, ./adapter-registry.ts). Adapter
- * packages (`@adminium/adapter-postgres`, …) import ONLY
- * `@adminium/engine/adapter` — this module — which re-exports the
- * SchemaModel types they need.
+ * the registry (./adapter-registry.ts). Adapter packages
+ * (`@adminium/adapter-postgres`, …) import ONLY `@adminium/engine/adapter`
+ * — this module — which re-exports the SchemaModel types they need.
  *
- * THE "SCHEMA ONLY" INVARIANT (05 §10): `introspect()` reads catalog
- * metadata exclusively — never user rows. Row-touching methods (`sample`,
+ * THE "SCHEMA ONLY" INVARIANT: `introspect()` reads catalog metadata
+ * exclusively — never user rows. Row-touching methods (`sample`,
  * `sampleColumn`, `query`, `mutate`, `count`) exist only on the post-setup
  * `data`-role instance and are compile-time blocked on the `introspect`
  * instance via `this` typing on the role-branded interface below (plus a
  * runtime guard every implementation must add — tested by the shared
- * adapter test kit, 05-T02).
+ * adapter test kit).
  */
 import { AdapterRegistry } from './adapter-registry.js';
 import type { AdapterError } from './adapter-registry.js';
@@ -27,10 +25,10 @@ import type { AdapterCapabilities, DatabaseModel, Dialect, LogicalType } from '.
 // ---------------------------------------------------------------------------
 
 /**
- * The three logical connections per source (01-architecture.md §3):
- * `introspect` (schema metadata only), `data` (CRUD on included tables),
- * `meta` (adminium_* tables; owned by @adminium/meta and never handed to
- * adapters in v1 — listed for completeness of the brand).
+ * The three logical connections per source: `introspect` (schema
+ * metadata only), `data` (CRUD on included tables), `meta` (adminium_*
+ * tables; owned by @adminium/meta and never handed to adapters in v1 —
+ * listed for completeness of the brand).
  */
 export type ConnectionRole = 'introspect' | 'data' | 'meta';
 
@@ -49,9 +47,9 @@ export interface ConnectionConfig<Role extends ConnectionRole = ConnectionRole> 
   readonly file?: string;
   /** SQLite open mode; introspect instances always open readonly. */
   readonly mode?: 'readonly' | 'readwrite';
-  /** Pool size hint (pg introspect role defaults to 5 — 05 §4.1). */
+  /** Pool size hint (pg introspect role defaults to 5). */
   readonly poolMax?: number;
-  /** Per-statement timeout; defaults per dialect (05 §4). */
+  /** Per-statement timeout; defaults per dialect. */
   readonly statementTimeoutMs?: number;
 }
 
@@ -62,7 +60,7 @@ export type DataConnectionConfig = ConnectionConfig<'data'>;
 // Probe / test results
 // ---------------------------------------------------------------------------
 
-/** Result of `test()` — 05 §3. */
+/** Result of `test()`. */
 export interface TestResult {
   ok: boolean;
   latencyMs: number;
@@ -73,7 +71,7 @@ export interface TestResult {
   error?: AdapterError;
 }
 
-/** Dialect-specific privilege probes (01-architecture.md §3). */
+/** Dialect-specific privilege probes. */
 export interface PrivilegeProbe {
   canReadSchema: boolean;
   canRead: boolean;
@@ -102,7 +100,7 @@ export interface IntrospectOptions {
   schemas?: string[];
   /** Optional include-predicate applied after enumeration (e.g. > 2,000-table guard). */
   tableFilter?: (table: { schema: string; name: string }) => boolean;
-  /** Default true — ESTIMATES only, never COUNT during setup (05 §10). */
+  /** Default true — ESTIMATES only, never COUNT during setup. */
   collectRowEstimates?: boolean;
   /** Default true where supported. */
   collectActivityStats?: boolean;
@@ -139,7 +137,7 @@ export type FilterOp =
   | 'is-null'
   | 'is-not-null';
 
-/** AND/OR tree of column predicates (05 §3). Values always bind as parameters. */
+/** AND/OR tree of column predicates. Values always bind as parameters. */
 export type FilterSpec =
   | { and: FilterSpec[] }
   | { or: FilterSpec[] }
@@ -180,7 +178,7 @@ export interface MutationResult {
   returning: Row[] | null;
 }
 
-/** Sampling caps enforced by every implementation (05 §10). */
+/** Sampling caps enforced by every implementation. */
 export interface SampleOptions {
   /** Default: non-secret, PII-masked columns. */
   columns?: string[];
@@ -206,7 +204,7 @@ export interface ColumnSampleOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Table statistics for LLM enrichment — 06-llm-assist.md §4.2
+// Table statistics for LLM enrichment
 // (sample-free by default; cheap-first per dialect; PII-safe)
 // ---------------------------------------------------------------------------
 
@@ -215,14 +213,14 @@ export interface ColumnSampleOptions {
  * {@link DatabaseAdapter.collectTableStats}. The adapter needs the logical
  * type (to decide ordered-type min/max and the distinct-count strategy) and
  * the heuristic privacy flags: PII-suspected and secret columns NEVER
- * contribute sampled cell values, even when sampling is opted in (06 §4.2).
+ * contribute sampled cell values, even when sampling is opted in.
  */
 export interface StatsColumnInput {
   name: string;
   logicalType: LogicalType;
-  /** Heuristic PII suspicion (05 §7.2) — never yields sampled values. */
+  /** Heuristic PII suspicion — never yields sampled values. */
   piiSuspected?: boolean;
-  /** Secret column (05 §7.1) — excluded from every value-touching statistic. */
+  /** Secret column — excluded from every value-touching statistic. */
   secret?: boolean;
 }
 
@@ -230,7 +228,7 @@ export interface StatsColumnInput {
  * Options for {@link DatabaseAdapter.collectTableStats}. Sample-free by
  * default: with `sampling` unset NO cell value ever leaves the database —
  * only the aggregate statistics (row count, null fraction, distinct count)
- * the shared-contract invariant permits (06 §1 invariant 5, §4.2).
+ * the shared-contract invariant permits.
  */
 export interface CollectStatsOptions {
   /**
@@ -249,8 +247,8 @@ export interface CollectStatsOptions {
   sampling?: { maxValuesPerColumn: number } | null;
   /**
    * Row-count ceiling above which per-column null-fraction / distinct-count
-   * fall back to `null` (unknown) instead of a full scan (06 §4.2 "capped
-   * tables → NULL"). Defaults to {@link STATS_MAX_SCAN_ROWS}.
+   * fall back to `null` (unknown) instead of a full scan. Defaults to
+   * {@link STATS_MAX_SCAN_ROWS}.
    */
   maxScanRows?: number;
 }
@@ -258,7 +256,7 @@ export interface CollectStatsOptions {
 /** A JSON-native scalar a sampled/extent cell can hold (strings truncated). */
 export type StatsScalar = string | number | boolean | null;
 
-/** Per-column aggregate statistics (06 §4.2). */
+/** Per-column aggregate statistics. */
 export interface ColumnStats {
   column: string;
   /** Fraction of NULL rows in `[0,1]`; `null` when not cheaply available. */
@@ -274,8 +272,8 @@ export interface ColumnStats {
   max?: StatsScalar;
   /**
    * Most-common values, most-frequent first. Present ONLY under sampling
-   * opt-in and NEVER for PII-suspected or secret columns (06 §4.2 privacy
-   * rule). Each value truncated at {@link STATS_SAMPLE_VALUE_MAX_CHARS} chars.
+   * opt-in and NEVER for PII-suspected or secret columns (privacy rule).
+   * Each value truncated at {@link STATS_SAMPLE_VALUE_MAX_CHARS} chars.
    */
   sampleValues?: StatsScalar[];
 }
@@ -295,17 +293,18 @@ export interface StatsResult {
   warnings?: string[];
 }
 
-/** Default cap on most-common sampled values per column (06 §4.2). */
+/** Default cap on most-common sampled values per column. */
 export const STATS_DEFAULT_SAMPLE_VALUES = 20;
-/** Sampled string values are truncated at this many characters (mirrors 05 §10). */
+/** Sampled string values are truncated at this many characters (mirrors). */
 export const STATS_SAMPLE_VALUE_MAX_CHARS = 256;
-/** Default row-count ceiling for full-scan null/distinct aggregates (06 §4.2). */
+/** Default row-count ceiling for full-scan null/distinct aggregates. */
 export const STATS_MAX_SCAN_ROWS = 1_000_000;
-/** At/below this estimate an adapter prefers an exact COUNT(*) over a stale estimate (06 §4.2). */
+/** At/below this estimate an adapter prefers an exact COUNT(*) over a stale
+ * estimate. */
 export const STATS_EXACT_COUNT_THRESHOLD = 50_000;
 
 // ---------------------------------------------------------------------------
-// QueryPort — how the CRUD layer gets a query engine (05 §3, 08 §3.7)
+// QueryPort — how the CRUD layer gets a query engine
 // ---------------------------------------------------------------------------
 
 /** Per-LogicalType value converters between JS and the wire format. */
@@ -317,11 +316,11 @@ export interface TypeSerializer {
 }
 
 /**
- * What `createQueryEngine()` hands the CRUD layer (08-server-api.md §3.7):
- * everything dynamic Kysely needs for the data connection. The engine
- * package does not depend on `kysely`, so the dialect is typed opaquely —
- * `@adminium/server` (which owns the Kysely dependency) casts it to
- * `kysely.Dialect` at the composition boundary.
+ * What `createQueryEngine()` hands the CRUD layer: everything dynamic
+ * Kysely needs for the data connection. The engine package does not depend
+ * on `kysely`, so the dialect is typed opaquely — `@adminium/server`
+ * (which owns the Kysely dependency) casts it to `kysely.Dialect` at the
+ * composition boundary.
  */
 export interface QueryEngine {
   /** A Kysely `Dialect` instance for the pooled data connection. */
@@ -333,7 +332,7 @@ export interface QueryEngine {
   destroy(): Promise<void>;
 }
 
-/** Workplan alias — 08-server-api.md calls this the CRUD "query port". */
+/** Workplan alias — calls this the CRUD "query port". */
 export type QueryPort = QueryEngine;
 
 // ---------------------------------------------------------------------------
@@ -362,7 +361,7 @@ export interface DatabaseAdapter<Role extends ConnectionRole = ConnectionRole> {
   /** Runs on every connect/test; results persist on the connection row. */
   probeCapabilities(): Promise<CapabilityProbeResult>;
 
-  /** SCHEMA ONLY — reads catalog/pragma namespaces exclusively (05 §10). */
+  /** SCHEMA ONLY — reads catalog/pragma namespaces exclusively. */
   introspect(this: DatabaseAdapter<'introspect'>, opts?: IntrospectOptions): Promise<DatabaseModel>;
 
   /** Capped count: `cap` (default 100_001) renders as "100,000+". */
@@ -372,7 +371,8 @@ export interface DatabaseAdapter<Role extends ConnectionRole = ConnectionRole> {
     filter?: FilterSpec,
     opts?: { cap?: number },
   ): Promise<{ value: number; capped: boolean }>;
-  /** Post-setup only; caps per 05 §10 (LIMIT ≤ 100, truncation, secret exclusion, PII masking). */
+  /** Post-setup only; caps (LIMIT ≤ 100, truncation, secret exclusion, PII
+   * masking). */
   sample(this: DatabaseAdapter<'data'>, table: TableRef, opts: SampleOptions): Promise<Row[]>;
   /** Optional single-column sampler; see {@link ColumnSampleOptions}. */
   sampleColumn?(
@@ -386,13 +386,13 @@ export interface DatabaseAdapter<Role extends ConnectionRole = ConnectionRole> {
   mutate(this: DatabaseAdapter<'data'>, spec: MutationSpec): Promise<MutationResult>;
 
   /**
-   * Collect aggregate statistics for LLM enrichment (06-llm-assist.md §4.2).
-   * Sample-free by default: with `opts.sampling` unset the result carries row
-   * counts, null fractions and distinct counts only — never a single cell
-   * value. Opt-in sampling adds most-common values and ordered min/max, but
-   * NEVER for PII-suspected or secret columns. Cheap-first per dialect
-   * (catalog estimates where available, bounded exact scans as fallback);
-   * an unavailable estimate returns `null`, never a wrong number.
+   * Collect aggregate statistics for LLM enrichment. Sample-free by default:
+   * with `opts.sampling` unset the result carries row counts, null fractions
+   * and distinct counts only — never a single cell value. Opt-in sampling
+   * adds most-common values and ordered min/max, but NEVER for PII-suspected
+   * or secret columns. Cheap-first per dialect (catalog estimates where
+   * available, bounded exact scans as fallback); an unavailable estimate
+   * returns `null`, never a wrong number.
    */
   collectTableStats(
     this: DatabaseAdapter<'data'>,
@@ -408,10 +408,10 @@ export type IntrospectAdapter = DatabaseAdapter<'introspect'>;
 export type DataAdapter = DatabaseAdapter<'data'>;
 
 /**
- * What an adapter package exports and the server registers at boot
- * (01-architecture.md §2.3.1): a factory keyed by dialect, plus the
- * QueryPort factory the CRUD layer uses to obtain a Kysely dialect for the
- * data connection without holding a full adapter instance.
+ * What an adapter package exports and the server registers at boot: a
+ * factory keyed by dialect, plus the QueryPort factory the CRUD layer uses
+ * to obtain a Kysely dialect for the data connection without holding a
+ * full adapter instance.
  */
 export interface AdapterProvider {
   readonly dialect: Dialect;
@@ -419,12 +419,12 @@ export interface AdapterProvider {
   create<Role extends ConnectionRole>(
     config: ConnectionConfig<Role>,
   ): DatabaseAdapter<Role> | Promise<DatabaseAdapter<Role>>;
-  /** Build the CRUD query port for a data-role connection (08 §3.7). */
+  /** Build the CRUD query port for a data-role connection. */
   createQueryEngine(config: DataConnectionConfig): QueryEngine | Promise<QueryEngine>;
 }
 
 // ---------------------------------------------------------------------------
-// Registry binding (01-architecture.md §2.3.1)
+// Registry binding
 // ---------------------------------------------------------------------------
 
 /** The process-wide registry the server boot sequence populates. */
@@ -453,7 +453,7 @@ export function getAdapter(dialect: Dialect): AdapterProvider {
 }
 
 // The './adapter' subpath is the single entry point adapter packages may
-// import (dep-cruiser matrix, 01-architecture.md §2.3) — re-export the
+// import (dep-cruiser matrix) — re-export the
 // SchemaModel types, the capability matrix and the registry mechanics here.
 export * from './schema-model.js';
 export * from './capabilities.js';

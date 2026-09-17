@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * documentProfilesRepo — adminium_document_profiles (34-invoices-add-on.md
- * §3.3, §3.7; wave 0031).
+ * documentProfilesRepo — adminium_document_profiles (wave 0031).
  *
  * A profile is an operator's answer to "which columns of which table make one
  * of these documents". It is generated in Studio from the PROVIDER's own
@@ -14,20 +13,20 @@
  *
  * There is no foreign key to `adminium_manifests`. Uninstalling an add-on
  * deletes its manifest row, and a profile — like the documents issued through
- * it — has to survive that (D5, 24 D16). What uninstall DOES do is disable
- * the profile, so nothing tries to render through a provider that is gone;
- * that is §7.10's transaction, and `setEnabledForAddOn` below is the half of
- * it that lives here.
+ * it — has to survive that (D5). What uninstall DOES do is disable the
+ * profile, so nothing tries to render through a provider that is gone; that
+ * is transaction, and `setEnabledForAddOn` below is the half of it that lives
+ * here.
  *
  * ─── `trigger` IS JSON, NOT A ROW IN A TRIGGER TABLE ───────────────────────
  *
- * §7.2 designed `adminium_record_triggers`. It was not built: the owner ruled
- * on 2026-09-10 (D55, reversing O4) that a profile's trigger is an AUTOMATION
- * with a one-node graph, because `42-automations-and-workflow-logs.md` had
- * already shipped the matcher, the 60 s undo window, the per-row dedupe key
- * and the delay-by-origin rule that §7.2 specified. This column holds what the
- * operator chose — `{event, when?}` — and the automation row is derived from
- * it, so the profile stays the single thing an operator edits.
+ * `adminium_record_triggers` was designed for this. It was not built: the
+ * owner ruled on 2026-09-10 (D55, reversing O4) that a profile's trigger is
+ * an AUTOMATION with a one-node graph, because automations had already
+ * shipped the matcher, the 60 s undo window, the per-row dedupe key and the
+ * delay-by-origin rule a trigger table would have needed. This column holds what the operator chose — `{event, when?}` —
+ * and the automation row is derived from it, so the profile stays the single
+ * thing an operator edits.
  */
 
 import type { Kysely, Selectable } from 'kysely';
@@ -219,7 +218,7 @@ export function documentProfilesRepo(meta: MetaDb) {
   /**
    * Disable (or re-enable) every profile belonging to an add-on.
    *
-   * §7.10's half that lives here, and it is DISABLE rather than DELETE on
+   * The half that lives here, and it is DISABLE rather than DELETE on
    * purpose: uninstall keeps the operator's mapping so that reinstalling the
    * add-on does not mean re-doing the work of pointing twenty columns at
    * twenty slots. What must stop is rendering, and `enabled: false` is what

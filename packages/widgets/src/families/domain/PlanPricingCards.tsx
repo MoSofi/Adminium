@@ -22,8 +22,8 @@ import { OpsEmpty } from './OpsEmpty.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `plan-pricing-cards` (annex §13) — tier cards: name, tagline, a large mono
- * price with a computed monthly/annual switch, the billing note, a CTA, and the
+ * `plan-pricing-cards` (annex) — tier cards: name, tagline, a large mono price
+ * with a computed monthly/annual switch, the billing note, a CTA, and the
  * check-list of features; the promoted tier gets an accent border + a POPULAR
  * pill, and an in-modal `selectable` variant turns the cards into radio targets.
  * Evidence: Pricing, Adminium Pricing, Billing & Usage, Billing Overview.

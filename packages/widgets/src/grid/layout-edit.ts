@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure editing math for the dashboard grid edit mode (04-widget-registry.md
- * §6.2). The static renderer's geometry + top-gravity compaction live in
- * `./layout-math.ts` and are REUSED here (never rebuilt); this module adds the
- * mutation primitives the dnd-kit drag/resize + keyboard paths funnel through:
+ * Pure editing math for the dashboard grid edit mode. The static renderer's
+ * geometry + top-gravity compaction live in `./layout-math.ts` and are REUSED
+ * here (never rebuilt); this module adds the mutation primitives the dnd-kit
+ * drag/resize + keyboard paths funnel through:
  *
  *   applyMove   place an item at a target cell, pushing colliding items DOWN
  *   applyResize resize an item (clamped to its registry `minW × minH` and the
@@ -12,12 +12,12 @@
  *   findFirstFit first free cell for inserting a new widget (builder palette)
  *
  * Move/resize deliberately leave the layout UN-compacted; callers finish with
- * `compactVertical` (04 §6.2: "drop → applyMove(...) then compactVertical(...)").
- * Pushing collisions DOWN before that top-gravity settle is what makes a drop
- * onto an occupied cell reorder deterministically rather than overlap: the
- * anchor keeps the smaller `y`, so `compactVertical` (which floats items up in
- * `(y, x)` order) settles it above the displaced items. All functions are pure
- * and total — an unknown id returns the layout unchanged.
+ * `compactVertical` ("drop → applyMove(...) then compactVertical(...)"). Pushing
+ * collisions DOWN before that top-gravity settle is what makes a drop onto an
+ * occupied cell reorder deterministically rather than overlap: the anchor keeps
+ * the smaller `y`, so `compactVertical` (which floats items up in `(y, x)` order)
+ * settles it above the displaced items. All functions are pure and total — an
+ * unknown id returns the layout unchanged.
  */
 
 import { GRID_COLUMNS, compactVertical, sortByPosition } from './layout-math.js';
@@ -42,16 +42,16 @@ const clampInt = (value: number, lo: number, hi: number): number =>
 /**
  * Force a single item fully inside the 12-col grid with a non-negative row and
  * a width/height within the schema bounds. `min` clamps width/height to the
- * widget's registry floor (never below `minW × minH`, 04 §6.1); the SE resize
- * handle grows to the inline-end, so width is capped at `GRID_COLUMNS - x` with
- * `x` held fixed.
+ * widget's registry floor (never below `minW × minH`); the SE resize handle
+ * grows to the inline-end, so width is capped at `GRID_COLUMNS - x` with `x`
+ * held fixed.
  */
 export function clampItem(item: LayoutItem, min: MinSize = DEFAULT_MIN_SIZE): LayoutItem {
   const minW = Math.max(1, Math.min(min.minW, GRID_COLUMNS));
   const minH = Math.max(1, min.minH);
   // Cap `x` so the min width still fits before the grid edge: an item at column
   // 11 with `minW: 2` shifts one column inline-start rather than shrink below
-  // its floor (04 §6.1 — never below `minW × minH`).
+  // its floor (never below `minW × minH`).
   const x = clampInt(item.x, 0, GRID_COLUMNS - minW);
   const w = clampInt(item.w, minW, GRID_COLUMNS - x);
   const h = clampInt(item.h, minH, MAX_H);
@@ -104,7 +104,7 @@ function placeAndResolve(
 
 /**
  * Move `id` to target cell `(x, y)` (keeping its size), pushing colliding items
- * down. UN-compacted — pair with `compactVertical` (see file header, 04 §6.2).
+ * down. UN-compacted — pair with `compactVertical` (see file header).
  */
 export function applyMove(
   layout: PageLayout,
@@ -202,8 +202,8 @@ export function normalizeLayout(
 
 /**
  * First free cell for a `w × h` widget, scanning rows top-to-bottom then columns
- * inline-start-to-end (04 §6.2, builder palette insertion). Always succeeds —
- * the row below every placed item is guaranteed empty.
+ * inline-start-to-end (builder palette insertion). Always succeeds — the row
+ * below every placed item is guaranteed empty.
  */
 export function findFirstFit(layout: PageLayout, w: number, h: number): { x: number; y: number } {
   const width = clampInt(w, 1, GRID_COLUMNS);
@@ -249,7 +249,7 @@ export function pointerDeltaToCells(
 
 /**
  * Resolve a pointer-drop `delta` (px since drag start) to the item's target
- * cell, matching the keyboard-move semantics (04 §6.2):
+ * cell, matching the keyboard-move semantics:
  *
  *  - the horizontal delta is mirrored LOGICALLY under `dir="rtl"` (the pointer
  *    geometry is visual; a rightward visual drag must LOWER the logical column

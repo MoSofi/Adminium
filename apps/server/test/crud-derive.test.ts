@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Derived fields end to end — the `compute=` param's arithmetic half
- * (36-derived-columns.md WS-C / 36-T11).
+ * (WS-C /).
  *
  * The five numbers the feature exists for, computed on a real read, plus the
  * two properties that are not about arithmetic at all:

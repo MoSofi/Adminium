@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * One review-diff row (§10.3 "row anatomy"): checkbox · table/column identifier
- * chip · heuristic value → LLM value side-by-side · confidence meter · reason ·
- * status pill. `rejects-heuristic` rows carry a warn-tone callout and are never
- * pre-checked; `user-locked` rows render a disabled "kept — edited by you"
- * badge (acceptance criteria 11/12). Localized values (labels, groups,
- * micro-copy) get a per-row "Show translations" disclosure.
+ * One review-diff row: checkbox · table/column identifier chip · heuristic
+ * value → LLM value side-by-side · confidence meter · reason · status pill.
+ * `rejects-heuristic` rows carry a warn-tone callout and are never pre-checked;
+ * `user-locked` rows render a disabled "kept — edited by you" badge (acceptance
+ * criteria 11/12). Localized values (labels, groups, micro-copy) get a per-row
+ * "Show translations" disclosure.
  */
 import { useId, useState } from 'react';
 import { ChevronRight, Lock, TriangleAlert } from 'lucide-react';

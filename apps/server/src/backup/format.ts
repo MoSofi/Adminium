@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * THE DESKTOP BACKUP FORMAT (11-electron.md §9), frozen at `formatVersion: 1`.
+ * THE DESKTOP BACKUP FORMAT, frozen at `formatVersion: 1`.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * THIS FILE IS A WIRE CONTRACT, NOT AN IMPLEMENTATION DETAIL. A zip written by
@@ -11,19 +11,19 @@
  * here is a `formatVersion` bump, not an edit.
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * ─── THE M10 CLI DOES NOT READ THIS FORMAT. §9's INTEROP CLAIM IS UNBUILT ────
+ * ─── THE M10 CLI DOES NOT READ THIS FORMAT. THE INTEROP CLAIM IS UNBUILT ─
  *
- * §9 says the backup zip "doubles as the migration path to self-host/Cloud:
- * `npx adminium` import accepts the same format". IT DOES NOT, and this header
+ * The backup zip "doubles as the migration path to self-host/Cloud:
+ * `npx @adminiumjs/adminium` import accepts the same format". IT DOES NOT, and this header
  * used to assert that it did. The truth, so nobody plans around the fiction:
  *
  * There are TWO unrelated archive formats that both independently call
  * themselves `formatVersion: 1`.
  *
- *  - THIS one (§9 backup): `manifest.json` at the archive ROOT, carrying
- *    `{ formatVersion, appVersion, serverVersion, metaMigrationVersion,
- *    createdAt, meta, databases }`, plus `meta.db` and `databases/*.sqlite` —
- *    a byte-level snapshot of a whole desktop install.
+ * - THIS one (backup): `manifest.json` at the archive ROOT, carrying `{
+ *  formatVersion, appVersion, serverVersion, metaMigrationVersion, createdAt,
+ *  meta, databases }`, plus `meta.db` and `databases/*.sqlite` — a byte-level
+ *  snapshot of a whole desktop install.
  *  - The M10 CONFIG BUNDLE (`export/bundle.ts`): `adminium-export/manifest.json`
  *    with a required, DISJOINT shape (`{ appVersion, configVersion, metaVersion,
  *    exportedAt, connectionId, secrets, counts }`), describing rows to upsert.
@@ -31,7 +31,7 @@
  * `cli/commands/import-zip.ts` → `export/import-service.ts` reads only the
  * second: `parseBundle` demands `adminium-export/manifest.json` and throws
  * "it is not an Adminium configuration bundle" for anything else. A desktop user
- * who follows §9's stated migration path is told their backup is not an Adminium
+ * who follows stated migration path is told their backup is not an Adminium
  * file. Nothing outside the desktop reader and a parity test has ever imported
  * {@link BACKUP_FORMAT_VERSION}.
  *
@@ -41,8 +41,8 @@
  * self-host target's meta store is routinely Postgres or MySQL. Making the CLI
  * "accept the same archive" therefore means reading a SQLite meta store and
  * translating every table into another dialect — a cross-dialect meta migration,
- * not a branch. That is a real feature with a real design, and no task in
- * 11-T12 or M10 covers it.
+ * not a branch. That is a real feature with a real design, and no task or M10
+ * covers it.
  *
  * WHOEVER PICKS THIS UP: sniffing a root `manifest.json` in `parseBundle` is the
  * entry point, and the version gate below is ready for it. Until then, the
@@ -50,7 +50,7 @@
  * anything telling a user otherwise — docs, dialog copy, this comment — is
  * making a promise the code does not keep.
  *
- * The archive (§9, verbatim):
+ * The archive (verbatim):
  *
  * ```
  * adminium-backup-20260712-1430.zip
@@ -61,26 +61,24 @@
  *   databases/<slug>.sqlite    every LOCAL source DB
  * ```
  *
- * ─── Two places this completes §9 rather than quoting it ─────────────────────
+ * ─── Two places this completes rather than quoting it ────────────────────────
  *
- * 1. **`databases[]` is a discriminated union.** §9's example row is
- *    `{ slug, file, bytes, sha256 }`, and its prose says remote PG/MySQL "are
- *    listed in manifest.json as 'external', never dumped". A row that is not
- *    dumped has no `file`, no `bytes` and no `sha256` to carry, so the two cases
- *    cannot be one shape. {@link BackupDatabaseEntry} is therefore
- *    `kind: 'local' | 'external'`; the local arm is §9's four fields exactly,
- *    plus the provenance (`connectionId`, `sourcePath`) a restore needs to
- *    explain itself. Reading the union back as §9's example means: take the
- *    local arm.
- * 2. **`meta` carries its own checksum.** §9 lists `meta.db` as an archive
- *    member and puts checksums only on `databases[]`. That asymmetry cannot be
- *    right: a restore validates checksums *before* it moves the live data aside
- *    (§9's flow), and meta.db is the file whose corruption is unrecoverable —
- *    it holds every connection, page and user. A backup whose source DBs verify
- *    and whose meta.db is truncated would pass validation and then destroy the
- *    install. Since `formatVersion: 1` is being frozen by this task rather than
- *    inherited, the hole is closed now instead of being shipped and versioned
- *    around.
+ * 1. **`databases[]` is a discriminated union.** example row is `{ slug, file,
+ * bytes, sha256 }`, and its prose says remote PG/MySQL "are listed in
+ * manifest.json as 'external', never dumped". A row that is not dumped has no
+ * `file`, no `bytes` and no `sha256` to carry, so the two cases cannot be one
+ * shape. {@link BackupDatabaseEntry} is therefore `kind: 'local' | 'external'`;
+ * the local arm is four fields exactly, plus the provenance (`connectionId`,
+ * `sourcePath`) a restore needs to explain itself. Reading the union back
+ * example means: take the local arm.
+ * 2. **`meta` carries its own checksum.** lists `meta.db` as an archive member
+ * and puts checksums only on `databases[]`. That asymmetry cannot be right: a
+ * restore validates checksums *before* it moves the live data aside (flow), and
+ * meta.db is the file whose corruption is unrecoverable — it holds every
+ * connection, page and user. A backup whose source DBs verify and whose meta.db
+ * is truncated would pass validation and then destroy the install. Since
+ * `formatVersion: 1` is being frozen by this task rather than inherited, the
+ * hole is closed now instead of being shipped and versioned around.
  *
  * NOTHING ELSE IS ADDED. In particular there is no `secrets` block: `config.json`
  * travels redacted, unconditionally, and a manifest field describing a policy
@@ -93,13 +91,13 @@ import { basename, extname } from 'node:path';
 import { z } from 'zod';
 
 /**
- * FROZEN (§9: "format frozen here as `formatVersion: 1`").
+ * FROZEN ("format frozen here as `formatVersion: 1`").
  *
  * READ BY: the desktop restore's `validateArchive`, which refuses a higher
  * number rather than parsing leniently — the same rule `config.ts`'s version
  * gate and the M10 bundle's already obey.
  *
- * NOT read by the M10 CLI, whatever §9 says — see the module header. This
+ * NOT read by the M10 CLI, whatever says — see the module header. This
  * doc-comment used to claim it was; the claim was never true and the number is
  * the same either way, which is exactly why nobody noticed.
  */
@@ -167,7 +165,7 @@ export function sha256Hex(bytes: Uint8Array): string {
 export const backupLocalDatabaseSchema = z.strictObject({
   kind: z.literal('local'),
   slug: backupSlugSchema,
-  /** §9's `file` — the archive member, i.e. `databases/<slug>.sqlite`. */
+  /** `file` — the archive member, i.e. `databases/<slug>.sqlite`. */
   file: z.string().min(1),
   bytes: z.number().int().nonnegative(),
   sha256: sha256Schema,
@@ -178,7 +176,7 @@ export const backupLocalDatabaseSchema = z.strictObject({
 });
 
 /**
- * A REMOTE source database (§9: "remote PG/MySQL are listed in manifest.json as
+ * A REMOTE source database ("remote PG/MySQL are listed in manifest.json as
  * 'external', never dumped").
  *
  * Listed rather than omitted, because the difference between "this instance had
@@ -214,7 +212,7 @@ export const backupMetaEntrySchema = z.strictObject({
 export type BackupMetaEntry = z.infer<typeof backupMetaEntrySchema>;
 
 /**
- * `manifest.json` (§9).
+ * `manifest.json`.
  *
  * `strictObject`, like `config.json`'s schema and for the same reason: an
  * unknown key is a hand-edit or a typo, and a genuinely newer archive is caught
@@ -241,10 +239,10 @@ export const backupManifestSchema = z.strictObject({
 
 export type BackupManifest = z.infer<typeof backupManifestSchema>;
 
-// ─── Migration-version comparison (§9's refuse/fast-forward rule) ────────────
+// ─── Migration-version comparison (refuse/fast-forward rule) ─────────────────
 
 /**
- * §9: "the migration runner fast-forwards an older backup; a backup whose
+ * "the migration runner fast-forwards an older backup; a backup whose
  * `metaMigrationVersion` is **newer** than the app is refused".
  *
  * LEXICOGRAPHIC, and that is a property of the names rather than a hope about
@@ -252,9 +250,9 @@ export type BackupManifest = z.infer<typeof backupManifestSchema>;
  * zero-padded, append-only ordinal (`0001_core_auth` … `0009_views_kind`), so
  * string order IS apply order for as long as the counter has four digits — about
  * 9,990 migrations from now. That matters because the comparison has to work in
- * the Electron MAIN process, which may not import `@adminium/meta` (§1
- * principle 2 / `.dependency-cruiser.cjs` `desktop-shell-only`) and therefore
- * cannot look a name up in `ALL_MIGRATIONS`. Two strings and `<` it can do.
+ * the Electron MAIN process, which may not import `@adminium/meta` (/
+ * `.dependency-cruiser.cjs` `desktop-shell-only`) and therefore cannot look a
+ * name up in `ALL_MIGRATIONS`. Two strings and `<` it can do.
  *
  * `same` and `older` are both restorable; only `newer` is refused. `older` is
  * not merely tolerated but EXPECTED — it is what restoring last month's backup
@@ -273,22 +271,22 @@ export function compareMetaMigrationVersion(
 
 // ─── Naming ─────────────────────────────────────────────────────────────────
 
-/** §9's `adminium-backup-20260712-1430.zip`. */
+/** `adminium-backup-20260712-1430.zip`. */
 export const BACKUP_FILE_PREFIX = 'adminium-backup-';
 export const BACKUP_FILE_EXTENSION = '.zip';
 
 /**
  * Matches {@link backupFileName}'s output. The rotation sweep uses it as an
  * allow-list rather than deleting whatever is in `<dataDir>/backups/`: that
- * directory is `showItemInFolder`-revealed (§9) and users put things in folders
- * they can see. Rotation deletes files THIS code wrote and nothing else.
+ * directory is `showItemInFolder`-revealed and users put things in folders they
+ * can see. Rotation deletes files THIS code wrote and nothing else.
  */
 export const BACKUP_FILE_PATTERN = /^adminium-backup-\d{8}-\d{6}\.zip$/;
 
 /**
  * `adminium-backup-YYYYMMDD-HHMMSS.zip`, in UTC.
  *
- * §9's example shows minutes (`…-1430.zip`); seconds are here because rotation
+ * The example shows minutes (`…-1430.zip`); seconds are here because rotation
  * sorts by NAME (the only ordering that survives a file copy, an rsync, or a
  * restored-from-Time-Machine backups folder — mtime does not), and two backups
  * in one minute would then be indistinguishable and unorderable. UTC for the
@@ -302,7 +300,7 @@ export function backupFileName(createdAt: number): string {
   return `${BACKUP_FILE_PREFIX}${date}-${time}${BACKUP_FILE_EXTENSION}`;
 }
 
-/** `<dataDir>/pre-restore-<ts>` (§9). The folder a restore never deletes. */
+/** `<dataDir>/pre-restore-<ts>`. The folder a restore never deletes. */
 export const PRE_RESTORE_PREFIX = 'pre-restore-';
 
 export function preRestoreDirName(at: number): string {
@@ -335,13 +333,13 @@ function trimHyphens(value: string): string {
  * A slug for a local database file, derived from its BASENAME.
  *
  * The basename, not the connection name, because on desktop they are the same
- * thing by construction: §6 step 2 creates `<dataDir>/databases/<slug>.sqlite`
+ * thing by construction: the wizard creates `<dataDir>/databases/<slug>.sqlite`
  * from the name the user typed, so the file already carries the slug the user
  * chose and round-tripping through it keeps `databases/orders.sqlite` in the
  * archive named `orders`. Deriving from `connection.name` instead would rename
  * everything the moment somebody edited a label, and "Open an existing SQLite
- * file" (§6 step 2, opened in place) has a real filename and a name the user
- * never picked.
+ * file" (opened in place) has a real filename and a name the user never
+ * picked.
  *
  * Falls back to the connection id for a basename that survives none of the
  * grammar — a file called `数据.sqlite` is legitimate and must not fail a backup.

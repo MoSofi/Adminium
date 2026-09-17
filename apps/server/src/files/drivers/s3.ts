@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `s3` driver (37-files-and-storage.md §3.10, D32).
+ * The `s3` driver.
  *
  * ONE driver for every S3-compatible target: AWS, DigitalOcean Spaces,
  * Cloudflare R2, Backblaze B2, Wasabi, Tigris, MinIO, Garage, SeaweedFS,
@@ -10,7 +10,7 @@
  *
  * FOUR VERBS, `fetch`, AND NOTHING ELSE. Node ≥ 22 has global `fetch`
  * (undici), `ReadableStream` and `crypto.subtle`, so there is no HTTP client
- * to add and no SDK to carry (§0.1 item 22).
+ * to add and no SDK to carry.
  *
  * THE PUT BODY IS A FILE STREAM WITH AN EXACT `Content-Length`. undici accepts
  * a `Readable` as a body, but only sends it unchunked when the length is

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0016 — per-record audit lookup (30-record-pages.md WS-A).
+ * Wave 0016 — per-record audit lookup (WS-A).
  *
  * The record page's Activity tab needs "every audit entry for THIS record".
  * The entry's `entity` column stores a RecordRef, but as packed JSON text —
@@ -22,11 +22,11 @@
  * this wave on, and BACKFILLED here from the stored refs so pre-existing
  * activity shows up on day one. The backfill parses each ref in JS — the
  * only portable JSON reader across the three dialects — in id-keyset batches;
- * audit volume is retention-bounded (§8 `audit-log` policy), so this is a
+ * audit volume is retention-bounded (`audit-log` policy), so this is a
  * one-time bounded cost.
  *
  * Bulk writes (`record.bulk-*`) carry no per-row entity and stay out of the
- * feed by design (30 D6) — their rows simply keep NULL keys.
+ * feed by design — their rows simply keep NULL keys.
  */
 
 import type { Kysely } from 'kysely';

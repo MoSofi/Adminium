@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 2FA lifecycle (08-server-api.md §2.1): enroll → activate → login step-up →
- * verify (TOTP and recovery code, single-use), plus disable with password.
+ * 2FA lifecycle: enroll → activate → login step-up → verify (TOTP and
+ * recovery code, single-use), plus disable with password.
  */
 import * as OTPAuth from 'otpauth';
 import { afterEach, describe, expect, it } from 'vitest';

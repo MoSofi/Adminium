@@ -32,7 +32,7 @@ const BAR_TONE: Record<Tone, string> = {
 };
 
 /**
- * `ranked-entity-list` (annex §3) — rank number, name, value, and a proportional
+ * `ranked-entity-list` (annex) — rank number, name, value, and a proportional
  * accent bar (Adminium UI Kit's "top regions", Analytics). Clicking a row can
  * drive a SIBLING widget (the annex's "map flyTo"): the widget emits the row's
  * key as a `drill-through`, and the host owns the cross-widget wiring — a widget
@@ -144,7 +144,7 @@ export function RankedEntityList({
   );
 }
 
-/** Project an untrusted `record-list` onto `RankedEntity`s (04 §3). */
+/** Project an untrusted `record-list` onto `RankedEntity`s. */
 export function rankedEntitiesOf(data: unknown): RankedEntity[] {
   return tailRowsOf(data).map((row, index): RankedEntity => {
     const id = row.id;

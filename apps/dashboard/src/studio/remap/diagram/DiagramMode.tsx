@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The ER diagram — 35-schema-authoring.md §3.7, D15, D16, D21, 35-T20..T25.
+ * The ER diagram.T25.
  *
  * ─── Lazily loaded, and that is load-bearing ───────────────────────────────
  *
  * `@xyflow/react` is ~59 KiB gz and **does not tree-shake** — 84 bytes between
- * a minimal and a full import (§8.1). So one static import anywhere reachable
- * from the entry puts the whole library in every user's first load, which is
+ * a minimal and a full import. So one static import anywhere reachable from
+ * the entry puts the whole library in every user's first load, which is
  * exactly the failure `chunk-budget.json` records for `page-builder` and
  * `ImportWizardPage`. This module is imported through `React.lazy` by its
  * host, and nothing outside this directory imports it.
  *
- * ─── Three kinds of edge, drawn three ways (35-T21) ────────────────────────
+ * ─── Three kinds of edge, drawn three ways ─────────────────────────────────
  *
  * Declared, inferred and virtual are different claims about the customer's
  * database, and a diagram that draws them identically asserts referential
@@ -40,7 +40,7 @@ import { TableNode, type TableNodeData } from './TableNode.js';
 
 const nodeTypes = { table: TableNode };
 
-/** 35-T21: the three claims, drawn apart. */
+/** The three claims, drawn apart. */
 function edgeStyle(kind: EdgeKind): Partial<Edge> {
   switch (kind) {
     case 'declared':
@@ -65,7 +65,7 @@ export interface DiagramModeProps {
   model: EffectiveModel;
   /** Positions persisted for this connection (D21). */
   savedPositions: Record<string, Point>;
-  /** Open a table in Design mode (35-T25). */
+  /** Open a table in Design mode. */
   onOpenTable: (tableId: string) => void;
   /** Whether this principal may save a layout (`schema.remap`). */
   canSaveLayout: boolean;

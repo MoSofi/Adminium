@@ -9,8 +9,8 @@
  * checkbox, not a tool. The row that matters is the one where you need to know
  * WHAT changed, so the drawer renders the stored `{ before, after }` images
  * field by field, marks the fields that actually differ, and says so out loud
- * when the server truncated the payload at the §3.11 16 KB cap — an unmarked
- * partial diff is a diff that lies by omission.
+ * when the server truncated the payload at the 16 KB cap — an unmarked partial
+ * diff is a diff that lies by omission.
  *
  * The dotted `action` verb (`role.permission.change`) renders VERBATIM in mono
  * rather than through a lookup: the verb vocabulary is open (every route picks

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Interaction-patterns gallery (M1-T05) — the load-bearing behaviors the comps
- * share (research/ia-mapping.md §5 "reusable primitives"), each as a sub-story
- * with a play-function interaction test:
+ * Interaction-patterns gallery — the load-bearing behaviors the comps share,
+ * each as a sub-story with a play-function interaction test:
  *
  *   1. Two-phase modal — form → success in one dialog, harvested inputs echoed.
  *   2. Undo toast queue — destructive action + Undo restore, max-4 + FIFO.

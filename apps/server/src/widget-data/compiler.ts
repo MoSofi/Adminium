@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Query-descriptor compiler (04-widget-registry.md §5.2, M4-T04 subset).
+ * Query-descriptor compiler (subset).
  *
  * Turns a validated `QueryDescriptor` (the pure-Zod leaf shared through
  * `@adminium/engine/config`) into dynamic Kysely over the data connection.
- * Invariants, identical to the CRUD layer (08-server-api.md §7 item 1):
+ * Invariants, identical to the CRUD layer:
  *
  * - every table/column string that reaches SQL is the schema snapshot's own
  *   (`SnapshotView` resolution → 422 `UNKNOWN_IDENTIFIER` otherwise);
  * - PII-masked columns may not be selected, filtered, grouped, bucketed,
  *   aggregated, or sorted by callers without the unmask grant → 403
- *   `COLUMN_FORBIDDEN` (04 §5.2 step 3);
+ * `COLUMN_FORBIDDEN`;
  * - all values bind as parameters; the only inlined token is the bucket
  *   unit, drawn from a closed Zod enum.
  *
@@ -35,18 +35,17 @@
  * Which form a descriptor is in decides whether it projects ROWS, so it also
  * decides whether the shaper must mask — see {@link isRowShape}.
  *
- * Dialect divergence (04 §5.2 step 4): time bucketing, rolling-window bounds
- * and quantiles are the three clauses whose SQL differs per engine. Rather
- * than a kysely-typed adapter hook (the `@adminium/engine/adapter`
- * `QueryEngine` contract must stay free of a `kysely` dependency — it types
- * the dialect opaquely), the compiler branches on the connection's engine
- * here, where kysely and the rest of the SQL compilation already live:
- * `bucketExpr()` emits `date_trunc` / `strftime` / `DATE_FORMAT` per dialect;
- * window boundaries bind as a `Date` on Postgres but as a UTC `'YYYY-MM-DD
- * HH:MM:SS'` string on MySQL/SQLite (better-sqlite3 refuses to bind a
- * `Date`); and `percentileExpr()` emits `percentile_cont` where the engine has
- * it and otherwise arms the in-process scan described at
- * {@link PERCENTILE_SCAN_MAX}.
+ * Dialect divergence: time bucketing, rolling-window bounds and quantiles are
+ * the three clauses whose SQL differs per engine. Rather than a kysely-typed
+ * adapter hook (the `@adminium/engine/adapter` `QueryEngine` contract must
+ * stay free of a `kysely` dependency — it types the dialect opaquely), the
+ * compiler branches on the connection's engine here, where kysely and the rest
+ * of the SQL compilation already live: `bucketExpr()` emits `date_trunc` /
+ * `strftime` / `DATE_FORMAT` per dialect; window boundaries bind as a `Date`
+ * on Postgres but as a UTC `'YYYY-MM-DD HH:MM:SS'` string on MySQL/SQLite
+ * (better-sqlite3 refuses to bind a `Date`); and `percentileExpr()` emits
+ * `percentile_cont` where the engine has it and otherwise arms the in-process
+ * scan described at {@link PERCENTILE_SCAN_MAX}.
  */
 
 import { sql, type DynamicModule, type Kysely, type RawBuilder, type SelectQueryBuilder } from 'kysely';
@@ -59,11 +58,11 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { compileFilter, type CompileFilterContext, type FilterCondition } from '../crud/filters.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 
-/** Hard row cap on any compiled query (04 §5.2 guardrails). */
+/** Hard row cap on any compiled query (guardrails). */
 export const WIDGET_LIMIT_MAX = 1000;
 /** Default page size for `record-list` descriptors without a `limit`. */
 export const RECORD_LIST_LIMIT_DEFAULT = 50;
-/** Group-by cardinality cap — excess folds into `__other` (04 §5.2). */
+/** Group-by cardinality cap — excess folds into `__other`. */
 export const GROUP_BUCKET_CAP = 500;
 
 /**
@@ -97,10 +96,10 @@ export const COL_ALIAS = '__col';
 export const VALUE_ALIAS = '__value';
 
 /**
- * The five quantiles a `distribution` envelope carries (04 §3
- * `{min, q1, med, q3, max}`). `percentile_cont(0)` / `(1)` are exactly `min` /
- * `max`, so the whole envelope is one uniform quantile request — the same list
- * drives the native SQL path and the in-process scan.
+ * The five quantiles a `distribution` envelope carries (`{min, q1, med, q3,
+ * max}`). `percentile_cont(0)` / `(1)` are exactly `min` / `max`, so the whole
+ * envelope is one uniform quantile request — the same list drives the native
+ * SQL path and the in-process scan.
  */
 export const DISTRIBUTION_QUANTILES: readonly { alias: string; p: number; key: DistributionKey }[] = [
   { alias: '__d_min', p: 0, key: 'min' },
@@ -117,9 +116,9 @@ const ALIAS_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
 /**
  * Derived from the shared `COMPILABLE_DATA_SHAPES` constant rather than listed
  * here, so this compiler and the enrichment prompt's widget allow-list cannot
- * disagree about which shapes exist. (`stream` is the live-feed snapshot of
- * 04 §5.3: compiled exactly like `record-list` — recent rows, DESC — then shaped
- * into a `StreamShape` with the resolved WS channel.)
+ * disagree about which shapes exist. (`stream` is the live-feed snapshot of:
+ * compiled exactly like `record-list` — recent rows, DESC — then shaped into a
+ * `StreamShape` with the resolved WS channel.)
  */
 const SUPPORTED_SHAPES: ReadonlySet<string> = new Set<string>(COMPILABLE_DATA_SHAPES);
 
@@ -252,8 +251,8 @@ function reject(message: string, details?: unknown): never {
 
 /**
  * UTC window boundaries for `window: { last, unit }` plus the immediately
- * preceding window of the same span (04 §5.2 step 5). Calendar units go
- * through UTC calendar arithmetic so month/quarter/year windows stay exact.
+ * preceding window of the same span. Calendar units go through UTC
+ * calendar arithmetic so month/quarter/year windows stay exact.
  */
 export function windowBounds(
   last: number,
@@ -291,12 +290,12 @@ export function windowBounds(
 type Ref = ReturnType<DynamicModule<SourceDatabase>['ref']>;
 
 /**
- * Time-bucket expression, compiled per dialect (04 §5.2 step 4). Every bucket
- * evaluates to the ISO-lexicographic start of its period, so `GROUP BY` /
- * `ORDER BY` over the raw expression sort chronologically and the shaper's
- * `toIso` parses the result the same way for all three engines. The unit is a
- * closed Zod enum and every format token is a source constant — no caller
- * string is inlined; the only interpolation is the snapshot's own column ref.
+ * Time-bucket expression, compiled per dialect. Every bucket evaluates to the
+ * ISO-lexicographic start of its period, so `GROUP BY` / `ORDER BY` over the
+ * raw expression sort chronologically and the shaper's `toIso` parses the
+ * result the same way for all three engines. The unit is a closed Zod enum
+ * and every format token is a source constant — no caller string is inlined;
+ * the only interpolation is the snapshot's own column ref.
  */
 function bucketExpr(dialect: Dialect, ref: Ref, unit: BucketUnit): RawBuilder<unknown> {
   switch (dialect) {
@@ -473,9 +472,9 @@ function compileAggregation(
 }
 
 /**
- * Late-bound `param` resolution (04 §5.1): a filter carrying `param` reads
- * its value from the page-control params; an unset param drops the filter
- * (the control is not active). Filters with neither value nor param pass
+ * Late-bound `param` resolution: a filter carrying `param` reads its value
+ * from the page-control params; an unset param drops the filter (the
+ * control is not active). Filters with neither value nor param pass
  * through — `is_null`/`not_null` need no value.
  */
 export function resolveFilterParams(
@@ -499,7 +498,7 @@ export function resolveFilterParams(
   return out;
 }
 
-/** Shape ⇄ descriptor structural rules (04 §5.2 step 1 semantics). */
+/** Shape ⇄ descriptor structural rules (semantics). */
 function assertShapeRules(descriptor: QueryDescriptor): void {
   const { shape } = descriptor;
   if (!SUPPORTED_SHAPES.has(shape)) {
@@ -624,7 +623,7 @@ function assertShapeRules(descriptor: QueryDescriptor): void {
   if (shape === 'calendar-events') {
     // Positional `select` is the whole event mapping: the descriptor schema is
     // a closed leaf shared with the client, so an event carries no bespoke
-    // field map — column ORDER names the roles instead (04 §3 `{date, title,
+    // field map — column ORDER names the roles instead (`{date, title,
     // category?, end?}`).
     const selected = descriptor.select?.length ?? 0;
     if (selected < 2 || selected > 4) {

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Leaving the editor with unsaved changes (34-invoices-add-on.md O22 → 39
- * D1): the confirm-modal anatomy reading *Discard unsaved changes?* with
- * *Keep editing* / *Discard*. Undrawn in the comp, which autosaves and so
- * never has anything to discard; an addition that the explicit-save model
- * forces (Appendix E §E4).
+ * Leaving the editor with unsaved changes: the confirm-modal anatomy
+ * reading *Discard unsaved changes?* with *Keep editing* / *Discard*.
+ * Undrawn in the comp, which autosaves and so never has anything to
+ * discard; an addition that the explicit-save model forces.
  */
 import { TriangleAlert } from 'lucide-react';
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@adminium/ui';

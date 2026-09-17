@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard grid barrel (04-widget-registry.md §6). Static renderer +
- * geometry/compaction (M4) plus the 04-T12 edit mode: dnd-kit drag/resize,
- * keyboard a11y, `findFirstFit`, and the `GridDragHandle`/`GridResizeHandle`
- * the builder wires into the WidgetFrame slots.
+ * Dashboard grid barrel. Static renderer + geometry/compaction (M4) plus the
+ * edit mode: dnd-kit drag/resize, keyboard a11y, `findFirstFit`, and the
+ * `GridDragHandle`/`GridResizeHandle` the builder wires into the WidgetFrame
+ * slots.
  */
 export { DashboardGrid, type DashboardGridProps, type RenderItemContext } from './DashboardGrid.js';
 export {

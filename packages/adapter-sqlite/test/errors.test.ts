@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Driver failure → typed `AdapterError` mapping — 05-introspection-engine.md
- * §3. The mapped `code` is the whole UX for failure states (the Studio wizard
- * and the `diagnostics-readout` widget key their remediation copy off it), so
- * the classification is asserted against errors better-sqlite3 and Node
- * ACTUALLY throw — a missing file, a read-only database, a locked database, a
- * file that is not SQLite at all, a dropped table — rather than hand-built
+ * Driver failure → typed `AdapterError` mapping. The mapped `code` is the
+ * whole UX for failure states (the Studio wizard and the
+ * `diagnostics-readout` widget key their remediation copy off it), so the
+ * classification is asserted against errors better-sqlite3 and Node ACTUALLY
+ * throw — a missing file, a read-only database, a locked database, a file
+ * that is not SQLite at all, a dropped table — rather than hand-built
  * objects. The offline block below covers the shapes no driver produces:
  * something thrown that is not an `Error`, and an error that lost its `code`.
  */
@@ -50,7 +50,7 @@ describe('toAdapterError — non-driver inputs', () => {
   });
 
   it('classifies by message when the error lost its code', () => {
-    // An error that crossed a worker boundary (the 05 §4.3 pool follow-up)
+    // An error that crossed a worker boundary (the pool follow-up)
     // arrives as a plain Error: the code is gone, the message is not.
     expect(toAdapterError(new Error('unable to open database file'), 'open')).toMatchObject({
       code: 'HOST_UNREACHABLE',

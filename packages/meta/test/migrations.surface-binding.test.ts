@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0017 (29-app-surfaces.md D10 / 29-T15): `app_key` lands on
- * `adminium_public_keys`. Keys minted before the wave carry NULL — an unbound
- * key, which the `surface-config.json` lookup must skip — and the split-run
- * proves the alter is additive on a table that already holds rows. Runs the
- * real migration list split at 0016/0017 on every available dialect.
+ * Wave 0017: `app_key` lands on `adminium_public_keys`. Keys minted before
+ * the wave carry NULL — an unbound key, which the `surface-config.json`
+ * lookup must skip — and the split-run proves the alter is additive on a
+ * table that already holds rows. Runs the real migration list split at
+ * 0016/0017 on every available dialect.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 

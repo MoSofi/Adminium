@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The desktop boot-token exchange (11-electron.md §2.2 step 8, §5).
+ * The desktop boot-token exchange.
  *
  * The assertions that matter here are about ORDER and ABSENCE — the token must
  * be out of the URL before the request goes out, and must never appear anywhere
@@ -106,7 +106,7 @@ describe('exchangeBootToken', () => {
       Promise.resolve(new Response('{"error":{"code":"INVALID_CREDENTIALS"}}', { status: 401 })),
     );
 
-    // A replayed or stale token (§5) still must not stay in the address bar —
+    // A replayed or stale token still must not stay in the address bar
     // the strip is unconditional, and only the outcome differs.
     expect(await exchangeBootToken(h.deps)).toBe('refused');
     expect(h.replaced).toEqual(['/']);
@@ -119,7 +119,7 @@ describe('exchangeBootToken', () => {
       ),
     );
 
-    // §5: "Require login on this device" ⇒ the SPA shows the standard login. The
+    // "Require login on this device" ⇒ the SPA shows the standard login. The
     // caller does nothing special — the router's own guard sends an
     // unauthenticated user to /login, which is exactly the right screen.
     expect(await exchangeBootToken(h.deps)).toBe('refused');

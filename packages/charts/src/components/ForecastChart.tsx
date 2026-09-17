@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-forecast` primitive (research/widget-registry.md §2): history line +
+ * `chart-forecast` primitive (research/widget-registry.md): history line +
  * dashed forecast + widening confidence polygon + "now" divider + projected
- * footer legend. A time axis, so it never mirrors (04 §7.4 LTR island); the
- * footer legend follows reading direction. Colors from the viz palette only.
+ * footer legend. A time axis, so it never mirrors (LTR island); the footer
+ * legend follows reading direction. Colors from the viz palette only.
  */
 import type { ReactNode } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';

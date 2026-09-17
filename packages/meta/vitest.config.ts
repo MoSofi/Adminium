@@ -36,14 +36,14 @@ export default defineConfig({
      * mysql leg is still unmeasured here; tighten from a green CI run if it
      * proves to add margin too.
      *
-     * 15-quality.md §1 requires 90/85 for this package.
+     * The quality bar requires 90/85 for this package.
      */
     // MARGIN, NOT A HIGH SCORE. This floor sits ~1-2 points under the measured
     // value rather than rounded down from it. v8's branch TOTAL is not stable
     // run to run — adapter-sqlite measured the same suite reporting 582 then
     // 584 total branches on consecutive runs, ~0.3 of a point — so a floor a
     // quarter-point under the measurement is decided by noise, not coverage.
-    // Every number here still clears 15-quality.md §1 with room.
+    // Every number here still clears with room.
     coverage: coverage({ statements: 93, branches: 90 }),
     hookTimeout: 60_000,
     testTimeout: 30_000,

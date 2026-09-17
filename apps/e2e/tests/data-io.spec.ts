@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/imports` and `/exports` (09 §11) — that the two data-io screens still
- * arrive, now that their bodies are behind a dynamic import.
+ * `/imports` and `/exports` — that the two data-io screens still arrive,
+ * now that their bodies are behind a dynamic import.
  *
  * Neither route had coverage at any level: `dataio.test.tsx` mounts the two
  * page components directly, so it proves the components render and says nothing

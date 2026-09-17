@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `forms` family config schemas + deterministic demo generators (annex §10) —
+ * `forms` family config schemas + deterministic demo generators (annex) —
  * PURE module (zod + forms-lib only; no React, no @adminium/ui, no lucide).
  *
  * WHY THIS EXISTS: the registry metadata graph reaches this family through
  * `forms-track.definitions.ts`, which imports these schemas and `demoData`
  * generators. Those must NOT drag the @adminium/ui-heavy components into the
  * eager registry chunk — components load only through
- * `lazy(() => import('./forms-track-components.js'))` (one lazy chunk per family,
- * 04 §2.3; the media/system/chrome `*-config` convention).
+ * `lazy(() => import('./forms-track-components.js'))` (one lazy chunk per family;
+ * the media/system/chrome `*-config` convention).
  *
- * LABELS: widgets are locale-agnostic (04 §2) — user-visible copy arrives as
+ * LABELS: widgets are locale-agnostic — user-visible copy arrives as
  * already-translated strings through config, with English developer fallbacks.
- * The dashboard fills them from `t('…')`; en-US entries live at `widgets.forms.*`.
+ * The dashboard fills them from `t('…')`; en-US entries live at
+ * `widgets.forms.*`.
  *
- * DETERMINISM (04 §7.7): every `demoData(seed)` is a pure function of `seed`.
+ * DETERMINISM: every `demoData(seed)` is a pure function of `seed`.
  */
 
 import { z } from 'zod';
@@ -35,7 +36,7 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 const toneSchema = z.enum(FORM_TONES);
 
 /**
- * A generated form field (annex §10 auto-instantiation: "column type → control").
+ * A generated form field (annex auto-instantiation: "column type → control").
  * Shared by `modal-wizard` and `drawer-form`; the control vocabulary is CLOSED so
  * a stored manifest can never name a renderer that does not exist.
  */
@@ -50,7 +51,7 @@ export const formFieldSchema = z.object({
   placeholder: z.string().optional(),
   /** `select` options; ignored by other kinds. */
   options: z.array(z.object({ value: z.string(), label: z.string().optional() })).optional(),
-  /** Unit suffix for `number` (annex §10: "numeric→number input with unit"). */
+  /** Unit suffix for `number` (annex: "numeric→number input with unit"). */
   unit: z.string().optional(),
   helpText: z.string().optional(),
 });
@@ -79,16 +80,16 @@ function formStateDemo(seed: number, maxFields: number): { fields: FormFieldConf
   return { fields: [...fields], values };
 }
 
-// ── modal-wizard (annex §10) ────────────────────────────────────────────────
+// ── modal-wizard (annex) ────────────────────────────────────────────────────
 
 export const modalWizardConfigSchema = widgetSharedConfigSchema.extend({
-  /** Generated from column types (annex §10 auto-instantiation). */
+  /** Generated from column types (annex auto-instantiation). */
   fields: z.array(formFieldSchema).optional(),
   size: z.enum(['sm', 'md', 'lg']).default('md'),
   triggerLabel: z.string().optional(),
   submitLabel: z.string().optional(),
   cancelLabel: z.string().optional(),
-  /** The success-step confirmation copy (annex §10 `successCopy`). */
+  /** The success-step confirmation copy (annex `successCopy`). */
   successTitle: z.string().optional(),
   successBody: z.string().optional(),
   doneLabel: z.string().optional(),
@@ -97,11 +98,11 @@ export const modalWizardConfigSchema = widgetSharedConfigSchema.extend({
 export type ModalWizardConfig = z.infer<typeof modalWizardConfigSchema>;
 
 export function modalWizardDemoData(seed: number): { fields: FormFieldConfig[]; values: Record<string, unknown> } {
-  // annex §10: "≤5 fields → modal-wizard, more → drawer-form or full page".
+  // annex: "≤5 fields → modal-wizard, more → drawer-form or full page".
   return formStateDemo(seed, 5);
 }
 
-// ── drawer-form (annex §10) ─────────────────────────────────────────────────
+// ── drawer-form (annex) ─────────────────────────────────────────────────────
 
 export const drawerFormConfigSchema = widgetSharedConfigSchema.extend({
   fields: z.array(formFieldSchema).optional(),
@@ -114,11 +115,11 @@ export const drawerFormConfigSchema = widgetSharedConfigSchema.extend({
 export type DrawerFormConfig = z.infer<typeof drawerFormConfigSchema>;
 
 export function drawerFormDemoData(seed: number): { fields: FormFieldConfig[]; values: Record<string, unknown> } {
-  // The >5-field counterpart of modal-wizard (annex §10).
+  // The >5-field counterpart of modal-wizard (annex).
   return formStateDemo(seed, DEMO_FIELDS.length);
 }
 
-// ── stepper (annex §10) ─────────────────────────────────────────────────────
+// ── stepper (annex) ─────────────────────────────────────────────────────────
 
 export const stepperConfigSchema = widgetSharedConfigSchema.extend({
   keyField: z.string().default('key'),
@@ -126,11 +127,11 @@ export const stepperConfigSchema = widgetSharedConfigSchema.extend({
   descField: z.string().default('description'),
   stateField: z.string().default('state'),
   orientation: z.enum(['horizontal', 'vertical']).default('horizontal'),
-  /** Allow jumping to a step (annex §10 `clickable`). */
+  /** Allow jumping to a step (annex `clickable`). */
   clickable: z.boolean().default(false),
   /** Index of the active step; `state` on a row overrides it per step. */
   activeIndex: z.number().int().min(0).default(0),
-  /** Show the per-step sub copy (annex §10 `labels`). */
+  /** Show the per-step sub copy (annex `labels`). */
   showDescriptions: z.boolean().default(true),
   a11yLabel: z.string().optional(),
 });
@@ -157,15 +158,15 @@ export function stepperDemoData(seed: number): {
   return { rows, columns: [{ name: 'label', label: 'Step' }], total: rows.length };
 }
 
-// ── progress-bar (annex §10) ────────────────────────────────────────────────
+// ── progress-bar (annex) ────────────────────────────────────────────────────
 
 export const progressBarConfigSchema = widgetSharedConfigSchema.extend({
   height: z.enum(['sm', 'md', 'lg']).default('md'),
-  /** Mono % caption after the track (annex §10 `showPercent`). */
+  /** Mono % caption after the track (annex `showPercent`). */
   showPercent: z.boolean().default(true),
   /**
-   * Flip the fill to `pos` at 100% (annex §10 `completeColor`: "color flips pos
-   * at 100%" — the import-progress variant).
+   * Flip the fill to `pos` at 100% (annex `completeColor`: "color flips pos at
+   * 100%" — the import-progress variant).
    */
   completeColor: z.boolean().default(true),
   label: z.string().optional(),
@@ -177,7 +178,7 @@ export function progressBarDemoData(seed: number): { value: number } {
   return { value: Math.round(random() * 100) };
 }
 
-// ── otp-input (annex §10) ───────────────────────────────────────────────────
+// ── otp-input (annex) ───────────────────────────────────────────────────────
 
 export const otpInputConfigSchema = widgetSharedConfigSchema.extend({
   length: z.number().int().min(4).max(8).default(6),
@@ -195,12 +196,12 @@ export function otpInputDemoData(seed: number): { fields: never[]; values: { cod
   return { fields: [], values: { code } };
 }
 
-// ── chip-input (annex §10) ──────────────────────────────────────────────────
+// ── chip-input (annex) ──────────────────────────────────────────────────────
 
 export const chipInputConfigSchema = widgetSharedConfigSchema.extend({
   /**
-   * Closed validator vocabulary (annex §10 `validator`) — a stored config names
-   * a RULE, never a predicate: a manifest must not be able to smuggle executable
+   * Closed validator vocabulary (annex `validator`) — a stored config names a
+   * RULE, never a predicate: a manifest must not be able to smuggle executable
    * code into the input.
    */
   validator: z.enum(['none', 'email', 'domain']).default('none'),
@@ -221,14 +222,14 @@ export function chipInputDemoData(seed: number): { fields: never[]; values: { ch
   return { fields: [], values: { chips: [...DEMO_EMAILS.slice(0, count)] } };
 }
 
-// ── segmented-control (annex §10) ───────────────────────────────────────────
+// ── segmented-control (annex) ───────────────────────────────────────────────
 
 export const segmentedControlConfigSchema = widgetSharedConfigSchema.extend({
-  /** Option defs (annex §10 `options` {key, label, icon?, dot?}). */
+  /** Option defs (annex `options` {key, label, icon?, dot?}). */
   options: z
     .array(z.object({ key: z.string(), label: z.string().optional(), dot: toneSchema.optional() }))
     .optional(),
-  /** Annex §10 `style` (track|chips). */
+  /** Annex `style` (track|chips). */
   style: z.enum(['track', 'chips']).default('track'),
   value: z.string().optional(),
   a11yLabel: z.string().optional(),
@@ -251,20 +252,21 @@ export function segmentedControlDemoData(seed: number): { fields: never[]; value
 /** The default period segments rendered when config supplies no options. */
 export const DEFAULT_SEGMENTS: readonly { key: string; label: string }[] = DEMO_SEGMENTS;
 
-// ── filter-chip-bar (annex §10) ─────────────────────────────────────────────
+// ── filter-chip-bar (annex) ─────────────────────────────────────────────────
 
 export const filterChipBarConfigSchema = widgetSharedConfigSchema.extend({
-  /** Which field of the sibling list the facets aggregate (annex §10 `facetField`). */
+  /** Which field of the sibling list the facets aggregate (annex `facetField`).
+   * */
   facetField: z.string().default('status'),
   /** Explicit chip order + labels; facets absent here render after, in payload order. */
   order: z.array(z.object({ key: z.string(), label: z.string().optional(), tone: toneSchema.optional() })).optional(),
-  /** Live mono count pills (annex §10 `showCounts`). */
+  /** Live mono count pills (annex `showCounts`). */
   showCounts: z.boolean().default(true),
   /** The "All" chip's label; it always leads the bar. */
   allLabel: z.string().optional(),
   /** Selected facet; `null`/absent ⇒ All. */
   value: z.string().optional(),
-  /** End-aligned "N of M" meta (annex §10 "optional right-aligned"). */
+  /** End-aligned "N of M" meta (annex). */
   showMeta: z.boolean().default(false),
   metaTemplate: z.string().optional(),
   a11yLabel: z.string().optional(),
@@ -284,11 +286,11 @@ export function filterChipBarDemoData(seed: number): {
   return { rows, columns: [{ name: 'status', label: 'Status' }], total: rows.length };
 }
 
-// ── toggle-switch-list (annex §10) ──────────────────────────────────────────
+// ── toggle-switch-list (annex) ──────────────────────────────────────────────
 
 /**
  * One settings row's metadata, keyed by the same id as the bound `boolean-map`
- * entry (annex §10: "boolean-map keyed by setting id + row metadata").
+ * entry (annex: "boolean-map keyed by setting id + row metadata").
  */
 export const toggleRowSchema = z.object({
   key: z.string(),
@@ -301,9 +303,9 @@ export type ToggleRowConfig = z.infer<typeof toggleRowSchema>;
 
 export const toggleSwitchListConfigSchema = widgetSharedConfigSchema.extend({
   rows: z.array(toggleRowSchema).optional(),
-  /** Annex §10 `persistMode`. `optimistic` writes on toggle; `save-bar` batches. */
+  /** Annex `persistMode`. `optimistic` writes on toggle; `save-bar` batches. */
   persistMode: z.enum(['optimistic', 'save-bar']).default('optimistic'),
-  /** Tone-tinted icon tiles per row (annex §10 `iconTiles`). */
+  /** Tone-tinted icon tiles per row (annex `iconTiles`). */
   iconTiles: z.boolean().default(false),
   saveLabel: z.string().optional(),
   dirtyLabel: z.string().optional(),
@@ -331,16 +333,16 @@ export function toggleSwitchListDemoData(seed: number): { entries: Record<string
   return { entries };
 }
 
-// ── option-cards (annex §10) ────────────────────────────────────────────────
+// ── option-cards (annex) ────────────────────────────────────────────────────
 
 export const optionCardsConfigSchema = widgetSharedConfigSchema.extend({
   keyField: z.string().default('key'),
   labelField: z.string().default('label'),
   descField: z.string().default('description'),
   iconField: z.string().default('icon'),
-  /** Cards per row (annex §10 `columns`). */
+  /** Cards per row (annex `columns`). */
   columns: z.number().int().min(1).max(4).default(2),
-  /** Annex §10 `iconStyle` — a tone-soft tile or a bare glyph. */
+  /** Annex `iconStyle` — a tone-soft tile or a bare glyph. */
   iconStyle: z.enum(['tile', 'plain']).default('tile'),
   value: z.string().optional(),
   a11yLabel: z.string().optional(),
@@ -366,7 +368,7 @@ export function optionCardsDemoData(seed: number): {
   return { rows, columns: [{ name: 'label', label: 'Option' }], total: rows.length };
 }
 
-// ── password-strength-meter (annex §10) ─────────────────────────────────────
+// ── password-strength-meter (annex) ─────────────────────────────────────────
 
 export const passwordStrengthMeterConfigSchema = widgetSharedConfigSchema.extend({
   /** The 5 score labels, weakest → strongest (index 0 shows no label). */
@@ -383,14 +385,14 @@ export function passwordStrengthMeterDemoData(seed: number): { fields: never[]; 
   return { fields: [], values: { password: pick } };
 }
 
-// ── validation-issues-list (annex §10) ──────────────────────────────────────
+// ── validation-issues-list (annex) ──────────────────────────────────────────
 
 export const validationIssuesListConfigSchema = widgetSharedConfigSchema.extend({
   severityField: z.string().default('severity'),
   titleField: z.string().default('title'),
   descField: z.string().default('desc'),
   countField: z.string().default('count'),
-  /** Severity value → tone override (annex §10 `severityMap`). */
+  /** Severity value → tone override (annex `severityMap`). */
   severityMap: z.record(z.string(), toneSchema).optional(),
   emptyTitle: z.string().optional(),
   emptyBody: z.string().optional(),
@@ -415,11 +417,11 @@ export function validationIssuesListDemoData(seed: number): {
   return { rows, columns: [{ name: 'title', label: 'Issue' }], total: rows.length };
 }
 
-// ── rule-builder (annex §10) ────────────────────────────────────────────────
+// ── rule-builder (annex) ────────────────────────────────────────────────────
 
 /**
  * One entry of the field catalog the Engine generates from the bound table's
- * columns (annex §10 `fieldCatalog` — "from schema").
+ * columns (annex `fieldCatalog` — "from schema").
  */
 export const ruleFieldSchema = z.object({
   name: z.string(),
@@ -432,7 +434,7 @@ export type RuleFieldConfig = z.infer<typeof ruleFieldSchema>;
 
 export const ruleBuilderConfigSchema = widgetSharedConfigSchema.extend({
   fieldCatalog: z.array(ruleFieldSchema).optional(),
-  /** Annex §10 `operatorsByType` — overrides `DEFAULT_OPERATORS_BY_TYPE`. */
+  /** Annex `operatorsByType` — overrides `DEFAULT_OPERATORS_BY_TYPE`. */
   operatorsByType: z.record(z.string(), z.array(z.enum(RULE_OPERATORS))).optional(),
   maxConditions: z.number().int().min(1).max(50).default(10),
   /** ALL/ANY — the pill divider between condition chips. */
@@ -507,7 +509,7 @@ export function ruleBuilderDemoData(seed: number): {
 /** The default field catalog rendered when config supplies none. */
 export const DEFAULT_RULE_FIELDS: readonly RuleFieldConfig[] = DEMO_RULE_FIELDS;
 
-// ── flow-builder (annex §10) ────────────────────────────────────────────────
+// ── flow-builder (annex) ────────────────────────────────────────────────────
 
 export const flowNodeSchema = z.object({
   id: z.string(),
@@ -519,15 +521,15 @@ export const flowNodeSchema = z.object({
 export type FlowNodeConfig = z.infer<typeof flowNodeSchema>;
 
 export const flowBuilderConfigSchema = widgetSharedConfigSchema.extend({
-  /** Which node kinds this flow may contain (annex §10 `nodeKinds`). */
+  /** Which node kinds this flow may contain (annex `nodeKinds`). */
   nodeKinds: z.array(z.enum(FLOW_NODE_KINDS)).optional(),
-  /** The addable node types shown in the palette popover (annex §10 `palette`). */
+  /** The addable node types shown in the palette popover (annex `palette`). */
   palette: z.array(flowNodeSchema).optional(),
   maxNodes: z.number().int().min(1).max(50).default(12),
   addLabel: z.string().optional(),
   removeLabel: z.string().optional(),
   paletteTitle: z.string().optional(),
-  /** Header run stats copy (annex §10) — `{runs}` / `{rate}` placeholders. */
+  /** Header run stats copy (annex) — `{runs}` / `{rate}` placeholders. */
   statsTemplate: z.string().optional(),
   emptyTitle: z.string().optional(),
   emptyBody: z.string().optional(),
@@ -569,11 +571,11 @@ export function flowBuilderDemoData(seed: number): {
   };
 }
 
-// ── connection-string-field (annex §10) ─────────────────────────────────────
+// ── connection-string-field (annex) ─────────────────────────────────────────
 
 export const connectionStringFieldConfigSchema = widgetSharedConfigSchema.extend({
   /**
-   * Annex §10 `protocols`. The DSN grammar accepts every engine it can NAME;
+   * Annex `protocols`. The DSN grammar accepts every engine it can NAME;
    * this narrows it to the ones the host can actually connect to, so an
    * out-of-scope scheme reads as unrecognised rather than as a DSN that is
    * accepted here and refused two steps later (see `forms-dsn.ts`).
@@ -581,10 +583,10 @@ export const connectionStringFieldConfigSchema = widgetSharedConfigSchema.extend
   protocols: z.array(z.enum(DSN_ENGINES)).optional(),
   /** Which engine's example DSN to show before the input determines one. */
   placeholderEngine: z.enum(DSN_ENGINES).default('postgres'),
-  /** Annex §10 `statusLine` — e.g. "14 tables detected". */
+  /** Annex `statusLine` — e.g. "14 tables detected". */
   statusLine: z.string().optional(),
   statusTone: toneSchema.optional(),
-  /** Keyboard-shortcut badge rendered in the field (annex §10). */
+  /** Keyboard-shortcut badge rendered in the field (annex). */
   shortcut: z.string().optional(),
   label: z.string().optional(),
   helpText: z.string().optional(),
@@ -593,7 +595,7 @@ export const connectionStringFieldConfigSchema = widgetSharedConfigSchema.extend
   showQuickFill: z.boolean().default(true),
   quickFillLabel: z.string().optional(),
   hostLabel: z.string().optional(),
-  /** Copy for the two `DsnValidationCode`s (widgets never translate — 04 §2). */
+  /** Copy for the two `DsnValidationCode`s (widgets never translate). */
   invalidSchemeText: z.string().optional(),
   incompleteText: z.string().optional(),
 });
@@ -612,7 +614,7 @@ export function connectionStringFieldDemoData(seed: number): { fields: never[]; 
   return { fields: [], values: { dsn: pick as string } };
 }
 
-// ── table-inclusion-checklist (annex §10) ───────────────────────────────────
+// ── table-inclusion-checklist (annex) ───────────────────────────────────────
 
 export const tableInclusionChecklistConfigSchema = widgetSharedConfigSchema.extend({
   nameField: z.string().default('name'),
@@ -622,9 +624,9 @@ export const tableInclusionChecklistConfigSchema = widgetSharedConfigSchema.exte
   includedField: z.string().default('included'),
   /** Rows flagged here are join/system tables — pre-hidden, never includable. */
   hiddenField: z.string().default('hidden'),
-  /** Annex §10 `piiDetection` — surface the PII warning badges. */
+  /** Annex `piiDetection` — surface the PII warning badges. */
   piiDetection: z.boolean().default(true),
-  /** Annex §10 `maxHeight` — the scroll viewport, in px. */
+  /** Annex `maxHeight` — the scroll viewport, in px. */
   maxHeight: z.number().int().min(80).max(1200).optional(),
   piiLabel: z.string().optional(),
   highVolumeLabel: z.string().optional(),
@@ -655,15 +657,15 @@ export function tableInclusionChecklistDemoData(seed: number): {
   return { rows, columns: [{ name: 'name', label: 'Table' }], total: rows.length };
 }
 
-// ── column-mapping-table (annex §10) ────────────────────────────────────────
+// ── column-mapping-table (annex) ────────────────────────────────────────────
 
 export const columnMappingTableConfigSchema = widgetSharedConfigSchema.extend({
   columnField: z.string().default('column'),
   sampleField: z.string().default('sample'),
   targetField: z.string().default('target'),
-  /** Annex §10 `targets` — the destination field catalog. */
+  /** Annex `targets` — the destination field catalog. */
   targets: z.array(z.object({ key: z.string(), label: z.string().optional() })).optional(),
-  /** Annex §10 `autoMatch` — pre-fill unmapped columns by name similarity. */
+  /** Annex `autoMatch` — pre-fill unmapped columns by name similarity. */
   autoMatch: z.boolean().default(true),
   skipLabel: z.string().optional(),
   sourceHeader: z.string().optional(),
@@ -703,14 +705,14 @@ export function columnMappingTableDemoData(seed: number): {
   return { rows, columns: [{ name: 'column', label: 'Source column' }], total: rows.length };
 }
 
-// ── export-builder (annex §10) ──────────────────────────────────────────────
+// ── export-builder (annex) ──────────────────────────────────────────────────
 
 export const exportBuilderConfigSchema = widgetSharedConfigSchema.extend({
-  /** Annex §10 `formats` — the segmented PDF/CSV/XLSX picker. */
+  /** Annex `formats` — the segmented PDF/CSV/XLSX picker. */
   formats: z.array(z.enum(EXPORT_FORMATS)).optional(),
-  /** Annex §10 `groupBy` — omit to hide the grouping picker. */
+  /** Annex `groupBy` — omit to hide the grouping picker. */
   groupBy: z.array(z.object({ key: z.string(), label: z.string().optional() })).optional(),
-  /** Annex §10 `emailOption` — offer to email the finished export. */
+  /** Annex `emailOption` — offer to email the finished export. */
   emailOption: z.boolean().default(false),
   includeChartsOption: z.boolean().default(true),
   formatLabel: z.string().optional(),
@@ -729,7 +731,7 @@ export type ExportBuilderConfig = z.infer<typeof exportBuilderConfigSchema>;
 
 /**
  * A FIXED range, not "the last 30 days": `demoData` must be a pure function of
- * its seed (04 §7.7), and a wall-clock range would make every VRT capture and
+ * its seed, and a wall-clock range would make every VRT capture and
  * determinism snapshot differ from the one before it.
  */
 const DEMO_EXPORT_RANGE = { from: '2026-06-01', to: '2026-06-30' } as const;
@@ -757,7 +759,7 @@ export function exportBuilderDemoData(seed: number): {
   };
 }
 
-// ── question-builder (annex §10) ────────────────────────────────────────────
+// ── question-builder (annex) ────────────────────────────────────────────────
 
 export const surveyQuestionSchema = z.object({
   id: z.string(),
@@ -769,7 +771,7 @@ export const surveyQuestionSchema = z.object({
 export type SurveyQuestionConfig = z.infer<typeof surveyQuestionSchema>;
 
 export const questionBuilderConfigSchema = widgetSharedConfigSchema.extend({
-  /** Annex §10 `kinds` — which of the 8 palette types are enabled. */
+  /** Annex `kinds` — which of the 8 palette types are enabled. */
   kinds: z.array(z.enum(QUESTION_KINDS)).optional(),
   maxQuestions: z.number().int().min(1).max(100).default(20),
   /** Question-kind id → palette copy; unnamed kinds fall back to English. */
@@ -811,16 +813,16 @@ export function questionBuilderDemoData(seed: number): { fields: never[]; values
   return { fields: [], values: { questions: DEMO_QUESTIONS.slice(0, count).map((question) => ({ ...question })) } };
 }
 
-// ── inline-editable-field (annex §10) ───────────────────────────────────────
+// ── inline-editable-field (annex) ───────────────────────────────────────────
 
 export const inlineEditableFieldConfigSchema = widgetSharedConfigSchema.extend({
-  /** The bound field path on the doc object (annex §10). */
+  /** The bound field path on the doc object (annex). */
   field: z.string().default('name'),
   /** Which column identifies the row a `mutate` intent targets. */
   idField: z.string().default('id'),
-  /** Annex §10 `format`. */
+  /** Annex `format`. */
   format: z.enum(['text', 'number', 'select']).default('text'),
-  /** Annex §10 `multiline` — `text` only. */
+  /** Annex `multiline` — `text` only. */
   multiline: z.boolean().default(false),
   /** `select` options; ignored by other formats. */
   options: z.array(z.object({ value: z.string(), label: z.string().optional() })).optional(),

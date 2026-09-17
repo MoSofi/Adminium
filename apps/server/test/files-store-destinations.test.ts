@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The store over a CONFIGURED destination (37-files-and-storage.md D18/D38,
- * 37-T07).
+ * The store over a CONFIGURED destination.
  *
- * The byte-identity half of 37-T07 is proved by every pre-wave suite passing
+ * The byte-identity half of is proved by every pre-wave suite passing
  * unchanged. This is the other half, and it is the one that closes the live
- * defect in §0.3: on a host with no persistent local disk — DigitalOcean App
+ * defect: on a host with no persistent local disk — DigitalOcean App
  * Platform says so in `deploy/do-app.yaml`'s own header — every export, the
  * uploaded branding logo and every imported schema file is lost on each
  * redeploy today, with the meta row left pointing at nothing.

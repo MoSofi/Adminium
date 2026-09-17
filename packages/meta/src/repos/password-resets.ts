@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * passwordResetsRepo — adminium_password_resets (07-meta-store.md §3.6).
- * Carries both reset and invite-activation tokens; single-use.
+ * passwordResetsRepo — adminium_password_resets. Carries both reset and
+ * invite-activation tokens; single-use.
  */
 
 import type { Selectable } from 'kysely';
@@ -21,7 +21,7 @@ export interface CreatePasswordResetInput {
   userId: string;
   kind: ResetKind;
   tokenHash: string;
-  /** reset: +2 h; invite: +7 days — computed by the server (§3.6). */
+  /** reset: +2 h; invite: +7 days — computed by the server. */
   expiresAt: number;
 }
 
@@ -65,7 +65,7 @@ export function passwordResetsRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
-    /** Retention §8 `password-resets` policy: used, or expired > 24 h ago. */
+    /** Retention `password-resets` policy: used, or expired > 24 h ago. */
     async gc(at: number = Date.now()): Promise<number> {
       const res = await db
         .deleteFrom('adminium_password_resets')

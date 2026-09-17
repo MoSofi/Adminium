@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SigV4 against AWS's own published test vectors (37-files-and-storage.md
- * 37-T05, D32).
+ * SigV4 against AWS's own published test vectors.
  *
  * A signature test that checks only the final hex tells you it is wrong and
  * nothing else — and there are four independent ways to get this wrong (header

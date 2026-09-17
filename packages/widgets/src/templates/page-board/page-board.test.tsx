@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * page-board template tests (09-generated-app.md §7.5): stored archetype
- * config → board columns in enum order, drag writes through the optimistic
- * machinery (keyboard path — same `requestMove` a pointer drop uses), the
- * completed-column pct=100 rule, atomic lane+status swimlane writes, the
- * roadmap quarter variant, inline compose inserts, card click → record-open,
- * and the never-crash invalid-layout branch.
+ * page-board template tests: stored archetype config → board columns in enum
+ * order, drag writes through the optimistic machinery (keyboard path — same
+ * `requestMove` a pointer drop uses), the completed-column pct=100 rule,
+ * atomic lane+status swimlane writes, the roadmap quarter variant, inline
+ * compose inserts, card click → record-open, and the never-crash
+ * invalid-layout branch.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';

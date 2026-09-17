@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Distribution & correlation charts group (04-T09): registry wrappers mapping
- * stored instance config + §3 envelopes onto the @adminium/charts primitives
+ * Distribution & correlation charts group: registry wrappers mapping stored
+ * instance config + envelopes onto the @adminium/charts primitives
  * (`chart-boxplot`, `chart-violin`, `chart-ridgeline`, `chart-scatter-bubble`,
  * `chart-hexbin`, `chart-correlation-matrix`, `chart-parallel-coordinates`).
  * Components render only the loaded state; accessible names come from
@@ -48,7 +48,7 @@ function BadShape() {
 
 /**
  * Per-widget "nothing to plot" state (bundle `widgets.charts.<id>.emptyTitle`/
- * `emptyBody`), rendered when the §3 envelope narrows fine but yields nothing
+ * `emptyBody`), rendered when the envelope narrows fine but yields nothing
  * plottable (WidgetFrame's per-shape predicate cannot see these sub-cases). A
  * config `emptyState` override keeps winning over the localized default.
  */

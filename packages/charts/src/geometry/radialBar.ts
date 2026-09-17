@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure radial-bar geometry (`chart-radial-bar`, research/widget-registry.md §2):
+ * Pure radial-bar geometry (`chart-radial-bar`, research/widget-registry.md):
  * concentric progress rings, one per category (≤4), each a stroke-dashoffset
  * sweep of its percent from 12 o'clock clockwise. DOM-free + deterministic so
- * the same arc paths render in Node and the browser (04 §7.1).
+ * the same arc paths render in Node and the browser.
  *
  * Rings never mirror in RTL (clockwise rotation is direction-neutral, like the
- * donut §7.4) — only the surrounding legend flips, which is plain flex CSS.
+ * donut) — only the surrounding legend flips, which is plain flex CSS.
  */
 import { arc } from 'd3-shape';
 

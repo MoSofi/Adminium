@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The checked-in release feed behind `/changelog` (M10-T06).
+ * The checked-in release feed behind `/changelog`.
  *
  * SOURCE CHOICE. The repo versions with changesets (`.changeset/config.json`,
  * `fixed: [["@adminium/*"]]`), which generates a per-package `CHANGELOG.md` at
@@ -35,7 +35,7 @@ import { z } from 'zod';
 
 /**
  * The comp's tag taxonomy (`Changelog.dc.html`), preserved verbatim —
- * `ia-mapping.md` §4 lists it as a keeper: "tag taxonomy New/Improved/Fixed/
+ * It is a keeper: "tag taxonomy New/Improved/Fixed/
  * Security w/ empty-release hiding".
  */
 export const CHANGE_TAGS = ['New', 'Improved', 'Fixed', 'Security'] as const;
@@ -103,9 +103,9 @@ export interface FilteredRelease extends Release {
 /**
  * Filters a release feed to one tag, dropping releases left with nothing to say.
  *
- * The empty-release hiding is a `ia-mapping.md` §4 keeper, and it is what makes
- * the filter honest: showing "v0.3.0" with an empty card under a Security
- * filter implies a security change nobody made.
+ * The empty-release hiding is a keeper, and it is what makes the filter honest:
+ * showing "v0.3.0" with an empty card under a Security filter implies a
+ * security change nobody made.
  */
 export function filterReleases(
   releases: readonly Release[],

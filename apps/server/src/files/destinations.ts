@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Destination rows → byte drivers (37-files-and-storage.md §3.1, D2, D3).
+ * Destination rows → byte drivers.
  *
  * Everything above this line addresses a destination by ID (or by `null`, the
  * implicit local disk); everything below it is a driver. This module is the

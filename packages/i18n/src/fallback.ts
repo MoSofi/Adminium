@@ -10,9 +10,9 @@
  *
  * That defect used to be invisible because 48 call sites hand-substituted
  * their tokens with `.replace('{count}', …)` AFTER `t()` returned, which
- * silently papered over it. Once those became real ICU arguments (23-T06)
- * the gap showed up, so both fallback paths — `useMaybeT` in the React
- * bindings and the dashboard's module-level `t()` — now share this one
+ * silently papered over it. Once those became real ICU arguments the gap
+ * showed up, so both fallback paths — `useMaybeT` in the React bindings
+ * and the dashboard's module-level `t()` — now share this one
  * implementation.
  */
 

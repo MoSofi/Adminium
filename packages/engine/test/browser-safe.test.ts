@@ -6,11 +6,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * `@adminium/engine/config` is a browser-safe subpath (01-architecture.md
- * §2.3.2): dashboard, widgets, and manifest bundle it. Nothing under
- * src/config-schema/ may import node: builtins, and the only external
- * modules allowed are zod and the @adminium/widgets/page-config pure-Zod
- * leaf.
+ * `@adminium/engine/config` is a browser-safe subpath: dashboard,
+ * widgets, and manifest bundle it. Nothing under src/config-schema/ may
+ * import node: builtins, and the only external modules allowed are zod
+ * and the @adminium/widgets/page-config pure-Zod leaf.
  */
 const configSchemaDir = fileURLToPath(new URL('../src/config-schema', import.meta.url));
 

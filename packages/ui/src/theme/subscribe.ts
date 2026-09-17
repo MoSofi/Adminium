@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Non-React theme subscription (02-design-system.md §4.1) — for
- * Leaflet tile swaps, chart re-tints, Electron `nativeTheme` mirroring.
- * ThemeProvider emits AFTER the DOM attributes are committed (§4 behavior 5).
+ * Non-React theme subscription — for Leaflet tile swaps, chart
+ * re-tints, Electron `nativeTheme` mirroring. ThemeProvider emits AFTER
+ * the DOM attributes are committed (behavior 5).
  */
 import type { ResolvedTheme } from './types.js';
 
@@ -22,7 +22,7 @@ export function subscribeTheme(listener: ThemeListener): () => void {
  * @internal Called by ThemeProvider after stamping `<html>`. Not part of the
  * public API.
  *
- * Each listener is isolated (23 §4.4). This runs inside ThemeProvider's
+ * Each listener is isolated. This runs inside ThemeProvider's
  * `useLayoutEffect`, so an unguarded throw from ONE subscriber does not just
  * lose that subscriber — it skips every listener after it (the i18n language
  * bridge, the chart-direction bridge, the Electron `nativeTheme` mirror) and

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Account-field validation (45-T04 lifted this out of the two-step wizard).
+ * Account-field validation (lifted this out of the two-step wizard).
  *
  * Client-side purely for fast feedback — the server re-validates and is the
  * authority — so what these pin is that the wizard's floor MIRRORS the policy

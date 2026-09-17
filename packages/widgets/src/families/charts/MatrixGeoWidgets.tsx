@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family — matrix, calendar & geo-grid widgets (annex §2, 04-T09):
- * registry wrappers that map stored instance config + §3 envelopes onto the
+ * `charts` family — matrix, calendar & geo-grid widgets (annex): registry
+ * wrappers that map stored instance config + envelopes onto the
  * @adminium/charts matrix/heat/geo/sankey primitives. Accessible names come
  * from `config.title` (the primitives render them as the SVG aria-label).
  * Components render only the loaded state; a malformed payload falls back to a
@@ -10,7 +10,7 @@
  * Numbers/dates route through the @adminium/i18n Intl layer (getFormatters);
  * chart micro-labels (weekday/month/legend) use English defaults consistent
  * with the shipped @adminium/charts primitives (locale wiring lands with the
- * i18n extraction pass, 04-T17 / 10-T06).
+ * i18n extraction pass).
  */
 
 import {
@@ -48,7 +48,7 @@ function isoToJsWeekday(isoDay: number): number {
   return isoDay % 7;
 }
 
-// --- §3 envelope narrowers ---------------------------------------------------
+// --- envelope narrowers ---------------------------------------------------
 
 export interface MatrixData {
   rowKeys: string[];
@@ -371,7 +371,7 @@ export const chartSankeyConfigSchema = widgetSharedConfigSchema.extend({
   height: z.number().int().min(160).max(600).default(300),
   nodeWidth: z.number().int().min(8).max(28).default(14),
   showLabels: z.boolean().default(true),
-  /** Optional summary pill caption (annex §2 `summaryPill`). */
+  /** Optional summary pill caption (annex `summaryPill`). */
   summaryLabel: z.string().optional(),
   valueFormat: z.enum(['plain', 'compact', 'currency', 'percent']).default('compact'),
 });

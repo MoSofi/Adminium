@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Identifier quoting + per-LogicalType value serialization for the SQLite
- * data connection — 05-introspection-engine.md §3 (`QueryEngine`) and
- * 08-server-api.md §3.7. Pure module (no `better-sqlite3`/`kysely` import)
- * so the policy is unit-testable offline. Mirrors the postgres reference
- * adapter.
+ * data connection — (`QueryEngine`). Pure module (no
+ * `better-sqlite3`/`kysely` import) so the policy is unit-testable
+ * offline. Mirrors the postgres reference adapter.
  *
- * Serialization policy (05 §3 `TypeSerializer` contract):
+ * Serialization policy (`TypeSerializer` contract):
  * - `bigint` and `decimal` travel as STRINGS end to end — better-sqlite3
  *   returns JS numbers (or bigints in safe-integer mode) and JS numbers
  *   would silently lose precision past 2^53.
  * - `boolean` maps SQLite's 0/1 storage to real booleans.
  * - timestamps pass through untouched: SQLite stores them as TEXT or
  *   INTEGER epoch and the storage format is detected by the runtime data
- *   layer, not the adapter (05 §2.2).
+ * layer, not the adapter.
  * - `json` is TEXT on disk: `toDb` stringifies, `fromDb` parses when the
  *   stored text is valid JSON (raw text passes through otherwise).
  * - BLOB POLICY: `binary` columns are EXCLUDED from CRUD v1 — no serializer
@@ -22,15 +21,15 @@
 import type { LogicalType, TypeSerializer } from '@adminium/engine/adapter';
 
 /**
- * SQLite has no hard identifier limit — the engine convention is 128
- * (05 §2.1 "unlimited-ish sqlite (use 128)").
+ * SQLite has no hard identifier limit — the engine convention is
+ * 128.
  */
 export const SQLITE_MAX_IDENTIFIER_LENGTH = 128;
 
 /**
  * Double-quote an identifier, escaping embedded quotes. Identifiers are
  * snapshot-validated before they ever reach this point (no raw SQL escape
- * hatch — 05 §3); quoting is defense in depth, not sanitization.
+ * hatch); quoting is defense in depth, not sanitization.
  */
 export function quoteIdentifier(identifier: string): string {
   return `"${identifier.replaceAll('"', '""')}"`;

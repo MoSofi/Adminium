@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The export builder's reads (41-export-builder.md §3.5): sources, views and
- * the preview, against the invoices fixture, under three principals — the
- * admin who may do everything, the editor who may read and export invoices
- * but not read invoice_items and holds no PII grant, and the viewer with no
- * export grant at all.
+ * The export builder's reads: sources, views and the preview, against the
+ * invoices fixture, under three principals — the admin who may do
+ * everything, the editor who may read and export invoices but not read
+ * invoice_items and holds no PII grant, and the viewer with no export grant
+ * at all.
  */
 
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -37,7 +37,7 @@ describe('export builder reads', () => {
   let invoicesPageId: string;
   let sharedViewId: string;
 
-  /** A real envelope: the template body nested under `config` (41 §0.3). */
+  /** A real envelope: the template body nested under `config`. */
   function envelope(table: string, body: Record<string, unknown>, template = 'page-crud') {
     return {
       v: 1,

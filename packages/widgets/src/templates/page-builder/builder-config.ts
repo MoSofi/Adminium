@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-builder` template — pure config + doc algebra (04-widget-registry.md
- * §10 row `page-builder`, 09-generated-app.md §7.11, M7-T06).
+ * `page-builder` template — pure config + doc algebra (row `page-builder`).
  *
  * JSX-free and DOM-free on purpose, mirroring `families/domain/block-lib.ts`:
  * everything the renderer needs to *decide* (which canvas widget a docType
@@ -9,9 +8,8 @@
  * rewrites the doc, what the live survey summary counts are) lives here as
  * golden-testable functions, so the two comp defects this template owns —
  * the Report Builder `kindMeta` icon/label swaps and the Survey Builder static
- * publish-modal counts (research/ia-mapping.md §5) — are fixed in data and in
- * pure functions, each with a regression test that cannot pass on the swapped
- * or static behavior.
+ * publish-modal counts — are fixed in data and in pure functions, each with a
+ * regression test that cannot pass on the swapped or static behavior.
  */
 import { z } from 'zod';
 
@@ -42,9 +40,9 @@ export type { BlockId, DocBlockInstance, DocRecord, DocType };
 // ── the five docType flavors ─────────────────────────────────────────────────
 
 /**
- * `config.docType` (09 §3.2: "doc-type flavor in `config.docType`"). The three
+ * `config.docType` ("doc-type flavor in `config.docType`"). The three
  * `document-canvas` surfaces plus the two builder widgets with their own
- * canvases (annex §14 row `page-builder`).
+ * canvases (annex row `page-builder`).
  */
 export const BUILDER_DOC_TYPES = ['invoice', 'report', 'email', 'survey', 'automation'] as const;
 export type BuilderDocType = (typeof BUILDER_DOC_TYPES)[number];
@@ -53,7 +51,7 @@ export type BuilderDocType = (typeof BUILDER_DOC_TYPES)[number];
 export const BUILDER_CANVAS_WIDGETS = ['document-canvas', 'question-builder', 'flow-builder'] as const;
 export type BuilderCanvasWidgetId = (typeof BUILDER_CANVAS_WIDGETS)[number];
 
-/** Which canvas widget a docType flavor mounts (09 §7.11). */
+/** Which canvas widget a docType flavor mounts. */
 export function canvasWidgetIdFor(docType: BuilderDocType): BuilderCanvasWidgetId {
   if (docType === 'survey') return 'question-builder';
   if (docType === 'automation') return 'flow-builder';
@@ -69,9 +67,8 @@ export function canvasDocTypeOf(docType: BuilderDocType): DocType {
 
 /**
  * The `page-builder` envelope `config` body. The engine wrap persists
- * `{ templateVersion, toolbar, overlays, docType, layout }` (04 §10); unknown
- * extra fields ride through untouched (01-architecture.md §6.2 forward
- * compatibility), hence `.loose()`.
+ * `{ templateVersion, toolbar, overlays, docType, layout }`; unknown extra
+ * fields ride through untouched (forward compatibility), hence `.loose()`.
  */
 export const pageBuilderConfigSchema = z
   .object({
@@ -157,7 +154,7 @@ export interface BlockKindMeta {
 }
 
 /**
- * Block registry id → `{ label, icon }` (M7-T06; 15-quality.md §comp-defects).
+ * Block registry id → `{ label, icon }`.
  *
  * THE BUG THIS FIXES: the Report Builder comp's `kindMeta` map returned
  * `[label, icon]` tuples for most kinds but `[icon, label]` — swapped — for
@@ -298,7 +295,7 @@ function nextInstanceId(order: readonly DocBlockInstance[], block: BlockId): str
 }
 
 /**
- * Palette add: append one `block` instance to the doc (annex §13 — the canvas
+ * Palette add: append one `block` instance to the doc (annex — the canvas
  * renders the ordered list; the PAGE owns add/remove/reorder). Also clears a
  * `flags[block] === false` show-flag: adding a hidden block must show it, or
  * the palette click does nothing visible.
@@ -354,8 +351,8 @@ export interface SurveySummary {
 }
 
 /**
- * LIVE publish-summary counts (M7-T06; ia-mapping §5: "Survey publish-modal
- * counts must be live"). The comp rendered a hard-coded "12" in the publish
+ * LIVE publish-summary counts (ia-mapping: "Survey publish-modal counts
+ * must be live"). The comp rendered a hard-coded "12" in the publish
  * modal regardless of the canvas; this derives every figure from the CURRENT
  * question list, so the modal and the inspector can only ever tell the truth.
  */
@@ -389,8 +386,8 @@ export function flowNodesFromValues(values: unknown): FlowNodeLike[] {
 }
 
 /**
- * The trigger node is non-removable (09 §7.11). The flow-builder widget lets
- * its LOCAL list drop any node; this guard re-seats the previously-known
+ * The trigger node is non-removable. The flow-builder widget lets its LOCAL
+ * list drop any node; this guard re-seats the previously-known
  * trigger at the head whenever a committed order lost it, so what the host
  * persists — and what the run-stats header describes — always starts with a
  * trigger. A flow that never had one passes through untouched (the palette is
@@ -412,7 +409,7 @@ export function ensureTriggerFirst(
  * The built-in starter ids, listed as a union so the renderer can index a map
  * of LITERAL bundle keys by them: a new starter is then a compile error in
  * `STARTER_TITLE_KEY` rather than a raw `templates.builder.starters.titles.…`
- * on the card (10 §2.5).
+ * on the card.
  */
 export type BuilderStarterId =
   | 'st-standard'
@@ -459,7 +456,7 @@ export interface BuilderStarterDef {
  * RENDERER resolves the localized card copy at the render boundary by indexing
  * this map, mirroring `useDefaultShortcutGroups` (ShortcutsPanel.tsx). Keeping
  * whole keys here (rather than leaves the renderer concatenates) is what makes
- * them visible to the extractor and to the bundle-parity tests (10 §2.5); the
+ * them visible to the extractor and to the bundle-parity tests; the
  * `satisfies` clause makes a new category a compile error.
  */
 export const STARTER_CATEGORY_KEYS = {
@@ -473,8 +470,8 @@ export const STARTER_CATEGORY_KEYS = {
 } as const satisfies Record<BuilderStarterCategory, string>;
 
 /**
- * The 12 domain-true invoice starters (09 §7.11 — "12 domain-true invoice
- * starters", incl. the ia-mapping call-outs: pro forma, credit note, donation
+ * The 12 domain-true invoice starters ("12 domain-true invoice starters",
+ * incl. the ia-mapping call-outs: pro forma, credit note, donation
  * receipt with Tax ID), plus report/email starter sets for those flavors.
  */
 export const BUILDER_STARTERS: Readonly<Record<DocType, readonly BuilderStarterDef[]>> = {
@@ -517,8 +514,8 @@ function hashId(value: string): number {
 /**
  * Seed a full doc from a starter (the picker's "selection seeds a full doc").
  * `null` — the blank ghost card — seeds the base doc for the surface with no
- * line items. Deterministic in the starter id, per 04 §7.7. `untitledTitle`
- * lets the RENDERER pass the localized blank-doc title
+ * line items. Deterministic in the starter id. `untitledTitle` lets the
+ * RENDERER pass the localized blank-doc title
  * (`templates.builder.untitledDoc`) without this pure module touching i18n;
  * the default keeps today's English for every existing caller.
  */
@@ -559,7 +556,7 @@ export function starterDocOf(
   return { ...base, title };
 }
 
-// ── deterministic demo payloads per flavor (04 §7.7) ─────────────────────────
+// ── deterministic demo payloads per flavor ───────────────────────────────────
 
 function isoDayAfterDemoEpoch(days: number): string {
   // 2026-06-01T00:00:00Z — the shared block-vocabulary demo anchor.

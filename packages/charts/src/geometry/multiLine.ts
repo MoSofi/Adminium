@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure multi-series polyline geometry (d3-shape only) — the core of
- * `chart-multiline` and `chart-bump` (research/widget-registry.md §2). DOM-free
- * so scheduled-report workers reuse it; identical path strings in Node and the
- * browser (04 §7.1, acceptance #10).
+ * `chart-multiline` and `chart-bump` (research/widget-registry.md). DOM-free so
+ * scheduled-report workers reuse it; identical path strings in Node and the
+ * browser (acceptance #10).
  */
 import { curveLinear, curveMonotoneX, line } from 'd3-shape';
 

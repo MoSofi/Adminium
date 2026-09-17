@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The step-3 transition: create the account, then land everything the first two
- * steps held (45-onboarding.md §4, ruling R1).
+ * steps held (ruling R1).
  *
  * ORDER, AND WHY IT IS THIS ORDER. `POST /setup/super-admin` comes first
  * because it is the only call here that works without a session — it mints one

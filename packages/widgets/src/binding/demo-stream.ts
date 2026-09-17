@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Deterministic seeded demo stream (04-widget-registry.md §5.3 demo mode, §7.7
- * determinism). Unbound stream widgets — Storybook, builder-palette previews,
- * first-run empty states — drive the exact same buffer/hook pipeline from this
- * generator instead of a live socket.
+ * Deterministic seeded demo stream (demo mode, determinism). Unbound stream
+ * widgets — Storybook, builder-palette previews, first-run empty states —
+ * drive the exact same buffer/hook pipeline from this generator instead of a
+ * live socket.
  *
  * `demoStreamRecords(seed, n)` is byte-identical across runs and platforms: the
  * canonical mulberry32 PRNG (no `Date.now`/`Math.random`) picks from fixed

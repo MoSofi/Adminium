@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The closed vocabularies + pure logic behind the §10 BUILDER widgets —
+ * The closed vocabularies + pure logic behind the BUILDER widgets —
  * `rule-builder`, `flow-builder`, `question-builder`, `column-mapping-table` and
  * `export-builder`. PURE module (React-free, JSX-free, copy-free), so
  * `forms-config.ts` can reach it without dragging component code into the eager
- * registry chunk (04 §2.3).
+ * registry chunk.
  *
  * WHY EVERY VOCABULARY HERE IS CLOSED: each of these widgets stores its output
  * in a page manifest and the rule-builder's output is compiled to a SQL WHERE
@@ -13,7 +13,7 @@
  * exist. Config picks FROM these lists; it never extends them.
  */
 
-// ── rule-builder (annex §10) ────────────────────────────────────────────────
+// ── rule-builder (annex) ────────────────────────────────────────────────────
 
 /** The column types the field catalog classifies against (annex `operatorsByType`). */
 export const RULE_FIELD_TYPES = ['string', 'number', 'boolean', 'date', 'enum'] as const;
@@ -38,7 +38,7 @@ export const RULE_OPERATORS = [
 ] as const;
 export type RuleOperator = (typeof RULE_OPERATORS)[number];
 
-/** ALL/ANY — the pill dividers between condition chips (annex §10). */
+/** ALL/ANY — the pill dividers between condition chips (annex). */
 export const RULE_MATCH_MODES = ['all', 'any'] as const;
 export type RuleMatchMode = (typeof RULE_MATCH_MODES)[number];
 
@@ -88,13 +88,13 @@ export function repairOperator(
   return allowed[0] ?? 'eq';
 }
 
-// ── flow-builder (annex §10) ────────────────────────────────────────────────
+// ── flow-builder (annex) ────────────────────────────────────────────────────
 
 /** Typed workflow nodes — the annex fixes both the kinds and their tones. */
 export const FLOW_NODE_KINDS = ['trigger', 'condition', 'action'] as const;
 export type FlowNodeKind = (typeof FLOW_NODE_KINDS)[number];
 
-/** annex §10: "trigger=accent, condition=warn, action=pos". */
+/** annex: "trigger=accent, condition=warn, action=pos". */
 export const FLOW_NODE_TONE: Record<FlowNodeKind, 'accent' | 'warn' | 'pos'> = {
   trigger: 'accent',
   condition: 'warn',
@@ -111,9 +111,10 @@ export function canAppendNode(kind: FlowNodeKind, existing: readonly { kind: Flo
   return !existing.some((node) => node.kind === 'trigger');
 }
 
-// ── question-builder (annex §10) ────────────────────────────────────────────
+// ── question-builder (annex) ────────────────────────────────────────────────
 
-/** The 8 addable question types (annex §10: "palette of 8 addable question types"). */
+/** The 8 addable question types (annex: "palette of 8 addable question types").
+ * */
 export const QUESTION_KINDS = [
   'single-choice',
   'multi-choice',
@@ -131,10 +132,10 @@ export function questionTakesOptions(kind: QuestionKind): boolean {
   return kind === 'single-choice' || kind === 'multi-choice' || kind === 'dropdown';
 }
 
-/** The NPS chip row is 0–10 by definition (annex §10). */
+/** The NPS chip row is 0–10 by definition (annex). */
 export const NPS_SCORES: readonly number[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-/** A star rating previews 5 stars (annex §10 "star rating"). */
+/** A star rating previews 5 stars (annex). */
 export const RATING_STARS = 5;
 
 /**
@@ -151,10 +152,10 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
   return next;
 }
 
-// ── column-mapping-table (annex §10) ────────────────────────────────────────
+// ── column-mapping-table (annex) ────────────────────────────────────────────
 
 /**
- * The target that means "Don't import" (annex §10). A reserved sentinel rather
+ * The target that means "Don't import" (annex). A reserved sentinel rather
  * than `undefined`, because "the user explicitly skipped this column" and "the
  * user has not decided yet" must not collapse into the same stored value.
  */
@@ -200,12 +201,12 @@ export function nameSimilarity(a: string, b: string): number {
 export const AUTO_MATCH_THRESHOLD = 0.6;
 
 /**
- * The best target for a source column by name similarity (annex §10 `autoMatch`),
- * or `null` when nothing clears the threshold — leaving the picker unset, which
- * is honest, rather than pre-filling a wrong mapping the user must notice to fix.
+ * The best target for a source column by name similarity (annex `autoMatch`), or
+ * `null` when nothing clears the threshold — leaving the picker unset, which is
+ * honest, rather than pre-filling a wrong mapping the user must notice to fix.
  *
  * Ties keep the FIRST target in catalog order (strict `>`), so the same schema
- * always auto-matches the same way (04 §7.7).
+ * always auto-matches the same way.
  */
 export function autoMatchTarget(
   source: string,
@@ -224,7 +225,7 @@ export function autoMatchTarget(
   return bestScore >= AUTO_MATCH_THRESHOLD ? best : null;
 }
 
-// ── export-builder (annex §10) ──────────────────────────────────────────────
+// ── export-builder (annex) ──────────────────────────────────────────────────
 
 /** The formats the annex's segmented picker offers. */
 export const EXPORT_FORMATS = ['pdf', 'csv', 'xlsx'] as const;

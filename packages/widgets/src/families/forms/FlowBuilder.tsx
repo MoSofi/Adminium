@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `flow-builder` (annex §10) — a vertical workflow canvas of typed nodes
+ * `flow-builder` (annex) — a vertical workflow canvas of typed nodes
  * (trigger=accent, condition=warn, action=pos) joined by connectors, with live
  * insert/remove, an action-palette popover (2-col grid of addable node types)
  * and header run stats. Evidence: Automation Rules.
@@ -8,14 +8,14 @@
  * PRESENTATIONAL: nodes live in local state; every change is a `mutate` intent.
  * The widget never runs a flow and never persists one.
  *
- * Binds §3 `form-state` for the same reason as `rule-builder`: an empty canvas
- * is a builder awaiting its trigger, not an empty widget, and must show the
+ * Binds `form-state` for the same reason as `rule-builder`: an empty canvas is
+ * a builder awaiting its trigger, not an empty widget, and must show the
  * palette rather than the frame's "no data" state.
  *
  * REORDER/INSERT: nodes are added at the END and removed individually — there is
  * no drag layer here. `@dnd-kit` is CONFINED to the `boards` family by the
- * chunk-budget gate (04 §2.3), and pulling a drag engine into `forms` would put
- * it in the chunk of every page that renders a settings toggle.
+ * chunk-budget gate, and pulling a drag engine into `forms` would put it in the
+ * chunk of every page that renders a settings toggle.
  */
 
 import { IconTile, Popover, PopoverClose, PopoverContent, PopoverTrigger, cn } from '@adminium/ui';
@@ -45,7 +45,7 @@ export interface FlowNode {
 
 type Rec = Record<string, unknown>;
 
-/** Project the §3 `form-state` payload onto ordered flow nodes. */
+/** Project the `form-state` payload onto ordered flow nodes. */
 export function flowNodesOf(data: unknown, config: FlowBuilderConfig): FlowNode[] {
   const values = formValuesOf(data);
   const raw = values['nodes'];
@@ -73,7 +73,7 @@ export function flowNodesOf(data: unknown, config: FlowBuilderConfig): FlowNode[
   return out;
 }
 
-/** Header run stats (annex §10), or `null` when the payload carries none. */
+/** Header run stats (annex), or `null` when the payload carries none. */
 export function flowStatsOf(data: unknown): { runs: number; successRate: number } | null {
   const values = formValuesOf(data);
   const runs = numberField(values, 'runs');

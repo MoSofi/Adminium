@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Bars & ranking" group stories (04-T09 / 04-T17): each widget's loaded
- * variant plus the four WidgetFrame states, through WidgetHost with a registry
- * override (the family barrel is green-loop-assembled). Demo payloads are the
- * definitions' deterministic `demoData`, so stories match demo mode. RTL is
- * exercised by feeding the charts' `ChartDirectionContext` (the same context
- * the ChartDirectionBridge feeds in the live app), which is what actually
- * mirrors the SVG geometry — a bare `dir="rtl"` wrapper does not.
+ * "Bars & ranking" group stories: each widget's loaded variant plus the four
+ * WidgetFrame states, through WidgetHost with a registry override (the family
+ * barrel is green-loop-assembled). Demo payloads are the definitions'
+ * deterministic `demoData`, so stories match demo mode. RTL is exercised by
+ * feeding the charts' `ChartDirectionContext` (the same context the
+ * ChartDirectionBridge feeds in the live app), which is what actually mirrors
+ * the SVG geometry — a bare `dir="rtl"` wrapper does not.
  */
 import { ChartDirectionContext } from '@adminium/charts';
 import type { ReactNode } from 'react';

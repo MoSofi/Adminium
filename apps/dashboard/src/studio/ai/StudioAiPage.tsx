@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/settings/ai` — Settings → AI (06-llm-assist.md §10.1). Where an Admin
- * configures the direct-API provider used to enrich a schema, reads the BYO
- * (copy-paste) round-trip guarantee, and reviews past enrichment runs. The
- * provider form is no longer only here — the connect wizard's enrich step
- * renders the same component — but the guarantee and the history are.
+ * `/studio/settings/ai` — Settings → AI. Where an Admin configures the
+ * direct-API provider used to enrich a schema, reads the BYO (copy-paste)
+ * round-trip guarantee, and reviews past enrichment runs. The provider form is
+ * no longer only here — the connect wizard's enrich step renders the same
+ * component — but the guarantee and the history are.
  *
- * Seed patterns (§10): `API Keys.dc.html` (write-only key entry → masked
- * `sk-…last4` + Replace) and `Integrations.dc.html` (provider connect
- * cards). RBAC is enforced one level up by `StudioGuard` (Admin + Super-Admin) and
- * again by every `/api/v1/llm/*` route — Editors/Viewers never reach this surface
- * and see no AI navigation (acceptance #13).
+ * Seed patterns: `API Keys.dc.html` (write-only key entry → masked `sk-…last4` +
+ * Replace) and `Integrations.dc.html` (provider connect cards). RBAC is enforced
+ * one level up by `StudioGuard` (Admin + Super-Admin) and again by every
+ * `/api/v1/llm/*` route — Editors/Viewers never reach this surface and see no AI
+ * navigation (acceptance #13).
  *
  * The provider form itself lives in `ProviderConfigForm.tsx` — this page is one
  * of its two hosts, the connect wizard's enrich step is the other
- * (46-enrich-provider-inline.md R3). Its write-only key contract, model list and
- * test button are documented there.
+ * (R3). Its write-only key contract, model list and test button are documented
+ * there.
  */
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
@@ -88,11 +88,11 @@ function runStatusLabel(status: LlmRunStatus): string {
 // ── BYO explainer panel ─────────────────────────────────────────────────────────
 
 /**
- * `highlighted` is §8.2's "highlighted first in desktop" — the visual half of
- * the same decision the page's ordering makes. It changes the accent, the tile
+ * `highlighted` is "highlighted first in desktop" — the visual half of the
+ * same decision the page's ordering makes. It changes the accent, the tile
  * tone and the heading, because leading with a card that opens "No key?" would
  * still frame the round-trip as the consolation prize on the one runtime where
- * it is the recommendation (§6 step 4, §7's LLM row).
+ * it is the recommendation (LLM row).
  */
 function ByoPanel({ highlighted = false }: { highlighted?: boolean }): ReactNode {
   return (
@@ -316,8 +316,8 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
   const { data: config } = useSuspenseQuery(aiConfigQuery());
   const { data: connections } = useSuspenseQuery(connectionsQuery());
 
-  // 11-electron.md §8.2, LLM row: "BYO round-trip is the default and is
-  // highlighted first in desktop".
+  // LLM row: "BYO round-trip is the default and is highlighted first in
+  // desktop".
   //
   // SUSPENDING, unlike this module's other capability reads, because this one
   // decides the ORDER OF THE PAGE. The unresolved runtime is `self-host`, so a

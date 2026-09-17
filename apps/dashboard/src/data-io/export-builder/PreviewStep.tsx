@@ -4,7 +4,7 @@
  * format, rows, header row), the preview card with its Table and Raw file
  * tabs and four sample states, the summary rail and the "Worth knowing" card.
  * The sample comes from `POST /exports/preview` — the job's resolver and
- * writer — so a cell here is the cell in the file (41-export-builder.md §3.5).
+ * writer — so a cell here is the cell in the file.
  */
 import { OctagonAlert, RotateCw, TriangleAlert } from 'lucide-react';
 import { SegmentedControl, Select, Skeleton, Switch, Tabs, TabsContent, TabsList, TabsTrigger, cn } from '@adminium/ui';

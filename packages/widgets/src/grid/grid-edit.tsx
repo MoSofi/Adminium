@@ -8,21 +8,21 @@ import { useMaybeT } from '@adminium/i18n/react';
 import type { CellStep } from './layout-edit.js';
 
 /**
- * Edit-mode React building blocks for `DashboardGrid` (04-widget-registry.md
- * §6.2). Confined to the grid so dnd-kit's edit affordances never leak into a
- * widget family chunk. Three concerns:
+ * Edit-mode React building blocks for `DashboardGrid`. Confined to the grid
+ * so dnd-kit's edit affordances never leak into a widget family chunk. Three
+ * concerns:
  *
  *  1. Localizable label + aria-live announcement builders (English defaults;
  *     the builder passes `t('ui.grid.*')`-backed overrides — HARD RULE i18n).
  *  2. A per-item edit context so the drag grip — which the host renders inside
- *     the WidgetFrame header slot (04 §4), out of the grid's JSX reach — can
- *     still bind the grid's dnd-kit activator + keyboard handler. `GridDragHandle`
- *     (grip) and `GridResizeHandle` (SE/▸ corner) read it.
+ * the WidgetFrame header slot, out of the grid's JSX reach — can still bind the
+ *     grid's dnd-kit activator + keyboard handler. `GridDragHandle` (grip) and
+ *     `GridResizeHandle` (SE/▸ corner) read it.
  *  3. `snapToGridModifier` — the dnd-kit modifier that snaps the drag overlay to
  *     whole cell coordinates, plus a single polite live region.
  *
  * RTL: nothing here encodes a physical left/right. The corner handle positions
- * with the LOGICAL `end-0` (inline-end → SE in LTR, SW in RTL, 04 §6.2); arrow
+ * with the LOGICAL `end-0` (inline-end → SE in LTR, SW in RTL); arrow
  * semantics are mirrored by the controller before it calls these.
  */
 
@@ -145,8 +145,8 @@ const GRIP_CLASS =
 
 /**
  * The drag grip — rendered by the host inside the WidgetFrame header slot only
- * in edit mode (04 §4). It is the dnd-kit pointer activator AND the keyboard
- * a11y entry point for move/resize. Renders nothing outside an edit-mode item.
+ * in edit mode. It is the dnd-kit pointer activator AND the keyboard a11y
+ * entry point for move/resize. Renders nothing outside an edit-mode item.
  */
 export function GridDragHandle({ className }: { className?: string | undefined }) {
   const controls = useGridItemEdit();
@@ -176,8 +176,8 @@ const RESIZE_CLASS =
 
 /**
  * The resize corner — the grid renders it on each item container (LOGICAL
- * `end-0`: SE corner in LTR, SW in RTL, 04 §6.2). Pointer-driven, with a
- * keyboard fallback (arrows resize) so the affordance is not mouse-only.
+ * `end-0`: SE corner in LTR, SW in RTL). Pointer-driven, with a keyboard
+ * fallback (arrows resize) so the affordance is not mouse-only.
  *
  * Drawn as three stepped diagonal grip lines, the conventional resize-corner
  * idiom. The previous mark was an 8px right-angle bracket in `--fg-subtle`,
@@ -221,9 +221,8 @@ function snapToStep(px: number, step: number): number {
 
 /**
  * dnd-kit modifier snapping the drag overlay to whole cell coordinates so the
- * preview lands on the grid it will drop into (04 §6.2 "custom modifier snapping
- * the drag overlay to cell coordinates"). `cell` is measured from the live grid
- * surface; an unmeasured (0) step passes the transform through untouched.
+ * preview lands on the grid it will drop into. `cell` is measured from the live
+ * grid surface; an unmeasured (0) step passes the transform through untouched.
  */
 export function snapToGridModifier(cell: CellStep): Modifier {
   return ({ transform }) => ({

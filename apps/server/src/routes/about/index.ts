@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * About resource (M10-T04): `GET /api/v1/about` and
- * `GET /api/v1/about/update-check`.
+ * About resource: `GET /api/v1/about` and `GET
+ * /api/v1/about/update-check`.
  *
- * Backs the in-app About screen — version, AGPL-3.0 + the §13 source offer
- * (01-architecture.md §9.3: "the AGPL §13 source offer is satisfied by linking
- * to the public repo … from the instance footer ('About' screen, M10 scope)"),
- * the meta-store engine, and the self-host update-available notice.
+ * Backs the in-app About screen — version, AGPL-3.0 + the source offer
+ * ("the AGPL source offer is satisfied by linking to the public repo … from
+ * the instance footer ('About' screen, M10 scope)"), the meta-store engine,
+ * and the self-host update-available notice.
  *
  * Session-gated: the version string is a fingerprinting aid, so an anonymous
  * visitor to a self-hosted instance does not get to read which build (and thus
@@ -28,8 +28,8 @@ import { aboutReply, aboutUpdateCheckReply, type AboutReply, type AboutUpdateChe
 /** AGPL-3.0-only — matches every workspace package.json `license` field. */
 export const LICENSE_SPDX = 'AGPL-3.0-only';
 /**
- * The §13 offer is only satisfied by a link that actually reaches the source,
- * so this must name the repository that hosts it: github.com/MoSofi/Adminium.
+ * The offer is only satisfied by a link that actually reaches the source, so
+ * this must name the repository that hosts it: github.com/MoSofi/Adminium.
  * The `adminium/adminium` slug belongs to an unrelated third party — pointing
  * the offer there would send users to a stranger's empty repo.
  */
@@ -44,14 +44,14 @@ export interface AboutRoutesDeps {
 
 /**
  * The newest applied migration name, or `null` when there is none or the read
- * fails (11-electron.md §13's About version field).
+ * fails (About version field).
  *
  * NEVER THROWS, for the reason `smtpConfigured` in the system route does not: a
  * meta-store blip must not take the whole About payload — including `version`
  * and the AGPL source offer, which are the compliance artifact — down with it.
  * `null` is the honest "unknown" the desktop panel already renders as a
  * fallback. `adminium_migrations.name` is the same row `readMetaMigrationVersion`
- * reads for a §9 backup manifest, so the two agree by construction.
+ * reads for a backup manifest, so the two agree by construction.
  */
 async function latestMetaMigration(meta: MetaDb): Promise<string | null> {
   try {

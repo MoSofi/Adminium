@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Relations tab for the selected table (05-introspection-engine.md §6):
- * declared FKs read-only, inferred relations with confidence + accept /
- * suppress (accept persists a `relation.add` op which re-enters future
- * regenerations at confidence 1.0; suppress persists `relation.remove`),
- * plus the ADD virtual relation form (07-meta-store.md §3.15 payload) for
- * schemas without declared FKs.
+ * Relations tab for the selected table: declared FKs read-only, inferred
+ * relations with confidence + accept / suppress (accept persists a
+ * `relation.add` op which re-enters future regenerations at confidence
+ * 1.0; suppress persists `relation.remove`), plus the ADD virtual
+ * relation form (payload) for schemas without declared FKs.
  */
 import { useState } from 'react';
 import { Badge, Button, Combobox, FormField, MonoText, Select } from '@adminium/ui';

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Lenient narrowing for the §3 envelopes the part-to-whole & hierarchy charts
- * (04-T09) consume beyond `categorical` (which lib/shapes.ts already covers):
- * `matrix` (radar), `flows` (chord), and `hierarchy/tree` (sunburst). Kept in
- * this family folder so the shared lib/shapes barrel stays untouched while
+ * Lenient narrowing for the envelopes the part-to-whole & hierarchy charts
+ * consume beyond `categorical` (which lib/shapes.ts already covers): `matrix`
+ * (radar), `flows` (chord), and `hierarchy/tree` (sunburst). Kept in this
+ * family folder so the shared lib/shapes barrel stays untouched while
  * parallel chart tracks land. A malformed payload returns null; the widget
- * wrapper renders its own fallback rather than throwing (04 §3).
+ * wrapper renders its own fallback rather than throwing.
  */
 
 type Rec = Record<string, unknown>;

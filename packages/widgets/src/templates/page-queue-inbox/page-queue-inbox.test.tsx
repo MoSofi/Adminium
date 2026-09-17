@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `page-queue-inbox` template tests (M7 queues track, 09 §7.4 + §4.1):
- * KPI slots mount through WidgetHost, segment tabs default to the pending
- * tab with live counts, the polymorphic amount cell renders $ / days / —,
- * bulk approve applies optimistically to the EXACT selected id set with an
- * Undo toast that restores it, a failed bulk decision rolls the optimistic
- * patch back, reject opens the with-reason modal and writes the note column,
- * a drained tab renders all-caught-up (distinct from first-use), the
- * notification-feed flavor mounts through WidgetHost, and bad configs never
- * crash.
+ * `page-queue-inbox` template tests (M7 queues track): KPI slots mount
+ * through WidgetHost, segment tabs default to the pending tab with live
+ * counts, the polymorphic amount cell renders $ / days / —, bulk approve
+ * applies optimistically to the EXACT selected id set with an Undo toast
+ * that restores it, a failed bulk decision rolls the optimistic patch back,
+ * reject opens the with-reason modal and writes the note column, a drained
+ * tab renders all-caught-up (distinct from first-use), the notification-feed
+ * flavor mounts through WidgetHost, and bad configs never crash.
  */
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
@@ -144,7 +143,7 @@ describe('PageQueueInbox', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Select Parental leave' }));
     await user.click(screen.getByRole('button', { name: 'Approve' }));
 
-    // The EXACT selected id set goes to the bulk endpoint (09 §4.1 keeper).
+    // The EXACT selected id set goes to the bulk endpoint (keeper).
     await waitFor(() => {
       expect(api.bulkUpdate).toHaveBeenCalledWith(['r1', 'r2'], { status: 'approved' });
     });

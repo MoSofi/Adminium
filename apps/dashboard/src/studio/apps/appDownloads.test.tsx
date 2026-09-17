@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Apps from the online app catalog, in Studio (48-self-hosted-downloads.md §6b
- * G8-D7).
+ * Apps from the online app catalog, in Studio (b G8-D7).
  *
  * Router-mounted through the real `/studio/apps` page, like
  * `hostedAppsPage.test.tsx`, because the claims live in the page's wiring

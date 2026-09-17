@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The parent ↔ utilityProcess wire contract (11-electron.md §2.2 steps 5–9).
+ * The parent ↔ utilityProcess wire contract (steps 5–9).
  *
  * Shared by BOTH ends of the fork — `src/server/index.ts` (the child, which
  * posts over `process.parentPort`) and `src/main/server-manager.ts` (the parent,
@@ -25,8 +25,8 @@
 import { z } from 'zod';
 
 /**
- * Where a boot died. The crash page (§2.2 step 9) shows this verbatim next to
- * the log excerpt, because "which of the six boot steps failed" is the entire
+ * Where a boot died. The crash page shows this verbatim next to the log
+ * excerpt, because "which of the six boot steps failed" is the entire
  * difference between "your data dir is not writable" and "file a bug".
  */
 export const SERVER_BOOT_STAGES = [
@@ -40,12 +40,11 @@ export const SERVER_BOOT_STAGES = [
 export type ServerBootStage = (typeof SERVER_BOOT_STAGES)[number];
 
 /**
- * §2.2 step 7, verbatim: `{ type: "ready", port, migrations: { applied } }`.
+ * Verbatim: `{ type: "ready", port, migrations: { applied } }`.
  *
- * `port` is the RESOLVED port. The child is asked to listen on 0 (§2.1 "listens
- * 127.0.0.1:0 (random free port)"), so the parent cannot know it up front — this
- * message is the only place the number exists, which is why the handshake is a
- * handshake and not a fire-and-forget spawn.
+ * `port` is the RESOLVED port. The child is asked to listen on 0, so the parent
+ * cannot know it up front — this message is the only place the number exists,
+ * which is why the handshake is a handshake and not a fire-and-forget spawn.
  */
 export const serverReadyMessageSchema = z.object({
   type: z.literal('ready'),
@@ -55,17 +54,17 @@ export const serverReadyMessageSchema = z.object({
     applied: z.number().int().min(0),
     /**
      * The newest migration this SERVER BUILD ships — `0009_views_kind` — and the
-     * only channel by which the main process can ever learn it (11-T12, §9).
+     * only channel by which the main process can ever learn it.
      *
-     * §9 makes the main process refuse "a backup whose `metaMigrationVersion` is
-     * newer than the app", and §9's flow puts that check BEFORE the restore
-     * stops the server and moves data aside. So main has to answer "how new am
-     * I?" itself. It cannot look the answer up: `ALL_MIGRATIONS` lives in
-     * `@adminium/meta`, which the shell may not import (§1 principle 2,
-     * `.dependency-cruiser.cjs` `desktop-shell-only`), and importing
-     * `@adminium/server` for the constant would drag the whole Fastify graph
-     * into the main process to read one string. The child already knows, and it
-     * is already sending a message. So it says.
+     * The main process refuses "a backup whose `metaMigrationVersion` is
+     * newer than the app", flow puts that check BEFORE the restore stops the
+     * server and moves data aside. So main has to answer "how new am I?" itself.
+     * It cannot look the answer up: `ALL_MIGRATIONS` lives in `@adminium/meta`,
+     * which the shell may not import (`.dependency-cruiser.cjs`
+     * `desktop-shell-only`), and importing `@adminium/server` for the constant
+     * would drag the whole Fastify graph into the main process to read one
+     * string. The child already knows, and it is already sending a message. So
+     * it says.
      *
      * The BUILD's latest, not the STORE's high-water mark, and the difference is
      * the question being asked: a backup is restorable iff this app's migration
@@ -99,7 +98,7 @@ export type ServerMessage = z.infer<typeof serverMessageSchema>;
 
 /**
  * Parent → child. `shutdown` is the graceful path: the child closes Fastify
- * (which runs the `onClose` hooks — pool disposal, and §9's
+ * (which runs the `onClose` hooks — pool disposal,
  * `wal_checkpoint(TRUNCATE)` when the meta store wires it) and exits 0. The
  * parent only reaches for `kill()` when this is ignored.
  */

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * URL scrubbing for the request log (08-server-api.md §1.3 redaction, and
- * 11-electron.md §2.2 step 8 for why it had to exist).
+ * URL scrubbing for the request log (redaction, for why it had to exist).
  *
  * ─── The leak this closes ────────────────────────────────────────────────────
  *
@@ -11,13 +10,13 @@
  * `redact: ['req.url']` would drop the whole URL, which is most of the value of
  * having a request log at all.
  *
- * §2.2 step 8 navigates the desktop window to
+ * The desktop window is navigated to
  * `http://127.0.0.1:<port>/?bootToken=<32 random bytes>`. That is a GET the
  * server answers with `index.html` and logs like any other — and the desktop
- * shell pipes those logs to a ROTATING FILE ON DISK (§9), where the token would
- * then sit, in cleartext, long after the boot that minted it. The SPA stripping
- * the token from `window.location` (§5) fixes the browser's history; it does
- * nothing about the request that already happened.
+ * shell pipes those logs to a ROTATING FILE ON DISK, where the token would then
+ * sit, in cleartext, long after the boot that minted it. The SPA stripping the
+ * token from `window.location` fixes the browser's history; it does nothing
+ * about the request that already happened.
  *
  * So: scrub the value, keep the URL. `/?bootToken=[REDACTED]` still tells you
  * which request this was, that a token was presented, and nothing usable.
@@ -40,14 +39,14 @@ export const REDACTED = '[REDACTED]';
  * fails exactly when someone gets it wrong.
  */
 export const SENSITIVE_QUERY_PARAMS: readonly string[] = [
-  // 11-electron.md §2.2 step 8 / §5 — the desktop boot token.
+  // The desktop boot token.
   'bootToken',
-  // 08-server-api.md §2.1 — password-reset and 2FA-challenge tokens. They ride
-  // in bodies today; the day one lands in a link's query, this is already here.
+  // Password-reset and 2FA-challenge tokens. They ride in bodies today; the
+  // day one lands in a link's query, this is already here.
   'token',
   'challengeToken',
   'apiKey',
-  // 37 §3.12 — `ADMINIUM_STORAGE_URL` carries the bucket credential IN ITS
+  // `ADMINIUM_STORAGE_URL` carries the bucket credential IN ITS
   // QUERY STRING (`s3://bucket?endpoint=…&accessKey=AK&secretKey=SK`), and the
   // docs' own per-host recipes tell operators to write exactly that. These are
   // the param names those recipes use, so a log line that echoes the seed URL

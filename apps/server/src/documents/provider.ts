@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * One rule for turning a loaded add-on module into a `document-render@1`
- * provider (34-invoices-add-on.md §7.5; 0.3 trap 11).
+ * provider (0.3 trap 11).
  *
  * ─── WHY THIS IS A FILE AND NOT A LOCAL FUNCTION ───────────────────────────
  *

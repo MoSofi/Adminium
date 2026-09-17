@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Normalization to the shared `EnrichmentSet` (06-llm-assist.md §7.1).
+ * Normalization to the shared `EnrichmentSet`.
  *
  * Locks:
- *  - the validated demo response (§6.3) normalizes into the LLM `EnrichmentSet`
- *    with labels, keys, PII, enums, inferred relations, groups and dashboards
- *    intact and correctly keyed;
+ * - the validated demo response normalizes into the LLM `EnrichmentSet` with
+ *  labels, keys, PII, enums, inferred relations, groups and dashboards intact
+ *  and correctly keyed;
  *  - the demo heuristic classification normalizes into the baseline set with
  *    humanized labels, shape icons, display/natural keys, PII flags and the
- *    workflow enum — the material the diff (§8.2) compares against.
+ *    workflow enum — the material the diff compares against.
  */
 import { readFileSync } from 'node:fs';
 

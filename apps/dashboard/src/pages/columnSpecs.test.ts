@@ -110,9 +110,9 @@ describe('withFkDisplay', () => {
 
 
 /**
- * `projectionParamsOf` — the wire params a page's projections spend
- * (36-derived-columns.md 36-T16). Three foot-guns, all of which blank a whole
- * page as a 422 if they reach the server.
+ * `projectionParamsOf` — the wire params a page's projections spend. Three
+ * foot-guns, all of which blank a whole page as a 422 if they reach the
+ * server.
  */
 describe('projectionParamsOf', () => {
   const reverse = (name: string, agg = 'count') =>

@@ -76,9 +76,9 @@ export interface PermissionCatalogReply {
 /** Copied mirror — see the header's SYNC NOTE. */
 export const RESERVED_GRANTS: readonly string[] = [
   'system:webhooks:manage',
-  // `system:manifests:manage` left this list on 2026-08-29 with 26-T05, when
+  // `system:manifests:manage` left this list on 2026-08-29 with, when
   // the `/api/v1/add-ons` routes landed to enforce it, and
-  // `system:automations:manage` on 2026-09-08 with 42-T13, when the
+  // `system:automations:manage` on 2026-09-08 with, when the
   // `/api/v1/automations` routes landed to enforce IT. THIS FILE IS THE SILENT
   // HALF of that change: the dashboard cannot import `@adminium/meta` (the
   // dep-cruiser rule `dashboard-no-meta-adapters-llm` forbids it), so nothing
@@ -93,7 +93,7 @@ const TABLE_GRANT = /^table:[^:\s/]+:[^:\s/]+:(read|create|update|delete|export|
 const PAGE_GRANT = /^page:[^:\s/]+:(view|edit|\*)$/;
 
 /**
- * Does this string parse as a §5.1 grant?
+ * Does this string parse as a grant?
  *
  * The matrix's row identity is a `PermissionGrant` template-literal type, and
  * a catalog row arrives as a plain string — so something has to decide, and a

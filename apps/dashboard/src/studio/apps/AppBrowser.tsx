@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The app shelf, ported from `Marketplace.dc.html`'s browse screen
- * (47-app-installation.md step 4b).
+ * The app shelf, ported from `Marketplace.dc.html`'s browse
+ * screen.
  *
  * The comp's toolbar (search), category chips with counts, and card grid, over
  * `GET /api/v1/apps/catalog` — which is a DISK read of the app store plus the
  * online app catalog's last cached copy, never a fetch. That property is
  * load-bearing: it is what makes this page work identically on an air-gapped
  * install, and what stops a page load becoming an outbound call nobody asked
- * for (40 §4.3).
+ * for.
  *
- * ─── The online catalog (48 §6b G8-D7) ──────────────────────────────────────
+ * ─── The online catalog (b G8-D7) ───────────────────────────────────────────
  *
  * The switch and "Check for newer" sit in this card's header, beside what they
  * change, exactly as the add-ons page puts them (the comp draws a marketplace

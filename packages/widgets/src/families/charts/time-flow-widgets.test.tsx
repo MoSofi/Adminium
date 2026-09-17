@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * Render + frame-state tests for the "time, forecast & flow" widgets (04-T09,
- * acceptance #4): each renders its loaded chart through WidgetHost (registry
+ * Render + frame-state tests for the "time, forecast & flow" widgets
+ * (acceptance #4): each renders its loaded chart through WidgetHost (registry
  * override, since the family barrel is green-loop-assembled), labels the SVG
  * from config.title, and drives all four WidgetFrame states — skeleton, empty
  * (per-widget copy), error + Retry.

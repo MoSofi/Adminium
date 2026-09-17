@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `auth` plugin (08-server-api.md §1.2, §2.1): resolves the signed
- * `adminium_session` cookie (or an `Authorization: Bearer adm_…` API key —
- * stub for the key-management routes) to a principal on every request and
- * decorates `request.user` / `request.session` / `request.apiKey`.
+ * `auth` plugin: resolves the signed `adminium_session` cookie (or an
+ * `Authorization: Bearer adm_…` API key — stub for the key-management
+ * routes) to a principal on every request and decorates `request.user` /
+ * `request.session` / `request.apiKey`.
  *
  * Exposes:
  * - `app.authContext` — meta handle + derived keys + delivery hooks, `null`
@@ -60,7 +60,7 @@ export interface AuthPluginOptions {
 
 /*
  * The API-key prefix is `adm_sk_`, IMPORTED from `rbac/api-keys.ts` rather than
- * redeclared here (28-public-surface.md D4).
+ * redeclared here.
  *
  * This file used to carry its own looser copy — `const API_KEY_PREFIX = 'adm_'`
  * — which drifted from the real one and cost two things. First, ANY bearer
@@ -83,7 +83,7 @@ declare module 'fastify' {
     session: Session | null;
     /** API-key principal (bearer) — RBAC wiring is the rbac plugin's. */
     apiKey: ApiKey | null;
-    /** True when a session token was presented but timed out (§1.4). */
+    /** True when a session token was presented but timed out. */
     sessionExpired: boolean;
   }
   interface FastifyInstance {
@@ -133,7 +133,7 @@ export const authPlugin = fp<AuthPluginOptions>(
     app.addHook('onRequest', async (request) => {
       const now = Date.now();
 
-      // API-key bearer stub (§8): resolves the principal; RBAC comes later.
+      // API-key bearer stub: resolves the principal; RBAC comes later.
       const authorization = request.headers.authorization;
       if (typeof authorization === 'string' && authorization.startsWith('Bearer ')) {
         const bearer = authorization.slice('Bearer '.length).trim();

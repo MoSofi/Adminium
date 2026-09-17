@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Stage 1 — tolerant JSON extraction (06-llm-assist.md §7.2).
+ * Stage 1 — tolerant JSON extraction.
  *
- * Models wrap the single JSON object the prompt demands (§5 output rule 1) in
+ * Models wrap the single JSON object the prompt demands (output rule 1) in
  * things it did not ask for: a ```` ```json ```` fence, a "Here's the JSON:"
  * preamble, a "Hope this helps!" epilogue. This recovers the object without a
  * JSON parser: find the first `{`, then walk to the brace that closes it while
@@ -12,7 +12,7 @@
  * The walk doubles as a truncation detector: if the opening brace never closes
  * (or a string never terminates), the response was cut off mid-object, which is
  * a distinct `LLM_TRUNCATED` failure (the direct-path runner retries it with a
- * raised token ceiling before counting a repair attempt — §7.5).
+ * raised token ceiling before counting a repair attempt).
  *
  * Pure string scanning: no `JSON.parse` here (that is stage 2), so a
  * brace-balanced but otherwise malformed object (trailing comma, single quotes)

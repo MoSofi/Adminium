@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `GET /api/v1/desktop/lan-share` — what §8.3's share panel needs from the side
- * of the boundary that holds the data (11-electron.md §8.3, §1 principle 2).
+ * `GET /api/v1/desktop/lan-share` — what share panel needs from the side of the
+ * boundary that holds the data.
  *
- * The panel is built from two sources and this is one of them. §4's bridge
+ * The panel is built from two sources and this is one of them. The bridge
  * supplies what only the main process knows — the reachable
  * `http://<LAN-IPv4>:<port>` URLs, which come from `os.networkInterfaces()` in a
  * process that has interfaces to enumerate. This route supplies what only the
@@ -23,12 +23,12 @@
  *     is the difference between a check and a vulnerability. This is the gate
  *     with the most direct reasoning behind it in the whole file: the route
  *     exists ONLY when the server is bound to every interface, so the LAN users
- *     §8.3 invited can reach it by construction. Without this gate, any of them
- *     with a super-admin account — and §8.3's whole point is that LAN users get
- *     real accounts — could enumerate how many other people are on the network
- *     right now. That is a surveillance surface, and it is not one the panel's
- *     owner asked for. The panel is a LOCAL affordance about the local machine;
- *     it belongs to the person sitting at it.
+ * invited can reach it by construction. Without this gate, any of them with a
+ *     super-admin account — whole point is that LAN users get real accounts —
+ *     could enumerate how many other people are on the network right now. That is
+ *     a surveillance surface, and it is not one the panel's owner asked for. The
+ *     panel is a LOCAL affordance about the local machine; it belongs to the
+ *     person sitting at it.
  *  3. SESSION + RBAC. `system:settings:manage`, i.e. Super Admin — the same
  *     grant `routes/desktop/index.ts` requires for a backup, and for the same
  *     reason: `config.lanShare` is a security setting, and the count of who is

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The automations API client (42-automations-and-workflow-logs.md §3.1).
+ * The automations API client.
  *
  * TYPE-ONLY MIRROR of `apps/server/src/routes/automations/schema.ts`: the
  * dashboard may not import server runtime code (the dep-cruiser rule
@@ -84,7 +84,7 @@ export interface SourceTable {
   watch: { created: string | null; updated: string | null };
   columns: SourceColumn[];
   /**
-   * Tables whose rows point at this one — 34 §3.7 step 3's collection picker.
+   * Tables whose rows point at this one — collection picker.
    *
    * Already filtered by the server to edges a document mapping can store; see
    * `apps/server/src/connections/child-tables.ts` for why that filter is the
@@ -116,7 +116,7 @@ export interface Sources {
 }
 
 /**
- * Whether the poller could follow THIS event on this table (42 D4).
+ * Whether the poller could follow THIS event on this table.
  *
  * The column differs per event — a table can carry `updated_at` and no
  * creation stamp — and a delete has no watcher at all, so the answer is not

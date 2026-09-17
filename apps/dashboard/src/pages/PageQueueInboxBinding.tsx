@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-queue-inbox` binding (09-generated-app.md §4.1, §7.4): projects the
- * page envelope onto the `PageQueueInbox` template from `@adminium/widgets`
- * and implements its `QueueApi` over the bound CRUD adapter.
+ * `page-queue-inbox` binding: projects the page envelope onto the
+ * `PageQueueInbox` template from `@adminium/widgets` and implements its
+ * `QueueApi` over the bound CRUD adapter.
  *
- * Undo-first bulk semantics (§4.1): `crud.bulk('update', ids, values)`
- * returns the single-use undo token (the server captured the exact prior
- * values of the exact id set); the template renders the Undo toast and
- * calls `undo(token)` back through here. Both directions invalidate the
+ * Undo-first bulk semantics: `crud.bulk('update', ids, values)` returns
+ * the single-use undo token (the server captured the exact prior values
+ * of the exact id set); the template renders the Undo toast and calls
+ * `undo(token)` back through here. Both directions invalidate the
  * `['data', …]` and `['widget-data']` caches so the queue list, its KPI
  * cards and any sibling pages agree after every decision.
  *

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` part-to-whole group — Zod config schemas, config types and the pure
- * §3-envelope→primitive input mappers, split out of `def.part-whole.ts` so the
+ * -envelope→primitive input mappers, split out of `def.part-whole.ts` so the
  * component wrappers (`PartWholeWidgets.tsx`) can import them WITHOUT importing
  * the definitions module (which lazy-loads those same components) — that would
- * form an import cycle (01 §2.3, enforced by dependency-cruiser). The
- * definitions module re-exports everything here for back-compat.
+ * form an import cycle (enforced by dependency-cruiser). The definitions module
+ * re-exports everything here for back-compat.
  *
  * Metadata only: never imports the @adminium/charts chart primitives, so config
  * validation and the mappers stay importable without pulling component code.
@@ -34,7 +34,8 @@ const metricFormat = z.enum(['plain', 'compact', 'currency', 'percent', 'duratio
 // --- chart-treemap -----------------------------------------------------------
 
 export const chartTreemapConfigSchema = widgetSharedConfigSchema.extend({
-  /** Slices beyond this fold into a trailing "Other" tile (annex §2 `depth`/labelling). */
+  /** Slices beyond this fold into a trailing "Other" tile (annex
+   * `depth`/labelling). */
   maxTiles: z.number().int().min(2).max(24).default(12),
   metricFormat: metricFormat.default('compact'),
   height: z.number().int().min(120).max(600).default(260),

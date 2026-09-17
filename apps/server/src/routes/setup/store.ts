@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The two setup routes that touch a DATABASE: `POST /api/v1/setup/probe` and
- * `POST /api/v1/setup/adopt` (45-onboarding.md 45-T11).
+ * `POST /api/v1/setup/adopt`.
  *
  * ── WHY THEY EXIST ──────────────────────────────────────────────────────────
  * Point a second install at a database that already runs Adminium and, until
@@ -26,10 +26,10 @@
  *
  * ── ADOPT COPIES NOTHING ────────────────────────────────────────────────────
  * `/meta/relocate` moves a store into an empty database. Adopting is the other
- * direction and much simpler: write the §7.2 bootstrap file pointing at a store
- * that is already there and restart onto it. Nothing is copied, nothing is
- * dropped, and the local store this instance booted on stays on disk. The
- * operator lands on `/login`, where their existing account is.
+ * direction and much simpler: write the bootstrap file pointing at a store that
+ * is already there and restart onto it. Nothing is copied, nothing is dropped,
+ * and the local store this instance booted on stays on disk. The operator lands
+ * on `/login`, where their existing account is.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { randomUUID } from 'node:crypto';

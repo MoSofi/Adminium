@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Edit-target gating (04-T14, 04 §6.3): the layer a caller's edits persist to is
- * driven by the server's per-page `page:<id>:edit` capability (`canEditLayout`),
- * NOT role slugs — a granted `editor` edits the shared default, a grantless
- * `admin` falls back to a personal override, matching the server exactly.
+ * Edit-target gating: the layer a caller's edits persist to is driven by the
+ * server's per-page `page:<id>:edit` capability (`canEditLayout`), NOT role
+ * slugs — a granted `editor` edits the shared default, a grantless `admin` falls
+ * back to a personal override, matching the server exactly.
  */
 import { describe, expect, it } from 'vitest';
 

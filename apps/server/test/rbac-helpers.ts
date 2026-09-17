@@ -71,7 +71,7 @@ export async function buildRbacTestApp(opts: BuildRbacTestAppOptions = {}): Prom
     viewer: await builtin('viewer'),
   };
 
-  // 08 §5.1: admin manages users; the meta seed is narrower, so grant it here.
+  // Admin manages users; the meta seed is narrower, so grant it here.
   await permissions.grant(roleSet.admin.id, 'system', 'users.manage', { allowed: true });
 
   async function makeUser(name: string, role: Role): Promise<User> {

@@ -23,11 +23,10 @@ import { OpsEmpty } from './OpsEmpty.js';
 import type { WidgetEvent, WidgetProps } from '../../registry/types.js';
 
 /**
- * `api-keys-panel` (annex §13) — the key table: an env badge (live/test), the
- * masked value (prefix + bullets + tail) with a reveal toggle for secrets, scope
- * chips, a last-used relative time, and copy / roll / revoke actions; plus the
- * one-time full-secret reveal banner after creation.
- * Evidence: API Keys, API & Backend.
+ * `api-keys-panel` (annex) — the key table: an env badge (live/test), the masked
+ * value (prefix + bullets + tail) with a reveal toggle for secrets, scope chips,
+ * a last-used relative time, and copy / roll / revoke actions; plus the one-time
+ * full-secret reveal banner after creation. Evidence: API Keys, API & Backend.
  *
  * WHAT THIS WIDGET CANNOT DO, by construction:
  *   - It never holds a plaintext secret from the data layer. The bound table
@@ -38,9 +37,9 @@ import type { WidgetEvent, WidgetProps } from '../../registry/types.js';
  *     and it arrives as config precisely because a widget that could read the
  *     plaintext off a ROW would mean the plaintext was persisted.
  *   - It never revokes or rolls anything. Both emit `mutate` intents the host
- *     runs through the CRUD API, with its permission checks, undo and audit
- *     (04 §2.1). Unbound → the buttons are not rendered at all: there is nowhere
- *     to send the intent, and a Revoke that silently no-ops is worse than none.
+ * runs through the CRUD API, with its permission checks, undo and audit. Unbound
+ *     → the buttons are not rendered at all: there is nowhere to send the
+ *     intent, and a Revoke that silently no-ops is worse than none.
  *
  * `formatSince` needs a "now": `config.format.referenceTime` when pinned (demo,
  * tests, VRT), else the mount instant captured ONCE — never a per-render

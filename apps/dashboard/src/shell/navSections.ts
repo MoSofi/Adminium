@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-connection nav sectioning (M5-T05 follow-up to Wave 1): with two or
- * more connected databases the generated nav groups are ambiguous ("Orders"
- * from which source?), so the sidebar sub-labels each group's items by the
+ * Per-connection nav sectioning (follow-up to Wave 1): with two or more
+ * connected databases the generated nav groups are ambiguous ("Orders" from
+ * which source?), so the sidebar sub-labels each group's items by the
  * owning connection's display name. With zero or one connection the sidebar
  * stays flat — no redundant label. Pure helpers, i18n-free (the component
  * localizes the shared-items label).

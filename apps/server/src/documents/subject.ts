@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A source row + a profile's mapping → the `DocumentSubject` a provider draws
- * from (34-invoices-add-on.md §3.7, D20; 34-T11).
+ * from.
  *
  * ─── THE SUBJECT IS THE ONLY DOOR ──────────────────────────────────────────
  *
  * A provider gets VALUES and nothing else: no database handle, no connection,
  * no clock. Everything it will ever know about this document is assembled
- * here, once, and then frozen into the register row (25 D12) so the document
- * stays what it was after the source row is edited or deleted.
+ * here, once, and then frozen into the register row so the document stays
+ * what it was after the source row is edited or deleted.
  *
  * That is also why this file, and not the provider, does the coercion. The
  * wire law is integer minor units and basis points; a database column holds
@@ -154,8 +154,8 @@ export interface SubjectInput {
   /** Values a lookup across a foreign key resolved to, keyed `<ref>.<column>`. */
   lookups?: Readonly<Record<string, unknown>>;
   /**
-   * Typed per-profile values — §3.7 step 4's "entered here, not read from your
-   * data", stored as `options.literals` on the profile.
+   * Typed per-profile values — "entered here, not read from your data", stored
+   * as `options.literals` on the profile.
    *
    * They are NOT part of `mapping`, and the difference is the point: `mapping`
    * says which columns are read, and a value typed into the editor is read
@@ -247,7 +247,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
       collections[slot.id] = rows.map((row) => {
         const out: Record<string, unknown> = {};
         // `id` is carried through when the child rows have one, so a renderer
-        // can key its lines stably without minting anything (25 D12).
+        // can key its lines stably without minting anything.
         if (row.id !== undefined) out.id = toText(row.id);
         for (const column of columns) {
           const source = mapped.collection.columns[column.id];
@@ -261,12 +261,11 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
 
     if (mapped === undefined) {
       /*
-       * A TYPED VALUE stands in for a column (§3.7 step 4). It is consulted
-       * only where nothing is mapped, which makes "authored or mapped, never
-       * both" (O20) true here rather than merely promised by the editor: a
-       * profile carrying both — an older mapping whose literal was left behind
-       * when a column was chosen — draws the live column, not the stale
-       * constant.
+       * A TYPED VALUE stands in for a column. It is consulted only where
+       * nothing is mapped, which makes "authored or mapped, never both" (O20)
+       * true here rather than merely promised by the editor: a profile
+       * carrying both — an older mapping whose literal was left behind when a
+       * column was chosen — draws the live column, not the stale constant.
        *
        * It goes through the SAME coercion as a column, so `"20"` typed into a
        * percent slot becomes 2000 basis points exactly as `20` read out of a

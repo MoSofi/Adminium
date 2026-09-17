@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * localesRepo — adminium_locales (23-runtime-translations.md §3.1).
+ * localesRepo — adminium_locales.
  *
  * The table is SPARSE by design and this repo is what keeps it that way: a
  * built-in locale has no row until an admin changes something about it, and
  * even then the row carries only `enabled`/`sortOrder`. Callers that need the
  * full presentation record (names, dir, font) merge these rows over the
  * compiled `LOCALES` registry from `@adminium/i18n` — the meta store cannot
- * import that package (01-architecture.md §2.3 import matrix), so the merge
- * lives in the server layer and this repo stays a dumb, typed row store.
+ * import that package (import matrix), so the merge lives in the server layer
+ * and this repo stays a dumb, typed row store.
  *
  * Every mutating method bumps `settings['i18n.version']` in the SAME
- * transaction (§3.4). The bump belongs here rather than in a route handler
- * because config-bundle import has no HTTP route at all — it writes through
- * repos — and a route-level bump would leave every client serving stale
- * strings after an import, indefinitely.
+ * transaction. The bump belongs here rather than in a route handler because
+ * config-bundle import has no HTTP route at all — it writes through repos —
+ * and a route-level bump would leave every client serving stale strings
+ * after an import, indefinitely.
  */
 
 import type { Selectable } from 'kysely';
@@ -52,7 +52,7 @@ export interface CustomLocaleInput {
   native: string;
   dir: LocaleDir;
   fontHint: LocaleFontHint;
-  /** A real BCP-47 tag whose Intl behaviour this locale borrows (§5.6). */
+  /** A real BCP-47 tag whose Intl behaviour this locale borrows. */
   intlTag: string;
   /** Frozen at create time from `intlTag` so write validation is stable. */
   pluralCategories: string[];
@@ -60,7 +60,7 @@ export interface CustomLocaleInput {
   sortOrder?: number | undefined;
 }
 
-/** The only fields a BUILT-IN row may carry (§3.1 built-in field lock). */
+/** The only fields a BUILT-IN row may carry (built-in field lock). */
 export interface BuiltinLocaleInput {
   enabled?: boolean | undefined;
   sortOrder?: number | undefined;
@@ -224,8 +224,8 @@ export function localesRepo(meta: MetaDb) {
 
     /**
      * Delete the registry row. Reassigning the users/settings/templates that
-     * referenced the locale is the CALLER's job (23 §5.7) — this repo owns
-     * one table and deliberately does not reach across the store.
+     * referenced the locale is the CALLER's job — this repo owns one table
+     * and deliberately does not reach across the store.
      */
     async remove(
       locale: string,

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod request/response schemas for `routes/llm/` (06-llm-assist.md §10.5, §3.2).
+ * Zod request/response schemas for `routes/llm/`.
  *
  * The API key is WRITE-ONLY: `PUT /config` accepts `apiKey`, but no reply schema
  * here ever carries it — `GET /config` returns `apiKeySet` + `apiKeyLast4` only
- * (§3.2, acceptance #10). The shapes are mirrored verbatim by the dashboard
- * client `apps/dashboard/src/studio/ai/api.ts` (the copied-mirror convention —
- * change both together; the dashboard cannot import `@adminium/llm`).
+ * (acceptance #10). The shapes are mirrored verbatim by the dashboard client
+ * `apps/dashboard/src/studio/ai/api.ts` (the copied-mirror convention — change
+ * both together; the dashboard cannot import `@adminium/llm`).
  */
 
 import { z } from 'zod';
@@ -22,7 +22,7 @@ export const llmProviderSchema = z.enum([
   'adminium-managed',
 ]);
 
-/** The eight canonical locales (§6.1 `LOCALES`); `en_US` is always required. */
+/** The eight canonical locales (`LOCALES`); `en_US` is always required. */
 export const llmLocaleSchema = z.enum([
   'en_US',
   'de_DE',
@@ -34,7 +34,7 @@ export const llmLocaleSchema = z.enum([
   'fr_FR',
 ]);
 
-/** The ten decision groups (§4.4 `REQUESTED_SECTIONS`). */
+/** The ten decision groups (`REQUESTED_SECTIONS`). */
 export const llmSectionSchema = z.enum([
   'labels',
   'groups',
@@ -48,16 +48,16 @@ export const llmSectionSchema = z.enum([
   'microcopy',
 ]);
 
-/** Sampling opt-in (§4.2); `null` = sample-free (default). */
+/** Sampling opt-in; `null` = sample-free (default). */
 export const llmSamplingSchema = z
   .object({ maxValuesPerColumn: z.number().int().min(1).max(100) })
   .nullable();
 
-// ─── Config (§3.2) ───────────────────────────────────────────────────────────
+// ─── Config ──────────────────────────────────────────────────────────────────
 
 /**
- * `GET /config` reply. NEVER the key — `apiKeySet` + last-4 only (§3.2,
- * acceptance #10). `apiKeyLast4` is `null` unless a key is stored.
+ * `GET /config` reply. NEVER the key — `apiKeySet` + last-4 only
+ * (acceptance #10). `apiKeyLast4` is `null` unless a key is stored.
  */
 export const llmConfigReply = z.object({
   provider: llmProviderSchema.nullable(),
@@ -71,8 +71,7 @@ export type LlmConfigReply = z.infer<typeof llmConfigReply>;
 
 /**
  * `PUT /config` body. `apiKey` is write-only; the empty string clears it,
- * `undefined`/absent leaves the stored key untouched (§3.2 "PUT with a new key
- * overwrites; there is no read-back").
+ * `undefined`/absent leaves the stored key untouched.
  */
 export const llmConfigPutBody = z.object({
   provider: llmProviderSchema.nullable(),
@@ -110,7 +109,7 @@ export const llmRunDto = z.object({
   snapshotId: z.string(),
   /** `provider` = direct-API path, `byo` = copy-paste round-trip. */
   mode: z.enum(['provider', 'byo']),
-  /** NULL for BYO runs (§9 telemetry-free guarantee). */
+  /** NULL for BYO runs (telemetry-free guarantee). */
   provider: z.string().nullable(),
   model: z.string().nullable(),
   promptVersion: z.string(),
@@ -140,7 +139,7 @@ export const llmRunDto = z.object({
 });
 export type LlmRunDto = z.infer<typeof llmRunDto>;
 
-/** One validation failure (mirrors `@adminium/llm` `LlmValidationError`, §7.2). */
+/** One validation failure (mirrors `@adminium/llm` `LlmValidationError`). */
 export const llmValidationErrorSchema = z.object({
   code: z.string(),
   severity: z.enum(['fatal', 'item', 'warning']),
@@ -179,7 +178,7 @@ export type LlmProviderRunErrorDto = z.infer<typeof llmProviderRunErrorSchema>;
 export const llmRunErrorSchema = z.union([llmProviderRunErrorSchema, llmValidationErrorSchema]);
 export type LlmRunErrorDto = z.infer<typeof llmRunErrorSchema>;
 
-/** Accepted/rejected suggestion-id lists persisted on a reviewed run (§8.3). */
+/** Accepted/rejected suggestion-id lists persisted on a reviewed run. */
 export const llmRunReviewSchema = z.object({
   accepted: z.array(z.string()),
   rejected: z.array(z.string()),
@@ -196,7 +195,7 @@ export type LlmRunDetailDto = z.infer<typeof llmRunDetailDto>;
 export const llmPromptChunk = z.object({
   index: z.number().int().min(1),
   total: z.number().int().min(1),
-  /** The flattened copyable document (byte-identical between the markers, §1). */
+  /** The flattened copyable document (byte-identical between the markers). */
   byo: z.string(),
 });
 
@@ -205,11 +204,11 @@ export const createRunBody = z.object({
   connectionId: z.string().min(1),
   /** `provider` = direct API path, `byo` = copy-paste round-trip. */
   path: z.enum(['provider', 'byo']),
-  /** Empty/absent ⇒ all ten sections (§4.4). */
+  /** Empty/absent ⇒ all ten sections. */
   sections: z.array(llmSectionSchema).optional(),
   /** Requested locales; `en_US` is enforced. Default `['en_US']`. */
   locales: z.array(llmLocaleSchema).min(1).optional(),
-  /** Sampling opt-in; default sample-free (§4.2). */
+  /** Sampling opt-in; default sample-free. */
   sampling: llmSamplingSchema.optional(),
 });
 export type CreateRunBody = z.infer<typeof createRunBody>;
@@ -231,7 +230,7 @@ export const runIdParams = z.object({ id: z.string().min(1) });
 export const runsListQuery = z.object({ connectionId: z.string().min(1) });
 export const runsListReply = z.object({ runs: z.array(llmRunDto) });
 
-/** `POST /runs/:id/response` body — a pasted BYO chunk (§10.2 step 4). */
+/** `POST /runs/:id/response` body — a pasted BYO chunk. */
 export const runResponseBody = z.object({
   /** 1-based chunk index (unchunked runs omit it). */
   chunkIndex: z.number().int().min(1).optional(),
@@ -258,7 +257,8 @@ export const runPromptReply = z.object({
 });
 export type RunPromptReply = z.infer<typeof runPromptReply>;
 
-/** One reviewed suggestion diff row (mirrors `@adminium/llm` `SuggestionDiff`, §8.2). */
+/** One reviewed suggestion diff row (mirrors `@adminium/llm` `SuggestionDiff`).
+ * */
 export const suggestionDiffSchema = z.object({
   id: z.string(),
   category: z.string(),
@@ -275,7 +275,7 @@ export type SuggestionDiffDto = z.infer<typeof suggestionDiffSchema>;
 export const runDiffReply = z.object({ diff: z.array(suggestionDiffSchema) });
 export type RunDiffReply = z.infer<typeof runDiffReply>;
 
-/** `POST /runs/:id/apply` body — the accepted suggestion-id set (§8.3). */
+/** `POST /runs/:id/apply` body — the accepted suggestion-id set. */
 export const runApplyBody = z.object({ accepted: z.array(z.string()) });
 export type RunApplyBody = z.infer<typeof runApplyBody>;
 
@@ -291,8 +291,8 @@ export const runApplyReply = z.object({
   }),
   review: llmRunReviewSchema,
   /**
-   * Single-use undo token backing the success-toast Undo action (§10.3); `null`
-   * when the apply wrote nothing to revert. The review screen parks it in the
+   * Single-use undo token backing the success-toast Undo action; `null` when
+   * the apply wrote nothing to revert. The review screen parks it in the
    * app-wide undo contract and `POST /runs/:id/undo/:token` consumes it.
    */
   undoToken: z.string().nullable(),

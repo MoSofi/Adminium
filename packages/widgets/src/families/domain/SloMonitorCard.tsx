@@ -27,20 +27,20 @@ import { OpsEmpty } from './OpsEmpty.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `slo-monitor-card` (annex §13) — a per-service SLA card: status rule, icon
- * tile, status pill, mono endpoint, current% against target%, the trailing daily
+ * `slo-monitor-card` (annex) — a per-service SLA card: status rule, icon tile,
+ * status pill, mono endpoint, current% against target%, the trailing daily
  * uptime sparkline (height + color by Operational/Degraded/Down), a
  * threshold-colored error-budget bar, and p95 latency. Evidence: SLA Monitoring.
  *
- * DIRECTION (10-i18n-theming.md §5.5) — the sparkline here is NOT a time axis
- * island. It is a compact trailing-history glyph, ~30 undated bars with no axis,
- * no labels and no origin to align a gutter to; nothing in it anchors a reader
- * to "left = older" the way the gantt's dated canvas does. So the whole card
- * mirrors as one unit: the bar strip is a plain flex row that reverses under
- * `dir="rtl"`, keeping "newest" at the reading END in both directions — which is
- * where a reader's eye lands last, and therefore where "now" belongs. The
- * status rule rides `border-s-*` for the same reason (annex "status left-border"
- * means the START of the row, not its physical left).
+ * DIRECTION — the sparkline here is NOT a time axis island. It is a compact
+ * trailing-history glyph, ~30 undated bars with no axis, no labels and no origin
+ * to align a gutter to; nothing in it anchors a reader to "left = older" the way
+ * the gantt's dated canvas does. So the whole card mirrors as one unit: the bar
+ * strip is a plain flex row that reverses under `dir="rtl"`, keeping "newest" at
+ * the reading END in both directions — which is where a reader's eye lands last,
+ * and therefore where "now" belongs. The status rule rides `border-s-*` for the
+ * same reason (annex "status left-border" means the START of the row, not its
+ * physical left).
  *
  * ORDERING CONTRACT: `history` arrives OLDEST → NEWEST and is rendered in that
  * order. `flex-row` + `dir="rtl"` does the mirroring; the array is never
@@ -72,7 +72,7 @@ const STATUS_FALLBACK: Record<UptimeState, string> = {
 
 /**
  * Literal bundle key per state — indexed, never assembled, so the extractor
- * sees all four and a new `UptimeState` fails the build (10 §2.5).
+ * sees all four and a new `UptimeState` fails the build.
  */
 const STATUS_KEY = {
   operational: 'ui:widgets.domain.sloMonitorCard.status.operational',

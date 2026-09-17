@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `column-mapping-table` (annex §10) — a 3-column grid mapping source columns →
+ * `column-mapping-table` (annex) — a 3-column grid mapping source columns →
  * target fields, with sample values and a target picker per row (including
  * "Don't import"). Evidence: Import Wizard — the page the annex says always
- * composes `upload-dropzone` + this + `validation-issues-list` + `progress-bar`.
+ * composes `upload-dropzone` + this + `validation-issues-list` +
+ * `progress-bar`.
  *
  * PRESENTATIONAL: the mapping lives in local state and every change is a
- * `mutate` intent (04 §2.1). The widget never imports a row.
+ * `mutate` intent. The widget never imports a row.
  *
- * Binds §3 `record-list`: the ROWS are the source columns, so a payload with no
+ * Binds `record-list`: the ROWS are the source columns, so a payload with no
  * columns really is an empty widget (unlike the builders, which start empty by
  * design) and the frame's empty state is the right answer.
  */
@@ -36,8 +37,8 @@ export interface MappingRow {
 }
 
 /**
- * Project the §3 `record-list` payload onto mapping rows, applying `autoMatch`
- * to columns the payload leaves unmapped.
+ * Project the `record-list` payload onto mapping rows, applying `autoMatch` to
+ * columns the payload leaves unmapped.
  *
  * An EXPLICIT target in the payload always wins over a suggestion — including
  * `SKIP_TARGET`. That is the whole reason skip is a sentinel rather than an

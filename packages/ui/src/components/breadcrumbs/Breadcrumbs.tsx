@@ -25,7 +25,7 @@ export interface BreadcrumbsProps extends Omit<ComponentPropsWithRef<'nav'>, 'ch
 /**
  * Breadcrumbs — links + chevron separators (RTL-mirrored), optional mono
  * segments, `nav > ol` semantics with `aria-current="page"` on the last item
- * (research/design-system.md §3 Tier 3).
+ * (research/design-system.md Tier 3).
  */
 export function Breadcrumbs({ items, label, className, ...props }: BreadcrumbsProps) {
   return (

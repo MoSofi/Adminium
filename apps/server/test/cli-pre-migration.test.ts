@@ -190,7 +190,7 @@ describe('the pre-migration snapshot', () => {
 
     const [name] = await archives();
     const bytes = await readFile(join(dir, 'backups', name as string));
-    // fflate's zip stores member paths verbatim; §9's layout is meta.db +
+    // fflate's zip stores member paths verbatim; the layout is meta.db +
     // manifest.json, and neither exists in an `export-zip` bundle.
     const text = bytes.toString('latin1');
     expect(text).toContain('meta.db');
@@ -375,7 +375,7 @@ describe('when the snapshot cannot be written', () => {
 
 describe('exit codes', () => {
   it('adds 78 without renumbering the published triple', () => {
-    // 06 §10.4 is an API: scripts branch on 2 and 3. 78 is sysexits(3) EX_CONFIG.
+    // The exit codes are an API: scripts branch on 2 and 3. 78 is sysexits(3) EX_CONFIG.
     expect([EXIT_OK, EXIT_ERROR, EXIT_VALIDATION_FAILED, EXIT_NOTHING_ACCEPTED]).toEqual([
       0, 1, 2, 3,
     ]);

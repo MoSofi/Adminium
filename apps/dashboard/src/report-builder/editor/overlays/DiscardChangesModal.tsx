@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Leaving the editor with unsaved changes (43-report-builder.md D4/O6): the
- * confirm-modal anatomy reading *Discard unsaved changes?* with *Keep
- * editing* / *Discard*. Undrawn in the comp, which autosaves (524) and so
- * never has anything to discard; an addition the explicit-save model forces
- * (Appendix A E4).
+ * Leaving the editor with unsaved changes: the confirm-modal anatomy
+ * reading *Discard unsaved changes?* with *Keep editing* / *Discard*.
+ * Undrawn in the comp, which autosaves (524) and so never has anything to
+ * discard; an addition the explicit-save model forces (Appendix A E4).
  */
 import { TriangleAlert } from 'lucide-react';
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@adminium/ui';

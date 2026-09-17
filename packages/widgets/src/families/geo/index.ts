@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `geo` family public surface (annex §7) — the bubble map and the region-coded
+ * `geo` family public surface (annex) — the bubble map and the region-coded
  * tilegram, plus the TRACK COMM-GEO registry metadata. Component code is also
  * reachable through each definition's `lazy()` ref, so the registry still emits
- * one chunk per family (04 §2.3); this barrel is for direct template/story
- * composition and tests. Registry metadata lives in `geo-track.definitions.ts`;
- * schemas + demo generators in `geo-config.ts`.
+ * one chunk per family; this barrel is for direct template/story composition
+ * and tests. Registry metadata lives in `geo-track.definitions.ts`; schemas +
+ * demo generators in `geo-config.ts`.
  *
  * Note that importing this barrel does NOT pull Leaflet: `MapBubble.tsx` loads
  * it dynamically inside its mount effect (acceptance #3).

@@ -1,29 +1,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Direct-API path runner (06-llm-assist.md §7.5, §10.2 step 3, acceptance #6).
+ * Direct-API path runner (acceptance #6).
  *
  * The provider-agnostic core the `llm-run` job handler drives: given the
  * per-chunk prompts, a {@link ProviderClient}, and a `validate` closure, it runs
- * the map phase (one provider round-trip per chunk, with the §7.5 repair loop),
- * then reduces the per-chunk `LlmResponseV1` results into one via the browser-safe
+ * the map phase (one provider round-trip per chunk, with the repair loop), then
+ * reduces the per-chunk `LlmResponseV1` results into one via the browser-safe
  * `@adminium/llm` merge. It is DELIBERATELY free of `@adminium/meta` / persistence
  * / the jobs runtime so it stays a pure, unit-testable function — the handler
  * (`jobs/llm-run.ts`) owns run-state persistence and progress fan-out.
  *
- * §7.5 repair loop (per chunk):
+ * The repair loop (per chunk):
  *  - A clean reply (no FATAL error) ends the chunk. Per-item (referential) errors
  *    are review-time information and NEVER trigger a repair.
  *  - A FATAL stage-1–4 failure sends a repair turn — the model's bad output as an
- *    `assistant` message, then the exact §7.5 `user` message carrying the error
- *    list — up to {@link DEFAULT_MAX_REPAIRS} (2) times.
+ * `assistant` message, then the exact `user` message carrying the error list — up
+ *    to {@link DEFAULT_MAX_REPAIRS} (2) times.
  *  - `LLM_TRUNCATED` first raises `maxTokens` to the provider ceiling and retries
- *    the SAME messages, WITHOUT consuming a repair attempt (§7.5). Only once the
- *    budget is already at the ceiling does a further truncation cost a repair.
+ * the SAME messages, WITHOUT consuming a repair attempt. Only once the budget is
+ *    already at the ceiling does a further truncation cost a repair.
  *  - Initial attempt + 2 exhausted repairs = 3 consecutive failures → the run
  *    fails with the last error list preserved.
  *
- * Temperature is pinned to 0 on every call (determinism mandate, §3.1). The API
- * key lives only inside the injected client; nothing here logs or returns it.
+ * Temperature is pinned to 0 on every call (determinism mandate). The API key
+ * lives only inside the injected client; nothing here logs or returns it.
  */
 import {
   isFatal,
@@ -35,10 +35,10 @@ import {
   type ValidationResult,
 } from '@adminium/llm';
 
-/** Max repair turns per chunk before the run fails (§7.5). */
+/** Max repair turns per chunk before the run fails. */
 export const DEFAULT_MAX_REPAIRS = 2;
 
-/** Longest error list embedded in a repair message (§7.5 "max 20"). */
+/** Longest error list embedded in a repair message. */
 export const MAX_REPAIR_ERRORS = 20;
 
 /** One map-phase prompt: the direct-path `system` + initial `user` messages. */
@@ -71,7 +71,7 @@ export function isProviderRunError(error: RunFailureError): error is ProviderRun
   return (error as ProviderRunError).kind === 'provider';
 }
 
-/** Progress phases (§10.2 step 3), mapped to hub events by the handler. */
+/** Progress phases, mapped to hub events by the handler. */
 export type RunnerPhase =
   | { phase: 'building' }
   | { phase: 'sending'; chunk: number; total: number; provider: string; model: string }
@@ -91,17 +91,17 @@ export interface DirectRunInput {
   provider: string;
   /** Initial response budget (`maxTokens`); default provider budget when unset. */
   maxTokens: number;
-  /** Ceiling `maxTokens` is raised to on `LLM_TRUNCATED` before a repair (§7.5). */
+  /** Ceiling `maxTokens` is raised to on `LLM_TRUNCATED` before a repair. */
   maxTokensCeiling: number;
   /** Validate one raw reply against the run's snapshot + registries. */
   validate(rawText: string): ValidationResult;
-  /** Progress sink (§10.2). */
+  /** Progress sink. */
   onProgress?: (event: RunnerPhase) => void;
   /** Called after each chunk validates cleanly — persists `chunks_received`. */
   onChunkComplete?: (received: number) => void | Promise<void>;
-  /** Cooperative cancellation; checked at every turn boundary (§10.2). */
+  /** Cooperative cancellation; checked at every turn boundary. */
   signal?: AbortSignal;
-  /** Max repair turns per chunk (§7.5 = 2). */
+  /** Max repair turns per chunk (= 2). */
   maxRepairs?: number;
 }
 
@@ -128,8 +128,9 @@ export type DirectRunOutcome =
   | { status: 'cancelled'; chunksReceived: number };
 
 /**
- * Build the §7.5 repair `user` message VERBATIM. The error list renders each
- * failure as `code, JSON path, message`, capped at {@link MAX_REPAIR_ERRORS}.
+ * Build the repair `user` message VERBATIM. The error list renders each
+ * failure as `code, JSON path, message`, capped at {@link
+ * MAX_REPAIR_ERRORS}.
  */
 export function buildRepairMessage(errors: readonly LlmValidationError[]): string {
   const list = errors
@@ -223,7 +224,7 @@ export async function runDirectPath(input: DirectRunInput): Promise<DirectRunOut
 
   if (input.signal?.aborted) return { status: 'cancelled', chunksReceived };
 
-  // Reduce phase — deterministic, order-independent (§4.5, acceptance #7).
+  // Reduce phase — deterministic, order-independent (acceptance #7).
   const merged = mergeChunkResponses(responses);
   input.onProgress?.({ phase: 'done', suggestions: countSuggestions(merged) });
 
@@ -238,7 +239,7 @@ export async function runDirectPath(input: DirectRunInput): Promise<DirectRunOut
   };
 }
 
-/** One chunk's map phase: send → validate → repair loop (§7.5). */
+/** One chunk's map phase: send → validate → repair loop. */
 async function runChunk(
   chunk: RunnerChunk,
   input: DirectRunInput,
@@ -262,7 +263,7 @@ async function runChunk(
 
     let reply: { text: string; usage?: { inputTokens: number; outputTokens: number } };
     try {
-      // Temperature pinned 0 — determinism mandate (§3.1).
+      // Temperature pinned 0 — determinism mandate.
       reply = await input.client.complete({
         system: chunk.system,
         messages: messages.map((message) => ({ ...message })),
@@ -293,7 +294,7 @@ async function runChunk(
     const fatals = validation.errors.filter(isFatal);
     const truncated = fatals.some((error) => error.code === 'LLM_TRUNCATED');
 
-    // Truncation escalates the budget once, for free, before any repair (§7.5).
+    // Truncation escalates the budget once, for free, before any repair.
     if (truncated && maxTokens < input.maxTokensCeiling) {
       maxTokens = input.maxTokensCeiling;
       input.onProgress?.({
@@ -306,7 +307,7 @@ async function runChunk(
     }
 
     if (repairs >= maxRepairs) {
-      // Initial attempt + `maxRepairs` failed = 3 consecutive failures (§7.5).
+      // Initial attempt + `maxRepairs` failed = 3 consecutive failures.
       return { kind: 'failed', errors: [...validation.errors] };
     }
 

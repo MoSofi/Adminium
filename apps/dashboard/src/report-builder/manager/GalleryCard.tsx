@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * One gallery card (43-report-builder.md Appendix A M10, M12; comp 178-210):
- * the thumbnail region with the mini sheet, the starter's accent-tinted icon
- * tile, name + meta and the status pill, and the action row — Edit ·
- * Duplicate · Rename · Delete — sliding in on hover AND on focus-within so a
- * keyboard reaches every one (invisible at rest, so the comp's picture is
- * unchanged; 39 D17).
+ * One gallery card (M10, M12; comp 178-210): the thumbnail region with the
+ * mini sheet, the starter's accent-tinted icon tile, name + meta and the
+ * status pill, and the action row — Edit · Duplicate · Rename · Delete —
+ * sliding in on hover AND on focus-within so a keyboard reaches every one
+ * (invisible at rest, so the comp's picture is unchanged).
  */
 import type { KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@adminium/ui';

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two desktop-only setup endpoints (11-electron.md §6 step 2), as the
- * wizard's cards 1 and 4 call them.
+ * The two desktop-only setup endpoints, as the wizard's cards 1 and 4
+ * call them.
  *
  * Shapes mirror the server's Zod reply schemas
  * (`apps/server/src/routes/desktop-{local-db,demo}/schema.ts`) — the type-only
  * copy convention from `studio/api.ts` and `app/bootstrap.ts` applies (the
- * dashboard may not import server runtime code, 01-architecture.md §2.3). Change
- * both together.
+ * dashboard may not import server runtime code). Change both together.
  *
  * Cards 2 and 3 are NOT here, and their absence is the design: "Open an existing
  * SQLite file" and "Connect to a server database" are both
@@ -39,7 +38,7 @@ export interface LocalDatabaseResult {
 
 export interface CreateLocalDatabaseInput {
   name: string;
-  /** Absent ⇒ a blank database; present ⇒ §6's "From a schema file". */
+  /** Absent ⇒ a blank database; present ⇒ "From a schema file". */
   schemaFile?: { content: string; format?: string | undefined; fileName?: string | undefined };
   /** `Connect Database.dc.html`'s "Auto-generate placeholder entries". */
   placeholderRows: boolean;
@@ -74,7 +73,7 @@ export interface DemoDatabaseResult {
 }
 
 /**
- * §6 step 2 card 4. A 409 `CONFLICT` means a connection already points at the
+ * The demo card. A 409 `CONFLICT` means a connection already points at the
  * demo file; `details.connectionId` names it, so the caller can route to the
  * existing demo rather than offer a retry that can never succeed. See
  * {@link demoConflictConnectionId}.

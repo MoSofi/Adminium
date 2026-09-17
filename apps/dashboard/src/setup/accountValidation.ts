@@ -2,11 +2,11 @@
 /**
  * Account-field validation, shared by the wizard that asks for them.
  *
- * Lifted out of the two-step `FirstRunWizard.tsx` by 45-T04 unchanged, because
- * three screens collect the same four fields — first-run onboarding, the
- * desktop setup host, and the wizard that used to own it — and a second copy of
- * "what is a valid password" would drift the moment one of them changed.
- * 45-T10 retired that file; this is the only home.
+ * Lifted out of the two-step `FirstRunWizard.tsx` by unchanged, because three
+ * screens collect the same four fields — first-run onboarding, the desktop
+ * setup host, and the wizard that used to own it — and a second copy of "what
+ * is a valid password" would drift the moment one of them changed. The wizard
+ * retired that file; this is the only home.
  *
  * Client-side purely for fast feedback: the server re-validates everything
  * (`auth.passwordMinLength`) and is the authority, so drift here is a UX bug

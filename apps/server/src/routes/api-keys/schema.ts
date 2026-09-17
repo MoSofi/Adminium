@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the api-keys resource (08-server-api.md §2.16). The full
- * secret appears exactly once — in `apiKeyCreateReply.key` ("Copy it now —
- * you won't be able to see it again.", `API Keys.dc.html`). List and
- * detail replies never carry secret material (CI grep guard §7 item 6).
+ * Zod schemas for the api-keys resource. The full secret appears exactly
+ * once — in `apiKeyCreateReply.key` ("Copy it now — you won't be able to
+ * see it again.", `API Keys.dc.html`). List and detail replies never carry
+ * secret material (CI grep guard).
  */
 import { z } from 'zod';
 
@@ -12,7 +12,7 @@ export const apiKeyDto = z.object({
   name: z.string(),
   /** Display fragment, e.g. `adm_sk_4f2a91cd`. */
   prefix: z.string(),
-  /** The key acts with this role's permissions (07 §3.7). */
+  /** The key acts with this role's permissions. */
   roleId: z.string(),
   createdBy: z.string().nullable(),
   lastUsedAt: z.number().nullable(),
@@ -27,7 +27,7 @@ export type ApiKeyListReply = z.infer<typeof apiKeyListReply>;
 
 export const apiKeyCreateBody = z.object({
   name: z.string().min(1).max(80),
-  /** Scope source: the key acts with this role's grant set (§2.16/§8). */
+  /** Scope source: the key acts with this role's grant set. */
   roleId: z.string(),
   expiresAt: z.number().int().positive().optional(),
 });
@@ -37,7 +37,7 @@ export const apiKeyCreateReply = z.object({
   apiKey: apiKeyDto,
   /** One-time reveal — never returned by any other route. */
   key: z.string(),
-  /** The role's §5.1 grant strings at create time (informational). */
+  /** The role's grant strings at create time (informational). */
   scopes: z.array(z.string()),
 });
 export type ApiKeyCreateReply = z.infer<typeof apiKeyCreateReply>;

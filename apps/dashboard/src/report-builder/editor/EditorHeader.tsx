@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The editor's header row (comp 249-271; 43-report-builder.md Appendix A
- * E1–E11): kind pill · inline name · save chip · undo/redo · Duplicate ·
- * Delete · primary. Sticky under the shell's topbar, blurred like the comp's.
+ * The editor's header row (comp 249-271; E1–E11): kind pill · inline
+ * name · save chip · undo/redo · Duplicate · Delete · primary. Sticky
+ * under the shell's topbar, blurred like the comp's.
  *
  * Back is NOT here: the shell's topbar owns the back affordance (published
  * through `PageActions backTo`), and the discard guard is a router blocker,
@@ -14,8 +14,7 @@
  * THE PRIMARY (comp 268, 686; D5/O2): a template's is *Save template* with
  * `save`; a report's is *Publish* with `send` — it saves AND sets
  * `status: 'sent'` (*Published*), which is the smallest thing the comp's own
- * status vocabulary supports. Nothing is rendered, printed or sent (43 §5
- * item 1).
+ * status vocabulary supports. Nothing is rendered, printed or sent.
  */
 import type { FocusEvent, Ref } from 'react';
 import { Button, IconButton, Tag, cn } from '@adminium/ui';

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * MySQL/MariaDB COLUMN_TYPE → portable LogicalType mapping —
- * 05-introspection-engine.md §2.2 ("canonical table — extend, never fork"),
- * MySQL/MariaDB column, plus the §4.2 type notes.
+ * ("canonical table — extend, never fork"), MySQL/MariaDB column, plus the
+ * type notes.
  *
  * Input is the verbatim `information_schema.COLUMNS.COLUMN_TYPE` string
  * (e.g. `varchar(120)`, `int unsigned`, `tinyint(1)`, `enum('a','b')`) so the
  * mapping is pure and unit-testable offline — no driver, no server.
  *
- * DOCUMENTED POLICY (05 §4.2): `tinyint(1)` maps to `boolean` (the mysql2 /
- * classic connector convention — MySQL has no native boolean and `BOOLEAN`
- * DDL compiles to `tinyint(1)`). Any other tinyint width is an integer.
+ * DOCUMENTED POLICY: `tinyint(1)` maps to `boolean` (the mysql2 / classic
+ * connector convention — MySQL has no native boolean and `BOOLEAN` DDL
+ * compiles to `tinyint(1)`). Any other tinyint width is an integer.
  * `set(...)` degrades to `text` (the assembler emits a warning). `year` maps
  * to `integer` with a warning. `datetime` (no zone) → `timestamp`;
  * `timestamp` (UTC-normalized by the server) → `timestamptz`.
@@ -72,7 +72,7 @@ const BASE_TYPE_MAP: Readonly<Record<string, LogicalType>> = {
   uuid: 'uuid',
   inet4: 'inet',
   inet6: 'inet',
-  // spatial (flag; rendered read-only as text in v1 — 05 §2.2)
+  // spatial (flag; rendered read-only as text in v1)
   geometry: 'geometry',
   point: 'geometry',
   linestring: 'geometry',
@@ -203,14 +203,14 @@ export function parseEnumValues(columnType: string): string[] | null {
 /**
  * Map a verbatim MySQL/MariaDB COLUMN_TYPE to its portable shape.
  * Unmappable types become `'unknown'` with the verbatim `dbType` preserved
- * by the caller (rendered read-only as text — 05 §2.2).
+ * by the caller (rendered read-only as text).
  */
 export function mapMysqlType(columnType: string): MappedMysqlType {
   const lowered = columnType.trim().toLowerCase();
   const unsigned = /\bunsigned\b/.test(lowered);
 
   // enum(...) / set(...) carry their value list inside the parens — handle
-  // before modifier stripping. set(...) degrades to text (05 §4.2).
+  // before modifier stripping. set(...) degrades to text.
   if (lowered.startsWith('enum(') || lowered.startsWith('enum (')) {
     return {
       logicalType: 'enum',
@@ -264,7 +264,7 @@ export function mapMysqlType(columnType: string): MappedMysqlType {
   }
 
   if (base === 'year') warning = 'year-as-integer';
-  // `int unsigned` (and up) exceeds int4 range — flagged per 05 §4.2.
+  // `int unsigned` (and up) exceeds int4 range — flagged.
   else if (unsigned && (base === 'int' || base === 'integer' || base === 'bigint')) {
     warning = 'unsigned-overflow';
   }
@@ -277,7 +277,7 @@ const UUID_DEFAULT = /^uuid\(\)$/i;
 const LITERAL_DEFAULT = /^('(?:[^']|'')*'|-?\d+(\.\d+)?|true|false|b'[01]+')$/i;
 
 /**
- * Classify a column default — 05 §4.2: `EXTRA` carries `auto_increment`,
+ * Classify a column default: `EXTRA` carries `auto_increment`,
  * generated-column markers, and MySQL 8 `DEFAULT_GENERATED` expression
  * defaults; `COLUMN_DEFAULT` carries the value text (MariaDB quotes string
  * literals, MySQL 8 does not — both spellings are accepted).

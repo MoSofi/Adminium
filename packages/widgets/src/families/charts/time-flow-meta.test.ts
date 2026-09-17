@@ -3,7 +3,7 @@
  * Metadata-layer tests for the M7 "time, forecast & flow" charts group: config
  * schema parsing + per-widget default empty copy, deterministic seeded demo
  * payloads (acceptance #11), and the declared data-contract emptiness
- * predicates (04 §3/§4). Imports only the pure config/demo modules, so it runs
+ * predicates. Imports only the pure config/demo modules, so it runs
  * independently of the green-loop-assembled component barrel.
  */
 import { describe, expect, it } from 'vitest';

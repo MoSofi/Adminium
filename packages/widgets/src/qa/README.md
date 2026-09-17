@@ -1,4 +1,4 @@
-# Widget QA harness (04-T17)
+# Widget QA harness
 
 The permanent gate every Wave-1 widget passes. Lives in `packages/widgets/src/qa`;
 runs under the package's vitest project (`pnpm --filter @adminium/widgets test`).
@@ -15,9 +15,9 @@ runs under the package's vitest project (`pnpm --filter @adminium/widgets test`)
 | `qa-widgets.stories.tsx` | #4/#9 | Storybook story per family rendering every widget × four states, tagged `vrt` for the light/dark × LTR/RTL screenshot matrix, with a per-story axe (addon-a11y) pass. |
 
 Source of truth: `annex-catalog.ts` (verbatim ids from the internal
-widget-registry annex, §1–§13). Harness coverage set:
-`delivered.ts` (aggregates the per-track definition arrays directly, so it
-exercises every delivered widget regardless of GREEN-LOOP registry wiring).
+widget-registry annex). Harness coverage set: `delivered.ts` (aggregates
+the per-track definition arrays directly, so it exercises every delivered
+widget regardless of GREEN-LOOP registry wiring).
 
 ## Known-pending (ratchets, not failures)
 
@@ -25,12 +25,11 @@ Two out-of-scope dependencies are handled as **ratchets** — the gate is writte
 correctly and auto-activates as each dependency lands, staying green until then
 and logging exactly what is outstanding:
 
-1. **GREEN-LOOP registry wiring.** `registry/index.ts` currently imports only the
-   M4 slice; the 37 Track-F / 04-T09 widgets exist as per-track definition
-   modules but are not yet spread into the live `widgetRegistry`.
-   `registry-parity.test.ts` gates the assembled-equivalent (`qaRegistry`) now and
-   skips the live-`widgetRegistry` assertion with a warning until the loop wires
-   them.
+1. **GREEN-LOOP registry wiring.** `registry/index.ts` currently imports only the M4
+   slice; the 37 Track-F / widgets exist as per-track definition modules but are not
+   yet spread into the live `widgetRegistry`. `registry-parity.test.ts` gates the
+   assembled-equivalent (`qaRegistry`) now and skips the live-`widgetRegistry`
+   assertion with a warning until the loop wires them.
 
 2. **`@adminium/charts` barrel assembly.** 17-18 chart widgets import primitives
    (`Sunburst`, `Funnel`, `Sankey`, `CohortMatrixChart`, …) that the built

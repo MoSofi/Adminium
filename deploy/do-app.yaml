@@ -1,7 +1,7 @@
 # DigitalOcean App Platform — Adminium as a container with a MANAGED Postgres as
 # the meta store. App Platform containers have no persistent local disk, so the
-# embedded SQLite store would be wiped on every deploy (workplan 17 §7.3); the
-# managed database's connection string is bound to ADMINIUM_META_URL natively via
+# embedded SQLite store would be wiped on every deploy (workplan); the managed
+# database's connection string is bound to ADMINIUM_META_URL natively via
 # ${adminium-meta.DATABASE_URL} — DigitalOcean's own binding token for that
 # database, not an Adminium variable. ADMINIUM_SOURCE_URL, which IS one (the
 # first-boot source-connection seed), is deliberately NOT set: the meta database
@@ -10,12 +10,11 @@
 #
 # THE MISSING DISK COSTS YOU FILES TOO, and that is a SECOND thing to set.
 # Uploads, record attachments, export artifacts, the branding logo and imported
-# schema files are all written through one storage seam (37-files-and-storage.md
-# §3.1), which defaults to ADMINIUM_DATA_DIR/files — a directory that does not
-# survive a redeploy here. A storage destination is therefore REQUIRED on App
-# Platform, not optional, and it must exist before the first boot. Create a
-# Space (and, if you want CDN URLs, enable its CDN), then add a second
-# encrypted app-level secret:
+# schema files are all written through one storage seam, which defaults to
+# ADMINIUM_DATA_DIR/files — a directory that does not survive a redeploy here. A
+# storage destination is therefore REQUIRED on App Platform, not optional, and
+# it must exist before the first boot. Create a Space (and, if you want CDN
+# URLs, enable its CDN), then add a second encrypted app-level secret:
 #
 #   ADMINIUM_STORAGE_URL=s3://<space>?endpoint=https://<region>.digitaloceanspaces.com&region=<region>&pathStyle=0&accessKey=...&secretKey=...
 #
@@ -27,13 +26,51 @@
 # Platform UI or with `doctl`, as an encrypted secret, exactly like
 # ADMINIUM_SECRET.
 #
+# WHAT EVERY DEPLOY WIPES, AND NO VARIABLE CHANGES IT. App Platform starts each
+# deploy, and each container it replaces, with an empty ADMINIUM_DATA_DIR.
+# Installed apps and add-ons live there, not in the database and not in the
+# Space.
+#
+#   Kept (in the managed database, in your own database, or in the Space):
+#     users and sessions, settings, connections, pages, the RECORD of each app
+#     and add-on you installed, the tables an app created in your database, and
+#     files once ADMINIUM_STORAGE_URL is set.
+#   Lost on every deploy:
+#     - every installed app. Studio still lists it, but it is not served: its
+#       /apps/... addresses show the dashboard's "page not found" page, with
+#       HTTP 200.
+#     - every installed add-on this image does not carry at that exact version:
+#       one you uploaded, one you updated past the image's copy, or one a newer
+#       image now bundles at a newer version (then use Upgrade on the Add-ons
+#       page). Studio still shows it as installed and on, and none of it loads.
+#     - the cached online catalogues, until "Check for newer" runs again.
+#
+# The add-ons bundled in this image come back by themselves at their bundled
+# version. The boot log names everything else ("installed add-on is not on this
+# server" / "installed app is not on this server"). To put an add-on back,
+# upload the same package again. To put an app back, upload or download the
+# same version and install it again; its tables are kept and reused. With more
+# than one instance, each container has its own copy, so keep instance_count
+# at 1.
+#
+# If you install apps, or add-ons this image does not carry, use a host with a
+# persistent disk (docker-compose.yml on a Droplet, render.yaml, fly.toml), or
+# build your own image from this one that carries those exact packages — see
+# deploy/README.md.
+#
+# BACKUPS: with a managed Postgres meta store Adminium writes none, so there is
+# nothing of Adminium's here for a deploy to lose. Its automatic snapshot before
+# an upgrade covers the embedded SQLite store only; on Postgres an upgrade
+# prints the pg_dump command and then migrates at once. Rely on the managed
+# database's own backups, and take one before you deploy a new version.
+#
 # App Platform declares the listening port with `http_port` and sets PORT to
 # match; Adminium honors PORT. ADMINIUM_SECRET must be set as an encrypted
 # app-level secret before the first deploy and kept stable (changing it makes
 # every stored secret undecryptable).
 #
 # DRAFT: authored against the published image; not yet validated by a live App
-# Platform deploy (workplan 17-T17 / owner step).
+# Platform deploy (workplan / owner step).
 spec:
   name: adminium
   services:

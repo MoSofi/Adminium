@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wire DTOs for `/api/v1/add-ons` (26-add-on-runtime.md §5.1, 26-T06).
+ * Wire DTOs for `/api/v1/add-ons`.
  *
  * Every `/api/` route in this server must carry a zod `schema` or registration
  * throws at boot (`app.ts`), so these are load-bearing rather than
  * documentation. They are also the OpenAPI source, which is generated from the
  * built output — see the route module's header for the regeneration order.
  *
- * THE SECRET RULE IS ENFORCED BY THE REPLY SHAPE (24 D15). None of the DTOs
- * below carries a `settings` value, a credential, or anything derived from one.
+ * THE SECRET RULE IS ENFORCED BY THE REPLY SHAPE. None of the DTOs below
+ * carries a `settings` value, a credential, or anything derived from one.
  * `connected` is a boolean and `expiresAt` a number, both readable from
  * `credentialStatus()` without decrypting a thing.
  */
@@ -18,7 +18,7 @@ import { z } from 'zod';
 /** The manifest key grammar, restated for the wire (`@adminium/manifest`). */
 const addOnKey = z.string().regex(/^[a-z][a-z0-9-]{1,79}$/);
 
-/** A host app's `manifest_key` — what an add-on attaches TO (24 §5.7). */
+/** A host app's `manifest_key` — what an add-on attaches TO. */
 const hostKey = z.string().regex(/^[a-z][a-z0-9-]{1,79}$/);
 
 export const addOnKeyParams = z.object({ key: addOnKey });
@@ -53,7 +53,7 @@ export const addOnAttachmentDto = z.object({
  *
  * `slots` and `provides` are lifted out of the stored manifest so a host does
  * not have to parse the whole document to know what to mount — this is the
- * reply `AddOnHost` reads in connected mode (§6).
+ * reply `AddOnHost` reads in connected mode.
  */
 export const addOnDto = z.object({
   key: addOnKey,
@@ -61,18 +61,18 @@ export const addOnDto = z.object({
   version: z.string(),
   /** `none` | `api-key` | `oauth2` — what connecting this add-on requires. */
   connectKind: z.enum(['none', 'api-key', 'oauth2']),
-  /** Whether a credential is stored. Never the credential itself (24 D15). */
+  /** Whether a credential is stored. Never the credential itself. */
   connected: z.boolean(),
   /** Epoch ms; null for a credential that does not expire, or none at all. */
   connectionExpiresAt: z.number().nullable(),
   attachments: z.array(addOnAttachmentDto),
   slots: z.array(z.object({ slot: z.string(), client: z.string(), order: z.number() })),
   provides: z.array(z.object({ contract: z.string(), version: z.number() })),
-  /** Exact-hostname egress the manifest declares (24 D14). */
+  /** Exact-hostname egress the manifest declares. */
   networkAllow: z.array(z.string()),
   /**
    * Every client bundle this add-on ships, with the URL to fetch it from and
-   * the SRI value to pin it to (26 §5.4).
+   * the SRI value to pin it to.
    *
    * The URL is SERVED here rather than assembled by the host: the host reads
    * this list and uses what it is given, so the asset path is not a contract it
@@ -84,7 +84,7 @@ export const addOnDto = z.object({
    */
   /**
    * What this add-on's settings panel is FOR — the manifest's own `settings[]`
-   * declaration, plus the non-secret values currently stored (34 §7.9).
+   * declaration, plus the non-secret values currently stored.
    *
    * ─── Why the declaration travels with the DTO ──────────────────────────
    *
@@ -114,7 +114,7 @@ export const addOnDto = z.object({
       options: z.array(z.string()),
     }),
   ),
-  /** The stored NON-SECRET values. Never a credential (24 D15). */
+  /** The stored NON-SECRET values. Never a credential. */
   settingValues: z.record(z.string(), z.unknown()),
   bundles: z.array(
     z.object({
@@ -127,7 +127,7 @@ export const addOnDto = z.object({
 
 export const addOnListReply = z.object({ addOns: z.array(addOnDto) });
 
-/** What installing WOULD do — the consent dialog's document (§7). */
+/** What installing WOULD do — the consent dialog's document. */
 export const installPlanDto = z.object({
   addOnKey,
   version: z.string(),
@@ -171,12 +171,12 @@ export const installPlanReply = z.object({ plan: installPlanDto });
 
 /**
  * Install takes a STAGED-PACKAGE REFERENCE, never a manifest body
- * (32-add-on-distribution.md §4.3's amended seam).
+ * (amended seam).
  *
  * The bytes must already be on local disk in the add-on store, verified
  * against the hash the packument and the release ledger agreed on. A route that
  * accepted a manifest document would be a route that installs code nobody
- * checked — and 24 D13 runs an add-on's server half in this process.
+ * checked — runs an add-on's server half in this process.
  */
 export const installAddOnBody = z.object({
   key: addOnKey,
@@ -190,7 +190,7 @@ export const installAddOnReply = z.object({
   plan: installPlanDto,
 });
 
-/** Enable or disable on one host (§5.1's PATCH). */
+/** Enable or disable on one host (PATCH). */
 export const patchAddOnBody = z.object({
   attachedTo: hostKey,
   enabled: z.boolean(),
@@ -202,16 +202,16 @@ export const uninstallAddOnReply = z.object({
   key: addOnKey,
   /**
    * Stated back to the caller because it is the promise the confirm dialog
-   * made (24 D16 / 26 D5), and a reply that merely said `ok` would leave the
-   * UI asserting it on its own.
+   * made, and a reply that merely said `ok` would leave the UI asserting it
+   * on its own.
    */
   tablesKept: z.boolean(),
   packageRemoved: z.boolean(),
 });
 
 /**
- * Connect (§5.1, D2). One route shape for all three kinds; this wave serves
- * `api-key` (T07) and refuses `oauth2` as not-yet (T08).
+ * Connect. One route shape for all three kinds; this wave serves `api-key`
+ * (T07) and refuses `oauth2` as not-yet (T08).
  *
  * `credentials` is a flat map of the add-on's OWN `secret: true` setting keys to
  * their values — `{ api_key: "…", account_number: "…" }` for shipping-dhl. Keys
@@ -221,7 +221,7 @@ export const uninstallAddOnReply = z.object({
  *
  * There is no reply DTO carrying any of it back. The only readable facts about a
  * connection are `connected`, `connectionExpiresAt` and the granted scopes — all
- * on `addOnDto`, all derivable without decrypting anything (24 D15).
+ * on `addOnDto`, all derivable without decrypting anything.
  */
 export const connectAddOnBody = z.object({
   credentials: z.record(
@@ -235,15 +235,15 @@ export const connectAddOnReply = z.object({ addOn: addOnDto });
 export const disconnectAddOnReply = z.object({
   key: addOnKey,
   /**
-   * Said back for the same reason uninstall says it (24 D16 / 26 D5): the
-   * confirm dialog promised it, and a reply that only said `ok` would leave the
-   * UI asserting the promise on its own.
+   * Said back for the same reason uninstall says it: the confirm dialog
+   * promised it, and a reply that only said `ok` would leave the UI asserting
+   * the promise on its own.
    */
   credentialsDeleted: z.boolean(),
   tablesKept: z.boolean(),
 });
 
-// ─── Acquisition (32-add-on-distribution.md §4.3) ───────────────────────────
+// ─── Acquisition ────────────────────────────────────────────────────────────
 
 /**
  * One row of the browse surface: an add-on this deployment could install.
@@ -267,23 +267,23 @@ export const catalogEntryDto = z.object({
   /** Set when an installed add-on has a NEWER version staged or offered. */
   upgradeTo: z.string().nullable(),
   /**
-   * One line about what it does, in the CALLER'S locale where the feed has one
-   * (40 D2/D3). Null rather than a placeholder when neither the cached feed nor
-   * the staged manifest has anything — the card drops the line instead of
-   * printing an apology for it.
+   * One line about what it does, in the CALLER'S locale where the feed has one.
+   * Null rather than a placeholder when neither the cached feed nor the staged
+   * manifest has anything — the card drops the line instead of printing an
+   * apology for it.
    */
   tagline: z.string().nullable(),
   /**
-   * Category slugs, VERBATIM (24 D2's vocabulary: artwork, delivery, payments,
-   * email, data). Not an enum: the feed types these `z.array(z.string())` and a
-   * future add-on may carry a slug this build has no label for. The dashboard
-   * renders an unknown slug as itself rather than dropping the row (40 D4).
+   * Category slugs, VERBATIM (vocabulary: artwork, delivery, payments, email,
+   * data). Not an enum: the feed types these `z.array(z.string())` and a future
+   * add-on may carry a slug this build has no label for. The dashboard renders
+   * an unknown slug as itself rather than dropping the row.
    */
   categories: z.array(z.string()),
   /**
    * Whether installing will ask for a credential — the one permission-shaped
-   * fact a card carries (40 D5). Everything else about what an add-on may reach
-   * belongs to the install plan, which is the security surface (26 §7).
+   * fact a card carries. Everything else about what an add-on may reach belongs
+   * to the install plan, which is the security surface.
    */
   connectKind: z.enum(['none', 'api-key', 'oauth2']),
 });
@@ -302,11 +302,11 @@ export const catalogBrowseReply = z.object({
 export const refreshCatalogReply = z.object({ jobId: z.string() });
 
 /**
- * The online-catalog switch (32 §4.4, D8, O1).
+ * The online-catalog switch.
  *
  * A settings-registry boolean (`addOns.catalogEnabled`) with a route of its
- * own rather than a row in `/settings/*`, and the reason is 26 D3: those routes
- * are gated on `settings.manage`, and the whole point of un-reserving
+ * own rather than a row in `/settings/*`, and the reason is: those routes are
+ * gated on `settings.manage`, and the whole point of un-reserving
  * `manifests.manage` was that installing an add-on is not the same authority as
  * changing a workspace setting. A switch that decides whether this deployment
  * talks to a registry belongs with the add-on routes and their permission.
@@ -391,7 +391,7 @@ export const upgradeAddOnReply = z.object({
 });
 
 /**
- * Start an OAuth connect (26-T08).
+ * Start an OAuth connect.
  *
  * The client id and secret are the OPERATOR's — they come from registering an
  * application with the third party, so they are per-deployment and cannot ship
@@ -430,7 +430,7 @@ export type InstallPlanDto = z.infer<typeof installPlanDto>;
 
 /**
  * `PUT /add-ons/:key/settings` — the non-secret half of an add-on's
- * configuration (34 §7.9, D14).
+ * configuration.
  *
  * A PARTIAL patch, because the panel edits one field at a time and a full
  * replace would mean every panel sending the whole object back — which is how

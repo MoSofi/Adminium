@@ -7,7 +7,7 @@ const config: StorybookConfig = {
   stories: [
     '../src/**/*.mdx',
     '../src/**/*.stories.tsx',
-    // 04-T17 QA harness: the charts + widgets stories (incl.
+    // The QA harness: the charts + widgets stories (incl.
     // widgets/src/qa/qa-widgets.stories.tsx — every widget × four WidgetFrame
     // states, tagged `vrt`) are part of the workspace Storybook + VRT matrix
     // (acceptance #9). The @adminium/charts barrel is now assembled and its

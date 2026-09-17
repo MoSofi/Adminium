@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * Distribution & correlation group — wrapper render behaviour (04-T09):
- * config→chart prop mapping (aria label from config.title), §3 envelope
- * narrowing → BadShape fallback, the pure record-list projections, and the four
- * WidgetFrame states through WidgetHost with a registry override (acceptance
- * #4). Requires the family component chunk (@adminium/charts primitives).
+ * Distribution & correlation group — wrapper render behaviour: config→chart
+ * prop mapping (aria label from config.title), envelope narrowing → BadShape
+ * fallback, the pure record-list projections, and the four WidgetFrame states
+ * through WidgetHost with a registry override (acceptance #4). Requires the
+ * family component chunk (@adminium/charts primitives).
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';

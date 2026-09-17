@@ -88,6 +88,16 @@ const listOnly = argv.has('--list');
 const STEPS = [
   { id: 'check-spdx', cmd: 'pnpm run check-spdx', why: 'every tracked source file declares AGPL-3.0-only', tier: 'quick' },
   {
+    // In `quick` because it is a text scan over tracked files: 1.5 s, no build.
+    // It has to run from the root and uncached — it reads every package, so a
+    // per-package task would replay from turbo's cache after a change in
+    // another one, which is exactly how a gate starts lying.
+    id: 'check-private-citations',
+    cmd: 'pnpm run check-private-citations',
+    why: 'no file gained a citation of a document a reader cannot open (and the ratchet is recorded)',
+    tier: 'quick',
+  },
+  {
     // In `quick` because it costs under a second and catches something no other
     // gate here can see: tsc and eslint do not read the inside of a string, so
     // an undefined Tailwind utility compiles to nothing and ships looking
@@ -160,7 +170,9 @@ const STEPS = [
   { id: 'check-invoice-block-vocab', cmd: 'pnpm run check-invoice-block-vocab', why: 'same, for invoices', tier: 'full' },
   { id: 'check-invoice-money-fixture', cmd: 'pnpm run check-invoice-money-fixture', why: 'the invoice money fixture is current', tier: 'full' },
   { id: 'openapi-check', cmd: 'pnpm run openapi-check', why: 'openapi.json matches the route tree (it reads dist, so it needs the build above)', tier: 'full' },
+  { id: 'server-runtime-deps-check', cmd: 'pnpm run server-runtime-deps-check', why: "the published CLI's traced dependency list is current (reads dist)", tier: 'full' },
   { id: 'ir-schema-check', cmd: 'pnpm run ir-schema-check', why: 'the published IR JSON Schema is current', tier: 'full' },
+  { id: 'project-schemas-check', cmd: 'pnpm run project-schemas-check', why: "the project file schemas the package ships are current (reads dist)", tier: 'full' },
   { id: 'rest-api-docs-check', cmd: 'pnpm run rest-api-docs-check', why: 'the REST reference covers every operation', tier: 'full' },
   { id: 'i18n-check', cmd: 'pnpm run i18n-check', why: 'no locale drift across the eight locales', tier: 'full' },
   { id: 'generate-notices', cmd: 'pnpm run generate-notices', why: 'third-party notices regenerate without a diff', tier: 'full' },

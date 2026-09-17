@@ -237,8 +237,8 @@ export interface MeasureSpecInput {
 /**
  * The verb a generated column LABEL leads with.
  *
- * `sum` reads "Sum of", not "Total": the 17 §2 lexicon sweep is a grep over
- * built bytes and cannot tell a customer's invoice total from copy about
+ * `sum` reads "Sum of", not "Total": the lexicon sweep is a grep over built
+ * bytes and cannot tell a customer's invoice total from copy about
  * Adminium's own billing, so shipped strings stay clear of the vocabulary it
  * watches. The operator can rename any of these in the Columns card.
  */
@@ -251,8 +251,7 @@ const MEASURE_VERBS: Record<MeasureFn, string> = {
 };
 
 /**
- * A page-level MEASURE plus the column that shows it
- * (36-derived-columns.md §3.8).
+ * A page-level MEASURE plus the column that shows it.
  *
  * The two halves are returned together because they are one authoring act and
  * neither is valid alone: a `derived: {ref}` column pointing at nothing

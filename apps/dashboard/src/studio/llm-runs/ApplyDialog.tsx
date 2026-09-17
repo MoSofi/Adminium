@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Apply-confirmation modal (§10.3 footer): summarizes the writes an apply would
+ * Apply-confirmation modal (footer): summarizes the writes an apply would
  * perform ("Creates 2 dashboard pages, updates 41 labels…") derived from the
  * accepted rows, then commits via `POST /runs/:id/apply` in one transaction.
  * Not the type-to-confirm `ConfirmModal` — applying is additive and reversible
- * (an Undo toast follows, §10.3), so a plain confirm suffices.
+ * (an Undo toast follows), so a plain confirm suffices.
  */
 import { Sparkles } from 'lucide-react';
 import { Alert, Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@adminium/ui';
@@ -12,7 +12,7 @@ import { Alert, Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@admi
 import { t } from '../../i18n/t.js';
 import { REVIEW_GROUPS, type ApplySummary } from './model.js';
 
-/** Group-labelled, non-zero write counts, in §10.3 display order. */
+/** Group-labelled, non-zero write counts, display order. */
 function summaryLines(summary: ApplySummary): { id: string; label: string; count: number }[] {
   const byGroup: Record<string, number> = {
     labels: summary.labels,

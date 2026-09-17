@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * §6 step 1's three bridge calls, in one place.
+ * The three bridge calls, in one place.
  *
  * `lib/desktop-runtime.ts`'s rule applies and is worth restating at this call
  * site: the bridge is for NATIVE AFFORDANCES only, and a data directory is as
- * native as it gets — a path on this machine, in a file the main process owns
- * (§2.3), that decides how the server is launched. The server cannot answer a
- * question about it; `GET /system/info` does not have a `dataDir` field and must
- * not grow one.
+ * native as it gets — a path on this machine, in a file the main process owns,
+ * that decides how the server is launched. The server cannot answer a question
+ * about it; `GET /system/info` does not have a `dataDir` field and must not grow
+ * one.
  *
  * Every function here returns `null` when there is no bridge rather than
  * throwing. The wizard renders on desktop only, so `null` is unreachable in
@@ -21,7 +21,7 @@ import type { SetDataDirResult } from '@adminium/desktop/api';
 import { getDesktopApi } from '../../lib/desktop-runtime.js';
 import { t } from '../../i18n/t.js';
 
-/** The directory the app booted against (§2.2 step 5), or `null` off-desktop. */
+/** The directory the app booted against, or `null` off-desktop. */
 export async function readDataDir(): Promise<string | null> {
   const api = getDesktopApi();
   if (api === null) return null;
@@ -29,7 +29,7 @@ export async function readDataDir(): Promise<string | null> {
 }
 
 /**
- * §6 step 1's "Change…" — the native directory picker. `null` on cancel, and
+ * The wizard's "Change…" — the native directory picker. `null` on cancel, and
  * also `null` with no bridge; the caller treats both the same way (nothing was
  * chosen), which is why they are not distinguished.
  */

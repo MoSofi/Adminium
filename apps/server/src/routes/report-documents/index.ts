@@ -1,34 +1,33 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Report documents — templates and reports (43-report-builder.md §3.1;
- * `adminium_report_documents`, wave 0030), mounted under `/api/v1`. The reply
- * bodies are mirrored type-for-type by
- * `apps/dashboard/src/report-builder/api.ts` (the copied-mirror convention;
- * the SYNC NOTE is in `schema.ts`).
+ * Report documents — templates and reports (`adminium_report_documents`, wave
+ * 0030), mounted under `/api/v1`. The reply bodies are mirrored type-for-type
+ * by `apps/dashboard/src/report-builder/api.ts` (the copied-mirror
+ * convention; the SYNC NOTE is in `schema.ts`).
  *
  * NOT `/api/v1/scheduled-reports`. That resource drives Scheduled Reports —
  * the recurring CSV snapshot of a page. This one is the report BUILDER's
- * authored surface (43 §0.3 trap 1).
+ * authored surface (trap 1).
  *
  * THE AUTHORED SURFACE, NOT A PIPELINE. Everything here lists, creates,
  * edits and saves what a person typed. Nothing here renders, prints, exports
- * or sends: the comp draws no such action (43 §0.2, §5 item 1), and the
- * *Publish* primary does the smallest thing the comp's own vocabulary
- * supports — it saves and sets `status: 'sent'` (43 D5/O2).
+ * or sends: the comp draws no such action, and the *Publish* primary does
+ * the smallest thing the comp's own vocabulary supports — it saves and sets
+ * `status: 'sent'`.
  *
- * THE ONE RULE EVERY WRITE OBEYS (34 O22 → 39 D1's model, inherited by 43
- * D4/O6): nothing writes the row while an operator types. `PUT /:id` is the
- * explicit save and it carries the whole on-screen document; the summary is
- * re-derived from it on every save, never patched piecemeal.
+ * THE ONE RULE EVERY WRITE OBEYS: nothing writes the row while an operator
+ * types. `PUT /:id` is the explicit save and it
+ * carries the whole on-screen document; the summary is re-derived from it
+ * on every save, never patched piecemeal.
  *
  * DELETE IS A HARD DELETE. This comp has no archive — its `doDelete` (560)
- * filters the row out of the array after a confirm (43 D8). A report built
- * from a template survives the template's deletion untouched (`originId` is a
- * soft ref, 43 D6).
+ * filters the row out of the array after a confirm. A report built from a
+ * template survives the template's deletion untouched (`originId` is a soft
+ * ref).
  *
  * Reads need a session; every write needs `system:settings:manage` (the email
- * rule, 39 D19 / 34 D43, ruled again as 43 O5 → D12 — report documents add no
- * permission key, and `system:reports:manage` belongs to Scheduled Reports).
+ * rule, ruled again — report documents add no permission key, and
+ * `system:reports:manage` belongs to Scheduled Reports).
  */
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -86,7 +85,8 @@ function detailOf(row: ReportDocument): ReportDetailView {
   return { ...summaryView(row), body: normalizeReportBody(row.body) };
 }
 
-/** The icon a row's card draws — the starter's, or `file-text` for a blank one (43 D14). */
+/** The icon a row's card draws — the starter's, or `file-text` for a blank one.
+ * */
 function starterIcon(starter: string | null): string {
   if (starter === null || !isReportStarterKey(starter)) return BLANK_ICON;
   return renderStarter(starter).card.icon;
@@ -314,7 +314,7 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
       async (request, reply) => {
         const userId = requireUserId(request);
         await requireSettingsManage(request, 'create reports');
-        // `:id` is the TEMPLATE the new report starts from (43 D6/O3); the
+        // `:id` is the TEMPLATE the new report starts from; the
         // report remembers it as `originId` and is its own document from here.
         const source = await mustFind(request.params.id);
         if (source.kind !== 'template') {

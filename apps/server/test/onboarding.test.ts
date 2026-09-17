@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Onboarding-state (M5-T06): the pure reactive derivation plus the route —
- * each fact flips exactly one step, the surface is admin-guarded, and dismissal
- * persists per user.
+ * Onboarding-state: the pure reactive derivation plus the route — each fact
+ * flips exactly one step, the surface is admin-guarded, and dismissal persists
+ * per user.
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

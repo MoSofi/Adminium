@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the About resource (M10-T04; 01-architecture.md §9.3 — the
- * AGPL §13 source offer is satisfied by linking the public repo from the
- * instance's About screen).
+ * Zod schemas for the About resource (the AGPL source offer is satisfied by
+ * linking the public repo from the instance's About screen).
  */
 import { z } from 'zod';
 
@@ -14,17 +13,17 @@ export const aboutReply = z.object({
     version: z.string(),
     /** SPDX id — AGPL-3.0-only. */
     license: z.string(),
-    /** The AGPL §13 source offer: where this instance's source lives. */
+    /** The AGPL source offer: where this instance's source lives. */
     sourceUrl: z.string(),
     /** Full licence text (repo LICENSE). */
     licenseUrl: z.string(),
-    /** Which engine backs the meta store (07-meta-store.md). */
+    /** Which engine backs the meta store. */
     metaEngine: metaDialect,
     /**
      * The newest applied meta-store migration (`adminium_migrations.name`),
-     * or `null` when it cannot be read. 11-electron.md §13 lists it among the
+     * or `null` when it cannot be read. It is one of the
      * desktop About screen's version fields; it is harmless on self-host and
-     * the same fact `readMetaMigrationVersion` puts in a §9 backup manifest.
+     * the same fact `readMetaMigrationVersion` puts in a backup manifest.
      * Nullable rather than required because About must render even when the
      * migrations table is empty or unreadable — a version panel that 500s is
      * worse than one that says "unknown".
@@ -40,7 +39,7 @@ export type AboutReply = z.infer<typeof aboutReply>;
 
 /**
  * `GET /about/update-check`. `disabled` is a first-class, un-alarming outcome:
- * the instance opted out and made no outbound call (M10-T04).
+ * the instance opted out and made no outbound call.
  */
 export const aboutUpdateCheckReply = z.object({
   data: z.discriminatedUnion('status', [

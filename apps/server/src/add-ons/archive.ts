@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Hardened npm-tarball reader for add-on packages
- * (32-add-on-distribution.md §1 D5).
+ * Hardened npm-tarball reader for add-on packages.
  *
  * WHY THIS IS NOT A THIN WRAPPER OVER A TAR LIBRARY. An add-on ships a server
- * half that 24 D13 runs IN-PROCESS, so distribution is an RCE channel and every
- * archive that reaches this module is hostile input. The sha512 check upstream
+ * half that runs IN-PROCESS, so distribution is an RCE channel and every archive
+ * that reaches this module is hostile input. The sha512 check upstream
  * authenticates *which bytes arrived*; it says nothing about whether those bytes
  * are a safe archive, and the publisher gate (`validate.ts`) cannot run until
  * `manifest.json` has already been extracted — the field it reads lives inside

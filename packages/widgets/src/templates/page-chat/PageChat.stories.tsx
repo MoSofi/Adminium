@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-chat` template stories (09 §7.9): the demo-mode composition
- * (inbox + thread + attachments rail), a bound conversation+message pair with
- * email→name derivation and a live optimistic-echo composer, the
- * loading/error states through the `states` override, and the empty inbox —
- * four states, matching the template-story idiom.
+ * `page-chat` template stories: the demo-mode composition (inbox + thread +
+ * attachments rail), a bound conversation+message pair with email→name
+ * derivation and a live optimistic-echo composer, the loading/error states
+ * through the `states` override, and the empty inbox — four states, matching
+ * the template-story idiom.
  */
 import { PageChat } from './PageChat.js';
 import { demoChatLayout } from './demo-layout.js';
@@ -27,7 +27,7 @@ const MESSAGES = [
   { id: 'm3', conversation_id: 'c2', sender_email: 'sam.park@acme.dev', body: 'Invoice paid, thanks!', created_at: new Date(NOW - 5_400_000).toISOString() },
 ];
 
-/** Demo mode (04 §5.3): no adapter — every widget seeds from its instance id. */
+/** Demo mode: no adapter — every widget seeds from its instance id. */
 export const DemoMode = {
   render: () => <PageChat layout={demoChatLayout} now={NOW} />,
 };

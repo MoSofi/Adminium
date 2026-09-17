@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline connections-hub route tests (M5-T05): the list DTO's
- * included-table + generated-page counts (settings allowlist wins, else the
- * latest snapshot's model, null before introspection; grouped page counts)
- * and the type-to-confirm delete contract (409 on mismatch, pages pruned by
+ * Offline connections-hub route tests: the list DTO's included-table +
+ * generated-page counts (settings allowlist wins, else the latest
+ * snapshot's model, null before introspection; grouped page counts) and the
+ * type-to-confirm delete contract (409 on mismatch, pages pruned by
  * connection delete is out of scope here). No live database needed — rows
  * are created through the repos on the in-memory SQLite meta store.
  */

@@ -6,17 +6,17 @@ import type { ReactNode } from 'react';
 import { formatAbsoluteTime, formatRelativeTime } from '../tables/column-spec.js';
 
 /**
- * Shared helpers for the `feeds` family (annex §4) — tone normalization, the
+ * Shared helpers for the `feeds` family (annex) — tone normalization, the
  * "actor action target" sentence renderer (bold actor/target, mono target ids),
  * and a relative-timestamp element. Kept framework-light: no i18n provider
  * dependency, so widgets stay pure and render in stories/tests without a
  * wrapper (the dashboard resolves labels through @adminium/i18n at the host
- * boundary, like the rest of the registry — 04 §2, 04-T06).
+ * boundary, like the rest of the registry).
  *
  * The deterministic demo primitives live in the framework-free `feed-demo-lib`
  * leaf, because the pure `feeds-config` module needs them and must not reach
- * the JSX below (04 §2.3). They are re-exported here so this module stays the
- * one import point the family's components use.
+ * the JSX below. They are re-exported here so this module stays the one import
+ * point the family's components use.
  */
 export { DEMO_EPOCH, MS_DAY, mulberry32, pickFrom } from './feed-demo-lib.js';
 
@@ -35,7 +35,7 @@ export function toneOf(value: unknown, fallback: Tone = 'neutral'): Tone {
 }
 
 /**
- * "actor action target" event sentence (annex §4): bold actor, muted verb,
+ * "actor action target" event sentence (annex): bold actor, muted verb,
  * bold + mono-ish target. Any part may be omitted. Targets that look like
  * identifiers (contain `#`, `/`, `_`, or `.`) render in JetBrains Mono.
  */

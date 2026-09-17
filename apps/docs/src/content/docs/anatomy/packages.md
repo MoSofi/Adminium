@@ -1,6 +1,6 @@
 ---
 title: The packages, one by one
-description: What each of Adminium's fifteen packages actually contains — its job, its public surface, the decisions inside it, and the rules that keep it in its lane.
+description: What each of Adminium's sixteen packages actually contains — its job, its public surface, the decisions inside it, and the rules that keep it in its lane.
 ---
 
 [How Adminium works](/anatomy/) sketches the package graph in a paragraph. This
@@ -8,8 +8,11 @@ page is the long version: one section per package, in dependency order from the
 leaves upward, so each one only depends on things you have already read about.
 
 Every package is versioned together — changesets is configured with a single
-`fixed` group, so a patch to one moves all twenty workspaces. Source names are
-`@adminium/*`; published names are `@adminiumjs/*`.
+`fixed` group, so a patch to one moves all twenty-one workspaces. Source names are
+`@adminium/*`. Only four workspaces are published, as `@adminiumjs/*`: the CLI
+and the three packages other repos install (`public-client`, `manifest`,
+`add-on-contracts`). The CLI carries the other packages it loads inside its own
+tarball ([How Adminium works](/anatomy/#1-what-npx-adminiumjsadminium-actually-runs)).
 
 Sizes below count hand-written source under each package's `src/`, excluding
 tests and stories. Tests are counted wherever the package keeps them, which is
@@ -176,7 +179,8 @@ locale.
 `kysely` and `zod`, and it declares no drivers at all. The caller passes in a
 live `pg` Pool, `mysql2` pool or `better-sqlite3` database.
 
-Covered in depth in [How Adminium works §6](/anatomy/#6-the-meta-store). What
+Covered in depth in
+[How Adminium works — the meta store](/anatomy/#6-the-meta-store). What
 belongs here is the package shape:
 
 - **34 tables**, created by **12 up-only migrations**, each checksummed against
@@ -238,6 +242,15 @@ testable rather than asserted.
 
 The egress allow-list accepts only exact https hostnames, and its regex requires
 an alphabetic final label specifically so a literal IP address fails.
+
+A third subpath, `./runtime`, is what lets code from outside the repository draw
+in the dashboard with **one** React. It declares the global the dashboard
+publishes before it imports anything of yours (`react`, `react/jsx-runtime`,
+`react/compiler-runtime`, `react-dom` and the UI kit), the list of exports each
+shim re-exports, and the shims themselves. Both add-ons and
+[project pages and widgets](/projects/pages-and-widgets/) are built against it,
+so a bundle never carries a second copy of React and hooks work across the seam.
+`react-dom/client` is deliberately absent: the dashboard renders the page.
 
 ## @adminium/config
 
@@ -481,7 +494,8 @@ be suggested.
 **The brain**, and it holds no database drivers. 28 files, 5.5k lines — small
 for what it does, because it is pure logic over one IR.
 
-Covered end to end in [How Adminium works §5](/anatomy/#5-schema-to-app). The
+Covered end to end in
+[How Adminium works — schema to app](/anatomy/#5-schema-to-app). The
 package surface:
 
 - **`DatabaseModel`** (aliased `SchemaModel`) — the normalized IR, a Zod schema
@@ -705,5 +719,7 @@ widget registry.
 
 - [How Adminium works](/anatomy/) — the runtime view: boot, request lifecycle,
   and where customizations live.
+- [Pages and widgets](/projects/pages-and-widgets/) — the UI kit a project
+  imports, `@adminiumjs/adminium/ui`, and what it is built on.
 - [Monorepo setup](/contributing/) — building all of this from source.
 - [Manifest spec](/reference/manifest/) — the full schema reference.

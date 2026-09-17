@@ -21,9 +21,9 @@ import { OpsEmpty } from './OpsEmpty.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `api-playground` (annex §13) — the request composer (method, path, editable
- * query params / body fields) feeding the response viewer: a dark terminal block
- * with the body and a status pill. Evidence: API & Backend.
+ * `api-playground` (annex) — the request composer (method, path, editable query
+ * params / body fields) feeding the response viewer: a dark terminal block with
+ * the body and a status pill. Evidence: API & Backend.
  *
  * IT DOES NOT MAKE REQUESTS. This is a security boundary, not a shortcut:
  * a widget that could issue arbitrary authenticated calls from a dashboard cell
@@ -35,9 +35,9 @@ import type { WidgetProps } from '../../registry/types.js';
  *   2. for a WRITE method, emits a `mutate` intent describing the composed
  *      request, which the host executes through the CRUD API with its
  *      permission checks, undo and audit — the same contract every editing
- *      widget follows (04 §2.1). A GET has nothing to mutate and emits nothing.
- * Unbound → no intent either way; the pane still previews, which is the whole
- * point of a playground.
+ * widget follows. A GET has nothing to mutate and emits nothing. Unbound → no
+ *      intent either way; the pane still previews, which is the whole point of
+ *      a playground.
  *
  * SYNTAX HIGHLIGHTING is out of scope (see `code-snippet-block`): the response
  * is a mono block, not a tokenized one. The status pill and the latency carry
@@ -46,8 +46,8 @@ import type { WidgetProps } from '../../registry/types.js';
  * DIRECTION: the response body is a fixed-LTR island — it is CODE. JSON is
  * left-to-right in every locale, so the pane sets `dir="ltr"` explicitly rather
  * than inheriting an RTL page's direction, which would scatter braces and
- * punctuation to the wrong ends of each line (10-i18n-theming.md §5.5). The
- * chrome around it — labels, params, the Send button — mirrors normally.
+ * punctuation to the wrong ends of each line. The chrome around it — labels,
+ * params, the Send button — mirrors normally.
  */
 
 export { apiPlaygroundConfigSchema, apiPlaygroundDemoData };

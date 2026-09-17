@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * page-files template tests (09 §7.9): resolves the generated-vocabulary
- * config (nameColumn/parentColumn) + column detection onto the file-browser,
- * walks the parent-pointer hierarchy, opens the preview drawer, emits star
- * toggles as mutate intents only when a starred column exists, renders the
- * usage slot through WidgetHost, honest-disables the dropzone without an
- * upload transport, and degrades on loading/error/invalid layouts.
+ * page-files template tests: resolves the generated-vocabulary config
+ * (nameColumn/parentColumn) + column detection onto the file-browser, walks
+ * the parent-pointer hierarchy, opens the preview drawer, emits star toggles
+ * as mutate intents only when a starred column exists, renders the usage
+ * slot through WidgetHost, honest-disables the dropzone without an upload
+ * transport, and degrades on loading/error/invalid layouts.
  */
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';

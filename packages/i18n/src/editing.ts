@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Edit-time surface of `@adminium/i18n` — the key index, the write validator
- * and the generated a11y-critical key list (23-runtime-translations.md §6.3).
+ * and the generated a11y-critical key list.
  *
  * A SEPARATE ENTRY POINT on purpose. These modules exist to serve the
  * translation routes and the editor; nothing on the dashboard's boot path

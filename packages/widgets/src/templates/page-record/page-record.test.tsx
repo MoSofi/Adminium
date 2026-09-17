@@ -246,7 +246,7 @@ describe('PageRecord', () => {
     await waitFor(() => {
       expect(api.remove).toHaveBeenCalledWith('7', { confirm: true });
     });
-    // The host navigates and owns the undo toast (30 §3.2).
+    // The host navigates and owns the undo toast.
     expect(onDeleted).toHaveBeenCalledWith('undo_delete');
   });
 
@@ -359,7 +359,7 @@ describe('in-tab create (30 follow-up — "Add item")', () => {
   });
 });
 
-// --- attachments panel (37-files-and-storage.md §3.5, 37-T19) ------------------
+// --- attachments panel ------------------
 
 describe('PageRecord — the Attachments panel', () => {
   const attachment = (over: Partial<RecordAttachment> = {}): RecordAttachment => ({
@@ -392,8 +392,8 @@ describe('PageRecord — the Attachments panel', () => {
   });
 
   it('upload GROWS the list: the new file joins the ones already there', async () => {
-    // 37-T19's done-when clause "upload -> list grows". Growth, not presence:
-    // the panel appends the server's row to the state it already holds
+    // The done-when clause "upload -> list grows". Growth, not presence: the
+    // panel appends the server's row to the state it already holds
     // (`setItems([...current, uploaded])`) rather than re-listing, so a handler
     // that REPLACED `items` with the single uploaded row would still satisfy
     // "the new filename is on screen" while silently dropping every file the
@@ -441,7 +441,7 @@ describe('PageRecord — the Attachments panel', () => {
   it('keeps the dropzone on a READ-ONLY source, which is what the sidecar is for', async () => {
     // The regression this pins: the panel used to receive `writable && canAttach`,
     // so a read-only source hid the dropzone — on exactly the connections the
-    // sidecar mode exists to serve (37 §3.5, D11). The server never asked for
+    // sidecar mode exists to serve. The server never asked for
     // that AND: `routes/pages/index.ts` computes `canAttach` from the table's
     // `:update` grant and says in its own comment that deriving it from
     // `canUpdate` "would hide the panel on exactly the connections it exists
@@ -467,7 +467,7 @@ describe('PageRecord — the Attachments panel', () => {
     renderRecord(makeApi(), { attachments, canAttach: false });
     await userEvent.setup().click(await screen.findByRole('tab', { name: /files/i }));
     await screen.findByText('contract.pdf');
-    // `canAttach` comes from the page reply (37 D11), so the panel never offers
+    // `canAttach` comes from the page reply, so the panel never offers
     // an affordance the server would refuse.
     expect(document.querySelector('input[type="file"]')).toBeNull();
   });

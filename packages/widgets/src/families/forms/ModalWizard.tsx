@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `modal-wizard` (annex §10) — the two-state modal (form → success
- * confirmation): backdrop/Escape close, submit harvests values and persists, the
- * success step confirms with a summary. THE standard "create record" affordance
- * across the product (annex §10 lists ~20 evidence comps), and the
- * auto-instantiation target for any table with ≤5 generated fields.
+ * `modal-wizard` (annex) — the two-state modal (form → success confirmation):
+ * backdrop/Escape close, submit harvests values and persists, the success step
+ * confirms with a summary. THE standard "create record" affordance across the
+ * product (annex lists ~20 evidence comps), and the auto-instantiation target
+ * for any table with ≤5 generated fields.
  *
  * Wraps @adminium/ui's `TwoPhaseModal` + `useModalFlow`, which own the phase
  * machine, the focus-preserving body swap, and the deferred reset that stops the
@@ -12,10 +12,10 @@
  * `form-state` binding, the generated field set, required-field validation, and
  * the `insert` intent.
  *
- * WRITE MODEL (04 §2.1): submit emits a `mutate` INTENT — the widget never
- * writes. The host runs it through the CRUD API (with undo + audit) and only
- * then does the modal advance to its success phase, so a rejected insert cannot
- * show a "Created!" confirmation.
+ * WRITE MODEL: submit emits a `mutate` INTENT — the widget never writes. The
+ * host runs it through the CRUD API (with undo + audit) and only then does the
+ * modal advance to its success phase, so a rejected insert cannot show a
+ * "Created!" confirmation.
  */
 
 import {

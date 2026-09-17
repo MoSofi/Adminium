@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * rolesRepo — adminium_roles + adminium_user_roles
- * (07-meta-store.md §3.8, §3.10).
+ * rolesRepo — adminium_roles + adminium_user_roles.
  */
 
 import type { Selectable } from 'kysely';
@@ -106,7 +105,7 @@ export function rolesRepo(meta: MetaDb) {
     },
 
     /**
-     * Every user holding this role. Added for 42 D20 ("notify everyone with a
+     * Every user holding this role. Added for ("notify everyone with a
      * role"), which is the first caller that needs the assignment table read
      * in this direction — `rolesForUser` reads it in the other.
      */

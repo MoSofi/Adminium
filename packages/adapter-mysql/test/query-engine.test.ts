@@ -118,7 +118,7 @@ describe('createQueryEngine — the QueryEngine contract', () => {
     expect(engine.serializers.bigint).toBeDefined();
     expect(engine.serializers.decimal).toBeDefined();
     expect(engine.serializers.boolean).toBeDefined();
-    // Blobs are out of CRUD v1 (05 §3) — the absence is the contract.
+    // Blobs are out of CRUD v1 — the absence is the contract.
     expect(engine.serializers.binary).toBeUndefined();
     await engine.destroy();
   });

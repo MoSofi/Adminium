@@ -66,22 +66,21 @@
   a setting discarded behind their back.
   
   **The pool that reads rows had no budget at all.** `createQueryEngine` built its
-  pool bare while the adapter's own pools have carried 05 §4.1's rails since M3,
-  so a runaway CRUD query — a bad filter over a large table — had nothing to stop
-  it scanning until the client gave up. It now sends the data role's settings,
-  through the same `buildSessionSettings` call the adapter makes, so the two
-  cannot drift apart.
+  pool bare while the adapter's own pools have carried rails since M3, so a runaway
+  CRUD query — a bad filter over a large table — had nothing to stop it scanning
+  until the client gave up. It now sends the data role's settings, through the same
+  `buildSessionSettings` call the adapter makes, so the two cannot drift apart.
   
   `SET LOCAL` is not available as the pooler fallback there. Kysely speaks the
   extended query protocol, one statement per Parse, so there is no multi-statement
   message to carry a prelude in and the trick `PostgresAdapter` uses does not
   transfer. `query_timeout` is no substitute either: it abandons the client's wait
-  and leaves the backend running, which is the opposite of the guarantee. So
-  behind a transaction pooler that pool keeps working without a server-side
-  budget, exactly as it did before — every mechanism that would impose one sets
-  the timeout on a backend the pooler then hands to somebody else, which is
-  precisely what 05 §4.1 refuses to do. Direct endpoints, and session poolers, get
-  it. The connect guide now says which is which.
+  and leaves the backend running, which is the opposite of the guarantee. So behind
+  a transaction pooler that pool keeps working without a server-side budget, exactly
+  as it did before — every mechanism that would impose one sets the timeout on a
+  backend the pooler then hands to somebody else, which is precisely what refuses to
+  do. Direct endpoints, and session poolers, get it. The connect guide now says
+  which is which.
   
   Kysely holds a facade rather than the pool itself, because the refusal lands
   inside `connect()` and that is where the one-time downgrade has to live; handing
@@ -223,3 +222,13 @@
 
 - Updated dependencies
   - @adminium/engine@0.1.0
+
+---
+
+*A note on the entries above.* Some of them cited the internal work plan this
+repository was built from — a document filename, a section, or a task id. That
+plan was never published, so those citations were dead ends for every reader but
+their author, and they were reworded on 2026-09-17. No entry's substance
+changed: only the references went. The reasoning they pointed at is public now,
+one short page per decision, at
+<https://docs.adminium.dev/anatomy/decisions/>.

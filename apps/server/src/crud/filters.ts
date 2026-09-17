@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The list-DSL filter grammar and its dynamic-Kysely compiler
- * (08-server-api.md §2.7.1). Identifiers are resolved against the snapshot
- * before they reach Kysely (`db.dynamic.ref` receives snapshot strings
- * only); every value binds as a parameter — §7 item 1 by construction.
+ * The list-DSL filter grammar and its dynamic-Kysely compiler. Identifiers
+ * are resolved against the snapshot before they reach Kysely
+ * (`db.dynamic.ref` receives snapshot strings only); every value binds as
+ * a parameter — by construction.
  */
 
 import type { DynamicModule, Expression, ExpressionBuilder, ReferenceExpression, SqlBool } from 'kysely';
@@ -61,7 +61,7 @@ export const MAX_FILTER_CONDITIONS = 16;
 export const MAX_FILTER_GROUP_DEPTH = 2;
 export const MAX_IN_VALUES = 200;
 
-/** Structural limits (§2.7.1 refinement): depth ≤ 2 groups, ≤ 16 conditions. */
+/** Structural limits (refinement): depth ≤ 2 groups, ≤ 16 conditions. */
 export function assertFilterLimits(filter: RecordFilter): void {
   let conditions = 0;
   const walk = (node: RecordFilter, groupDepth: number): void => {
@@ -236,7 +236,7 @@ function compileILike(eb: Eb, dialect: Dialect, ref: Ref, pattern: string): Expr
 }
 
 function compileCondition(eb: Eb, ctx: CompileFilterContext, condition: FilterCondition): Expression<SqlBool> {
-  // Masked columns are rejected in `where` for non-PII readers (§5.3 rule 2).
+  // Masked columns are rejected in `where` for non-PII readers.
   const column = ctx.view.readableColumn(ctx.table, condition.column, ctx.canReadPii);
   const ref = ctx.dynamic.ref(column.name);
   switch (condition.op) {
@@ -299,17 +299,17 @@ export function escapeLike(text: string): string {
 }
 
 /**
- * `q=` quick search (§2.7.1): a case-insensitive `%q%` substring match OR-ed
- * across the table's text-ish columns from the snapshot, excluding masked ones
- * for non-PII readers. Compiled per dialect via {@link compileILike} — postgres
- * `ILIKE`, mysql/sqlite `LOWER(...) LIKE LOWER(...)`.
+ * `q=` quick search: a case-insensitive `%q%` substring match OR-ed across the
+ * table's text-ish columns from the snapshot, excluding masked ones for non-PII
+ * readers. Compiled per dialect via {@link compileILike} — postgres `ILIKE`,
+ * mysql/sqlite `LOWER(...) LIKE LOWER(...)`.
  */
 export function compileQuickSearch(
   eb: Eb,
   ctx: CompileFilterContext,
   q: string,
   /**
-   * Restrict the search to these columns (28-public-surface.md D5 b).
+   * Restrict the search to these columns (b).
    *
    * WITHOUT it this ORs `ILIKE '%q%'` across every text-ish column on the
    * table, INDEPENDENTLY of `select`. For an authenticated caller who was

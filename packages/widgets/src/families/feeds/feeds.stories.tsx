@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `feeds` family stories (annex §4) — the complete 7-id slice: each widget's
+ * `feeds` family stories (annex) — the complete 7-id slice: each widget's
  * loaded variant, the four WidgetFrame states through WidgetHost (acceptance
  * #4), and light/dark × LTR/RTL matrices (acceptance #9). Widgets resolve
  * through a LOCAL registry override so stories work before the green loop
@@ -161,7 +161,7 @@ export const TimelineThemeMatrix = {
   ),
 };
 
-// ── M7 Wave 4: the §4 tail ─────────────────────────────────────────────────
+// ── M7 Wave 4: the tail ────────────────────────────────────────────────────
 
 const paginatorConfig = { batchSize: 20 };
 
@@ -227,7 +227,7 @@ export const ToastStackStory = {
   ),
 };
 
-/** Every annex §4 `position` value. */
+/** Every annex `position` value. */
 export const ToastPositions = {
   name: 'toast-stack (positions)',
   render: () => (

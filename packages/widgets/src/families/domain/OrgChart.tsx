@@ -21,22 +21,22 @@ import type { OrgNode } from './domain-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `org-chart` (annex §13) — a hierarchical node tree with elbow connectors,
- * built from a SELF-REFERENCING people table (`manager_id → id`), which is also
- * this widget's auto-instantiation trigger (annex §13: "self-FK on a people
- * table (`manager_id`) → `org-chart`"). Node variants by depth: a root card, a
+ * `org-chart` (annex) — a hierarchical node tree with elbow connectors, built
+ * from a SELF-REFERENCING people table (`manager_id → id`), which is also this
+ * widget's auto-instantiation trigger (annex: "self-FK on a people table
+ * (`manager_id`) → `org-chart`"). Node variants by depth: a root card, a
  * manager card with a dept chip + an expand/collapse "N reports" footer, and a
  * compact report card tinted from its parent's department tone.
  *
- * DIRECTION (10-i18n-theming.md §5.5): an org chart is a HIERARCHY, not a time
- * axis, so it mirrors — the tree grows inline-start → inline-end and flips whole
- * under `dir="rtl"`. The mirroring is done by the browser, not by us: geometry
- * from `layoutOrgTree` is canonical-LTR and every card is positioned on
- * `inset-inline-start` (`start-[var(--node-x)]`), the same logical-CSS mechanism
- * the `calendar` family's month grid relies on. The connector overlay is SVG —
- * which has no logical coordinate system — so it mirrors with
- * `rtl:-scale-x-100`; it draws only lines (no text), so a transform mirror is
- * exact. Both layers consume the SAME geometry, so they can never disagree.
+ * DIRECTION: an org chart is a HIERARCHY, not a time axis, so it mirrors — the
+ * tree grows inline-start → inline-end and flips whole under `dir="rtl"`. The
+ * mirroring is done by the browser, not by us: geometry from `layoutOrgTree` is
+ * canonical-LTR and every card is positioned on `inset-inline-start`
+ * (`start-[var(--node-x)]`), the same logical-CSS mechanism the `calendar`
+ * family's month grid relies on. The connector overlay is SVG — which has no
+ * logical coordinate system — so it mirrors with `rtl:-scale-x-100`; it draws
+ * only lines (no text), so a transform mirror is exact. Both layers consume the
+ * SAME geometry, so they can never disagree.
  *
  * CYCLE SAFETY: a corrupt `manager_id` cycle (A→B→A, or a self-managing row)
  * must never hang the render. `buildOrgTree` is structurally loop-proof — see

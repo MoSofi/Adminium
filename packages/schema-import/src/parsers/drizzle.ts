@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Drizzle schema parser — 05-introspection-engine.md §5.2 row 3, at the
- * tokenizer level (no TypeScript compiler): `pgTable/mysqlTable/sqliteTable`
- * calls are located by regex, their argument lists split with a
- * balance-aware scanner, and column builder chains
- * (`varchar('x',{length}).notNull().references(() => other.col)`) parsed
- * method-by-method. Dynamic/computed names are unresolvable statically and
- * produce warnings.
+ * Drizzle schema parser, at the tokenizer level (no TypeScript compiler):
+ * `pgTable/mysqlTable/sqliteTable` calls are located by regex, their
+ * argument lists split with a balance-aware scanner, and column builder
+ * chains (`varchar('x',{length}).notNull().references(() => other.col)`)
+ * parsed method-by-method. Dynamic/computed names are unresolvable
+ * statically and produce warnings.
  */
 import type { ColumnDefault, DatabaseModel, Dialect, FkAction, LogicalType } from '@adminium/engine';
 

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The first-boot storage-destination seed (37-files-and-storage.md §3.11,
- * D15, 37-T08).
+ * The first-boot storage-destination seed.
  *
  * WHY A SEED EXISTS AT ALL. On DigitalOcean App Platform there is no
  * persistent local disk — `deploy/do-app.yaml` says so in its own header — so

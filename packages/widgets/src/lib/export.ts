@@ -5,12 +5,12 @@
  *
  * - WidgetHost's kebab raster item (labelled "Download" — "Export" is taken by
  *   the queued server run), offered only where the definition sets
- *   `capabilities.exportPng` (04 §2.1). Every chart in `@adminium/charts` is
- *   plain SVG (d3-scale/d3-shape, no canvas), so the raster path serializes
- *   the live node and draws it into a canvas — the package's dependency list
- *   stays closed (01 §2.3, .dependency-cruiser.cjs).
+ * `capabilities.exportPng`. Every chart in `@adminium/charts` is plain SVG
+ *   (d3-scale/d3-shape, no canvas), so the raster path serializes the live
+ *   node and draws it into a canvas — the package's dependency list stays
+ *   closed (.dependency-cruiser.cjs).
  * - `page-crud`'s bulk Export, whose format vocabulary is `csv`/`json` ONLY:
- *   `xlsx` is in the §3.25 vocabulary but the server rejects it with a 422
+ * `xlsx` is in the vocabulary but the server rejects it with a 422
  *   (apps/server/src/routes/exports/index.ts — no spreadsheet dependency
  *   exists in this repo), so it is never offered. The selection bar itself
  *   ships one button and hands `csv` (`PageCrud.BULK_EXPORT_FORMAT`); `json`
@@ -25,7 +25,7 @@
 export const TABULAR_EXPORT_FORMATS = ['csv', 'json'] as const;
 export type TabularExportFormat = (typeof TABULAR_EXPORT_FORMATS)[number];
 
-/** `json` is JSON-lines, the artifact `export-run` writes (09 §11.2). */
+/** `json` is JSON-lines, the artifact `export-run` writes. */
 export const EXPORT_EXTENSIONS: Record<TabularExportFormat, string> = { csv: 'csv', json: 'jsonl' };
 export const EXPORT_MIME_TYPES: Record<TabularExportFormat, string> = {
   csv: 'text/csv;charset=utf-8',

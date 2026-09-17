@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * React-query keys for both automation surfaces (42-automations-and-workflow-
- * logs.md §3.5). Everything hangs off `['automations']` so one invalidation
- * after a rule write refreshes the list, its 30-day counters and the KPI
- * strip together.
+ * logs.md). Everything hangs off `['automations']` so one invalidation after
+ * a rule write refreshes the list, its 30-day counters and the KPI strip
+ * together.
  *
- * THE 5 s POLL (§4.2, "Live updates"). The comp draws a Refresh button and
- * nothing else; a run that is pending, running or waiting will change without
- * anybody pressing it, so the runs list re-fetches every five seconds WHILE
- * one of those is on screen and stops when none is. No new realtime channel:
+ * THE 5 s POLL ("Live updates"). The comp draws a Refresh button and nothing
+ * else; a run that is pending, running or waiting will change without anybody
+ * pressing it, so the runs list re-fetches every five seconds WHILE one of
+ * those is on screen and stops when none is. No new realtime channel:
  * `parseChannel` is a closed set (realtime/hub.ts) and one page's live list
- * does not justify widening it (§10 keeps that as a residual).
+ * does not justify widening it (keeps that as a residual).
  */
 import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query';
 

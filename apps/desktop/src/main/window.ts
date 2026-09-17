@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Window management: BrowserWindow creation, the §2.4 security posture, the
- * navigation lockdown, window-state persistence (§14), and the two static
- * pre-server pages (§2.2 steps 6 and 9). Owned by 11-T05.
+ * Window management: BrowserWindow creation, the security posture, the
+ * navigation lockdown, window-state persistence, and the two static
+ * pre-server pages (steps 6 and 9).
  *
- * The security rules here are §2.4's, and every one of them is also an
- * acceptance criterion, so they are written as data rather than as prose the
- * next editor can drift away from: {@link WEB_PREFERENCES} is the whole posture
- * in one frozen object, {@link decideNavigation} is the whole nav lockdown as a
- * pure function, and {@link ALLOWED_PERMISSIONS} is the (empty) permission
+ * The security rules here are, and every one of them is also an acceptance
+ * criterion, so they are written as data rather than as prose the next editor
+ * can drift away from: {@link WEB_PREFERENCES} is the whole posture in one
+ * frozen object, {@link decideNavigation} is the whole nav lockdown as a pure
+ * function, and {@link ALLOWED_PERMISSIONS} is the (empty) permission
  * allow-list. All three are unit-tested — which matters more than usual here,
  * because a real Electron app cannot be launched headlessly (see
  * vitest.config.ts), so a posture regression would otherwise reach a packaged
@@ -37,11 +37,12 @@ import {
 } from './config.js';
 import type { DesktopDialogs } from './ipc.js';
 
-// ─── The §2.4 posture ────────────────────────────────────────────────────────
+// ─── The posture ─────────────────────────────────────────────────────────────
 
 /**
- * §2.4, verbatim: "contextIsolation: true, nodeIntegration: false,
- * sandbox: true, webSecurity: true. No remote, no allowRunningInsecureContent."
+ * Verbatim: "contextIsolation: true, nodeIntegration: false,
+ * sandbox: true, webSecurity: true. No remote, no
+ * allowRunningInsecureContent."
  *
  * Stated exhaustively rather than relying on Electron's defaults. Several of
  * these ARE the defaults in Electron 43 — but "the default is safe" is a claim
@@ -57,7 +58,8 @@ export const WEB_PREFERENCES = Object.freeze({
   sandbox: true,
   webSecurity: true,
   allowRunningInsecureContent: false,
-  // §2.4 does not name these two, but both re-open exactly what it closes:
+  // The navigation lockdown does not name these two, but both re-open exactly
+  // what it closes:
   // `webviewTag` is a second navigable surface that the will-navigate lockdown
   // below does not see, and `experimentalFeatures` is unaudited web surface.
   webviewTag: false,
@@ -65,7 +67,7 @@ export const WEB_PREFERENCES = Object.freeze({
 }) satisfies WebPreferences;
 
 /**
- * §2.4: "Permission request handler denies all Chromium permission prompts
+ * "Permission request handler denies all Chromium permission prompts
  * (camera, geolocation, notifications use native paths instead)."
  *
  * Empty, and it is a `Set` rather than a bare `return false` so the shape of the
@@ -76,15 +78,16 @@ export const WEB_PREFERENCES = Object.freeze({
  */
 export const ALLOWED_PERMISSIONS: ReadonlySet<string> = new Set<string>();
 
-/** §2.4's handler, as a decision. Always `false` today — see {@link ALLOWED_PERMISSIONS}. */
+/** The handler, as a decision. Always `false` today — see {@link
+ * ALLOWED_PERMISSIONS}. */
 export function isPermissionAllowed(permission: string): boolean {
   return ALLOWED_PERMISSIONS.has(permission);
 }
 
-// ─── Navigation lockdown (§2.4) ──────────────────────────────────────────────
+// ─── Navigation lockdown ─────────────────────────────────────────────────────
 
 /**
- * The only schemes §2.4 lets out to the system browser: "every other URL goes to
+ * The only schemes lets out to the system browser: "every other URL goes to
  * `shell.openExternal` after an allowlist check (`https:` only)".
  *
  * `https:` only is the whole point, and the reason is that `shell.openExternal`
@@ -104,9 +107,9 @@ export type NavigationDecision =
   | { readonly action: 'deny'; readonly reason: string };
 
 /**
- * §2.4's navigation lockdown, for both `will-navigate` and
- * `setWindowOpenHandler`: "allow only `http://127.0.0.1:<port>`; every other URL
- * goes to `shell.openExternal` after an allowlist check (`https:` only)".
+ * The navigation lockdown, for both `will-navigate` and `setWindowOpenHandler`:
+ * "allow only `http://127.0.0.1:<port>`; every other URL goes to
+ * `shell.openExternal` after an allowlist check (`https:` only)".
  *
  * @param target    the URL the renderer wants to go to.
  * @param appOrigin the serialized origin of the running server
@@ -128,7 +131,7 @@ export type NavigationDecision =
  * exactly like the app's. So an origin-only check says "same origin, allow" and
  * navigates the window to a document the page minted with `URL.createObjectURL`
  * — attacker-authored markup running INSIDE the origin that holds the session
- * cookie. §2.4 says "allow only `http://127.0.0.1:<port>`", and a `blob:` URL is
+ * cookie. Navigation is restricted to `http://127.0.0.1:<port>`, and a `blob:` URL is
  * not that, whatever its origin serializes to. Requiring the scheme to match the
  * app's closes `blob:` and anything else that inherits an origin.
  *
@@ -180,9 +183,9 @@ export function originOf(url: string): string | null {
   return parsed.origin === 'null' ? null : parsed.origin;
 }
 
-// ─── Crash-page actions (§2.2 step 9) ────────────────────────────────────────
+// ─── Crash-page actions ──────────────────────────────────────────────────────
 
-/** The actions §2.2 step 9 puts on the crash page. */
+/** The actions puts on the crash page. */
 export type CrashAction = 'retry' | 'logs' | 'quit';
 
 const CRASH_ACTIONS: ReadonlySet<string> = new Set<CrashAction>(['retry', 'logs', 'quit']);
@@ -193,14 +196,14 @@ const CRASH_ACTIONS: ReadonlySet<string> = new Set<CrashAction>(['retry', 'logs'
  *
  * WHY A NAVIGATION AND NOT IPC. crash.html is shown when the server could not
  * start, so it must work when everything else is broken — and it is loaded from
- * `file://`, where §4's preload bridge (a loopback-page affordance, and 11-T04's
- * to define) is neither available nor something to grant to a page that renders
- * a raw server log excerpt. Its buttons are therefore plain
- * `<a href="?action=retry">` links: the click fires `will-navigate`, this
- * function reads it, and the handler preventDefaults. The page needs no script
- * of its own and runs under `script-src 'none'`, which for a page whose whole
- * job is to display untrusted-shaped log text is worth more than the
- * convenience of a click handler.
+ * `file://`, where preload bridge (a loopback-page affordance, to define) is
+ * neither available nor something to grant to a page that renders a raw server
+ * log excerpt. Its buttons are therefore plain `<a href="?action=retry">` links:
+ * the click fires `will-navigate`, this function reads it, and the handler
+ * preventDefaults. The page needs no script of its own and runs under
+ * `script-src 'none'`, which for a page whose whole job is to display
+ * untrusted-shaped log text is worth more than the convenience of a click
+ * handler.
  *
  * Only same-document `file:` targets qualify, so this is not reachable from the
  * loopback SPA: a page on another origin navigating to `?action=quit` resolves
@@ -220,7 +223,7 @@ export function parseCrashAction(target: string, crashPageUrl: string): CrashAct
   return action !== null && CRASH_ACTIONS.has(action) ? (action as CrashAction) : null;
 }
 
-// ─── Window-state clamping (§14) ─────────────────────────────────────────────
+// ─── Window-state clamping ───────────────────────────────────────────────────
 
 /**
  * A display's WORK AREA — the usable rectangle, menu bar and taskbar already
@@ -234,7 +237,7 @@ export interface DisplayArea {
   height: number;
 }
 
-/** The §2.3 `config.window` body. */
+/** The `config.window` body. */
 export type WindowState = DesktopConfig['window'];
 
 /**
@@ -258,7 +261,7 @@ function clamp(value: number, lo: number, hi: number): number {
 }
 
 /**
- * §14: "bounds/maximized persisted to `config.window` (debounced), restored on
+ * "bounds/maximized persisted to `config.window` (debounced), restored on
  * launch with off-screen correction. Min size 1024×700."
  *
  * The failure this exists to prevent is total: a window restored onto a display
@@ -269,12 +272,12 @@ function clamp(value: number, lo: number, hi: number): number {
  * recovery UI is the one that is gone.
  *
  * The rules, in order:
- *  1. Size is at least §14's 1024×700, and never larger than the display it will
- *     sit on — a 1440×900 window restored onto a 1366×768 laptop panel must
- *     shrink, or clamping its position cannot make its right edge reachable.
- *     The minimum wins if the two conflict (a display smaller than 1024×700),
- *     because §14's minimum is a product constraint and Electron enforces it at
- *     `minWidth`/`minHeight` regardless of what we compute here.
+ * 1. Size is at least 1024×700, and never larger than the display it will sit on
+ *  — a 1440×900 window restored onto a 1366×768 laptop panel must shrink, or
+ *  clamping its position cannot make its right edge reachable. The minimum wins
+ *  if the two conflict (a display smaller than 1024×700), because minimum is a
+ *  product constraint and Electron enforces it at `minWidth`/`minHeight`
+ *  regardless of what we compute here.
  *  2. The display is the one the saved rect overlaps MOST — not the primary, and
  *     not the first that overlaps at all. A window straddling two monitors comes
  *     back on the one it mostly lived on.
@@ -334,7 +337,7 @@ export function clampWindowState(state: WindowState, displays: readonly DisplayA
     return { width: saved.width, height: saved.height, maximized };
   }
 
-  // Rule 1: fit the window to its display, but never below §14's minimum.
+  // Rule 1: fit the window to its display, but never below minimum.
   const width = Math.max(MIN_WINDOW_WIDTH, Math.min(saved.width, target.width));
   const height = Math.max(MIN_WINDOW_HEIGHT, Math.min(saved.height, target.height));
 
@@ -347,17 +350,17 @@ export function clampWindowState(state: WindowState, displays: readonly DisplayA
   };
 }
 
-// ─── Crash-page payload (§2.2 steps 7 and 9) ─────────────────────────────────
+// ─── Crash-page payload (steps 7 and 9) ──────────────────────────────────────
 
-/** What the crash page renders (§2.2 steps 7 and 9). */
+/** What the crash page renders (steps 7 and 9). */
 export interface CrashScreenInfo {
   /** Shown verbatim: already user-facing prose, never a raw stack. */
   reason: string;
-  /** §9's `<userData>/logs/adminium-server.log` — the "Show logs" target. */
+  /** `<userData>/logs/adminium-server.log` — the "Show logs" target. */
   logPath?: string | undefined;
-  /** §2.2 step 7's "log excerpt", oldest line first. */
+  /** The crash screen's log excerpt, oldest line first. */
   excerpt?: readonly string[] | undefined;
-  /** False once §2.2 step 9's crash budget is spent: hide "Restart server". */
+  /** False once crash budget is spent: hide "Restart server". */
   canRestart: boolean;
 }
 
@@ -408,7 +411,7 @@ export function crashRenderScript(info: CrashScreenInfo): string {
   set('excerpt', excerpt.join('\\n'));
   toggle('excerpt-row', excerpt.length > 0);
 
-  // §2.2 step 9: once the 3-in-60 s budget is spent, restarting is not offered.
+  // Once the 3-in-60 s budget is spent, restarting is not offered.
   toggle('retry', info.canRestart);
   toggle('logs', Boolean(info.logPath));
 })(${jsonForScript(info)});`;
@@ -417,47 +420,47 @@ export function crashRenderScript(info: CrashScreenInfo): string {
 // ─── The manager ─────────────────────────────────────────────────────────────
 
 export interface DesktopWindows {
-  /** §2.2 step 6: the bundled splash. Creates the window if it does not exist. */
+  /** The bundled splash. Creates the window if it does not exist. */
   showBoot(): Promise<void>;
-  /** §2.2 step 8: navigate to the loopback app URL. */
+  /** Navigate to the loopback app URL. */
   loadApp(url: string): Promise<void>;
-  /** §2.2 step 9: the bundled crash page. */
+  /** The bundled crash page. */
   showCrash(info: CrashScreenInfo): Promise<void>;
-  /** §2.2 step 1: a second launch focuses the existing window. */
+  /** A second launch focuses the existing window. */
   focus(): void;
-  /** §14: macOS `activate` with no window ⇒ re-create it and reload the app URL. */
+  /** MacOS `activate` with no window ⇒ re-create it and reload the app URL. */
   reopen(): Promise<void>;
   exists(): boolean;
-  /** §2.2 step 1 / §9: a forwarded `.zip` / `.sqlite` launch argument. */
+  /** A forwarded `.zip` / `.sqlite` launch argument. */
   handleFileArgument(path: string): void;
   /**
    * The launch file received but not yet delivered to the SPA, or `null`.
    *
-   * READ THIS BEFORE WIRING §9's RESTORE FLOW (11-T12). The path is RETAINED,
-   * not delivered: §4's bridge has no method that carries it, `IPC_CHANNELS` has
-   * no channel for it, and the preload deliberately exposes no generic
-   * `send(channel, …)` forwarding (see its header — that would be `ipcRenderer`
-   * wearing a hat). An earlier version of this module pushed to a bespoke
+   * READ THIS BEFORE WIRING RESTORE FLOW. The path is RETAINED, not delivered:
+   * The bridge has no method that carries it, `IPC_CHANNELS` has no channel
+   * for it, and the preload deliberately exposes no generic `send(channel, …)`
+   * forwarding (see its header — that would be `ipcRenderer` wearing a hat). An
+   * earlier version of this module pushed to a bespoke
    * `'adminium:file-argument'` channel and claimed in a comment that "the SPA
-   * subscribes through §4's bridge"; nothing did, so a double-clicked
+   * subscribes through bridge"; nothing did, so a double-clicked
    * `adminium-backup-*.zip` was dropped with no error anywhere.
    *
-   * Delivering it needs a new §4 method (`onFileArgument`, mirroring
+   * Delivering it needs a new method (`onFileArgument`, mirroring
    * `onUpdateEvent`: a one-way main → renderer push, a channel in
-   * `IPC_CHANNELS`, and an entry in `api.d.ts`) — which is 11-T12's to add
-   * alongside the restore flow that consumes it, and a change to the §4 contract
-   * this file does not own. Until then the honest state is "held, and readable",
-   * which is what this returns.
+   * `IPC_CHANNELS`, and an entry in `api.d.ts`) — which is to add alongside the
+   * restore flow that consumes it, and a change to the contract this file does
+   * not own. Until then the honest state is "held, and readable", which is what
+   * this returns.
    */
   pendingFileArgument(): string | null;
   /**
-   * Push to the live window's `webContents` — §4's one-way channels (today only
+   * Push to the live window's `webContents` — one-way channels (today only
    * `onUpdateEvent`). A no-op while no window exists, which is the honest
    * answer: there is nobody to tell.
    */
   broadcast(channel: string, payload: unknown): void;
   /**
-   * §2.2 step 9's Restart server / Show logs / Quit.
+   * The Restart server / Show logs / Quit.
    *
    * A SETTER rather than a constructor option, and that is the whole point of
    * its existence: `retry` has to reach `ServerManager.restart()`, and the
@@ -473,18 +476,19 @@ export interface DesktopWindows {
 }
 
 export interface CreateWindowManagerOptions {
-  /** `app.getPath('userData')` — where `config.window` is persisted (§2.3). */
+  /** `app.getPath('userData')` — where `config.window` is persisted. */
   userDataDir: string;
   /**
-   * §2.2 step 9's initial crash-action handler. Almost always omitted:
-   * {@link DesktopWindows.setCrashActionHandler} is how index.ts installs the
-   * real one, because `retry` needs a ServerManager that does not exist yet at
-   * construction time. Kept for tests that want a handler from the first frame.
+   * The initial crash-action handler. Almost always omitted: {@link
+   * DesktopWindows.setCrashActionHandler} is how index.ts installs the real
+   * one, because `retry` needs a ServerManager that does not exist yet at
+   * construction time. Kept for tests that want a handler from the first
+   * frame.
    */
   onCrashAction?: ((action: CrashAction) => void) | undefined;
 }
 
-/** §14: "bounds/maximized persisted to `config.window` (debounced)". */
+/** "bounds/maximized persisted to `config.window` (debounced)". */
 const PERSIST_DEBOUNCE_MS = 400;
 
 const rendererDir = (): string => resolve(dirname(fileURLToPath(import.meta.url)), '..', 'renderer');
@@ -512,9 +516,9 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
    * offer a way out.
    */
   let showingCrash = false;
-  /** §14's `activate`-with-no-window needs somewhere to go back to. */
+  /** `activate` with no window needs somewhere to go back to. */
   let lastAppUrl: string | null = null;
-  /** A forwarded launch file, held until §4 has a way to carry it (11-T12). */
+  /** A forwarded launch file, held until has a way to carry it. */
   let pendingFile: string | null = null;
   /** Late-bound — see {@link DesktopWindows.setCrashActionHandler}. */
   let crashActionHandler: ((action: CrashAction) => void) | null = opts.onCrashAction ?? null;
@@ -559,10 +563,10 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       height: state.height,
       minWidth: MIN_WINDOW_WIDTH,
       minHeight: MIN_WINDOW_HEIGHT,
-      // §2.2 step 6 paints the splash; showing the frame first is a white flash
+      // The splash is painted first; showing the frame before it is a white flash
       // on every launch.
       show: false,
-      // §14: "standard OS chrome in v1 (no custom titlebar)".
+      // "standard OS chrome in v1 (no custom titlebar)".
       title: 'Adminium',
       webPreferences: { ...WEB_PREFERENCES, preload: preloadEntry() },
     });
@@ -573,7 +577,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       created.show();
     });
 
-    // ── §2.4 navigation lockdown ──
+    // ── navigation lockdown ──
     created.webContents.on('will-navigate', (event, target) => {
       // The crash page's buttons are links (see parseCrashAction) — checked
       // first, and only while the crash page is the one asking.
@@ -619,7 +623,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       if (decideNavigation(target, appOrigin).action !== 'allow') event.preventDefault();
     });
 
-    // ── §2.4 permission handlers ──
+    // ── permission handlers ──
     // Both, deliberately. `setPermissionRequestHandler` covers the prompts;
     // `setPermissionCheckHandler` covers the synchronous checks
     // (`navigator.permissions.query`, and the getUserMedia paths that never
@@ -631,7 +635,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
     });
     session.setPermissionCheckHandler((_contents, permission) => isPermissionAllowed(permission));
 
-    // ── §14 window state ──
+    // ── window state ──
     created.on('resize', persistDebounced);
     created.on('move', persistDebounced);
     created.on('maximize', persistDebounced);
@@ -658,8 +662,8 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
    * The in-flight promise is what makes "at most once" true. `build` awaits the
    * config read before it constructs anything, so two callers that arrive during
    * that await would BOTH see `win === null`, and both would go on to construct
-   * a BrowserWindow — §14 says single window, and the second one would be the
-   * one holding the handlers while the first stayed on screen. The boot sequence
+   * a BrowserWindow — says single window, and the second one would be the one
+   * holding the handlers while the first stayed on screen. The boot sequence
    * lines these calls up today (index.ts awaits each), but `manager.subscribe`
    * and `manager.onExit` both call in from event handlers, so the ordering is
    * not something this module gets to assume.
@@ -710,8 +714,8 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
 
     async reopen(): Promise<void> {
       const target = await create();
-      // §14: `activate` re-creates the window. Where it goes depends on how far
-      // the boot got — the app if it ever came up, the splash if it did not.
+      // `activate` re-creates the window. Where it goes depends on how far the
+      // boot got — the app if it ever came up, the splash if it did not.
       showingCrash = false;
       if (lastAppUrl === null) {
         await target.loadFile(bootPage);
@@ -726,9 +730,9 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
     },
 
     handleFileArgument(path: string): void {
-      // Held, not delivered — see `pendingFileArgument`. The focus IS §2.2 step
+      // Held, not delivered — see `pendingFileArgument`. The focus IS step
       // 1's other half ("a second launch focuses the existing window") and works
-      // today; the restore flow that consumes the path is 11-T12's.
+      // today; the restore flow that consumes the path is.
       pendingFile = path;
       if (win === null || win.isDestroyed()) return;
       focus();
@@ -749,24 +753,24 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
   };
 }
 
-// ─── Native dialogs (§4, §2.1) ───────────────────────────────────────────────
+// ─── Native dialogs ──────────────────────────────────────────────────────────
 
 /**
- * §4's four native affordances, over Electron's `dialog` and `shell`.
+ * The four native affordances, over Electron's `dialog` and `shell`.
  *
- * HERE because §2.1 gives the dialogs to "the BackupCoordinator (dialogs + shell
+ * HERE because gives the dialogs to "the BackupCoordinator (dialogs + shell
  * reveal)" and the window manager, and of those two this is the module that
  * exists and owns the parent window. `main/ipc.ts` declares the shape it needs
  * ({@link DesktopDialogs}) and routes to it; this is the only implementation.
  *
- * The filter lists are keyed by §4's `kind` rather than supplied by the caller,
- * which is the point of that parameter: the renderer is the untrusted side
- * (§2.4), and a caller-chosen filter is a caller-chosen file type.
+ * The filter lists are keyed by `kind` rather than supplied by the caller,
+ * which is the point of that parameter: the renderer is the untrusted side, and
+ * a caller-chosen filter is a caller-chosen file type.
  *
- * FILTER NAMES ARE NOT LOCALIZED YET. §14 localizes menu labels via
- * `@adminium/i18n` at build time and 10-i18n-theming.md rebuilds them on locale
- * change; these strings belong to that same pass (11-T19) and are left in
- * English rather than given a second, private translation path.
+ * FILTER NAMES ARE NOT LOCALIZED YET. Menu labels are localized via
+ * `@adminium/i18n` at build time rebuilds them on locale change; these strings
+ * belong to that same pass and are left in English rather than given a second,
+ * private translation path.
  */
 export function createNativeDialogs(): DesktopDialogs {
   // The focused window, else the only one there is. Parenting matters: on macOS
@@ -778,13 +782,13 @@ export function createNativeDialogs(): DesktopDialogs {
   const filtersFor = (kind: OpenFileKind): Electron.FileFilter[] => {
     switch (kind) {
       case 'sqlite':
-        // §6 step 2's "Open an existing SQLite file".
+        // The wizard's "Open an existing SQLite file".
         return [
           { name: 'SQLite database', extensions: ['sqlite', 'db', 'sqlite3'] },
           { name: 'All files', extensions: ['*'] },
         ];
       case 'schema':
-        // §6 step 2's "From a schema file": the formats @adminium/schema-import
+        // The wizard's "From a schema file": the formats @adminium/schema-import
         // accepts (SQL/pg_dump, Prisma, Drizzle/TypeORM/Sequelize, schema.rb,
         // Django models, JSON).
         return [
@@ -807,7 +811,7 @@ export function createNativeDialogs(): DesktopDialogs {
       window === null
         ? await dialog.showOpenDialog(options)
         : await dialog.showOpenDialog(window, options);
-    // §4: "return absolute paths or null on cancel". `canceled` and an empty
+    // "return absolute paths or null on cancel". `canceled` and an empty
     // list are the same answer, and both happen — checking only `canceled`
     // would index into nothing on some platforms.
     if (result.canceled) return null;
@@ -824,7 +828,7 @@ export function createNativeDialogs(): DesktopDialogs {
     chooseDirectory: (opts) =>
       showOpen({
         title: opts.title,
-        // §6 step 1's "Change…": the data directory may not exist yet, so the
+        // The wizard's "Change…": the data directory may not exist yet, so the
         // dialog has to be able to make it.
         properties: ['openDirectory', 'createDirectory'],
         ...(opts.defaultPath === undefined ? {} : { defaultPath: opts.defaultPath }),
@@ -847,7 +851,7 @@ export function createNativeDialogs(): DesktopDialogs {
     },
 
     showItemInFolder(path: string): Promise<void> {
-      // Synchronous in Electron; §4 types it as a promise because every other
+      // Synchronous in Electron; the bridge types it as a promise because every other
       // bridge method is one and a lone sync method is a trap for the caller.
       shell.showItemInFolder(path);
       return Promise.resolve();
@@ -879,7 +883,7 @@ async function readWindowState(configPath: string): Promise<WindowState> {
 }
 
 /**
- * Persist `config.window` (§14), read-modify-write.
+ * Persist `config.window`, read-modify-write.
  *
  * Best-effort, and it SKIPS a missing config.json rather than creating one: on
  * first run `config.json` is written by the boot sequence once a secret exists

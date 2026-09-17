@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shortcuts panel (09-generated-app.md §5.3). Its one substantive rule is in
- * the module header: it renders the LIVE registration set from the shortcut
- * manager, never a hardcoded list — so a shortcut that is registered appears,
- * one that is not does not, and the panel can never promise a key that nothing
- * handles.
+ * Shortcuts panel. Its one substantive rule is in the module header: it
+ * renders the LIVE registration set from the shortcut manager, never a
+ * hardcoded list — so a shortcut that is registered appears, one that is not
+ * does not, and the panel can never promise a key that nothing handles.
  *
  * The two rendering details that carry meaning are tested with it: keycaps
  * localize per platform (`⌘` is `Ctrl` off-mac, and a panel that says ⌘ on

@@ -1,6 +1,6 @@
 ---
 title: Anatomy of Adminium
-description: What actually happens between `npx @adminiumjs/adminium` and a working admin panel — the boot path, the twenty workspaces, the request lifecycle, and where your customizations live.
+description: What actually happens between `npx @adminiumjs/adminium` and a working admin panel — the boot path, the twenty-one workspaces, the request lifecycle, and where your customizations live.
 ---
 
 [What is Adminium?](/getting-started/) explains the model: Adminium interprets
@@ -9,23 +9,49 @@ separate connections, and it reads structure without reading rows. This page
 assumes you have that and goes one level down — into the machinery.
 
 It answers, in order: what that one command downloads and runs, how a Node
-process becomes an admin panel, which of the twenty workspaces does what, how a
+process becomes an admin panel, which of the twenty-one workspaces does what, how a
 schema turns into pages, what happens on a single click, and where everything
 you change is stored.
 
 ## 1. What `npx @adminiumjs/adminium` actually runs
 
-One npm package, one binary, no post-install step.
+One command, one binary and, from 0.2.10, one package. The package you name
+holds the server, the CLI, the dashboard build and the internal packages the
+server loads:
 
 ```
 npm registry
-└── @adminiumjs/adminium@0.2.1        ← the published name of apps/server
+└── @adminiumjs/adminium@0.2.10       ← the published name of apps/server
     ├── dist/                          compiled server + CLI
     ├── dashboard/                     the pre-built React SPA (static files)
     ├── vocabulary/                    LLM allow-lists snapshotted at pack time
+    ├── assets/                        the PNG marks email templates use
+    ├── node_modules/@adminium/        the 11 internal packages the server loads
     ├── README.md
     └── LICENSE
 ```
+
+The 11 are `engine`, `meta`, `i18n`, `llm`, `schema-import`, `manifest`,
+`add-on-contracts`, `widgets` and the three adapters. `ui`, `charts` and
+`tokens` are not among them, because the server never loads them (see
+[the dependency graph](#the-dependency-graph)). The package lists the 11 in
+`bundleDependencies`, so npm installs them from the tarball and never asks the
+registry for them. They keep their source names, so
+`node_modules/@adminium/engine` holds `@adminiumjs/engine`
+([how `@adminium` becomes `@adminiumjs`](#how-adminium-becomes-adminiumjs)
+explains why).
+
+Their copies declare no dependencies of their own. The package declares the
+third-party libraries they load instead, found by tracing the built code
+(`scripts/release/server-runtime-deps.mjs`). So what `widgets` declares for the
+dashboard (React, Radix, Leaflet and the rest) is never installed. A 0.2.10
+install comes to about 170 packages and 150 MB. Up to 0.2.9, npm downloaded 14
+separate Adminium packages and everything they declared: about 245 packages and
+220 MB.
+
+None of Adminium's packages runs an install script. The only one in the whole
+tree is argon2's. On x64 and ARM Linux, Apple-silicon macOS and x64 Windows it
+picks a prebuilt binary; elsewhere it compiles one.
 
 `bin` maps the command `adminium` to `dist/cli/index.js`. That entry file does
 exactly two things: `await runCli(process.argv.slice(2))`, then assign the
@@ -47,13 +73,19 @@ vocabulary into `apps/server/vocabulary`. Neither directory is in git.
 
 ### The command set
 
-`runCli` is a pure argv-to-exit-code dispatcher over eight commands, listed here
-in registry order — the same order `--help` prints:
+`runCli` is a pure argv-to-exit-code dispatcher over fourteen commands, listed
+here in registry order — the same order `--help` prints:
 
 | Command | What it does |
 |---|---|
-| `init` | The interactive setup wizard. **This is what runs with no arguments.** |
-| `start` | Boot the server against existing configuration. |
+| `new` | Create a [project](/projects/) folder, or make this folder one. |
+| `dev` | Run the project, watching it. |
+| `build` | Compile the project's config and code into `.adminium/build`. |
+| `start` | Boot the server against existing configuration — a project's, or the environment's. |
+| `check` | Check a project without starting it, for CI. |
+| `pull` | Write pages and schema changes into the project. |
+| `eject` | Turn a page file into a page written in React. |
+| `try` | The interactive setup wizard, with no project. `init` is a hidden alias. |
 | `migrate` | Apply pending meta-store migrations; `--status` reports without applying. |
 | `introspect` | Read a connection's schema into a new snapshot. |
 | `generate-prompt` | Emit the LLM enrichment prompt for copy-paste. |
@@ -61,15 +93,24 @@ in registry order — the same order `--help` prints:
 | `export-zip` | Write the whole instance configuration to a bundle. |
 | `import-zip` | Restore one. |
 
+**With no arguments** a fifteenth, hidden command runs: inside a project it
+lists that project's commands, and anywhere else it asks for a folder name and
+creates a project there. Up to 0.2.9 it was the setup wizard, which is now
+`try`.
+
 Flags are declared as data (`FlagSpecs`) and `--help` is rendered from that same
 data, so a flag that exists is documented and a documented flag exists. Parsing
 is Node's built-in `node:util` `parseArgs` in strict mode — no CLI framework,
 so the published tarball carries no extra dependency for the first thing you
 run.
 
-Exit codes are a closed set of four: `0` success, `1` error, `2` validation
-failed, `3` nothing accepted. The last two are meaningful only for
-`apply-llm-response`.
+Exit codes are a closed set of five: `0` success, `1` error, `2` validation
+failed, `3` nothing accepted, `78` the environment is in a state Adminium
+refuses to act on. `3` is meaningful only for `apply-llm-response`, and `2` for
+it and `check`. `78` is sysexits(3)'s `EX_CONFIG`, chosen so a restart loop can
+tell "fix your setup" apart from "it crashed": it covers a meta store migrated
+by a newer Adminium, a pre-upgrade snapshot that could not be written, and a
+Node too old to load the database driver.
 
 ### The one required variable
 
@@ -87,23 +128,26 @@ Generate one and re-run, e.g.
 followed by a `variable | problem | hint` table. Nothing is written to stdout;
 the run never starts.
 
-One ordering detail worth knowing: the wizard checks for an interactive terminal
-*before* it loads the environment. So a non-interactive `npx @adminiumjs/adminium`
-with no secret reports "The setup wizard needs an interactive terminal" and
-never mentions the secret. `adminium start` has no such gate, so there the
-secret error is the first thing you see.
+One ordering detail worth knowing: the commands that need a person check for an
+interactive terminal *before* they load the environment. So `adminium try` with
+no secret and no TTY reports "The setup wizard needs an interactive terminal"
+and never mentions the secret, and a bare `adminium` there says "Tell Adminium
+what to do." with the three commands that would work. `adminium start` has no
+such gate, so there the secret error is the first thing you see.
 
-`envSchema` declares sixteen variables in total. `ADMINIUM_SECRET` is the only
-required one; `PORT` defaults to `4600`, `HOST` to `0.0.0.0`, and
-`ADMINIUM_DATA_DIR` to the relative `./data` — except on a CLI run outside a
-project, where it becomes `~/.adminium` so an instance started from a home
-directory can be found again from anywhere. See
+`ADMINIUM_SECRET` is the only required variable; `PORT` defaults to `4600`,
+`HOST` to `0.0.0.0`, and `ADMINIUM_DATA_DIR` to the relative `./data` — except
+on a CLI run outside a project, where it becomes `~/.adminium` so an instance
+started from a home directory can be found again from anywhere. Inside a
+project it is always resolved against the project root. The complete list is
+`envSchema`, rendered as
 [Environment variables](/self-hosting/env-vars/).
 
 ## 2. The first run
 
-With no command, argv routes to the wizard, and the wizard's first question is
-which front door you want:
+From 0.2.10, `adminium` with no command creates a project (`adminium new`), and
+the wizard described here runs as `adminium try`. Its first question is which
+front door you want:
 
 ```
 How would you like to set this up?
@@ -210,11 +254,16 @@ interface is generic over its role: `introspect()` is typed
 `this: DatabaseAdapter<'data'>`. Calling one on the other is a compile error,
 and every adapter re-checks the role at runtime as well.
 
-## 4. The twenty workspaces
+## 4. The twenty-one workspaces
 
-Fifteen packages and five apps, all released together at one version. Source
-names are `@adminium/*`; the published names are `@adminiumjs/*` (see
-[§10](#10-one-codebase-three-ways-to-run-it)).
+Sixteen packages and five apps, all versioned together. Four are published to
+npm: the CLI (`@adminiumjs/adminium`, built from `apps/server`), and
+`public-client`, `manifest` and `add-on-contracts`, which other repos install
+on their own. Every other workspace is private, and the CLI carries the ones it
+needs inside its tarball
+([what that one command runs](#1-what-npx-adminiumjsadminium-actually-runs)).
+Source names are `@adminium/*`; the published names are `@adminiumjs/*` (see
+[one codebase, four ways to run it](#10-one-codebase-four-ways-to-run-it)).
 
 This section is the map. For what is actually inside each package — its public
 surface, its internal decisions, and the rules that keep it in its lane — see
@@ -287,8 +336,17 @@ backwards. It exists because the engine's generator needs the widget *catalog
 rules* — which widget accepts which data shape, how a page template's slots are
 laid out — and those rules live with the widgets. The edge is confined to two
 deliberately pure subpaths, `@adminium/widgets/page-config` and
-`@adminium/widgets/generate`; the engine never imports the widgets barrel, so no
-React reaches the server.
+`@adminium/widgets/generate`, and the engine never imports the widgets barrel.
+So the server never *loads* React.
+
+From 0.2.10, npm does not install it either. The published CLI carries only
+the internal packages the server loads (`widgets` among them, for those two
+subpaths), with no dependency lists of their own, and declares only the
+third-party libraries that code imports. `ui`, `charts`, `tokens`, React, React
+DOM, Radix, lucide-react, Leaflet, dnd-kit and TanStack Table stay out. Up to
+0.2.9, the dependency on `widgets` brought the whole package and everything it
+declared: about 80 MB of a 220 MB install, most of it third-party browser code
+(lucide-react alone is 41 MB).
 
 The layering is written down as twenty forbidden edges in
 `.dependency-cruiser.cjs` and checked by `pnpm check-deps` in CI. A related
@@ -385,9 +443,9 @@ human, so it is skipped on update and kept rather than pruned on deletion.
 
 ## 6. The meta store
 
-Adminium's own database is 34 tables, all prefixed `adminium_`, created by 12
-numbered migrations. The same schema runs on PostgreSQL, MySQL/MariaDB and
-SQLite.
+Adminium's own database is 50 tables, all prefixed `adminium_`, created by 34
+numbered migrations, plus the `adminium_migrations` ledger the runner creates
+itself. The same schema runs on PostgreSQL, MySQL/MariaDB and SQLite.
 
 Portability comes from one module. `columnHelpers(dialect)` maps eight logical
 column types onto each dialect's physical types, and the choices are opinionated:
@@ -415,6 +473,7 @@ The tables you will care about most:
 | `adminium_schema_snapshots` | one immutable row per introspection, with a checksum |
 | `adminium_schema_overrides` | every correction you make to the generated app |
 | `adminium_pages` | every page of the generated app, dashboards included |
+| `adminium_project_files` | one row per [project file](/projects/page-files/) applied: its hash, when it was applied, and what changed on this server since |
 | `adminium_views` | saved filters and per-user dashboard layouts |
 | `adminium_jobs` | the job queue — table-backed, no Redis |
 | `adminium_audit_log` | the append-only audit trail |
@@ -433,11 +492,12 @@ Primary keys are type-prefixed monotonic ULIDs — `usr_01J8ME7Q2RZX4V9T6W3YB0KD
 creation order. Cursor pagination depends on that.
 
 :::note[Not every table is a shipped feature]
-Seven of the 34 tables have DDL and typed models but no repository and no
-read/write path yet: `adminium_automations`, `_automation_runs`, `_webhooks`,
-`_webhook_deliveries`, `_feature_flags`, `_manifests`, `_changelog_seen`. Four
-of the 17 system permission keys are reserved to match. Counting tables will
-over-read what the product does today.
+Four of the tables have DDL and typed models but no read/write path yet:
+`adminium_webhooks`, `_webhook_deliveries`, `_feature_flags` and
+`_changelog_seen`. Two of the 22 system permission keys are reserved to match —
+`webhooks.manage` and `sql.run` — and no permissions surface offers them, since
+letting an admin grant a key nothing checks is misleading security UI. Counting
+tables will over-read what the product does today.
 :::
 
 ## 7. Where your customizations live
@@ -471,11 +531,40 @@ The practical consequences:
 - **Re-running introspection does not eat your edits.** A new snapshot is a new
   row; your override rows still layer over it.
 - **Re-running generation does not eat your page edits either** — that is what
-  the `generatedHash` comparison in [§5](#generate) is for.
+  the `generatedHash` comparison in [Generate](#generate) is for.
 - Introspection *proposes* masks for you: every column the classifier flagged
   `maskedByDefault` gets a `column.pii` override written at the `auto` tier, so
   PII is masked before you have looked at it, and a later human or LLM
   correction outranks it.
+
+### The same rows, as files
+
+A [project](/projects/) adds a second copy of exactly these two things — pages
+and override rows — as files in a folder you commit: `pages/<address>.json` and
+`schema/<database>.json`. The database stays the working copy the server reads
+on every request; the files are the copy a pull request can review.
+
+Three rules make that safe rather than a second source of truth:
+
+- **Files name nothing that is local to one install.** A database is named by
+  its key in `adminium.config.ts` (`adminium_connections.project_key`), a page
+  by its address. No page id, connection id or destination id is ever written,
+  and `adminium check` refuses a file that carries one — that is what lets the
+  same folder apply to a server that has never seen your laptop.
+- **`adminium_project_files` remembers each file's hash as last applied**, plus
+  when a change on this server was first seen. Comparing the file, the database
+  and that row is how the server knows whether a file is new, a page was edited
+  here, or both happened — the last being the conflict Studio offers two buttons
+  for.
+- **Hashes compare meaning, not text.** Key order, formatting, `$schema`,
+  restated defaults and row order are all ignored, so a file edited by hand
+  still counts as equal to Adminium's own copy.
+
+Which side wins depends on how the process runs: in `adminium dev` the folder
+does, and Studio edits are written back into it; on a server the deploy does,
+and an edit made there is kept and flagged until someone pulls it. The
+`auto`-tier masks above are deliberately **not** written to files: every install
+derives its own from its own snapshot.
 
 Schema **drift** is detected by re-introspecting and structurally diffing two
 snapshots — added and removed tables, per-table column changes, type and
@@ -613,13 +702,21 @@ boundaries — generation and zip import — and the browser validates on read. 
 use the same Zod objects from `@adminium/engine/config`, which is the whole
 point of that subpath being browser-safe.
 
-## 10. One codebase, three ways to run it
+## 10. One codebase, four ways to run it
 
 | | Process | Meta store | Notes |
 |---|---|---|---|
-| **npm / self-host** | `adminium start` in a plain Node process | your choice | [Quickstart](/getting-started/quickstart/) |
+| **npm / self-host** | `adminium start` in a plain Node process | your choice | [A VPS without Docker](/self-hosting/vps/) |
+| **A project** | `adminium dev`, or `start` against a project folder — the same server, told where the folder is | your choice | [Projects](/projects/) |
 | **Docker** | the same command as the image's `CMD`, under `dumb-init` as an unprivileged user | SQLite volume or external Postgres/MySQL | [Docker](/getting-started/docker/) |
 | **Desktop** | Electron forks the same server as a `utilityProcess` on `127.0.0.1:0` | embedded SQLite, offline | — |
+
+A project is not a fourth build. `dev` is a supervisor that runs the same server
+as a child with `ADMINIUM_PROJECT_MODE=dev`, watches the folder, and rebuilds
+the parts that changed; a project image is the published image with the folder
+copied in and `ADMINIUM_PROJECT_DIR` set. Project code — hooks, actions, pages
+and widgets — runs in that server process with full access to it, which is why
+neither the desktop app nor `adminium try` ever loads it.
 
 The desktop shell is worth a sentence because the architecture is not what people
 expect. Electron does **not** bundle the server or talk to it over IPC. It forks
@@ -631,21 +728,34 @@ Node and under Electron — there is no ABI rebuild step.
 
 ### How `@adminium/*` becomes `@adminiumjs/*`
 
-At pack time the release script rewrites every manifest: `@adminium/server`
-becomes `@<scope>/adminium`, every other package keeps its basename under the new
-scope, and internal `workspace:*` edges become npm aliases —
+At pack time the release script (`scripts/release/publish-npm.mjs`) rewrites
+the manifests it packs: `@adminium/server` becomes `@<scope>/adminium`, every
+other package keeps its basename under the new scope, and internal
+`workspace:*` edges become npm aliases —
 
 ```json
-"@adminium/engine": "npm:@adminiumjs/engine@0.2.1"
+"@adminium/engine": "npm:@adminiumjs/engine@0.2.10"
 ```
 
 — so the compiled `import '@adminium/engine'` specifiers keep resolving without
-touching a line of source. Packages are then packed, X-rayed, and published in
-topological order. Authentication is npm trusted publishing over Actions OIDC;
-there is no long-lived token.
+touching a line of source.
 
-All twenty workspaces share one version number, because changesets is configured
-with a single `fixed` group. A patch to one package moves all twenty.
+The CLI goes one step further. Each internal package it loads is packed on its
+own with its dependency lists removed, then unpacked into
+`node_modules/@adminium/<name>/` next to the CLI's own files. The CLI lists them
+in `bundleDependencies` and still names each one as an alias dependency,
+because npm only packs a bundled package that a dependency points at. Its
+third-party dependencies are its own plus the ones in
+`scripts/release/server-runtime-deps.json`, a list traced from the built code
+that fails CI when it falls out of date.
+
+Every tarball is X-rayed before anything is published, and the four published
+packages go up in topological order. Authentication is npm trusted publishing
+over Actions OIDC; there is no long-lived token.
+
+All twenty-one workspaces share one version number, because changesets is configured
+with a single `fixed` group. A patch to one package moves all twenty-one, published
+or not.
 
 ## 11. What is deliberately not here
 
@@ -653,7 +763,10 @@ An honest anatomy includes the absences.
 
 - **No code generation.** There is no emitted codebase to own or maintain, and
   `export-zip` gives you the server plus its configuration bundle — never
-  something that looks like a generated app.
+  something that looks like a generated app. A [project](/projects/) writes
+  *settings* as files, and `adminium eject` writes one small React file that
+  hands the same settings to `GeneratedPage`. Nothing expands a page into
+  components.
 - **No email *provider* integrations.** This bullet used to say the broader
   thing — that nothing in the repository sends mail — and that was wrong end to
   end. Mail ships: `email.smtp` resolves to a real nodemailer transport (lazily
@@ -689,6 +802,8 @@ An honest anatomy includes the absences.
 
 - [The packages, one by one](/anatomy/packages/) — the same system taken apart
   package by package.
+- [Projects](/projects/) — the folder a developer owns: page files, hooks,
+  actions, React pages, and deploying one.
 - [Where to put the meta store](/self-hosting/meta-store/) — the one placement
   decision with a hard rule.
 - [CLI reference](/reference/cli/) and [REST API](/reference/rest-api/).

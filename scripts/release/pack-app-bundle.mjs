@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pack an app checkout into a bundled-set tarball
- * (47-app-installation.md step 4).
+ * Pack an app checkout into a bundled-set tarball.
  *
  * The bundled set is how `/studio/apps` has real apps to browse and install
- * with no network at all (47 O1), and it is the same shape
- * the add-on bundle takes: `<key>-<version>.tgz` beside a `.tgz.integrity`,
- * staged into the store at boot by `seedBundledPackages`.
+ * with no network at all, and it is the same shape the add-on bundle takes:
+ * `<key>-<version>.tgz` beside a `.tgz.integrity`, staged into the store at
+ * boot by `seedBundledPackages`.
  *
  * ─── Why it packs from a STAGING directory ──────────────────────────────────
  *
@@ -31,8 +30,8 @@
  *
  * Releases are not made here. An app releases itself from its own repository —
  * `scripts/publish-app.mjs` in its release workflow uploads to
- * downloads.adminium.dev (48 D6) — so there is no `--publishable` any more; npm
- * is only the local packer (48 D5).
+ * downloads.adminium.dev — so there is no `--publishable` any more; npm is only
+ * the local packer.
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';

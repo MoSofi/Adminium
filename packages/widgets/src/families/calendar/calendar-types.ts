@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Data-contract shapes for the `calendar` family (annex §5). `CalendarEvent`
- * mirrors the canonical `calendar-events` envelope (04 §3
- * `{ date, title, category?, time?, tone? }`); the scheduling widgets carry
- * resource-slot payloads inside a `record-list` envelope (rows = resources /
- * members, so the host's `isEmpty` predicate routes on `total`).
+ * Data-contract shapes for the `calendar` family (annex). `CalendarEvent`
+ * mirrors the canonical `calendar-events` envelope (`{ date, title,
+ * category?, time?, tone? }`); the scheduling widgets carry resource-slot
+ * payloads inside a `record-list` envelope (rows = resources / members, so
+ * the host's `isEmpty` predicate routes on `total`).
  */
 
 /** One calendar event — a date (+ optional `HH:MM` time), title, and category. */
@@ -83,7 +83,7 @@ export interface CapacityBoardData {
 // --- upcoming-events-list -----------------------------------------------------
 
 /**
- * An upcoming event row (annex §5: "date block, mono version/ref, category pill,
+ * An upcoming event row (annex: "date block, mono version/ref, category pill,
  * owner avatar, status pill, colored left border"). A superset of
  * `CalendarEvent` — the same `calendar-events` payload drives the month grid and
  * this feed, so a release row's `ref`/`owner`/`status` are optional additions
@@ -101,8 +101,9 @@ export interface UpcomingEvent extends CalendarEvent {
 // --- scheduled-jobs-list ------------------------------------------------------
 
 /**
- * One recurring job (annex §5: "icon tile, name + format badge, meta (target ·
- * human cadence string), recipient avatar stack, Next run column, on/off switch").
+ * One recurring job (annex: "icon tile, name + format badge, meta (target ·
+ * human cadence string), recipient avatar stack, Next run column, on/off
+ * switch").
  *
  * `frequency` is the ALREADY-HUMANIZED cadence string: cron → prose is a
  * host/server concern (it needs the schedule's timezone and the viewer's
@@ -134,7 +135,7 @@ export interface ScheduledJobsData {
 
 // --- calendar-legend-filter ---------------------------------------------------
 
-/** An aggregated event category with its count (annex §5 legend rows/chips). */
+/** An aggregated event category with its count (annex legend rows/chips). */
 export interface EventCategory {
   name: string;
   count: number;

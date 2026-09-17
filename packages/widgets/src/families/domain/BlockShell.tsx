@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 /**
  * TRACK BUILDER — presentational primitives shared by the 22 `block-*` document
- * blocks (annex §13). Not registry widgets themselves: they are the paper-surface
+ * blocks (annex). Not registry widgets themselves: they are the paper-surface
  * vocabulary (a section wrapper, the money row, the empty card) the blocks are
  * assembled from, kept here so 22 blocks agree on their spacing, type scale and
  * empty copy instead of drifting apart.
@@ -15,14 +15,14 @@ import type { ReactNode } from 'react';
  * it is composed. That is why these primitives are transparent by default.
  */
 
-/** Every block's empty card — one shape, per-widget copy (04 §4). */
+/** Every block's empty card — one shape, per-widget copy. */
 export function BlockEmpty({ title, body }: { title?: string | undefined; body?: string | undefined }) {
   return <EmptyState compact preset="no-data" title={title ?? 'Nothing to show'} body={body} />;
 }
 
 /**
- * A labelled block section. `label` is already-translated copy from config (04
- * §2 — widgets are locale-agnostic).
+ * A labelled block section. `label` is already-translated copy from config
+ * (widgets are locale-agnostic).
  */
 export function BlockSection({
   label,

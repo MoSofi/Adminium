@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Clipboard + download side-effects for the BYO enrichment screens
- * (06-llm-assist.md §10.2 step 4). Kept tiny and DOM-guarded so the pure
- * `enrichState.ts` stays side-effect-free and the components stay declarative.
+ * Clipboard + download side-effects for the BYO enrichment screens. Kept
+ * tiny and DOM-guarded so the pure `enrichState.ts` stays
+ * side-effect-free and the components stay declarative.
  *
- * BYO is telemetry-free (§9): both helpers stay entirely in-process — the
+ * BYO is telemetry-free: both helpers stay entirely in-process — the
  * clipboard write and the object-URL download never touch the network.
  */
 

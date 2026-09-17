@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0011 — `adminium_connections.last_error_hint` (07-meta-store.md §3.13).
+ * Wave 0011 — `adminium_connections.last_error_hint`.
  *
  * `last_error` persists the driver message; the adapter's remediation `hint`
- * (05 §3) was dropped on the floor, so a failure that is only actionable
- * through its hint — "that host is a transaction pooler, use the unpooled
- * one" — degraded to the bare SQLSTATE text as soon as the Hub was reloaded.
+ * was dropped on the floor, so a failure that is only actionable through its
+ * hint — "that host is a transaction pooler, use the unpooled one" —
+ * degraded to the bare SQLSTATE text as soon as the Hub was reloaded.
  * Storing the two side by side keeps `last_error` exactly what it has always
  * been (0003 is applied and checksummed; never edited).
  *

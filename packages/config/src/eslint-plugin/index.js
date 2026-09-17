@@ -7,8 +7,8 @@ import noStyleProp from './no-style-prop.js';
 import noTResultReplace from './no-t-result-replace.js';
 
 /**
- * eslint-plugin-adminium — shipped from @adminium/config (02-design-system.md §8).
- * Wired into the shared flat config exported at '@adminium/config/eslint'.
+ * eslint-plugin-adminium — shipped from @adminium/config. Wired into the shared
+ * flat config exported at '@adminium/config/eslint'.
  */
 const plugin = {
   meta: {

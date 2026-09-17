@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Data-io route factory (M7-T07, 09-generated-app.md §11) — mounted under the
- * authed app layout by app/router.tsx, the studioRoutes pattern: this module
- * defines the surfaces, the router only wires them.
+ * Data-io route factory — mounted under the authed app layout by
+ * app/router.tsx, the studioRoutes pattern: this module defines the surfaces,
+ * the router only wires them.
  *
- * - `/imports` — the Import Wizard (§11.1)
- * - `/exports` — the Data Exports manager (§11.2)
+ * - `/imports` — the Import Wizard
+ * - `/exports` — the Data Exports manager
  *
  * No role guard: both surfaces are useful to anyone holding a per-table
  * import/export grant, and the server is the security boundary
@@ -57,7 +57,7 @@ const DataExportsPageLazy = lazy(async () => {
   return { default: mod.DataExportsPage };
 });
 
-// The builder (41-export-builder.md) is the largest body under this factory —
+// The builder is the largest body under this factory
 // three steps, a column browser and a preview — and it pulls the Studio's
 // column-spec composer with it. Deferred for the same reason as the wizard.
 const ExportBuilderPageLazy = lazy(async () => {
@@ -142,7 +142,7 @@ export function dataIoRoutes(parent: AnyRoute): AnyRoute[] {
 
   // `/exports/new?basedOn=<exportId>` — a static segment, so it wins over any
   // `/exports/:id` a later route might add; the search param pre-fills every
-  // step from a finished export's stored definition (41 §4, "Based on").
+  // step from a finished export's stored definition ("Based on").
   const exportBuilderRoute = createRoute({
     getParentRoute: () => parent,
     path: '/exports/new',

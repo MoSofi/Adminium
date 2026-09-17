@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Auto-layout — 35-schema-authoring.md §3.7, §8, 35-T22.
+ * Auto-layout.
  *
  * ─── Why dagre and not the alternative ─────────────────────────────────────
  *
- * §8 measured it: `elkjs` lays out better and costs 439,626 B gz — seven times
+ * Measured: `elkjs` lays out better and costs 439,626 B gz — seven times
  * the entire diagram library it would serve — and is licensed
  * `EPL-2.0 OR GPL-3.0-or-later`, the only copyleft candidate in the sweep.
  * `@dagrejs/dagre` is 16,838 B gz and MIT. `entitree-flex` is smaller still,

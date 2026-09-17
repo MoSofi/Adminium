@@ -20,7 +20,7 @@ export interface FilterChipProps extends ComponentPropsWithRef<'div'> {
 
 /**
  * FilterChip — `field · op · value` pill with a remove button
- * (research/design-system.md §3 Tier 3): field muted, operator mono-muted,
+ * (research/design-system.md Tier 3): field muted, operator mono-muted,
  * value emphasized.
  */
 export function FilterChip({

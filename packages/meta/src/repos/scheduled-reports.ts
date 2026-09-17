@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * scheduledReportsRepo — adminium_scheduled_reports (07-meta-store.md §3.24):
- * one row per recurring report. The row stores WHAT and WHEN (`schedule` per
+ * scheduledReportsRepo — adminium_scheduled_reports: one row per recurring
+ * report. The row stores WHAT and WHEN (`schedule` per
  * `reportScheduleSchema`, `recipients`, `format`) plus the run bookkeeping
  * (`last_run_at` / `next_run_at`); computing `next_run_at` from the schedule
  * fields is the SERVER's job (croner lives there — apps/server/src/reports/),
  * so the repo persists timestamps it is handed and never parses cron.
  *
- * `format` keeps the §3.24 `pdf | png` vocabulary even though the v1 runner
+ * `format` keeps the `pdf | png` vocabulary even though the v1 runner
  * delivers a data snapshot (no headless browser) — the stored intent survives
  * the day rendering arrives, and the UI explains the degradation rather than
  * hiding it (documented deviation in the M7 reports track).

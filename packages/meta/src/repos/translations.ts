@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * translationsRepo — adminium_translations (23-runtime-translations.md §3.2).
+ * translationsRepo — adminium_translations.
  *
  * A sparse overlay: one row per OVERRIDDEN message. Three states, and the
- * repo preserves all three faithfully (§3.3):
+ * repo preserves all three faithfully:
  *
  *   no row            → the compiled built-in renders
  *   row, value != ''  → the override renders
@@ -13,9 +13,9 @@
  * is NOT the same operation as upserting `''`. Callers must not conflate them.
  *
  * ICU validity, placeholder parity against the en-US source and the
- * a11y-critical empty-value rule are the CALLER's job (23 §6.3): they need
- * the compiled bundles and the locale's plural categories, neither of which
- * the meta store may import (01-architecture.md §2.3).
+ * a11y-critical empty-value rule are the CALLER's job: they need the
+ * compiled bundles and the locale's plural categories, neither of which the
+ * meta store may import.
  *
  * Every mutating method bumps `settings['i18n.version']` in the same
  * transaction — see i18n-version.ts for why that lives here and not in the
@@ -30,7 +30,7 @@ import type { AdminiumTranslationsTable } from '../schema/tables.js';
 import { bumpI18nVersion } from './i18n-version.js';
 import { affected } from './util.js';
 
-/** Reserved scope axis; always this value in v1 (§3.2). */
+/** Reserved scope axis; always this value in v1. */
 export const DEFAULT_TRANSLATION_SCOPE = 'workspace';
 
 export interface TranslationRow {
@@ -117,9 +117,9 @@ export function translationsRepo(meta: MetaDb) {
 
     /**
      * Rows for an explicit key slice — the editor's page fetch. The key set
-     * comes from an in-process search over the compiled bundles (§6.1), so
-     * this stays an `IN (…)` lookup and never a portable `LIKE '%q%'` scan
-     * over a growing table.
+     * comes from an in-process search over the compiled bundles, so this
+     * stays an `IN (…)` lookup and never a portable `LIKE '%q%'` scan over
+     * a growing table.
      */
     async listKeys(
       locale: string,
@@ -151,7 +151,8 @@ export function translationsRepo(meta: MetaDb) {
       return row === undefined ? null : decode(row);
     },
 
-    /** Total override bytes for one locale over the given namespaces (§6.4 budget). */
+    /** Total override bytes for one locale over the given namespaces (budget).
+     * */
     async byteSize(
       locale: string,
       namespaces: readonly string[],
@@ -182,8 +183,8 @@ export function translationsRepo(meta: MetaDb) {
 
     /**
      * Bulk upsert in ONE transaction with ONE version bump. Chunking is the
-     * caller's concern (23 §7 uses 100 per transaction for the copy-from job);
-     * this method writes whatever it is handed atomically.
+     * caller's concern (uses 100 per transaction for the copy-from job); this
+     * method writes whatever it is handed atomically.
      */
     async upsertMany(
       inputs: readonly UpsertTranslationInput[],
@@ -262,7 +263,7 @@ export function translationsRepo(meta: MetaDb) {
       return deleted > 0;
     },
 
-    /** Drop every override for a locale — used when a locale is deleted (§5.7). */
+    /** Drop every override for a locale — used when a locale is deleted. */
     async removeLocale(
       locale: string,
       opts: { updatedBy?: string | null; at?: number } = {},
@@ -280,7 +281,7 @@ export function translationsRepo(meta: MetaDb) {
       return deleted;
     },
 
-    /** Override counts per locale — the manifest's `overrideCount` (§6.1). */
+    /** Override counts per locale — the manifest's `overrideCount`. */
     async countsByLocale(opts: { scope?: string | undefined } = {}): Promise<Map<string, number>> {
       const rows = await db
         .selectFrom('adminium_translations')

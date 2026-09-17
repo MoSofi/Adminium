@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-radial-bar` primitive (research/widget-registry.md §2): concentric
+ * `chart-radial-bar` primitive (research/widget-registry.md): concentric
  * progress rings (≤4 categories), each a stroke sweep of its percent, with a
  * legend of colored dots + mono percents. A single ring reads as a gauge, so it
  * carries its value in the middle — every ring in the design does. Rings never
- * mirror in RTL (rotation is direction-neutral, §7.4) — only the legend flips
- * via flex + logical CSS. Colors are tokens only; geometry is pure (04 §7.1).
+ * mirror in RTL (rotation is direction-neutral) — only the legend flips via
+ * flex + logical CSS. Colors are tokens only; geometry is pure.
  */
 import type { ReactNode } from 'react';
 

@@ -35,7 +35,7 @@ export interface CardProps extends ComponentPropsWithRef<'div'>, VariantProps<ty
 /**
  * Card — surface container: `--surface` bg, 1px `--border`, radius 14,
  * `--shadow` (shadow-card), density padding via `--card-pad`
- * (research/design-system.md §3 Tier 3).
+ * (research/design-system.md Tier 3).
  */
 export function Card({ asChild, hoverable, raise, selected, padded, className, ...props }: CardProps) {
   const Comp = asChild ? Slot : 'div';

@@ -5,7 +5,7 @@
  * The stored payload is a FIELD vocabulary (`frequency`/`dayOfWeek`/
  * `dayOfMonth`/`time`/`timezone`), never a cron string, and this module is
  * the single place that morphs those fields into a cron expression and asks
- * croner (BRIEF §3: croner, no Redis) for the next occurrence. Repos persist
+ * croner (BRIEF: croner, no Redis) for the next occurrence. Repos persist
  * whatever timestamp they are handed and never parse cron.
  *
  * Timezone-correctness rides croner's own IANA handling: `09:00` in
@@ -13,12 +13,11 @@
  * of 31 simply skips short months (croner semantics — the run happens on the
  * next month that has a 31st, matching "monthly on the 31st" intent).
  *
- * LIFTED OUT OF `reports/` IN 42 (42-T07). Scheduled reports (07 §3.24) were
- * the first caller; automation rules on a calendar schedule are the second,
- * and they store the same five fields under a different discriminator name.
- * Two copies of DST-correct cron arithmetic is one copy too many, so the
- * input is stated structurally here and each caller maps its own payload onto
- * it.
+ * LIFTED OUT OF `reports/` IN 42. Scheduled reports were the first caller;
+ * automation rules on a calendar schedule are the second, and they store the
+ * same five fields under a different discriminator name. Two copies of
+ * DST-correct cron arithmetic is one copy too many, so the input is stated
+ * structurally here and each caller maps its own payload onto it.
  */
 import { Cron } from 'croner';
 
@@ -55,7 +54,7 @@ export function cronExprFor(schedule: CalendarSchedule): string {
     case 'daily':
       return `${minute} ${hour} * * *`;
     case 'weekly':
-      // §3.24 dayOfWeek is 0–6 (Sunday = 0), cron's native vocabulary.
+      // dayOfWeek is 0–6 (Sunday = 0), cron's native vocabulary.
       return `${minute} ${hour} * * ${schedule.dayOfWeek ?? 1}`;
     case 'monthly':
       return `${minute} ${hour} ${schedule.dayOfMonth ?? 1} * *`;

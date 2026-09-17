@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests for the Postgres `QueryEngine` serialization policy
- * (05-introspection-engine.md §3 `TypeSerializer`, 08-server-api.md §3.7).
+ * (`TypeSerializer`).
  *
  * Pure module — no `pg`, no `kysely`, no server. These converters are the only
  * thing standing between a numeric(38,0) primary key and a silently-rounded
@@ -165,7 +165,7 @@ describe('json — one bound parameter', () => {
 
 describe('binary is excluded from CRUD v1', () => {
   it('registers no serializer for bytea', () => {
-    // Documented policy in 05 §3 — the absence is the contract, so it gets a
+    // Documented policy — the absence is the contract, so it gets a
     // test rather than a comment alone.
     expect(postgresSerializers.binary).toBeUndefined();
   });

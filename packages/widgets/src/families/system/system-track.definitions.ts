@@ -25,19 +25,19 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * TRACK FCS — `system` family registry metadata (annex §12; 04-T10). Metadata
- * only: the @adminium/ui-heavy components load through the
- * `system-track-components` barrel via `lazy(() => import(...))`, so the family
- * stays in ONE lazy chunk and registry metadata never eagerly pulls component
- * code into a sibling family's bundle (04 §2.3; the chunk-budget gate). Schemas
- * + `demoData` come from the PURE `system-config.ts` for the same reason. The
- * GREEN LOOP spreads `systemTrackDefinitions` into the registry map. Widget ids
- * match the annex catalog exactly (acceptance #1).
+ * TRACK FCS — `system` family registry metadata (annex). Metadata only: the
+ * @adminium/ui-heavy components load through the `system-track-components`
+ * barrel via `lazy(() => import(...))`, so the family stays in ONE lazy chunk
+ * and registry metadata never eagerly pulls component code into a sibling
+ * family's bundle (the chunk-budget gate). Schemas + `demoData` come from the
+ * PURE `system-config.ts` for the same reason. The GREEN LOOP spreads
+ * `systemTrackDefinitions` into the registry map. Widget ids match the annex
+ * catalog exactly (acceptance #1).
  *
  * Sizing is the annex's grid note converted to 40px half-units
- * (04 §6.1: `h = round(annexRows × 2)`); widths map 1:1.
+ * (`h = round(annexRows × 2)`); widths map 1:1.
  *
- * SHAPE CHOICES (04 §3): most of this family is a projection of ONE bound row
+ * SHAPE CHOICES: most of this family is a projection of ONE bound row
  * (`record`) — a status enum, an autosave flag set, a connection probe result.
  * Two are aggregates: `status-banner-hero` derives worst-wins state from the
  * service LIST, and `progress-log-console` takes a finished run's `record-list`
@@ -67,7 +67,8 @@ export const emptyStateDefinition: WidgetDefinition = defineWidget({
   family: 'system',
   component: lazy(() => import('./system-track-components.js').then((m) => ({ default: m.EmptyStateWidget }))),
   configSchema: emptyStateConfigSchema,
-  // annex §12: "static per context (or derived boolean isEmpty from a filtered list)"
+  // annex: "static per context (or derived boolean isEmpty from a filtered
+  // list)"
   dataContract: 'static',
   sizing: { minW: 3, minH: 4, defaultW: 6, defaultH: 6 }, // annex "fills host widget"
   placement: 'grid',
@@ -150,7 +151,7 @@ export const progressLogConsoleDefinition: WidgetDefinition = defineWidget({
   family: 'system',
   component: lazy(() => import('./system-track-components.js').then((m) => ({ default: m.ProgressLogConsoleWidget }))),
   configSchema: progressLogConsoleConfigSchema,
-  // A finished run's rows, or a live WS channel's append-only snapshot (04 §5.3).
+  // A finished run's rows, or a live WS channel's append-only snapshot.
   dataContract: ['record-list', 'stream'],
   sizing: { minW: 6, minH: 6, defaultW: 8, defaultH: 8 }, // annex "min 6×3"
   placement: 'grid',
@@ -173,7 +174,7 @@ export const diagnosticsReadoutDefinition: WidgetDefinition = defineWidget({
   descriptionKey: 'widgets.system.diagnosticsReadout.description',
 });
 
-/** Every `system` widget delivered by TRACK FCS, in annex §12 order. */
+/** Every `system` widget delivered by TRACK FCS, in annex order. */
 export const systemTrackDefinitions: readonly WidgetDefinition[] = [
   stateHeroDefinition,
   emptyStateDefinition,

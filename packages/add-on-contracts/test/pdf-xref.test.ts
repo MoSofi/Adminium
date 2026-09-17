@@ -20,7 +20,7 @@ const ascii = (text: string): Uint8Array => Uint8Array.from(text, (ch) => ch.cha
  * A minimal PDF, written as text with its offsets taken from `String.length`.
  *
  * For an ASCII body that is correct, because a character is a byte. The last
- * case feeds it a body that is not, which is 34 §0.3 trap 8 in miniature.
+ * case feeds it a body that is not, which is trap 8 in miniature.
  */
 function pdf(bodies: readonly string[]): string {
   let text = '%PDF-1.4\n';

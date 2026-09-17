@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The deferred `reportBuilder` namespace's contract (43-report-builder.md
- * 43-T08; the `invoices` gate's twin, `invoicesNamespace.test.ts`):
+ * The deferred `reportBuilder` namespace's contract (the `invoices`
+ * gate's twin, `invoicesNamespace.test.ts`):
  *
  * 1. Every `reportBuilder:` key must exist in the en-US bundle.
  * 2. Every call site carries an inline fallback that is the catalogue text,
@@ -10,8 +10,8 @@
  * 3. Nothing outside `src/report-builder` may read a `reportBuilder:` key: the
  *    surface that loads the namespace is the only one that may depend on it.
  *
- * NOT the `reports` block in `common.json` — that belongs to Scheduled Reports
- * (43 D24). This gate covers `reportBuilder:` alone.
+ * NOT the `reports` block in `common.json` — that belongs to Scheduled
+ * Reports. This gate covers `reportBuilder:` alone.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';

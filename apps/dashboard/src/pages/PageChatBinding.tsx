@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-chat` binding (09-generated-app.md §4.1, §7.9): projects the page
- * envelope onto the real `PageChat` template from `@adminium/widgets`.
+ * `page-chat` binding: projects the page envelope onto the real
+ * `PageChat` template from `@adminium/widgets`.
  *
  * Data: `usePageWidgetStates` batches the inbox/attachments/call bindings.
  * THREAD SELECT → MESSAGES QUERY: the thread's stored descriptor targets the
@@ -10,9 +10,9 @@
  * payload's own keys, seeded by the conversation table's name) under
  * `['widget-data', pageId, 'thread', selectedId]`.
  *
- * LIVE: this page SUBSCRIBES to its two tables' widget-data channels (33-T11).
- * The sentence here used to say realtime invalidations refreshed an open
- * thread, and the mapping in `api/realtime.ts` does invalidate the whole
+ * LIVE: this page SUBSCRIBES to its two tables' widget-data channels. The
+ * sentence here used to say realtime invalidations refreshed an open thread,
+ * and the mapping in `api/realtime.ts` does invalidate the whole
  * `['widget-data']` prefix on such an event — but nothing subscribed to the
  * channel, and the shell listens only to `config-changed` and the user's
  * notifications. So the frames were published to a socket this page was not
@@ -27,14 +27,13 @@
  * then invalidates the page's widget-data keys and raises the undo toast;
  * the returned promise lets the template roll back its optimistic echo.
  *
- * IT ALSO STAMPS WHO SENT IT (33 §7.3). It did not, and the consequence was
- * visible on the one page that exists to answer somebody: a reply written here
- * came back with no author, so `toChatMessages` could not match it against
- * `ownAuthors` and every staff message rendered on the OTHER side of the
- * thread. Where the table also carries a sender-kind column the send fills
- * that too — on Adminium's own `requiredSchema` it is NOT NULL with no
- * database default, so a send that omitted it would not merely look wrong, it
- * would fail.
+ * IT ALSO STAMPS WHO SENT IT. It did not, and the consequence was visible on
+ * the one page that exists to answer somebody: a reply written here came back
+ * with no author, so `toChatMessages` could not match it against `ownAuthors`
+ * and every staff message rendered on the OTHER side of the thread. Where the
+ * table also carries a sender-kind column the send fills that too — on
+ * Adminium's own `requiredSchema` it is NOT NULL with no database default, so
+ * a send that omitted it would not merely look wrong, it would fail.
  */
 import { useSuspenseQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';

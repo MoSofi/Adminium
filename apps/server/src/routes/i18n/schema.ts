@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the runtime-translations resource
- * (23-runtime-translations.md §6.1).
+ * Zod schemas for the runtime-translations resource.
  *
  * SYNC NOTE: the client-side mirror lives in `apps/dashboard/src/api/i18n.ts`
  * (type-only copy — the dashboard may not import server runtime code, per the
- * 01-architecture.md §2.3 matrix). Change both together.
+ * matrix). Change both together.
  */
 import { z } from 'zod';
 import { NAMESPACES } from '@adminium/i18n';
 import { LOCALE_ID_RE } from '@adminium/meta';
 
-/** Shape only — a locale id may name an admin-created locale (23 §5.3). */
+/** Shape only — a locale id may name an admin-created locale. */
 export const localeIdParam = z.string().min(2).max(35).regex(LOCALE_ID_RE);
 
 export const namespaceParam = z.enum(NAMESPACES);
@@ -46,7 +45,7 @@ export const localeManifestEntry = z.object({
 export type LocaleManifestEntry = z.infer<typeof localeManifestEntry>;
 
 export const i18nManifestReply = z.object({
-  /** Monotonic stamp; every mutation bumps it (23 §3.4). */
+  /** Monotonic stamp; every mutation bumps it. */
   version: z.number(),
   locales: z.array(localeManifestEntry),
 });
@@ -63,7 +62,7 @@ export const i18nBundleReply = z.object({
    * OVERRIDES ONLY, flat dotted keys — never the compiled bundle. The client
    * already has the compiled text; shipping it again would double the payload
    * and reintroduce the "late chunk clobbers an override" race that merging
-   * inside the loader exists to prevent (23 §4.3).
+   * inside the loader exists to prevent.
    */
   overrides: z.record(z.string(), z.string()),
 });
@@ -94,7 +93,7 @@ export const keyRow = z.object({
   override: z.string().nullable(),
   /** The override was authored against a different en-US text. */
   stale: z.boolean(),
-  /** Blanking this key is refused — it feeds an accessible name (23 §3.3). */
+  /** Blanking this key is refused — it feeds an accessible name. */
   a11yCritical: z.boolean(),
   updatedAt: z.number().nullable(),
 });
@@ -152,11 +151,11 @@ export const createLocaleBody = z.object({
   native: z.string().min(1).max(80),
   dir: z.enum(['ltr', 'rtl']),
   fontHint: z.enum(['latin', 'arabic', 'cjk']),
-  /** A REAL BCP-47 tag whose Intl behaviour this locale borrows (23 §5.6). */
+  /** A REAL BCP-47 tag whose Intl behaviour this locale borrows. */
   intlTag: z.string().min(2).max(35),
   enabled: z.boolean().default(true),
   sortOrder: z.number().int().min(0).max(999).default(0),
-  /** Seed every key from this locale — defaults OFF (23 §7). */
+  /** Seed every key from this locale — defaults OFF. */
   copyFrom: localeIdParam.optional(),
 });
 
@@ -176,7 +175,7 @@ export const deleteLocaleQuery = z.object({
   /**
    * Where users who preferred the deleted locale land. `inherit` NULLs their
    * override so they follow the workspace default again — the state they were
-   * in before they ever chose (23 §5.7).
+   * in before they ever chose.
    */
   reassignTo: z.union([z.literal('inherit'), localeIdParam]).default('inherit'),
 });
@@ -211,7 +210,7 @@ export const formatFailuresReply = z.object({
   ),
 });
 
-// --- transfer (23 §3.6) ------------------------------------------------------
+// --- transfer ------------------------------------------------------
 
 export const translationExportReply = z.object({
   formatVersion: z.literal(1),
@@ -232,7 +231,7 @@ export const importQuery = z.object({
   /**
    * Opt-in for `errors` and sign-in copy. Off by default because an import is
    * an untrusted-content channel: without this it could silently rewrite what
-   * users are told when something fails (23 §3.6).
+   * users are told when something fails.
    *
    * NOT `z.coerce.boolean()`. That runs `Boolean(value)` on the query STRING,
    * and `Boolean('false') === true` — so an explicit `?includeSensitive=false`

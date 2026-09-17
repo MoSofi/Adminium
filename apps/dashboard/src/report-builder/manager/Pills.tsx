@@ -2,7 +2,7 @@
 /**
  * The status pill every card and row carries (comp 208, 227; `statusMeta`
  * 563). One pill, not the invoice manager's two — this comp has no language
- * chip because it has no language variations (43 §5 item 3).
+ * chip because it has no language variations.
  */
 import { Badge } from '@adminium/ui';
 

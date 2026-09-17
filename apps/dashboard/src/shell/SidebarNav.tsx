@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Sidebar (09-generated-app.md §5.1): 256px rail — logo block + app-version
- * chip and the five fixed nav groups from the bootstrap NavTree (uppercase
- * group labels, accent-soft active state). Live unread badges:
- * `badge: 'unread-count'` items render the `/me/notifications` unread number
- * (M7 T6), invalidated by the WS `notifications:<userId>` channel.
+ * Sidebar: 256px rail — logo block + app-version chip and the five fixed nav
+ * groups from the bootstrap NavTree (uppercase group labels, accent-soft
+ * active state). Live unread badges: `badge: 'unread-count'` items render
+ * the `/me/notifications` unread number (M7 T6), invalidated by the WS
+ * `notifications:<userId>` channel.
  *
  * The rail is `sticky top-0 h-dvh` and only the middle `<nav>` scrolls. The
  * height is load-bearing: the shell parent is `min-h-dvh`, so without it the
  * aside stretches to *document* height, the inner `overflow-y-auto` never
  * engages, and the logo scrolls off the top of a long page.
  *
- * Multi-connection nav labels (M5-T05): once 2+ connections exist, each
- * group's items are sub-labeled by the owning connection's display name so
+ * Multi-connection nav labels: once 2+ connections exist, each group's
+ * items are sub-labeled by the owning connection's display name so
  * same-named tables from different sources stay unambiguous; with a single
  * connection the rail renders flat (no redundant label).
  */
@@ -63,9 +63,9 @@ const GROUP_LABELS: Record<NavGroupKey, string> = {
 };
 
 /**
- * Group key → literal bundle key (10-i18n-theming.md §2.5). The five §2A groups
- * are fixed (`NAV_GROUP_KEYS`), so `satisfies` makes a sixth group a compile
- * error here rather than a raw `nav.group.<new>` heading in the rail.
+ * Group key → literal bundle key. The five A groups are fixed
+ * (`NAV_GROUP_KEYS`), so `satisfies` makes a sixth group a compile error here
+ * rather than a raw `nav.group.<new>` heading in the rail.
  */
 const GROUP_LABEL_KEY = {
   workspace: 'nav.group.workspace',
@@ -88,13 +88,13 @@ export interface SidebarNavProps {
 }
 
 /**
- * Static platform surfaces (M7 wave 2) — the §2.2 "universal utility pages"
- * the Engine does not seed into `adminium_pages` yet (the same gap that makes
- * `/imports`/`/exports` direct routes; see data-io/routes.tsx). They render as
- * a tail under their ia-mapping §2A group so nav placement matches the spec
- * today and the entries can retire one-for-one as Engine seeding lands.
- * `adminOnly` gates DISCOVERY only (Email templates writes need
- * `system:settings:manage`); the server stays the security boundary.
+ * Static platform surfaces (M7 wave 2) — the the Engine does not seed into
+ * `adminium_pages` yet (the same gap that makes `/imports`/`/exports` direct
+ * routes; see data-io/routes.tsx). They render as a tail under their
+ * ia-mapping A group so nav placement matches the spec today and the entries
+ * can retire one-for-one as Engine seeding lands. `adminOnly` gates DISCOVERY
+ * only (Email templates writes need `system:settings:manage`); the server
+ * stays the security boundary.
  */
 interface PlatformNavLink {
   to: string;
@@ -111,9 +111,9 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
       { to: '/imports', labelKey: 'nav.imports', fallback: 'Import data', icon: Upload },
       { to: '/exports', labelKey: 'nav.exports', fallback: 'Data exports', icon: Download },
       /*
-       * `/files` (37-files-and-storage.md §3.8). In `library` beside imports
-       * and exports because it is the same kind of thing — a workspace-wide
-       * view of artifacts, not a page over a customer table.
+       * `/files`. In `library` beside imports and exports because it is the
+       * same kind of thing — a workspace-wide view of artifacts, not a page
+       * over a customer table.
        *
        * `adminOnly` gates DISCOVERY only, as the comment above says: without
        * `files.manage` the page still works and shows the caller their OWN
@@ -130,25 +130,25 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
         icon: Mail,
         adminOnly: true,
       },
-      // `/invoices` (34-invoices-add-on.md §3.9): the comp's rail row is
+      // `/invoices`: the comp's rail row is
       // `{ key: 'invoices', label: 'Invoices', icon: 'file-text' }` (comp
       // 1077); it sits beside `/email-templates`, the surface it mirrors.
       { to: '/invoices', labelKey: 'nav.invoices', fallback: 'Invoices', icon: FileText, adminOnly: true },
       /*
-       * `/report-builder` (43-report-builder.md D1/O1): the comp's rail row is
-       * `{ key: 'reports', label: 'Report builder', icon: 'file-bar-chart-2' }`
-       * (comp 123) — in the comp's WORKSPACE group, which in Adminium's rail is
-       * the generated pages'. It moves here, beside `/invoices`, the surface it
-       * mirrors (Appendix A S1, the departure 34 S1 also took). NOT
-       * `/reports`, which is Scheduled Reports in the `account` group below.
+       * `/report-builder`: the comp's rail row is `{ key: 'reports', label:
+       * 'Report builder', icon: 'file-bar-chart-2' }` (comp 123) — in the
+       * comp's WORKSPACE group, which in Adminium's rail is the generated
+       * pages'. It moves here, beside `/invoices`, the surface it mirrors
+       * (Appendix A S1, the departure 34 S1 also took). NOT `/reports`, which
+       * is Scheduled Reports in the `account` group below.
        */
       { to: '/report-builder', labelKey: 'nav.reportBuilder', fallback: 'Report builder', icon: FileChartColumn, adminOnly: true },
       /*
        * The comp's two adjacent Library rows (Automation Rules 370, Workflow
        * Logs 176). `adminOnly` gates DISCOVERY; the routes themselves are
        * behind `system:automations:manage` on the server, which is seeded to
-       * super-admin only (42 D1/O1) — so unlike `/files`, a non-holder who
-       * reached the URL would see the 403 state rather than a narrowed page.
+       * super-admin only — so unlike `/files`, a non-holder who reached the
+       * URL would see the 403 state rather than a narrowed page.
        */
       {
         to: '/automations',
@@ -258,11 +258,11 @@ function PlatformLinkList({ links }: { links: readonly PlatformNavLink[] }) {
 }
 
 /**
- * The `badge: 'unread-count'` live number (09 §5.4): fed by
- * `/me/notifications`' `unreadCount` under the `['notifications']` query
- * prefix, so WS `notifications:<userId>` events (api/realtime.ts) keep it
- * honest across tabs; zero renders nothing. `pending-count` has no producer
- * yet and is deliberately not faked here.
+ * The `badge: 'unread-count'` live number: fed by `/me/notifications`'
+ * `unreadCount` under the `['notifications']` query prefix, so WS
+ * `notifications:<userId>` events (api/realtime.ts) keep it honest across
+ * tabs; zero renders nothing. `pending-count` has no producer yet and is
+ * deliberately not faked here.
  */
 function UnreadCountBadge() {
   const count = useQuery(unreadCountQuery());
@@ -297,7 +297,7 @@ function NavItemList({ items }: { items: readonly NavItem[] }) {
 }
 
 /**
- * One blended app's section (29-app-surfaces.md D7).
+ * One blended app's section.
  *
  * Same visual grammar as the five fixed groups — uppercase header, the same
  * row class — and deliberately NOT a sixth group. `NAV_GROUP_KEYS` is a closed
@@ -315,7 +315,7 @@ function NavItemList({ items }: { items: readonly NavItem[] }) {
  */
 /**
  * The `$appKey` route param for a hosted section: the app key, or
- * `<appKey>~<instance>` for an extra tenant (29 D9).
+ * `<appKey>~<instance>` for an extra tenant.
  *
  * ONE param rather than a second route segment, deliberately. A segment
  * (`/a/clients/berlin/…`) would sit exactly where the app's own paths live, so
@@ -373,14 +373,14 @@ function HostedAppSection({ app }: { app: HostedApp }) {
 export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
   const { nav, version } = bootstrap;
   const { showVersion } = useBranding();
-  // 2+ sources → sub-label items per connection (M5-T05); else stay flat.
+  // 2+ sources → sub-label items per connection; else stay flat.
   const multiConnection = distinctConnectionCount(nav) >= 2;
   const admin = hasStudioAccess(bootstrap.roles);
   const platformLinksFor = (group: NavGroupKey): readonly PlatformNavLink[] =>
     (PLATFORM_NAV.find((entry) => entry.group === group)?.links ?? []).filter(
       (link) => admin || link.adminOnly !== true,
     );
-  // §2A groups with only platform links (no generated pages yet) still render.
+  // Groups with only platform links (no generated pages yet) still render.
   const navGroupKeys = new Set(nav.groups.map((group) => group.key));
   const platformOnlyGroups = PLATFORM_NAV.filter((entry) => !navGroupKeys.has(entry.group));
 

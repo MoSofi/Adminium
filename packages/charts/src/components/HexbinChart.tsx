@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-hexbin` primitive (research/widget-registry.md §2): hex-grid density
+ * `chart-hexbin` primitive (research/widget-registry.md): hex-grid density
  * tiles, alpha by count, sparse (null/0) cells omitted. The grid mirrors in RTL
  * (columns flip). Intensity uses the accent color at a count-scaled fill
- * opacity (sequential ramp, 02-design-system.md §1.3). Fade-in on mount.
+ * opacity (sequential ramp). Fade-in on mount.
  */
 import type { ReactNode } from 'react';
 

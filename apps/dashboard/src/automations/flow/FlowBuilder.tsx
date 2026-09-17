@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The flow builder — the comp's canvas, its nodes, its connectors and its
- * branch brackets (`designs/Automation Rules.dc.html` 236-314, 502-544;
- * 42-automations-and-workflow-logs.md §4.1, 42-T20).
+ * branch brackets (236-314, 502-544).
  *
  * The geometry is the comp's, to the pixel, because it is the whole drawing:
  * a 34 px connector with a 24 px round `+` between every pair of nodes

@@ -16,10 +16,10 @@
  * the opposite reason — a fresh install has nothing to lose, and `createBackup`
  * refuses an unmigrated store anyway ("there is nothing here to restore").
  *
- * What lands is a real §9 archive (`backup-service.ts`), rotated to
- * {@link DEFAULT_AUTO_BACKUP_KEEP} so upgrade #100 does not keep upgrade #1's
- * copy. It carries the whole meta store plus every LOCAL SQLite source database,
- * which is why an upgrade boot can pause: that is a copy of real data, and the
+ * What lands is a real archive (`backup-service.ts`), rotated to {@link
+ * DEFAULT_AUTO_BACKUP_KEEP} so upgrade #100 does not keep upgrade #1's copy. It
+ * carries the whole meta store plus every LOCAL SQLite source database, which is
+ * why an upgrade boot can pause: that is a copy of real data, and the
  * alternative is an archive that omits it.
  *
  * ─── 2. Why the Postgres/MySQL path is a refusal, not a fallback ─────────────
@@ -152,7 +152,7 @@ export async function guardPreMigration(opts: PreMigrationOptions): Promise<PreM
       crypto: dsnCryptoFromSecret(opts.secret),
       dataDir,
       metaPath: resolve(metaPath),
-      // No Electron shell here: there is no `config.json` to describe, and §9
+      // No Electron shell here: there is no `config.json` to describe,
       // says a missing member is honest where an invented one is not.
       redactedConfig: null,
       destination: 'auto',

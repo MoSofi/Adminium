@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-log-viewer` template (09-generated-app.md §7.8; 04 §10) — the component
- * the dashboard PageRenderer mounts for `template: 'page-log-viewer'`
- * envelopes, plus the pure log field-mapping helpers its binding and tests
- * share.
+ * `page-log-viewer` template — the component the dashboard PageRenderer mounts
+ * for `template: 'page-log-viewer'` envelopes, plus the pure log field-mapping
+ * helpers its binding and tests share.
  */
 export {
   PAGE_LOG_VIEWER_TEMPLATE_ID,

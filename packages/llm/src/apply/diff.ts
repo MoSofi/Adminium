@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Diff of the LLM `EnrichmentSet` against the heuristic baseline (06-llm-assist.md
- * §8.2). Produces one {@link SuggestionDiff} per atomic suggestion, each carrying
- * the stable §8.1 suggestion-id, a diff status, a confidence, and the compared
- * values — so the Wave-2 review UI can group by category, show side-by-side
- * heuristic → LLM values, and bulk-accept by confidence.
+ * Diff of the LLM `EnrichmentSet` against the heuristic baseline. Produces one
+ * {@link SuggestionDiff} per atomic suggestion, each carrying the stable
+ * suggestion-id, a diff status, a confidence, and the compared values — so the
+ * Wave-2 review UI can group by category, show side-by-side heuristic → LLM
+ * values, and bulk-accept by confidence.
  *
- * Statuses (§8.2), plus the user-lock overlay:
- *  - `agree`            LLM equals heuristic (labels: case/whitespace-insensitive,
- *                       en_US only, per §8.2). Pre-accepted in review.
+ * Statuses, plus the user-lock overlay:
+ * - `agree` LLM equals heuristic (labels: case/whitespace-insensitive, en_US
+ *  only). Pre-accepted in review.
  *  - `conflict`         both have a value and they differ.
  *  - `llm-new`          LLM suggests where the heuristic offered nothing.
  *  - `heuristic-only`   the LLM offered nothing — informational, nothing to accept.
  *  - `rejects-heuristic` the LLM explicitly rejects a heuristic flag (e.g.
  *                       `pii: null` on a heuristically-flagged column). Never
  *                       pre-checked — a human must confirm.
- *  - `user-locked`      the target already has a `source: 'user'` override
- *                       (§8.2): rendered locked, excluded from bulk accept.
+ * - `user-locked` the target already has a `source: 'user'` override:
+ *  rendered locked, excluded from bulk accept.
  *
  * `selectBulkAccept` implements "Accept all ≥ 0.8": it selects ONLY `conflict`
  * and `llm-new` rows above the threshold, so `rejects-heuristic` and
@@ -52,11 +52,11 @@ export type SuggestionStatus =
   | 'rejects-heuristic'
   | 'user-locked';
 
-/** Diff category = the leading token of the suggestion-id (§8.1). */
+/** Diff category = the leading token of the suggestion-id. */
 export type SuggestionCategory = SuggestionIdPrefix;
 
 export interface SuggestionDiff {
-  /** Stable §8.1 suggestion-id. */
+  /** Stable suggestion-id. */
   id: string;
   category: SuggestionCategory;
   /** Qualified `"schema.table"` when the suggestion is table-scoped. */
@@ -77,8 +77,8 @@ export interface SuggestionDiff {
 export interface DiffOptions {
   /**
    * Suggestion-ids whose apply target already carries a `source: 'user'`
-   * override (§8.2). These render locked and are excluded from bulk accept —
-   * their status becomes `user-locked` regardless of the diff category.
+   * override. These render locked and are excluded from bulk accept — their
+   * status becomes `user-locked` regardless of the diff category.
    */
   userLockedIds?: Iterable<string>;
   /** User-override values keyed by suggestion-id, surfaced as `currentValue`. */
@@ -88,10 +88,10 @@ export interface DiffOptions {
 // ─── Bulk-accept semantics (acceptance criterion 12) ─────────────────────────
 
 /**
- * The only statuses "Accept all ≥ 0.8" may pre-check (§8.2 "Review default").
- * `rejects-heuristic` and `user-locked` are deliberately absent, so they can
- * never enter a confidence-gated bulk set; `agree` is pre-accepted separately
- * and `heuristic-only` has nothing to accept.
+ * The only statuses "Accept all ≥ 0.8" may pre-check. `rejects-heuristic` and
+ * `user-locked` are deliberately absent, so they can never enter a
+ * confidence-gated bulk set; `agree` is pre-accepted separately and
+ * `heuristic-only` has nothing to accept.
  */
 export const CONFIDENCE_SELECTABLE_STATUSES = [
   'conflict',
@@ -129,7 +129,7 @@ const CATEGORY_ORDER: readonly SuggestionCategory[] = [
 ];
 
 /**
- * Diff the LLM `EnrichmentSet` against the heuristic baseline (§8.2).
+ * Diff the LLM `EnrichmentSet` against the heuristic baseline.
  * Implements the doc's `diff(llm, heuristic)`.
  */
 export function diffEnrichment(
@@ -318,7 +318,7 @@ function diffRelations(llm: EnrichmentSet, heuristic: EnrichmentSet, out: Sugges
 
   // Suppressed declared FKs (`correct: false`): the heuristic accepts every
   // declared relation implicitly, so a suppression rejects that heuristic and is
-  // a `rejects-heuristic` row a human must confirm (§8.2 / criterion 12). Never
+  // a `rejects-heuristic` row a human must confirm (/ criterion 12). Never
   // pre-checked by "Accept all ≥ 0.8".
   for (const rel of llm.suppressedRelations) {
     out.push(
@@ -360,7 +360,7 @@ function diffPii(llm: EnrichmentSet, heuristic: EnrichmentSet, out: SuggestionDi
       let heuristicValue: unknown;
 
       if (hp != null && lp != null) {
-        // Both consider the column PII. `agree` (§8.2) means "LLM equals heuristic
+        // Both consider the column PII. `agree` means "LLM equals heuristic
         // after normalization" — so it only holds when kind AND masking match.
         // A different masking (e.g. heuristic mask-email → LLM none, which unmasks
         // a PII column) is a reviewable `conflict`, never a collapsed agree row.
@@ -534,7 +534,7 @@ function diffCopy(llm: EnrichmentSet, heuristic: EnrichmentSet, out: SuggestionD
 
 // ─── Comparators & value projections ─────────────────────────────────────────
 
-/** §8.2: label comparison is case/whitespace-insensitive, en_US only. */
+/** Label comparison is case/whitespace-insensitive, en_US only. */
 function presenceOrLabel(
   llm: EnrichmentTable['label'] | undefined,
   heuristic: EnrichmentTable['label'] | undefined,
@@ -597,7 +597,7 @@ function widgetProjection(w: Widget): unknown {
   return projection;
 }
 
-/** Dashboards carry no intrinsic confidence (§6.1); use their strongest widget. */
+/** Dashboards carry no intrinsic confidence; use their strongest widget. */
 function dashboardConfidence(d: EnrichmentSet['dashboards'][number]): number {
   let max = HEURISTIC_CONFIDENCE;
   for (const w of d.widgets) max = Math.max(max, w.confidence);

@@ -3,20 +3,20 @@ import { getFormatters, latnDataTag, weekInfo } from '@adminium/i18n';
 import type { Tone } from '@adminium/ui';
 
 /**
- * Shared helpers for the `calendar` family (annex §5) — a deterministic seeded
+ * Shared helpers for the `calendar` family (annex) — a deterministic seeded
  * PRNG for `demoData`, tone coercion, and the locale-aware date machinery every
  * calendar widget needs: a 42-cell month grid, locale-aware week start (via the
  * @adminium/i18n `weekInfo` layer, never a hardcoded Sunday/Monday), weekday
  * headers, and Intl-routed date/time/number formatting.
  *
- * Numeral policy (10-i18n-theming.md §4.2): calendar day numbers, times, and
- * the month/year title are *data-context* strings → Latin digits + gregorian
- * (`latnDataTag`) so the grid stays `tabular-nums`-aligned in every locale
- * including `ar_EG`. Weekday/month NAMES localize to the locale's script.
+ * Numeral policy: calendar day numbers, times, and the month/year title are
+ * *data-context* strings → Latin digits + gregorian (`latnDataTag`) so the
+ * grid stays `tabular-nums`-aligned in every locale including `ar_EG`.
+ * Weekday/month NAMES localize to the locale's script.
  *
  * Kept framework-light (no i18n provider dependency), like the `feeds` family —
  * widgets render in stories/tests without a wrapper and the dashboard resolves
- * label overrides through @adminium/i18n at the host boundary (04 §2).
+ * label overrides through @adminium/i18n at the host boundary.
  */
 
 /** Mulberry32 — the repo's deterministic seeded PRNG (see feeds/tables). */
@@ -62,7 +62,7 @@ export interface BindingSource {
  * (the tables/CardGallery + boards + media convention).
  *
  * NB the descriptor is `binding.source.name` (+ optional `schema`), NOT a flat
- * `binding.table` (04 §5.1).
+ * `binding.table`.
  */
 export function bindingSourceOf(
   binding: { connectionId: string; source: { schema?: string | undefined; name: string } } | undefined,
@@ -72,7 +72,7 @@ export function bindingSourceOf(
   return { connectionId: binding.connectionId, table: schema === undefined ? name : `${schema}.${name}` };
 }
 
-/** Persona names (BRIEF §4) for the resource/member scheduling widgets. */
+/** Persona names (BRIEF) for the resource/member scheduling widgets. */
 export const PERSONA_NAMES = [
   'Ada Lovelace',
   'Grace Hopper',
@@ -86,9 +86,9 @@ export const PERSONA_NAMES = [
 
 /**
  * Fixed demo anchor month — July 2026 (matches the repo's `DEMO_EPOCH`), so
- * `demoData(seed)` is byte-identical across runs and never touches `Date.now()`
- * (04 §7.7). `ANCHOR_TODAY` is the "today" a story/VRT capture can pin for the
- * today-ring without a wall-clock read.
+ * `demoData(seed)` is byte-identical across runs and never touches
+ * `Date.now()`. `ANCHOR_TODAY` is the "today" a story/VRT capture can pin for
+ * the today-ring without a wall-clock read.
  */
 export const ANCHOR_YEAR = 2026;
 export const ANCHOR_MONTH = 6; // 0-based → July
@@ -245,7 +245,7 @@ export function weekDays(startIso: string, firstJs: number): { key: string; date
   });
 }
 
-// --- Intl-routed formatting (memoized; data-context digits per §4.2) ----------
+// --- Intl-routed formatting (memoized; data-context digits) ----------
 
 const weekdayFmts = new Map<string, Intl.DateTimeFormat>();
 const monthTitleFmts = new Map<string, Intl.DateTimeFormat>();
@@ -333,7 +333,7 @@ export function fmtNextRun(tag: string, iso: string): string {
 
 /**
  * Aggregate a `calendar-events` payload into legend categories with counts
- * (annex §5: "categories aggregated from events"). Order is first-seen so the
+ * (annex: "categories aggregated from events"). Order is first-seen so the
  * legend is stable across renders and locales; uncategorized events bucket under
  * `fallback` rather than vanishing from the counts.
  */
@@ -404,10 +404,10 @@ export function daysBetween(start: string, end: string): number {
 }
 
 /**
- * The default quick presets (annex §5: "quick presets (7d/30d/QTD…)"). Labels
+ * The default quick presets (annex: "quick presets (7d/30d/QTD…)"). Labels
  * are ENGLISH DEFAULTS: widgets are locale-agnostic and the host passes
  * translated labels through config, the same contract as the boards family's
- * announcements (04 §2).
+ * announcements.
  */
 export type DefaultRangePresetId = '7d' | '30d' | '90d' | 'mtd' | 'qtd' | 'ytd';
 

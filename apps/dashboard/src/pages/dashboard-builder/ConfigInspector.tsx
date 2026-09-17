@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Config inspector (04-widget-registry.md task 04-T14): a side drawer whose
- * fields are auto-generated from the selected widget's Zod config schema
- * (`deriveInspectorFields`). Each edit updates the item's config live. Locked
- * config paths (Tier A derived / LLM-locked, 04 §9) render disabled with a lock
- * affordance. Keyboard-navigable — it is a stack of standard form controls in a
- * Radix dialog.
+ * Config inspector: a side drawer whose fields are auto-generated from the
+ * selected widget's Zod config schema (`deriveInspectorFields`). Each edit
+ * updates the item's config live. Locked config paths (Tier A derived /
+ * LLM-locked) render disabled with a lock affordance. Keyboard-navigable — it
+ * is a stack of standard form controls in a Radix dialog.
  *
  * The DATA SOURCE row at the top is not auto-generated: `binding` is a nested
  * query document, so `deriveInspectorFields` skips it and `BindingEditor` (a

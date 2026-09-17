@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * ConnectionManager — the three-connection privilege model at runtime
- * (01-architecture.md §3, M3-T04):
+ * ConnectionManager — the three-connection privilege model at
+ * runtime:
  *
  * - `introspect` — a short-lived adapter instance per introspection run,
- * - `data`      — a pooled dynamic-Kysely handle per connection (the CRUD
- *                 query port, 08-server-api.md §2.7), created lazily and
- *                 disposed on connection delete,
+ * - `data` — a pooled dynamic-Kysely handle per connection (the CRUD
+ * query port), created lazily and disposed on connection delete,
  * - `meta`      — the existing MetaDb; never handed to adapters.
  *
- * Meta-placement enforcement (01 §3.1): when the meta store lives in the
- * same physical database as a source's data DSN and the probed data role is
- * read-only or DDL-less, the manager refuses with `META_PLACEMENT_INVALID`
- * — the rule lives here, not only in the wizard UI. Its boot-time sibling
+ * Meta-placement enforcement: when the meta store lives in the same physical
+ * database as a source's data DSN and the probed data role is read-only or
+ * DDL-less, the manager refuses with `META_PLACEMENT_INVALID` — the rule lives
+ * here, not only in the wizard UI. Its boot-time sibling
  * `assertMetaPrefixAvailable` refuses a meta store whose `adminium_*` namespace
  * is already occupied by somebody else (`META_PREFIX_COLLISION`).
  */
@@ -35,7 +34,7 @@ import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@
 import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { guardDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase } from './dsn.js';
 
-/** Every meta table is `adminium_`-prefixed (07-meta-store.md §2.1). */
+/** Every meta table is `adminium_`-prefixed. */
 export const META_TABLE_PREFIX = 'adminium_';
 
 /**
@@ -170,10 +169,10 @@ export class ConnectionManager {
    *
    * The condition that makes the `adminium_` namespace reachable through a
    * source connection, and therefore the condition the schema-authoring
-   * refusal turns on (35-schema-authoring.md §4, `META_NAMESPACE`). Public
-   * because the DDL validator needs the same answer `enforceMetaPlacement`
-   * derives below, and re-deriving it from a second copy of the DSN parsing
-   * is how the two would eventually disagree.
+   * refusal turns on (`META_NAMESPACE`). Public because the DDL validator
+   * needs the same answer `enforceMetaPlacement` derives below, and
+   * re-deriving it from a second copy of the DSN parsing is how the two
+   * would eventually disagree.
    */
   metaSharesDatabaseWith(dataDsn: string | null): boolean {
     if (this.#metaDsn === null || dataDsn === null) return false;
@@ -181,7 +180,7 @@ export class ConnectionManager {
   }
 
   /**
-   * 01 §3.1 decision-tree rule, re-validated server-side: same-db meta
+   * The placement rule, re-validated server-side: same-db meta
    * placement is impossible against a read-only or DDL-less data role.
    */
   enforceMetaPlacement(dataDsn: string, probe: ConnectionTestSummary): void {
@@ -205,13 +204,13 @@ export class ConnectionManager {
    * database that already holds `adminium_*` tables Adminium did not create.
    *
    * WHY IT IS NOT THE MIGRATOR'S JOB. `applyMigrations` is up-only and
-   * append-only (07-meta-store.md §4). Pointed at a database that already has,
-   * say, an unrelated `adminium_users`, it applies 0001…000N fine and then dies
-   * on one `CREATE TABLE` with whatever the driver says — `relation
-   * "adminium_users" already exists` — having already created a dozen tables in
-   * a database that was never meant to hold them. There is no down migration to
-   * undo that, so the operator's only exit is cleaning up by hand. The refusal
-   * has to happen while the database is still untouched.
+   * append-only. Pointed at a database that already has, say, an unrelated
+   * `adminium_users`, it applies 0001…000N fine and then dies on one `CREATE
+   * TABLE` with whatever the driver says — `relation "adminium_users" already
+   * exists` — having already created a dozen tables in a database that was
+   * never meant to hold them. There is no down migration to undo that, so the
+   * operator's only exit is cleaning up by hand. The refusal has to happen
+   * while the database is still untouched.
    *
    * THE DISCRIMINATOR IS THE LEDGER, AND ONLY THE LEDGER. "Some `adminium_*`
    * tables are here" cannot distinguish a foreign install from OUR install on
@@ -309,13 +308,13 @@ export class ConnectionManager {
   /**
    * Short-lived DATA-role adapter for one run — the symmetric twin of
    * {@link introspectAdapter}, and the only way to reach the adapter methods
-   * that need row access (`collectTableStats`, 06 §4.2). The caller owns the
-   * lifecycle and must `close()` it. Deliberately NOT pooled alongside
-   * {@link data}: that handle is a long-lived Kysely for CRUD serving, whereas
-   * this is opened for one statistics pass and released.
+   * that need row access (`collectTableStats`). The caller owns the lifecycle
+   * and must `close()` it. Deliberately NOT pooled alongside {@link data}:
+   * that handle is a long-lived Kysely for CRUD serving, whereas this is
+   * opened for one statistics pass and released.
    *
-   * The DATA role, not introspect: the introspect role is schema-only by design
-   * (§3), so aggregates collected over it would fail on permissions.
+   * The DATA role, not introspect: the introspect role is schema-only by
+   * design, so aggregates collected over it would fail on permissions.
    */
   async dataAdapter(connectionId: string): Promise<DatabaseAdapter<'data'>> {
     const connection = await this.mustFind(connectionId);
@@ -372,7 +371,7 @@ export class ConnectionManager {
     const provider = this.provider(connection.engine);
     const engine = await provider.createQueryEngine({ role: 'data', dsn: dsns.dataDsn });
     // The engine package types the dialect opaquely; the server (which owns
-    // the kysely dependency) casts at this composition boundary (05 §3).
+    // the kysely dependency) casts at this composition boundary.
     const db = new Kysely<SourceDatabase>({ dialect: engine.dialect as KyselyDialect });
     // `connection.engine` is validated against DIALECTS at connection create.
     return { db, engine, dialect: connection.engine as Dialect };

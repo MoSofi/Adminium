@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Structural edits over a block list (39-email-templates-and-campaigns.md
- * §3.6 `model/ops.ts`; the comp's `applyOp`, 1317-1323): insert, delete,
- * move. The SAME op is applied locally and, when the operator says so, queued
- * for the sibling variations to ride the next save (D1) — the server's
- * `applyMirrorOps` is this function with `cloneIds: true`.
+ * Structural edits over a block list (`model/ops.ts`; the comp's `applyOp`,
+ * 1317-1323): insert, delete, move. The SAME op is applied locally and, when
+ * the operator says so, queued for the sibling variations to ride the next
+ * save (D1) — the server's `applyMirrorOps` is this function with `cloneIds:
+ * true`.
  *
  * Indexes are clamped, never rejected: a sibling with fewer blocks still gets
  * the insert at its end, which is what "apply to the other languages" means.

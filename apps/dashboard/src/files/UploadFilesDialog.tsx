@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Uploading files that belong to no record
- * (38-files-library-and-attachments.md D4, D17; 38-T10).
+ * Uploading files that belong to no record.
  *
  * ─── The two phases, and why the comp draws them that way ──────────────────
  *
- * `designs/File Manager.dc.html` shows pick → review the queue → **Upload N
+ * The comp shows pick → review the queue → **Upload N
  * files**, not a dropzone that starts sending the moment something lands on
  * it. The pause is the point: a person who dropped the wrong folder, or five
  * files where they meant one, gets to see the list and back out before
@@ -13,10 +12,10 @@
  *
  * ─── One request per file ──────────────────────────────────────────────────
  *
- * `POST /files` takes one file as its raw body (37 D5), so each row is its own
- * XHR with its own progress and its own Cancel. That is also what makes one
- * bad file survivable: a 413 or a 415 lands on ITS row and the rest of the
- * queue carries on, rather than one refusal ending the batch.
+ * `POST /files` takes one file as its raw body, so each row is its own XHR
+ * with its own progress and its own Cancel. That is also what makes one bad
+ * file survivable: a 413 or a 415 lands on ITS row and the rest of the queue
+ * carries on, rather than one refusal ending the batch.
  *
  * They are sent one at a time. Five concurrent 200 MB PUTs compete for the
  * same upstream and show five bars that all crawl; in sequence the first file

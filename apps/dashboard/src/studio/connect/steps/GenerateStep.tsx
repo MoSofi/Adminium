@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 6 — generate + success (09 §8.2 step 4 tail): POST
- * /connections/:id/generate with the chosen intent, narrated by the staged
- * script (classification → template composition → page writes), then the
- * SuccessState with page/nav-group counts and "Open your app" (bootstrap
- * invalidation → the freshly generated nav renders).
+ * Step 6 — generate + success (tail): POST /connections/:id/generate with
+ * the chosen intent, narrated by the staged script (classification →
+ * template composition → page writes), then the SuccessState with
+ * page/nav-group counts and "Open your app" (bootstrap invalidation → the
+ * freshly generated nav renders).
  *
  * Schema-file mode is preview-only this wave: schema-file connections are
  * not creatable server-side yet (M9) — the step says so instead of faking it.

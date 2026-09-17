@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * llmRunsRepo — adminium_llm_runs (07-meta-store.md §3.19, 06-llm-assist.md §7.4).
+ * llmRunsRepo — adminium_llm_runs.
  *
  * One row = one enrichment attempt (provider API or BYO paste). This repo is the
  * thin persistence layer: it round-trips rows and validates the json payloads it
- * writes. The §7.4 run-lifecycle transition rules and run immutability live one
- * layer up in the server run-service — the repo's `updateStatus` accepts an
- * optional `expected` current-status guard so the service can transition
- * atomically, but it does not itself know the legal transition graph.
+ * writes. The run-lifecycle transition rules and run immutability live one layer
+ * up in the server run-service — the repo's `updateStatus` accepts an optional
+ * `expected` current-status guard so the service can transition atomically, but
+ * it does not itself know the legal transition graph.
  *
- * §9 telemetry-free guarantee: for BYO runs `provider`/`model` stay NULL. The
+ * The telemetry-free guarantee: for BYO runs `provider`/`model` stay NULL. The
  * repo never fills them; enforcing "BYO ⇒ null" is the run-service's job.
  */
 
@@ -66,7 +66,8 @@ export interface LlmRun {
 }
 
 export interface CreateLlmRunInput {
-  /** Defaults to `newId('run')`. The run id equals the runId embedded in the prompt (§7.4). */
+  /** Defaults to `newId('run')`. The run id equals the runId embedded in the
+   * prompt. */
   id?: string;
   connectionId: string;
   snapshotId: string;
@@ -270,7 +271,7 @@ export function llmRunsRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
-    /** Persist the accepted/rejected suggestion-id lists (§8.3). */
+    /** Persist the accepted/rejected suggestion-id lists. */
     async recordReview(id: string, review: LlmRunReview): Promise<boolean> {
       const valid = llmRunReviewSchema.safeParse(review);
       if (!valid.success) throw new MetaValidationError('invalid llm run review', valid.error.issues);

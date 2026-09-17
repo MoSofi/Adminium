@@ -4,10 +4,10 @@
  * 92 px qr-code glyph, or the uploaded `qrImage` — the caption, the info hint
  * and *Remove section* (`qrShow`).
  *
- * THE HINT IS NOT THE COMP'S (34 D21 as amended 2026-09-07): comp:922
- * promises a payment provider that renders the live code on send. Neither
- * exists and the first is forbidden (17 §2), so the copy says what is true —
- * the code shown is the image uploaded under Images.
+ * THE HINT IS NOT THE COMP'S (as amended 2026-09-07): comp:922 promises a
+ * payment provider that renders the live code on send. Neither exists and
+ * the first is forbidden, so the copy says what is true — the code shown is
+ * the image uploaded under Images.
  */
 import { Info, QrCode } from 'lucide-react';
 

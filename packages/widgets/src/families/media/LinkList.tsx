@@ -14,11 +14,11 @@ export { linkListConfigSchema, linkListDemoData };
 export type { LinkListConfig };
 
 /**
- * `link-list` (annex §8) — reference-link rows: an icon chip, the title, the mono
+ * `link-list` (annex) — reference-link rows: an icon chip, the title, the mono
  * URL, an external-link arrow, a hover delete, and an inline add-composer. The
  * read-only "resources" variant (`editable: false`) is what Workspace Onboarding
  * and the 404 quick-links render; the auto-instantiation target for URL columns
- * (annex §8).
+ * (annex).
  *
  * SAFETY: rows carry URLs from a database column — untrusted input. Only
  * `http(s)` links become anchors (a `javascript:`/`data:` URL would otherwise be

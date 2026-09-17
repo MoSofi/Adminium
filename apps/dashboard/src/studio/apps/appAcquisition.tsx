@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Getting apps from the online app catalog, in Studio (48-self-hosted-downloads.md
- * §6b G8-D7): the switch, "Check for newer", install-from-catalog and Update.
+ * Getting apps from the online app catalog, in Studio (b G8-D7): the switch,
+ * "Check for newer", install-from-catalog and Update.
  *
  * One hook for the page, because the four share everything that makes them
  * awkward: each may start a JOB that has to be followed to the end, each can
@@ -20,9 +20,9 @@
  * version needs nothing new in the database. When it DOES need new tables, the
  * page shows them first, for the reason the install wizard has a plan step at
  * all: an operator sees what will be created in their database before it is
- * created (47 O2). The plan comes from `POST /apps/plan` against the connection
- * the app already uses, which is where the update creates them. A version the
- * plan refuses is sent anyway, so the refusal on the page is the server's.
+ * created. The plan comes from `POST /apps/plan` against the connection the app
+ * already uses, which is where the update creates them. A version the plan
+ * refuses is sent anyway, so the refusal on the page is the server's.
  */
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';

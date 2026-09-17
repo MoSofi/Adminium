@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Scheduled Reports (M7 reports track; comp: Scheduled Reports
- * .dc.html): the recurring-report manager — list rows through
- * `scheduled-jobs-list` (the §11.2 master-list consistency choice) with a
- * live enable toggle, plus a create/edit modal over the §3.24 schedule
- * fields. The server computes `next_run_at` with croner; this page only
- * displays it.
+ * Scheduled Reports (M7 reports track; comp: Scheduled Reports.dc.html):
+ * the recurring-report manager — list rows through `scheduled-jobs-list`
+ * (the master-list consistency choice) with a live enable toggle, plus a
+ * create/edit modal over the schedule fields. The server computes
+ * `next_run_at` with croner; this page only displays it.
  *
- * DELIVERY HONESTY (§8.2): the stored `format` is the §3.24 `pdf | png`
- * INTENT. This build delivers every run as a CSV data snapshot through the
- * export pipeline plus an in-app notification — the format control says
- * exactly that, and recipients are stored-not-emailed (no SMTP), which the
+ * DELIVERY HONESTY: the stored `format` is the `pdf | png` INTENT. This
+ * build delivers every run as a CSV data snapshot through the export
+ * pipeline plus an in-app notification — the format control says exactly
+ * that, and recipients are stored-not-emailed (no SMTP), which the
  * recipients field explains inline.
  */
 import { useMemo, useState } from 'react';
@@ -180,7 +179,7 @@ export function ScheduledReportsPage() {
         name: report.name,
         target: report.pageTitle ?? report.pageId,
         frequency: cadenceLabel(report.schedule),
-        // Delivery truth, not the stored intent (§8.2).
+        // Delivery truth, not the stored intent.
         format: t('reports.deliveryBadge', 'CSV snapshot'),
         next: report.nextRunAt === null ? undefined : new Date(report.nextRunAt).toISOString(),
         enabled: report.enabled,

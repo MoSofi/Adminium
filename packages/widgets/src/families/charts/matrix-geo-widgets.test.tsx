@@ -2,8 +2,8 @@
 // @vitest-environment happy-dom
 /**
  * Track E charts family wrapper tests (matrix, calendar & geo-grid): config→
- * chart prop mapping (aria-label from config.title), §3 envelope narrowing,
- * the per-contract empty predicate, deterministic demo payloads matching the
+ * chart prop mapping (aria-label from config.title), envelope narrowing, the
+ * per-contract empty predicate, deterministic demo payloads matching the
  * declared contracts, and bad-shape fallback.
  */
 import { render } from '@testing-library/react';

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * FAN A PUBLIC WRITE OUT TO THE WIDGET-DATA STREAM (33 §7.2, 33-T11).
+ * FAN A PUBLIC WRITE OUT TO THE WIDGET-DATA STREAM.
  *
  * ── THE GAP THIS CLOSES ─────────────────────────────────────────────────
  *
  * `routes/data` has published every write to `widget-data:<cnx>:<table>`
- * since 04 §5.3; this route published nothing at all. So a dashboard page
- * bound to a table an anonymous visitor can write to only ever learned about
- * that write on its next refetch — the operator's own chat inbox goes quiet
- * while somebody is typing into it, and a request row a customer just raised
- * sits unseen until somebody reloads. It is owed with or without an add-on:
- * the public surface has been able to create rows since 28 shipped.
+ * since; this route published nothing at all. So a dashboard page bound to a
+ * table an anonymous visitor can write to only ever learned about that write
+ * on its next refetch — the operator's own chat inbox goes quiet while
+ * somebody is typing into it, and a request row a customer just raised sits
+ * unseen until somebody reloads. It is owed with or without an add-on: the
+ * public surface has been able to create rows since 28 shipped.
  *
  * ── WHY IT IS SAFE TO PUBLISH A STRANGER'S ROW TO A STAFF CHANNEL ───────
  *

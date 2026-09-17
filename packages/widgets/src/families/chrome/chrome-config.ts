@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chrome` family config schemas + deterministic demo generators (annex §11) —
+ * `chrome` family config schemas + deterministic demo generators (annex) —
  * PURE module (zod + chrome-lib only; no React, no @adminium/ui, no lucide).
  *
  * WHY THIS EXISTS: the registry metadata graph reaches this family through
@@ -8,14 +8,16 @@
  * generators. Those must NOT drag the @adminium/ui-heavy components into the
  * eager registry chunk — components load only through
  * `lazy(() => import('./chrome-track-components.js'))` (one lazy chunk per
- * family, 04 §2.3; the media/system/boards `*-config` convention).
+ * family; the media/system/boards `*-config` convention).
  *
- * LABELS: widgets are locale-agnostic (04 §2) — user-visible copy arrives as
+ * LABELS: widgets are locale-agnostic — user-visible copy arrives as
  * already-translated strings through config, with English developer fallbacks.
- * The dashboard fills them from `t('…')`; en-US entries live at `widgets.chrome.*`.
+ * The dashboard fills them from `t('…')`; en-US entries live at
+ * `widgets.chrome.*`.
  *
- * DETERMINISM (04 §7.7): every `demoData(seed)` is a pure function of `seed` —
- * no `Date.now()`, no `Math.random()`. Timestamps derive from `CHROME_DEMO_EPOCH`.
+ * DETERMINISM: every `demoData(seed)` is a pure function of `seed` — no
+ * `Date.now()`, no `Math.random()`. Timestamps derive from
+ * `CHROME_DEMO_EPOCH`.
  */
 
 import { z } from 'zod';
@@ -26,16 +28,16 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * Fixed reference clock for every `chrome` demo payload — 2026-03-17T09:15:00Z.
- * Demo data must be byte-identical across runs (04 §7.7 / the determinism gate).
+ * Demo data must be byte-identical across runs (/ the determinism gate).
  */
 export const CHROME_DEMO_EPOCH = Date.UTC(2026, 2, 17, 9, 15, 0);
 
 const toneSchema = z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']);
 
-// ── sidebar-nav (annex §11) ─────────────────────────────────────────────────
+// ── sidebar-nav (annex) ─────────────────────────────────────────────────────
 
 export const sidebarNavConfigSchema = widgetSharedConfigSchema.extend({
-  /** Which field of each row carries what (04 §5). */
+  /** Which field of each row carries what. */
   groupField: z.string().default('group'),
   labelField: z.string().default('label'),
   iconField: z.string().default('icon'),
@@ -49,9 +51,9 @@ export const sidebarNavConfigSchema = widgetSharedConfigSchema.extend({
   groups: z.array(z.object({ key: z.string(), label: z.string().optional() })).optional(),
   /** Href of the currently-active item; the host passes the live route. */
   activeHref: z.string().optional(),
-  /** Collapse group sections (annex §11 `collapsible`). */
+  /** Collapse group sections (annex `collapsible`). */
   collapsible: z.boolean().default(false),
-  /** Render live count badges from `badgeField` (annex §11). */
+  /** Render live count badges from `badgeField` (annex). */
   showBadges: z.boolean().default(true),
   a11yLabel: z.string().optional(),
   emptyTitle: z.string().optional(),
@@ -96,9 +98,9 @@ export function sidebarNavDemoData(seed: number): {
   };
 }
 
-// ── command-palette + global-search (annex §11) ─────────────────────────────
+// ── command-palette + global-search (annex) ─────────────────────────────────
 
-/** The index fields both search surfaces read (annex §11 `flat index`). */
+/** The index fields both search surfaces read (annex `flat index`). */
 const searchIndexFields = {
   idField: z.string().default('id'),
   groupField: z.string().default('group'),
@@ -111,7 +113,7 @@ const searchIndexFields = {
 
 export const commandPaletteConfigSchema = widgetSharedConfigSchema.extend({
   ...searchIndexFields,
-  /** Fixed group render order (annex §11). Unknown groups render last. */
+  /** Fixed group render order (annex). Unknown groups render last. */
   groupOrder: z.array(z.enum(COMMAND_GROUPS)).optional(),
   /** Display labels per group key. */
   groupLabels: z.record(z.enum(COMMAND_GROUPS), z.string()).optional(),
@@ -160,12 +162,12 @@ export function commandPaletteDemoData(seed: number): {
 
 export const globalSearchConfigSchema = widgetSharedConfigSchema.extend({
   ...searchIndexFields,
-  /** `type` drives the per-result icon/tone meta (annex §11 `typeMeta`). */
+  /** `type` drives the per-result icon/tone meta (annex `typeMeta`). */
   typeField: z.string().default('type'),
   snippetField: z.string().default('snippet'),
   metaField: z.string().default('meta'),
   updatedField: z.string().default('updated'),
-  /** Header dropdown vs the full-page results view (annex §11). */
+  /** Header dropdown vs the full-page results view (annex). */
   variant: z.enum(['dropdown', 'page']).default('dropdown'),
   /** Per-entity-type display meta. */
   typeMeta: z
@@ -208,7 +210,7 @@ export function globalSearchDemoData(seed: number): {
     snippet: row.snippet,
     meta: row.meta,
     href: `/search/${row.id}`,
-    // Offsets from the fixed epoch — never Date.now() (04 §7.7).
+    // Offsets from the fixed epoch — never Date.now().
     updated: new Date(CHROME_DEMO_EPOCH - row.hours * 3_600_000).toISOString(),
   }));
   return {
@@ -223,13 +225,14 @@ export function globalSearchDemoData(seed: number): {
   };
 }
 
-// ── breadcrumb (annex §11) ──────────────────────────────────────────────────
+// ── breadcrumb (annex) ──────────────────────────────────────────────────────
 
 export const breadcrumbConfigSchema = widgetSharedConfigSchema.extend({
   labelField: z.string().default('name'),
   hrefField: z.string().default('href'),
   idField: z.string().default('id'),
-  /** Collapse the middle of a deep trail behind an ellipsis (annex §11 `maxDepth/collapse`). */
+  /** Collapse the middle of a deep trail behind an ellipsis (annex
+   * `maxDepth/collapse`). */
   maxDepth: z.number().int().min(2).max(12).default(6),
   a11yLabel: z.string().optional(),
 });
@@ -252,7 +255,7 @@ export function breadcrumbDemoData(seed: number): {
   return { rows, columns: [{ name: 'name', label: 'Name' }], total: rows.length };
 }
 
-// ── tab-bar (annex §11) ─────────────────────────────────────────────────────
+// ── tab-bar (annex) ─────────────────────────────────────────────────────────
 
 export const tabBarConfigSchema = widgetSharedConfigSchema.extend({
   keyField: z.string().default('key'),
@@ -260,9 +263,9 @@ export const tabBarConfigSchema = widgetSharedConfigSchema.extend({
   iconField: z.string().default('icon'),
   countField: z.string().default('count'),
   hrefField: z.string().default('href'),
-  /** Annex §11 `style` — underline or segmented pills. */
+  /** Annex `style` — underline or segmented pills. */
   style: z.enum(TAB_STYLES).default('underline'),
-  /** Render count pills in labels (annex §11 `counts`). */
+  /** Render count pills in labels (annex `counts`). */
   counts: z.boolean().default(true),
   /** Active tab key; uncontrolled when absent (first tab wins). */
   activeKey: z.string().optional(),
@@ -291,7 +294,7 @@ export function tabBarDemoData(seed: number): {
   return { rows, columns: [{ name: 'label', label: 'Tab' }], total: rows.length };
 }
 
-// ── nav-card (annex §11) ────────────────────────────────────────────────────
+// ── nav-card (annex) ────────────────────────────────────────────────────────
 
 export const navCardConfigSchema = widgetSharedConfigSchema.extend({
   nameField: z.string().default('name'),
@@ -299,7 +302,7 @@ export const navCardConfigSchema = widgetSharedConfigSchema.extend({
   iconField: z.string().default('icon'),
   hrefField: z.string().default('href'),
   tintField: z.string().default('tint'),
-  /** Cards per row (annex §11 `columns`). */
+  /** Cards per row (annex `columns`). */
   columns: z.number().int().min(1).max(4).default(3),
   emptyTitle: z.string().optional(),
   emptyBody: z.string().optional(),
@@ -326,7 +329,7 @@ export function navCardDemoData(seed: number): {
   return { rows, columns: [{ name: 'name', label: 'Name' }], total: rows.length };
 }
 
-// ── shortcuts-panel (annex §11) ─────────────────────────────────────────────
+// ── shortcuts-panel (annex) ─────────────────────────────────────────────────
 
 /** One keycap row: a label + the chord(s) that trigger it. */
 export const shortcutEntrySchema = z.object({
@@ -338,8 +341,9 @@ export const shortcutEntrySchema = z.object({
 
 export const shortcutsPanelConfigSchema = widgetSharedConfigSchema.extend({
   /**
-   * Annex §11: "static groups of {label, keys[], isSequence}". This widget is
-   * `static` — the cheat sheet IS its config, so the host (which owns the live
+   * Annex: "static groups of {label, keys[], isSequence}". This widget is
+   * `static` — the cheat sheet IS its config, so the host (which owns the
+   * live
    * shortcut manager) passes the registered set in rather than the widget
    * fetching one.
    */
@@ -348,8 +352,7 @@ export const shortcutsPanelConfigSchema = widgetSharedConfigSchema.extend({
     .optional(),
   /**
    * Modifier glyph for this platform — `⌘` on macOS, `Ctrl` elsewhere. The host
-   * decides (it knows the platform); the widget only renders (annex §11
-   * "Keycaps localize per platform").
+   * decides (it knows the platform); the widget only renders (annex).
    */
   modKey: z.string().default('⌘'),
   footerHint: z.string().optional(),
@@ -389,17 +392,17 @@ export function shortcutsPanelDemoData(): Record<string, never> {
   return {};
 }
 
-// ── avatar-stack (annex §11) ────────────────────────────────────────────────
+// ── avatar-stack (annex) ────────────────────────────────────────────────────
 
 export const avatarStackConfigSchema = widgetSharedConfigSchema.extend({
   nameField: z.string().default('name'),
   initialsField: z.string().default('initials'),
   imageField: z.string().default('imageUrl'),
   onlineField: z.string().default('online'),
-  /** Avatars shown before the "+N" overflow bubble (annex §11 `max`). */
+  /** Avatars shown before the "+N" overflow bubble (annex `max`). */
   max: z.number().int().min(1).max(12).default(5),
   size: z.enum(['sm', 'md', 'lg']).default('md'),
-  /** Presence variant: online dots + an "N online" caption (annex §11). */
+  /** Presence variant: online dots + an "N online" caption (annex). */
   presence: z.boolean().default(false),
   onlineLabel: z.string().optional(),
   emptyTitle: z.string().optional(),

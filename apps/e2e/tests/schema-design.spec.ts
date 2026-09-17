@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Schema authoring, end to end — 35-schema-authoring.md 35-T30.
+ * Schema authoring, end to end.
  *
  * ─── Why this runs on all three engines ────────────────────────────────────
  *
@@ -97,7 +97,7 @@ test.describe(`schema design [${ENGINE}]`, () => {
     await page.getByRole('button', { name: 'Review changes' }).click();
 
     if (ENGINE === 'sqlite') {
-      // §7: SQLite collapses rebuild-class changes into ONE rebuild step.
+      // SQLite collapses rebuild-class changes into ONE rebuild step.
       await expect(page.getByText(/Rebuild e2e_notes/)).toBeVisible();
     } else {
       await expect(page.getByText(/Change body from text to integer/)).toBeVisible();

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Round-trip between the page-crud toolbar grid state and a persisted view
- * config (M5-T06). Applying a saved view must reproduce exactly the query the
- * grid held when it was saved — search text, sort, filters and page size —
- * hence the symmetric mapping + a structural equality used to detect "this
- * view is the one currently applied".
+ * config. Applying a saved view must reproduce exactly the query the grid
+ * held when it was saved — search text, sort, filters and page size — hence
+ * the symmetric mapping + a structural equality used to detect "this view is
+ * the one currently applied".
  */
 
 import type { CrudFilterCondition, CrudSort, PageCrudGridState } from '@adminium/widgets';

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `system` family config schemas + deterministic demo generators (annex §12) —
+ * `system` family config schemas + deterministic demo generators (annex) —
  * PURE module (zod + system-lib only; no React, no @adminium/ui, no lucide).
  *
  * WHY THIS EXISTS: the registry metadata graph reaches this family through
@@ -8,21 +8,23 @@
  * generators. Those must NOT drag the @adminium/ui-heavy components into the
  * eager registry chunk — components load only through
  * `lazy(() => import('./system-track-components.js'))` (one lazy chunk per
- * family, 04 §2.3; the media/boards/kpi `*-config` convention). Component files
+ * family; the media/boards/kpi `*-config` convention). Component files
  * re-export these symbols so barrel/story/test import points stay stable.
  *
- * FIELD-NAMING CONFIG (04 §5): system widgets bind to rows from real tables
- * whose columns are named whatever the source schema calls them, so each widget
- * takes `*Field` config naming which column carries what. Defaults match the
- * annex's canonical contract; the auto-instantiation hook (annex §12) fills them
- * from the classifier's enum/health semantics.
+ * FIELD-NAMING CONFIG: system widgets bind to rows from real tables whose
+ * columns are named whatever the source schema calls them, so each widget takes
+ * `*Field` config naming which column carries what. Defaults match the annex's
+ * canonical contract; the auto-instantiation hook (annex) fills them from the
+ * classifier's enum/health semantics.
  *
- * LABELS: widgets are locale-agnostic (04 §2) — user-visible copy arrives as
+ * LABELS: widgets are locale-agnostic — user-visible copy arrives as
  * already-translated strings through config, with English developer fallbacks.
- * The dashboard fills them from `t('…')`; en-US entries live at `widgets.system.*`.
+ * The dashboard fills them from `t('…')`; en-US entries live at
+ * `widgets.system.*`.
  *
- * DETERMINISM (04 §7.7): every `demoData(seed)` is a pure function of `seed` —
- * no `Date.now()`, no `Math.random()`. Timestamps derive from `SYSTEM_DEMO_EPOCH`.
+ * DETERMINISM: every `demoData(seed)` is a pure function of `seed` — no
+ * `Date.now()`, no `Math.random()`. Timestamps derive from
+ * `SYSTEM_DEMO_EPOCH`.
  */
 
 import { z } from 'zod';
@@ -40,14 +42,14 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * Fixed reference clock for every `system` demo payload — 2026-03-17T09:15:00Z.
- * Demo data must be byte-identical across runs (04 §7.7 / the determinism gate),
+ * Demo data must be byte-identical across runs (/ the determinism gate),
  * so relative stamps are offsets from this constant, never the wall clock.
  */
 export const SYSTEM_DEMO_EPOCH = Date.UTC(2026, 2, 17, 9, 15, 0);
 
 const toneSchema = z.enum(SYSTEM_TONES);
 
-// ── state-hero (annex §12) ──────────────────────────────────────────────────
+// ── state-hero (annex) ──────────────────────────────────────────────────────
 
 /** One entry of the `stateMap` — the hero copy for a single view id. */
 export const stateHeroEntrySchema = z.object({
@@ -66,11 +68,11 @@ export const stateHeroEntrySchema = z.object({
 export type StateHeroEntryConfig = z.infer<typeof stateHeroEntrySchema>;
 
 export const stateHeroConfigSchema = widgetSharedConfigSchema.extend({
-  /** Which view of the map to render; the payload may override it (annex §12). */
+  /** Which view of the map to render; the payload may override it (annex). */
   view: z.enum(STATE_HERO_VIEWS).default('404'),
   /** Per-view copy overrides, keyed by view id. Missing entries fall back to the built-in map. */
   stateMap: z.record(z.enum(STATE_HERO_VIEWS), stateHeroEntrySchema).optional(),
-  /** 404 variant's floating decorative ornament (annex §12). */
+  /** 404 variant's floating decorative ornament (annex). */
   ornament: z.boolean().default(false),
   /** Quick-link chips under the CTA row (the 404 variant). */
   quickLinks: z.array(z.object({ label: z.string(), href: z.string() })).optional(),
@@ -87,10 +89,10 @@ export function stateHeroDemoData(seed: number): { row: Record<string, unknown> 
   return { row: { view } };
 }
 
-// ── empty-state (annex §12) ─────────────────────────────────────────────────
+// ── empty-state (annex) ─────────────────────────────────────────────────────
 
 export const emptyStateConfigSchema = widgetSharedConfigSchema.extend({
-  /** Annex §12 variants: plain, CTA, upload drop-zone. */
+  /** Annex variants: plain, CTA, upload drop-zone. */
   variant: z.enum(['plain', 'cta', 'dropzone']).default('plain'),
   /** @adminium/ui copy preset used when `heading`/`body` are absent. */
   preset: z.enum(['no-data', 'all-caught-up', 'no-matches', 'nothing-scheduled']).default('no-data'),
@@ -113,24 +115,26 @@ export const emptyStateConfigSchema = widgetSharedConfigSchema.extend({
 export type EmptyStateConfig = z.infer<typeof emptyStateConfigSchema>;
 
 /**
- * `empty-state` is a `static` widget — its payload is its config (annex §12:
- * "static per context, or derived boolean isEmpty from a filtered list"), so the
+ * `empty-state` is a `static` widget — its payload is its config (annex:
+ * "static per context, or derived boolean isEmpty from a filtered list"), so
+ * the
  * demo payload is an empty envelope rather than fabricated rows.
  */
 export function emptyStateDemoData(): Record<string, never> {
   return {};
 }
 
-// ── status-pill (annex §12) ─────────────────────────────────────────────────
+// ── status-pill (annex) ─────────────────────────────────────────────────────
 
 export const statusPillConfigSchema = widgetSharedConfigSchema.extend({
   /** Which field of the bound record carries the enum value. */
   statusField: z.string().default('status'),
-  /** Annex §12 `map` {value: {label, tone}} — the LLM/heuristic-assigned tone map. */
+  /** Annex `map` {value: {label, tone}} — the LLM/heuristic-assigned tone map.
+   * */
   map: z.record(z.string(), z.object({ label: z.string().optional(), tone: toneSchema.optional() })).optional(),
   /** Tone used for a value absent from `map` and from the @adminium/ui default vocabulary. */
   fallbackTone: toneSchema.default('neutral'),
-  /** Show the leading colored dot (annex §12 `dot`). */
+  /** Show the leading colored dot (annex `dot`). */
   dot: z.boolean().default(true),
 });
 export type StatusPillConfig = z.infer<typeof statusPillConfigSchema>;
@@ -142,12 +146,12 @@ export function statusPillDemoData(seed: number): { row: Record<string, unknown>
   return { row: { status: DEMO_STATUSES[Math.floor(random() * DEMO_STATUSES.length)] ?? 'active' } };
 }
 
-// ── alert-banner (annex §12) ────────────────────────────────────────────────
+// ── alert-banner (annex) ────────────────────────────────────────────────────
 
 export const alertBannerConfigSchema = widgetSharedConfigSchema.extend({
   severityField: z.string().default('severity'),
   messageField: z.string().default('message'),
-  /** Bold stat lead rendered before the copy (annex §12 "bold stat lead or icon"). */
+  /** Bold stat lead rendered before the copy (annex). */
   leadField: z.string().default('lead'),
   ctaLabelField: z.string().default('ctaLabel'),
   ctaHrefField: z.string().default('ctaHref'),
@@ -171,21 +175,21 @@ export function alertBannerDemoData(seed: number): { row: Record<string, unknown
   return { row: { ...pick } };
 }
 
-// ── status-banner-hero (annex §12) ──────────────────────────────────────────
+// ── status-banner-hero (annex) ──────────────────────────────────────────────
 
 export const statusBannerHeroConfigSchema = widgetSharedConfigSchema.extend({
   /** Which field of each service row carries its `up|degraded|down` state. */
   stateField: z.string().default('state'),
   nameField: z.string().default('name'),
   /**
-   * The inline right-aligned mono KPI trio (annex §12 "+ inline right-aligned
-   * mono KPI trio"). Each entry names a field on the FIRST row of the payload.
+   * The inline right-aligned mono KPI trio (annex). Each entry names a field
+   * on the FIRST row of the payload.
    */
   stats: z
     .array(z.object({ key: z.string(), label: z.string().optional(), unit: z.string().optional() }))
     .max(3)
     .optional(),
-  /** Per-state hero copy (annex §12 `stateStyles`). */
+  /** Per-state hero copy (annex `stateStyles`). */
   titles: z.record(z.enum(SERVICE_STATES), z.string()).optional(),
   bodies: z.record(z.enum(SERVICE_STATES), z.string()).optional(),
 });
@@ -225,14 +229,14 @@ export function statusBannerHeroDemoData(seed: number): {
   };
 }
 
-// ── connection-status (annex §12) ───────────────────────────────────────────
+// ── connection-status (annex) ───────────────────────────────────────────────
 
 export const connectionStatusConfigSchema = widgetSharedConfigSchema.extend({
   stateField: z.string().default('state'),
   hostField: z.string().default('host'),
   /** Detail line under the headline (error text on `failed`, table count on `connected`). */
   detailField: z.string().default('detail'),
-  /** Per-state headline copy (annex §12 `messages`). */
+  /** Per-state headline copy (annex `messages`). */
   messages: z.record(z.enum(CONNECTION_STATES), z.string()).optional(),
   /** Render the inline Test action that re-issues the check. */
   testable: z.boolean().default(false),
@@ -256,7 +260,7 @@ export function connectionStatusDemoData(seed: number): { row: Record<string, un
   return { row: detail === undefined ? { state, host } : { state, host, detail } };
 }
 
-// ── autosave-indicator (annex §12) ──────────────────────────────────────────
+// ── autosave-indicator (annex) ──────────────────────────────────────────────
 
 export const autosaveIndicatorConfigSchema = widgetSharedConfigSchema.extend({
   dirtyField: z.string().default('dirty'),
@@ -264,7 +268,8 @@ export const autosaveIndicatorConfigSchema = widgetSharedConfigSchema.extend({
   /** Epoch-ms of the last successful save; stamps the "saved at" time. */
   savedAtField: z.string().default('savedAt'),
   errorField: z.string().default('error'),
-  /** Annex §12 `debounceMs` — the host's dirty→save debounce; surfaced for the info popover. */
+  /** Annex `debounceMs` — the host's dirty→save debounce; surfaced for the info
+   * popover. */
   debounceMs: z.number().int().min(0).max(10_000).default(900),
   /** Show the "· HH:MM" stamp after "All changes saved". */
   showStamp: z.boolean().default(true),
@@ -285,22 +290,22 @@ export function autosaveIndicatorDemoData(seed: number): { row: Record<string, u
       dirty: status === 'dirty',
       saving: status === 'saving',
       error: false,
-      // Offset from the fixed demo epoch — never Date.now() (04 §7.7).
+      // Offset from the fixed demo epoch — never Date.now().
       savedAt: SYSTEM_DEMO_EPOCH - Math.round(random() * 9) * 60_000,
     },
   };
 }
 
-// ── progress-log-console (annex §12) ────────────────────────────────────────
+// ── progress-log-console (annex) ────────────────────────────────────────────
 
 export const progressLogConsoleConfigSchema = widgetSharedConfigSchema.extend({
-  /** Annex §12 `variant`: the live streaming console vs the static terminal sim. */
+  /** Annex `variant`: the live streaming console vs the static terminal sim. */
   variant: z.enum(['live', 'static-terminal']).default('live'),
   textField: z.string().default('text'),
   kindField: z.string().default('kind'),
   /** Optional per-line 0–100 used to drive the paired determinate bar. */
   pctField: z.string().default('pct'),
-  /** Render the paired determinate progress bar + mono % (annex §12). */
+  /** Render the paired determinate progress bar + mono % (annex). */
   showProgress: z.boolean().default(true),
   /** Cap on rendered lines; the console keeps the most RECENT `maxLines`. */
   maxLines: z.number().int().min(3).max(500).default(200),
@@ -352,12 +357,12 @@ export function progressLogConsoleDemoData(seed: number): {
   };
 }
 
-// ── diagnostics-readout (annex §12) ─────────────────────────────────────────
+// ── diagnostics-readout (annex) ─────────────────────────────────────────────
 
 export const diagnosticsReadoutConfigSchema = widgetSharedConfigSchema.extend({
   /**
-   * The checks to read off the bound record, in render order (annex §12
-   * `checks`). Each names a field; `tones` maps that field's VALUE to a tone so
+   * The checks to read off the bound record, in render order (annex `checks`).
+   * Each names a field; `tones` maps that field's VALUE to a tone so
    * "Reachable"/"Refused" colour themselves.
    */
   checks: z
@@ -370,7 +375,7 @@ export const diagnosticsReadoutConfigSchema = widgetSharedConfigSchema.extend({
       }),
     )
     .optional(),
-  /** Epoch-ms freshness stamp field (annex §12 "+ last-checked timestamp"). */
+  /** Epoch-ms freshness stamp field (annex). */
   checkedAtField: z.string().default('checkedAt'),
   checkedAtLabel: z.string().optional(),
 });

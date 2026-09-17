@@ -1,8 +1,8 @@
 name: desktop-e2e
 
-# 11-T20 (11-electron.md §7 + acceptance criteria): the Playwright `_electron`
+# The Playwright `_electron`
 # suite that launches the BUILT desktop app and walks first-run → demo → CRUD →
-# chart → backup, the §7 offline smoke (session.webRequest deny-all), and the §9
+# chart → backup, the offline smoke (session.webRequest deny-all), and the
 # crash/WAL-durability check.
 #
 # It cannot run in the ordinary `pnpm test` gate — it needs a display — so it

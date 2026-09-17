@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Deterministic seeded demo payloads for the M7 "time, forecast & flow" charts
- * (04 §7.7, acceptance #11 — byte-identical across runs/platforms). Time base
- * is the fixed `DEMO_EPOCH_MS`, randomness is the repo PRNG (`mulberry32`);
- * never `Date.now()`/`Math.random()`. Each generator emits the exact §3
- * envelope its widget's `dataContract` declares.
+ * (acceptance #11 — byte-identical across runs/platforms). Time base is the
+ * fixed `DEMO_EPOCH_MS`, randomness is the repo PRNG (`mulberry32`); never
+ * `Date.now()`/`Math.random()`. Each generator emits the exact envelope its
+ * widget's `dataContract` declares.
  */
 import { DEMO_EPOCH_MS, mulberry32 } from '@adminium/charts';
 

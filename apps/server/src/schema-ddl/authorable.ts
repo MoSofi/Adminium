@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Can this connection's schema be authored at all? — 35-schema-authoring.md
- * D5, D17, 35-T15.
+ * Can this connection's schema be authored at all?.
  *
  * ─── One function, two callers, no drift ───────────────────────────────────
  *
- * 35-T15 asks for the same fact in two places: the DDL routes refuse a
+ * The same fact is needed in two places: the DDL routes refuse a
  * connection they cannot write to (403 `READ_ONLY_MODE`), and Studio does not
  * offer a surface that would only produce that 403 — "absence, not a disabled
  * button".

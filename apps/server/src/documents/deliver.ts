@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A drawn document on its way to the person it names
- * (34-invoices-add-on.md §7.7, §3.7 step 6; 34-T19).
+ * A drawn document on its way to the person it names.
  *
  * ─── `delivery` IS A RECORD, NOT A TOAST ───────────────────────────────────
  *
@@ -12,7 +11,7 @@
  * `send.ts:213` set the precedent for the SMTP case; this file follows it for
  * the other three.
  *
- * ─── THE BYTES TRAVEL AS A `generated` ATTACHMENT (39 D8) ──────────────────
+ * ─── THE BYTES TRAVEL AS A `generated` ATTACHMENT ──────────────────────────
  *
  * The `document-ready` template declares one attachment whose token this send
  * fills with THIS document's file id, so one stored row serves every recipient
@@ -44,7 +43,7 @@ import {
 } from './provider.js';
 
 /**
- * What a profile's `deliver` json says (§3.7 step 6).
+ * What a profile's `deliver` json says.
  *
  * `store` is always true and is kept as a field rather than assumed, because
  * "kept on the record" is a promise the UI makes in eight languages and a
@@ -97,8 +96,8 @@ export interface DeliverInput {
   profile: DocumentProfile | null;
   /**
    * The recipient, when the CALLER knows it — a claim-bound public send, whose
-   * address is the claim's and never the document's (§7.6). Overrides the
-   * profile's slot, and is the only way a request-shaped intent is delivered.
+   * address is the claim's and never the document's. Overrides the profile's
+   * slot, and is the only way a request-shaped intent is delivered.
    */
   to?: string | undefined;
   /** A link the recipient can actually open; the button is dropped without one. */
@@ -139,13 +138,13 @@ function addressFrom(document: DocumentRow, slot: string | null | undefined): st
 }
 
 /**
- * The address a CLAIMED document is bound to (§7.6).
+ * The address a CLAIMED document is bound to.
  *
  * A request-shaped intent (D15) has no mapping and therefore no address slot;
- * what it has is the claim that made it, and §7.6 is explicit that such a
- * document settles only to "the claimed session's own bound address". Reading
- * it from the row rather than from a request body is what stops this being a
- * way to send somebody else's document anywhere — the operator settling a
+ * what it has is the claim that made it, is explicit that such a document
+ * settles only to "the claimed session's own bound address". Reading it from
+ * the row rather than from a request body is what stops this being a way to
+ * send somebody else's document anywhere — the operator settling a
  * `pending-review` row decides WHETHER, never WHERE.
  */
 function claimAddress(document: DocumentRow): string | null {

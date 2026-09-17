@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `auto-insights` (annex §1) — a short RANKED list of generated insights:
+ * `auto-insights` (annex) — a short RANKED list of generated insights:
  * sparkles/tone icon, bold stat + sentence, and a mini sparkline; plus the
  * card-grid variant with tone icon + category tag + recommendation prose and a
  * Refresh that rotates the visible window through the pool. Renders only the
@@ -14,8 +14,8 @@
  * reports, and free of a per-render token cost.
  *
  * Refresh rotates a LOCAL window offset over the already-bound pool — it does not
- * refetch. Re-querying is `refreshInterval` / the host's job (04 §5); rotating
- * locally is what the annex's "Refresh rotation" describes and costs nothing.
+ * refetch. Re-querying is `refreshInterval` / the host's job; rotating locally is
+ * what the annex's "Refresh rotation" describes and costs nothing.
  */
 
 import { IconTile, MonoText, Tag } from '@adminium/ui';
@@ -33,7 +33,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { autoInsightsConfigSchema, autoInsightsDemoData } from './kpi-config.js';
 export type { AutoInsightsConfig } from './kpi-config.js';
 
@@ -60,9 +60,9 @@ function numberAt(row: Record<string, unknown>, field: string): number | undefin
 }
 
 /**
- * Project the bound `record-list` onto ranked insights (04 §5 field naming).
- * Ranking is by `scoreField` DESCENDING; rows without a score keep their query
- * order behind the scored ones (a stable sort, so the annex's "ranked list" is
+ * Project the bound `record-list` onto ranked insights (field naming). Ranking
+ * is by `scoreField` DESCENDING; rows without a score keep their query order
+ * behind the scored ones (a stable sort, so the annex's "ranked list" is
  * honest even on a partially-scored pool). Rows without a title are dropped —
  * an insight with no sentence has nothing to say.
  */

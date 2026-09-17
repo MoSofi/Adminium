@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Query-descriptor draft model (04-widget-registry.md §5.1) — the pure half of
- * the builder's binding editor.
+ * Query-descriptor draft model — the pure half of the builder's binding
+ * editor.
  *
  * A `QueryDescriptor` is a nested document (`source`, `aggregations[]`,
  * `bucket`, `window`, `orderBy[]`, `filters[]`); a form is flat. This module is
@@ -429,8 +429,8 @@ const ALSO_ACCEPTS: Readonly<Partial<Record<DataShape, readonly DataShape[]>>> =
 /**
  * The shapes this widget can be bound to today: its data contract, widened by
  * {@link ALSO_ACCEPTS}, narrowed to what the compiler can produce. Empty ⇔ the
- * widget's contract is outside the compiler's reach (04 §5.2) and no query can
- * feed it yet — the editor says so rather than offering a dead form.
+ * widget's contract is outside the compiler's reach and no query can feed it
+ * yet — the editor says so rather than offering a dead form.
  */
 export function authorableShapes(contract: DataShape | DataShape[]): CompilableDataShape[] {
   const declared = Array.isArray(contract) ? contract : [contract];

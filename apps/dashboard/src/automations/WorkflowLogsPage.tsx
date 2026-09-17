@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/workflow-logs` — every execution of every rule
- * (`designs/Workflow Logs.dc.html`; 42-automations-and-workflow-logs.md §4.2,
- * 42-T24).
+ * `/workflow-logs` — every execution of every rule.
  *
  * The comp's layout, unchanged: four KPIs, then a `400px minmax(0,1fr)` grid
  * with the filtered run list on the left and one run's trace on the right
@@ -12,7 +10,7 @@
  *    picker. Seven days is the smallest window that still answers "did it run
  *    over the weekend?", it bounds the query, and the filter counts are over
  *    the same window so the pills and the list can never disagree. A date
- *    range is a residual (§10), not an omission.
+ * range is a residual, not an omission.
  *  - **A 5 s POLL.** The comp has a Refresh button and stops there. A run
  *    that is pending, running or waiting changes on its own, so the list
  *    re-reads while one is on screen and stops when none is (`queries.ts`).

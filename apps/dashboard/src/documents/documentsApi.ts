@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `/api/v1/documents` client (34-invoices-add-on.md §7.5, §7.8).
+ * The `/api/v1/documents` client.
  *
  * ─── `installed` IS A QUERY, NOT A BUILD FLAG ──────────────────────────────
  *
@@ -120,7 +120,7 @@ export function entityKey(pk: Readonly<Record<string, unknown>>): string {
     .join('|');
 }
 
-/** Same-origin content path — never a storage destination's own URL (37 D24). */
+/** Same-origin content path — never a storage destination's own URL. */
 export function documentContentPath(id: string): string {
   return `${BASE}/${encodeURIComponent(id)}/content`;
 }

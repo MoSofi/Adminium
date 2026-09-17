@@ -22,7 +22,7 @@ const fmt = (template: string, args: Record<string, string>): string =>
 
 /**
  * The "Derived numbers" card — arithmetic and rules over the folds the Columns
- * card authors (36-derived-columns.md §3.8, D30).
+ * card authors.
  *
  * A CLOSED BUILDER, not a formula field. There is no expression evaluator in
  * the lockfile and both written precedents in this tree refuse expression

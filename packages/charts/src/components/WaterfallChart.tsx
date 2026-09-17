@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-waterfall` primitive (research/widget-registry.md §2): a floating-bar
+ * `chart-waterfall` primitive (research/widget-registry.md): a floating-bar
  * bridge (Start / New / Expansion / Churn / Net) with +/− colored steps and
  * total anchors, plus connector segments riding the running level. Composed
  * from ChartSurface + pure `layoutWaterfall` geometry. Token-only colors

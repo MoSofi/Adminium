@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * automationsRepo — adminium_automations (07-meta-store.md §3.22, migration
- * 0006 + 0028; 42-automations-and-workflow-logs.md §3.2, 42-T03).
+ * automationsRepo — adminium_automations (migration 0006 + 0028).
  *
  * One row per rule: WHAT fires it (`trigger`), WHAT it does (`graph`), and the
  * bookkeeping the engine keeps against it (`last_run_at`, `next_run_at`,
@@ -11,7 +10,7 @@
  *
  * `listEnabledFor(connection, table, event)` loads every enabled rule and
  * filters in JavaScript rather than reaching into the `trigger` json. That is
- * the store's rule (07 §3: json columns are opaque, never queried with JSON
+ * the store's rule (json columns are opaque, never queried with JSON
  * operators — the three dialects spell those operators three different ways),
  * and it costs nothing here: the matcher keeps an in-memory index built from
  * this list and rebuilt on every rule write, so the query runs on boot and on

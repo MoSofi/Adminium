@@ -3,7 +3,7 @@
  * TRACK BUILDER — component barrel for `document-canvas` + the 22 `block-*`
  * widgets: the single lazy-import target for `blocks-track.definitions.ts`, so
  * the registry's metadata graph reaches the @adminium/ui-heavy component code
- * ONLY through a dynamic `import()` boundary (one lazy chunk, 04 §2.3).
+ * ONLY through a dynamic `import()` boundary (one lazy chunk).
  *
  * Mirrors the `media-track-components.ts` / `domain-track-components.ts`
  * convention. Nothing but components belongs here — schemas and `demoData` live

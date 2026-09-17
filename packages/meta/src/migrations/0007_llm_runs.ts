@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0007 — LLM run lifecycle (06-llm-assist.md §7.4).
+ * Wave 0007 — LLM run lifecycle.
  *
  * 0006 shipped `adminium_llm_runs` but only carried a `validation_status` field,
- * not the full run-storage contract §7.4 requires. This migration ADDS the
- * missing columns (never edits 0006):
+ * not the full run-storage contract requires. This migration ADDS the missing
+ * columns (never edits 0006):
  *
- *   status          — the authoritative §7.4 run-lifecycle machine
- *                     (draft → running|awaiting_response → validated →
- *                      applied|partially_applied, or → failed|discarded)
- *   sections        — requested decision groups (§4.4), json string array
- *   locales         — requested output locales (§4.1), json string array
- *   sampling        — sampling opt-in (§4.2): null | { maxValuesPerColumn }
- *   chunks_total    — map-reduce chunk count (1 when unchunked)
- *   chunks_received — chunk responses received so far
- *   prompt_text     — full flattened prompt(s); enables BYO re-download
- *   review          — accepted/rejected suggestion-id lists (§8.3)
+ * status — the authoritative run-lifecycle machine (draft →
+ *   running|awaiting_response → validated → applied|partially_applied, or →
+ *   failed|discarded) sections — requested decision groups, json string
+ *   array locales — requested output locales, json string array sampling —
+ *   sampling opt-in: null | { maxValuesPerColumn } chunks_total —
+ *   map-reduce chunk count (1 when unchunked) chunks_received — chunk
+ *   responses received so far prompt_text — full flattened prompt(s);
+ *   enables BYO re-download review — accepted/rejected suggestion-id lists
  *
  * Reconciliation: 0006's `mode` ('provider'|'byo') stays as the doc's `path`
  * discriminator, and `validation_status` is KEPT as a secondary

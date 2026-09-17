@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The files transport's WIRE, not its behaviour (37-files-and-storage.md D5,
- * §3.9).
+ * The files transport's WIRE, not its behaviour.
  *
  * WHY THIS EXISTS. Every other test of this feature mocks `files/api.ts` and
  * asserts what the callers do with its return value — which is the right shape

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * M10-T03 — the config bundle: export, re-import, version replay, and the
- * secret guarantee.
+ * The config bundle: export, re-import, version replay, and the secret
+ * guarantee.
  *
  * The suite is built around the four claims the milestone makes about a bundle:
  *   1. it round-trips (export a seeded instance → import into a fresh store →
@@ -762,7 +762,7 @@ describe('the bundle is configuration, not source code', () => {
   });
 });
 
-// ─── version replay (§8.2) ───────────────────────────────────────────────────
+// ─── version replay ──────────────────────────────────────────────────────────
 
 describe('version replay', () => {
   /**
@@ -891,7 +891,7 @@ describe('version replay', () => {
   it('records the meta-schema high-water mark for the target migrator', async () => {
     const result = await exportZip({ meta: source.meta, outPath: outPath(), dataDir: dir });
     const manifest = await readManifest(result.path);
-    // The last migration the SOURCE actually applied (§8.2 metaVersion).
+    // The last migration the SOURCE actually applied (metaVersion).
     expect(manifest.metaVersion).toMatch(/^\d{4}_/);
   });
 });

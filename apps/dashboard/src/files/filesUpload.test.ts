@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The upload half of the files transport — progress, abort, and the request
- * that actually leaves (37-files-and-storage.md D5, §3.9, 37-T20).
+ * that actually leaves.
  *
  * WHY A SECOND FILE, AND WHY IT STUBS `XMLHttpRequest`. Its sibling
  * `filesApi.test.ts` exists because four JSON calls shipped with a URL that

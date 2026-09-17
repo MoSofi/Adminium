@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard layout-persistence hooks (04-widget-registry.md §6.3) — the save
- * surface the builder (04-T14, Batch 2) consumes. Three write paths plus the
- * resolved-layout read:
+ * Dashboard layout-persistence hooks — the save surface the builder (Batch
+ * 2) consumes. Three write paths plus the resolved-layout read:
  *
  *   useSaveSharedLayout   → debounced (800 ms) PATCH of the shared default
  *   useSavePersonalLayout → debounced (800 ms) PUT of the caller's override
@@ -23,7 +22,7 @@ import { pageLayoutSchema, type PageLayout } from '@adminium/widgets/page-config
 import { pageQuery } from '../../api/pages.js';
 import { layoutApi } from './layoutApi.js';
 
-/** Trailing debounce for continuous drag/resize saves (04 §6.3). */
+/** Trailing debounce for continuous drag/resize saves. */
 export const LAYOUT_SAVE_DEBOUNCE_MS = 800;
 
 function pageKey(pageId: string): readonly ['page', string] {

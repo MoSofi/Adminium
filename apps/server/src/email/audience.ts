@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Who a campaign goes to (39-email-templates-and-campaigns.md D11, phase 1):
- * the workspace's users — every active account, or the holders of the chosen
- * roles — minus the ones who opted out of the `email.campaign` kind.
+ * Who a campaign goes to: the workspace's users — every active account, or
+ * the holders of the chosen roles — minus the ones who opted out of the
+ * `email.campaign` kind.
  *
  * ONE resolver for the preview count and the run itself, so *1,240 recipients ·
  * 12 opted out* on the Send modal is the same arithmetic the job performs a
@@ -13,8 +13,8 @@
  * reason); invited-but-never-activated accounts are not either — they have no
  * relationship with the workspace yet, and a campaign is not an invitation.
  *
- * Customer-table audiences are the next wave (O1 → 27-T66); this module is
- * where `{ kind: 'table' }` joins.
+ * Customer-table audiences are the next wave (O1 →); this module is where
+ * `{ kind: 'table' }` joins.
  */
 import {
   notificationPrefsRepo,

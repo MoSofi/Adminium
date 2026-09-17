@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * First-run setup API client (M10-T04): GET /api/v1/setup/state and
- * POST /api/v1/setup/super-admin. Shapes mirror apps/server
- * src/routes/setup/schema.ts (type-only copy per the 01-architecture.md §2.3
- * matrix — the dashboard may not import server runtime code). Change both
- * together.
+ * First-run setup API client: GET /api/v1/setup/state and POST
+ * /api/v1/setup/super-admin. Shapes mirror apps/server
+ * src/routes/setup/schema.ts (type-only copy per the matrix — the dashboard
+ * may not import server runtime code). Change both together.
  */
 import { queryOptions } from '@tanstack/react-query';
 

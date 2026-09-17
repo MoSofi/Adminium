@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Enrich-with-AI step — pure state + rules (06-llm-assist.md §10.2, §4.4, §7.5,
- * §9). Kept out of the components so the three-intent state machine, the
- * shared-options toggles (sections/locales/sampling), the per-chunk BYO
- * validation gate, and the §7.5 repair-message formatter are unit-testable
- * without a DOM.
+ * Enrich-with-AI step — pure state + rules. Kept out of the components so the
+ * three-intent state machine, the shared-options toggles
+ * (sections/locales/sampling), the per-chunk BYO validation gate, and the
+ * repair-message formatter are unit-testable without a DOM.
  *
- * The dashboard cannot import `@adminium/llm` (01 §2.3, dependency-cruiser), so
- * the section/locale/sampling vocabularies are the structural mirror already
+ * The dashboard cannot import `@adminium/llm` (dependency-cruiser), so the
+ * section/locale/sampling vocabularies are the structural mirror already
  * declared in `studio/ai/api.ts`; this module only reshapes them into request
  * inputs and UI-facing option lists.
  */
@@ -16,7 +15,7 @@ import { LOCALES as I18N_LOCALES, localeEntry } from '@adminium/i18n';
 import { t } from '../../i18n/t.js';
 import type { CreateRunInput, LlmLocale, LlmRunMode, LlmSection } from '../ai/api.js';
 
-// --- intents (the three option cards, §10.2 step 1) --------------------------
+// --- intents (the three option cards) --------------------------
 
 /**
  * `provider` = run against the configured AI provider (direct path);
@@ -25,14 +24,14 @@ import type { CreateRunInput, LlmLocale, LlmRunMode, LlmSection } from '../ai/ap
  */
 export type EnrichIntent = 'provider' | 'byo' | 'skip';
 
-/** Map an enrichment intent to the run-creation path (§10.5 `POST /runs`). */
+/** Map an enrichment intent to the run-creation path (`POST /runs`). */
 export function runModeForIntent(intent: 'provider' | 'byo'): LlmRunMode {
   return intent;
 }
 
-// --- sections (§4.4 — ten decision groups, all on by default) ----------------
+// --- sections (ten decision groups, all on by default) ----------------
 
-/** The ten requestable decision groups, in the §4.4 table order. */
+/** The ten requestable decision groups, in the table order. */
 export const ENRICH_SECTIONS: readonly LlmSection[] = [
   'labels',
   'groups',
@@ -79,9 +78,9 @@ export function toggleSection(current: readonly LlmSection[], section: LlmSectio
   return ENRICH_SECTIONS.filter((candidate) => set.has(candidate));
 }
 
-// --- locales (instance-enabled multi-select; en_US locked on, §10.2 step 2) --
+// --- locales (instance-enabled multi-select; en_US locked on) --
 
-/** en_US is always requested — the prompt requires it (§5.1 rule 5). */
+/** en_US is always requested — the prompt requires it. */
 export const LOCKED_LOCALE: LlmLocale = 'en_US';
 
 /**
@@ -116,9 +115,9 @@ function dedupeInOrder(current: readonly LlmLocale[]): LlmLocale[] {
   return ENRICH_LOCALES.filter((candidate) => set.has(candidate));
 }
 
-// --- sampling (§4.2 opt-in; PII columns never sampled) -----------------------
+// --- sampling (opt-in; PII columns never sampled) -----------------------
 
-/** Default per-column sample cap when the user opts into sampling (§4.2). */
+/** Default per-column sample cap when the user opts into sampling. */
 export const SAMPLING_MAX_VALUES = 20;
 
 // --- shared choices ----------------------------------------------------------
@@ -130,7 +129,7 @@ export interface EnrichChoices {
   sampling: boolean;
 }
 
-/** All sections on, en_US only, sample-free — the §4 defaults. */
+/** All sections on, en_US only, sample-free — the defaults. */
 export function defaultEnrichChoices(): EnrichChoices {
   return { sections: [...ENRICH_SECTIONS], locales: [LOCKED_LOCALE], sampling: false };
 }
@@ -138,9 +137,9 @@ export function defaultEnrichChoices(): EnrichChoices {
 /**
  * Whether the "Use my AI provider" card can be picked: a provider must be
  * configured (bootstrap `llm.enabled`), there must be a live connection to
- * snapshot — schema-file sources have none (§10.2, GenerateStep parity) — and
- * the deployment must be allowed to make the outbound call at all
- * (11-electron.md §8.2's LLM row, via `/system/info`'s `networkFeaturesAllowed`).
+ * snapshot — schema-file sources have none (GenerateStep parity) — and the
+ * deployment must be allowed to make the outbound call at all (LLM row, via
+ * `/system/info`'s `networkFeaturesAllowed`).
  *
  * `networkAllowed` DEFAULTS TRUE, which is the one default in this file that is
  * not merely convenience: it is the answer for every deployment that has not
@@ -161,7 +160,7 @@ export function providerCardEnabled(input: {
   );
 }
 
-/** Reshape the shared choices into a `POST /runs` body (§10.5). */
+/** Reshape the shared choices into a `POST /runs` body. */
 export function toCreateRunInput(
   connectionId: string,
   path: LlmRunMode,
@@ -176,16 +175,16 @@ export function toCreateRunInput(
   };
 }
 
-// --- BYO per-chunk validation gate (§10.2 step 4) ----------------------------
+// --- BYO per-chunk validation gate ----------------------------
 
 export type ChunkStatus = 'empty' | 'validating' | 'valid' | 'error';
 
-/** All chunks must validate before the merge step unlocks (§10.2 step 4). */
+/** All chunks must validate before the merge step unlocks. */
 export function allChunksValid(statuses: readonly ChunkStatus[]): boolean {
   return statuses.length > 0 && statuses.every((status) => status === 'valid');
 }
 
-// --- §7.5 repair message ("Copy errors for your AI tool") --------------------
+// --- repair message ("Copy errors for your AI tool") --------------------
 
 /** One validation failure, projected to what the repair message needs. */
 export interface RepairError {
@@ -195,12 +194,12 @@ export interface RepairError {
   message: string;
 }
 
-/** Cap on listed errors, matching the direct-path repair turn (§7.5). */
+/** Cap on listed errors, matching the direct-path repair turn. */
 export const REPAIR_ERROR_LIMIT = 20;
 
 /**
- * The verbatim §7.5 repair turn the BYO user pastes back into their own AI
- * tool — the copy-paste analogue of the direct path's automated repair loop.
+ * The verbatim repair turn the BYO user pastes back into their own AI tool
+ * — the copy-paste analogue of the direct path's automated repair loop.
  */
 export function formatRepairMessage(errors: readonly RepairError[]): string {
   const lines = errors.slice(0, REPAIR_ERROR_LIMIT).map((error) => {
@@ -215,11 +214,11 @@ export function formatRepairMessage(errors: readonly RepairError[]): string {
   ].join('\n');
 }
 
-// --- BYO prompt download filename (§10.2 step 4) -----------------------------
+// --- BYO prompt download filename -----------------------------
 
 /**
  * `adminium-prompt-{runId}.md` unchunked; `…-chunk-1of3.md` when the schema was
- * split (§4.5). `total <= 1` ⇒ unchunked.
+ * split. `total <= 1` ⇒ unchunked.
  */
 export function promptFileName(runId: string, index: number, total: number): string {
   if (total <= 1) return `adminium-prompt-${runId}.md`;

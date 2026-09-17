@@ -272,11 +272,11 @@
   with everything else about an add-on's reach left to the install plan, which is
   the security surface.
   
-  **The page is the comp again.** `designs/Integrations.dc.html` draws a category
-  rail with per-category counts, a search box and a card grid; the shipped page
-  rendered a flat list of names. The browse half moves to its own component and
-  gains all three, plus distinct empty states for "this build shipped none",
-  "nothing matched your filter" and "the catalog is on but found nothing".
+  **The page is the comp again.** draws a category rail with per-category counts, a
+  search box and a card grid; the shipped page rendered a flat list of names. The
+  browse half moves to its own component and gains all three, plus distinct empty
+  states for "this build shipped none", "nothing matched your filter" and "the
+  catalog is on but found nothing".
   
   Browsing remains a disk read: no page load, category click or search makes an
   outbound request.
@@ -303,16 +303,14 @@
   explicitly. Without it every non-English recipient would have silently received
   English — silently, because each call site supplies its own English default, so
   there is no missing-key error to notice.
-- f2fd258: Email templates become email documents (39-email-templates-and-campaigns.md
-  WS-A/WS-B). Migration 0026 gives `adminium_email_templates` a kind
-  (template | campaign), a category, a fixed footer, a preheader, a per-document
-  brand, attachments, archiving and starter provenance, and adds
-  `adminium_email_blocks` (saved sections) and `adminium_email_runs` (campaign
-  runs). The renderer speaks the comp's 24 block types, draws the brand banner
-  and the envelope footer, and references the brand mark and Files images by
-  CID; delivery reads attachment bytes from the file store right before
-  `sendMail` and fails loudly on a missing file. Twelve localizable starters ship
-  behind `GET /email-templates/starters`.
+- f2fd258: Email templates become email documents (WS-A/WS-B). Migration 0026 gives
+  `adminium_email_templates` a kind (template | campaign), a category, a fixed footer, a
+  preheader, a per-document brand, attachments, archiving and starter provenance, and
+  adds `adminium_email_blocks` (saved sections) and `adminium_email_runs` (campaign
+  runs). The renderer speaks the comp's 24 block types, draws the brand banner and the
+  envelope footer, and references the brand mark and Files images by CID; delivery reads
+  attachment bytes from the file store right before `sendMail` and fails loudly on a
+  missing file. Twelve localizable starters ship behind `GET /email-templates/starters`.
   
   Routes: `PUT /email-templates/:key/:locale` and `POST /email-templates/:key/test-send`
   are retired — the editor saves explicitly through `PUT /email-templates/:id`,
@@ -331,14 +329,14 @@
   stops a running one. The `email.campaign` notification kind is the opt-out;
   `email.campaign.sent` tells the creator how many were sent and failed.
   
-  Dashboard: the Email templates manager is rebuilt to the design (WS-C, 39-T08–T10):
-  Templates/Campaigns trays with counts, group by topic or language, gallery and
-  list layouts remembered per browser, the actions menu (import, senders, export,
-  settings, archived), inline rename, duplicate and delete with Undo, archived
-  mode with restore / delete for good / reset to built-in, the New modal with the
-  twelve starters and *Your templates* for campaigns, and the import modal. The
-  old autosaving page under `pages/builders` is gone; the editor route
-  (`/email-templates/:id`) shows the document's facts until the new editor lands.
+  Dashboard: the Email templates manager is rebuilt to the design (WS-C):
+  Templates/Campaigns trays with counts, group by topic or language, gallery and list
+  layouts remembered per browser, the actions menu (import, senders, export, settings,
+  archived), inline rename, duplicate and delete with Undo, archived mode with restore
+  / delete for good / reset to built-in, the New modal with the twelve starters and
+  *Your templates* for campaigns, and the import modal. The old autosaving page under
+  `pages/builders` is gone; the editor route (`/email-templates/:id`) shows the
+  document's facts until the new editor lands.
   
   The Email templates surface's messages move to a deferred `email` namespace
   (`DEFERRED_NAMESPACES`), loaded by its two routes like the studio's: the
@@ -393,14 +391,13 @@
   Both generators round-trip on postgres, mysql and sqlite. The instant is
   formatted per dialect — MySQL's `datetime` refuses the ISO form the other two
   want, and no single JavaScript value satisfies all three drivers.
-- cb398f1: The Report builder ships at `/report-builder` (43-report-builder.md): a
-  two-collection manager plus a block editor, over a new envelope — a report is a
-  header (kicker · title · subtitle) plus an ORDERED ARRAY of self-contained
-  blocks, each with its own title, width and visibility, drawn from a palette of
-  25 kinds. Migration 0030 adds `adminium_report_documents` (prefix `rpt`): one
-  table, two kinds (template | report), the comp's three-value status
-  (draft | sent | live), a starter key, a soft `origin_id`, the manager's
-  `position` and a denormalised `summary`.
+- cb398f1: The Report builder ships at `/report-builder`: a two-collection manager
+  plus a block editor, over a new envelope — a report is a header (kicker · title ·
+  subtitle) plus an ORDERED ARRAY of self-contained blocks, each with its own title,
+  width and visibility, drawn from a palette of 25 kinds. Migration 0030 adds
+  `adminium_report_documents` (prefix `rpt`): one table, two kinds (template |
+  report), the comp's three-value status (draft | sent | live), a starter key, a
+  soft `origin_id`, the manager's `position` and a denormalised `summary`.
   
   Not Scheduled Reports. That surface keeps `/reports`, its `reports.*` keys, the
   `rep` prefix and `system:reports:manage`; this one is `/report-builder`, the
@@ -491,18 +488,17 @@
 - a44a0ff: The ghcr image and the desktop build now carry the six first-party add-ons as
   a pre-verified bundled set.
   
-  The boot seed (32 D3) has existed since the store landed, but nothing ever put
-  a bundle where it looks — every image and installer shipped an empty Add-ons
-  page and called the air-gap story done. Now a release script
-  (`scripts/release/fetch-add-ons-bundle.mjs`) downloads the six tarballs at
-  build time against exact version + sha512 pins
-  (`scripts/release/add-ons-bundle.json`, copied from the release ledger — never
-  `latest`, no redirects, timing-safe digest comparison, refusal on any
-  unpinnable entry), and writes the flat
-  `<key>-<version>.tgz` + `.tgz.integrity` layout the seed reads. The Docker
-  build parks it at `/app/add-ons-bundle`, which the runtime stage's CWD makes
-  the server's own default; desktop-release.yml parks it in
-  `resources/add-ons-bundle` next to the demo seed.
+  The boot seed has existed since the store landed, but nothing ever put a bundle
+  where it looks — every image and installer shipped an empty Add-ons page and
+  called the air-gap story done. Now a release script
+  (`scripts/release/fetch-add-ons-bundle.mjs`) downloads the six tarballs at build
+  time against exact version + sha512 pins (`scripts/release/add-ons-bundle.json`,
+  copied from the release ledger — never `latest`, no redirects, timing-safe
+  digest comparison, refusal on any unpinnable entry), and writes the flat
+  `<key>-<version>.tgz` + `.tgz.integrity` layout the seed reads. The Docker build
+  parks it at `/app/add-ons-bundle`, which the runtime stage's CWD makes the
+  server's own default; desktop-release.yml parks it in `resources/add-ons-bundle`
+  next to the demo seed.
   
   The desktop shell now closes the loop in both directions: `buildServerEnv`
   points `ADMINIUM_BUNDLED_ADD_ONS` at the packaged directory (only when it
@@ -667,16 +663,16 @@
   
   **One gap closed on the way past.** Install was calling `addOnManifestSchema`
   rather than `validateManifest`, so it checked the manifest's shape and skipped
-  the policy layer — which meant the publisher gate (24 D13 / 26 D4, the control
-  those rulings actually name) was not running at install, and neither was
+  the policy layer — which meant the publisher gate (the control those rulings
+  actually name) was not running at install, and neither was
   `FRONTEND_SECRET_LEAK`, the rule standing between a credential and a browser.
   Both run now, on the real installed manifest rather than only in the add-on
   repo's CI.
 - 4d68dc9: Add-on egress is now enforced, and an installed bundle is checked on read.
   
-  Both were declared and neither was enforced. 24 D14 rules that an add-on's
-  outbound access is an exact-hostname allow-list, and until now that list was a
-  field in a JSON document nothing consulted at runtime — the validator refuses
+  Both were declared and neither was enforced. An add-on's outbound access is an
+  exact-hostname allow-list, and until now that list was a field in a JSON
+  document nothing consulted at runtime — the validator refuses
   `outbound-http` without a non-empty list, which makes the declaration
   well-formed and stops nothing at the moment a call is made.
   
@@ -704,16 +700,16 @@
   for a host it never declared is exactly what nobody would otherwise find out
   about.
   
-  **What it does not do is stated where it can be read.** §5.5 says an undeclared
-  call "fails at the socket". It does not, and it cannot while D13 runs server
-  halves in-process: an add-on can reach `globalThis.fetch` or `node:net`
-  directly, and nothing short of a process permission model or a child process
-  would stop it. What exists is a client that refuses, handed to the add-on so it
-  has no reason to build its own. The control against a *hostile* add-on remains
-  the first-party publisher gate; this is the control against an honest one with a
-  bug or a dependency that phones home. Both are worth having, only one is a
-  sandbox, and neither is called one — including in a test that asserts the limit
-  so it sits next to the thing that has it.
+  **What it does not do is stated where it can be read.** says an undeclared call
+  "fails at the socket". It does not, and it cannot while D13 runs server halves
+  in-process: an add-on can reach `globalThis.fetch` or `node:net` directly, and
+  nothing short of a process permission model or a child process would stop it. What
+  exists is a client that refuses, handed to the add-on so it has no reason to build
+  its own. The control against a *hostile* add-on remains the first-party publisher
+  gate; this is the control against an honest one with a bug or a dependency that
+  phones home. Both are worth having, only one is a sandbox, and neither is called
+  one — including in a test that asserts the limit so it sits next to the thing that
+  has it.
   
   **Bundle serving pins one hash and re-checks it.** The store already records a
   per-file sha256 when a package is unpacked, so that is the hash the SRI value is
@@ -724,14 +720,13 @@
   checked before the store's own containment check sees the request, so asking for
   `package.json` is a 404 rather than a served byte.
   
-  The route lives inside `/api/v1` rather than at §5.4's `/add-ons/<key>/client.js`.
-  Everything outside `/api/` in this server is invisible to all three route
-  ratchets and inherits neither the auth hook nor rate limiting, and since the
-  bundle URL is *served* in the list reply rather than hardcoded by a host, its
-  shape was free to choose — so it went where the guarantees are. No CSP change
-  was needed either: `script-src` is already `'self'` and the bundle is same-origin,
-  so §5.4's "extends it with the add-on origin" describes an origin that does not
-  exist.
+  The route lives inside `/api/v1` rather than `/add-ons/<key>/client.js`. Everything
+  outside `/api/` in this server is invisible to all three route ratchets and inherits
+  neither the auth hook nor rate limiting, and since the bundle URL is *served* in the
+  list reply rather than hardcoded by a host, its shape was free to choose — so it
+  went where the guarantees are. No CSP change was needed either: `script-src` is
+  already `'self'` and the bundle is same-origin, so "extends it with the add-on
+  origin" describes an origin that does not exist.
 - 4d68dc9: Fix: the add-on list and bundle routes were unauthenticated.
   
   `GET /api/v1/add-ons` and `GET /api/v1/add-ons/:key/bundle/*` both carried a
@@ -794,7 +789,7 @@
   build one to find the next defect of this shape.
 - 4d68dc9: All three connect kinds now work: OAuth2 lands, host-run, with PKCE.
   
-  26 D2 refuses a subset — *"shipping two of three means one of four add-ons
+  A subset was refused — *"shipping two of three means one of four add-ons
   cannot be connected, which is a dead entry in a list the user can see"* — so
   this closes it. `import-canva` is connectable.
   
@@ -978,9 +973,10 @@
 - 4d68dc9: Installed add-ons now run: server halves load, contracts resolve, and their
   events become job kinds.
   
-  O1 was ratified in-process, on the recommendation the plan records — 24 D13's
-  first-party publisher gate is what does the real work. This implements that
-  ruling, and because it does, the loading discipline is the whole of the control.
+  Server halves run IN-PROCESS, unsandboxed, because the first-party publisher
+  gate is what does the real work. That is a deliberate ruling rather than an
+  inherited one, and because the gate carries the weight, the loading discipline
+  is the whole of the control.
   
   A server half is loaded **only** from the installed bundle on local disk,
   **only** at a path the manifest declares, and **only after** the file is
@@ -1045,20 +1041,17 @@
   read by nothing rather than dropped, because it is empty and dropping a column
   is the one thing a migration cannot take back.
   
-  **Attachments are a join table.** The wave's plan originally recommended two
-  manifest rows keyed `(manifest_key, attached_to)` for an add-on attached to two
-  hosts; that recommendation was withdrawn and the join table ratified. Three costs argue against it, and the
-  third only became visible once the table turned out to be shipped: two rows mean
-  two copies of the manifest document, which an upgrade must then rewrite
-  atomically or leave one host on an older version; the credential FK becomes
-  ambiguous, since a DHL API key belongs to the add-on rather than to one of its
-  attachments, so disconnecting "the other one" either orphans a secret or deletes
-  a live one; and it requires dropping and recreating the shipped
-  `uq_adminium_manifests_manifest_key` across three dialects, against §4's own
-  "never edit a shipped migration". An attachment is a many-to-many fact and now
-  has the table that models one. `disabledAt` lives there rather than on the
-  manifest, so an add-on can be live on one host and off on another — which a
-  single flag could not represent.
+  **Attachments are a join table.** The wave's plan originally recommended two manifest rows keyed
+  `(manifest_key, attached_to)` for an add-on attached to two hosts; that recommendation was withdrawn and the
+  join table ratified. Three costs argue against it, and the third only became visible once the table turned
+  out to be shipped: two rows mean two copies of the manifest document, which an upgrade must then rewrite
+  atomically or leave one host on an older version; the credential FK becomes ambiguous, since a DHL API key
+  belongs to the add-on rather than to one of its attachments, so disconnecting "the other one" either orphans
+  a secret or deletes a live one; and it requires dropping and recreating the shipped
+  `uq_adminium_manifests_manifest_key` across three dialects, against own "never edit a shipped migration". An
+  attachment is a many-to-many fact and now has the table that models one. `disabledAt` lives there rather than
+  on the manifest, so an add-on can be live on one host and off on another — which a single flag could not
+  represent.
   
   **Credentials get their own key, not the DSN's.** `deriveKey`'s `info` parameter
   exists to keep purposes apart, and these are genuinely different: a DSN opens
@@ -1084,14 +1077,13 @@
   
   **`manifests.manage` is grantable, in the same change that landed its first
   enforcement point** — which is the rule its own reserved list documents. It went
-  to `operations` rather than `workspace`: installing an add-on runs its server
-  half in this process, which is closer to starting a job than to changing a
-  setting, and 26 D3 exists precisely to stop it riding on `settings.manage`. The
-  reserved set had four hard-coded copies rather than the two that were expected,
-  and one of them is production code — `RESERVED_GRANTS` in the dashboard's
-  `rolesApi.ts`, which the dashboard cannot import from `@adminium/meta`, so
-  nothing detects drift and a key left there is silently dropped from the matrix
-  with no error and no failing test.
+  to `operations` rather than `workspace`: installing an add-on runs its server half
+  in this process, which is closer to starting a job than to changing a setting,
+  exists precisely to stop it riding on `settings.manage`. The reserved set had four
+  hard-coded copies rather than the two that were expected, and one of them is
+  production code — `RESERVED_GRANTS` in the dashboard's `rolesApi.ts`, which the
+  dashboard cannot import from `@adminium/meta`, so nothing detects drift and a key
+  left there is silently dropped from the matrix with no error and no failing test.
   
   Applying a plan that needs new tables lands in the same release — see the
   add-on schema changeset — so an add-on whose tables the host database already
@@ -1302,9 +1294,9 @@
 - 37c99f2: The Studio's messages are their own namespace, and nobody downloads them until
   they open the Studio.
   
-  `10-i18n-theming.md` §2.4 has always specified `studio` as a namespace that
-  loads "lazily when a Studio route mounts", and §2.5's own example key is
-  `studio:connect.wizard.testCta`. The build never did it. All 971 console
+  `studio` was always meant to be a namespace that loads lazily when a Studio
+  route mounts, with keys of the shape `studio:connect.wizard.testCta`. The
+  build never did it. All 971 console
   messages lived in `common.studio.*` and `common.studioPages.*`, and every en-US
   namespace was imported statically into the caller's main chunk — so the connect
   wizard, the schema remap editor, the LLM review screens and the workspace
@@ -1422,9 +1414,8 @@
   action. A draft of this change had exactly that and would have hard-failed five
   required checks. Nothing caught it: `actionlint` never visits `.github/actions/`,
   and pointed at an `action.yml` it parses the file as a workflow and exits 0.
-- 00f435f: Build the coverage harness 15-quality.md §1 has specified since M0 (task 15-T01)
-  and nothing implemented: no `coverage` key in any of the 9 vitest configs, no
-  provider installed, nothing in CI.
+- 00f435f: Build the coverage harness has specified since M0 (task) and nothing implemented:
+  no `coverage` key in any of the 9 vitest configs, no provider installed, nothing in CI.
   
   Every package with tests now carries `coverage.thresholds`, from a shared base at
   `@adminium/config/vitest`. Nine packages that had tests and no vitest config at
@@ -1442,17 +1433,16 @@
   another. An `exclude` list cannot fix either case; `include: ['src/**']` can, and
   is why it is there.
   
-  Floors are `max(§1 floor, measured rounded down)` per axis: green on arrival and
-  ratcheting upward only. A floor set at §1's numbers would have been red on
-  arrival — which is how the VRT and axe gates died the first time. Rounding down
-  is not cosmetic: v8 totals are not bit-stable between identical runs.
-  `@adminium/ui`, `@adminium/widgets` and `@adminium/charts` collect and report but
-  assert nothing, per §1.
+  Floors are `max(floor, measured rounded down)` per axis: green on arrival and
+  ratcheting upward only. A floor set numbers would have been red on arrival — which
+  is how the VRT and axe gates died the first time. Rounding down is not cosmetic: v8
+  totals are not bit-stable between identical runs. `@adminium/ui`,
+  `@adminium/widgets` and `@adminium/charts` collect and report but assert nothing.
   
   Two RELEASE-GATE rows record what is still owed, both unchecked: the gap between
-  the ratchet and §1's floors, and the fact that 9 of 10 performance budgets have
-  no harness and no recorded decision either way. The previous state was worse than
-  an unmet criterion — with no row, the gate could not fail on it.
+  the ratchet floors, and the fact that 9 of 10 performance budgets have no harness
+  and no recorded decision either way. The previous state was worse than an unmet
+  criterion — with no row, the gate could not fail on it.
   
   Coverage adds ~15% to the test leg, so `verify`'s timeout goes 20 → 25 minutes,
   and summaries upload as an artifact on failure only.
@@ -1846,3 +1836,13 @@
   - @adminium/llm@0.1.0
   - @adminium/meta@0.1.0
   - @adminium/schema-import@0.1.0
+
+---
+
+*A note on the entries above.* Some of them cited the internal work plan this
+repository was built from — a document filename, a section, or a task id. That
+plan was never published, so those citations were dead ends for every reader but
+their author, and they were reworded on 2026-09-17. No entry's substance
+changed: only the references went. The reasoning they pointed at is public now,
+one short page per decision, at
+<https://docs.adminium.dev/anatomy/decisions/>.

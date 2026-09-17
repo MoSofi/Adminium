@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The inspector aside (34-invoices-add-on.md Appendix E §I1–I8; the comp's
- * 729-1033): a 294 px right aside with the accent-soft header — the selected
- * section's icon, title and hint (`insMeta`, 1565) — over ONE contextual panel
- * keyed off the selection. NOT tabbed: unlike the email inspector there is no
- * Sections/Design tray; the canvas is the outline.
+ * The inspector aside (the comp's 729-1033): a 294 px right aside with
+ * the accent-soft header — the selected section's icon, title and hint
+ * (`insMeta`, 1565) — over ONE contextual panel keyed off the selection. NOT
+ * tabbed: unlike the email inspector there is no Sections/Design tray; the
+ * canvas is the outline.
  *
  * PROPS CONTRACT (shared with `editor/Editor.tsx`, which mounts this):
  * everything a panel edits goes through `edits` (model/edits.ts); a panel that
@@ -15,7 +15,7 @@
  * The shell scrolls the PAGE under a sticky topbar, so the aside is STICKY
  * under the topbar and the editor header (both heights measured by the
  * editor as custom properties) and scrolls on its own; below `lg` it is
- * hidden and the editor shows the panel in a drawer (Appendix E §E11).
+ * hidden and the editor shows the panel in a drawer.
  */
 import { MousePointerClick } from 'lucide-react';
 import type { ReactNode } from 'react';

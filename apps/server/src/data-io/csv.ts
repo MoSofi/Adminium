@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Hand-rolled RFC 4180 CSV (M7-T07) — no dependency exists in this repo and
- * none is added (the spec's "hand-roll" instruction).
+ * Hand-rolled RFC 4180 CSV — no dependency exists in this repo and none is
+ * added (the spec's "hand-roll" instruction).
  *
  * SERIALIZER decisions (unit-tested in data-io-csv.test.ts):
  * - Fields are quoted only when they contain a comma, a double quote, CR or
- *   LF; embedded quotes double (`"" `), per RFC 4180 §2.5–2.7.
- * - Records join with CRLF (RFC 4180 §2.1); the final record also ends with
- *   CRLF so concatenating exports remains valid CSV.
+ * LF; embedded quotes double (`"" `), per RFC 41–2.7.
+ * - Records join with CRLF (RFC 41); the final record also ends with CRLF
+ * so concatenating exports remains valid CSV.
  * - BOM: exports are prefixed with U+FEFF (`EXPORT_BOM`). Excel — the primary
  *   consumer of a "Download CSV" button — mis-decodes unmarked UTF-8 as
  *   Windows-1252; every other consumer tolerates the BOM. The parser strips

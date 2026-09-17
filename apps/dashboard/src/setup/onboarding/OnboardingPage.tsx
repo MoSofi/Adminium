@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The six-step first-run wizard, assembled (45-onboarding.md §2).
+ * The six-step first-run wizard, assembled.
  *
  * This is the only piece that holds state: which step is showing, the two
  * answers collected before the account existed (`heldAnswers.ts`), the account
@@ -9,9 +9,9 @@
  * what is left here is the wiring — and the one piece of judgement that cannot
  * live anywhere else: what Continue means on each step.
  *
- * NOT YET ROUTED. `/setup` still renders `FirstRunWizard`; 45-T10 makes the
- * swap, once steps 4–6 carry their real bodies (45-T05…T07). Wiring the route
- * to a wizard with three empty screens would be worse than the two-step one it
+ * NOT YET ROUTED. `/setup` still renders `FirstRunWizard`; a later step makes the
+ * swap, once steps 4–6 carry their real bodies (…T07). Wiring the route to a
+ * wizard with three empty screens would be worse than the two-step one it
  * replaces.
  */
 import { useQuery } from '@tanstack/react-query';
@@ -82,7 +82,7 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
   const [adopting, setAdopting] = useState<'writing' | 'restarting' | null>(null);
 
   /**
-   * Ask what is already in the database the connect step was given (45-T11).
+   * Ask what is already in the database the connect step was given.
    *
    * Debounced and fire-and-forget: it runs while someone is still typing, its
    * answer only ever ADDS a choice, and a probe that fails leaves the wizard

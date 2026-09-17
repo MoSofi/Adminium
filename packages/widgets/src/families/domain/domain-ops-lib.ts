@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK OPS — shared PURE helpers for the §13 ops / billing / API / marketing
+ * TRACK OPS — shared PURE helpers for the ops / billing / API / marketing
  * cards. JSX-free and React-free: imported by BOTH the family's config module
  * and its components, so the registry metadata graph reaches the schemas + demo
- * generators without dragging component code into the eager chunk (04 §2.3).
+ * generators without dragging component code into the eager chunk.
  *
  * Sits alongside `domain-lib.ts` (which owns the org-chart / gantt geometry) and
  * reuses its primitives — `mulberry32`, `asRecord`, `stringField`, `toneOf` —
@@ -18,12 +18,12 @@
  *      running stopwatch — takes `now` as an explicit argument, resolved by the
  *      caller from `config.format.referenceTime` and falling back to the clock
  *      only inside a component's own tick effect. That is what makes `demoData`
- *      byte-identical across runs (04 §7.7 / the determinism gate) and VRT
- *      captures reproducible.
+ * byte-identical across runs (/ the determinism gate) and VRT captures
+ *      reproducible.
  *   2. INTL ONLY. Every number, date, percent and money value goes through
- *      `@adminium/i18n`'s `getFormatters` (10-i18n-theming.md §4), which already
- *      applies the data-context numeral policy — callers must NOT also pass
- *      `latnDataTag`, which would double-apply the `-u-nu-latn` extension.
+ * `@adminium/i18n`'s `getFormatters`, which already applies the data-context
+ *      numeral policy — callers must NOT also pass `latnDataTag`, which would
+ *      double-apply the `-u-nu-latn` extension.
  */
 import { getFormatters } from '@adminium/i18n';
 import type { Tone } from '@adminium/ui';
@@ -41,7 +41,7 @@ type Rec = Record<string, unknown>;
 // ── payload readers ─────────────────────────────────────────────────────────
 
 /**
- * Rows out of a §3 `record-list` envelope (or a bare array, so template/story
+ * Rows out of a `record-list` envelope (or a bare array, so template/story
  * composition can hand a widget its rows directly).
  *
  * Non-object entries are DROPPED rather than cast: a driver returning a sparse
@@ -61,7 +61,7 @@ export function opsRowsOf(data: unknown): Rec[] {
 }
 
 /**
- * The single row out of a §3 `record` envelope. Also accepts a bare object so a
+ * The single row out of a `record` envelope. Also accepts a bare object so a
  * story can pass the row itself; an envelope with an explicit `row: null` reads
  * as absent (which is exactly what `isEmptyByShape.record` keys the empty state
  * off).
@@ -141,10 +141,10 @@ export interface OpsBindingSource {
  * table name, or `null` when the widget is running on `demoData`.
  *
  * The descriptor names the table at `binding.source.name` (+ an optional pg
- * `schema`) — there is no `binding.table` (04 §5.1 / query-descriptor.ts). An
- * UNBOUND widget must not offer write affordances: there is nowhere to send the
- * intent, so a "Revoke" that silently does nothing is worse than no button.
- * Callers use `null` to disable them.
+ * `schema`) — there is no `binding.table` (/ query-descriptor.ts). An UNBOUND
+ * widget must not offer write affordances: there is nowhere to send the intent,
+ * so a "Revoke" that silently does nothing is worse than no button. Callers use
+ * `null` to disable them.
  */
 export function opsBindingSourceOf(
   binding: { connectionId: string; source: { schema?: string | undefined; name: string } } | undefined,
@@ -173,7 +173,7 @@ export function maskPan(last4: string, brand: CardBrand): string {
 }
 
 /**
- * Masked API key — public `prefix` + bullets + `tail` (annex §13
+ * Masked API key — public `prefix` + bullets + `tail` (annex
  * `api-keys-panel`: "masked value (prefix + bullets + tail)").
  *
  * The bullet run is a FIXED width, not the secret's real length: a
@@ -264,8 +264,7 @@ export const OPS_TONE_TEXT: Record<Tone, string> = {
  * Tone → inline-START border color. Used for `slo-monitor-card`'s status rule,
  * which the annex specifies as a "status left-border": under RTL that rule
  * belongs on the inline-start edge (it marks the START of the row, not its
- * physical left), so the utility is `border-s-*` — the logical form — per
- * 10-i18n-theming.md §5.2.
+ * physical left), so the utility is `border-s-*` — the logical form.
  */
 export const OPS_TONE_BORDER_S: Record<Tone, string> = {
   neutral: 'border-s-border',
@@ -279,7 +278,7 @@ export const OPS_TONE_BORDER_S: Record<Tone, string> = {
 // ── thresholded tones ───────────────────────────────────────────────────────
 
 /**
- * Error-budget tone (annex §13: "threshold-colored error-budget bar"). The
+ * Error-budget tone (annex: "threshold-colored error-budget bar"). The
  * thresholds are REMAINING-budget floors: at or above `warn` is healthy, at or
  * above `danger` is amber, below it is red. Defaults mirror the SLA-monitoring
  * design port (50% / 20%).
@@ -293,10 +292,10 @@ export function budgetTone(remaining: number, thresholds?: { warn?: number; dang
 }
 
 /**
- * Significance tone (annex §13 `experiment-variant-compare`: "confidence % bar
- * color-coded (≥95 green / ≥80 amber)"). Below the amber floor the result is
- * not yet a result, so it reads neutral rather than red — a low-confidence test
- * is inconclusive, not failing, and coloring it danger would tell the reader the
+ * Significance tone (annex `experiment-variant-compare`: "confidence % bar
+ * color-coded (≥95 green / ≥80 amber)"). Below the amber floor the result is not
+ * yet a result, so it reads neutral rather than red — a low-confidence test is
+ * inconclusive, not failing, and coloring it danger would tell the reader the
  * opposite of the truth.
  */
 export function confidenceTone(conf: number, thresholds?: { high?: number; medium?: number }): Tone {
@@ -350,10 +349,9 @@ export function annualTotal(monthly: number, discount: number): number {
  * readout.
  *
  * The digits go through the Intl number layer so the data-context numeral policy
- * applies (10-i18n-theming.md §4.2: mono data stays Latin-digit and
- * tabular-aligned in every locale, `ar-EG` included). `getFormatters` already
- * pins that — do NOT also wrap the tag in `latnDataTag`, which double-applies the
- * `-u-nu-latn` extension.
+ * applies (mono data stays Latin-digit and tabular-aligned in every locale,
+ * `ar-EG` included). `getFormatters` already pins that — do NOT also wrap the tag
+ * in `latnDataTag`, which double-applies the `-u-nu-latn` extension.
  *
  * The COLONS are literal: a duration is not a time-of-day, so `Intl.DateTimeFormat`
  * is the wrong tool (it would localize a stopwatch into a clock reading, and

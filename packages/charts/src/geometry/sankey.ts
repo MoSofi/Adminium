@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure Sankey flow geometry (research/widget-registry.md §2 `chart-sankey`):
+ * Pure Sankey flow geometry (research/widget-registry.md `chart-sankey`):
  * layered node rects + cubic-bezier ribbon paths weighted by flow. DOM-free and
- * deterministic (04 §7.1) so the same ribbon path strings render in
- * Node and the browser (acceptance #10).
+ * deterministic so the same ribbon path strings render in Node and the browser
+ * (acceptance #10).
  *
- * RTL policy (04 §7.4, explicit): Sankey renders as an LTR island — the flow
+ * RTL policy (explicit): Sankey renders as an LTR island — the flow
  * direction never mirrors. The widget's legend/summary pill mirror at the
  * widget layer via logical CSS.
  */

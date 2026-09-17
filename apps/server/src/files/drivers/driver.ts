@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The byte-driver contract (37-files-and-storage.md Appendix B).
+ * The byte-driver contract.
  *
  * Six methods, one shape, three implementations — `local` (this server's disk
  * or a directory the operator names), `s3` (any S3-compatible endpoint) and

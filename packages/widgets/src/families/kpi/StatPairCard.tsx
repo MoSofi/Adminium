@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `stat-pair-card` (annex §1) — two large mono metrics side by side with a
+ * `stat-pair-card` (annex) — two large mono metrics side by side with a
  * vertical divider (MRR / LTV, where LTV may be a derived formula over MRR).
- * Renders only the loaded state — skeleton/empty/error are WidgetFrame's job.
+ * Renders only the loaded state — skeleton/empty/error are WidgetFrame's
+ * job.
  *
  * RTL: the divider is a logical `border-s` on the second column, so the pair
  * genuinely swaps sides under `dir="rtl"` and the rule lands between them either
@@ -18,11 +19,11 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { statPairCardConfigSchema, statPairCardDemoData } from './kpi-config.js';
 export type { StatPairCardConfig } from './kpi-config.js';
 
-/** Read a numeric scalar off the payload by configured field name (04 §5). */
+/** Read a numeric scalar off the payload by configured field name. */
 export function scalarAt(data: unknown, field: string): number | null {
   if (typeof data !== 'object' || data === null) return null;
   const raw = (data as Record<string, unknown>)[field];

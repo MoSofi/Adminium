@@ -3,10 +3,10 @@ import { fileBrowserConfigSchema, type FileBrowserConfig } from '../../families/
 import { fileRowsOf } from '../../families/media/media-lib.js';
 
 /**
- * `page-files` config projection (09-generated-app.md §7.9) — PURE module.
+ * `page-files` config projection — PURE module.
  *
- * The §14 generator's `media.file-shaped-table` candidate stores its column
- * picks as `nameColumn` / `parentColumn` (the classifier vocabulary), while the
+ * The generator's `media.file-shaped-table` candidate stores its column picks
+ * as `nameColumn` / `parentColumn` (the classifier vocabulary), while the
  * `file-browser` widget consumes `*Field` naming (`nameField`, `parentField`,
  * `sizeField`, …) with annex-canonical defaults. This module is the single
  * place the two vocabularies meet: explicit config wins, then deterministic

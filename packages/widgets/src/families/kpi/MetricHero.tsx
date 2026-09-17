@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `metric-hero` (annex §1) — the oversized single metric: a
+ * `metric-hero` (annex) — the oversized single metric: a
  * `requestAnimationFrame` count-up to the bound value, a delta pill, a spark
  * strip, and a goal progress track ("Goal · $650k, 74%"). Renders only the
  * loaded state — skeleton/empty/error are WidgetFrame's job.
  *
- * REDUCED MOTION (04 §7.5, mandatory): `prefers-reduced-motion: reduce` skips
- * the count-up entirely and paints the final value on the first frame — an
+ * REDUCED MOTION (mandatory): `prefers-reduced-motion: reduce` skips the
+ * count-up entirely and paints the final value on the first frame — an
  * animated number is exactly the kind of motion the query exists to suppress,
  * and a KPI that "spins up" is unreadable to a vestibular-sensitive user. The
  * hook seeds its state from the query rather than transitioning to it, so the
@@ -26,11 +26,11 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { metricHeroConfigSchema, metricHeroDemoData } from './kpi-config.js';
 export type { MetricHeroConfig } from './kpi-config.js';
 
-/** Count-up duration in ms (research/design-system.md §4.3 — "hero" tier). */
+/** Count-up duration in ms (research/design-system.md — "hero" tier). */
 const COUNT_UP_MS = 900;
 
 /** Cubic ease-out — fast start, settled landing. */

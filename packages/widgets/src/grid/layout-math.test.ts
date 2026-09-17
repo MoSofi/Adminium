@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Static grid math units (04 §6.1–§6.2): stacking order and the
- * deterministic top-gravity compaction (no overlaps, no negative coords,
- * idempotent) used to normalize layouts before the read-only render.
+ * Static grid math units: stacking order and the deterministic
+ * top-gravity compaction (no overlaps, no negative coords, idempotent)
+ * used to normalize layouts before the read-only render.
  */
 import { describe, expect, it } from 'vitest';
 

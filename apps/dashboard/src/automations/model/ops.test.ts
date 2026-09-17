@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The flow builder's edit operations (42-automations-and-workflow-logs.md
- * 42-T17), one case per rule the comp states (Automation Rules 405-449).
+ * The flow builder's edit operations, one case per rule the comp states
+ * (Automation Rules 405-449).
  *
  * These are the only part of the builder that can be checked without a DOM,
  * and they are where the comp's behaviour actually lives: a drag that lands

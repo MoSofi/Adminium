@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * destinationsRepo — adminium_storage_destinations (37-files-and-storage.md
- * §3.2, D2).
+ * destinationsRepo — adminium_storage_destinations.
  *
  * One row per configured place bytes may live. THIS SERVER'S DISK IS NOT ONE
  * OF THEM (D3): `adminium_files.destination_id IS NULL` means `<dataDir>/files`

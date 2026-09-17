@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-table write capabilities on the page reply (30-record-pages.md D4
- * follow-up): GET /api/v1/pages/:pageId resolves canCreate/canUpdate/canDelete
- * from the caller's `table:<connectionId>:<table>:<action>` grants against the
+ * Per-table write capabilities on the page reply (follow-up): GET
+ * /api/v1/pages/:pageId resolves canCreate/canUpdate/canDelete from the
+ * caller's `table:<connectionId>:<table>:<action>` grants against the
  * envelope's `source` — the SAME permissions the data routes enforce — so the
  * dashboard renders only write affordances that will not 403.
  *
@@ -55,7 +55,7 @@ function asUser(user: User): Record<string, string> {
   return { 'x-test-user-id': user.id };
 }
 
-/** The generated-crud shape the dashboard binds a CrudApi from (09 §2.3). */
+/** The generated-crud shape the dashboard binds a CrudApi from. */
 const CRUD_ENVELOPE = {
   v: 1,
   kind: 'page',
@@ -117,9 +117,9 @@ async function buildHarness(): Promise<Harness> {
     config: SOURCELESS_ENVELOPE,
   });
 
-  // Page-view for both non-super roles (the GET's view gate, 09 §2.1), then
+  // Page-view for both non-super roles (the GET's view gate), then
   // the table matrix rows under test: `resource_ref` is
-  // `<connectionId>/<schema.table>` (07 §3.9). The editor's DELETE stays
+  // `<connectionId>/<schema.table>`. The editor's DELETE stays
   // false on purpose — the reply must resolve per action.
   const permissions = permissionsRepo(meta);
   for (const slug of ['editor', 'viewer'] as const) {

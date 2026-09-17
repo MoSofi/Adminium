@@ -12,8 +12,8 @@
  * left the sibling `lazy(() => import('./components.js'))` refs buying nothing.
  * Holding the schemas + demo payloads here (the boards/domain/media `*-config`
  * convention) lets the definitions import metadata only, so the components stay
- * reachable exclusively through the lazy `components.ts` barrel (04 §2.3,
- * acceptance #3; enforced by `qa/chunk-budget.test.ts`).
+ * reachable exclusively through the lazy `components.ts` barrel (acceptance #3;
+ * enforced by `qa/chunk-budget.test.ts`).
  *
  * The component files re-export these symbols, so existing story/test import
  * points stay stable.
@@ -24,18 +24,18 @@ import { z } from 'zod';
 import { DEFAULT_GAUGE_BANDS, DERIVED_OPS, INSIGHT_ICONS } from './kpi-lib.js';
 import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
-/** The annex §1 `format` vocabulary, shared by every metric-bearing kpi widget. */
+/** The annex `format` vocabulary, shared by every metric-bearing kpi widget. */
 const metricFormatSchema = z.enum(['plain', 'compact', 'currency', 'percent', 'duration']);
-/** The annex §1 `deltaMode` vocabulary. */
+/** The annex `deltaMode` vocabulary. */
 const deltaModeSchema = z.enum(['none', 'pct', 'abs']);
 /** The semantic tone vocabulary — bands/insights name a token, never a colour. */
 const toneSchema = z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']);
 
-// ── kpi-stat-card (annex §1) ───────────────────────────────────────────────
+// ── kpi-stat-card (annex) ──────────────────────────────────────────────────
 export const kpiStatCardConfigSchema = widgetSharedConfigSchema.extend({
   /** Card label under the icon row (falls back to `title`). */
   metricLabel: z.string().optional(),
-  /** Value formatting (annex §1 `format`). */
+  /** Value formatting (annex `format`). */
   metricFormat: z.enum(['plain', 'compact', 'currency', 'percent', 'duration']).default('plain'),
   deltaMode: z.enum(['none', 'pct', 'abs']).default('pct'),
   /** Down-is-good (costs, error rates, churn) — flips the pill tones. */
@@ -50,7 +50,7 @@ export const kpiStatCardConfigSchema = widgetSharedConfigSchema.extend({
 
 export type KpiStatCardConfig = z.infer<typeof kpiStatCardConfigSchema>;
 
-/** Deterministic `metric+delta` demo payload (04 §7.7). */
+/** Deterministic `metric+delta` demo payload. */
 export function kpiStatCardDemoData(seed: number): {
   value: number;
   prior: number;
@@ -62,11 +62,11 @@ export function kpiStatCardDemoData(seed: number): {
   return { value, prior, spark: demoSparkline(seed, 8) };
 }
 
-// ── usage-meter (annex §1) ─────────────────────────────────────────────────
+// ── usage-meter (annex) ────────────────────────────────────────────────────
 export const usageMeterConfigSchema = widgetSharedConfigSchema.extend({
   /** The quota cap; the data payload carries only the used scalar. */
   limit: z.number().positive().default(100),
-  /** Percent thresholds (annex §1 defaults). */
+  /** Percent thresholds (annex defaults). */
   warnThreshold: z.number().min(0).max(100).default(80),
   dangerThreshold: z.number().min(0).max(100).default(95),
   unit: z.string().optional(),
@@ -84,7 +84,7 @@ export function usageMeterDemoData(seed: number): { value: number } {
   return { value: Math.round(35 + random() * 60) };
 }
 
-// ── kpi-stat-tile-compact (annex §1) ───────────────────────────────────────
+// ── kpi-stat-tile-compact (annex) ──────────────────────────────────────────
 
 export const kpiStatTileCompactConfigSchema = widgetSharedConfigSchema.extend({
   /** Uppercase micro-label above the value (falls back to `title`). */
@@ -93,17 +93,17 @@ export const kpiStatTileCompactConfigSchema = widgetSharedConfigSchema.extend({
   deltaMode: deltaModeSchema.default('pct'),
   /** Down-is-good (costs, error rates, churn) — flips the chip tones. */
   invertDeltaGood: z.boolean().default(false),
-  /** The 22px 6-bar spark (annex §1). */
+  /** The 22px 6-bar spark (annex). */
   showSparkline: z.boolean().default(true),
   /**
-   * Tiles per row in the dense "power" row (annex §1: 4–6). Advisory metadata
+   * Tiles per row in the dense "power" row (annex: 4–6). Advisory metadata
    * for the generator's row packing — a single tile always fills its cell.
    */
   columns: z.number().int().min(4).max(6).default(6),
 });
 export type KpiStatTileCompactConfig = z.infer<typeof kpiStatTileCompactConfigSchema>;
 
-/** Deterministic `metric+delta` (+ `timeseries[6]`) demo payload (04 §7.7). */
+/** Deterministic `metric+delta` (+ `timeseries[6]`) demo payload. */
 export function kpiStatTileCompactDemoData(seed: number): {
   value: number;
   prior: number;
@@ -115,25 +115,25 @@ export function kpiStatTileCompactDemoData(seed: number): {
   return { value, prior, spark: demoSparkline(seed, 6) };
 }
 
-// ── metric-hero (annex §1) ─────────────────────────────────────────────────
+// ── metric-hero (annex) ────────────────────────────────────────────────────
 
 export const metricHeroConfigSchema = widgetSharedConfigSchema.extend({
   metricLabel: z.string().optional(),
   metricFormat: metricFormatSchema.default('currency'),
   deltaMode: deltaModeSchema.default('pct'),
   invertDeltaGood: z.boolean().default(false),
-  /** Goal scalar; overrides the payload's `goal` when set (annex §1). */
+  /** Goal scalar; overrides the payload's `goal` when set (annex). */
   goalValue: z.number().positive().optional(),
   /** Goal track caption prefix, e.g. "Goal" → "Goal · $650k, 74%". */
   goalLabel: z.string().optional(),
   /** `requestAnimationFrame` count-up; forced off under reduced motion. */
   countUp: z.boolean().default(true),
-  /** Spark bars rendered from the bound timeseries (annex §1 `sparkBars`). */
+  /** Spark bars rendered from the bound timeseries (annex `sparkBars`). */
   sparkBars: z.number().int().min(4).max(24).default(12),
 });
 export type MetricHeroConfig = z.infer<typeof metricHeroConfigSchema>;
 
-/** Deterministic `metric+delta` + `timeseries` + goal demo payload (04 §7.7). */
+/** Deterministic `metric+delta` + `timeseries` + goal demo payload. */
 export function metricHeroDemoData(seed: number): {
   value: number;
   prior: number;
@@ -148,41 +148,41 @@ export function metricHeroDemoData(seed: number): {
   return { value, prior, spark: demoSparkline(seed, 12), goal };
 }
 
-// ── stat-pair-card (annex §1) ──────────────────────────────────────────────
+// ── stat-pair-card (annex) ─────────────────────────────────────────────────
 
 export const statPairCardConfigSchema = widgetSharedConfigSchema.extend({
-  /** Side labels (annex §1 `metricA` / `metricB`). */
+  /** Side labels (annex `metricA` / `metricB`). */
   metricALabel: z.string().optional(),
   metricBLabel: z.string().optional(),
-  /** Per-side formatting (annex §1 "format per side"). */
+  /** Per-side formatting (annex). */
   metricAFormat: metricFormatSchema.default('currency'),
   metricBFormat: metricFormatSchema.default('currency'),
   /**
-   * Derive side B from side A instead of reading it off the payload (annex §1:
-   * "second may be a formula over the first", e.g. LTV = MRR × lifetime).
-   * A closed enum, never an expression string — a stored config can never
+   * Derive side B from side A instead of reading it off the payload (annex:
+   * "second may be a formula over the first", e.g. LTV = MRR × lifetime). A
+   * closed enum, never an expression string — a stored config can never
    * smuggle evaluable code into the renderer.
    */
   derivedFormula: z.enum(DERIVED_OPS).default('none'),
   /** The right-hand operand of `derivedFormula`. */
   derivedOperand: z.number().default(1),
-  // Field naming (04 §5) — which payload key carries each side.
+  // Field naming — which payload key carries each side.
   valueAField: z.string().default('value'),
   valueBField: z.string().default('valueB'),
 });
 export type StatPairCardConfig = z.infer<typeof statPairCardConfigSchema>;
 
-/** Deterministic two-`single-metric` demo payload (04 §7.7). */
+/** Deterministic two-`single-metric` demo payload. */
 export function statPairCardDemoData(seed: number): { value: number; valueB: number } {
   const random = mulberry32(seed || 1);
   const value = Math.round(8_400 + random() * 62_000);
   return { value, valueB: Math.round(value * (2.4 + random() * 3.2)) };
 }
 
-// ── gauge-ring + gauge-arc shared band config (annex §1) ───────────────────
+// ── gauge-ring + gauge-arc shared band config (annex) ──────────────────────
 
 /**
- * One qualitative gauge band (annex §1 `bands` [{to, color, label}]). `tone`
+ * One qualitative gauge band (annex `bands` [{to, color, label}]). `tone`
  * names a semantic token rather than a colour so bands re-theme with the app
  * (research/widget-registry.md Conventions: "CSS variables only").
  */
@@ -196,19 +196,19 @@ export type GaugeBandConfig = z.infer<typeof gaugeBandSchema>;
 
 const defaultBands = (): GaugeBandConfig[] => DEFAULT_GAUGE_BANDS.map((band) => ({ ...band }));
 
-// ── gauge-ring (annex §1) ──────────────────────────────────────────────────
+// ── gauge-ring (annex) ─────────────────────────────────────────────────────
 
 export const gaugeRingConfigSchema = widgetSharedConfigSchema.extend({
   max: z.number().positive().default(100),
   bands: z.array(gaugeBandSchema).default(defaultBands),
-  /** Center readout: "73%" | "86" | "86/100" (annex §1 `centerFormat`). */
+  /** Center readout: "73%" | "86" | "86/100" (annex `centerFormat`). */
   centerFormat: z.enum(['percent', 'value', 'fraction']).default('percent'),
-  /** Annex §1 `footer` (spent-of-total | avatar-stack | none). */
+  /** Annex `footer` (spent-of-total | avatar-stack | none). */
   footer: z.enum(['none', 'spent-of-total', 'avatar-stack']).default('none'),
   size: z.enum(['sm', 'md', 'lg']).default('md'),
   /** Formatting for the footer's spent/total figures. */
   metricFormat: metricFormatSchema.default('compact'),
-  /** Trend pill next to the footer figures (annex §1 "+ optional delta"). */
+  /** Trend pill next to the footer figures (annex). */
   deltaMode: deltaModeSchema.default('none'),
   invertDeltaGood: z.boolean().default(false),
   /** Overrides the band label as the status caption under the center value. */
@@ -221,8 +221,9 @@ export type GaugeRingConfig = z.infer<typeof gaugeRingConfigSchema>;
 const RING_AVATARS = ['Ada Lovelace', 'Grace Hopper', 'Alan Turing', 'Katherine Johnson', 'Edsger Dijkstra'] as const;
 
 /**
- * Deterministic `single-metric` demo payload (04 §7.7) carrying the optional
- * numerator/denominator + delta + avatar stack the annex's footer variants read.
+ * Deterministic `single-metric` demo payload carrying the optional
+ * numerator/denominator + delta + avatar stack the annex's footer variants
+ * read.
  */
 export function gaugeRingDemoData(seed: number): {
   value: number;
@@ -240,27 +241,27 @@ export function gaugeRingDemoData(seed: number): {
   };
 }
 
-// ── gauge-arc (annex §1) ───────────────────────────────────────────────────
+// ── gauge-arc (annex) ──────────────────────────────────────────────────────
 
 export const gaugeArcConfigSchema = widgetSharedConfigSchema.extend({
   max: z.number().positive().default(100),
   bands: z.array(gaugeBandSchema).default(defaultBands),
-  /** Grid-of-gauges mode (annex §1: 2×2 / 5-up SLA + system-health clusters). */
+  /** Grid-of-gauges mode (annex: 2×2 / 5-up SLA + system-health clusters). */
   cluster: z.boolean().default(false),
-  /** Columns in cluster mode (annex §1 `columns`). */
+  /** Columns in cluster mode (annex `columns`). */
   columns: z.number().int().min(1).max(5).default(2),
   /** Draw the speedometer needle (off → a plain half-arc dasharray gauge). */
   needle: z.boolean().default(true),
   valueFormat: metricFormatSchema.default('plain'),
   unit: z.string().optional(),
   /**
-   * Per-widget empty copy (04 §4) for CLUSTER mode — the one shape this widget
-   * accepts that can legitimately be empty. The frame cannot route it there for
-   * us: the definition declares `['single-metric', 'categorical']`, and
-   * `isEmptyData` reads a multi-shape contract as empty only when EVERY shape
-   * does, while `isEmptyByShape['single-metric']` is `() => false` by design (a
-   * zero metric is data). So a cluster bound to an SLA query returning no rows
-   * arrives here in the `loaded` state and this widget owns the copy.
+   * Per-widget empty copy for CLUSTER mode — the one shape this widget accepts
+   * that can legitimately be empty. The frame cannot route it there for us: the
+   * definition declares `['single-metric', 'categorical']`, and `isEmptyData`
+   * reads a multi-shape contract as empty only when EVERY shape does, while
+   * `isEmptyByShape['single-metric']` is `() => false` by design (a zero metric
+   * is data). So a cluster bound to an SLA query returning no rows arrives here
+   * in the `loaded` state and this widget owns the copy.
    */
   emptyTitle: z.string().optional(),
   emptyBody: z.string().optional(),
@@ -276,7 +277,7 @@ const CLUSTER_SERVICES = [
 ] as const;
 
 /**
- * Deterministic demo payload satisfying BOTH accepted shapes at once (04 §7.7).
+ * Deterministic demo payload satisfying BOTH accepted shapes at once.
  * `gauge-arc` declares `['single-metric', 'categorical']` because `cluster` is a
  * CONFIG flag while `demoData(seed)` only sees the seed — so the payload carries
  * `value` (single-metric, the speedometer) *and* `items` (categorical, the
@@ -295,10 +296,10 @@ export function gaugeArcDemoData(seed: number): {
   return { value: Math.round(45 + random() * 54), items };
 }
 
-// ── period-comparison (annex §1) ───────────────────────────────────────────
+// ── period-comparison (annex) ──────────────────────────────────────────────
 
 export const periodComparisonConfigSchema = widgetSharedConfigSchema.extend({
-  /** Bar labels for the two adjacent windows (annex §1 `periodA`/`periodB`). */
+  /** Bar labels for the two adjacent windows (annex `periodA`/`periodB`). */
   periodALabel: z.string().optional(),
   periodBLabel: z.string().optional(),
   metricFormat: metricFormatSchema.default('currency'),
@@ -312,10 +313,10 @@ export const periodComparisonConfigSchema = widgetSharedConfigSchema.extend({
 export type PeriodComparisonConfig = z.infer<typeof periodComparisonConfigSchema>;
 
 /**
- * Deterministic `metric+delta` demo payload (04 §7.7) — the annex's "two
- * `single-metric` values for adjacent windows" IS the `metric+delta` envelope
- * (`value` = this period, `prior` = last), so the shared `computeDelta` produces
- * the footer figure without a bespoke shape.
+ * Deterministic `metric+delta` demo payload — the annex's "two `single-metric`
+ * values for adjacent windows" IS the `metric+delta` envelope (`value` = this
+ * period, `prior` = last), so the shared `computeDelta` produces the footer
+ * figure without a bespoke shape.
  */
 export function periodComparisonDemoData(seed: number): { value: number; prior: number } {
   const random = mulberry32(seed || 1);
@@ -323,17 +324,18 @@ export function periodComparisonDemoData(seed: number): { value: number; prior: 
   return { value, prior: Math.round(value * (0.6 + random() * 0.55)) };
 }
 
-// ── micro-kpi-subtitle (annex §1) ──────────────────────────────────────────
+// ── micro-kpi-subtitle (annex) ─────────────────────────────────────────────
 
 export const microKpiSubtitleConfigSchema = widgetSharedConfigSchema.extend({
   /**
    * Template with `{placeholder}` tokens resolved against the bound scalars
-   * (annex §1 `template`), e.g. "{value} unread · {total} total". An unknown
+   * (annex `template`), e.g. "{value} unread · {total} total". An unknown
    * token resolves to the empty string — a stored template that outlives its
-   * binding degrades to a shorter sentence, never to visible template syntax.
+   * binding degrades to a shorter sentence, never to visible template
+   * syntax.
    */
   template: z.string().default('{value}'),
-  /** Shown instead of the template when `zeroKey`'s scalar is 0 (annex §1). */
+  /** Shown instead of the template when `zeroKey`'s scalar is 0 (annex). */
   zeroStateText: z.string().optional(),
   /** Which scalar's 0 triggers `zeroStateText`. */
   zeroKey: z.string().default('value'),
@@ -342,8 +344,8 @@ export const microKpiSubtitleConfigSchema = widgetSharedConfigSchema.extend({
 export type MicroKpiSubtitleConfig = z.infer<typeof microKpiSubtitleConfigSchema>;
 
 /**
- * Deterministic `single-metric` demo payload (04 §7.7). The annex's contract is
- * "1–3 derived scalars over a sibling `record-list`", so the envelope is a
+ * Deterministic `single-metric` demo payload. The annex's contract is "1–3
+ * derived scalars over a sibling `record-list`", so the envelope is a
  * `single-metric` (`value`) carrying the sibling scalars the template reads.
  */
 export function microKpiSubtitleDemoData(seed: number): {
@@ -360,22 +362,22 @@ export function microKpiSubtitleDemoData(seed: number): {
   };
 }
 
-// ── auto-insights (annex §1) ───────────────────────────────────────────────
+// ── auto-insights (annex) ──────────────────────────────────────────────────
 
 export const autoInsightsConfigSchema = widgetSharedConfigSchema.extend({
-  /** Insights visible at once (annex §1 `count`). */
+  /** Insights visible at once (annex `count`). */
   count: z.number().int().min(1).max(8).default(3),
-  /** Show the Refresh control that rotates the visible window (annex §1). */
+  /** Show the Refresh control that rotates the visible window (annex). */
   refreshable: z.boolean().default(true),
-  /** Rows kept in the rotation pool (annex §1 `pool` size). */
+  /** Rows kept in the rotation pool (annex `pool` size). */
   pool: z.number().int().min(1).max(24).default(9),
   /** Bullet rows (Adminium UI Kit) vs the tone-icon card grid (Project Overview). */
   variant: z.enum(['bullets', 'cards']).default('bullets'),
   columns: z.number().int().min(1).max(3).default(2),
-  /** Per-insight CTA (annex §1 `applyAction`); omitted → no CTA. */
+  /** Per-insight CTA (annex `applyAction`); omitted → no CTA. */
   applyLabel: z.string().optional(),
   refreshLabel: z.string().optional(),
-  // Field naming (04 §5) — which column carries what.
+  // Field naming — which column carries what.
   idField: z.string().default('id'),
   iconField: z.string().default('icon'),
   toneField: z.string().default('tone'),
@@ -462,8 +464,8 @@ const INSIGHT_POOL = [
 ] as const;
 
 /**
- * Deterministic `record-list` of ranked insights (04 §7.7). Every row carries a
- * `score` so the widget's ranking is exercised, and a spark so the annex's
+ * Deterministic `record-list` of ranked insights. Every row carries a `score`
+ * so the widget's ranking is exercised, and a spark so the annex's
  * "bold stat + sentence + mini sparkline" row has its third element.
  */
 export function autoInsightsDemoData(seed: number): {

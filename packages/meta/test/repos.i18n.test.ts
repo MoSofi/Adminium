@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * localesRepo + translationsRepo (23-runtime-translations.md §3.1–§3.4).
+ * localesRepo + translationsRepo.
  *
  * The load-bearing behaviours under test are the ones the design depends on:
  * the three override states (absent / text / deliberately blank), reset being

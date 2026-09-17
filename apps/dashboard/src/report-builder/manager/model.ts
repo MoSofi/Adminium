@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The manager's view-model helpers (43-report-builder.md Appendix A M4–M11):
- * the status pill's tone and label, the starter categories, the comp's search
- * rule, and the two text lines a card and a row print.
+ * The manager's view-model helpers (M4–M11): the status pill's tone and
+ * label, the starter categories, the comp's search rule, and the two text
+ * lines a card and a row print.
  *
  * STATUS IS A COLUMN, shared by both kinds (comp `statusMeta` 563): the pill
  * maps the three stored values straight to tones — draft neutral ·
@@ -116,7 +116,7 @@ export function rowSub(doc: ReportSummary): string {
  * The card and row glyph. The comp's `starterIconFor` (697) finds it by
  * matching the document's `reportTitle` against the starter table, so
  * renaming the title silently changes the icon; the row carries its starter's
- * icon instead (43 D14) and a blank document carries `file-text`.
+ * icon instead and a blank document carries `file-text`.
  */
 export function rowIcon(doc: ReportSummary): string {
   return doc.summary.starterIcon === '' ? 'file-text' : doc.summary.starterIcon;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Upload dropzone for the schema-file source mode (09 §8.2 mode c) — local
- * to Studio until a shared `upload-dropzone` lands in @adminium/ui. Drag or
+ * Upload dropzone for the schema-file source mode (mode c) — local to
+ * Studio until a shared `upload-dropzone` lands in @adminium/ui. Drag or
  * browse; hands the caller the File. Validation/copy stays in the step.
  */
 import { UploadCloud } from 'lucide-react';

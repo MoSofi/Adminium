@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * ⌘K Recent tracking (09-generated-app.md §5.2): a mixed-entity recency list
- * in `localStorage['adminium-recent:<userId>']` — max 8 entries of
- * `{ type: 'table' | 'report' | 'record' | 'page', label, href }`, updated on
- * every page navigation / record open (AppShell watches the router) and moved
- * to the front on re-visit. Per-user key so shared browsers do not leak one
+ * ⌘K Recent tracking: a mixed-entity recency list in
+ * `localStorage['adminium-recent:<userId>']` — max 8 entries of `{ type:
+ * 'table' | 'report' | 'record' | 'page', label, href }`, updated on every
+ * page navigation / record open (AppShell watches the router) and moved to
+ * the front on re-visit. Per-user key so shared browsers do not leak one
  * user's trail into another's palette. All storage access is fail-soft:
  * private-mode / quota errors degrade to "no Recent group", never a crash.
  */

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Managing hosted app surfaces (29-app-surfaces.md §3.1, 29-T17's server half):
- * what this instance serves, where each staff surface appears (29 D9), and
- * which hosts are attached to which surface (29 D3).
+ * Managing hosted app surfaces (server half): what this instance serves, where
+ * each staff surface appears, and which hosts are attached to which surface.
  *
  * Behind `system:settings:manage` — placement and domain attachment are
  * instance configuration, not key management (which stays with
@@ -184,7 +183,7 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
     );
 
     /*
-     * WHICH DATABASE a staff surface reads (29 D9).
+     * WHICH DATABASE a staff surface reads.
      *
      * The customer side answers this through its publishable key — key names a
      * scope, scope names a connection. The staff side has no key on purpose and
@@ -253,9 +252,9 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
     );
 
     /*
-     * THE SAME APP OVER SEVERAL DATABASES (29 D9) — the shape the dashboard's
-     * own generated pages have always had, where a page carries a connection
-     * and two connections simply make two sets.
+     * THE SAME APP OVER SEVERAL DATABASES — the shape the dashboard's own
+     * generated pages have always had, where a page carries a connection and
+     * two connections simply make two sets.
      *
      * Every entry is validated before ANY is stored: a half-applied map would
      * leave an operator looking at a screen that disagrees with the URLs their

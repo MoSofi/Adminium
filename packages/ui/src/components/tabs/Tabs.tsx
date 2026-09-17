@@ -19,7 +19,7 @@ export interface TabsProps extends ComponentPropsWithRef<typeof TabsPrimitive.Ro
 
 /**
  * Tabs — Radix tabs with `underline` and `pill` variants
- * (research/design-system.md §3 Tier 3). Arrow keys auto-mirror in RTL via
+ * (research/design-system.md Tier 3). Arrow keys auto-mirror in RTL via
  * the app-level Radix `DirectionProvider`.
  */
 export function Tabs({ variant = 'underline', className, ...props }: TabsProps) {

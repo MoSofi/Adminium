@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure slope-chart layout (`chart-slope`, research/widget-registry.md §2): two
+ * Pure slope-chart layout (`chart-slope`, research/widget-registry.md): two
  * period axes (A → B) with one connecting line per record, colored by
  * direction, end labels. DOM-free. The two period columns are categorical, so
  * they mirror in RTL (A stays at inline-start — the right edge under `rtl`).

@@ -16,7 +16,7 @@ export { mapChoroplethGridConfigSchema, mapChoroplethGridDemoData } from './geo-
 export type { MapChoroplethGridConfig };
 
 /**
- * `map-choropleth-grid` (annex §7) — "See `chart-choropleth-grid` (registered in
+ * `map-choropleth-grid` (annex) — "See `chart-choropleth-grid` (registered in
  * Charts; cross-listed here). Region-coded tiles when only region codes exist,
  * no coordinates."
  *
@@ -29,12 +29,12 @@ export type { MapChoroplethGridConfig };
  *
  * WHY A SECOND REGISTRY ID AT ALL: the two are reached by different
  * auto-instantiation rules. The charts id is the analytics-dashboard tile; this
- * one is what the annex §7 rule emits ("country/state/region code column +
- * numeric → `map-choropleth-grid`") when a table has region codes but NO
- * coordinates — i.e. precisely when `map-bubble` cannot be built. Families are
- * how the builder palette and the chunk split are organised (04 §2.4), so the
- * geo entry point has to live in the geo family. Notably, this id costs the page
- * no Leaflet: it never touches `MapBubble.tsx`, the only module that imports it.
+ * one is what the annex rule emits ("country/state/region code column + numeric
+ * → `map-choropleth-grid`") when a table has region codes but NO coordinates —
+ * i.e. precisely when `map-bubble` cannot be built. Families are how the
+ * builder palette and the chunk split are organised, so the geo entry point has
+ * to live in the geo family. Notably, this id costs the page no Leaflet: it
+ * never touches `MapBubble.tsx`, the only module that imports it.
  *
  * `points` here is the region-coded `geo-points` variant ({code, name, values}) —
  * no lat/lng, by the annex's definition of when this widget is chosen.
@@ -87,7 +87,7 @@ export function MapChoroplethGrid({
 
   // `us-tilegram` plots only the USPS tiles it knows (a geographic island), so a
   // payload of non-US region codes — or of coordinate-only points with no `code`
-  // at all, which is the DEFAULT desktop case now that 11-electron.md §7 resolves
+  // at all, which is the DEFAULT desktop case now that resolves
   // every `map-*` id to this widget — would place ZERO tiles and render only the
   // low→high legend: a legend for a map that isn't there. Degrade to the
   // code-agnostic `grid` layout (same component, laid out in reading order) so the
@@ -152,7 +152,7 @@ export function MapChoroplethGridWidget({ config, data }: WidgetProps<MapChoropl
   const points = geoPointsOf(data, {
     nameField: config.nameField,
     codeField: config.codeField,
-    // A region-coded payload has no coordinates by definition (annex §7), but
+    // A region-coded payload has no coordinates by definition (annex), but
     // naming the canonical columns keeps a lat/lng-carrying table from having
     // them silently inferred as metrics and tinting tiles by latitude.
     latField: 'lat',

@@ -58,7 +58,7 @@ export async function uploadBrandingLogo(file: File): Promise<BrandingData> {
     headers: {
       accept: 'application/json',
       'content-type': file.type === '' ? 'application/octet-stream' : file.type,
-      // Hand-rolled fetch ⇒ hand-rolled CSRF header (08 §7 item 4). Without it
+      // Hand-rolled fetch ⇒ hand-rolled CSRF header. Without it
       // every logo upload 403s.
       ...csrfHeaders(),
     },

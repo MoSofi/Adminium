@@ -40,7 +40,7 @@ function clamp(next: number, min: number | undefined, max: number | undefined): 
 /**
  * NumberStepper — mono `input[type=number]` (native `spinbutton`: typed
  * input, ↑↓ arrow keys) plus a chevron up/down column honoring
- * min/max/step (research/design-system.md §3 Tier 2). The chevron buttons
+ * min/max/step (research/design-system.md Tier 2). The chevron buttons
  * are `tabIndex={-1}` — keyboard users step with the arrow keys.
  */
 export function NumberStepper({

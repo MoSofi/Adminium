@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Studio AI (LLM-assist) API client (06-llm-assist.md §10.5) — one typed wrapper
- * over the `/api/v1/llm/*` routes that every Batch-4 AI surface (Settings → AI,
- * the connect-wizard enrichment step, the review-diff screen) imports, so no
- * screen re-derives request/response shapes.
+ * Studio AI (LLM-assist) API client — one typed wrapper over the `/api/v1/llm/*`
+ * routes that every Batch-4 AI surface (Settings → AI, the connect-wizard
+ * enrichment step, the review-diff screen) imports, so no screen re-derives
+ * request/response shapes.
  *
  * The types mirror the server Zod schemas in
  * `apps/server/src/routes/llm/schema.ts` — the copied-mirror convention (as in
  * `studio/api.ts`): change both together. The dashboard cannot import
- * `@adminium/llm` (01 §2.3, `dependency-cruiser`), so the LLM contract shapes are
+ * `@adminium/llm` (`dependency-cruiser`), so the LLM contract shapes are
  * duplicated structurally here.
  *
  * The API key is WRITE-ONLY: `putConfig` sends it, but no reply ever carries it —
- * `getConfig` returns `apiKeySet` + `apiKeyLast4` only (§3.2).
+ * `getConfig` returns `apiKeySet` + `apiKeyLast4` only.
  */
 
 import { api } from '../../app/api.js';
@@ -51,7 +51,7 @@ export type LlmRunStatus =
 
 export type LlmValidationStatus = 'pending' | 'valid' | 'partial' | 'invalid';
 
-// ─── Config (§3.2) ───────────────────────────────────────────────────────────
+// ─── Config ──────────────────────────────────────────────────────────────────
 
 /** `GET /config` — provider config with the key redacted to presence + last-4. */
 export interface LlmConfig {
@@ -66,7 +66,7 @@ export interface LlmConfig {
 
 /**
  * `PUT /config` body. `apiKey` is write-only: omit it to keep the existing key,
- * pass an empty string to clear it, pass a value to replace it (§3.2).
+ * pass an empty string to clear it, pass a value to replace it.
  */
 export interface LlmConfigInput {
   provider: LlmProvider | null;
@@ -103,7 +103,7 @@ export interface LlmRunDto {
   connectionId: string;
   snapshotId: string;
   mode: LlmRunMode;
-  /** NULL for BYO runs (§9 telemetry-free guarantee). */
+  /** NULL for BYO runs (telemetry-free guarantee). */
   provider: string | null;
   model: string | null;
   promptVersion: string;
@@ -123,7 +123,7 @@ export interface LlmRunDto {
   createdAt: number;
 }
 
-/** One validation failure (§7.2) — `message` renders verbatim in the paste UI. */
+/** One validation failure — `message` renders verbatim in the paste UI. */
 export interface LlmValidationError {
   code: string;
   severity: 'fatal' | 'item' | 'warning';
@@ -155,7 +155,7 @@ export function isProviderRunError(error: LlmRunError): error is LlmProviderRunE
   return 'kind' in error && error.kind === 'provider';
 }
 
-/** Accepted/rejected suggestion-id lists persisted on a reviewed run (§8.3). */
+/** Accepted/rejected suggestion-id lists persisted on a reviewed run. */
 export interface LlmRunReview {
   accepted: string[];
   rejected: string[];
@@ -179,7 +179,7 @@ export interface CreateRunInput {
   connectionId: string;
   /** `provider` = direct API path, `byo` = copy-paste round-trip. */
   path: LlmRunMode;
-  /** Empty/absent ⇒ all ten sections (§4.4). */
+  /** Empty/absent ⇒ all ten sections. */
   sections?: LlmSection[];
   /** Requested locales; `en_US` is enforced server-side. Default `['en_US']`. */
   locales?: LlmLocale[];
@@ -228,7 +228,7 @@ export type SuggestionStatus =
   | 'rejects-heuristic'
   | 'user-locked';
 
-/** One reviewed suggestion diff row (§8.2). */
+/** One reviewed suggestion diff row. */
 export interface SuggestionDiff {
   id: string;
   category: string;
@@ -249,8 +249,8 @@ export interface RunApplyResult {
   counts: { overrides: number; pages: number; navGroupUpdates: number };
   review: LlmRunReview;
   /**
-   * Single-use undo token backing the success-toast Undo action (§10.3); `null`
-   * when the apply wrote nothing to revert.
+   * Single-use undo token backing the success-toast Undo action; `null` when
+   * the apply wrote nothing to revert.
    */
   undoToken: string | null;
 }
@@ -303,11 +303,11 @@ export const aiApi = {
   getDiff: async (id: string) =>
     (await api.get<{ diff: SuggestionDiff[] }>(`${BASE}/runs/${enc(id)}/diff`)).diff,
 
-  /** Apply the accepted suggestion ids in one transaction (§8.3). */
+  /** Apply the accepted suggestion ids in one transaction. */
   applyRun: (id: string, accepted: string[]) =>
     api.post<RunApplyResult>(`${BASE}/runs/${enc(id)}/apply`, { accepted }),
 
-  /** Revert exactly one apply within the toast window (single-use token, §10.3). */
+  /** Revert exactly one apply within the toast window (single-use token). */
   undoApply: (id: string, token: string) =>
     api.post<RunUndoResult>(`${BASE}/runs/${enc(id)}/undo/${enc(token)}`),
 };

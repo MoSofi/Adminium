@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The desktop-only half of the About screen (11-electron.md §13), unit-level.
+ * The desktop-only half of the About screen, unit-level.
  *
  * Two properties here are worth more than the rest of the file put together.
  *
@@ -35,7 +35,8 @@ import {
   type DiagnosticsInput,
 } from './desktopAbout.js';
 
-/** §4's detection contract is `window.adminiumDesktop !== undefined` — nothing else. */
+/** The detection contract is `window.adminiumDesktop !== undefined` — nothing
+ * else. */
 function installBridge(overrides: Partial<AdminiumDesktopApi> = {}) {
   const bridge = {
     versions: { app: '0.6.0', electron: '38.0.0', chromium: '140.0', node: '22.14.0' },
@@ -135,8 +136,8 @@ describe('checkForUpdates', () => {
   });
 
   it('folds a rejection — `disabled` mode included — into "unavailable"', async () => {
-    // §11 never constructs the updater in `disabled` mode, so the bridge
-    // rejects with UNAVAILABLE. The §13 panel already shows the mode; an error
+    // The updater is never constructed in `disabled` mode, so the bridge
+    // rejects with UNAVAILABLE. The panel already shows the mode; an error
     // box on top of it would say the same thing twice, and wrongly.
     installBridge({
       checkForUpdates: vi.fn().mockRejectedValue(new Error('UNAVAILABLE')),

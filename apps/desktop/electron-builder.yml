@@ -1,4 +1,4 @@
-# electron-builder configuration — 11-electron.md §10, owned by 11-T13/11-T15.
+# electron-builder configuration.
 #
 # electron-builder auto-detects this file in the package directory; the packaging
 # entry points are the `pack`/`dist` scripts in package.json (its only call site
@@ -6,7 +6,7 @@
 # defaults to `build/`, which is why `mac.entitlements` below and the icon
 # masters resolve the way they do.
 #
-# ─── THE NATIVE-MODULE REBUILD (§2.1, the crux of M11) ───────────────────────
+# ─── THE NATIVE-MODULE REBUILD (the crux of M11) ───────────────────────
 # better-sqlite3 and argon2 are native (.node) addons, and `asarUnpack` below is
 # unconditionally required: a .node inside an asar cannot be dlopen'd, whatever
 # produced it.
@@ -95,7 +95,7 @@ productName: Adminium
 artifactName: "adminium-${version}-${os}-${arch}.${ext}"
 
 # asar on, but the two native addons unpacked next to it. `**/*.node` is the
-# whole set (§10): better-sqlite3's build/Release/better_sqlite3.node and argon2's
+# whole set: better-sqlite3's build/Release/better_sqlite3.node and argon2's
 # prebuilds. Anything dlopen'd at runtime must be a real file, not an asar entry.
 asar: true
 asarUnpack:
@@ -113,12 +113,12 @@ npmRebuild: true
 
 # `out/**` is electron-vite's four bundles (main/server/preload/renderer) plus the
 # copied dashboard build (out/dashboard). `resources/**` carries the demo seed
-# (resources/demo/**, the §6 first-run demo DB — MUST ship), the generated
-# THIRD-PARTY-NOTICES.txt + LICENSE (§13), and the derived icons. node_modules and
+# (resources/demo/**, the first-run demo DB — MUST ship), the generated
+# THIRD-PARTY-NOTICES.txt + LICENSE, and the derived icons. node_modules and
 # package.json are always included by electron-builder (prod deps only), which is
 # how the externalized @adminium/server and its computed-specifier deps — the
-# adapters, drivers, native addons — reach the packaged app (§2.1, the app loads
-# the same files `adminium start` does, resolved from apps/desktop/node_modules).
+# adapters, drivers, native addons — reach the packaged app (the app loads the
+# same files `adminium start` does, resolved from apps/desktop/node_modules).
 files:
   - "out/**"
   - "resources/**"
@@ -126,7 +126,7 @@ files:
 mac:
   category: public.app-category.developer-tools
   # dmg is the human download; zip is MANDATORY — electron-updater consumes the
-  # zip, not the dmg (§10, §11). Both arches: Apple Silicon + Intel.
+  # zip, not the dmg. Both arches: Apple Silicon + Intel.
   target:
     - target: dmg
       arch: [x64, arm64]
@@ -155,7 +155,7 @@ win:
   # every download; the sha256 checksums file the release job ships is the only
   # integrity signal an unsigned installer has.
   #
-  # §10's YAML lists `signingHashAlgorithms: [sha256]` directly under `win`; that
+  # The reference YAML lists `signingHashAlgorithms: [sha256]` directly under `win`; that
   # was valid on the electron-builder the doc was written against, but v26 — the
   # version this repo pins — moved it into `signtoolOptions` (WindowsConfiguration
   # is now additionalProperties:false), so a direct key here makes the whole

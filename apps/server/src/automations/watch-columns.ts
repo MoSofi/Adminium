@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * DOES THIS TABLE QUALIFY FOR WATCHING? (42-automations-and-workflow-logs.md
- * D4 — the owner's "listener".)
+ * DOES THIS TABLE QUALIFY FOR WATCHING? (the owner's "listener".)
  *
  * A route trigger only ever sees writes Adminium itself made. The sign-up
  * example the whole feature was asked for is a row the CUSTOMER'S OWN APP

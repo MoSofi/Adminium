@@ -4,11 +4,11 @@
  * ordered rows with a grip, an index, the header input, the source caption,
  * the type chip and badges, the masked and duplicate lines, and a remove.
  *
- * Reorder is dnd-kit rendered the comp's way (41-export-builder.md D12):
- * pointer drags show an insertion line (3 px accent bar with the soft glow,
- * before or after the hovered row by pointer half) and dim the dragged row
- * to .42; rows do not shift. Arrow keys on the handle move a row one step at
- * once (comp 943); Space/Enter also start dnd-kit's keyboard drag.
+ * Reorder is dnd-kit rendered the comp's way: pointer drags show an
+ * insertion line (3 px accent bar with the soft glow, before or after the
+ * hovered row by pointer half) and dim the dragged row to.42; rows do not
+ * shift. Arrow keys on the handle move a row one step at once (comp 943);
+ * Space/Enter also start dnd-kit's keyboard drag.
  */
 import { useState } from 'react';
 import {

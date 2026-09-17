@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0004 — pages & views: adminium_pages, adminium_views
- * (07-meta-store.md §3.16–§3.18).
+ * Wave 0004 — pages & views: adminium_pages,
+ * adminium_views.
  */
 
 import type { Kysely } from 'kysely';

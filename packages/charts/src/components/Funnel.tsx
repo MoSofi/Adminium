@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-funnel` primitive (research/widget-registry.md §2): ordered shrinking
+ * `chart-funnel` primitive (research/widget-registry.md): ordered shrinking
  * stages in two layouts — `horizontal` (start-aligned bars) and `stepped`
  * (centered bars with "N% continue" step rows) — plus an overall-conversion
- * footer. Bars mirror in RTL (categorical part-to-whole, §7.4). Label and value
- * ride a line above the bar, never on it: on the accent ramp no foreground
- * token clears AA at every stage. Tokens only.
+ * footer. Bars mirror in RTL (categorical part-to-whole). Label and value ride
+ * a line above the bar, never on it: on the accent ramp no foreground token
+ * clears AA at every stage. Tokens only.
  */
 import type { ReactNode } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';

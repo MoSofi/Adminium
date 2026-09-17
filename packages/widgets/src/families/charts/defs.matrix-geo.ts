@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family — matrix, calendar & geo-grid definitions (annex §2, 04-T09):
+ * `charts` family — matrix, calendar & geo-grid definitions (annex):
  * `chart-cohort-matrix`, `chart-heatmap-calendar`, `chart-heat-month`,
  * `chart-choropleth-grid`, `chart-sankey`. Metadata only; components load
- * through `lazy()` (one Vite chunk per family, 04 §2.3). Demo payloads are
- * deterministic seeded generators (04 §7.7) shaped into the §3 envelopes the
- * live server returns.
+ * through `lazy()` (one Vite chunk per family). Demo payloads are deterministic
+ * seeded generators shaped into the envelopes the live server returns.
  *
- * Grid sizing per the annex, stored in half-row units (04 §6.1): annex rows R
- * ⇒ `h = round(R × 2)`.
+ * Grid sizing per the annex, stored in half-row units: annex rows R ⇒ `h =
+ * round(R × 2)`.
  *
  * NOTE for the green loop: these entries are assembled into the shared
  * `families/charts/definitions.ts` array and the components are re-exported
@@ -41,7 +40,7 @@ function isoDate(ms: number): string {
   return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
 }
 
-// --- demoData (04 §7.7) ------------------------------------------------------
+// --- demoData ------------------------------------------------------
 
 /** Triangular retention `matrix`: 8 monthly cohorts × 6 periods, newest cohorts shorter. */
 export function cohortMatrixDemoData(seed: number): {

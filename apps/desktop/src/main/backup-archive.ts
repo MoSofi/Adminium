@@ -1,32 +1,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Reading a §9 backup archive from the main process (11-electron.md §9).
+ * Reading a backup archive from the main process.
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ THIS FILE IS THE SANCTIONED EXCEPTION TO §1 PRINCIPLE 2.                 │
- * │                                                                         │
- * │ "The server is the only data owner. The main process never opens the     │
- * │  meta-store or source DBs directly (single exception: integrity check of │
- * │  a backup zip before restore, which opens files read-only)."             │
- * │                                                                         │
- * │ So: this module READS a zip and HASHES its bytes. It opens no database,  │
- * │ imports no `better-sqlite3`, and knows nothing about what is inside      │
- * │ `meta.db` beyond its length and its digest. {@link unpackArchive} writes │
- * │ files, but only ones the manifest named and only under a directory the   │
- * │ caller passed — and only while the server is stopped (§9's flow), which  │
- * │ is what makes it a file move rather than a second writer.                │
+ * │ THIS FILE IS THE SANCTIONED EXCEPTION TO PRINCIPLE 2. │ │ │ │ "The server
+ * is the only data owner. The main process never opens the │ │ meta-store or
+ * source DBs directly (single exception: integrity check of │ │ a backup zip
+ * before restore, which opens files read-only)." │ │ │ │ So: this module READS
+ * a zip and HASHES its bytes. It opens no database, │ │ imports no
+ * `better-sqlite3`, and knows nothing about what is inside │ │ `meta.db`
+ * beyond its length and its digest. {@link unpackArchive} writes │ │ files,
+ * but only ones the manifest named and only under a directory the │ │ caller
+ * passed — and only while the server is stopped (flow), which │ │ is what
+ * makes it a file move rather than a second writer. │
  * └─────────────────────────────────────────────────────────────────────────┘
  *
  * ─── The archive is UNTRUSTED INPUT ──────────────────────────────────────────
  *
- * §9 hands this path three ways — File → "Restore from backup…", Settings →
- * Desktop → Backups, and §2.2 step 1's launch argument — and the last one is a
- * file the user DOUBLE-CLICKED. It may have come from an email. So nothing here
- * trusts the zip: every member name is checked against an allow-list derived
- * from the manifest, every slug is re-validated against the format's grammar,
- * every digest is recomputed, and the manifest itself is parsed with zod rather
- * than cast. See {@link BACKUP_SLUG_PATTERN} for the one that would actually
- * hurt.
+ * Three paths lead here — File → "Restore from backup…", Settings →
+ * Desktop → Backups, launch argument — and the last one is a file the user
+ * DOUBLE-CLICKED. It may have come from an email. So nothing here trusts the
+ * zip: every member name is checked against an allow-list derived from the
+ * manifest, every slug is re-validated against the format's grammar, every
+ * digest is recomputed, and the manifest itself is parsed with zod rather than
+ * cast. See {@link BACKUP_SLUG_PATTERN} for the one that would actually hurt.
  *
  * ─── The schema is mirrored, not imported ────────────────────────────────────
  *
@@ -162,7 +159,7 @@ export type BackupRejection =
   | 'malformed'
   /** `formatVersion` this build does not know. */
   | 'format-newer'
-  /** §9: `metaMigrationVersion` newer than the app. "Update Adminium first." */
+  /** `metaMigrationVersion` newer than the app. "Update Adminium first." */
   | 'migration-newer'
   /** A member is missing, or its sha256 does not match the manifest. */
   | 'checksum'
@@ -193,7 +190,7 @@ export interface ValidatedArchive {
   manifest: BackupManifest;
   /** Every local DB entry, checksum-verified. */
   databases: BackupLocalDatabase[];
-  /** `older` ⇒ the migration runner fast-forwards it at the next boot (§9). */
+  /** `older` ⇒ the migration runner fast-forwards it at the next boot. */
   order: BackupVersionOrder;
 }
 
@@ -209,14 +206,14 @@ export interface ValidateArchiveOptions {
   path: string;
   /**
    * The newest migration THIS app ships — `ServerReadyInfo.metaVersion`, which
-   * the §2.2 step 7 handshake carries.
+   * the handshake carries.
    *
    * `null` is a real state, not a lazy default: a boot whose server never
-   * handshook has no answer, and §9's refusal rule cannot be evaluated without
-   * one. The honest response is to refuse the restore ({@link BackupRejection}'s
-   * `unknown-app-version`), NOT to skip the check — skipping it is how an
-   * old build silently accepts a newer backup and runs an incomplete migration
-   * set over it.
+   * handshook has no answer, refusal rule cannot be evaluated without one. The
+   * honest response is to refuse the restore ({@link BackupRejection}'s
+   * `unknown-app-version`), NOT to skip the check — skipping it is how an old
+   * build silently accepts a newer backup and runs an incomplete migration set
+   * over it.
    */
   appMetaVersion: string | null;
   /**
@@ -247,18 +244,18 @@ export function localDatabasePath(dataDir: string, slug: string): string {
  * BASENAME at backup time (`format.ts`'s `deriveDatabaseSlug` + `uniqueSlug`).
  * `meta.db` is restored byte-for-byte, so `adminium_connections.dsn` keeps
  * whatever absolute path it had. Nothing rewrites it — main may not open the
- * meta store (§1 principle 2), and `sourcePath` is deliberately provenance
- * rather than an instruction (an unpacker that honoured an absolute path out of
- * an archive would be a remote-file-write primitive).
+ * meta store, and `sourcePath` is deliberately provenance rather than an
+ * instruction (an unpacker that honoured an absolute path out of an archive
+ * would be a remote-file-write primitive).
  *
  * So a restore only lands correctly when `sourcePath` ALREADY equals
  * `<dataDir>/databases/<slug>.sqlite` on this machine. When it does not, two
  * things go wrong at once, and neither announces itself:
  *
  *  - THE FILE IS WRITTEN SOMEWHERE NOTHING POINTS AT. A database registered in
- *    place (§6 step 2 card 2, `sqlite:/Users/me/archive/data.sqlite`) is never
- *    written back to `~/archive`, so the connection still serves TODAY's rows
- *    while the user believes they restored last week's.
+ * place (card 2, `sqlite:/Users/me/archive/data.sqlite`) is never written back
+ *    to `~/archive`, so the connection still serves TODAY's rows while the
+ *    user believes they restored last week's.
  *  - AND IT LANDS ON TOP OF SOMEBODY ELSE'S. Slugs are per-basename and
  *    `discoverSources` orders by `createdAt`, so an in-place `~/archive/
  *    data.sqlite` opened first claims slug `data`, and a wizard-created "Data"
@@ -276,7 +273,7 @@ export function localDatabasePath(dataDir: string, slug: string): string {
  * There is no partial answer worth giving. The failure is not "one database is
  * missing" — it is "a connection now serves a different database than its name
  * says", which is indistinguishable from a working restore until someone reads
- * a row. §9's whole promise is that restore is the safe operation ("Current data
+ * a row. The whole promise is that restore is the safe operation ("Current data
  * will be moved to `<dataDir>/pre-restore-<ts>/`, not deleted"), and it is
  * checked HERE, in validation, precisely so the refusal happens while the user's
  * data is still exactly where it was — before the server stops and before
@@ -307,7 +304,7 @@ export function assertRestorablePaths(databases: readonly BackupLocalDatabase[],
 }
 
 /**
- * §9's "validate manifest + checksums (read-only, main process)".
+ * "Validate manifest + checksums (read-only, main process)".
  *
  * Reads the whole archive into memory and verifies it before returning. That is
  * deliberate and is the same trade `createBackup` makes on the writing side: a
@@ -370,7 +367,7 @@ export async function validateArchive(
   }
   const manifest = parsed.data;
 
-  // §9's refusal, and it runs BEFORE the checksums on purpose: verifying the
+  // The refusal, and it runs BEFORE the checksums on purpose: verifying the
   // digests of an archive we are about to refuse anyway is time the user spends
   // watching a spinner for an answer we already have.
   if (opts.appMetaVersion === null) {
@@ -405,7 +402,7 @@ export async function validateArchive(
 
   // LAST, and after the checksums: a damaged archive is a worse fact than a
   // misplaced one, and the user should hear about it first. Still before any
-  // caller has moved anything — §9's validation phase is the whole point.
+  // caller has moved anything — validation phase is the whole point.
   assertRestorablePaths(databases, opts.dataDir);
 
   return { path: opts.path, manifest, databases, order, members };
@@ -441,7 +438,7 @@ function verifyMember(
   }
 }
 
-// ─── Pre-restore safety copy (§9) ───────────────────────────────────────────
+// ─── Pre-restore safety copy ────────────────────────────────────────────────
 
 /**
  * The files a restore replaces, i.e. exactly what {@link unpackArchive} writes.
@@ -461,11 +458,11 @@ export interface MoveAsideResult {
 }
 
 /**
- * §9: "Current data will be moved to `<dataDir>/pre-restore-<ts>/`, not deleted."
+ * "Current data will be moved to `<dataDir>/pre-restore-<ts>/`, not deleted."
  *
  * MOVED, NOT COPIED, and never deleted. A move is atomic, is instant regardless
  * of database size, and — the part that matters — cannot half-succeed and leave
- * the user with neither copy. §9 is unambiguous that the folder stays: "The
+ * the user with neither copy. The folder stays, unambiguously: "The
  * pre-restore folder is kept; the user empties it manually — the app never
  * permanently deletes data." Nothing in this module removes it, and nothing
  * anywhere else may either.
@@ -485,9 +482,9 @@ export interface MoveAsideResult {
  *    `databases/` fails EBUSY (Windows cannot rename a directory containing an
  *    open file), we throw. The caller shows "Nothing has been changed", then
  *    restarts the server — against a dataDir with no `meta.db`. `firstRun`
- *    creates an empty meta store and the user lands in §6's first-run wizard
- *    with zero users and zero connections, having just been told nothing
- *    changed. Their real meta.db is recoverable only by hand.
+ * creates an empty meta store and the user lands first-run wizard with zero
+ *    users and zero connections, having just been told nothing changed. Their
+ *    real meta.db is recoverable only by hand.
  *  - `meta.db` moves, `meta.db-wal` fails. The server creates a fresh `meta.db`
  *    beside the OLD `-wal`, and SQLite validates a WAL by its own header/salt
  *    checksums — not against the database it sits next to — so it recovers
@@ -543,7 +540,7 @@ export async function moveDataAside(
       // nothing to move, and that is not a failure.
       //
       // EVERYTHING ELSE ABORTS, and this distinction is the difference between
-      // §9's promise and a data-loss bug. A blanket catch here reads as
+      // the promise and a data-loss bug. A blanket catch here reads as
       // harmless — "we could not move it, carry on" — but the very next step
       // WRITES `meta.db` at that same path. So a locked file (Windows EBUSY, an
       // EPERM, a full disk) would mean: nothing moved aside, pre-restore folder
@@ -588,12 +585,12 @@ export interface UnpackResult {
 }
 
 /**
- * Write the verified members into `<dataDir>` (§9's "unpack").
+ * Write the verified members into `<dataDir>` ("unpack").
  *
  * ─── WHAT IS NOT WRITTEN, AND WHY IT IS THE MOST IMPORTANT LINE HERE ─────────
  *
- * `config.json`. The archive carries one (§9 requires it) with its secrets
- * STRIPPED — that is the whole point of the redaction. Restoring it over
+ * `config.json`. The archive carries one (requires it) with its secrets STRIPPED
+ * — that is the whole point of the redaction. Restoring it over
  * `<userData>/config.json` would therefore replace a file containing
  * `ADMINIUM_SECRET` with a file containing `null`, and every encrypted DSN, LLM
  * key and TOTP secret in the meta.db we just restored would become permanently

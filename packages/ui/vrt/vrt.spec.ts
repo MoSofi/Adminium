@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * VRT story-matrix runner (03-component-library.md §10, M1-T07).
+ * VRT story-matrix runner.
  *
  * Reads the static Storybook's index.json, filters stories tagged `vrt`
  * (the Matrix stories — one static grid per component), and screenshots each
@@ -9,7 +9,7 @@
  *   every vrt story:            {light, dark} × {ltr, rtl}   (accent indigo)
  *   representative subset:      accent-black (light/ltr)     (worst-case accent)
  *
- * Determinism (§10):
+ * Determinism:
  *  - `reducedMotion: 'reduce'` emulation (playwright.config.ts) forces nb-*
  *    keyframe end-states via the tokens motion gate;
  *  - waits for the `data-vrt-ready` attribute .storybook/preview.tsx stamps
@@ -56,7 +56,7 @@ const CORE_PROFILES: Profile[] = [
 
 /**
  * Accent stress profile — captured only for the representative subset below.
- * Black is the worst-case accent for contrast/derived tones (03 §9 OD-2).
+ * Black is the worst-case accent for contrast/derived tones (OD-2).
  */
 const ACCENT_PROFILES: Profile[] = [profile('accent-black', 'light', 'ltr', 'black')];
 

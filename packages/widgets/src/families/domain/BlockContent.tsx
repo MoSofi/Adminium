@@ -23,7 +23,7 @@ export {
 };
 
 /**
- * TRACK BUILDER — the CONTENT tail of the annex §13 document-block vocabulary:
+ * TRACK BUILDER — the CONTENT tail of the annex document-block vocabulary:
  * `block-contact` and `block-highlight-box`.
  */
 

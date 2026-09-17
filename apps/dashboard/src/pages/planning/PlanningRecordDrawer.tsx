@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * PlanningRecordDrawer — the `/p/$slug/r/$recordId` drawer for the planning
- * archetype pages (09-generated-app.md §2.3; the `page-crud` detail pattern).
+ * archetype pages (the `page-crud` detail pattern).
  *
  * Archetype envelopes carry no `columns[]` config, so the drawer derives a
  * read-only `GridColumnSpec[]` from the fetched record's own keys (the

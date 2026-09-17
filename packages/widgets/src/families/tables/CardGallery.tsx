@@ -9,7 +9,7 @@ import type { GalleryCard } from './tables-track-f-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `card-gallery` (annex §3) — a responsive card grid for entities: an
+ * `card-gallery` (annex) — a responsive card grid for entities: an
  * icon/monogram/doc-preview thumbnail, name, status pill, a meta line, and a
  * hover-reveal action bar. Powers template/integration/member/file galleries.
  * Binds to a `record-list` + a card mapping.
@@ -18,7 +18,7 @@ import type { WidgetProps } from '../../registry/types.js';
 // Config schema + deterministic demo payload live in the pure
 // `tables-track-f-config` module, and the card shape in
 // `tables-track-f-types`, so the registry metadata graph never reaches this
-// component file (04 §2.3). Re-exported here to keep existing import points
+// component file. Re-exported here to keep existing import points
 // stable.
 export { cardGalleryConfigSchema, cardGalleryDemoData } from './tables-track-f-config.js';
 export type { CardGalleryConfig } from './tables-track-f-config.js';

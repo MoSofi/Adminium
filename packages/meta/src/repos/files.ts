@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * filesRepo — adminium_files (07-meta-store.md §3.27): one row per stored
- * artifact (export bundles, import uploads, error reports, branding assets…).
+ * filesRepo — adminium_files: one row per stored artifact (export
+ * bundles, import uploads, error reports, branding assets…).
  *
  * The repo owns ROWS only — bytes live wherever `destination_id`/`storage_key`
  * say: `destination_id IS NULL` is this server's disk under
  * `<dataDir>/files/<id>` (apps/server/src/files/drivers/local.ts), any other
- * value is a configured destination (37-files-and-storage.md D3).
- * Deletion is soft (`deleted_at`) so a GC pass can remove bytes first and rows
- * second without ever leaving a row that points at nothing.
+ * value is a configured destination. Deletion is soft (`deleted_at`) so a GC
+ * pass can remove bytes first and rows second without ever leaving a row that
+ * points at nothing.
  *
  * Wave 0024 adds the record linkage the `entity` column was declared for in
- * 0003 and nothing ever wrote (37 §0.1 item 4). The lookup keys are
- * denormalized into real columns — `entity_connection_id`, `entity_table`,
- * `entity_id` — for the same reason 0016 did it to the audit log: filtering on
- * packed JSON is either a per-dialect JSON-extract expression or a full scan.
- * The json column keeps the full ref (the PK map, the label at write time);
- * the three columns are how it is FOUND.
+ * 0003 and nothing ever wrote. The lookup keys are denormalized into real
+ * columns — `entity_connection_id`, `entity_table`, `entity_id` — for the same
+ * reason 0016 did it to the audit log: filtering on packed JSON is either a
+ * per-dialect JSON-extract expression or a full scan. The json column keeps
+ * the full ref (the PK map, the label at write time); the three columns are
+ * how it is FOUND.
  */
 
 import { sql, type Selectable } from 'kysely';
@@ -38,9 +38,9 @@ import { affected, packJson, readJsonOrNull } from './util.js';
  *
  * This was a hand-typed union of the same six words, and the two drifted the
  * first time a seventh was added: `document` went into the schema on
- * 2026-09-10 (34-T11) and this line still said six, so the repo's own
- * `insert` stopped accepting a kind the validator considered valid. A union
- * that has to be edited in two places is a union that will be edited in one.
+ * 2026-09-10 and this line still said six, so the repo's own `insert`
+ * stopped accepting a kind the validator considered valid. A union that has
+ * to be edited in two places is a union that will be edited in one.
  */
 export type FileKind = z.infer<typeof fileKindSchema>;
 
@@ -58,9 +58,9 @@ export interface StoredFile {
   uploadedBy: string | null;
   createdAt: number;
   deletedAt: number | null;
-  /** NULL = this server's disk, the implicit destination (37 D3). */
+  /** NULL = this server's disk, the implicit destination. */
   destinationId: string | null;
-  /** NULL = no record claims this upload yet; the sweep collects it (37 D12). */
+  /** NULL = no record claims this upload yet; the sweep collects it. */
   attachedAt: number | null;
   entityConnectionId: string | null;
   entityTable: string | null;
@@ -78,7 +78,7 @@ export interface CreateFileInput {
   entity?: RecordRef | null;
   /**
    * The connection a file belongs to when it belongs to NO record
-   * (38-files-library-and-attachments.md D4) — the Files page's own upload.
+   * — the Files page's own upload.
    *
    * Ignored when `entity` is given, which carries a connection of its own.
    * Everything else about such a row is a normal upload; what makes it a
@@ -91,15 +91,15 @@ export interface CreateFileInput {
   id?: string;
   /** The driver name that wrote the bytes; informational (defaults to `local`). */
   storage?: string;
-  /** NULL/omitted = this server's disk (37 D3). */
+  /** NULL/omitted = this server's disk. */
   destinationId?: string | null;
   /**
    * Attach at creation — the upload that already names its record. Omitted
    * leaves the row unattached, which is the create-form flow: the record does
    * not exist yet and `attach()` runs when the CRUD write lands.
    *
-   * READ THIS AS "CLAIMED", NOT "HAS A RECORD" (38 D4). A library upload has no
-   * record and still stamps it, because the alternative is being collected by
+   * READ THIS AS "CLAIMED", NOT "HAS A RECORD". A library upload has no record
+   * and still stamps it, because the alternative is being collected by
    * `listUnattachedBefore` a day later — the sweep's question is "did anything
    * ever claim this?", and for a library file the answer is the workspace.
    */
@@ -191,7 +191,7 @@ export function filesRepo(meta: MetaDb) {
             ? null
             : { connectionId: entity.connectionId, table: entity.table, recordId: entity.label },
         ),
-        // A file with a connection and no record (38 D4). Written AFTER the
+        // A file with a connection and no record. Written AFTER the
         // spread so it cannot overwrite a real entity's connection — the two
         // are mutually exclusive, and `entity` is the stronger claim.
         ...(entity === null && input.entityConnectionId != null
@@ -232,7 +232,7 @@ export function filesRepo(meta: MetaDb) {
       return affected(res.numDeletedRows) === 1;
     },
 
-    // ── wave 0024 (37-files-and-storage.md §3.5, D6, D12, D20) ──────────────
+    // ── wave 0024 ───────────────────────────────────────────────────────────
 
     /**
      * Bind a file to a record. Writes BOTH forms — the full `RecordRef` json
@@ -370,7 +370,7 @@ export function filesRepo(meta: MetaDb) {
       return findById(id);
     },
 
-    /** Rename the DISPLAY name only — the storage key is never touched (37 §3.4). */
+    /** Rename the DISPLAY name only — the storage key is never touched. */
     async rename(id: string, filename: string): Promise<StoredFile | null> {
       await db.updateTable('adminium_files').set({ filename }).where('id', '=', id).execute();
       return findById(id);
@@ -383,9 +383,9 @@ export function filesRepo(meta: MetaDb) {
      * are scheduled for deletion.
      */
     /**
-     * A LIVE row holding these exact bytes, if any — the import path's dedupe
-     * (39-email-templates-and-campaigns.md D14): a bundle re-imported twice
-     * must not leave two copies of every attachment in the library.
+     * A LIVE row holding these exact bytes, if any — the import path's
+     * dedupe: a bundle re-imported twice must not leave two copies of every
+     * attachment in the library.
      */
     async findBySha256(sha256: string): Promise<StoredFile | null> {
       const row = await db
@@ -432,7 +432,7 @@ export function filesRepo(meta: MetaDb) {
       destinationId?: string | null;
       mime?: string;
       uploadedBy?: string | undefined;
-      /** Created at or after this epoch-ms instant — the Recent preset (38 D9). */
+      /** Created at or after this epoch-ms instant — the Recent preset. */
       since?: number;
       limit?: number;
       cursor?: string;

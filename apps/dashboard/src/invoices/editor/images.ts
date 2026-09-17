@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Reading an uploaded image into the document (34-invoices-add-on.md O18;
- * the comp's `readImg`, 1324-1328): a `FileReader` data URL, capped so a
- * single letterhead never makes a body nobody sized for (34 §3.9 "Images,
- * and there are more than five"). The caller shows the reason on refusal.
+ * Reading an uploaded image into the document (the comp's `readImg`,
+ * 1324-1328): a `FileReader` data URL, capped so a single letterhead
+ * never makes a body nobody sized for. The caller shows the reason on
+ * refusal.
  */
 import { IMAGE_DATA_URL_MAX } from '../model/envelope.js';
 

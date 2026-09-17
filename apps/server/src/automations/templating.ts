@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * ONE TOKEN GRAMMAR, DOCUMENTED ONCE (42-automations-and-workflow-logs.md
- * D16, 42-T08).
+ * ONE TOKEN GRAMMAR, DOCUMENTED ONCE.
  *
  * A rule has two places a person writes a value that should come from the
  * record: an action FIELD (the recipient address, a webhook body, a column

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CSRF defence — the ACTIVE half (08-server-api.md §7 item 4).
+ * CSRF defence — the ACTIVE half.
  *
  * ─── Why this exists at all ──────────────────────────────────────────────────
  *
@@ -28,9 +28,12 @@
  *
  * LEG A — Origin / `Sec-Fetch-Site`. Enforced on every session-authenticated
  * mutation. The expected origin is derived from the request's own `Host`,
- * exactly as the CSP `connect-src` allowance already is (plugins/core.ts):
- * there is no `ADMINIUM_BASE_URL` and no public-origin setting to read, and
- * inventing one would be a second source of truth that drifts. Origins listed
+ * exactly as the CSP `connect-src` allowance already is (plugins/core.ts).
+ * There is no `ADMINIUM_BASE_URL`, and this check deliberately ignores
+ * `system.publicOrigin` (security/public-origin.ts): that setting says where
+ * links in email point, it is unset until it is learned, and an instance that
+ * answers under two names must accept writes on both. A browser cannot forge
+ * the `Host` it sends, which is all this leg needs. Origins listed
  * in `ADMINIUM_CORS_ORIGINS` are trusted too — an operator who opted a
  * cross-origin dashboard into CORS did not also mean to have it 403'd here.
  *
@@ -98,7 +101,7 @@ const CSRF_KEY_INFO = 'adminium:csrf';
 /** HKDF salt. Fixed: the token must survive a restart, so it cannot be random. */
 const CSRF_KEY_SALT = 'adminium:csrf:v1';
 
-/** Never checked — by definition they change nothing (08 §1.1). */
+/** Never checked — by definition they change nothing. */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Headers that prove a browser built the request. See the module header. */
@@ -223,7 +226,7 @@ function isSameOriginFetch(fetchSite: string | undefined): boolean {
 
 /**
  * Did this request come from a page THIS instance served? — the public API's
- * same-origin test (29-app-surfaces.md D2).
+ * same-origin test.
  *
  * Deliberately NOT `classifyOrigin(probe, new Set())`, though it reuses the
  * same comparison, and the two differences are the point:
@@ -247,11 +250,11 @@ function isSameOriginFetch(fetchSite: string | undefined): boolean {
  *      no allow-list could ever express and the reason the sentinel exists: a
  *      same-origin `GET` sends no `Origin` header at all.
  *
- * HONESTY CLAUSE (28-public-surface.md §3.6, restated because someone will read
- * this as a boundary): both headers are trivially forged by a non-browser. This
- * is POLICY — it keeps other people's PAGES out — and the publishable KEY
- * remains the credential. Hardening this into a boundary is not possible and
- * attempting it would only break real browsers.
+ * HONESTY CLAUSE (restated because someone will read this as a boundary): both
+ * headers are trivially forged by a non-browser. This is POLICY — it keeps
+ * other people's PAGES out — and the publishable KEY remains the credential.
+ * Hardening this into a boundary is not possible and attempting it would only
+ * break real browsers.
  */
 export function isSameOriginRequest(probe: OriginProbe): boolean {
   const host = normalizeHost(header(probe, 'host') ?? '');

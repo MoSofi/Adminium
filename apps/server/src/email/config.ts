@@ -3,15 +3,15 @@
  * SMTP config resolution + the real transport.
  *
  * ── WHERE THE CONFIG LIVES, AND WHY THERE IS NO ENV VAR ─────────────────────
- * `email.smtp` is a settings-registry key (07-meta-store.md §7.1), so the
- * database is the single authority and an admin configures mail from the
- * settings screen like everything else. There is deliberately no
- * `ADMINIUM_SMTP_URL`: this repo just deleted `DATABASE_URL` for being
- * documented, validated, passed through docker-compose.yml — and read by zero
- * lines of product code (`config/env.ts` keeps the tombstone). A second,
- * env-shaped source of truth for mail would be the same mistake with the same
- * ending: two places to set it, no rule for which wins, and a support thread
- * about why the settings screen "isn't saving".
+ * `email.smtp` is a settings-registry key, so the database is the single
+ * authority and an admin configures mail from the settings screen like
+ * everything else. There is deliberately no `ADMINIUM_SMTP_URL`: this repo
+ * just deleted `DATABASE_URL` for being documented, validated, passed through
+ * docker-compose.yml — and read by zero lines of product code (`config/env.ts`
+ * keeps the tombstone). A second, env-shaped source of truth for mail would be
+ * the same mistake with the same ending: two places to set it, no rule for
+ * which wins, and a support thread about why the settings screen "isn't
+ * saving".
  *
  * ── THE PASSWORD AT REST ────────────────────────────────────────────────────
  * `passEncrypted` is an AES-256-GCM token under an HKDF key scoped to
@@ -221,7 +221,7 @@ export function createSmtpTransport(cfg: SmtpConfig): EmailTransport {
           text: msg.text,
           html: msg.html,
           ...(msg.headers === undefined ? {} : { headers: msg.headers }),
-          // BYTES ONLY (39 D8/D9): `content` is a Buffer the delivery layer
+          // BYTES ONLY: `content` is a Buffer the delivery layer
           // read itself. Nothing here ever becomes a `path` or an `href`, so
           // the two `disable*Access` flags above are belt and braces, not the
           // only line of defence.

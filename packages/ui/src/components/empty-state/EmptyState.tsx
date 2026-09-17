@@ -39,7 +39,7 @@ export interface EmptyStateProps extends Omit<ComponentPropsWithRef<'div'>, 'tit
 /**
  * EmptyState — 56px icon tile + headline + guidance + action row with layout
  * presets `no-data / all-caught-up / no-matches / nothing-scheduled`
- * (research/design-system.md §3 Tier 3).
+ * (research/design-system.md Tier 3).
  */
 export function EmptyState({
   preset = 'no-data',

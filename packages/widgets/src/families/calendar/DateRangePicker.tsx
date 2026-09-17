@@ -30,7 +30,7 @@ export { dateRangePickerConfigSchema, dateRangePickerDemoData };
 export type { DateRangePickerConfig, DateRangePreset, DateRangeValue };
 
 /**
- * `date-range-picker` (annex §5) — a month grid with start/end endpoints, a soft
+ * `date-range-picker` (annex) — a month grid with start/end endpoints, a soft
  * in-range fill, a hover preview, quick presets (7d/30d/QTD…), and a selected
  * summary (Adminium UI Kit). It is a CONTROL: its value feeds the other widgets'
  * queries, so it emits its range and never queries anything itself.
@@ -68,7 +68,7 @@ export interface DateRangePickerProps {
 /**
  * Literal bundle key per built-in preset id. Indexed rather than assembled so
  * every key is visible to the extractor and a new default preset is a compile
- * error instead of a raw dotted string in the picker (10 §2.5).
+ * error instead of a raw dotted string in the picker.
  */
 const PRESET_KEY = {
   '7d': 'ui:widgets.calendar.dateRangePicker.presets.7d',

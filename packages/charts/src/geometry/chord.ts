@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure chord geometry (`chart-chord`, research/widget-registry.md §2): nodes on
- * a ring sized by total pairwise volume, connected by quadratic-bezier ribbons
+ * Pure chord geometry (`chart-chord`, research/widget-registry.md): nodes on a
+ * ring sized by total pairwise volume, connected by quadratic-bezier ribbons
  * whose thickness encodes pair weight. Built from a symmetric flows adjacency
  * matrix. DOM-free + deterministic — the same ribbon paths render in Node and
- * the browser (04 §7.1). Circular layouts step clockwise (LTR) or CCW (RTL) so
- * node order mirrors per §7.4.
+ * the browser. Circular layouts step clockwise (LTR) or CCW (RTL) so node order
+ * mirrors.
  */
 import { arc } from 'd3-shape';
 

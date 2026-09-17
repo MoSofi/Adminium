@@ -1,22 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `LlmResponseV1` — the one response contract shared by the direct-API and BYO
- * paths (06-llm-assist.md §1, §6.1). Shipped verbatim from §6.1: field names
- * and shapes are load-bearing — the golden fixtures in §6.3 and every
- * downstream consumer (validate.ts, normalize.ts, diff.ts) depend on them.
+ * paths. Shipped verbatim: field names and shapes are load-bearing — the
+ * golden fixtures and every downstream consumer (validate.ts, normalize.ts,
+ * diff.ts) depend on them.
  *
  * ONE intentional adaptation to Zod 4 is marked below (`L10n`): the doc's
  * `z.record(LocaleCode, …)` cannot be used literally — in Zod 3 an enum-keyed
  * record was partial, but in Zod 4 it is exhaustive (every enum key required),
- * which would reject a 2-locale response (§6.3). Nor may the key be a strict
- * enum: §7.2 stage 5 (`LLM_LOCALE_KEYS`) is the SOLE owner of locale-key
- * validation, and it must be per-item — a single stray/non-canonical key (a
- * BCP-47 'en-US', an unrequested 'pt_BR') must drop only that one suggestion,
- * not fail the whole run at Zod (stage 4, fatal). So the key is typed
+ * which would reject a 2-locale response. Nor may the key be a strict enum:
+ * Stage 5 (`LLM_LOCALE_KEYS`) is the SOLE owner of locale-key validation,
+ * and it must be per-item — a single stray/non-canonical key (a BCP-47
+ * 'en-US', an unrequested 'pt_BR') must drop only that one suggestion, not
+ * fail the whole run at Zod (stage 4, fatal). So the key is typed
  * `z.string()`: any string key parses here, and validate.ts checks the exact
- * requested-locale set contextually (Zod alone can't know the run's locale list).
+ * requested-locale set contextually (Zod alone can't know the run's locale
+ * list).
  *
- * Version negotiation (§4.3) is appended after the verbatim schema.
+ * Version negotiation is appended after the verbatim schema.
  */
 import { z } from 'zod';
 
@@ -160,7 +161,7 @@ export const LlmResponseV1 = z.object({
 export type LlmResponseV1 = z.infer<typeof LlmResponseV1>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Inferred TS types for the sub-schemas above. These are additive to the §6.1
+// Inferred TS types for the sub-schemas above. These are additive to the
 // verbatim block (they only surface `z.infer<>` of already-declared schemas) so
 // downstream modules — notably the EnrichmentSet normalized shape in types.ts —
 // can name the same shapes without re-deriving them.
@@ -185,17 +186,17 @@ export type NavGroupSuggestion = z.infer<typeof NavGroupSuggestion>;
 export type WidgetSuggestion = z.infer<typeof WidgetSuggestion>;
 export type DashboardSuggestion = z.infer<typeof DashboardSuggestion>;
 
-// ─── Version negotiation (§4.3) ──────────────────────────────────────────────
+// ─── Version negotiation ─────────────────────────────────────────────────────
 
 /**
- * Prompt-contract version. §4.3 colocates the authoritative constant in
- * prompt/templates/v1.ts (06-T03); it is mirrored here so the response contract
- * and its version negotiation are self-contained and need no cross-subdir
- * import. Both must stay equal to `'adminium.prompt/v1.2'`, as must the
- * display-only mirror in `apps/dashboard/src/studio/ai/providerCatalog.ts`.
+ * Prompt-contract version. The authoritative constant is colocated in
+ * prompt/templates/v1.ts; it is mirrored here so the response contract and its
+ * version negotiation are self-contained and need no cross-subdir import. Both
+ * must stay equal to `'adminium.prompt/v1.2'`, as must the display-only mirror
+ * in `apps/dashboard/src/studio/ai/providerCatalog.ts`.
  *
- * v1 → v1.1: the trigger-taxonomy `page-builder` row was removed from the §5.2
- * user template (page-builder is `recommendable: false` and absent from
+ * v1 → v1.1: the trigger-taxonomy `page-builder` row was removed from the user
+ * template (page-builder is `recommendable: false` and absent from
  * `LLM_ALLOWED_TEMPLATES`; the taxonomy now matches the injected allowed list) —
  * see prompt/templates/v1.ts. Wording-only; the response contract
  * (`adminium.llm/v1`) is unchanged.
@@ -209,10 +210,11 @@ export const PROMPT_VERSION = 'adminium.prompt/v1.2' as const;
 
 export type SupportedSchemaVersion = (typeof SUPPORTED_SCHEMA_VERSIONS)[number];
 
-/** Fatal code raised by stage 3 of the pipeline (§7.2) on an unknown contract. */
+/** Fatal code raised by stage 3 of the pipeline on an unknown contract. */
 export const VERSION_MISMATCH_CODE = 'LLM_VERSION_MISMATCH' as const;
 
-/** Rendered verbatim in the paste UI when a response targets an unknown contract (§4.3). */
+/** Rendered verbatim in the paste UI when a response targets an unknown
+ * contract. */
 export const VERSION_MISMATCH_HINT =
   'Regenerate the prompt in Studio (Settings → AI) — this response was produced for an unsupported contract version.';
 
@@ -236,8 +238,9 @@ export type VersionNegotiation = VersionSupported | VersionRejected;
  * Predicate: is `version` a contract version this build still validates?
  *
  * When v2 ships, v1 stays in {@link SUPPORTED_SCHEMA_VERSIONS} and keeps
- * validating against the frozen v1 schema (§4.3) — a user may paste a response
- * generated from a prompt downloaded weeks earlier. `supported` is injectable so
+ * validating against the frozen v1 schema — a user may paste a response
+ * generated from a prompt downloaded weeks earlier. `supported` is injectable
+ * so
  * that forward-compatibility (a supported-but-older version) is testable today.
  */
 export function isSupportedSchemaVersion(
@@ -248,7 +251,7 @@ export function isSupportedSchemaVersion(
 }
 
 /**
- * Negotiate a response's declared `schema_version` (§4.3): a supported version
+ * Negotiate a response's declared `schema_version`: a supported version
  * (including a supported-but-older one) resolves `ok`; anything else is a fatal
  * rejection carrying `LLM_VERSION_MISMATCH` and the regeneration hint.
  */

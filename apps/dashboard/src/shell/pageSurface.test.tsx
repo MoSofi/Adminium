@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The page gutter (02-design-system.md §1.8): `PageSurface` is the only thing
- * in the app allowed to set the inner main section's padding, so these pin the
- * three shared choices, the per-page override, and — the point of the whole
- * exercise — that the choice set stays CLOSED. A page that invents its own
- * `p-8` is the bug this component exists to prevent.
+ * The page gutter: `PageSurface` is the only thing in the app allowed to set
+ * the inner main section's padding, so these pin the three shared choices, the
+ * per-page override, and — the point of the whole exercise — that the choice
+ * set stays CLOSED. A page that invents its own `p-8` is the bug this
+ * component exists to prevent.
  */
 import { render, screen } from '@testing-library/react';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -91,7 +91,7 @@ describe('resolvePagePadding', () => {
 
   it('rejects malformed or negative stored values rather than rendering them', () => {
     // A hand-edited or future-version document must degrade to the template
-    // default, never to a broken layout (09 §3.1 never-crash).
+    // default, never to a broken layout (never-crash).
     for (const bad of ['huge', 42, {}, { x: 8 }, { x: '8', y: 4 }, { x: -1, y: 4 }, { x: 8, y: Number.NaN }]) {
       expect(resolvePagePadding(bad, 'standard')).toBe('standard');
     }

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Storybook launchpad — the design-system exemplar port of Home.dc.html
- * (M1-T05, 16-milestones.md §5 "porting a comp"). The comp's surface
- * index becomes a nav-card grid over the Storybook areas; the brand header,
- * card hover behavior (nb-card lift + nb-arrow slide) and the palette swatch
- * row are kept. Fixture copy lives here (a story, not a component) — the
- * i18n-agnostic rule applies to components only.
+ * Storybook launchpad — the design-system exemplar port of Home.dc.html. The
+ * comp's surface index becomes a nav-card grid over the Storybook areas; the
+ * brand header, card hover behavior (nb-card lift + nb-arrow slide) and the
+ * palette swatch row are kept. Fixture copy lives here (a story, not a
+ * component) — the i18n-agnostic rule applies to components only.
  *
  * Navigation: @storybook/addon-links is not installed, so cards are plain
  * anchors to `./?path=/story/<id>` with `target="_top"` (the story renders in

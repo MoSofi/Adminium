@@ -13,10 +13,9 @@ export { inlineComposeCardConfigSchema, inlineComposeCardDemoData };
 export type { InlineComposeCardConfig };
 
 /**
- * `inline-compose-card` (annex §6) — the in-column quick-add: an
- * accent-bordered card with a text input and Add/Cancel, with Enter to commit
- * and Escape to cancel (Project Board). The new record gets the column's sane
- * defaults.
+ * `inline-compose-card` (annex) — the in-column quick-add: an accent-bordered
+ * card with a text input and Add/Cancel, with Enter to commit and Escape to
+ * cancel (Project Board). The new record gets the column's sane defaults.
  *
  * It emits a `mutate` INSERT *intent* and clears itself — the widget never
  * writes. The host runs the insert through the CRUD API (undo + audit) and the

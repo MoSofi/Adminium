@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The invoice document envelope on the server — what one
- * `adminium_invoice_documents` row's `body` MEANS (34-invoices-add-on.md
- * §3.9, Appendix F; the comp's `base()`, `designs/Invoice Builder.dc.html`
- * 1083-1115; 34-T46).
+ * `adminium_invoice_documents` row's `body` MEANS (the comp's `base()`,
+ * 1083-1115).
  *
  * A DELIBERATE COPY. The dashboard holds the same envelope in its
  * `model/envelope.ts` under `apps/dashboard/src/invoices`, and the two trees
@@ -23,14 +22,14 @@
  *      starter patch) becomes the one complete shape: an absent or malformed
  *      value gets its default, `blockOrder` is reconciled, an older body never
  *      renders `undefined`.
- *   3. {@link assertBodyWithinCaps} — the two caps 34 O18 set on inline
- *      images: one `data:` URI may be {@link IMAGE_DATA_URL_MAX} characters,
- *      the whole serialized body {@link BODY_BYTES_MAX} bytes. Both refuse
- *      with a 422 whose `details.code` names the rule and the field.
+ * 3. {@link assertBodyWithinCaps} — the two caps set on inline images: one
+ *   `data:` URI may be {@link IMAGE_DATA_URL_MAX} characters, the whole
+ *   serialized body {@link BODY_BYTES_MAX} bytes. Both refuse with a 422
+ *   whose `details.code` names the rule and the field.
  *
  * MONEY IS TEXT HERE. `qty`, `rate` and every percentage are the decimal
  * strings the operator typed, never floats; `money.ts` beside this file is
- * the one place that turns them into integer minor units (34 D20, O25).
+ * the one place that turns them into integer minor units.
  */
 import { randomBytes } from 'node:crypto';
 
@@ -241,7 +240,7 @@ export const DEFAULT_BLOCK_ORDER: readonly string[] = [
 
 export const DEFAULT_ACCENT = '#4f46e5';
 
-// --- the caps (34 O18) ----------------------------------------------------------------
+// --- the caps ----------------------------------------------------------------
 
 /** One inline image may be this many characters of data URL (~384 KB of image bytes). */
 export const IMAGE_DATA_URL_MAX = 512 * 1024;
@@ -588,11 +587,11 @@ function customSection(raw: Record<string, unknown>): CustomSection | null {
 }
 
 /**
- * The composition, reconciled (34-T47's orphan rule): every built-in key
- * exactly once, `cus:` keys only for sections that exist, and every existing
- * section referenced — an unreferenced one is appended rather than lost. The
- * comp renders an orphan key as an empty draggable block (1512); a decode
- * here never does.
+ * The composition, reconciled (orphan rule): every built-in key exactly
+ * once, `cus:` keys only for sections that exist, and every existing section
+ * referenced — an unreferenced one is appended rather than lost. The comp
+ * renders an orphan key as an empty draggable block (1512); a decode here
+ * never does.
  */
 export function reconcileBlockOrder(order: readonly string[], custom: readonly CustomSection[]): string[] {
   const customKeys = new Set(custom.map((section) => `cus:${section.id}`));
@@ -720,7 +719,7 @@ export function normalizeInvoiceBody(raw: unknown): InvoiceBody {
   };
 }
 
-// --- the caps (34 O18) ----------------------------------------------------------------
+// --- the caps ----------------------------------------------------------------
 
 /** Every inline image in a body, with the field that holds it — the five slots plus the custom sections'. */
 export function inlineImages(body: InvoiceBody): { field: string; url: string }[] {
@@ -738,9 +737,9 @@ export function inlineImages(body: InvoiceBody): { field: string; url: string }[
 /**
  * Refuses what a save must not persist, with a 422 whose `details.code`
  * names the rule and `details.field` the slot, so the editor can point at
- * the image (34 O18). The per-image cap counts characters of a `data:` URI;
- * a plain URL is never that long. The body cap counts the serialized bytes
- * the row would store.
+ * the image. The per-image cap counts characters of a `data:` URI; a plain
+ * URL is never that long. The body cap counts the serialized bytes the row
+ * would store.
  */
 export function assertBodyWithinCaps(body: InvoiceBody): void {
   for (const { field, url } of inlineImages(body)) {

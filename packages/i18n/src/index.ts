@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/i18n — 8-locale registry, i18next+ICU runtime factory, Intl
- * formatter layer, RTL utils (10-i18n-theming.md). Framework-free;
- * React bindings live in the `@adminium/i18n/react` entry.
+ * formatter layer, RTL utils. Framework-free; React bindings live in
+ * the `@adminium/i18n/react` entry.
  */
 export const PACKAGE_NAME = '@adminium/i18n';
 
@@ -71,7 +71,7 @@ export { loadLocaleBundle } from './resources/lazy.js';
 // it. Import them from `@adminium/i18n/editing` and `@adminium/i18n/resources`
 // instead; the dashboard's entry budget (`check-entry-budget.mjs`) is why.
 //
-// `EN_US_RESOURCES` was here until 10-T06 and it is exactly what that NOTE
+// `EN_US_RESOURCES` was here until and it is exactly what that NOTE
 // predicted: re-exported from the barrel, the deferred `studio` bundle stayed
 // in the entry chunk — and worse, it dragged `overrides.ts`'s DYNAMIC import
 // of the same module in with it, because a module that is also statically

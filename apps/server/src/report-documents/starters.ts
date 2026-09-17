@@ -2,15 +2,15 @@
 /**
  * The twelve starters behind the New modal and the blank document — the
  * comp's `starterDefs()` (475-493), `fromStarter` (494) and `createBlank`
- * (554), under 43-report-builder.md Appendix C and Appendix D (43-T03).
+ * (554).
  *
- * WHAT CHANGED FROM THE COMP, AND WHY. Four seeded strings trip the 17 §2
- * lexicon or 24 D12 ("names no company"); Appendix D lists each one and its
- * replacement, and `report-starters.test.ts` greps every string in this file
- * for the words and for the company name. Nothing else moves: the figures,
- * the fictional account names (Northwind, Globex, Initech, Umbrella,
- * Soylent) and the SaaS flavour (MRR, ARR, churn, CAC, DAU) are a fictional
- * business's own metrics, which 17 §3.4 allows.
+ * WHAT CHANGED FROM THE COMP, AND WHY. Four seeded strings trip the lexicon
+ * or ("names no company"); Appendix D lists each one and its replacement,
+ * and `report-starters.test.ts` greps every string in this file for the
+ * words and for the company name. Nothing else moves: the figures, the
+ * fictional account names (Northwind, Globex, Initech, Umbrella, Soylent)
+ * and the SaaS flavour (MRR, ARR, churn, CAC, DAU) are a fictional
+ * business's own metrics, which allows.
  *
  * A starter is a WHOLE body, not a patch: the comp's `fromStarter` reads
  * `accent`, `kicker`, `reportTitle`, `subtitle` and `blocks` off the def and
@@ -131,7 +131,7 @@ const STARTER_DEFS: readonly StarterDef[] = [
         kind: 'text',
         title: 'Overview',
         // Appendix D row 1 replaces the comp's phrase here; the word it swaps
-        // out is one the 17 §2 sweep catches, so it is named there, not quoted.
+        // out is one the sweep catches, so it is named there, not quoted.
         text: 'Revenue grew 12.4% quarter-over-quarter, driven by expansion in larger accounts. Churn held steady at 1.9%. Net new MRR reached $48.2k — the strongest quarter to date.',
       },
       {
@@ -237,7 +237,7 @@ const STARTER_DEFS: readonly StarterDef[] = [
       {
         kind: 'text',
         title: 'Risks',
-        // Appendix D row 3 replaces the comp's phrase here (17 §2).
+        // Appendix D row 3 replaces the comp's phrase here.
         text: 'Enterprise pipeline slowed slightly; two renewals at risk. Mitigation work in progress with CS.',
       },
     ],
@@ -479,7 +479,7 @@ const STARTER_DEFS: readonly StarterDef[] = [
       {
         kind: 'text',
         title: 'Asks',
-        // Appendix D row 2 replaces the comp's phrase here (17 §2).
+        // Appendix D row 2 replaces the comp's phrase here.
         text: 'Approve the Series B raise timeline and the expanded hiring roadmap for the platform team.',
       },
     ],

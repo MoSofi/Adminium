@@ -3,8 +3,8 @@
  * `chrome` family component barrel — the single lazy-import target for this
  * family's definitions, so the registry metadata graph reaches the
  * @adminium/ui-heavy chrome components (and Radix's dialog/popover/tabs) only
- * through a dynamic `import()` boundary (one lazy chunk for the family,
- * 04 §2.3). Mirrors the kpi/charts/feeds/boards/media/system convention.
+ * through a dynamic `import()` boundary (one lazy chunk for the family).
+ * Mirrors the kpi/charts/feeds/boards/media/system convention.
  */
 export { AvatarStackWidget } from './AvatarStackWidget.js';
 export { BreadcrumbWidget } from './Breadcrumb.js';

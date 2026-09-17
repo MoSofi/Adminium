@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Driver error → typed `AdapterError` mapping — 05-introspection-engine.md §3.
- * better-sqlite3 errors carry a `code` like `SQLITE_CANTOPEN`; filesystem
- * failures carry Node errnos (`ENOENT`, `EACCES`). The Studio wizard and the
- * `diagnostics-readout` widget map `code` to remediation copy, so the
- * mapping here is the whole UX for failure states. SQLite has no network,
- * credentials, or TLS — `HOST_UNREACHABLE` doubles as "file not found /
- * not openable" and `AUTH`/`TLS` never occur.
+ * Driver error → typed `AdapterError` mapping. better-sqlite3 errors carry a
+ * `code` like `SQLITE_CANTOPEN`; filesystem failures carry Node errnos
+ * (`ENOENT`, `EACCES`). The Studio wizard and the `diagnostics-readout` widget
+ * map `code` to remediation copy, so the mapping here is the whole UX for
+ * failure states. SQLite has no network, credentials, or TLS —
+ * `HOST_UNREACHABLE` doubles as "file not found / not openable" and
+ * `AUTH`/`TLS` never occur.
  */
 import { AdapterError, type AdapterErrorCode } from '@adminium/engine/adapter';
 

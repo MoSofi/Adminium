@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Saved-views switcher for the page-crud toolbar (M5-T06). A dropdown that
- * lists the caller's views (+ shared), applies one (round-tripping the grid
- * state exactly), saves the current grid as a new view, and renames / sets
- * default / deletes the active view (delete is type-to-confirm). The binding
- * owns the query + mutations and the applied-view remount; this stays
+ * Saved-views switcher for the page-crud toolbar. A dropdown that lists the
+ * caller's views (+ shared), applies one (round-tripping the grid state
+ * exactly), saves the current grid as a new view, and renames / sets default
+ * / deletes the active view (delete is type-to-confirm). The binding owns
+ * the query + mutations and the applied-view remount; this stays
  * presentational.
  */
 

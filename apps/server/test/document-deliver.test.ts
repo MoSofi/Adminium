@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A drawn document on its way out (34-invoices-add-on.md §7.7; 34-T19).
+ * A drawn document on its way out.
  *
  * ─── WHAT IS WORTH ASKING HERE ─────────────────────────────────────────────
  *
@@ -153,9 +153,9 @@ describe('emailing a drawn document', () => {
   it('attaches THIS document, by resolving the template’s generated token', async () => {
     /*
      * One stored template row serves every recipient because the attachment is
-     * a `{{token}}` the send fills (39 D8). If the token were not passed, the
-     * message would go out with nothing attached — and every other assertion
-     * here would still pass.
+     * a `{{token}}` the send fills. If the token were not passed, the message
+     * would go out with nothing attached — and every other assertion here
+     * would still pass.
      */
     await configureSmtp(meta);
     const fileId = await seedFile(meta);
@@ -292,9 +292,9 @@ describe('the four ways it does not go, each written to the row', () => {
 describe('a document nobody mapped', () => {
   it('goes to the CLAIM that made it, never to an address a caller supplies', async () => {
     /*
-     * §7.6: an intent settles only to "the claimed session's own bound
-     * address". The operator settling a `pending-review` row decides whether,
-     * never where — otherwise this is a way to send somebody else's document
+     * An intent settles only to "the claimed session's own bound address".
+     * The operator settling a `pending-review` row decides whether, never
+     * where — otherwise this is a way to send somebody else's document
      * anywhere.
      */
     await configureSmtp(meta);

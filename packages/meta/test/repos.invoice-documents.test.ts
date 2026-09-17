@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * invoiceDocumentsRepo — the 34-T46 verbs (34-invoices-add-on.md §3.9,
- * Appendix G; wave 0027).
+ * invoiceDocumentsRepo — the verbs (wave 0027).
  *
  * The assertions that carry the wave are the three placements, because the
  * manager's order IS the comp's array order and the comp never sorts: a new

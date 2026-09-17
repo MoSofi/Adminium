@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The deferred `email` namespace's contract (39-email-templates-and-
- * campaigns.md §6.1; the `studio` gate's twin, `studioNamespace.test.ts`):
+ * campaigns.md; the `studio` gate's twin,
+ * `studioNamespace.test.ts`):
  *
  * 1. Every `email:` key must exist in the en-US bundle.
  * 2. Every call site carries an inline fallback that is the catalogue text,

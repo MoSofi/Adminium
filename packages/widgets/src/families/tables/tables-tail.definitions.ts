@@ -19,21 +19,22 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * M7 Wave-4 TAIL additions to the `tables` family (annex §3) — the six list
- * widgets left after the M4 slice and Track F: sparkline-table, top-movers-list,
+ * M7 Wave-4 TAIL additions to the `tables` family (annex) — the six list widgets
+ * left after the M4 slice and Track F: sparkline-table, top-movers-list,
  * ranked-entity-list, accordion-list, comparison-matrix, chip-cloud. With these
  * the family is complete against the annex catalog (acceptance #1).
  *
  * Metadata only — the components load through the `tables-tail-components`
  * barrel via `lazy(() => import(...))`, so the family stays in one lazy chunk
- * and the registry metadata never eagerly pulls the component code (04 §2.3;
- * `qa/chunk-budget.test.ts` walks the definitions' static imports and fails on a
- * `.tsx` edge). Schemas + `demoData` come from the PURE `tables-tail-config.ts`
- * for the same reason. The GREEN LOOP spreads `tablesTailDefinitions` into the
- * registry map beside `tablesWidgetDefinitions` / `tablesTrackFDefinitions`.
+ * and the registry metadata never eagerly pulls the component code
+ * (`qa/chunk-budget.test.ts` walks the definitions' static imports and fails on
+ * a `.tsx` edge). Schemas + `demoData` come from the PURE
+ * `tables-tail-config.ts` for the same reason. The GREEN LOOP spreads
+ * `tablesTailDefinitions` into the registry map beside `tablesWidgetDefinitions`
+ * / `tablesTrackFDefinitions`.
  *
  * Sizing is the annex's grid note converted to 40px half-units
- * (04 §6.1: `h = round(annexRows × 2)`); widths map 1:1.
+ * (`h = round(annexRows × 2)`); widths map 1:1.
  */
 
 export const sparklineTableDefinition: WidgetDefinition = defineWidget({
@@ -102,10 +103,10 @@ export const comparisonMatrixDefinition: WidgetDefinition = defineWidget({
   family: 'tables',
   component: lazy(() => import('./tables-tail-components.js').then((m) => ({ default: m.ComparisonMatrixWidget }))),
   configSchema: comparisonMatrixConfigSchema,
-  // annex §3: "static or config-driven rows {label, cells[bool|string]}" — the
+  // annex: "static or config-driven rows {label, cells[bool|string]}" — the
   // payload IS the composition (a pricing grid is authored, not queried), which
-  // is the `static` shape, exactly as `upload-dropzone` (§8) and `empty-state`
-  // (§12) use it.
+  // is the `static` shape, exactly as `upload-dropzone` and `empty-state`
+  // use it.
   dataContract: 'static',
   sizing: { minW: 6, minH: 6, defaultW: 12, defaultH: 12 }, // annex "full-width section"
   placement: 'grid',
@@ -119,7 +120,7 @@ export const chipCloudDefinition: WidgetDefinition = defineWidget({
   family: 'tables',
   component: lazy(() => import('./tables-tail-components.js').then((m) => ({ default: m.ChipCloudWidget }))),
   configSchema: chipCloudConfigSchema,
-  // annex §3: "string array (+ optional icon per chip)" — carried in the
+  // annex: "string array (+ optional icon per chip)" — carried in the
   // canonical `categorical` envelope (`{ items: [...] }`) so the host's shared
   // `isEmptyByShape` routes an empty cloud to the empty state.
   dataContract: 'categorical',

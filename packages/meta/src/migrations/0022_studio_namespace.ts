@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0022 — the Studio's messages moved namespace, so the operator's
- * rewordings of them have to move with the messages (10-T06).
+ * rewordings of them have to move with the messages.
  *
  * ─── What moved, and why it is not a rename ────────────────────────────────
  *

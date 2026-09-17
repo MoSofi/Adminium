@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/tokens — JS-side constants for the four theming axes plus the pre-hydration
- * script. CSS custom properties live in the sibling .css files; these exports exist so
+ * script. CSS custom properties live in the sibling.css files; these exports exist so
  * ThemeProvider, Storybook toolbars, charts and the desktop shell never hard-code axis
- * values. See 02-design-system.md §2.5.
+ * values.
  */
 
 /** Theme axis. `system` resolves via `matchMedia("(prefers-color-scheme: dark)")`. */
@@ -106,7 +106,7 @@ export const STORAGE_KEYS = {
   dir: "adminium-dir",
 } as const;
 
-/** Baseline of the preference resolution order (BRIEF §7). */
+/** Baseline of the preference resolution order (BRIEF). */
 export const DEFAULT_PREFS = {
   theme: "system",
   accent: "indigo",

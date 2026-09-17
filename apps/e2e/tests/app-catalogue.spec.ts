@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The online app catalogue in Studio (48-self-hosted-downloads.md §6b G8-D7),
- * with nothing fetched.
+ * The online app catalogue in Studio (b G8-D7), with nothing fetched.
  *
  * ─── HOW THIS STAYS OFFLINE, WHICH IS THE POINT ─────────────────────────────
  *

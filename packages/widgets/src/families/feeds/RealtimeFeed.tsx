@@ -11,7 +11,7 @@ import type { StreamEvent } from './feeds-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `realtime-feed` (annex §4) — an interval-driven live stream that prepends
+ * `realtime-feed` (annex) — an interval-driven live stream that prepends
  * incoming events with an insert flash, keeps at most `maxRows`, supports
  * pause/play (buffering while paused, flushing on resume), shows relative
  * timestamps under a bottom fade mask, and carries an optional throughput
@@ -21,7 +21,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `feeds-config`
 // module, and the event shape in `feeds-types`, so the registry metadata graph
-// never reaches this component file (04 §2.3). Re-exported here to keep
+// never reaches this component file. Re-exported here to keep
 // existing import points stable.
 export { realtimeFeedConfigSchema, realtimeFeedDemoData } from './feeds-config.js';
 export type { RealtimeFeedConfig } from './feeds-config.js';

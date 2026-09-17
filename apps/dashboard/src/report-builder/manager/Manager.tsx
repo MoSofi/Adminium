@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The report manager (43-report-builder.md Appendix A M1–M17): the topbar's
- * title, subtitle and ONE primary *New {template|report}*; the toolbar; the
- * gallery or list of cards; the four empty states; and the card actions.
+ * The report manager (M1–M17): the topbar's title, subtitle and ONE primary
+ * *New {template|report}*; the toolbar; the gallery or list of cards; the
+ * four empty states; and the card actions.
  *
  * TWO KINDS, ONE SCREEN. The Templates/Reports tray filters `kind`; the
  * counts come with every list reply, unfiltered, so the badges never lag the
@@ -11,10 +11,10 @@
  * thousands, and a keystroke must not be a round trip.
  *
  * WHAT THE COMP DOES NOT DRAW IS NOT HERE: no group segment, no actions menu,
- * no archive, no import, no export (43 §5). Delete is a hard delete behind the
- * comp's own confirm. Duplicate lands the copy after its source and stays on
- * the manager (comp 555); the success toast with Undo is the house pattern
- * (34 DEP-20), added on top of the comp.
+ * no archive, no import, no export. Delete is a hard delete behind the comp's
+ * own confirm. Duplicate lands the copy after its source and stays on the
+ * manager (comp 555); the success toast with Undo is the house pattern (34
+ * DEP-20), added on top of the comp.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';

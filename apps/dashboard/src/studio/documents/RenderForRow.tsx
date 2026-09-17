@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * §3.7 step 8 — "Render for row…" (34-invoices-add-on.md; 34-T14).
+ * "Render for row…".
  *
  * ─── WHY A MAPPING NEEDS THIS AT ALL ───────────────────────────────────────
  *
@@ -20,7 +20,7 @@
  *
  * ─── AND THE DOCUMENT IS A LINK, NOT A POP-UP ──────────────────────────────
  *
- * §3.7 says the document "opens in the sandboxed print route". Rendering is a
+ * The document "opens in the sandboxed print route". Rendering is a
  * JOB: the row does not exist when the request resolves, so opening it means
  * `window.open` from a timer or a socket callback seconds later — which every
  * browser blocks, because it is exactly the shape of an unsolicited pop-up.

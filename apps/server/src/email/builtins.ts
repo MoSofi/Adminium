@@ -9,9 +9,9 @@
  * bootstrap.ts): idempotent natural-key upserts, re-run at EVERY boot so an
  * existing install picks up new built-ins without a migration.
  *
- * WHO OWNS A ROW. `is_builtin_copy` is the whole distinction (07-meta-store.md
- * §3.28): true means "the server wrote this verbatim", and every editor write
- * clears it to false. So this module:
+ * WHO OWNS A ROW. `is_builtin_copy` is the whole distinction: true means "the
+ * server wrote this verbatim", and every editor write clears it to false. So
+ * this module:
  *
  *   - inserts a missing row  → `is_builtin_copy = true`
  *   - refreshes a `true` row → only when the rendered content actually
@@ -20,17 +20,16 @@
  *   - NEVER touches a `false` row — an admin's wording is theirs, and an
  *     upgrade that silently reverted it would be indistinguishable from data
  *     loss
- *   - NEVER touches an ARCHIVED row either (39-email-templates-and-campaigns.md
- *     D4): archiving is a human decision about that row, and a seed that
- *     resurrected a pristine built-in at the next restart would undo it
- *     silently. "Reset to built-in" ({@link resetBuiltinEmailTemplate}) is
- *     the explicit way back.
+ * - NEVER touches an ARCHIVED row either: archiving is a human decision about
+ *   that row, and a seed that resurrected a pristine built-in at the next
+ *   restart would undo it silently. "Reset to built-in" ({@link
+ *   resetBuiltinEmailTemplate}) is the explicit way back.
  *
- * THE ENVELOPE (39 D5). The comp's footer is a fixed field, not a block, so a
+ * THE ENVELOPE. The comp's footer is a fixed field, not a block, so a
  * built-in is expressed as `{ blocks, footer }` and seeded that way. Rows
  * written before wave 0026 hold the footer as a trailing block; the repo
- * lifts it on read, so the change detection below compares like with like
- * and rewrites a pristine legacy row exactly once.
+ * lifts it on read, so the change detection below compares like with like and
+ * rewrites a pristine legacy row exactly once.
  *
  * LOCALE. Rows are keyed `(key, locale)`, so the seed writes one row per
  * COMPILED locale and the copy comes from `createServerI18n` — this module is
@@ -54,7 +53,7 @@
  *
  * BRANDING. `{{appName}}` only, which every call site already passes from
  * `branding.appName` (default "Adminium"). `brand` stays null on a built-in:
- * the workspace's name and accent are what the banner shows (39 D6).
+ * the workspace's name and accent are what the banner shows.
  */
 
 import { BUILTIN_LOCALE_IDS, type BuiltinLocaleId } from '@adminium/i18n';
@@ -69,7 +68,7 @@ import {
 
 import { loadOverrideMap } from '../i18n/server-i18n.js';
 
-/** One stored block, in the `{ block, id?, label?, data? }` shape §3.28 holds. */
+/** One stored block, in the `{ block, id?, label?, data? }` shape holds. */
 export type EmailTemplateBlock = Record<string, unknown>;
 
 export interface BuiltinEmailTemplate {
@@ -78,13 +77,13 @@ export interface BuiltinEmailTemplate {
   name: string;
   subject: string;
   blocks: EmailTemplateBlock[];
-  /** The fixed footer (39 D5). */
+  /** The fixed footer. */
   footer: string;
   category: EmailCategory;
   /**
-   * What travels with the message (39 D8). A `generated` entry names a
-   * `{{token}}` the enqueue site fills with a file id per send — which is how
-   * one stored row attaches a DIFFERENT document to every recipient.
+   * What travels with the message. A `generated` entry names a `{{token}}`
+   * the enqueue site fills with a file id per send — which is how one stored
+   * row attaches a DIFFERENT document to every recipient.
    */
   attachments?: EmailAttachment[];
 }
@@ -104,7 +103,7 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
   'user-invite',
   'notification',
   /*
-   * DEP-39: 34 §7.7 writes this key as `document.ready`. Every other template
+   * DEP-39: the plan wrote this key as `document.ready`. Every other template
    * key in this file, and every one an operator sees in the Email Templates
    * manager, is kebab-case — a single dotted key would be the odd one out in a
    * list of four. The dot survives where it belongs: the AUDIT action really is
@@ -302,14 +301,14 @@ function notificationTemplate(t: Translate): BuiltinEmailTemplate {
 
 
 /**
- * The document a mapping drew, on its way to the person it names (§7.7).
+ * The document a mapping drew, on its way to the person it names.
  *
  * ─── THE ATTACHMENT IS THE MESSAGE ─────────────────────────────────────────
  *
  * The bytes travel with it, as a `generated` attachment whose token the send
- * fills with that document's own file id (39 D8). So one stored row serves
- * every recipient and every document, and nothing here has to know what an
- * invoice is.
+ * fills with that document's own file id. So one stored row serves every
+ * recipient and every document, and nothing here has to know what an invoice
+ * is.
  *
  * ─── AND THE BUTTON IS OPTIONAL WITHOUT BEING CONDITIONAL ──────────────────
  *
@@ -442,13 +441,13 @@ export async function seedBuiltinEmailTemplates(meta: MetaDb, at: number = Date.
 }
 
 /**
- * "Reset to built-in" (39 D4): re-seed ONE `(key, locale)` from the built-in
+ * "Reset to built-in": re-seed ONE `(key, locale)` from the built-in
  * definition, in the same request that would otherwise have deleted it. A
  * built-in key can never be absent — a deleted `password-reset/en_US` would be
  * a forgot-password that 202s into the void — so the archived row's "Delete
- * for good" is this instead. Everything human about the row goes: the
- * wording, the brand, the attachments, the archive mark; `enabled` comes back
- * on, because a reset is a request for the shipped behaviour.
+ * for good" is this instead. Everything human about the row goes: the wording,
+ * the brand, the attachments, the archive mark; `enabled` comes back on,
+ * because a reset is a request for the shipped behaviour.
  *
  * Returns null when `key` is not a built-in.
  */

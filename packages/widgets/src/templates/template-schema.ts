@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Page-template manifest schema — 04-widget-registry.md §10, reproduced verbatim.
+ * Page-template manifest schema, reproduced verbatim.
  *
  * A page template is **layout + slot constraints**, nothing more: it never names
  * a concrete widget instance or a binding. `composeTemplate` (`./compose.ts`)
  * turns a manifest + a ranked candidate list into the in-memory intermediate the
- * Engine wraps into the standard page envelope (01-architecture.md §6.1).
+ * Engine wraps into the standard page envelope.
  *
  * The manifests themselves ship as checked-in JSON (`page-*.json`) so the
  * marketplace can add `x-<vendor>-page-*` templates under the identical schema
- * without a code change (04 §10, §9). `./manifests.ts` parses them at module
- * init — the parse applies the `required` / `fallback` defaults declared below,
- * which is why every consumer works with `PageTemplate` (parsed output) rather
- * than the raw JSON input type.
+ * without a code change. `./manifests.ts` parses them at module init — the
+ * parse applies the `required` / `fallback` defaults declared below, which is
+ * why every consumer works with `PageTemplate` (parsed output) rather than the
+ * raw JSON input type.
  *
- * SCHEMA FIDELITY: the object below is a verbatim transcription of the §10
- * listing. Deliberately no extra `.refine()`s, no `.strict()`, no added fields —
- * the doc is the contract, and drifting from it here would silently invalidate
+ * SCHEMA FIDELITY: the object below is a verbatim transcription of the listing.
+ * Deliberately no extra `.refine()`s, no `.strict()`, no added fields — the doc
+ * is the contract, and drifting from it here would silently invalidate
  * third-party manifests written against the published spec. Constraints the doc
  * does not encode (e.g. "a slot with an empty `accepts` can never be filled")
  * are enforced by `./crosscheck.ts` as *lint over shipped manifests*, not by
@@ -26,19 +26,19 @@ import { z } from 'zod';
 
 import { dataShapeSchema } from '../page-config/data-shapes.js';
 
-/** How an unfilled **optional** slot degrades (04 §10). */
+/** How an unfilled **optional** slot degrades. */
 export const slotFallbackSchema = z.enum(['omit', 'empty-state']);
 export type SlotFallback = z.infer<typeof slotFallbackSchema>;
 
-/** Tiling direction for a repeating slot (04 §10). */
+/** Tiling direction for a repeating slot. */
 export const slotRepeatFlowSchema = z.enum(['row', 'column']);
 export type SlotRepeatFlow = z.infer<typeof slotRepeatFlowSchema>;
 
 /**
- * What a slot will accept. `shapes` matches by **data contract** (04 §3);
- * `widgets` matches by **explicit registry-id allowlist**. Both may be present —
- * a candidate matching *either* is accepted (04 §10: "candidate must match by
- * contract… or by explicit id allowlist").
+ * What a slot will accept. `shapes` matches by **data contract**; `widgets`
+ * matches by **explicit registry-id allowlist**. Both may be present — a
+ * candidate matching *either* is accepted ("candidate must match by contract… or
+ * by explicit id allowlist").
  */
 export const slotAcceptsSchema = z.object({
   shapes: z.array(dataShapeSchema).optional(), // candidate must match by contract…
@@ -47,10 +47,10 @@ export const slotAcceptsSchema = z.object({
 export type SlotAccepts = z.infer<typeof slotAcceptsSchema>;
 
 /**
- * Slot geometry on the 12-column grid. `h` is in **40 px half-units** (04 §6.1)
- * — the same convention `pageLayoutSchema` stores, so `area` copies straight
- * into a layout item. For a repeating slot this is the geometry of *one*
- * instance; `repeat.flow` tiles the rest.
+ * Slot geometry on the 12-column grid. `h` is in **40 px half-units** — the
+ * same convention `pageLayoutSchema` stores, so `area` copies straight into a
+ * layout item. For a repeating slot this is the geometry of *one* instance;
+ * `repeat.flow` tiles the rest.
  */
 export const slotAreaSchema = z.object({
   x: z.number(),

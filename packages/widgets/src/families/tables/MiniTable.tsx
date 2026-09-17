@@ -9,7 +9,7 @@ import type { GridColumnSpec, GridRow } from './column-spec.js';
 import type { WidgetEvent } from '../../registry/types.js';
 
 /**
- * `mini-table` (annex §3) — borderless compact row list inside a dashboard
+ * `mini-table` (annex) — borderless compact row list inside a dashboard
  * card ("Recent orders"): 2–3 mapped columns (name · status pill · mono
  * amount), LIMIT 3–6 rows, optional "View all" drill-through.
  */

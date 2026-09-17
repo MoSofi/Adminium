@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Prompt/run creation service (06-llm-assist.md §10.4 + §10.5).
+ * Prompt/run creation service.
  *
- * THE LIFT (M10-T01): everything here used to live inline inside the
- * `POST /api/v1/llm/runs` handler. The CLI's `adminium generate-prompt` needs
- * the exact same sequence — resolve the connection's latest snapshot, read the
- * configured provider for a direct run, collect §4.2 stats, `createRun`, and
- * park a BYO run in `awaiting_response`. Rather than let the CLI reimplement it
- * (the M10 risk register's named failure mode: "CLI/Docker parity with Studio
- * wizard drifts"), the orchestration moved here and BOTH front doors call it:
- * the route is now a thin HTTP adapter over `createRunForConnection`.
+ * THE LIFT: everything here used to live inline inside the `POST
+ * /api/v1/llm/runs` handler. The CLI's `adminium generate-prompt` needs the
+ * exact same sequence — resolve the connection's latest snapshot, read the
+ * configured provider for a direct run, collect stats, `createRun`, and park a
+ * BYO run in `awaiting_response`. Rather than let the CLI reimplement it (the
+ * M10 risk register's named failure mode: "CLI/Docker parity with Studio wizard
+ * drifts"), the orchestration moved here and BOTH front doors call it: the
+ * route is now a thin HTTP adapter over `createRunForConnection`.
  *
  * What stays out: HTTP concerns (status codes, DTO mapping, RBAC, audit) belong
  * to the route; process/exit concerns belong to the CLI. This service throws
@@ -53,13 +53,13 @@ export interface CollectRunStatsInput {
   snapshotId: string;
   /** The classified schema IR from the run's snapshot (privacy flags + types). */
   model: DatabaseModel;
-  /** Sampling opt-in (§4.2) — sample-free when `null`. */
+  /** Sampling opt-in — sample-free when `null`. */
   sampling: Sampling;
 }
 
 /**
- * Collects §4.2 aggregate statistics for a run's snapshot. Injected so callers
- * stay testable WITHOUT a live source database; the app-wiring layer supplies a
+ * Collects aggregate statistics for a run's snapshot. Injected so callers stay
+ * testable WITHOUT a live source database; the app-wiring layer supplies a
  * `ConnectionManager`-backed implementation.
  */
 export type CollectRunStats = (input: CollectRunStatsInput) => Promise<readonly StatsResult[]>;
@@ -73,15 +73,15 @@ export interface CreateRunForConnectionInput {
   path: 'byo' | 'provider';
   /** Requested output locales; `en_US` is always included by the prompt builder. */
   locales?: readonly LocaleCode[] | undefined;
-  /** Requested decision groups (§4.4); empty/omitted ⇒ all sections. */
+  /** Requested decision groups; empty/omitted ⇒ all sections. */
   sections?: readonly RequestedSection[] | undefined;
-  /** Sampling opt-in (§4.2); `null` = sample-free (default). */
+  /** Sampling opt-in; `null` = sample-free (default). */
   sampling?: Sampling | undefined;
   createdBy?: string | null | undefined;
 }
 
 export interface CreateRunForConnectionResult extends CreateRunResult {
-  /** The run AFTER the BYO `awaiting_response` transition (§10.2 step 4). */
+  /** The run AFTER the BYO `awaiting_response` transition. */
   run: LlmRun;
   /** The snapshot the prompt was built against. */
   snapshotId: string;
@@ -92,10 +92,10 @@ export interface PromptServiceDeps {
   runService: RunService;
   /**
    * `LLM_ALLOWED_TEMPLATES` / `LLM_ALLOWED_WIDGETS` from `@adminium/widgets` —
-   * INJECTED, since the server tree must not import the widgets package (01 §2.3).
+   * INJECTED, since the server tree must not import the widgets package.
    */
   allowed: AllowedVocabularies;
-  /** §4.2 stats collector (default {@link NO_STATS}). */
+  /** Stats collector (default {@link NO_STATS}). */
   collectStats?: CollectRunStats | undefined;
 }
 
@@ -133,7 +133,7 @@ export function createPromptService(deps: PromptServiceDeps) {
       const sections = (input.sections ?? []) as RequestedSection[];
       const sampling: Sampling = input.sampling ?? null;
 
-      // §9: BYO runs record no provider/model — only the direct path reads them.
+      // BYO runs record no provider/model — only the direct path reads them.
       let provider: ProviderId | null = null;
       let providerModel: string | null = null;
       if (input.path === 'provider') {

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The forward type map — `LogicalType` → a native DDL type, per dialect.
- * 35-schema-authoring.md D30, 35-T04.
  *
  * ─── Why this is not `install-ddl.ts`'s map ────────────────────────────────
  *

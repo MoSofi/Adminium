@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * IS THIS RULE COMPLETE, AND DOES IT NAME THINGS THAT EXIST?
- * (42-automations-and-workflow-logs.md §5, D12, 42-T14.)
  *
  * Two different questions, deliberately separated:
  *
@@ -105,7 +104,7 @@ export function isActionComplete(action: AutomationAction): boolean {
 
 export interface ResolveContext {
   view: SnapshotView | null;
-  /** Live template keys — an archived one is not offerable (39 D4). */
+  /** Live template keys — an archived one is not offerable. */
   templateKeys: ReadonlySet<string>;
   blockLoopback: boolean;
 }
@@ -294,7 +293,7 @@ function checkValues(
   }
 }
 
-/** Every §5 refusal that needs a schema. Throws 422; returns the trigger table. */
+/** Every refusal that needs a schema. Throws 422; returns the trigger table. */
 export function resolveRule(
   trigger: AutomationTrigger,
   graph: AutomationGraph,

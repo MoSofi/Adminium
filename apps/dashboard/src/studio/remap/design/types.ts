@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Design mode's wire types — 35-schema-authoring.md §3.1, §3.2.
+ * The Design mode's wire types.
  *
  * Mirrored from the engine rather than imported: `apps/dashboard` cannot
  * depend on `@adminium/engine` for anything but its published types, and this
@@ -70,8 +70,7 @@ export interface DesiredTable {
 }
 
 /**
- * Add one column to a table that already exists
- * (38-files-library-and-attachments.md D6).
+ * Add one column to a table that already exists.
  *
  * The narrow door, for a caller that holds a snapshot rather than the
  * designer's buffer: restating a whole table through {@link SchemaEdit.upsertTables}
@@ -146,7 +145,7 @@ export interface SchemaPlan {
     acknowledged: boolean;
     openable: boolean;
   }[];
-  /** A previous apply that never reported an outcome (35-T36). */
+  /** A previous apply that never reported an outcome. */
   unfinished: { id: string; startedAt: number } | null;
 }
 

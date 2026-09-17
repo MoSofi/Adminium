@@ -76,7 +76,7 @@ function walk(): { modules: string[]; bare: Edge[] } {
         bare.push({ from: file, specifier });
         continue;
       }
-      // Checked-in manifests (04 §10) are data, not code.
+      // Checked-in manifests are data, not code.
       if (specifier.endsWith('.json')) continue;
       queue.push(resolveRelative(file, specifier));
     }

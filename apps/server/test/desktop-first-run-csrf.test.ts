@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The desktop first-run wizard's REQUEST SEQUENCE, against the composed server
- * in the desktop topology (11-electron.md §6; 08-server-api.md §7 item 4).
+ * in the desktop topology.
  *
  * ─── THE REGRESSION THIS EXISTS TO CATCH ─────────────────────────────────────
  *
- * §7 item 4's active CSRF check demands a session-bound token from any mutation
- * that carries a session AND browser provenance. `GET /bootstrap` issued the
- * token, and every authed surface in the SPA reaches `/bootstrap` first — so
- * that was, briefly, believed to be enough.
+ * The active CSRF check demands a session-bound token from any mutation that
+ * carries a session AND browser provenance. `GET /bootstrap` issued the token,
+ * and every authed surface in the SPA reaches `/bootstrap` first — so that was,
+ * briefly, believed to be enough.
  *
  * The desktop wizard is the counterexample, and it is not an edge case: it is
  * the ONLY way a fresh install becomes usable. `/desktop/setup` hangs off the
@@ -222,7 +222,7 @@ class WizardClient {
   }
 }
 
-/** Reads the `code` out of the §1.4 error envelope. */
+/** Reads the `code` out of the error envelope. */
 function errorCode(res: { json: () => unknown }): string | undefined {
   return (res.json() as { error?: { code?: string } }).error?.code;
 }
@@ -238,7 +238,7 @@ describe('desktop first-run wizard — the whole sequence, as the renderer makes
     expect(state.statusCode).toBe(200);
 
     // ── Step 3: create the super admin. THIS MINTS THE SESSION, and from here
-    // on every mutation is inside §7 item 4's scope.
+    // on every mutation is inside scope.
     const created = await client.post('/api/v1/setup/super-admin', {
       name: ADMIN.name,
       email: ADMIN.email,

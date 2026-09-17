@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Provider catalog for Settings → AI (06-llm-assist.md §3.1 provider matrix,
- * §10.1 provider cards). Pure presentation metadata for the four self-host
- * direct-API providers — Anthropic, OpenAI, an OpenAI-compatible endpoint, and
- * local Ollama. `adminium-managed` (Cloud AI credits, §11) is intentionally
- * absent: it only appears on Cloud instances (M12) and this build is self-host.
+ * Provider catalog for Settings → AI (provider matrix, provider cards). Pure
+ * presentation metadata for the four self-host direct-API providers —
+ * Anthropic, OpenAI, an OpenAI-compatible endpoint, and local Ollama.
+ * `adminium-managed` (Cloud AI credits) is intentionally absent: it only
+ * appears on Cloud instances (M12) and this build is self-host.
  *
- * The dashboard cannot import `@adminium/llm` (01 §2.3, dep-cruiser), so the
- * static fallback model ids mirror `packages/llm/src/providers/model-catalog.ts`
- * and the contract-version strings mirror the constants in
+ * The dashboard cannot import `@adminium/llm` (dep-cruiser), so the static
+ * fallback model ids mirror `packages/llm/src/providers/model-catalog.ts` and
+ * the contract-version strings mirror the constants in
  * `packages/llm/src/{prompt/templates/v1.ts,response/schema.ts}` — kept in sync
  * by hand, exactly as `studio/ai/api.ts` mirrors the route Zod schemas. They are
- * copy/labels only; the server remains the source of truth for what actually runs.
+ * copy/labels only; the server remains the source of truth for what actually
+ * runs.
  */
 import { Boxes, Server, Sparkles, Bot, type LucideIcon } from 'lucide-react';
 
 import type { LlmModelInfo, LlmProvider } from './api.js';
 
-/** The direct-API providers a self-host instance can configure (§3.1, minus Cloud-only). */
+/** The direct-API providers a self-host instance can configure (minus
+ * Cloud-only). */
 export type ConfigurableProvider = Exclude<LlmProvider, 'adminium-managed'>;
 
 export const CONFIGURABLE_PROVIDERS: readonly ConfigurableProvider[] = [
@@ -27,7 +29,7 @@ export const CONFIGURABLE_PROVIDERS: readonly ConfigurableProvider[] = [
   'ollama',
 ];
 
-/** Contract version strings surfaced in the BYO panel (§4.3). Display-only mirrors. */
+/** Contract version strings surfaced in the BYO panel. Display-only mirrors. */
 export const PROMPT_VERSION = 'adminium.prompt/v1.2';
 export const SCHEMA_VERSION = 'adminium.llm/v1';
 
@@ -47,7 +49,7 @@ export interface ProviderCatalogEntry {
   keyPlaceholder?: string;
   /**
    * The model is always a free-text field (no catalog / live list to pick from) —
-   * true for OpenAI-compatible endpoints (§10.1). Ollama has a live `/api/tags`
+   * true for OpenAI-compatible endpoints. Ollama has a live `/api/tags`
    * list but no static fallback, so it free-texts only when the live list is empty.
    */
   freeTextModel: boolean;

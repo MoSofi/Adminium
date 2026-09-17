@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The manager's one view preference — gallery or list — kept in
- * `localStorage` so it survives a reload (43-report-builder.md Appendix A S4,
- * M6; the invoice surface's hook under its own key). It is a convenience of
- * one browser, not workspace state: nothing about a report changes when
- * someone prefers the list, so it never touches the server.
+ * `localStorage` so it survives a reload (S4, M6; the invoice surface's hook
+ * under its own key). It is a convenience of one browser, not workspace
+ * state: nothing about a report changes when someone prefers the list, so it
+ * never touches the server.
  *
  * ONE preference, not two: this comp draws no group segment (M7 — the
- * grouping the invoice manager has is absent here, 43 §5 item 3).
+ * grouping the invoice manager has is absent here).
  *
  * Every storage access is wrapped: a private window, a full quota or a
  * locked-down embed throws on `localStorage` itself, and the page must render

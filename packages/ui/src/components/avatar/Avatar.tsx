@@ -6,9 +6,9 @@ import { cn } from '../../lib/cn.js';
 import type { Tone } from '../icon-tile/index.js';
 
 /**
- * The 5 fixed deterministic avatar gradients (research/design-system.md §3
- * Tier 1, 03-component-library.md §7.3). The hash below is FROZEN — changing
- * it re-colors every avatar in every install (major-version change).
+ * The 5 fixed deterministic avatar gradients (research/design-system.md Tier
+ * 1). The hash below is FROZEN — changing it re-colors every avatar in every
+ * install (major-version change).
  */
 export const AVATAR_GRADIENTS = [
   ['#6366f1', '#a855f7'],
@@ -42,7 +42,7 @@ export function avatarGradientIndex(initials: string): number {
 
 /**
  * Initials = first grapheme of the first + last word of `name`, uppercased
- * via `toLocaleUpperCase(locale)` (03-component-library.md §7.3).
+ * via `toLocaleUpperCase(locale)`.
  */
 export function getInitials(name: string, locale?: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -121,7 +121,7 @@ export interface AvatarProps
 /**
  * Avatar — initials over 1 of 5 fixed deterministic gradients, or an image
  * with initials fallback; circle / rounded-square shapes; sizes 18–92px;
- * optional presence dot (research/design-system.md §3 Tier 1).
+ * optional presence dot (research/design-system.md Tier 1).
  */
 export function Avatar({
   name,

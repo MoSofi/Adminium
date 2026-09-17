@@ -40,14 +40,14 @@ export {
 export type { LiveTimerConfig, SyncStatusCardConfig };
 
 /**
- * TRACK OPS — the CONNECTION/CLOCK half of the annex §13 ops cards, grouped in
- * one module because both render a live state machine over an INJECTED clock and
+ * TRACK OPS — the CONNECTION/CLOCK half of the annex ops cards, grouped in one
+ * module because both render a live state machine over an INJECTED clock and
  * share the same "now" discipline:
  *
  *   `sync-status-card`, `live-timer`.
  *
  * THE CLOCK POLICY, which is the whole reason these two sit together
- * (04 §7.7 / qa/determinism.test.ts):
+ * (/ qa/determinism.test.ts):
  *
  *   Neither component reads the wall clock at MODULE or RENDER scope. "Now"
  *   resolves through `resolveNow(config.format.referenceTime, fallback)`, and the
@@ -63,9 +63,9 @@ export type { LiveTimerConfig, SyncStatusCardConfig };
  *
  * NEITHER WRITES: the annex's "stop auto-creates a time entry" and "Sync now"
  * both emit intents through `onEvent` and the host runs them through the CRUD
- * API with undo + audit (04 §2.1). Unbound → no affordance is rendered: there is
- * nowhere to send the intent, and a Stop that silently drops the run is worse
- * than no button.
+ * API with undo + audit. Unbound → no affordance is rendered: there is nowhere
+ * to send the intent, and a Stop that silently drops the run is worse than no
+ * button.
  */
 
 // ── sync-status-card ────────────────────────────────────────────────────────

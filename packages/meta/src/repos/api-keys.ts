@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * apiKeysRepo — adminium_api_keys (07-meta-store.md §3.7).
- * Stripe-style `adm_live_…`: the secret is shown once by the server; only the
- * SHA-256 hash lands here. The key acts with its role's permissions.
+ * apiKeysRepo — adminium_api_keys. Stripe-style `adm_live_…`: the secret is
+ * shown once by the server; only the SHA-256 hash lands here. The key acts
+ * with its role's permissions.
  */
 
 import type { Selectable } from 'kysely';

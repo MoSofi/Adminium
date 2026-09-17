@@ -221,7 +221,7 @@ export function makeModel(): EffectiveModel {
         onUpdate: null,
         selfReferential: false,
         confidence: 1,
-        // A declared FK carries the catalog's own name (35-T33); an inferred
+        // A declared FK carries the catalog's own name; an inferred
         // one has no constraint to name.
         constraintName: 'fk_orders_customers',
       },

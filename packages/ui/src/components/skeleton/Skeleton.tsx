@@ -8,7 +8,7 @@ import { cn } from '../../lib/cn.js';
 /**
  * Shimmer placeholder using the tokens `.nb-skel` sweep (surface-3 ↔
  * surface-2, 1.4s; static under reduced motion). `aria-hidden` — the loading
- * *container* carries `aria-busy` (03-component-library.md §5.1).
+ * *container* carries `aria-busy`.
  */
 export const skeletonVariants = cva('nb-skel block', {
   variants: {
@@ -46,7 +46,7 @@ export function Skeleton({ className, rounded, width, height, ...props }: Skelet
         height !== undefined && 'h-[var(--adm-h)]',
         className,
       )}
-      // Sanctioned escape hatch: CSS custom properties only (02-design-system.md §8).
+      // Sanctioned escape hatch: CSS custom properties only.
       style={{ '--adm-w': toCssSize(width), '--adm-h': toCssSize(height) }}
       {...props}
     />

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The card's thumbnail — a miniature of the sheet (34-invoices-add-on.md
- * Appendix E §M10; comp 245-250, props 1432-1449): the accent logo chip with
- * the brand word and the title word, two skeleton address rules, one row per
- * line item (three at most) whose amount bar cycles 30/40/50 px at 55 %
- * accent, and the TOTAL line in accent mono. It is drawn from the row's
- * denormalised summary, never from the body (§3.9).
+ * The card's thumbnail — a miniature of the sheet (comp 245-250, props
+ * 1432-1449): the accent logo chip with the brand word and the title word,
+ * two skeleton address rules, one row per line item (three at most) whose
+ * amount bar cycles 30/40/50 px at 55 % accent, and the TOTAL line in accent
+ * mono. It is drawn from the row's denormalised summary, never from the
+ * body.
  *
  * The accent is DATA, so it rides the `--adm-invoice-accent` custom property
  * and the classes read it back; there is no `style` colour. The chip's white
  * glyph is the comp's own `#fff` (1445). The paper follows the theme here —
  * the comp paints it `var(--surface)` — because this is a thumbnail of the
- * manager, not the always-light sheet (§S6).
+ * manager, not the always-light sheet.
  */
 import { Hexagon } from 'lucide-react';
 

@@ -19,17 +19,17 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * TRACK MEDIA — `media` family registry metadata (annex §8; 04-T10). Metadata
- * only: the @adminium/ui-heavy widget components load through the
- * `media-track-components` barrel via `lazy(() => import(...))`, so the family
- * stays in ONE lazy chunk and the registry metadata never eagerly pulls the
- * component code into a sibling family's bundle (04 §2.3; the chunk-budget gate).
- * Schemas + `demoData` come from the PURE `media-config.ts` for the same reason.
- * The GREEN LOOP spreads `mediaTrackDefinitions` into the registry map. Widget
- * ids match the annex catalog exactly (acceptance #1).
+ * TRACK MEDIA — `media` family registry metadata (annex). Metadata only: the
+ * @adminium/ui-heavy widget components load through the `media-track-components`
+ * barrel via `lazy(() => import(...))`, so the family stays in ONE lazy chunk and
+ * the registry metadata never eagerly pulls the component code into a sibling
+ * family's bundle (the chunk-budget gate). Schemas + `demoData` come from the
+ * PURE `media-config.ts` for the same reason. The GREEN LOOP spreads
+ * `mediaTrackDefinitions` into the registry map. Widget ids match the annex
+ * catalog exactly (acceptance #1).
  *
  * Sizing is the annex's grid note converted to 40px half-units
- * (04 §6.1: `h = round(annexRows × 2)`); widths map 1:1.
+ * (`h = round(annexRows × 2)`); widths map 1:1.
  *
  * `capabilities.editsData` marks the widgets that emit `mutate` intents (star a
  * file, delete an attachment, edit a caption, add/remove a link) — the host runs
@@ -55,8 +55,8 @@ export const uploadDropzoneDefinition: WidgetDefinition = defineWidget({
   family: 'media',
   component: lazy(() => import('./media-track-components.js').then((m) => ({ default: m.UploadDropzoneWidget }))),
   configSchema: uploadDropzoneConfigSchema,
-  // annex §8: "none (emits files); constraints from config" — `static` is the
-  // §3 shape for a widget whose payload is its config.
+  // annex: "none (emits files); constraints from config" — `static` is the
+  // shape for a widget whose payload is its config.
   dataContract: 'static',
   sizing: { minW: 4, minH: 4, defaultW: 6, defaultH: 4 }, // annex "min 4×2, default 6×2"
   placement: 'grid',

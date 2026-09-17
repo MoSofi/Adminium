@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * @adminium/add-on-contracts — the shapes an add-on is written against
- * (24-marketplace-wave-4.md §5).
+ * @adminium/add-on-contracts — the shapes an add-on is written
+ * against.
  *
  * Two halves, kept apart on purpose. THIS half is types, registries and Zod
  * validators with zero `node:` imports, so the storefront, the example-app SPAs
- * and Electron can all use it (01 §3). The conformance suites live behind
+ * and Electron can all use it. The conformance suites live behind
  * `@adminium/add-on-contracts/testing`, which may import vitest.
  */
 export const PACKAGE_NAME = '@adminium/add-on-contracts';

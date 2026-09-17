@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-calendar` template stories (09 §7.6): the Calendar Scheduler comp
- * (month + agenda + composer), the Release Calendar comp (legend + upcoming
- * + range toolbar), a demo-mode render, and the degradation states. Typed
- * loosely — the 04-T17 QA harness wires widgets stories into Storybook.
+ * `page-calendar` template stories: the Calendar Scheduler comp (month +
+ * agenda + composer), the Release Calendar comp (legend + upcoming + range
+ * toolbar), a demo-mode render, and the degradation states. Typed loosely —
+ * the QA harness wires widgets stories into Storybook.
  */
 import { PageCalendar } from './PageCalendar.js';
 
@@ -107,7 +107,7 @@ export const ReleaseCalendar = {
   ),
 };
 
-/** No host states: every pane seeds from deterministic demo data (04 §5.3). */
+/** No host states: every pane seeds from deterministic demo data. */
 export const DemoMode = {
   render: () => <PageCalendar config={schedulerConfig} referenceDate={TODAY} />,
 };

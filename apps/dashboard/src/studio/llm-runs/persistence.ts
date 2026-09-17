@@ -3,9 +3,9 @@
  * Draft review-state persistence (acceptance criterion 12: "accept/reject state
  * persists across reload until applied"). Before a run is applied there is no
  * server column for the in-progress accept set — the server only records the
- * `review` id-lists at apply time (§8.3) — so the reviewer's checkbox state is
- * parked in `localStorage`, keyed by run id, and cleared once the run is
- * applied (its state then lives authoritatively on the run).
+ * `review` id-lists at apply time — so the reviewer's checkbox state is parked
+ * in `localStorage`, keyed by run id, and cleared once the run is applied (its
+ * state then lives authoritatively on the run).
  *
  * All access is defensively wrapped: a storage-less or quota-exhausted
  * environment degrades to "no draft" rather than throwing into React render.

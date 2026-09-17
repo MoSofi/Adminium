@@ -4,22 +4,22 @@ import { z } from 'zod';
 /**
  * The typed `config.detail` block of a `page-crud` body — the record-page
  * contract every generated crud page has stored since the body vocabulary was
- * written (30-record-pages.md §0.1: `generate/crud-body.ts` emits
- * `detail: { template: 'page-record', tabsFromInboundFks, tabs[] }`).
+ * written (`generate/crud-body.ts` emits `detail: { template: 'page-record',
+ * tabsFromInboundFks, tabs[] }`).
  *
  * Lives in the page-config leaf for the same reason `gridColumnSpecSchema`
  * does: it is a stored config-body schema, not component code —
  * `@adminium/engine/config` re-exports it for the server's page validation,
- * and the dashboard's record binding parses through it (30 D1/D3).
+ * and the dashboard's record binding parses through it.
  *
- * ABSENCE IS VALID (30-T01): envelopes predating the block, hand-authored
- * pages and non-crud templates carry no `detail`; `parseCrudDetailConfig`
- * answers `null` for those and the record route falls back to the page's own
+ * ABSENCE IS VALID: envelopes predating the block, hand-authored pages and
+ * non-crud templates carry no `detail`; `parseCrudDetailConfig` answers
+ * `null` for those and the record route falls back to the page's own
  * template. Parsing is tolerant — an invalid block degrades to `null`, never
- * to a render crash (09 §3.1 never-crash rules).
+ * to a render crash (never-crash rules).
  */
 
-/** One related-record tab (09 §7.1 — inbound FK, live count pill). */
+/** One related-record tab (inbound FK, live count pill). */
 export const crudDetailTabSchema = z.object({
   /** The referencing table's qualified id ("public.order_items"). */
   table: z.string().min(1),
@@ -35,7 +35,7 @@ export const crudDetailTabSchema = z.object({
 export type CrudDetailTabConfig = z.infer<typeof crudDetailTabSchema>;
 
 export const crudDetailConfigSchema = z.object({
-  /** Template id owning the `/p/$slug/r/$recordId` child route (30 D1). */
+  /** Template id owning the `/p/$slug/r/$recordId` child route. */
   template: z.string().min(1),
   /** Provenance marker from generation — informational, never branched on. */
   tabsFromInboundFks: z.boolean().optional(),
@@ -54,7 +54,7 @@ export function parseCrudDetailConfig(config: Record<string, unknown>): CrudDeta
   return parsed.success ? parsed.data : null;
 }
 
-// --- attachments (37-files-and-storage.md §3.5, D6) ---------------------------
+// --- attachments ---------------------------
 
 /**
  * The typed `config.attachments` block of a `page-crud` body — the SIDECAR
@@ -79,7 +79,7 @@ export const crudAttachmentsConfigSchema = z.object({
    * configuration.
    */
   enabled: z.boolean(),
-  /** Where new attachments go; absent = the workspace default (37 D3/D18). */
+  /** Where new attachments go; absent = the workspace default. */
   destinationId: z.string().min(1).optional(),
   /** Narrows the workspace allowlist for this page. Never widens it. */
   accept: z.array(z.string().min(1).max(20)).max(20).optional(),
@@ -88,8 +88,8 @@ export const crudAttachmentsConfigSchema = z.object({
   /** Refuse an upload past this many files on one record. */
   maxCount: z.number().int().min(1).max(500).optional(),
   /**
-   * The table's own column that holds this page's attachments
-   * (38-files-library-and-attachments.md D14).
+   * The table's own column that holds this page's
+   * attachments.
    *
    * Present ⇒ COLUMN mode: the Attachments card created (or bound to) a column
    * on the customer's table, the files are that column's value, and the caps

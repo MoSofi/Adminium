@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 4 — table inclusion (M5-T02, 09 §8.2 step 3): every introspected
- * table with mono row-count estimates and PII warn badges; high-volume
- * tables (> 100k rows, 05) start UNCHECKED; join/system tables are
- * pre-hidden with an explanatory note; search filter; `{included}/{total}`
- * counter. Selection persists to `adminium_connections.settings.includedTables`
- * on Continue (wizard-level PATCH).
+ * Step 4 — table inclusion: every introspected table with mono row-count
+ * estimates and PII warn badges; high-volume tables (> 100k rows, 05) start
+ * UNCHECKED; join/system tables are pre-hidden with an explanatory note; search
+ * filter; `{included}/{total}` counter. Selection persists to
+ * `adminium_connections.settings.includedTables` on Continue (wizard-level
+ * PATCH).
  *
- * M9-T04: the row-count column degrades per source instead of showing wrong
- * data — MySQL estimates render with ≈ (InnoDB drift), schema files render —
- * (no live database), both explained by a tooltip.
+ * The row-count column degrades per source instead of showing wrong data —
+ * MySQL estimates render with ≈ (InnoDB drift), schema files render — (no
+ * live database), both explained by a tooltip.
  *
  * M7 Wave 4: the checklist itself is `@adminium/widgets`'
- * `TableInclusionChecklist` — the annex §10 `table-inclusion-checklist` widget's
+ * `TableInclusionChecklist` — the annex `table-inclusion-checklist` widget's
  * presentational half — and the >100k rule behind the default selection is that
  * widget's rule too. This step used to own both. What stays here is what the
  * widget cannot know: the query, the search filter, the per-source row-count
@@ -39,7 +39,7 @@ export interface TablesStepProps {
   connectionId: string | null;
   /** Parsed tables for schema-file mode. */
   fileTables: SchemaTable[] | null;
-  /** What the tables came from — drives row-count degradation (M9-T04). */
+  /** What the tables came from — drives row-count degradation. */
   source: CapabilitySource;
   included: string[] | null;
   onIncludedChange: (included: string[]) => void;
@@ -71,7 +71,7 @@ export function TablesStep({ connectionId, fileTables, source, included, onInclu
   }, [included, tables]);
 
   // Push the computed default up so Continue persists it even untouched
-  // (high-volume unchecked must reach settings.includedTables — M5-T02).
+  // (high-volume unchecked must reach settings.includedTables).
   useEffect(() => {
     if (included === null && tables.length > 0) {
       onIncludedChange(defaultIncludedIds(tables).sort());
@@ -154,9 +154,9 @@ export function TablesStep({ connectionId, fileTables, source, included, onInclu
 }
 
 /**
- * Row-count cell with per-source degradation (M9-T04): `—` when the source
- * cannot provide counts, `≈` when the engine only estimates approximately —
- * each explained by a tooltip rather than presented as exact data.
+ * Row-count cell with per-source degradation: `—` when the source cannot
+ * provide counts, `≈` when the engine only estimates approximately — each
+ * explained by a tooltip rather than presented as exact data.
  */
 function RowEstimateCell({ source, estimate }: { source: CapabilitySource; estimate: number | null }) {
   const text = formatRowEstimate(estimate, rowEstimateQuality(source));

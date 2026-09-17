@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `toast-stack` (annex §4; cross-listed as `undo-toast` in §12) — the overlay
- * toast HOST: max-4 toasts with an icon, a message and an optional Undo, 2.6s
+ * `toast-stack` (annex; cross-listed as `undo-toast`) — the overlay toast
+ * HOST: max-4 toasts with an icon, a message and an optional Undo, 2.6s
  * auto-dismiss (5.2s with undo), animated collapse.
  *
  * WRAPS, DOES NOT REBUILD. @adminium/ui already ships `ToastStack` (the
- * container + the `Toast` primitive) and `useToastQueue` (03 §7.2: max-4
- * clamping, FIFO overflow, per-variant auto-dismiss, pause-on-hover for both the
- * JS timers and the CSS timer bar, the undo-action duration, and promise
- * toasts). This module registers that as a widget and adds only what the
- * registry needs: config projection, the §3 payload narrowing, and the undo
- * intent. The annex's imperative `toast(msg, icon, onUndo)` API is
- * `useToastQueue().push`, re-exported through the family barrel for hosts.
+ * container + the `Toast` primitive) and `useToastQueue` (max-4 clamping, FIFO
+ * overflow, per-variant auto-dismiss, pause-on-hover for both the JS timers and
+ * the CSS timer bar, the undo-action duration, and promise toasts). This module
+ * registers that as a widget and adds only what the registry needs: config
+ * projection, the payload narrowing, and the undo intent. The annex's imperative
+ * `toast(msg, icon, onUndo)` API is `useToastQueue().push`, re-exported through
+ * the family barrel for hosts.
  *
- * UNDO IS AN INTENT, NEVER A WRITE (04 §2.1). A toast cannot carry a callback
- * across the data boundary, so the payload carries an OPAQUE `undoToken` plus
- * the table/record it touched; pressing Undo emits a `mutate` intent and the
+ * UNDO IS AN INTENT, NEVER A WRITE. A toast cannot carry a callback across
+ * the data boundary, so the payload carries an OPAQUE `undoToken` plus the
+ * table/record it touched; pressing Undo emits a `mutate` intent and the
  * host's CRUD layer performs the reversal with audit. The widget itself never
  * writes.
  *
@@ -33,8 +33,8 @@ import type { ToastItem, ToastVariant } from '@adminium/ui';
 import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `feeds-config`
-// module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// module so the registry metadata graph never reaches this component file.
+// Re-exported here to keep existing import points stable.
 export { toastStackConfigSchema, toastStackDemoData } from './feeds-config.js';
 export type { ToastStackConfig } from './feeds-config.js';
 export type { ToastEntry } from './feeds-types.js';
@@ -42,7 +42,7 @@ export type { ToastEntry } from './feeds-types.js';
 /**
  * The annex's imperative API (`toast(msg, icon, onUndo)`) IS @adminium/ui's
  * queue hook. Re-exported here so a host wires the widget and its imperative
- * entry point from one place (03 §7.2).
+ * entry point from one place.
  */
 export { useToastQueue, MAX_VISIBLE_TOASTS, TOAST_ACTION_DURATION } from '@adminium/ui';
 
@@ -53,7 +53,7 @@ export function toastVariantOf(value: unknown): ToastVariant {
   return typeof value === 'string' && VARIANTS.has(value) ? (value as ToastVariant) : 'info';
 }
 
-/** Narrow the ephemeral `{ toasts: [...] }` payload (annex §4). */
+/** Narrow the ephemeral `{ toasts: [...] }` payload (annex). */
 export function toastsOf(data: unknown): ToastEntry[] {
   const raw =
     typeof data === 'object' && data !== null && Array.isArray((data as { toasts?: unknown }).toasts)
@@ -79,7 +79,7 @@ export function toastsOf(data: unknown): ToastEntry[] {
 }
 
 /**
- * Annex §4 `position` → the container's fixed anchor. Logical `start`/`end`
+ * Annex `position` → the container's fixed anchor. Logical `start`/`end`
  * utilities, so "bottom-end" is the bottom-right in LTR and the bottom-LEFT in
  * RTL — a toast belongs at the reading direction's trailing edge, and physical
  * `right-4` would strand it under the RTL sidebar. Lookup table (not
@@ -107,7 +107,7 @@ export function ToastStackWidget({ config, data, onEvent }: WidgetProps<ToastSta
       variant: toastVariantOf(toast.variant),
       title: toast.message,
       description: toast.description,
-      // Annex §4: 2.6s plain, 5.2s when the toast carries an Undo.
+      // Annex: 2.6s plain, 5.2s when the toast carries an Undo.
       duration: toast.undoToken === undefined ? config.duration : config.undoDuration,
       action:
         toast.undoToken === undefined

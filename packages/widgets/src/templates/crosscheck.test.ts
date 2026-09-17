@@ -2,7 +2,7 @@
 /**
  * Registry cross-check gate: no shipped manifest may name a widget id the
  * runtime cannot resolve, and every id that is *pending* (declared in the annex
- * §14 composition but not yet built) must be declared as such.
+ * composition but not yet built) must be declared as such.
  *
  * WHY `qaRegistry` AND NOT `widgetRegistry`: the per-family definition arrays
  * are assembled into the live `widgetRegistry` map by the GREEN LOOP, not by the
@@ -42,9 +42,9 @@ describe('shipped manifests × the widget registry', () => {
    * A slot must be big enough for every widget it allow-lists. `composeTemplate`
    * stamps the slot's `area` onto the winning candidate verbatim, so a slot
    * shorter than a widget's registered `minH` persists a layout item below the
-   * widget's own enforced minimum: it renders clipped, and per 04 §6.1 ("a widget
-   * can never be resized below minW × minH") the first drag in edit mode snaps it
-   * and reflows the page.
+   * widget's own enforced minimum: it renders clipped, and ("a widget can never
+   * be resized below minW × minH") the first drag in edit mode snaps it and
+   * reflows the page.
    *
    * Caught two live manifests: `page-master-detail`'s `detail-activity` was h:6
    * against `timeline-vertical`'s minH:8 (masked by the alphabetical tiebreak,
@@ -124,7 +124,7 @@ describe('crossCheckTemplate — failure modes', () => {
    * This used to be mined from the live `PENDING_TEMPLATE_WIDGET_IDS`, with a
    * guard test asserting the map still had a usable entry ("no pending ids left
    * — inline a fixture pending map below"). M7 Wave 4 emptied the map: every
-   * annex §14 id a shipped manifest references is now registered, which is the
+   * annex id a shipped manifest references is now registered, which is the
    * shrink-to-empty end state the discipline was driving at. So the guard has
    * come true and this suite now does what it said: it INLINES its own pending
    * map and injects it via `crossCheckTemplate`'s third parameter (the same
@@ -180,8 +180,8 @@ describe('crossCheckTemplate — failure modes', () => {
    * Grading is per SLOT, not per id. A required slot that still has a registered
    * widget (or an `accepts.shapes` entry) is perfectly fillable, so one pending
    * id among its accepts is inert — reporting it fatal would hard-fail CI the
-   * moment a maintainer records an annex §14 composition ahead of its family,
-   * which is the exact workflow PENDING_TEMPLATE_WIDGET_IDS exists to support.
+   * moment a maintainer records an annex composition ahead of its family, which
+   * is the exact workflow PENDING_TEMPLATE_WIDGET_IDS exists to support.
    */
   it('does not fail a required slot whose OTHER accepts are registered', () => {
     const manifest = parsePageTemplate({

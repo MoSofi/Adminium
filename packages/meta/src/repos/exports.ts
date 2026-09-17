@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * exportsRepo — adminium_exports (07-meta-store.md §3.25): one row per data
- * export request. The row is the export's public state machine
- * (`processing → ready | failed | cancelled | expired`); the artifact itself
- * is an adminium_files row (`file_id`) written by the `export-run` job.
+ * exportsRepo — adminium_exports: one row per data export request. The row
+ * is the export's public state machine (`processing → ready | failed |
+ * cancelled | expired`); the artifact itself is an adminium_files row
+ * (`file_id`) written by the `export-run` job.
  */
 
 import type { Selectable } from 'kysely';
@@ -21,7 +21,7 @@ import { affected, packJson, readJson } from './util.js';
 export type ExportFormat = 'csv' | 'json' | 'xlsx';
 export type ExportStatus = 'processing' | 'ready' | 'failed' | 'cancelled' | 'expired';
 
-/** One column of an export definition (41-export-builder.md D1). */
+/** One column of an export definition. */
 export interface ExportColumn {
   name: string;
   label: string;
@@ -40,7 +40,7 @@ export interface ExportSource {
   table?: string | null | undefined;
   viewId?: string | null | undefined;
   filters?: unknown[] | undefined;
-  /** The builder's definition (41 D1); absent on legacy rows and scheduled reports. */
+  /** The builder's definition; absent on legacy rows and scheduled reports. */
   columns?: ExportColumn[] | undefined;
   derived?: unknown;
   options?: ExportOptions | undefined;

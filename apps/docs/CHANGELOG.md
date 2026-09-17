@@ -17,18 +17,17 @@
 - a44a0ff: The ghcr image and the desktop build now carry the six first-party add-ons as
   a pre-verified bundled set.
   
-  The boot seed (32 D3) has existed since the store landed, but nothing ever put
-  a bundle where it looks — every image and installer shipped an empty Add-ons
-  page and called the air-gap story done. Now a release script
-  (`scripts/release/fetch-add-ons-bundle.mjs`) downloads the six tarballs at
-  build time against exact version + sha512 pins
-  (`scripts/release/add-ons-bundle.json`, copied from the release ledger — never
-  `latest`, no redirects, timing-safe digest comparison, refusal on any
-  unpinnable entry), and writes the flat
-  `<key>-<version>.tgz` + `.tgz.integrity` layout the seed reads. The Docker
-  build parks it at `/app/add-ons-bundle`, which the runtime stage's CWD makes
-  the server's own default; desktop-release.yml parks it in
-  `resources/add-ons-bundle` next to the demo seed.
+  The boot seed has existed since the store landed, but nothing ever put a bundle
+  where it looks — every image and installer shipped an empty Add-ons page and
+  called the air-gap story done. Now a release script
+  (`scripts/release/fetch-add-ons-bundle.mjs`) downloads the six tarballs at build
+  time against exact version + sha512 pins (`scripts/release/add-ons-bundle.json`,
+  copied from the release ledger — never `latest`, no redirects, timing-safe
+  digest comparison, refusal on any unpinnable entry), and writes the flat
+  `<key>-<version>.tgz` + `.tgz.integrity` layout the seed reads. The Docker build
+  parks it at `/app/add-ons-bundle`, which the runtime stage's CWD makes the
+  server's own default; desktop-release.yml parks it in `resources/add-ons-bundle`
+  next to the demo seed.
   
   The desktop shell now closes the loop in both directions: `buildServerEnv`
   points `ADMINIUM_BUNDLED_ADD_ONS` at the packaged directory (only when it
@@ -64,13 +63,13 @@
     (the releases list, filtered to `desktop-v*`, never GitHub's repository-wide
     "latest" pointer), the auto-backup schedule, and that `export-zip` is
     portability rather than a backup.
-  - **`anatomy/index.md` §11.** "Nothing in the repository sends mail" was false
-    end to end: `email.smtp` drives a real nodemailer transport, `email.send` is
-    a registered job kind, and password resets, invitations, notifications and
-    the template test-send all queue through it. Rewritten to name the absences
-    that are real — no provider adapters, no `/settings/email` screen, no outbox
-    table — and to correct `smtpConfigured` from "the whole of it" to the
-    read-only consequence it is.
+  - **`anatomy/index.md`.** "Nothing in the repository sends mail" was false end to
+    end: `email.smtp` drives a real nodemailer transport, `email.send` is a
+    registered job kind, and password resets, invitations, notifications and the
+    template test-send all queue through it. Rewritten to name the absences that are
+    real — no provider adapters, no `/settings/email` screen, no outbox table — and
+    to correct `smtpConfigured` from "the whole of it" to the read-only consequence
+    it is.
   - **`anatomy/packages.md`.** Every row of the per-package table recomputed
     under the convention the page states; 13 of 15 were wrong, several by a whole
     package's worth of files. The page now prints the commands that produce the
@@ -84,3 +83,13 @@
 ## 0.2.0
 
 ## 0.1.0
+
+---
+
+*A note on the entries above.* Some of them cited the internal work plan this
+repository was built from — a document filename, a section, or a task id. That
+plan was never published, so those citations were dead ends for every reader but
+their author, and they were reworded on 2026-09-17. No entry's substance
+changed: only the references went. The reasoning they pointed at is public now,
+one short page per decision, at
+<https://docs.adminium.dev/anatomy/decisions/>.

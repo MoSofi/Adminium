@@ -3,7 +3,7 @@
  * The `/invoices` search contract, in a leaf module: the router reads it
  * eagerly (a `validateSearch` runs before the page loads) and the page is
  * lazy — importing the page for it would pull the manager into the entry
- * chunk (34-invoices-add-on.md §3.9; the email surface's `search.ts`).
+ * chunk (the email surface's `search.ts`).
  */
 export interface InvoicesSearch {
   /** Which tab opens: templates (the comp's initial tab, 1044) or invoices. */

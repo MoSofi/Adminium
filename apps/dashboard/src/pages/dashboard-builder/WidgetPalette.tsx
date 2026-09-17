@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Widget palette (04-widget-registry.md §6.2 "Adding widgets"): a family-grouped,
- * searchable drawer where every entry is a live demo-data preview of the widget.
- * Selecting an entry inserts that widget into the layout at first-fit. Entries
- * are ordinary buttons (keyboard-navigable); the preview inside each is
- * decorative (`aria-hidden`), the button carries the accessible name.
+ * Widget palette: a family-grouped, searchable drawer where every entry is a live
+ * demo-data preview of the widget. Selecting an entry inserts that widget into
+ * the layout at first-fit. Entries are ordinary buttons (keyboard-navigable); the
+ * preview inside each is decorative (`aria-hidden`), the button carries the
+ * accessible name.
  */
 
 import { useMemo, useState } from 'react';
@@ -34,10 +34,9 @@ export function widgetDisplayName(definition: WidgetDefinition): string {
 }
 
 /**
- * Widget family → literal bundle key (10-i18n-theming.md §2.5). The family axis
- * is closed (`WIDGET_FAMILIES`), so `satisfies` turns a new family into a
- * compile error here instead of a raw `builder.families.<new>` heading in the
- * palette.
+ * Widget family → literal bundle key. The family axis is closed
+ * (`WIDGET_FAMILIES`), so `satisfies` turns a new family into a compile error
+ * here instead of a raw `builder.families.<new>` heading in the palette.
  */
 const FAMILY_LABEL_KEY = {
   kpi: 'builder.families.kpi',

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Anomaly-detection geometry (`chart-anomaly`, research/widget-registry.md §2):
- * a centered moving-average "expected" line, a symmetric expected-range band
- * from the residual spread, and z-score anomaly flags. Pure + DOM-free and
- * fully deterministic (04 §7.1); `sensitivity` is the z-threshold.
+ * Anomaly-detection geometry (`chart-anomaly`, research/widget-registry.md): a
+ * centered moving-average "expected" line, a symmetric expected-range band from
+ * the residual spread, and z-score anomaly flags. Pure + DOM-free and fully
+ * deterministic; `sensitivity` is the z-threshold.
  */
 
 export interface AnomalyModel {

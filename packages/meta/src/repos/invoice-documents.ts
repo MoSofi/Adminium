@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * invoiceDocumentsRepo — adminium_invoice_documents (34-invoices-add-on.md
- * §3.9, Appendix G; wave 0027). One table, two kinds: a `template` is a
- * reusable design, an `invoice` is a document built from one or from
- * scratch. Both carry the same envelope in `body`; the row's `kind`, `name`,
- * `status`, `topic` and `lang` are columns.
+ * invoiceDocumentsRepo — adminium_invoice_documents (wave 0027). One table,
+ * two kinds: a `template` is a reusable design, an `invoice` is a document
+ * built from one or from scratch. Both carry the same envelope in `body`;
+ * the row's `kind`, `name`, `status`, `topic` and `lang` are columns.
  *
- * THIS IS THE AUTHORED SOURCE, NOT A REGISTER. `adminium_documents` (34
- * §3.3, a later wave) records what was rendered; this table holds what a
- * person typed and can edit again. Deleting a template never touches an
- * invoice built from it — `originId` is a soft reference by design (34 O20).
+ * THIS IS THE AUTHORED SOURCE, NOT A REGISTER. `adminium_documents` (a
+ * later wave) records what was rendered; this table holds what a person
+ * typed and can edit again. Deleting a template never touches an invoice
+ * built from it — `originId` is a soft reference by design.
  *
  * `body` is the OPEN record (`invoiceBodySchema`); the concrete field shape
  * is owned by `apps/server/src/invoices/document.ts` — the repo validates the
@@ -68,7 +67,7 @@ export interface InvoiceDocument {
   number: string;
   /** Which starter minted it; null for blank documents. */
   starter: string | null;
-  /** The template an invoice was built from (34 O20); null otherwise. */
+  /** The template an invoice was built from; null otherwise. */
   originId: string | null;
   /** The manager's sort key within the kind. */
   position: number;

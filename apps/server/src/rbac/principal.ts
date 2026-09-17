@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The RBAC principal — "who is acting" (08-server-api.md §8: the auth layer
- * resolves a principal, not a session, so API keys and users flow through the
- * same enforcement path).
+ * The RBAC principal — "who is acting" (the auth layer resolves a principal,
+ * not a session, so API keys and users flow through the same enforcement
+ * path).
  *
  * Session users are decorated as `request.user` by `plugins/auth.ts`; this
  * module reads that decoration *structurally* (no import, no augmentation) so
@@ -15,7 +15,7 @@ import type { FastifyRequest } from 'fastify';
 export interface UserPrincipal {
   kind: 'user';
   id: string;
-  /** Display snapshot for audit `actor_label` (07-meta-store.md §3.11). */
+  /** Display snapshot for audit `actor_label`. */
   label: string;
 }
 
@@ -24,7 +24,7 @@ export interface ApiKeyPrincipal {
   /** The `adminium_api_keys` row id. */
   id: string;
   label: string;
-  /** The key acts with this role's permissions (07-meta-store.md §3.7). */
+  /** The key acts with this role's permissions. */
   roleId: string;
 }
 

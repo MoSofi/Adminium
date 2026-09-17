@@ -19,17 +19,17 @@ import type { NotificationAction, NotificationItem } from './feeds-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `notification-feed` (annex §4) — a time-bucketed grouped feed
+ * `notification-feed` (annex) — a time-bucketed grouped feed
  * (Today/Yesterday/Earlier) with unread tint + dot, category chips, optional
  * inline action buttons, hover dismiss, empty-group pruning, mark-all-read,
  * and a tabbed All/Unread/Mentions filter. Fixes the Ticket-Queue-class empty
- * gaps (research/ia-mapping.md §5): every filter renders a purpose-specific
- * empty state instead of a blank panel.
+ * gaps: every filter renders a purpose-specific empty state instead of a
+ * blank panel.
  */
 
 // Config schema + deterministic demo payload live in the pure `feeds-config`
 // module, and the row shapes in `feeds-types`, so the registry metadata graph
-// never reaches this component file (04 §2.3). Re-exported here to keep
+// never reaches this component file. Re-exported here to keep
 // existing import points stable.
 export { notificationFeedConfigSchema, notificationFeedDemoData } from './feeds-config.js';
 export type { NotificationFeedConfig } from './feeds-config.js';

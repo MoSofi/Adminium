@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Distribution & correlation charts stories (04-T09 / 04-T17): each widget's
- * loaded variant plus the four WidgetFrame states through WidgetHost with a
- * registry override (these ids join the global registry only once the green
- * loop assembles the family). Demo payloads are the same deterministic seeded
+ * Distribution & correlation charts stories: each widget's loaded variant
+ * plus the four WidgetFrame states through WidgetHost with a registry
+ * override (these ids join the global registry only once the green loop
+ * assembles the family). Demo payloads are the same deterministic seeded
  * generators the registry's `demoData` uses. Theme (light/dark) is applied by
  * the Storybook decorators; an explicit RTL story exercises chart mirroring.
  */

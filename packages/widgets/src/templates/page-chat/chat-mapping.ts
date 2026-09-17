@@ -4,16 +4,15 @@ import type { ChatMessage } from '../../families/communication/chat-lib.js';
 import type { ConversationRow } from '../../families/communication/ConversationInbox.js';
 
 /**
- * `page-chat` field mapping (09-generated-app.md §7.9) — PURE module.
+ * `page-chat` field mapping — PURE module.
  *
- * The §14 generator binds `conversation-inbox` to the conversation table and
+ * The generator binds `conversation-inbox` to the conversation table and
  * `chat-thread` to its messages child (candidates rule
  * `communication.conversation-message-pair`), storing only `title` + `binding`
- * — no column naming. This module projects both payloads onto the widgets'
- * row models by DETERMINISTIC vocabulary detection over the payload's own
- * keys, including the spec's email→name derivation (§7.9 "email→name
- * derivation") and the conversation-FK detection that scopes the thread to
- * the selected conversation.
+ * — no column naming. This module projects both payloads onto the widgets' row
+ * models by DETERMINISTIC vocabulary detection over the payload's own keys,
+ * including the spec's email→name derivation and the conversation-FK detection
+ * that scopes the thread to the selected conversation.
  */
 
 export interface ChatMessageFieldMap {
@@ -58,7 +57,7 @@ function str(row: Record<string, unknown>, field: string | undefined): string | 
   return undefined;
 }
 
-/** Email → display name (09 §7.9): `ava.reyes@acme.dev` → `Ava Reyes`. */
+/** Email → display name: `ava.reyes@acme.dev` → `Ava Reyes`. */
 export function displayNameOf(value: string): string {
   const at = value.indexOf('@');
   if (at <= 0) return value;

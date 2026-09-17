@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Locale-bundle parity gate (10-i18n-theming.md §3.5), all 8 locales:
+ * Locale-bundle parity gate, all 8 locales:
  *
  * 1. TS mirror ≡ canonical JSON for every locale/namespace pair (the JSON is
  *    hand-authored; regenerate mirrors with `node scripts/gen-resources.mjs`).
@@ -10,8 +10,7 @@
  *    has (`Intl.PluralRules`) — cs one/few/many/other, ar zero…other, zh
  *    other-only — plus the mandatory `other`.
  * 4. zh_CN and zh_TW are genuinely distinct bundles (Simplified vs
- *    Traditional + regional vocabulary), per the M8 risk note in
- *    16-milestones.md.
+ * Traditional + regional vocabulary), per the M8 risk note.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -109,7 +108,7 @@ function readLedger(tag: string): Record<string, { status?: string }> {
 }
 
 /**
- * ── KEY-SET PARITY, AND THE ONE WAY A KEY MAY BE MISSING (28-T32) ──────────
+ * ── KEY-SET PARITY, AND THE ONE WAY A KEY MAY BE MISSING ───────────────────
  *
  * This used to require every locale to carry EXACTLY the en-US key set, which
  * left one way to ship an untranslated string: paste the English in. That paste
@@ -182,7 +181,7 @@ describe('studio.enrich is present and genuinely translated in all locales (acce
   // regression that ships them in no bundle would make every non-English user
   // read English. Key-set parity above guarantees all-or-nothing presence — this
   // additionally proves the strings are real translations, not English fallbacks.
-  // In the `studio` namespace since 10-T06 (they were `common.studio.*`).
+  // In the `studio` namespace since (they were `common.studio.*`).
   const SAMPLE_KEYS = [
     'enrich.title',
     'enrich.subtitle',
@@ -216,9 +215,9 @@ describe('the translation editor\u2019s own chrome is translated in every locale
   // `settings.translations.*` draws /settings/translations itself, and it closes
   // a loop the other suites cannot see: English leaking onto THIS surface is
   // the one case a super-admin has to repair through the very screen that is
-  // broken (23-runtime-translations.md §7).
+  // broken.
   //
-  // [Corrected 2026-08-20, 28-T32.] This used to say the editor "refuses to
+  // [Corrected 2026-08-20.] This used to say the editor "refuses to
   // override a key that is absent from the compiled bundle", which is not what
   // the code does and would have made the deferred state above unrepairable.
   // `rejectReason` calls `sourceMessage`, and `sourceMessage` reads
@@ -271,7 +270,7 @@ describe('ICU validity, argument parity, and plural categories', () => {
           // A DEFERRED key has no message to parse, which is the point of it —
           // en-US renders instead. Presence is the key-set suite's rule and it
           // is checked there against the ledger; asserting it again here would
-          // make that relaxation unreachable (28-T32).
+          // make that relaxation unreachable.
           if (targetMessage === undefined) continue;
           if (targetMessage === undefined) continue;
           const sourceShape = icuShape(sourceMessage, 'en-US', `${ns}:${key}`);

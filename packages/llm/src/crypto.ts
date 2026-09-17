@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * AES-256-GCM secret-at-rest for the encrypted `llm.apiKey` setting
- * (06-llm-assist.md §3.2; 01-architecture.md §7.1). The LLM key is protected with
- * the SAME mechanism connection strings use: an HKDF-SHA256 key derived from
- * `ADMINIUM_SECRET`, purpose-scoped by salt, producing `enc:v1:` GCM tokens
- * (`apps/server/src/config/secrets.ts` + `apps/server/src/connections/crypto.ts`).
+ * AES-256-GCM secret-at-rest for the encrypted `llm.apiKey` setting. The LLM key
+ * is protected with the SAME mechanism connection strings use: an HKDF-SHA256 key
+ * derived from `ADMINIUM_SECRET`, purpose-scoped by salt, producing `enc:v1:` GCM
+ * tokens (`apps/server/src/config/secrets.ts` +
+ * `apps/server/src/connections/crypto.ts`).
  *
  * ⚠️ BLOCKER (see this track's followUps): those primitives currently live ONLY
  * in the server tree. `@adminium/llm` is consumed by the browser dashboard, so it

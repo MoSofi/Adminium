@@ -24,10 +24,10 @@
  * - FILE COLUMNS — one switch per column that could hold a reference, and,
  *   once it is on, the block behind it: what gets written into the column (a
  *   link, Adminium's file id, or the destination's key), where the bytes go,
- *   which types are accepted and how large one may be. Stored as `file: {…}`
- *   (37-files-and-storage.md §3.8). Turning the switch OFF removes the key
- *   rather than writing `file: undefined`, so a page toggled on and off again
- *   is the page it was before anyone touched it (37 D14).
+ * which types are accepted and how large one may be. Stored as `file: {…}`.
+ *   Turning the switch OFF removes the key rather than writing `file:
+ *   undefined`, so a page toggled on and off again is the page it was before
+ *   anyone touched it.
  *
  * SAVING is owned by the edit screen: the manager reports its draft through
  * `onDraft` (null when clean, a save closure when dirty) and the screen's one
@@ -107,7 +107,7 @@ const MAX_LOOKUP_HOPS = 3;
 const MAX_LOOKUPS = 12;
 /**
  * Correlated-subquery cap per read — SHARED by `agg=` counts and `compute=`
- * measures (crud/aggregates.ts MAX_AGGREGATES, 36-derived-columns.md D13).
+ * measures (crud/aggregates.ts MAX_AGGREGATES).
  *
  * Counting only ONE of the two here is how a page gets authored to the
  * editor's own limit and then 422s on every read: the server budgets them
@@ -120,8 +120,8 @@ const MAX_PROJECTIONS = 12;
  *
  * An exhaustive map of LITERAL keys rather than `t(\`…fold.${fn}\`)`: an
  * assembled key cannot be verified against the eight bundles and renders as a
- * raw dotted string when it misses (10 §2.5). The type checker proves every
- * option has one.
+ * raw dotted string when it misses. The type checker proves every option has
+ * one.
  */
 const FOLD_OPTIONS: Record<Exclude<MeasureFn, 'count'>, () => string> = {
   sum: () => t('studio:pages.columns.fold.sum', 'Sum'),
@@ -136,7 +136,7 @@ const MAX_FACTORS = 4;
 /**
  * The reference shapes a file column may be configured to store, offered in
  * this order because `url` is the default the schema applies and the one
- * generation seeds (37-files-and-storage.md D31).
+ * generation seeds.
  *
  * MIRRORED, not imported: the vocabulary is `COLUMN_FILE_REFS` in
  * `packages/widgets/src/page-config/grid-column-spec.ts`.
@@ -239,8 +239,7 @@ const FILE_TYPE_LABELS: Record<FileTypeKey, () => string> = {
 /**
  * Column types that can carry a reference. A `json` column holding an array of
  * them is refused in v1 and a `binary` column is bytes inside the customer's
- * own database — a different feature — so the switch is not offered on either
- * (37-files-and-storage.md §3.5).
+ * own database — a different feature — so the switch is not offered on either.
  */
 const FILE_CAPABLE_TYPES: ReadonlySet<string> = new Set(['text', 'varchar']);
 
@@ -269,7 +268,7 @@ function readRefShape(value: string | undefined): FileRefShape {
 }
 
 /**
- * The `file` block of a stored column (`columnFileSchema`, 37 D6/D14).
+ * The `file` block of a stored column (`columnFileSchema`).
  *
  * `ref` is optional HERE and required after parsing, because the schema gives
  * it a default: a page may legitimately carry `file: {}` and mean
@@ -286,8 +285,8 @@ export interface StoredFile {
   inline?: boolean;
   /**
    * The column holds a LIST of references rather than one
-   * (38-files-library-and-attachments.md D1/D5) — a JSON array in the same
-   * text column. Absent = the single-value column 37 shipped.
+   * — a JSON array in the same text column. Absent = the single-value
+   * column 37 shipped.
    */
   multiple?: boolean;
   /** Refuse a write past this many files on one record. `multiple` only. */
@@ -316,7 +315,7 @@ export interface StoredColumn {
   avatar?: boolean;
   lookup?: { path: string[]; select: string };
   reverse?: { table: string; fkColumn: string; agg: string };
-  /** Points at a measure or field in `config.derived` (36 §3.2). */
+  /** Points at a measure or field in `config.derived`. */
   derived?: { ref: string };
   /** Explicit presentation — a derived value has no semantic to infer one from. */
   display?: { kind: string; currency?: string; decimals?: number; percentScale?: string };
@@ -330,8 +329,8 @@ export interface StoredColumn {
  *
  * `{...column, file: undefined}` leaves the key in the object, and a page
  * toggled on and then off again would no longer be the page it was — which is
- * precisely what 37 D14 promises cannot happen. Every other control on a row
- * writes a value; this is the one that has to unwrite a key.
+ * precisely what promises cannot happen. Every other control on a row writes
+ * a value; this is the one that has to unwrite a key.
  */
 function withoutFile(column: StoredColumn): StoredColumn {
   const next: StoredColumn = { ...column };
@@ -411,7 +410,7 @@ interface ColumnManagerProps {
    * defined order and no shared view: the derived-numbers card authors a field
    * AND the column that shows it, and under the old model its column would not
    * appear in this list until after a save. The screen owns every part of the
-   * body and writes it once (36-derived-columns.md 36-T18).
+   * body and writes it once.
    */
   columns: readonly StoredColumn[];
   onColumnsChange: (next: StoredColumn[]) => void;
@@ -425,7 +424,7 @@ interface ColumnManagerProps {
    * one block (the inbound sub-picker here, the Derived numbers card beside
    * it), and two independent drafts of the same document have no defined merge
    * — whichever the screen applied second would drop the other's measures.
-   * One owner, one value, no merge (36-derived-columns.md §3.8).
+   * One owner, one value, no merge.
    */
   derived: CrudDerivedConfig;
   onDerivedChange: (next: CrudDerivedConfig) => void;
@@ -763,7 +762,7 @@ function SortableColumnRow({
    * reference: a text or varchar column of the source table. Offering it on
    * every integer, date and reverse count would put a control nobody can use
    * on most rows of most pages, and a `decimal` column that "stores a file" is
-   * a page the server would refuse to honour anyway (§3.5).
+   * a page the server would refuse to honour anyway.
    *
    * A column that ALREADY carries a block always shows the section, whatever
    * its type says. Generation seeds blocks, schemas drift, and a block this
@@ -907,7 +906,7 @@ function SortableColumnRow({
                   t('studio:pages.columns.file.switchToggle', '{name} stores a file'),
                   { name: column.name },
                 )}
-                // ON writes the default shape and nothing else (37 D31): every
+                // ON writes the default shape and nothing else: every
                 // other field of the block means "whatever the workspace says"
                 // by being absent, so the smallest honest block is one key.
                 onCheckedChange={(checked) => onFileChange(checked ? { ref: 'url' } : undefined)}
@@ -955,7 +954,7 @@ function SortableColumnRow({
 }
 
 /**
- * The `file` block editor for one column (37-files-and-storage.md §3.8).
+ * The `file` block editor for one column.
  *
  * WHY IT MOUNTS WITH THE BLOCK RATHER THAN WITH THE ROW. The destination list
  * is a `storage.manage` read, and an admin who may edit pages need not hold

@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `createQueryEngine()` — the Kysely dialect factory for the SQLite data
- * connection (05-introspection-engine.md §3 `QueryEngine`, 08-server-api.md
- * §3.7 "query port").
+ * connection (`QueryEngine`).
  *
  * `@adminium/engine` does not depend on `kysely`, so `QueryEngine.dialect`
  * is typed opaquely there; `@adminium/server` casts it to `kysely.Dialect`
  * at the composition boundary. This package owns the concrete dependency.
  *
- * Supports better-sqlite3 INSTANCE INJECTION (05-T14): callers that already
- * hold an open handle (the Electron main process, tests) pass it via
+ * Supports better-sqlite3 INSTANCE INJECTION: callers that already hold an
+ * open handle (the Electron main process, tests) pass it via
  * `options.database` — the engine then never opens its own and `destroy()`
  * leaves the injected handle to its owner.
  */
@@ -38,7 +37,7 @@ export interface SqliteQueryEngineOptions {
   database?: InjectableDatabase;
 }
 
-/** Data-role session pragmas — 05 §4.3. */
+/** Data-role session pragmas. */
 export function applyDataPragmas(db: InjectableDatabase, file: string): void {
   if (file !== ':memory:') db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');

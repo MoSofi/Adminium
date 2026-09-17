@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/** Zod schemas for the onboarding-state resource (M5-T06). */
+/** Zod schemas for the onboarding-state resource. */
 
 import { z } from 'zod';
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `scrubUrlForLog` (08-server-api.md §1.3; 11-electron.md §2.2 step 8).
+ * `scrubUrlForLog`.
  *
  * The unit half of the leak `desktop-session.test.ts` closes end-to-end: pino's
  * `redact` cannot reach inside a string, so a credential in a query string is

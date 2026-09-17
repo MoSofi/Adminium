@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-dashboard` template stories (M4-T05): the full demo-mode comp port
- * (4-card KPI row + hero line-area + donut + secondary bar + mini-table
- * slot), a mocked-adapter run showing per-item error isolation, and the
- * mixed loading/error/success states through the `states` override. Typed
- * loosely — the 04-T17 QA harness wires widgets stories into the
- * workspace Storybook.
+ * `page-dashboard` template stories: the full demo-mode comp port (4-card
+ * KPI row + hero line-area + donut + secondary bar + mini-table slot), a
+ * mocked-adapter run showing per-item error isolation, and the mixed
+ * loading/error/success states through the `states` override. Typed
+ * loosely — the QA harness wires widgets stories into the workspace
+ * Storybook.
  */
 import { PageDashboard } from './PageDashboard.js';
 import { demoDashboardLayout } from './demo-layout.js';
@@ -17,7 +17,7 @@ const meta = {
 };
 export default meta;
 
-/** Demo mode (04 §5.3): no adapter, every widget seeds from its instance id. */
+/** Demo mode: no adapter, every widget seeds from its instance id. */
 export const DemoMode = {
   render: () => <PageDashboard layout={demoDashboardLayout} />,
 };

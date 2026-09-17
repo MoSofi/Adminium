@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-engine capability copy (M9-T04). This module owns no facts — the matrix
- * in `@adminium/engine` does — so what is tested is the two places it could
+ * Per-engine capability copy. This module owns no facts — the matrix in
+ * `@adminium/engine` does — so what is tested is the two places it could
  * still lie.
  *
  * The SOURCE classification: a schema file is `import` and has no engine, and a

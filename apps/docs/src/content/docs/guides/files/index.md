@@ -50,6 +50,10 @@ only ever *writes* the shape you picked.
 | **Adminium's file id** (`id`) | `file_01JB…` | code that calls Adminium's API; survives every move | an outside application that never talks to Adminium |
 | **The key in the destination** (`key`) | `upload/2026/09/file_01JB…-invoice-1042.pdf` | code holding its own bucket credentials, signing its own URLs | moving the file to another destination |
 
+The instance part of an Adminium link is the same address links in emails use
+([Links in emails](/guides/email/#links-in-emails)), or the host the upload was
+sent to while that is not known.
+
 One line of advice: **choose `id` if you expect to move a destination that
 publishes a public base URL, or to change this instance's origin.** An id and an
 Adminium link both survive a move; a public-base link keeps pointing at the old

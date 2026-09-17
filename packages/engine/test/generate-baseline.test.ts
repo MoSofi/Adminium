@@ -75,7 +75,7 @@ describe('the pinned crud/dashboard output is unchanged', () => {
     const result = generatePages(model, { connectionId: CONN });
     const expected = baseline['full-admin'] as Baseline;
     expect(result.pages.length).toBeGreaterThanOrEqual(expected.pages.length);
-    // Northwind's own §14 triggers: employees.reports_to → page-directory,
+    // Northwind's own triggers: employees.reports_to → page-directory,
     // orders.order_date + a title column → page-calendar.
     const added = result.pages.filter(
       (page) => page.template !== 'page-crud' && page.template !== 'page-dashboard',

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-candlestick` primitive (research/widget-registry.md §2): OHLC candles
+ * `chart-candlestick` primitive (research/widget-registry.md): OHLC candles
  * colored pos/danger, a dashed last-price line and an optional "live" pill.
  * The price axis is an LTR island — candles never mirror and the price scale
- * sits at the inline-end regardless of page direction (04 §7.4 exceptions).
- * Colors from the pos/danger tokens and neutrals only.
+ * sits at the inline-end regardless of page direction (exceptions). Colors
+ * from the pos/danger tokens and neutrals only.
  */
 import type { ReactNode } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';

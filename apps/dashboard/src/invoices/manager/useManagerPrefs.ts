@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The manager's two view preferences — gallery/list and the group-by — kept
- * in `localStorage` so they survive a reload (34-invoices-add-on.md Appendix
- * E §S4, §M5, §M7; the email surface's hook under its own key). They are
- * conveniences of one browser, not workspace state: nothing about a template
- * changes when someone prefers the list, so they never touch the server.
+ * in `localStorage` so they survive a reload (the email
+ * surface's hook under its own key). They are conveniences of one browser,
+ * not workspace state: nothing about a template changes when someone prefers
+ * the list, so they never touch the server.
  *
  * Every storage access is wrapped: a private window, a full quota or a
  * locked-down embed throws on `localStorage` itself, and the page must render

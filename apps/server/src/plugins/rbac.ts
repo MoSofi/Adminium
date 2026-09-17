@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `rbac` plugin (08-server-api.md §5, M2-T05): decorates
+ * `rbac` plugin: decorates
  *
  * - `request.can(permission)` — lazy, per-request-cached allow/deny against
  *   the resolved permission set (union of role grants; super-admin bypass;
@@ -11,8 +11,8 @@
  * - `app.rbac.audit(request, entry)` — actor/ip/ua/request-id-stamped audit
  *   append for the mutating routes in this wave,
  * - the API-key request-auth path: `Authorization: Bearer adm_sk_…` →
- *   hashed lookup → `request.apiKeyPrincipal` acting with the key's role
- *   (§2.16), with a throttled `last_used_at` touch.
+ * hashed lookup → `request.apiKeyPrincipal` acting with the key's role,
+ *   with a throttled `last_used_at` touch.
  *
  * Session users arrive as `request.user` from `plugins/auth.ts`; this plugin
  * only *reads* that decoration (structurally — see rbac/principal.ts).
@@ -146,7 +146,7 @@ export const rbacPlugin = fp<RbacPluginOptions>(
 
     app.decorate('rbac', { meta, require, resolve, audit: auditFromRequest, now });
 
-    // API-key request-auth path (§2.16): only engages for Bearer adm_sk_* —
+    // API-key request-auth path: only engages for Bearer adm_sk_*
     // cookie sessions and other bearer schemes pass through untouched.
     app.addHook('onRequest', async (request) => {
       const key = parseBearerApiKey(request.headers.authorization);

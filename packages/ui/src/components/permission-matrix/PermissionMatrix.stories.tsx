@@ -22,7 +22,7 @@ const roles = [
   { id: 'role-guest', name: 'Guest' },
 ] as const;
 
-/** Permission rows in the server grant grammar (08-server-api.md §5.1). */
+/** Permission rows in the server grant grammar. */
 const permissions: readonly PermissionMatrixPermission[] = [
   { key: 'page:projects:view', label: 'View projects', category: 'Projects' },
   { key: 'table:pg-main:projects:create', label: 'Create projects', category: 'Projects' },

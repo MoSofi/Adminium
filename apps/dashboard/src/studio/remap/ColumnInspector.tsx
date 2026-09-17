@@ -4,7 +4,7 @@
  * (read-only — see note), semantic override over the engine SEMANTIC_TAGS
  * with classifier confidence, PII masking toggle, and the enum semantics
  * editor (workflow vs category + per-value label/tone map) when the column
- * is an enum (07-meta-store.md §3.15 `column.*` ops).
+ * is an enum (`column.*` ops).
  *
  * Logical type: adapters map native types onto the closed LOGICAL_TYPES set
  * at introspection time; the v1 override vocabulary has no

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK OPS — component barrel for the eighteen §13 ops / billing / API /
+ * TRACK OPS — component barrel for the eighteen ops / billing / API /
  * marketing cards: the single lazy-import target for
  * `domain-ops-track.definitions.ts`, so the registry's metadata graph reaches
  * this @adminium/ui-heavy component code ONLY through a dynamic `import()`
- * boundary (one lazy chunk, 04 §2.3).
+ * boundary (one lazy chunk).
  *
  * Mirrors the `blocks-track-components.ts` / `media-track-components.ts`
  * convention. Nothing but components belongs here — schemas and `demoData` live

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-line-area` primitive (research/widget-registry.md §2): SVG line with
+ * `chart-line-area` primitive (research/widget-registry.md): SVG line with
  * gradient area fill, optional dashed prior-period comparison series, time or
- * categorical x, linear y, minimal axis labels, nearest-x hover tooltip.
- * Pure data + config props — no fetching.
+ * categorical x, linear y, minimal axis labels, nearest-x hover tooltip. Pure
+ * data + config props — no fetching.
  */
 import { useId, useState } from 'react';
 import type { PointerEvent, ReactNode } from 'react';

@@ -6,7 +6,8 @@ Branch protection, labels, and milestones require a live GitHub repository. For 
 
 - Default branch: `main`.
 - Merge options: **squash merge only** — disable merge commits and rebase merging.
-- Default squash commit message: "Pull request title" (PR titles follow Conventional Commits; enforced by lint from M0 per 15-T18).
+- Default squash commit message: "Pull request title" (PR titles follow Conventional Commits; enforced by lint
+  from M0).
 - Automatically delete head branches: **on**.
 - Discussions: **on** (linked from `.github/ISSUE_TEMPLATE/config.yml`).
 

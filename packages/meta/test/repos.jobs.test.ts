@@ -39,7 +39,7 @@ for (const dialect of TEST_DIALECTS) {
       const b = await jobs.enqueue({ kind: 'retention.gc', payload: {}, dedupeKey: 'gc:sessions' }, T0 + 1);
       expect(b.id).toBe(a.id);
 
-      // Completion clears the key so it can be reused (§3.12).
+      // Completion clears the key so it can be reused.
       await jobs.claim('w1', T0 + 2);
       await jobs.complete(a.id, T0 + 3);
       const c = await jobs.enqueue({ kind: 'retention.gc', payload: {}, dedupeKey: 'gc:sessions' }, T0 + 4);

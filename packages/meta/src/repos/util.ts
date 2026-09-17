@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared repo helpers: dialect-portable JSON/bool round-tripping
- * (07-meta-store.md §2.1 — repos serialize/parse JSON and coerce booleans).
+ * (repos serialize/parse JSON and coerce booleans).
  */
 
 import type { MetaDb } from '../connect.js';
@@ -97,9 +97,9 @@ export function affected(count: bigint | undefined): number {
  *
  * Two callers rely on it and both treat a duplicate as an OUTCOME rather than
  * an error: bootstrap's "somebody else claimed the first user", and the
- * automation runner's "this occurrence has already fired" (42 D6), where the
- * unique index IS the exactly-once guarantee and a violation is the normal,
- * expected answer on every producer but the first.
+ * automation runner's "this occurrence has already fired", where the unique
+ * index IS the exactly-once guarantee and a violation is the normal, expected
+ * answer on every producer but the first.
  */
 export function isDuplicateKeyError(error: unknown): boolean {
   if (error === null || typeof error !== 'object') return false;

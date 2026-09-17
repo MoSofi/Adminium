@@ -3,7 +3,7 @@
  * Wave 0024 (files & storage): `adminium_storage_destinations` lands with its
  * one-default invariant, and `adminium_files` gains the destination pointer
  * plus the record linkage the `entity` column was declared for in 0003 and
- * nothing ever wrote (37-files-and-storage.md §3.2, 37-T02).
+ * nothing ever wrote.
  *
  * Runs the real migration list split at 0023/0024 on every available dialect,
  * because the FK on the ALTER is spelled differently per engine — inline

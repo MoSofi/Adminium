@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-user dashboard layout override routes (04-widget-registry.md §6.3):
+ * Per-user dashboard layout override routes:
  *
  *   PUT    /api/v1/me/views/:pageId/layout  → save the caller's own layout
  *   DELETE /api/v1/me/views/:pageId/layout  → reset (remove the override)

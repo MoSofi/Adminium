@@ -124,6 +124,11 @@ App Platform has no persistent local disk, so uploads need a Space — and so
 does every export artifact and the branding logo. This is the one recipe on this
 page that is not optional.
 
+A Space does not hold installed apps or add-ons. They stay in the data
+directory and are lost at each deploy there — see
+[Installing apps](/self-hosting/installing-apps/#on-a-host-with-no-persistent-disk)
+and [Installing add-ons](/self-hosting/installing-add-ons/#on-a-host-with-no-persistent-disk).
+
 1. Create a **Space** and a **Spaces access key** (an access key ID and a secret).
 2. Optionally enable the Space's CDN.
 3. Set the variable before the first deploy:

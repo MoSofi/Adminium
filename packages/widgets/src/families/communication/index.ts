@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `communication` family public surface (annex §9) — the standalone chat
+ * `communication` family public surface (annex) — the standalone chat
  * components plus the Track-COMM registry metadata. Component code is also
  * reachable through each definition's `lazy()` ref, so the registry still emits
- * one chunk per family (04 §2.3); this barrel is for direct template/story
- * composition and tests. Registry metadata lives in
- * `communication-track.definitions.ts`.
+ * one chunk per family; this barrel is for direct template/story composition
+ * and tests. Registry metadata lives in `communication-track.definitions.ts`.
  */
 export {
   AiChatPanel,

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What an export READS, resolved before any grant check — shared by
- * `POST /exports` and `POST /exports/preview` (41-export-builder.md §3.5), so
- * a saved view resolves to the same table and the same filters whether it is
- * previewed or written.
+ * `POST /exports` and `POST /exports/preview`, so a saved view resolves to
+ * the same table and the same filters whether it is previewed or written.
  */
 import type { FastifyRequest } from 'fastify';
 import { pagesRepo, viewsRepo, type MetaDb } from '@adminium/meta';
@@ -27,7 +26,7 @@ interface ViewQuery {
 }
 
 /**
- * What an export actually reads, resolved BEFORE the grant check — §5.2's
+ * What an export actually reads, resolved BEFORE the grant check —
  * "identifier resolution first, then RBAC on the resolved name".
  *
  * A `table` source names its table. A `view` source does NOT: it names a saved
@@ -107,7 +106,7 @@ export async function resolveSource(
     viewFilters === undefined ? extra : extra === undefined ? viewFilters : [...viewFilters, ...extra];
   // The page rides along so the JOB can compute its derived columns: the
   // export ROW's source has nowhere to carry a page id, and the fact is known
-  // here (36-derived-columns.md D28).
+  // here.
   return { table, filters, pageId: saved.pageId };
 }
 

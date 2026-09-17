@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure funnel geometry (`chart-funnel`, research/widget-registry.md §2):
- * ordered shrinking stages with two layouts —
+ * Pure funnel geometry (`chart-funnel`, research/widget-registry.md):
+ * ordered shrinking stages with two layouts
  *   - `horizontal`: left-aligned bars, width = value / firstValue;
  *   - `stepped`: centered bars with "N% continue" step-conversion rows.
  * Percentages are of the first stage (overall) and of the previous stage
- * (per-step). DOM-free + deterministic (04 §7.1).
+ * (per-step). DOM-free + deterministic.
  */
 
 export interface FunnelStageInput {

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The canvas (comp 287-347; 43-report-builder.md Appendix A C1–C8): the
- * paper, the document header, and the block stack — a wrapping flex row at
- * gap 16 where a `half` block is `calc(50% − 8px)` (303, 613).
+ * The canvas (comp 287-347; C1–C8): the paper, the document header, and
+ * the block stack — a wrapping flex row at gap 16 where a `half` block is
+ * `calc(50% − 8px)` (303, 613).
  *
  * DRAG STATE LIVES HERE, not in the draft: which index is being dragged and
  * which is being dragged over are UI, and a `dragBlock` in the draft would

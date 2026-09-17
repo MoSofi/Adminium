@@ -1,6 +1,6 @@
 # @adminium/dashboard
 
-React 19 + Vite 7 SPA: the Generated App shell (09-generated-app.md §2, §5, §6).
+React 19 + Vite 7 SPA: the Generated App shell.
 
 ## What's here
 
@@ -21,8 +21,8 @@ React 19 + Vite 7 SPA: the Generated App shell (09-generated-app.md §2, §5, §
   notification center, avatar menu), ⌘K palette (`app/palette/`), shortcuts panel from
   the live registration set, global keyboard manager (`app/shortcuts.ts`) with
   typing-context suppression, platform mapping, and data-driven G-chords.
-- **System states** (`src/states/`): all 12 §6.1 variants (`StateHero` + `stateMap`),
-  reachable at `/state/$stateId`, wired to route `errorComponent`s.
+- **System states** (`src/states/`): all variants (`StateHero` + `stateMap`), reachable
+  at `/state/$stateId`, wired to route `errorComponent`s.
 - **i18n**: strings flow through `src/i18n/t.ts`, backed by the shared i18next
   instance (`@adminium/i18n`) after `initDashboardI18n()`.
 
@@ -42,6 +42,6 @@ fallback for non-`/api` GETs included (apps/server/src/plugins/static.ts).
 ## Still missing
 
 - `GET /api/v1/search`: the palette's async `Records` group + mixed-entity Recent
-  tracking (M4-T06 note in `app/palette/CommandPaletteHost.tsx`) — the palette
-  searches the nav tree client-side only until the server grows the endpoint.
+  tracking (note in `app/palette/CommandPaletteHost.tsx`) — the palette searches
+  the nav tree client-side only until the server grows the endpoint.
 - `/signup` (no server endpoint yet).

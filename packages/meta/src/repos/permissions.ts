@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * permissionsRepo — adminium_role_permissions (07-meta-store.md §3.9).
- * The `actions` JSON is Zod-validated per resource kind and never queried in
- * SQL (the server layers an in-memory cache on top).
+ * permissionsRepo — adminium_role_permissions. The `actions` JSON is
+ * Zod-validated per resource kind and never queried in SQL (the server
+ * layers an in-memory cache on top).
  */
 
 import type { MetaDb } from '../connect.js';

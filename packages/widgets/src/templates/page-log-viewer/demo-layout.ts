@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The default `page-log-viewer` demo layout — the manifest's slot areas
- * (templates/page-log-viewer.json) filled the way the §14 archetype pass fills
+ * (templates/page-log-viewer.json) filled the way the archetype pass fills
  * them on an audit table: a KPI pair, the required `log` slot (`log-table`),
  * and the `trace` slot (`timeline-vertical`). No bindings → every widget
- * renders `demoData(hash(instanceId))` (04 §5.3 demo mode). Used by
- * Storybook, tests and first-run states.
+ * renders `demoData(hash(instanceId))` (demo mode). Used by Storybook, tests
+ * and first-run states.
  */
 
 import type { PageLayout } from '../../page-config/index.js';

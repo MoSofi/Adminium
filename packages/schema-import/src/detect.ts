@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Format auto-detection — ordered heuristics over the raw content
- * (05-introspection-engine.md §5.1). Cheap by design: regex probes plus one
- * speculative JSON.parse. `detectFormat` returns the best guess (first match
- * in priority order); `detectCandidates` returns every matching format so the
- * caller can warn about ambiguity.
+ * Format auto-detection — ordered heuristics over the raw content. Cheap by
+ * design: regex probes plus one speculative JSON.parse. `detectFormat`
+ * returns the best guess (first match in priority order); `detectCandidates`
+ * returns every matching format so the caller can warn about ambiguity.
  */
 import type { Format } from './types.js';
 

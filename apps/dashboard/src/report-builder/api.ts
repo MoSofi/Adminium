@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The report-builder API client (43-report-builder.md §3.1).
+ * The report-builder API client.
  *
  * TYPE-ONLY MIRROR of `apps/server/src/routes/report-documents/schema.ts`:
  * the dashboard may not import server runtime code, so the reply shapes are
@@ -9,7 +9,8 @@
  * a bare detail) — the email/invoice client's style.
  *
  * One row = one report template OR one report (`kind`). NOT
- * `/api/v1/scheduled-reports`, which is a different feature (43 §0.3 trap 1).
+ * `/api/v1/scheduled-reports`, which is a different feature
+ * (trap 1).
  */
 import { api } from '../app/api.js';
 import type { ReportBody, ReportDocumentKind, ReportStatus } from './model/envelope.js';
@@ -19,9 +20,9 @@ const BASE = '/api/v1/report-documents';
 export type { ReportBody, ReportDocumentKind, ReportStatus } from './model/envelope.js';
 
 /**
- * What the manager's card, row and thumbnail draw without decoding the body
- * (43 D15/D16): written by the server on every save. Exactly the inputs of
- * the comp's `cards` thumbnail (584-591).
+ * What the manager's card, row and thumbnail draw without decoding the
+ * body: written by the server on every save. Exactly the inputs of the
+ * comp's `cards` thumbnail (584-591).
  */
 export interface ReportSummaryFacts {
   reportTitle: string;
@@ -32,7 +33,7 @@ export interface ReportSummaryFacts {
   kpiCount: number;
   /** The first bar/line block's values, at most six. */
   series: number[];
-  /** The starter's icon, carried on the row so a rename never changes it (43 D14). */
+  /** The starter's icon, carried on the row so a rename never changes it. */
   starterIcon: string;
 }
 
@@ -44,7 +45,7 @@ export interface ReportSummary {
   status: ReportStatus;
   /** Which starter minted it; null for blank documents. */
   starter: string | null;
-  /** The template a report was built from (43 D6); null otherwise. */
+  /** The template a report was built from; null otherwise. */
   originId: string | null;
   createdAt: number;
   updatedAt: number;
@@ -118,7 +119,7 @@ export const reportBuilderApi = {
   remove: (id: string) => api.delete<null>(`${BASE}/${encodeURIComponent(id)}`),
   /** Lands directly after its source as "{name} (copy)", status draft (comp 555). */
   duplicate: (id: string) => api.post<ReportDetail>(`${BASE}/${encodeURIComponent(id)}/duplicate`),
-  /** `id` is the TEMPLATE; the report records it as `originId` (43 D6/O3). */
+  /** `id` is the TEMPLATE; the report records it as `originId`. */
   fromTemplate: (id: string, name?: string) =>
     api.post<ReportDetail>(`${BASE}/${encodeURIComponent(id)}/from-template`, name === undefined ? {} : { name }),
 };

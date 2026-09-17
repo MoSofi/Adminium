@@ -2,7 +2,6 @@
 
 [docs.adminium.dev](https://docs.adminium.dev) — Astro 5 + Starlight.
 
-Plan: `14-docs-site.md`. Milestone: M10 (M10-T05).
 
 ## Commands
 
@@ -43,7 +42,7 @@ src/styles/adminium.css   Remaps Starlight's CSS vars onto @adminium/tokens
 - **No CDN.** Fonts are bundled via `@adminium/tokens/fonts.css`. The built site
   makes zero external asset requests.
 - **The sidebar is explicit** so ordering is deliberate and stable across
-  versions (14-docs-site.md §9 — a future `/v1/` prefix must not reshuffle nav).
+  versions (a future `/v1/` prefix must not reshuffle nav).
 
 ## i18n
 

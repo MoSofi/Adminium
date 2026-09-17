@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The IR → graph mapping — 35-schema-authoring.md §3.7, D16, 35-T20/T21/T23.
+ * The IR → graph mapping.
  *
  * Pure: model in, nodes and edges out. No React, no xyflow, no layout. That is
  * what lets the semantics below — which edge is declared, which is a guess,

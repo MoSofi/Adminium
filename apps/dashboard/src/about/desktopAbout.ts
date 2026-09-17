@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The desktop-only half of the About screen (11-electron.md §13), as the SPA
- * sees it — the bridge reads and the one server write the §13 panel needs.
+ * The desktop-only half of the About screen, as the SPA sees it — the bridge
+ * reads and the one server write the panel needs.
  *
  * ─── Why this is a SEPARATE module from `aboutApi.ts` ─────────────────────────
  *
  * `aboutApi.ts` is the About page every runtime shows: version, licence, the
- * AGPL source offer. This file is the extra §13 fields that exist ONLY in the
+ * AGPL source offer. This file is the extra fields that exist ONLY in the
  * desktop shell — the Electron/Chromium versions, the data directory, the
  * secret-storage mode, the in-app licence viewers, the diagnostics blob. They
- * come from the §4 preload bridge (a native affordance, per
+ * come from the preload bridge (a native affordance, per
  * `lib/desktop-runtime.ts`'s rule), which is absent on self-host and Cloud — so
  * keeping them here keeps `aboutApi.ts` free of any `window.adminiumDesktop`
  * reference and the shared About surface working in all three runtimes.
@@ -34,7 +34,7 @@ export type { DesktopPlatform, DesktopRuntimeInfo, DesktopVersions } from '@admi
 export const DESKTOP_ABOUT_QUERY_KEY = ['about', 'desktop-runtime'] as const;
 
 /**
- * §2.2's runtime facts the §13 panel renders: `dataDir`, `secretStorage`,
+ * The runtime facts the panel renders: `dataDir`, `secretStorage`,
  * `updates.mode`. `null` when there is no bridge — the panel then renders
  * nothing desktop-specific, which is the honest state in a browser tab.
  */
@@ -52,29 +52,30 @@ export function desktopRuntimeQuery() {
   });
 }
 
-/** §4's static `versions`, or `null` off the desktop shell. */
+/** The static `versions`, or `null` off the desktop shell. */
 export function desktopVersions(): DesktopVersions | null {
   return getDesktopApi()?.versions ?? null;
 }
 
-/** §4's static `platform`, or `null` off the desktop shell. */
+/** The static `platform`, or `null` off the desktop shell. */
 export function desktopPlatform(): DesktopPlatform | null {
   return getDesktopApi()?.platform ?? null;
 }
 
-/** §13: reveal the data directory in the OS file manager. No-op with no bridge. */
+/** Reveal the data directory in the OS file manager. No-op with no bridge. */
 export async function revealPath(path: string): Promise<void> {
   await getDesktopApi()?.showItemInFolder(path);
 }
 
-/** §13's "Show logs". No-op with no bridge. */
+/** "Show logs". No-op with no bridge. */
 export async function showLogs(): Promise<void> {
   await getDesktopApi()?.showLogs();
 }
 
 /**
- * §13's in-app licence viewers. `null` when there is no bridge OR the bundled
- * file is absent (a dev build has no generated notices — see the bridge method).
+ * The in-app licence viewers. `null` when there is no bridge OR the bundled
+ * file is absent (a dev build has no generated notices — see the bridge
+ * method).
  */
 export async function readBundledText(kind: DesktopBundledTextKind): Promise<string | null> {
   const desktop = getDesktopApi();
@@ -83,9 +84,9 @@ export async function readBundledText(kind: DesktopBundledTextKind): Promise<str
 }
 
 /**
- * §11's "Check for updates" button (§13). Rejects with `UNAVAILABLE` in
- * `disabled` mode (the updater is never constructed, §11) — the caller renders
- * that as "updates are off" rather than an error.
+ * The "Check for updates" button. Rejects with `UNAVAILABLE` in `disabled`
+ * mode (the updater is never constructed) — the caller renders that as
+ * "updates are off" rather than an error.
  */
 export type DesktopUpdateOutcome =
   | { status: 'available'; version?: string | undefined }
@@ -101,13 +102,13 @@ export async function checkForUpdates(): Promise<DesktopUpdateOutcome> {
     if (result.status === 'available') return { status: 'available', version: result.version };
     return { status: result.status };
   } catch {
-    // §4 `UNAVAILABLE` (disabled mode) and any transient failure land here; the
-    // §13 panel already shows the mode, so "unavailable" is the honest umbrella.
+    // `UNAVAILABLE` (disabled mode) and any transient failure land here; the
+    // panel already shows the mode, so "unavailable" is the honest umbrella.
     return { status: 'unavailable' };
   }
 }
 
-// ─── Telemetry toggle (§13) ──────────────────────────────────────────────────
+// ─── Telemetry toggle ────────────────────────────────────────────────────────
 
 /** `GET`/`PUT /api/v1/settings/telemetry` — mirrors `routes/settings/schema.ts`. */
 export interface TelemetrySettings {
@@ -120,7 +121,7 @@ interface TelemetryEnvelope {
 }
 
 /**
- * Write the telemetry opt-in (§13's toggle). The route is a FULL write of both
+ * Write the telemetry opt-in (toggle). The route is a FULL write of both
  * consents, so the current `updateCheck` rides along unchanged — sending only
  * `telemetry` would silently flip the update-check preference off. Both come
  * from `aboutQuery` at the call site.
@@ -129,7 +130,7 @@ export async function setTelemetry(next: TelemetrySettings): Promise<TelemetrySe
   return (await api.put<TelemetryEnvelope>('/api/v1/settings/telemetry', next)).data;
 }
 
-// ─── Diagnostics (§13) ───────────────────────────────────────────────────────
+// ─── Diagnostics ─────────────────────────────────────────────────────────────
 
 /**
  * Human-readable byte size for the diagnostics blob and the panel. Base-1024
@@ -148,7 +149,7 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(1)} ${units[unit] ?? 'KB'}`;
 }
 
-/** Everything §13's "Copy diagnostic info" is allowed to carry — NO user data. */
+/** Everything "Copy diagnostic info" is allowed to carry — NO user data. */
 export interface DiagnosticsInput {
   appVersion: string | undefined;
   serverVersion: string;
@@ -164,7 +165,7 @@ export interface DiagnosticsInput {
 }
 
 /**
- * The plain-text blob §13's "Copy diagnostic info" copies to the clipboard.
+ * The plain-text blob "Copy diagnostic info" copies to the clipboard.
  *
  * Deliberately assembled here, not on the bridge: the rule is "NO user data",
  * and the only way to keep that a reviewable property is to build the string
@@ -190,7 +191,8 @@ export function buildDiagnostics(input: DiagnosticsInput): string {
   return lines.join('\n');
 }
 
-/** The data directory's size in bytes, or `null` with no bridge (§13 diagnostics). */
+/** The data directory's size in bytes, or `null` with no bridge (diagnostics).
+ * */
 export async function dataDirBytes(): Promise<number | null> {
   const desktop = getDesktopApi();
   if (desktop === null) return null;

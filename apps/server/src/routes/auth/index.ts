@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Auth routes (08-server-api.md §2.1), mounted under /api/v1 by app.ts.
+ * Auth routes, mounted under /api/v1 by app.ts.
  *
  * Every route runs `requireMeta` (503 META_NOT_CONFIGURED when the server
  * boots without a meta DB); session-bound routes add `requireAuth`. The
- * credential-facing routes carry `config.rateLimitBucket` markers — the §6
- * rate limiter in `plugins/core.ts` keys its buckets off them (limits live in
- * its `RATE_BUCKETS` table; an unknown marker fails the boot).
+ * credential-facing routes carry `config.rateLimitBucket` markers — the rate
+ * limiter in `plugins/core.ts` keys its buckets off them (limits live in its
+ * `RATE_BUCKETS` table; an unknown marker fails the boot).
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
@@ -46,7 +46,7 @@ import {
 } from './schema.js';
 
 /**
- * §6 rate-limit bucket markers (5/min login+verify+reset, 3/hour forgot —
+ * Rate-limit bucket markers (5/min login+verify+reset, 3/hour forgot —
  * the limits themselves live in `RATE_BUCKETS`, plugins/core.ts).
  */
 export const RATE_LIMIT_BUCKETS = {
@@ -58,7 +58,7 @@ export const RATE_LIMIT_BUCKETS = {
 declare module 'fastify' {
   interface FastifyContextConfig {
     /**
-     * §6 bucket key the core plugin's rate limiter attaches to. Typed as the
+     * The bucket key the core plugin's rate limiter attaches to. Typed as the
      * union of `RATE_BUCKETS` keys rather than `string`: the boot-time gate in
      * that plugin only fires for routes registered in THAT boot, and eleven
      * route groups are conditionally registered, so a typo in one of them
@@ -66,7 +66,7 @@ declare module 'fastify' {
      */
     rateLimitBucket?: RateLimitBucket;
     /**
-     * §7 item 4 opt-out. `exempt` skips the CSRF check in `security/csrf.ts`
+     * The CSRF opt-out. `exempt` skips the CSRF check in `security/csrf.ts`
      * — for cookie-authenticated callers that are structurally incapable of
      * carrying a token, and that carry a stronger control instead. Exactly one
      * route uses it: `POST /desktop/backup`, whose caller is the Electron main
@@ -127,7 +127,7 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => sessionHandler(ctx(), request),
   );
 
-  // The caller's own devices and credential (§2.1). Session-bound but NOT
+  // The caller's own devices and credential. Session-bound but NOT
   // RBAC-guarded: every one of them reads or writes the requesting account and
   // nothing else, so there is no grant that could gate them — the session IS
   // the authorization.
@@ -177,7 +177,7 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     '/auth/password/reset',
     {
       preHandler: [app.requireMeta],
-      // The token CONSUME side: single-use + 30-min TTL (§7 item 7) bounds a
+      // The token CONSUME side: single-use + 30-min TTL bounds a
       // token's lifetime, this bounds how fast one can be guessed within it.
       config: { rateLimitBucket: RATE_LIMIT_BUCKETS.reset },
       schema: { body: authResetBody, response: { 200: okReply } },

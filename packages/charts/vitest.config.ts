@@ -11,7 +11,7 @@ export default defineConfig({
   esbuild: { jsx: 'automatic' },
   test: {
     ...workers(),
-        // 15-quality.md §1 exempts this package from a line-coverage floor —
+        // The quality bar exempts this package from a line-coverage floor —
       // screenshots and axe are the signal. Collected and reported, asserts nothing.
   coverage: coverage(),
     environment: 'node',

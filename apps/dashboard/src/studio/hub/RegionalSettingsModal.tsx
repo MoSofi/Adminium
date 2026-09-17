@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * "Regional settings" — the timezone and currency a connection's database
- * belongs to (28-T34).
+ * belongs to.
  *
  * ─── Why this screen had to exist ────────────────────────────────────────────
  *

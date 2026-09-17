@@ -32,7 +32,7 @@ export interface SecretInputProps
  * SecretInput — masked mono value (API keys, tokens) with an eye reveal
  * toggle and a copy button that flips to a check + announces `copiedLabel`
  * through a polite `aria-live` region for 1.4s
- * (research/design-system.md §3 Tier 2).
+ * (research/design-system.md Tier 2).
  */
 export function SecretInput({
   className,

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * DSN encryption closures (01-architecture.md §3/§7.1): AES-256-GCM with an
- * HKDF key derived from `ADMINIUM_SECRET`, purpose-scoped so DSN, TOTP, and
- * session keys never coincide. `@adminium/meta` receives only these
- * closures — the meta store stays crypto-agnostic.
+ * DSN encryption closures: AES-256-GCM with an HKDF key derived from
+ * `ADMINIUM_SECRET`, purpose-scoped so DSN, TOTP, and session keys never
+ * coincide. `@adminium/meta` receives only these closures — the meta store
+ * stays crypto-agnostic.
  */
 
 import type { DsnCrypto } from '@adminium/meta';

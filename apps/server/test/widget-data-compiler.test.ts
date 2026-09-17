@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline unit tests for the widget-data query-descriptor compiler
- * (04-widget-registry.md §5.2): SQL-text assertions over dynamic Kysely
- * with a dummy driver proving identifiers come from the snapshot, values
- * bind as parameters, time buckets compile per dialect (Postgres
- * `date_trunc`, MySQL `DATE_FORMAT`, SQLite `strftime`), window bounds are
- * calendar-correct, masked columns refuse in every clause, and the shape ⇄
- * descriptor structural rules hold. Shaper + cache units ride along — no
- * database required.
+ * Offline unit tests for the widget-data query-descriptor compiler:
+ * SQL-text assertions over dynamic Kysely with a dummy driver proving
+ * identifiers come from the snapshot, values bind as parameters, time
+ * buckets compile per dialect (Postgres `date_trunc`, MySQL `DATE_FORMAT`,
+ * SQLite `strftime`), window bounds are calendar-correct, masked columns
+ * refuse in every clause, and the shape ⇄ descriptor structural rules
+ * hold. Shaper + cache units ride along — no database required.
  */
 
 import {
@@ -473,10 +472,10 @@ describe('WidgetDataCache', () => {
   });
 });
 
-// Dialect divergence (04 §5.2 step 4): the `date_trunc` cases above assert the
+// Dialect divergence: the `date_trunc` cases above assert the
 // Postgres path; time bucketing and rolling-window bounds are the two clauses
 // whose SQL differs per engine. These pin the MySQL/SQLite SQL text so the
-// M9-T05 cross-engine regression (500 on sqlite/mysql — `no such function:
+// cross-engine regression (500 on sqlite/mysql — `no such function:
 // date_trunc`, and better-sqlite3 refusing to bind a `Date`) stays fixed.
 describe('widget-data compiler — per-dialect bucket/window SQL', () => {
   const mysqlDb = new Kysely<SourceDatabase>({

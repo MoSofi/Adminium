@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The card facts (34-invoices-add-on.md §3.9 "denormalised columns"): what
- * the manager's card and row read without decoding the body, written by the
- * server on every save so the list never opens 70 fields per row. The shape
- * is `invoiceSummarySchema` in `@adminium/meta` and `InvoiceSummaryFacts` in
- * the dashboard's `api.ts`, exactly.
+ * The card facts: what the manager's card and row read without decoding the
+ * body, written by the server on every save so the list never opens 70
+ * fields per row. The shape is `invoiceSummarySchema` in `@adminium/meta`
+ * and `InvoiceSummaryFacts` in the dashboard's `api.ts`, exactly.
  */
 import type { InvoiceSummary } from '@adminium/meta';
 

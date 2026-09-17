@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/account` (09 §2.3): the session-identity card — who is signed in, with
- * which roles and 2FA state — plus links to its sibling per-user pages,
- * `/account/preferences`, `/account/security` and `/account/notifications`.
+ * `/account`: the session-identity card — who is signed in, with which
+ * roles and 2FA state — plus links to its sibling per-user pages,
+ * `/account/preferences`, `/account/security` and
+ * `/account/notifications`.
  *
  * THE PASSWORD FORM LIVES HERE TOO — `account/PasswordCard.tsx`, the same
  * component `/account/security` mounts. Shared rather than copied, so the

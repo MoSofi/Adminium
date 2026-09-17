@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SQLite snapshotting for the §9 backup (11-electron.md §9), and the discovery
- * of what there is to snapshot.
+ * SQLite snapshotting for the backup, and the discovery of what there is to
+ * snapshot.
  *
  * ─── Why `backup()` and not `copyFile()` ─────────────────────────────────────
  *
- * §9 is specific — "the server snapshots each SQLite file with the
+ * The rule is specific — "the server snapshots each SQLite file with the
  * `better-sqlite3` online `backup()` API (WAL-safe, no locking of live writers)"
  * — and the alternative it rules out is not merely inferior, it is silently
- * wrong. Every local database runs `journal_mode = WAL` (§9's pragma block), so
- * a committed row lives in `<db>-wal` until a checkpoint folds it back. Copying
+ * wrong. Every local database runs `journal_mode = WAL` (pragma block), so a
+ * committed row lives in `<db>-wal` until a checkpoint folds it back. Copying
  * the `.sqlite` file therefore copies a database that is missing its most recent
  * commits; copying all three files copies them at three different instants, so
  * the WAL can describe pages the main file does not have yet. Both produce an
- * archive that unzips, opens, passes `PRAGMA integrity_check`, and has lost
- * data — the worst failure a backup can have, because it is invisible until the
+ * archive that unzips, opens, passes `PRAGMA integrity_check`, and has lost data
+ * — the worst failure a backup can have, because it is invisible until the
  * restore.
  *
  * `backup()` runs SQLite's own online backup: it reads through the same page
@@ -27,10 +27,10 @@
  *
  * The obvious move is to reach through `ConnectionManager` for the handle the
  * server already holds. It is the wrong move: those handles are role-branded
- * (01 §3's privilege model), pooled, and owned by request-scoped code, and a
- * backup that borrowed one would serialize itself behind whatever CRUD is in
- * flight — the exact locking §9 says not to do. A second connection to a WAL
- * database is the normal, supported thing (WAL exists so readers and a writer
+ * (privilege model), pooled, and owned by request-scoped code, and a backup
+ * that borrowed one would serialize itself behind whatever CRUD is in flight
+ * — the exact locking says not to do. A second connection to a WAL database
+ * is the normal, supported thing (WAL exists so readers and a writer
  * coexist), so this module opens its own, READONLY, and closes it. `readonly`
  * is belt and braces: a backup is the one operation in the product with no
  * reason whatsoever to be able to write to a source database, and
@@ -55,7 +55,7 @@ export interface LocalDatabaseSource {
   path: string;
 }
 
-/** A source DB the backup lists but never dumps (§9's "external"). */
+/** A source DB the backup lists but never dumps ("external"). */
 export interface ExternalDatabaseSource {
   connectionId: string;
   slug: string;
@@ -89,7 +89,7 @@ function localFileOf(dsn: string | null): string | null {
 /**
  * Split every configured connection into "we dump this" and "we list this".
  *
- * §9's rule is about the ENGINE, not about reachability: a Postgres on
+ * The rule is about the ENGINE, not about reachability: a Postgres on
  * `localhost` is still external (we do not have a byte-level snapshot mechanism
  * for it, and `pg_dump` is not a thing this process may assume exists), and a
  * SQLite file on a network share is still local. Anything that is neither — a

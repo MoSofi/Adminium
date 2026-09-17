@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-wordcloud` primitive (research/widget-registry.md §2): terms sized by
+ * `chart-wordcloud` primitive (research/widget-registry.md): terms sized by
  * frequency, flowed into wrapped rows and rendered as SVG <text> (font size is
  * an SVG presentation attribute, so no `style` prop and no DOM text metrics).
  * Widths are estimated deterministically in geometry → identical layout in a
- * report worker (04 §7.1). Rows mirror in RTL (§7.4); colors are tokens only.
+ * report worker. Rows mirror in RTL; colors are tokens only.
  */
 import type { ReactNode } from 'react';
 

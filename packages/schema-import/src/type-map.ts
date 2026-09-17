@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Generic SQL-ish native type → LogicalType mapping (05 §2.2, "extend, never
- * fork"). Covers Postgres, MySQL/MariaDB and SQLite spellings in one table
- * because imported DDL is dialect-tolerant by design. TypeORM column `type`
- * strings are the same vocabulary, so that parser reuses this too.
+ * Generic SQL-ish native type → LogicalType mapping ("extend, never fork").
+ * Covers Postgres, MySQL/MariaDB and SQLite spellings in one table because
+ * imported DDL is dialect-tolerant by design. TypeORM column `type` strings
+ * are the same vocabulary, so that parser reuses this too.
  */
 import type { ColumnDefault, LogicalType } from '@adminium/engine';
 

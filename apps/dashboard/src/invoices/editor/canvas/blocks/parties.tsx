@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The address blocks (comp 388-421; 34-invoices-add-on.md Appendix F B1–B3):
- * `parties` — *From* and *Invoice to* side by side; `shipping` — *Ship to*;
- * `meta` — the four-column Issued · Due · Terms · PO number strip.
+ * The address blocks (comp 388-421; B1–B3): `parties` — *From* and *Invoice
+ * to* side by side; `shipping` — *Ship to*; `meta` — the four-column Issued
+ * · Due · Terms · PO number strip.
  *
  * *Invoice to*, not the comp's *Bill to* (395): 34 Appendix D.2's standing
  * `"bill" (noun) → "invoice"` row; the field is `customerName` for the same

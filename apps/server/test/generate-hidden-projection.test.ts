@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `nav.hidden` → row projection (30-record-pages.md follow-up): a generated
- * cascade-owned child's envelope carries `nav.hidden: true`, and the page ROW
- * it persists to must carry `nav_group = null` — the exact state Studio's
- * "Hide from sidebar" writes, so nav-building, bootstrap and un-hiding all
- * run on one predicate. The envelope keeps its `group` (what "Show in
- * sidebar" restores), which is why the projection, not the envelope, is where
- * null appears.
+ * `nav.hidden` → row projection (follow-up): a generated cascade-owned
+ * child's envelope carries `nav.hidden: true`, and the page ROW it persists
+ * to must carry `nav_group = null` — the exact state Studio's "Hide from
+ * sidebar" writes, so nav-building, bootstrap and un-hiding all run on one
+ * predicate. The envelope keeps its `group` (what "Show in sidebar"
+ * restores), which is why the projection, not the envelope, is where null
+ * appears.
  */
 import { describe, expect, it } from 'vitest';
 import { pageEnvelopeSchema } from '@adminium/engine/config';

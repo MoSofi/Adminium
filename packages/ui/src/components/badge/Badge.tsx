@@ -7,13 +7,13 @@ import type * as React from 'react';
 import { cn } from '../../lib/cn.js';
 import { toneSoftClasses } from '../../lib/tones.js';
 
-// The semantic tone vocabulary lives in lib/tones.ts (03-component-library.md
-// §3.3); re-exported here for the library-internal `../badge/Badge.js` imports.
+// The semantic tone vocabulary lives in lib/tones.ts; re-exported here for
+// the library-internal `./badge/Badge.js` imports.
 export type { Tone } from '../../lib/tones.js';
 
 /**
  * Pill badge: radius-full, 11px/700, soft tone background + strong tone
- * foreground (research/design-system.md §3 Tier 1). The tone→class map is the
+ * foreground (research/design-system.md Tier 1). The tone→class map is the
  * shared `toneSoftClasses` recipe — one source of truth for every soft tint.
  */
 export const badgeVariants = cva(

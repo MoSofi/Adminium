@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The app catalog client (48-self-hosted-downloads.md §6b, G8-D1 to D5;
- * 47-app-installation.md §5 4c).
+ * The app catalog client (b, G8-D1 to D5; 4c).
  *
  * The add-on catalog client's twin, with the same shape for the same reasons:
  * the off-switch is checked FIRST, before a URL exists, so there is no code path
@@ -25,9 +24,9 @@
  *    server's version is a real "not yet" and is listed that way rather than
  *    offered.
  *
- * THE FINGERPRINT (48 D3) is the row's `integrity`: the release ledger's value,
- * carried by a feed the website builds from the ledger at a pinned commit. The
- * app store checks the downloaded bytes against it before unpacking anything.
+ * THE FINGERPRINT is the row's `integrity`: the release ledger's value, carried
+ * by a feed the website builds from the ledger at a pinned commit. The app
+ * store checks the downloaded bytes against it before unpacking anything.
  *
  * THE DISCLOSURE is the add-on client's: refreshing tells adminium.dev this
  * deployment's IP and Adminium version, and a download tells Cloudflare, which
@@ -60,13 +59,13 @@ const localized = z.record(z.string(), z.string());
 
 /**
  * One feed row, strict: a field this server does not know is a REFUSAL, which
- * is how 17 §2's "no price field by construction" holds here too.
+ * is how "no price field by construction" holds here too.
  */
 export const appCatalogEntrySchema = z
   .object({
     key: z.string().regex(ADD_ON_KEY_PATTERN),
     version: z.string().regex(EXACT_VERSION_PATTERN),
-    /** The release ledger's value, `sha512-<base64>` (48 D3). */
+    /** The release ledger's value, `sha512-<base64>`. */
     integrity: z.string().regex(/^sha512-[A-Za-z0-9+/]+={0,2}$/),
     name: localized,
     tagline: localized,

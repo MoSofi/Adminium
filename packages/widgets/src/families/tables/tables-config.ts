@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Config schemas for the `tables` family M4 base group (annex §3): `data-grid`,
+ * Config schemas for the `tables` family M4 base group (annex): `data-grid`,
  * `pagination-footer`, `bulk-action-toolbar`, `detail-key-value`, `mini-table`.
  * PURE module — zod, the shared config, and the (pure) `column-spec` leaf only;
  * no React and no component code.
@@ -10,8 +10,8 @@
  * While these schemas lived in `./widgets.tsx`, the definitions had to reach into
  * that component module to name them, pulling every `tables` widget and its
  * @adminium/ui deps into the eager chunk and leaving the sibling
- * `lazy(() => import('./widgets.js'))` refs buying nothing (04 §2.3,
- * acceptance #3; enforced by `qa/chunk-budget.test.ts`).
+ * `lazy(() => import('./widgets.js'))` refs buying nothing (acceptance #3;
+ * enforced by `qa/chunk-budget.test.ts`).
  *
  * `./widgets.tsx` re-exports these symbols so existing import points stay stable.
  */

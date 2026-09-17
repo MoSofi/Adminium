@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Deep, name-based secret redaction for the log (08-server-api.md §1.3).
+ * Deep, name-based secret redaction for the log.
  *
  * ─── WHY A FORMATTER AND NOT MORE `redact.paths` ────────────────────────────
  *
@@ -88,7 +88,7 @@ export const SECRET_FIELD_NAMES_CANONICAL: readonly string[] = [
   'apiKey',
   'apiKeyEncrypted',
   // `adminium_add_on_credentials.payload` — the AES-256-GCM envelope holding a
-  // connected add-on's API key or OAuth token pair (26 §4). The column is named
+  // connected add-on's API key or OAuth token pair. The column is named
   // for what it IS rather than for what it holds, so none of the `*Encrypted` /
   // `*Key` / `*token` patterns above catch it, and a credential row logged
   // anywhere would print the whole envelope. Generic enough to be worth the
@@ -98,11 +98,11 @@ export const SECRET_FIELD_NAMES_CANONICAL: readonly string[] = [
   'payload',
   'refreshToken',
   'accessToken',
-  // 37 §3.12 / §6 item 10 — a storage destination's S3 credential. The pair is
-  // named for the AWS SDK's own field names, so none of the `*Key` / `secret*`
-  // patterns above reaches either: `secretAccessKey` is not `secret`, and the
-  // matcher is exact. A destination row logged anywhere — a failed `test`, a
-  // driver error, a job payload — would print the key that opens the bucket.
+  // A storage destination's S3 credential. The pair is named for the AWS SDK's
+  // own field names, so none of the `*Key` / `secret*` patterns above reaches
+  // either: `secretAccessKey` is not `secret`, and the matcher is exact. A
+  // destination row logged anywhere — a failed `test`, a driver error, a job
+  // payload — would print the key that opens the bucket.
   'accessKeyId',
   'secretAccessKey',
   'dsn',

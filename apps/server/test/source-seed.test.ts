@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The first-boot source-connection seed (28-public-surface.md 28-T31).
+ * The first-boot source-connection seed.
  *
  * These are the four answers `config/env.ts` demanded before this feature was
  * allowed to exist, one describe block each: probe before storing, a bad DSN

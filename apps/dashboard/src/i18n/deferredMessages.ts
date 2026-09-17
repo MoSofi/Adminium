@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Loading a DEFERRED message namespace before its surface renders
- * (10-i18n-theming.md §2.3; `DEFERRED_NAMESPACES`). `studio` was the first
- * (10-T06); `email` the second (39-email-templates-and-campaigns.md §6.1) —
- * the same choreography, so it lives once here and each surface exports a
+ * (`DEFERRED_NAMESPACES`). `studio` was the first; `email` the second — the
+ * same choreography, so it lives once here and each surface exports a
  * one-line `…MessagesReady()` over it.
  *
  * Resolves once the namespace is in the store for the active language and
@@ -67,7 +66,7 @@ export function deferredMessagesReady(ns: DeferredNamespace): Promise<void> {
       i18n.addResources(tag, ns, flat);
     }
   })()
-    // Degraded network beats a blank screen (10 §7.5), and this promise is
+    // Degraded network beats a blank screen, and this promise is
     // consumed by `use()` — a rejection would surface as an error boundary
     // over the whole surface instead of a page rendered from its own inline
     // English. The same shape as the lazy backend's own failure path.

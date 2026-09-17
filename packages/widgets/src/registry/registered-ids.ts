@@ -4,13 +4,13 @@
  *
  * WHY THIS EXISTS: `./index.ts` builds `widgetRegistry` from the per-family
  * `definitions.ts` modules — component code. The generator leaf
- * (`../generate/index.ts`) and everything downstream of it (the Engine, and
- * through it the server) may not import that (01-architecture.md §2.3; the
- * `engine-no-full-widgets` / `server-no-ui-widgets-charts` dependency-cruiser
- * rules). Yet 04 §8 H1/H4 require generation to know which ids are registered:
- * an unregistered id reaching a stored page renders `widget-missing`, and
- * `composeTemplate`'s whole PENDING-id discipline is only sound when the
- * membership test is actually supplied.
+ * (`./generate/index.ts`) and everything downstream of it (the Engine, and
+ * through it the server) may not import that (the `engine-no-full-widgets` /
+ * `server-no-ui-widgets-charts` dependency-cruiser rules). Yet H1/H4 require
+ * generation to know which ids are registered: an unregistered id reaching a
+ * stored page renders `widget-missing`, and `composeTemplate`'s whole
+ * PENDING-id discipline is only sound when the membership test is actually
+ * supplied.
  *
  * So the id set is inverted into data: this list is the leaf-safe mirror the
  * generator defaults to, and `registered-ids.test.ts` fails the moment it drifts
@@ -20,7 +20,7 @@
  * `../qa/delivered.ts` — register a widget, add it here, and the gate tells you
  * if you forget.
  *
- * Sorted; ids are globally unique (04 §2.1).
+ * Sorted; ids are globally unique.
  */
 export const REGISTERED_WIDGET_IDS: readonly string[] = [
   'accordion-list',

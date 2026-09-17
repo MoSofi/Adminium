@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline unit tests for the Postgres statistics collector (06 §4.2). No `pg`
- * driver: a mock executor routes catalog/scan/sampling SQL by shape so the
- * estimate logic (reltuples-vs-exact, pg_stats distinct normalization, scan
- * fallback, capping) and the privacy rules (sample-free default, PII never
- * sampled) are asserted deterministically.
+ * Offline unit tests for the Postgres statistics collector. No `pg` driver: a
+ * mock executor routes catalog/scan/sampling SQL by shape so the estimate
+ * logic (reltuples-vs-exact, pg_stats distinct normalization, scan fallback,
+ * capping) and the privacy rules (sample-free default, PII never sampled) are
+ * asserted deterministically.
  */
 import { describe, expect, it } from 'vitest';
 

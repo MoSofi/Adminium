@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Locating hosted app surfaces (28-public-surface.md successor — the
- * hosted-in-Adminium spike).
+ * Locating hosted app surfaces (successor — the hosted-in-Adminium
+ * spike).
  *
  * A "surface" is one built frontend an app manifest declares under
  * `frontends[]`: `{ side: 'staff' | 'customer', kind: 'spa', … }`. Adminium
@@ -16,9 +16,9 @@
  *
  * This resolver is the SPIKE mechanism deliberately: a directory an operator
  * points at, discovered at boot. The real thing installs surfaces from a
- * manifest + tarball, which is the installer (13-T03/T04) and does not exist.
- * Keeping discovery this dumb means the spike measures the serving and auth
- * questions rather than the installer's.
+ * manifest + tarball, which is the installer and does not exist. Keeping
+ * discovery this dumb means the spike measures the serving and auth questions
+ * rather than the installer's.
  *
  * A miss degrades to "no surfaces", exactly as `static-root.ts` degrades to an
  * API-only boot — never a crash.
@@ -39,7 +39,7 @@ export const SURFACE_SIDES = ['staff', 'customer'] as const;
 export type SurfaceSide = (typeof SURFACE_SIDES)[number];
 
 /**
- * One navigable screen, as the build declared it (29-app-surfaces.md D7).
+ * One navigable screen, as the build declared it.
  *
  * `labels` is keyed by BCP-47 tag and carries every locale the app ships; the
  * server resolves to the session's locale when it puts these in `/bootstrap`,
@@ -51,7 +51,7 @@ export interface SurfaceNavItem {
   path: string;
   /** lucide icon name, kebab-case. */
   icon?: string;
-  /** A lens within the side (28-T44) — renders as its own sidebar row. */
+  /** A lens within the side — renders as its own sidebar row. */
   persona?: string;
   labels: Record<string, string>;
 }

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Adapter registry mechanics + the typed adapter error — the acyclic leaf
- * under ./adapter.ts (the repo forbids circular imports, 01 §2.3).
+ * under./adapter.ts (the repo forbids circular imports).
  *
  * The public import path for everything here is `@adminium/engine/adapter`,
  * which re-exports this module and binds the process-wide singleton
- * `adapterRegistry` to the concrete `AdapterProvider` contract
- * (01-architecture.md §2.3.1):
+ * `adapterRegistry` to the concrete `AdapterProvider` contract:
  *
  * ```ts
  * import { adapterRegistry } from '@adminium/engine/adapter';
@@ -21,7 +20,7 @@
 import type { Dialect } from './schema-model.js';
 
 // ---------------------------------------------------------------------------
-// Typed errors (05 §3)
+// Typed errors
 // ---------------------------------------------------------------------------
 
 export const ADAPTER_ERROR_CODES = [

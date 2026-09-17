@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * "HOW MANY RELATED ROWS?" — one COUNT, the only related-record question v1
- * answers (42-automations-and-workflow-logs.md FILL F5).
+ * answers (FILL F5).
  *
  * It exists because both of the owner's examples turn on it: "did they claim
  * the offer?" is `count(offer_claims where user_id = this.id) > 0`, and "is

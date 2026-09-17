@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure-geometry tests for the part-to-whole & hierarchy charts (04-T09):
- * determinism (same input → byte-identical output, proving Node-vs-browser
- * parity for report rasterization), golden path/coordinate strings for the
- * core geometry, empty/edge predicates, and the RTL mirroring policy (§7.4).
- * Runs in the default `node` environment — no DOM.
+ * Pure-geometry tests for the part-to-whole & hierarchy charts: determinism
+ * (same input → byte-identical output, proving Node-vs-browser parity for
+ * report rasterization), golden path/coordinate strings for the core
+ * geometry, empty/edge predicates, and the RTL mirroring policy. Runs in the
+ * default `node` environment — no DOM.
  */
 import { describe, expect, it } from 'vitest';
 

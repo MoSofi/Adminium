@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0003 — connections & schema: adminium_files, adminium_connections,
- * adminium_schema_snapshots, adminium_schema_overrides
- * (07-meta-store.md §3.13–§3.15, §3.27).
+ * adminium_schema_snapshots, adminium_schema_overrides.
  */
 
 import type { Kysely } from 'kysely';

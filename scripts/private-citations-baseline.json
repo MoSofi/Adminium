@@ -1,0 +1,16 @@
+{
+  "comment": "Private citations still to be rewritten, per file. Only ever shrinks; see scripts/check-private-citations.mjs. Regenerate with `pnpm check-private-citations --update`.",
+  "remaining": 36,
+  "files": {
+    "packages/meta/src/migrations/0005_ops.ts": 2,
+    "packages/meta/src/migrations/0006_platform.ts": 1,
+    "packages/meta/src/migrations/0007_llm_runs.ts": 7,
+    "packages/meta/src/migrations/0011_i18n_runtime.ts": 3,
+    "packages/meta/src/migrations/0014_public_surface.ts": 6,
+    "packages/meta/src/migrations/0020_manifests_add_on.ts": 4,
+    "packages/meta/src/migrations/0027_invoice_documents.ts": 4,
+    "packages/meta/src/migrations/0028_automations_runtime.ts": 1,
+    "packages/meta/src/migrations/0030_report_documents.ts": 5,
+    "packages/meta/src/migrations/0031_documents.ts": 3
+  }
+}

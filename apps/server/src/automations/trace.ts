@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE TRACE — what Workflow Logs draws under "EXECUTION TRACE" (42-
- * automations-and-workflow-logs.md §3.4, Appendix A, 42-T08).
+ * automations-and-workflow-logs.md).
  *
  * A run's trace is the only account of what a rule did, and it is read by an
  * admin long after the fact, so two properties matter more than they look:
@@ -10,9 +10,9 @@
  *
  * The run itself reads the record unmasked; it has to, to address the email
  * and write the value. What gets STORED — the trigger snapshot, the first
- * step's "record = …" line — goes through `maskRow` first (§0.3). Masking at
- * the trace boundary rather than at the read means one place to get right,
- * and the place a person actually reads from.
+ * step's "record = …" line — goes through `maskRow` first. Masking at the
+ * trace boundary rather than at the read means one place to get right, and
+ * the place a person actually reads from.
  *
  * --- The step's NAME is captured, not referenced -------------------------
  *
@@ -63,7 +63,7 @@ export interface TraceText {
   hookOk(method: string, path: string, status: number, ms: number): string;
   hookFail(method: string, path: string, status: string): string;
   hookWould(method: string, url: string): string;
-  /** 34 §7.2 / D55 — the four lines a `document.render` step can write. */
+  /** The four lines a `document.render` step can write. */
   docOk(number: string): string;
   docSkipped(reason: string): string;
   docWould(kind: string, name: string): string;

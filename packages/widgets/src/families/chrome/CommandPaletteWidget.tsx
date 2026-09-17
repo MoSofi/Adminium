@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `command-palette` (annex §11) — ⌘K modal: live substring filter over an index,
+ * `command-palette` (annex) — ⌘K modal: live substring filter over an index,
  * grouped results in fixed order, keyboard navigation, ↵ executes/navigates,
  * match highlighting, footer key legend, empty state. The generator builds its
- * index from tables, recent records, metrics and actions (annex §11
+ * index from tables, recent records, metrics and actions (annex
  * auto-instantiation: "the app shell always mounts … `command-palette`").
  *
  * Wraps @adminium/ui's `CommandPalette` + `useCommandK`, which own the dialog
@@ -73,7 +73,7 @@ function useCommandGroupLabels(): Record<CommandGroupKey, string> {
   );
 }
 
-/** Project the §3 `record-list` index payload onto palette entries. */
+/** Project the `record-list` index payload onto palette entries. */
 export function commandEntriesOf(data: unknown, config: CommandPaletteConfig): CommandEntry[] {
   const rows = recordRowsOf(data);
   const out: CommandEntry[] = [];
@@ -95,10 +95,9 @@ export function commandEntriesOf(data: unknown, config: CommandPaletteConfig): C
 }
 
 /**
- * Bucket entries into the manifest's fixed group order (annex §11 "grouped
- * results in fixed order"). Groups the index carries but the order does not
- * render AFTER the ordered ones — a new index group must never vanish silently.
- * Empty groups are dropped.
+ * Bucket entries into the manifest's fixed group order (annex). Groups the
+ * index carries but the order does not render AFTER the ordered ones — a new
+ * index group must never vanish silently. Empty groups are dropped.
  */
 export function groupEntries(
   entries: readonly CommandEntry[],

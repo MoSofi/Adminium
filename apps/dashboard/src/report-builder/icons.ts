@@ -10,12 +10,12 @@
  * modules in the report-builder chunks and lets the generator skip the
  * `icon:` literals in the files listed under SWEEP_IGNORE.
  *
- * THREE OF THE COMP'S NAMES NO LONGER EXIST UNDER THOSE NAMES (43 §0.1.7).
- * lucide-react 0.525 renamed `bar-chart-3` → `ChartColumn`, `line-chart` →
- * `ChartLine` and `file-bar-chart-2` → `FileChartColumn`. The SLUGS stay the
- * comp's — they are data on a row (a starter's `icon`) and in
- * `BLOCK_KIND_META` — and the rename lives here, in the one place that maps
- * a slug to a component. Same glyphs, not a departure.
+ * THREE OF THE COMP'S NAMES NO LONGER EXIST UNDER THOSE NAMES. lucide-react
+ * 0.525 renamed `bar-chart-3` → `ChartColumn`, `line-chart` → `ChartLine`
+ * and `file-bar-chart-2` → `FileChartColumn`. The SLUGS stay the comp's —
+ * they are data on a row (a starter's `icon`) and in `BLOCK_KIND_META` — and
+ * the rename lives here, in the one place that maps a slug to a component.
+ * Same glyphs, not a departure.
  */
 import {
   AlarmClock,

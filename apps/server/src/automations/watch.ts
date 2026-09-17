@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE WATCH POLLER — the owner's "listener" (42-automations-and-workflow-
- * logs.md D4, §3.3, 42-T06).
+ * logs.md D4).
  *
  * The feature was asked for with one example: "a user signs up, send them a
  * welcome email". In every deployment that matters, that sign-up is a row the

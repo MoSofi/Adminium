@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Schema remap editor (M5-T04; research/ia-mapping.md §4 "remapped
- * public.customers"): two-pane Studio surface over the connection's active
- * snapshot.
+ * Schema remap editor: two-pane Studio surface over the connection's
+ * active snapshot.
  *
  * - Left: schema tree (search, per-table columns, type chips, PK/FK/UNIQUE/
  *   PII badges) rendering the APPLIED model from `GET /connections/:id/schema`
@@ -14,7 +13,7 @@
  *   change chip and inspector field.
  * - Post-save: "Regenerate pages" (POST /connections/:id/generate) with
  *   created/updated/unchanged counts; user-edited pages are preserved via
- *   generated_hash semantics (04-widget-registry.md §6.3).
+ * generated_hash semantics.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, lazy, useState } from 'react';
@@ -39,9 +38,9 @@ import { DesignMode } from './design/DesignMode.js';
  * The diagram is LAZY, and that is load-bearing rather than tidy.
  *
  * `@xyflow/react` is ~59 KiB gz and does NOT tree-shake — 84 bytes between a
- * minimal and a full import (35 §8.1). A static import here would put the whole
- * library in the synchronously-loaded set for every user on every route, which
- * is the exact failure `chunk-budget.json` records for `page-builder` and
+ * minimal and a full import. A static import here would put the whole library
+ * in the synchronously-loaded set for every user on every route, which is the
+ * exact failure `chunk-budget.json` records for `page-builder` and
  * `ImportWizardPage`. Nothing outside `./diagram/` imports it.
  */
 const DiagramModeLazy = lazy(async () => {
@@ -108,16 +107,16 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
   const toasts = useToastQueue();
 
   /**
-   * Which half of the page is showing (35 §3.6, O6 → D22): the remap editor
-   * that changes what Adminium DISPLAYS, or the designer that changes the
-   * customer's DATABASE. One page, one navigation tree, two verbs — and
-   * deliberately two buffers, so a single Save can never mix a label change
-   * with a dropped column (§0.3 trap 1).
+   * Which half of the page is showing: the remap editor that changes what
+   * Adminium DISPLAYS, or the designer that changes the customer's
+   * DATABASE. One page, one navigation tree, two verbs — and deliberately
+   * two buffers, so a single Save can never mix a label change with a
+   * dropped column (trap 1).
    */
   const [mode, setMode] = useState<'remap' | 'design' | 'diagram'>('remap');
 
   /**
-   * 35-T15's honest absence, client half.
+   * The honest absence, client half.
    *
    * The tab is REMOVED, not disabled. A disabled control still says "this is
    * something Adminium does, and you may not do it"; for a schema-file source
@@ -228,7 +227,7 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
       ? selectedTable.columns.find((column) => column.name === selection.column)
       : undefined;
 
-  // Per-engine capability notes (M9-T04): what this source could not express,
+  // Per-engine capability notes: what this source could not express,
   // so remapping expectations stay honest (e.g. SQLite has no comments to
   // import — labels set here are the labeling path).
   const sourceNotes = model === undefined ? [] : capabilityNotes(modelCapabilitySource(model));

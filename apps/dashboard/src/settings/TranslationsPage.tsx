@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/settings/translations` — the runtime translation editor
- * (23-runtime-translations.md §7).
+ * `/settings/translations` — the runtime translation
+ * editor.
  *
  * Two panels: a key browser for editing any of the ~2,800 authored messages
  * per locale, and a locale manager for choosing which languages are offered
@@ -85,7 +85,7 @@ function KeyEditor(props: {
     },
     onError: (err: unknown) => {
       // The validator's message is written for an admin, not a developer —
-      // show it verbatim rather than a generic failure (23 §6.3).
+      // show it verbatim rather than a generic failure.
       setError(err instanceof Error ? err.message : String(err));
     },
   });

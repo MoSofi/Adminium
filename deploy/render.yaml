@@ -5,11 +5,13 @@
 # encryption depends on.
 #
 # To deploy: create a Blueprint from the repo, or use the Deploy-to-Render button
-# in the top-level README. For an external Postgres/MySQL meta store instead of
-# the disk, drop the `disk:` block and set ADMINIUM_META_URL.
+# in the top-level README. For an external Postgres/MySQL meta store, set
+# ADMINIUM_META_URL, and keep the `disk:` block anyway: installed apps and
+# add-ons are stored on it too, and without it every deploy loses them
+# (deploy/README.md, "Apps and add-ons on a host with no disk").
 #
 # DRAFT: authored against the published image; not yet validated by a live
-# Render deploy (workplan 17-T17 / owner step).
+# Render deploy (workplan / owner step).
 services:
   - type: web
     name: adminium
@@ -28,7 +30,9 @@ services:
     # /data/files, with nothing to configure. 1 GB is a starting size, not a
     # ceiling — raise sizeGB, or send the bytes elsewhere by setting
     # ADMINIUM_STORAGE_URL to an S3-compatible bucket or a WebDAV server when
-    # the disk is no longer the right home for them.
+    # the disk is no longer the right home for them. Installed apps and add-ons
+    # are kept under /data/apps and /data/add-ons, and only the disk can hold
+    # them.
     disk:
       name: adminium-data
       mountPath: /data

@@ -6,7 +6,7 @@
  * work (files re-created, senders checked, the import audited); this modal
  * only reads the file, counts, and reports the reply as a toast.
  *
- * The comp leaves the import undrawn (§0 #15): this is the confirm-modal
+ * The comp leaves the import undrawn (#15): this is the confirm-modal
  * anatomy with the comp's segment control in the body.
  */
 import { useMutation, useQuery } from '@tanstack/react-query';

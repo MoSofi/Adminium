@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 1 — generation intent (09 §8.4, Console comp "What do you need?").
- * Option cards for the four intent variants; the comp's unimplemented
- * 'split' variant is deliberately dropped (ia-mapping §5 defect list).
+ * Step 1 — generation intent (Console comp "What do you need?"). Option
+ * cards for the four intent variants; the comp's unimplemented 'split'
+ * variant is deliberately dropped (ia-mapping defect list).
  */
 import { BarChart3, Headset, LayoutDashboard, Table2 } from 'lucide-react';
 import { RadioGroup, RadioCard } from '@adminium/ui';

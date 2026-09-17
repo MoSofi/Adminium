@@ -56,7 +56,7 @@ export {
 };
 
 /**
- * TRACK BUILDER — the REPORT half of the annex §13 document-block vocabulary:
+ * TRACK BUILDER — the REPORT half of the annex document-block vocabulary:
  *
  *   `block-kpi-row`, `block-bar-chart`, `block-line-chart`,
  *   `block-two-col-table`, `block-attachments`, `block-image-placeholder`.

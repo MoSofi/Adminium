@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Managing the public surface (28-public-surface.md §3.3, 28-T13's server half).
+ * Managing the public surface (server half).
  *
  * Scopes, keys and the runtime off switch, all behind
  * `system:api-keys:manage`. Not `manifests.manage`: that key is reserved with
@@ -150,11 +150,11 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
     try {
       /*
        * The connection's tenant config is passed here for the same reason it
-       * is passed at resolve time (28-T34): a scope that omits `timezone`
-       * INHERITS it. Without this, authoring refused every such scope with
-       * "no time zone is configured" while the connection plainly had one —
-       * inheritance that works at read time and not at write time is a feature
-       * an operator can never actually use.
+       * is passed at resolve time: a scope that omits `timezone` INHERITS it.
+       * Without this, authoring refused every such scope with "no time zone is
+       * configured" while the connection plainly had one — inheritance that
+       * works at read time and not at write time is a feature an operator can
+       * never actually use.
        */
       const inherited = (await connectionTenantConfig(meta, connectionId)) ?? undefined;
       const compiled = compileScope(parsed, await columnsFor(connectionId), inherited);
@@ -354,7 +354,7 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
           // because a key whose side disagrees with its scope is meaningless.
           side: scope.side,
           // The app binding is what `surface-config.json` serves the key by
-          // (29 D10). Stored as given: a binding may be minted before the
+          // . Stored as given: a binding may be minted before the
           // surface's first build lands in the surfaces directory.
           ...(request.body.appKey === undefined ? {} : { appKey: request.body.appKey }),
           ...(request.body.origins === undefined ? {} : { origins: request.body.origins }),

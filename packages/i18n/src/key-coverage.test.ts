@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Product-source ↔ bundle coverage gate (10-i18n-theming.md §3.5).
+ * Product-source ↔ bundle coverage gate.
  *
  * `t(key, fallback)` renders `fallback` when `key` is in no bundle, so a key
  * that was never authored looks perfect in English and renders that same
@@ -10,10 +10,10 @@
  *   every locale equally lacks a key — "parity of absence".
  * - `adminium/no-dynamic-i18n-key` and `adminium/no-literal-strings` check the
  *   SHAPE of a call site, never whether the key exists.
- * - the Translations editor (23 §6.3) refuses to write a key that is not in
- *   the compiled bundle, so an admin cannot repair one from inside the product
- *   either — which is how `/settings/translations` came to draw its own chrome
- *   from 56 keys that no locale carried.
+ * - the Translations editor refuses to write a key that is not in the compiled
+ * bundle, so an admin cannot repair one from inside the product either — which
+ * is how `/settings/translations` came to draw its own chrome from 56 keys
+ * that no locale carried.
  *
  * So this suite is the only place the question "does the bundle actually cover
  * the product?" gets asked. It parses every product source file with the
@@ -47,7 +47,7 @@ const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..
  * that quietly stopped finding anything:
  *
  * - `packages/ui/src` has 150+ modules and no `t()` at all by contract — every
- *   string there arrives as a prop (03-component-library.md §1, 10 §2.7).
+ * string there arrives as a prop.
  * - `apps/desktop/src/renderer` is two static HTML shells today and holds no
  *   TypeScript; it is listed so the first renderer component written there is
  *   covered on the day it lands.
@@ -117,7 +117,7 @@ function keysIn(file: string): KeyUse[] {
       // A non-literal key (`t(KEYS[op])`) is the type checker's job, not this
       // gate's: lint already bans FABRICATING one, and an indexed lookup into a
       // const map of literal keys is the sanctioned way to write a dynamic call
-      // (10 §2.5). Only literals can be resolved here.
+      // . Only literals can be resolved here.
       if (
         name !== null &&
         TRANSLATORS.has(name) &&

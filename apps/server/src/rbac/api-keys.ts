@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * API-key secret handling (08-server-api.md §2.16): `adm_sk_` + 40 base62
- * chars, shown exactly once at create time; only the SHA-256 hex hash and a
- * short display/lookup prefix are stored (07-meta-store.md §3.7).
+ * API-key secret handling: `adm_sk_` + 40 base62 chars, shown exactly once
+ * at create time; only the SHA-256 hex hash and a short display/lookup
+ * prefix are stored.
  */
 
 import { createHash, randomInt } from 'node:crypto';
@@ -15,7 +15,7 @@ export const API_KEY_SECRET_LENGTH = 40;
 /** Stored display fragment: `adm_sk_` + first 8 secret chars (fits str(16)). */
 export const API_KEY_DISPLAY_PREFIX_LENGTH = API_KEY_PREFIX.length + 8;
 
-/** `last_used_at` write throttle (07 §3.7 "throttled"). */
+/** `last_used_at` write throttle. */
 export const API_KEY_TOUCH_INTERVAL_MS = 60_000;
 
 const BASE62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';

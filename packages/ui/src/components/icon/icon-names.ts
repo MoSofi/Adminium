@@ -4,9 +4,9 @@
 // Every lucide icon name, kebab-cased — DATA, with no import of lucide at all,
 // so asking "is this string an icon?" costs a string array and never reaches an
 // icon module. That question has one production caller today: the LLM response
-// validator (06-llm-assist.md §7.3), which warns and falls back to `table` when
-// a model invents a name. It reaches the server as a snapshot of this list,
-// because the server tree may not import @adminium/ui (01 §2.3).
+// validator, which warns and falls back to `table` when a model invents a
+// name. It reaches the server as a snapshot of this list, because the server
+// tree may not import @adminium/ui.
 //
 // Deprecated lucide aliases are deliberately absent (211 of lucide's 1826
 // names — `kanban-square`, `bar-chart-3`, `sort-desc`, …). They are legal named

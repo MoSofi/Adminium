@@ -55,7 +55,7 @@ export interface FormFieldProps extends Omit<React.ComponentPropsWithRef<'div'>,
 
 /**
  * FormField — label + control + helper/error caption
- * (research/design-system.md §3 Tier 2). Accessibility wiring (`htmlFor`,
+ * (research/design-system.md Tier 2). Accessibility wiring (`htmlFor`,
  * `aria-describedby`, `aria-invalid`, `aria-required`) is injected into the
  * child control via Slot and also exposed through `useFormField()` context.
  * RHF-agnostic: pass `error` from any form library.

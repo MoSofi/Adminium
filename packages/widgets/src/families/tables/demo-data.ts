@@ -3,10 +3,11 @@ import type { GridColumnSpec, GridColumnSpecInput, GridRow } from './column-spec
 import { gridColumnSpecSchema } from './column-spec.js';
 
 /**
- * Deterministic demo payloads for the `tables` family (04 §7.7 — every
+ * Deterministic demo payloads for the `tables` family (every
  * definition's `demoData(seed)`), shaped like the CRUD API `record-list`
  * envelope rows. Deliberately domain-true (customers with money/status/
- * fk/bool/timestamp columns) so stories and the builder palette read real.
+ * fk/bool/timestamp columns) so stories and the builder palette read
+ * real.
  */
 
 function mulberry32(seed: number): () => number {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family M4 widgets (annex §2): registry wrappers that map stored
- * instance config + §3 envelopes onto the @adminium/charts primitives.
+ * `charts` family M4 widgets (annex): registry wrappers that map stored
+ * instance config + envelopes onto the @adminium/charts primitives.
  * Accessible names come from `config.title` (ChartSurface renders them as
  * the SVG aria-label). Components render only the loaded state.
  */
@@ -21,7 +21,7 @@ import type {
 import type { WidgetProps } from '../../registry/types.js';
 
 // Config schemas live in the pure `charts-config` module so the registry
-// metadata graph never reaches this component file (04 §2.3). Re-exported here
+// metadata graph never reaches this component file. Re-exported here
 // to keep existing import points stable.
 export {
   chartBarConfigSchema,

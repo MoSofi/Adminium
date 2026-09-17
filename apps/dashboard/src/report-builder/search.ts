@@ -3,7 +3,7 @@
  * The `/report-builder` search contract, in a leaf module: the router reads
  * it eagerly (a `validateSearch` runs before the page loads) and the page is
  * lazy — importing the page for it would pull the manager into the entry
- * chunk (43-report-builder.md §3.6; the invoice surface's `search.ts`).
+ * chunk (the invoice surface's `search.ts`).
  */
 export interface ReportBuilderSearch {
   /** Which tab opens: templates (the comp's initial tab, 439) or reports. */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-files` binding (09-generated-app.md §4.1, §7.9): projects the page
- * envelope onto the real `PageFiles` template from `@adminium/widgets`.
+ * `page-files` binding: projects the page envelope onto the real
+ * `PageFiles` template from `@adminium/widgets`.
  *
  * Data: `usePageWidgetStates` — one widget-data batch per mount under the
  * shared `['widget-data', pageId, …]` key (realtime invalidations refetch).
@@ -10,9 +10,9 @@
  * toggles re-enter the host event sink → CRUD update + undo toast (the files
  * page's `source.table` IS the attachment table).
  *
- * UPLOADS: there is no server upload surface yet (08 §2.11 — no files
- * routes), so `onUpload` stays unset and the template renders the dropzone
- * disabled with honest copy — declared track deviation, not a dead button.
+ * UPLOADS: there is no server upload surface yet (no files routes), so
+ * `onUpload` stays unset and the template renders the dropzone disabled
+ * with honest copy — declared track deviation, not a dead button.
  */
 import { PageFiles } from '@adminium/widgets';
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-donut` primitive (research/widget-registry.md §2): SVG arcs via
+ * `chart-donut` primitive (research/widget-registry.md): SVG arcs via
  * d3-shape, inner total slot, legend rows (color dot, label, mono value),
  * maxSlices + "other" bucket. Rotation stays clockwise in RTL; the legend and
- * center layout mirror via flex + logical properties (10-i18n-theming.md §5.5).
+ * center layout mirror via flex + logical properties.
  */
 import type { ReactNode } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';

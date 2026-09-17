@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The planner — 35-schema-authoring.md §3.2, 35-T04.
+ * The planner.
  *
  * Desired state in, an ordered and hazard-classified `DdlPlan` out. Pure: no
  * connection, no Kysely, no SQL string. That is what lets all three dialects'
@@ -22,7 +22,7 @@
  * Postgres takes the STRICTEST lock any subcommand in an `ALTER TABLE` needs,
  * for the whole statement. So batching a rename (metadata) with a type change
  * (rewrite) makes the rename as expensive as the rewrite. Every step here is
- * one subcommand, and the executor emits one statement per step (§5).
+ * one subcommand, and the executor emits one statement per step.
  */
 import { z } from 'zod';
 
@@ -70,7 +70,7 @@ export const ddlPlanSchema = z.strictObject({
 export type DdlPlan = z.infer<typeof ddlPlanSchema>;
 
 export interface PlanInput {
-  /** The snapshot's model, with renames already pre-applied (35-T03). */
+  /** The snapshot's model, with renames already pre-applied. */
   actual: DatabaseModel;
   /** The tables the edit wants, converted to IR (`desiredTableToModel`). */
   desired: readonly TableModel[];
@@ -254,7 +254,7 @@ export function planDdl(input: PlanInput): Omit<DdlPlan, 'checksum'> {
   // the desktop: SQLite has no `ALTER TABLE … ADD CONSTRAINT` at all, so every
   // new table with a link applied HALF — the table created, the constraint a
   // syntax error, the change reported `partial`. Its only other route is the
-  // 12-step rebuild (§7), and rebuilding a table created two statements ago to
+  // 12-step rebuild, and rebuilding a table created two statements ago to
   // add a constraint that could have been in the CREATE is not a design.
   //
   // Nothing is lost by inlining. A table being created is empty, so its FK is
@@ -335,8 +335,8 @@ function planAlters(
 
   /**
    * On SQLite, any step the classifier marks `needsRebuild` collapses into ONE
-   * `rebuild-table` step for the whole table (§7) — running four rebuilds for
-   * four changed columns would copy the table four times.
+   * `rebuild-table` step for the whole table — running four rebuilds for four
+   * changed columns would copy the table four times.
    */
   let rebuildNeeded = false;
   const emit = (made: { step: DdlStep; needsRebuild: boolean }): void => {

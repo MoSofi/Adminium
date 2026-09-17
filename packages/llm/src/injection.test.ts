@@ -68,7 +68,7 @@ const snapshot: DatabaseModel = parseDatabaseModel(fixture('demo-schema.json'));
  * The same two vocabularies `response/validate.test.ts` and `apply/plan.test.ts`
  * declare. They are duplicated rather than imported because `plan.ts`'s own
  * header explains the boundary: the allow-lists are INJECTED as plain data so
- * `@adminium/llm` never depends on the render layer (01-architecture.md §2.3).
+ * `@adminium/llm` never depends on the render layer.
  *
  * For a security test the duplication is harmless in the direction that
  * matters: the assertions below check that survivors are a SUBSET of the list

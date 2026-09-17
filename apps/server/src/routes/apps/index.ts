@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/api/v1/apps` — installing a micro-SaaS app into this instance
- * (47-app-installation.md §1 step 1).
+ * `/api/v1/apps` — installing a micro-SaaS app into this
+ * instance.
  *
  * Until now the only way an app reached an installation was
  * `ADMINIUM_SURFACES_DIR`: a directory the operator populates by deploy, read
@@ -13,10 +13,10 @@
  *
  * `POST /apps/upload` stages bytes; `POST /apps/install` turns a staged package
  * into an installed app. Splitting them costs a round trip and buys the place
- * where the schema plan goes (47 O2, step 2): an operator has to be able to see
- * what an install would create in their database BEFORE it creates it, and a
- * single call that unpacked and installed in one motion would have nowhere to
- * ask. It is also the shape `routes/add-ons` already has, for the same reason.
+ * where the schema plan goes: an operator has to be able to see what an install
+ * would create in their database BEFORE it creates it, and a single call that
+ * unpacked and installed in one motion would have nowhere to ask. It is also
+ * the shape `routes/add-ons` already has, for the same reason.
  *
  * ─── Why an uploaded surface is treated like an add-on package ──────────────
  *
@@ -122,7 +122,7 @@ export interface AppRoutesDeps {
    */
   directoryKeys: () => readonly string[];
   /**
-   * Where an app's tables are planned and created (47 O2).
+   * Where an app's tables are planned and created.
    *
    * Optional so a composition with no connection layer still serves everything
    * else: an app that declares no tables installs there completely, and one
@@ -130,10 +130,10 @@ export interface AppRoutesDeps {
    */
   schemaTarget?: AppSchemaTarget | undefined;
   /**
-   * The online app catalog (48 §6b G8-D3). The SAME client the acquisition
-   * jobs use, so the routes' gate and the jobs' cannot disagree about whether
-   * the catalog is on. Absent = off: nothing is offered, refreshed or
-   * downloaded, and browsing lists the store alone.
+   * The online app catalog (b G8-D3). The SAME client the acquisition jobs
+   * use, so the routes' gate and the jobs' cannot disagree about whether the
+   * catalog is on. Absent = off: nothing is offered, refreshed or downloaded,
+   * and browsing lists the store alone.
    */
   catalog?: AppCatalogClient | undefined;
   /** Tests only; production compares minimums with the running version. */
@@ -308,9 +308,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     }
     /*
      * A table that EXISTS but is missing columns the app needs is refused
-     * rather than altered, the same rule 26-T02 set for add-ons: creating a
-     * table an app asked for is one conversation, and altering one the
-     * operator already owns is a different one that is theirs to have.
+     * rather than altered, the same rule set for add-ons: creating a table
+     * an app asked for is one conversation, and altering one the operator
+     * already owns is a different one that is theirs to have.
      *
      * It holds for an update too (48 G8-D6), even where the table is one the
      * app's own earlier version created: telling those apart needs provenance
@@ -551,7 +551,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           deps.store.keys(),
           deps.store.readCatalogCache(),
           // A META read, not a network one: the feed carries eight locales per
-          // row and the reply carries the one this operator reads (40 D2).
+          // row and the reply carries the one this operator reads.
           userPrefsRepo(deps.meta).resolve(request.user?.id ?? null),
         ]);
         const installedByKey = new Map(rows.map((m) => [m.row.manifestKey, m.row.version]));
@@ -666,7 +666,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             version,
             name,
             // The feed's line in the operator's language, else the manifest's
-            // English fallback — the add-on page's order (40 D3).
+            // English fallback — the add-on page's order.
             description: pickLocalized(listed?.tagline, locale) ?? description,
             categories,
             publisher,
@@ -733,8 +733,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       '/apps/catalog',
       {
         /*
-         * `manifests.manage`, NOT `settings.manage` (26 D3): the switch that
-         * decides whether this deployment talks to adminium.dev belongs with
+         * `manifests.manage`, NOT `settings.manage`: the switch that decides
+         * whether this deployment talks to adminium.dev belongs with
          * installing apps, not with renaming the workspace.
          */
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
@@ -861,7 +861,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * WHAT AN INSTALL WOULD DO, BEFORE IT DOES IT.
        *
        * A POST that writes nothing, because it takes a body and because
-       * planning reads a staged package the caller names. 26 §7 calls the
+       * planning reads a staged package the caller names. The plan calls the
        * consent dialog "the security surface, not decoration: it is where a
        * user sees what an add-on may reach before it can reach it" — the same
        * sentence is why this route exists for apps, and why the install route
@@ -921,7 +921,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         }
 
         /*
-         * THE TABLES, AND THE ORDER THEY GO IN (47 O2).
+         * THE TABLES, AND THE ORDER THEY GO IN.
          *
          * The DDL runs BEFORE the meta row is written, which is the shape
          * MySQL's lack of transactional DDL leaves available: a multi-table
@@ -958,7 +958,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           source: 'file',
           document: manifest,
           // Remembered, not just used: this is also the connection the staff
-          // surface reads at runtime (29 D9).
+          // surface reads at runtime.
           ...(connectionId === undefined ? {} : { connectionId }),
           installedBy: userId,
         });
@@ -1002,12 +1002,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: appKeyParams, response: { 200: updateAppReply } },
       },
       /*
-       * AN UPDATE IS NOT A REINSTALL (48 G8-D6, modelled on 26-T17).
+       * AN UPDATE IS NOT A REINSTALL (48 G8-D6, modelled on).
        *
        * The installed row moves to the new version, so what the operator chose
        * at install survives it: the connection its tables live in and its staff
-       * surface reads (29 D9), and where its surfaces are placed. An
-       * uninstall/install pair would drop both and ask again.
+       * surface reads, and where its surfaces are placed. An uninstall/install
+       * pair would drop both and ask again.
        *
        * It takes the newest STAGED version above the installed one. Getting it
        * onto disk is the download's job (or an upload's); this route never

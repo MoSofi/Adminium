@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Live widget-data API suite against real PostgreSQL + the real postgres
- * adapter, seeded with the Northwind fixture (04-widget-registry.md §5.2).
- * Skips (green) when psql, the fixture, or the adapter is unavailable.
+ * adapter, seeded with the Northwind fixture. Skips (green) when psql, the
+ * fixture, or the adapter is unavailable.
  *
  * Covers the M4 acceptance slice: monthly revenue timeseries over
  * `orders.freight` (values cross-checked with psql), customer counts,

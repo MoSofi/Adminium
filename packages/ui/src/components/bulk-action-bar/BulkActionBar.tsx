@@ -36,8 +36,8 @@ export interface BulkActionBarProps extends ComponentPropsWithRef<'div'> {
 
 /**
  * BulkActionBar — the selection bar shown while rows are checked: mono count +
- * actions + clear, appearing via `nb-fade` (research/design-system.md §3
- * Tier 3). Two treatments, chosen by `floating`:
+ * actions + clear, appearing via `nb-fade` (research/design-system.md Tier 3).
+ * Two treatments, chosen by `floating`:
  *
  *  - `floating` (default): the dark `--fg` slab pinned bottom-centre over the
  *    page. It reads as an overlay because it *is* one.

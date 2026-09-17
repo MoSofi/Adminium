@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-timeline-lanes` primitive (research/widget-registry.md §2): horizontal
+ * `chart-timeline-lanes` primitive (research/widget-registry.md): horizontal
  * swimlanes with positioned pill events on a shared time axis (Deploys /
- * Incidents / Releases). A time axis renders as an LTR island (04 §7.4 — time
- * axes never mirror; gantt-like lanes stay LTR), so event positions and the
- * lane-label gutter are LTR regardless of page direction. Colors from the viz
- * palette and semantic tone tokens only.
+ * Incidents / Releases). A time axis renders as an LTR island (time axes never
+ * mirror; gantt-like lanes stay LTR), so event positions and the lane-label
+ * gutter are LTR regardless of page direction. Colors from the viz palette and
+ * semantic tone tokens only.
  */
 import type { ReactNode } from 'react';
 

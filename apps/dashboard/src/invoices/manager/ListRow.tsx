@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The list layout (34-invoices-add-on.md Appendix E §M11; comp 283-320): ONE
- * card-styled table with the comp's four columns — Name · Status · Updated ·
- * Actions — group bands between runs of rows, and rows that open on click.
- * The language chip sits beside the name (this comp has no Lang column). The
- * grid keeps the comp's column recipe; the roles make it a table for
- * assistive tech without giving up the grid.
+ * The list layout (comp 283-320): ONE card-styled table with the
+ * comp's four columns — Name · Status · Updated · Actions — group bands
+ * between runs of rows, and rows that open on click. The language chip sits
+ * beside the name (this comp has no Lang column). The grid keeps the comp's
+ * column recipe; the roles make it a table for assistive tech without giving
+ * up the grid.
  */
 import { Copy, TextCursorInput, Trash2 } from 'lucide-react';
 import type { MouseEvent, ReactNode } from 'react';

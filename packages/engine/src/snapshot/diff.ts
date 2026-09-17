@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Snapshot diff engine — 05-introspection-engine.md §9 `diffModels`.
+ * Snapshot diff engine — `diffModels`.
  *
  * Pure structural diff between two `DatabaseModel`s. All output arrays are
  * sorted (tables/relations by id, columns by name) so the diff itself is
  * canonical and safe to hash/golden-test.
  *
- * NOT IMPLEMENTED HERE (deliberately, per 05 §9): rename detection.
+ * NOT IMPLEMENTED HERE (deliberately): rename detection.
  * `rename-detect.ts` is a separate M3-follow-up — a removed+added column
  * pair with identical logicalType+nullability and (same ordinal or
  * Levenshtein ≤ 2 or snake/camel variant) becomes a `renamedColumns`
@@ -25,7 +25,7 @@ import {
 } from '../schema-model.js';
 
 // ---------------------------------------------------------------------------
-// Diff shape (§9) — Zod schema so the §11 diff route can validate responses
+// Diff shape — Zod schema so the diff route can validate responses
 // ---------------------------------------------------------------------------
 
 export const changedTableSchema = z.strictObject({
@@ -54,7 +54,7 @@ export const schemaDiffSchema = z.strictObject({
     added: z.array(relationSchema),
     removed: z.array(relationSchema),
   }),
-  /** Any removal/typeChange referenced by current pages/overrides (§9). */
+  /** Any removal/typeChange referenced by current pages/overrides. */
   breaking: z.boolean(),
 });
 export type SchemaDiff = z.infer<typeof schemaDiffSchema>;
@@ -149,7 +149,7 @@ function diffTable(
 }
 
 /**
- * §9 `diffModels(a, b)`: what changed going FROM `a` TO `b`. Pure; stable
+ * `diffModels(a, b)`: what changed going FROM `a` TO `b`. Pure; stable
  * ordering throughout; empty diff = `{ addedTables: [], … breaking: false }`.
  */
 export function diffModels(

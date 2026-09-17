@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Responsive SVG viewport shared by every chart (04-widget-registry.md
- * §7.2): ResizeObserver-driven width, fixed pixel height, padding model,
- * direction context, mount-animation flag, a11y contract (role="img" +
- * aria-label from `labels`, optional visually-hidden table fallback), and the
- * `data-export-node` marker for the deferred raster-export hooks (§7.6).
+ * Responsive SVG viewport shared by every chart: ResizeObserver-driven width,
+ * fixed pixel height, padding model, direction context, mount-animation flag,
+ * a11y contract (role="img" + aria-label from `labels`, optional
+ * visually-hidden table fallback), and the `data-export-node` marker for the
+ * deferred raster-export hooks.
  */
 import type { ReactNode } from 'react';
 

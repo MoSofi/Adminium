@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The bundle format: layout, manifest, and the Zod schemas both front doors
- * (export, import) validate against (M10-T03; 01-architecture.md §6.1, §8.2).
+ * (export, import) validate against.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * WHAT THIS IS, STATED ONCE SO IT CANNOT DRIFT: an Adminium bundle is
@@ -10,13 +10,13 @@
  * carries the instance's `adminium_*` config content as portable JSON, plus a
  * manifest that pins the versions needed to replay it, plus a README saying
  * exactly this. `package.json` in the bundle pins the `@adminiumjs/adminium` npm package at
- * the exporting version — per 01 §4.1 that single package *is* the complete
+ * the exporting version — that single package *is* the complete
  * install (server + dashboard dist + meta migrations), so pinning it is how the
  * bundle names its runtime without shipping (unshippable, platform-specific,
  * natively-compiled) copies of it.
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * VERSION REPLAY (§8.2): the manifest embeds `{ appVersion, configVersion,
+ * VERSION REPLAY: the manifest embeds `{ appVersion, configVersion,
  * metaVersion }`. On import the meta migrator brings the target schema up, and
  * `runConfigMigrations` from `@adminium/engine/config` replays every config
  * document's `v` up to the running build's — so a bundle exported at N imports
@@ -66,11 +66,11 @@ export type SecretsPolicy = z.infer<typeof secretsPolicySchema>;
 export const bundleManifestSchema = z.object({
   /** Bundle-layout version; bumped when this file's shape changes. */
   formatVersion: z.number().int().min(1),
-  /** The `adminium` version that wrote the bundle (§8.2). */
+  /** The `adminium` version that wrote the bundle. */
   appVersion: z.string().min(1),
-  /** Config-envelope version of the documents inside (§6.1 `v`, §8.2). */
+  /** Config-envelope version of the documents inside (`v`). */
   configVersion: z.number().int().min(1),
-  /** Meta-schema high-water mark: the last applied migration name (§8.2). */
+  /** Meta-schema high-water mark: the last applied migration name. */
   metaVersion: z.string().min(1),
   exportedAt: z.number().int().nonnegative(),
   /** Set when the export was scoped to one connection. */

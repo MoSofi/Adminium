@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 3 — connection test + introspection (09 §8.2 step 2, M5-T01):
- * POST /connections/test (probe) → POST /connections (create) →
- * POST /connections/:id/introspect, narrated in the progress-log-console
- * with the comps' storytelling script. The async 202 path polls
- * `GET /jobs/:id` (progress messages become log lines); the sync path plays
- * the staged script. AdapterError codes map to remediation hints.
+ * Step 3 — connection test + introspection: POST /connections/test (probe)
+ * → POST /connections (create) → POST /connections/:id/introspect, narrated
+ * in the progress-log-console with the comps' storytelling script. The
+ * async 202 path polls `GET /jobs/:id` (progress messages become log
+ * lines); the sync path plays the staged script. AdapterError codes map to
+ * remediation hints.
  *
  * Schema-file mode has no live database: the parse-variant script replays
  * the step-2 preview (including parser warnings) and completes locally.
  *
- * M9-T04: per-engine capability degradation is narrated honestly — the log
- * ends with the engine's caveats (MySQL ≈ row estimates and weaker FK/enum
- * metadata, SQLite CHECK-enum synthesis, schema files' missing live signals)
- * straight from the @adminium/engine capability matrix.
+ * Per-engine capability degradation is narrated honestly — the log ends with
+ * the engine's caveats (MySQL ≈ row estimates and weaker FK/enum metadata,
+ * SQLite CHECK-enum synthesis, schema files' missing live signals) straight
+ * from the @adminium/engine capability matrix.
  */
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button } from '@adminium/ui';

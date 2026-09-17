@@ -19,8 +19,8 @@
  *     Optional slot allowlists are matched against candidates, and candidates
  *     only ever carry registered ids, so the slot simply never fills and is
  *     omitted; chrome ids are filtered by `composeTemplate` before they reach
- *     the output. These are how a manifest records the annex §14 composition
- *     ahead of the family that implements it.
+ * the output. These are how a manifest records the annex composition ahead of
+ *     the family that implements it.
  *
  * The inert case is therefore *allowed but must be declared*: every such id
  * lives in `PENDING_TEMPLATE_WIDGET_IDS` below with the family that will deliver
@@ -33,39 +33,39 @@
 import type { PageTemplate } from './template-schema.js';
 
 /**
- * Annex §14 widget ids referenced by a shipped manifest whose family has not
- * been built yet, mapped to the family that will deliver them. Every one appears
- * only in an optional slot (`fallback: 'omit'`) or in `chrome`, both of which
- * degrade to nothing at compose time. Delete an entry the moment its widget
- * registers — `crosscheck.test.ts` fails on stale entries.
+ * Annex widget ids referenced by a shipped manifest whose family has not been
+ * built yet, mapped to the family that will deliver them. Every one appears only
+ * in an optional slot (`fallback: 'omit'`) or in `chrome`, both of which degrade
+ * to nothing at compose time. Delete an entry the moment its widget registers —
+ * `crosscheck.test.ts` fails on stale entries.
  */
 export const PENDING_TEMPLATE_WIDGET_IDS: Readonly<Record<string, string>> = {
-  // NOTE: the forms (§10) and chrome (§11) entries that used to live here —
+  // NOTE: the forms and chrome entries that used to live here
   // filter-chip-bar, modal-wizard, segmented-control, breadcrumb, global-search,
   // tab-bar — were delivered by Track FCS in M7 Wave 3 and are now registered,
   // so they were removed per the shrink-to-empty discipline above.
-  // NOTE: the kpi (§1) entries — auto-insights, micro-kpi-subtitle,
-  // stat-pair-card — and the feeds (§4) overlay `toast-stack` were delivered by
+  // NOTE: the kpi entries — auto-insights, micro-kpi-subtitle,
+  // stat-pair-card — and the feeds overlay `toast-stack` were delivered by
   // TRACK KPI-FEEDS in M7 Wave 4 and are now registered, so they were removed
   // per the same discipline (`crosscheck.test.ts` fails on a stale entry —
   // `stale-pending-entry` — which is what forced this edit). Their manifest
   // sites needed no change: the slots were already holding open with
   // `fallback: 'omit'` / sitting in `chrome`, so registering the ids is what
   // fills them.
-  // NOTE: the calendar (§5) entries — calendar-legend-filter, date-range-picker,
-  // upcoming-events-list — and the boards (§6) inline-compose-card were
+  // NOTE: the calendar entries — calendar-legend-filter, date-range-picker,
+  // upcoming-events-list — and the boards inline-compose-card were
   // delivered by TRACK TABLES-CAL-BOARDS in M7 Wave 4 and are now registered, so
   // they were removed per the shrink-to-empty discipline above. Their manifest
   // sites needed no edit: page-calendar's `legend`/`upcoming` and page-board's
   // `compose` were already holding the slots open with `fallback: 'omit'`, and
   // the pickers were already listed in the calendar/scheduler/log-viewer/
   // dashboard toolbars — registering the ids is what fills them.
-  // NOTE: `call-widget` (§9, page-chat's optional `call` slot) was delivered by
+  // NOTE: `call-widget` (page-chat's optional `call` slot) was delivered by
   // TRACK COMM-GEO in M7 Wave 4 and is now registered, so it was removed per the
   // shrink-to-empty discipline above — `crosscheck.test.ts` fails on a stale
   // entry (`stale-pending-entry`), which is what forced this edit.
 
-  // NOTE: `starter-template-picker` (§13, referenced by `page-builder`'s
+  // NOTE: `starter-template-picker` (referenced by `page-builder`'s
   // `chrome.overlays`) was delivered by TRACK OPS in M7 Wave 4 and is now
   // registered, so it was removed per the shrink-to-empty discipline above —
   // `crosscheck.test.ts` fails on a stale entry (`stale-pending-entry`), which

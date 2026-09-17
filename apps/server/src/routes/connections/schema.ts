@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod request/response schemas for `routes/connections/`
- * (08-server-api.md §2.4). DSNs never appear in replies — `dsnMasked` only.
+ * Zod request/response schemas for `routes/connections/`.
+ * DSNs never appear in replies — `dsnMasked` only.
  */
 
 import { z } from 'zod';
@@ -9,7 +9,7 @@ import { z } from 'zod';
 export const connectionEngineSchema = z.enum(['postgres', 'mysql', 'sqlite']);
 
 export const connectionRolesSchema = z.object({
-  /** Schema-metadata-only role (01 §3); falls back to `data`. */
+  /** Schema-metadata-only role; falls back to `data`. */
   introspect: z.string().min(1).optional(),
   /** CRUD role; falls back to `introspect`/`dsn`. */
   data: z.string().min(1).optional(),
@@ -106,12 +106,12 @@ export const connectionDto = z.object({
   lastTestedAt: z.number().nullable(),
   lastLatencyMs: z.number().nullable(),
   lastError: z.string().nullable(),
-  /** Remediation copy for `lastError`, from the adapter (05 §3). */
+  /** Remediation copy for `lastError`, from the adapter. */
   lastErrorHint: z.string().nullable(),
   /**
-   * Tenant configuration (28-T34). Carried on the connection because it
-   * describes the BUSINESS, and a hosted surface — which has no scope and no
-   * key — can reach it here and nowhere else.
+   * Tenant configuration. Carried on the connection because it describes the
+   * BUSINESS, and a hosted surface — which has no scope and no key — can
+   * reach it here and nowhere else.
    */
   timezone: z.string().nullable(),
   /**
@@ -131,7 +131,7 @@ export const connectionDto = z.object({
   /** When it was paused; null while it is serving. */
   disabledAt: z.number().nullable(),
   /**
-   * Whether this connection's SCHEMA can be authored, and why not (35-T15).
+   * Whether this connection's SCHEMA can be authored, and why not.
    *
    * Derived server-side from the same function the DDL routes refuse with, so
    * Studio can leave the Design surface out entirely instead of offering a
@@ -144,13 +144,13 @@ export const connectionDto = z.object({
       .enum(['NO_LIVE_DATABASE', 'READ_ONLY_ROLE', 'NO_DDL_PRIVILEGE', 'READ_ONLY_INTENT'])
       .nullable(),
   }),
-  /** Health-card snapshot age (§2.4). */
+  /** Health-card snapshot age. */
   snapshot: z
     .object({ id: z.string(), createdAt: z.number(), checksum: z.string() })
     .nullable(),
   /** Included tables (settings allowlist, else the latest snapshot's model). */
   tableCount: z.number().int().nullable(),
-  /** Generated pages owned by this connection (M5-T05 hub cards). */
+  /** Generated pages owned by this connection (hub cards). */
   pageCount: z.number().int(),
   createdAt: z.number(),
   updatedAt: z.number(),

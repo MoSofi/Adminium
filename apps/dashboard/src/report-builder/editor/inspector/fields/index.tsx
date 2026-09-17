@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The field-group registry: kind → its inspector fields (43-report-builder.md
- * Appendix A I6, Appendix B's *Inspector* column; the comp's `has…` flags,
- * 643-671).
+ * The field-group registry: kind → its inspector fields (I6, Appendix B's
+ * *Inspector* column; the comp's `has…` flags, 643-671).
  *
  * The switch narrows on the union's discriminant, so a kind added to
  * `ReportBlockKind` without a group here is a TYPE error, not an empty panel.

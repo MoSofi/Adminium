@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The action inspector's one table picker — Create record's target
- * (42-automations-and-workflow-logs.md D25, D17): a searchable `Combobox`
- * over the tables this step could actually write, which is the TRIGGER's
- * connection and nothing else (`runner.ts` `openSource`).
+ * The action inspector's one table picker — Create record's target: a
+ * searchable `Combobox` over the tables this step could actually write,
+ * which is the TRIGGER's connection and nothing else (`runner.ts`
+ * `openSource`).
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';

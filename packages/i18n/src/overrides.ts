@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Runtime override layer (23-runtime-translations.md §4.3).
+ * Runtime override layer.
  *
  * The compiled bundle and the DB override tree are held SEPARATELY and merged
  * in userland; the i18next resource store is written once, at `init`, and
@@ -38,7 +38,7 @@ export type OverrideMap = Readonly<
  * Merge flat dotted overrides into a (cloned) nested bundle.
  *
  * An empty-string value is written through deliberately — it is the third
- * state, "render nothing" (23 §3.3), and is why `createI18n` sets
+ * state, "render nothing", and is why `createI18n` sets
  * `returnEmptyString: true`.
  */
 export function mergeOverrides(

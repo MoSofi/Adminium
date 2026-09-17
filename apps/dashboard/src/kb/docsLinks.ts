@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The one place the docs site's origin is written down (14-docs-site.md).
+ * The one place the docs site's origin is written down.
  *
  * Every in-app deep link to documentation resolves through here so that when
  * the docs IA moves, or a self-hoster points at their own mirror, exactly one

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * /account/preferences — the per-user Preferences page
- * (Profile Settings.dc.html Preferences tab, upgraded per
- * 10-i18n-theming.md §7.4): the four axes with inheritance affordances.
+ * (Profile Settings.dc.html Preferences tab, upgraded): the
+ * four axes with inheritance affordances.
  *
  * - An axis with a `NULL` override shows the *effective* (workspace default)
  *   value plus a neutral "Workspace default" badge and a
@@ -90,7 +90,7 @@ export function PreferencesPage(): ReactNode {
   const applyServerReply = useCallback(
     (reply: MePrefsData): void => {
       queryClient.setQueryData(ME_PREFS_QUERY_KEY, reply);
-      // Re-resolve prefs everywhere the resolved axes ride (§7.2).
+      // Re-resolve prefs everywhere the resolved axes ride.
       void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
     },
     [queryClient],
@@ -108,7 +108,7 @@ export function PreferencesPage(): ReactNode {
       .then((reply) => {
         // Drop any override made this session via `setPref`. Without this the
         // stale optimistic value would keep masking the refetched workspace
-        // default (ThemeProvider §4.2) until a reload — the axis would reset
+        // default (ThemeProvider) until a reload — the axis would reset
         // server-side but not visually.
         clearSessionPref(axis);
         setLocalOverrides((prev) => {

@@ -18,9 +18,9 @@ import {
 import type { ReactNode } from 'react';
 
 /**
- * The `chrome` family's CLOSED glyph vocabulary (annex §11). Separated from
+ * The `chrome` family's CLOSED glyph vocabulary (annex). Separated from
  * `chrome-lib.ts` so that module stays JSX-free and the registry-metadata graph
- * (`chrome-config.ts`) never pulls `lucide-react` into the eager chunk (04 §2.3).
+ * (`chrome-config.ts`) never pulls `lucide-react` into the eager chunk.
  *
  * WHY A CLOSED MAP: nav rows, palette entries and search results carry an icon
  * NAME that came from the DATABASE or from a generated manifest. Resolving it

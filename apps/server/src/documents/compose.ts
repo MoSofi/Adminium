@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The document pipeline's WIRING — what turns `documents/render.ts` from a
- * function nobody calls into a feature (34-invoices-add-on.md §7.3; 34-T11).
+ * function nobody calls into a feature.
  *
  * ─── THIS FILE EXISTS BECAUSE OF A PATTERN THIS REPOSITORY KEEPS HITTING ───
  *
@@ -46,7 +46,7 @@ export interface DocumentPipelineDeps {
   storage: FileStore;
   /** The live add-on runtime; null before the first build. */
   runtime: () => AddOnRuntimeState | null;
-  /** Where delivery reports itself (§7.7); the outcome is on the row regardless. */
+  /** Where delivery reports itself; the outcome is on the row regardless. */
   logger?: EmailLogger | undefined;
 }
 
@@ -80,7 +80,7 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
     ...(deps.logger === undefined ? {} : { logger: deps.logger }),
 
     /**
-     * What a render needs from the connection when it reads no row (§7.6).
+     * What a render needs from the connection when it reads no row.
      *
      * The same two facts `readSource` takes off the connection for a mapped
      * render, resolved the same way — an intent must not draw a document dated
@@ -104,9 +104,8 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
      *      is better than an empty letterhead, which looks like a bug.
      *
      * A DOCUMENT'S OWN AUTHORED VALUES BEAT ALL THREE and never reach here:
-     * they are in the body, and the renderer prefers them (25 D12 — an invoice
-     * made in March keeps March's letterhead however this panel is edited
-     * afterwards).
+     * they are in the body, and the renderer prefers them (an invoice made in
+     * March keeps March's letterhead however this panel is edited afterwards).
      */
     business: async (addOnKey?: string) => {
       const own = addOnKey === undefined ? {} : await addOnSettingsRepo(deps.meta).valuesFor(addOnKey);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/email-templates/$id` — the editor's route (39-email-templates-and-
- * campaigns.md §3.6). Reads the document once and hands it to the editor,
+ * campaigns.md). Reads the document once and hands it to the editor,
  * keyed by id so a language switch mounts a fresh draft (D1: the draft is
  * the editor's own from then on; a refetch never overwrites it).
  */

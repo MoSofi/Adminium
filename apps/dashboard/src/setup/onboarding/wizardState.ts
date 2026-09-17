@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The six-step first-run model (45-onboarding.md §2).
+ * The six-step first-run model.
  *
  * WHY SIX, AND IN THIS ORDER. `Onboarding.dc.html` draws five, opening on a
  * profile step this product has no field for (45 DEP-1). What replaced it is
  * the question the owner actually hit on a fresh `npx` install: Adminium keeps
  * a little state of its own, and until now browser mode never asked where it
  * should live — the choice existed only five steps into the connect wizard,
- * behind a source connection (`studio/connect/steps/MetaStep.tsx`; 45 §0.3).
+ * behind a source connection (`studio/connect/steps/MetaStep.tsx`).
  *
  * WHY THE ACCOUNT IS THIRD AND NOT FIRST. `start` and `connect` are answered
  * before any account exists, and nothing they collect is written until it does

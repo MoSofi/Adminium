@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The canvas (comp 365-724; 34-invoices-add-on.md Appendix E §C1-C11): the
- * paper, the letterhead — the branding region (logo tile or image, the brand
- * name input, *Branding · click to edit*) beside the read-only title / number
- * / status cluster (§0.4.6 item 2: three plain elements, edited from the
- * Theme and Invoice-details panels) — then the reorderable block stack and
- * the trailing dashed *Add section*.
+ * The canvas (comp 365-724): the paper, the letterhead — the
+ * branding region (logo tile or image, the brand name input, *Branding ·
+ * click to edit*) beside the read-only title / number / status cluster (three
+ * plain elements, edited from the Theme and Invoice-details panels) — then
+ * the reorderable block stack and the trailing dashed *Add section*.
  *
  * THE GATE FILTERS, IT NEVER GHOSTS (O19): `visibleBlocks` drops an off block
  * before render, exactly as the comp's `blocks` does (1491-1493); the comp's

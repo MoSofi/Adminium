@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Where the BUILT Electron app lives (11-electron.md §3, 11-T20).
+ * Where the BUILT Electron app lives.
  *
  * The desktop E2E suite does not import `@adminium/desktop` — it LAUNCHES its
  * build output by filesystem path, exactly the way `scripts/e2e-server.mjs`
@@ -21,16 +21,18 @@ export const REPO_ROOT = join(here, '..', '..', '..', '..');
 
 export const DESKTOP_ROOT = join(REPO_ROOT, 'apps', 'desktop');
 
-/** The Electron `main` entry Playwright's `_electron.launch` runs (§3). */
+/** The Electron `main` entry Playwright's `_electron.launch` runs. */
 export const DESKTOP_MAIN_ENTRY = join(DESKTOP_ROOT, 'out', 'main', 'index.js');
 
-/** The forked utilityProcess server bundle (§2.1) — asserted, never launched directly. */
+/** The forked utilityProcess server bundle — asserted, never launched directly.
+ * */
 export const DESKTOP_SERVER_ENTRY = join(DESKTOP_ROOT, 'out', 'server', 'index.js');
 
-/** The dashboard SPA the embedded server serves over loopback (§3). */
+/** The dashboard SPA the embedded server serves over loopback. */
 export const DESKTOP_DASHBOARD_DIR = join(DESKTOP_ROOT, 'out', 'dashboard');
 
-/** The §6 demo seed script; resolved from `resources/`, not `out/` (see main/index.ts). */
+/** The demo seed script; resolved from `resources/`, not `out/` (see
+ * main/index.ts). */
 export const DEMO_SEED_SCRIPT = join(DESKTOP_ROOT, 'resources', 'demo', 'demo-seed.mjs');
 
 /**

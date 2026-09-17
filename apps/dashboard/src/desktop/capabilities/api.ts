@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The capability grant table + device descriptors, as the dashboard reaches them
- * (11-electron.md §12). Two feeds, one per side of the process boundary — the
- * same split `desktop/lanShare.ts` makes and for the same reason:
+ * The capability grant table + device descriptors, as the dashboard reaches
+ * them. Two feeds, one per side of the process boundary — the same split
+ * `desktop/lanShare.ts` makes and for the same reason:
  *
- *  - **The server** owns the grant table (`adminium_settings`, §1 principle 2),
- *    so consent, revoke, and the current grant list are REST calls here.
+ * - **The server** owns the grant table (`adminium_settings`), so consent,
+ *  revoke, and the current grant list are REST calls here.
  *  - **The bridge** owns the device descriptors — status (`stub`/`available`) and
- *    method list — because only the main process holds the providers (§4's
- *    `capabilities.list()`). Off-desktop there is no bridge; `model.ts`'s
- *    `capabilityStatuses` turns that absence into §12's `unavailable`.
+ * method list — because only the main process holds the providers
+ *    (`capabilities.list()`). Off-desktop there is no bridge; `model.ts`'s
+ *    `capabilityStatuses` turns that absence into `unavailable`.
  */
 import { queryOptions } from '@tanstack/react-query';
 
@@ -58,8 +58,8 @@ export async function revokeCapability(ref: CapabilityGrantRef): Promise<boolean
 }
 
 /**
- * The device descriptors from §4's bridge, or `null` off-desktop (no bridge).
- * `model.ts`'s `capabilityStatuses` is what turns `null` into §12's `unavailable`.
+ * The device descriptors bridge, or `null` off-desktop (no bridge).
+ * `model.ts`'s `capabilityStatuses` is what turns `null` into `unavailable`.
  */
 export async function readCapabilityDescriptors(): Promise<CapabilityDescriptor[] | null> {
   const desktop = getDesktopApi();

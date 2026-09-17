@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `DdlStep` vocabulary and its hazard classification — 35-schema-authoring.md
- * §3.2, §5, D4, 35-T04.
+ * The `DdlStep` vocabulary and its hazard classification.
  *
  * ─── Why hazard is a contract and not copy ─────────────────────────────────
  *
@@ -22,7 +21,7 @@
  *   instant ADD COLUMN            MySQL 8.0.12 last position only, anywhere 8.0.29
  *   instant DROP COLUMN           MySQL 8.0.29+; before that, always a rebuild
  *
- * §0.2 records that no pg or sqlite floor is stated anywhere in the product, so
+ * No pg or sqlite floor is stated anywhere in the product, so
  * the version is READ from the probe at plan time and passed in — never assumed.
  */
 import { z } from 'zod';
@@ -95,7 +94,7 @@ export function requiresSuperAdmin(hazard: Hazard): boolean {
   return hazard === 'lossy' || hazard === 'irreversible';
 }
 
-/** Why a step was refused — the §4 codes decidable at plan time. */
+/** Why a step was refused — the codes decidable at plan time. */
 export const REFUSAL_CODES = [
   'SYSTEM_TABLE',
   'META_NAMESPACE',
@@ -124,7 +123,7 @@ export const REFUSAL_CODES = [
 export const refusalCodeSchema = z.enum(REFUSAL_CODES);
 export type RefusalCode = (typeof REFUSAL_CODES)[number];
 
-/** A consequence preflight attached — a fact, never an adjective (§3.4). */
+/** A consequence preflight attached — a fact, never an adjective. */
 export const consequenceSchema = z.strictObject({
   kind: z.enum([
     'row-count',
@@ -173,7 +172,7 @@ export const ddlStepSchema = z.strictObject({
   dependsOn: z.array(z.string()).default([]),
   /**
    * True when the step must run OUTSIDE the wrapping transaction —
-   * `CREATE INDEX CONCURRENTLY` and pg's `ALTER TYPE … ADD VALUE` (§3.3).
+   * `CREATE INDEX CONCURRENTLY` and pg's `ALTER TYPE … ADD VALUE`.
    */
   outsideTransaction: z.boolean().default(false),
   /** Set only on `refused`. */
@@ -210,7 +209,7 @@ export function atLeastVersion(serverVersion: string | null, floor: string): boo
 }
 
 // ---------------------------------------------------------------------------
-// Hazard classification (§5)
+// Hazard classification
 // ---------------------------------------------------------------------------
 
 export interface HazardContext {
@@ -222,7 +221,7 @@ export interface HazardContext {
    * unmeasurable table warn rather than silently promise.
    */
   tableHasRows: boolean | null;
-  /** MariaDB rather than MySQL — the ALGORITHM clauses differ (§5). */
+  /** MariaDB rather than MySQL — the ALGORITHM clauses differ. */
   isMariaDb?: boolean;
 }
 
@@ -230,7 +229,7 @@ export interface HazardVerdict {
   hazard: Hazard;
   rationale: string;
   refusal?: RefusalCode;
-  /** SQLite: this operation is only reachable through the §7 rebuild. */
+  /** SQLite: this operation is only reachable through the rebuild. */
   needsRebuild?: boolean;
 }
 
@@ -276,7 +275,7 @@ export function touchesEveryRow(step: { kind: DdlStepKind; hazard: Hazard }): bo
 const nonEmpty = (ctx: HazardContext): boolean => ctx.tableHasRows !== false;
 
 /**
- * Classify one step. The single source of §5's matrix — the executor reads the
+ * Classify one step. The single source of matrix — the executor reads the
  * verdict rather than re-deriving it, so the statement it emits and the badge
  * the user saw cannot disagree.
  */

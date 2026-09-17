@@ -120,6 +120,37 @@ through the same hash verification and hardened unpack as a bundled or
 catalog-fetched package. A tarball that does not match the hash you pasted is
 refused.
 
+## On a host with no persistent disk
+
+An installed add-on's files are kept in `ADMINIUM_DATA_DIR/add-ons`. The meta store only records
+that it is installed, with its settings and credentials. On a host that empties the data directory
+on every deploy — DigitalOcean App Platform, or a container with no volume — the boot copies back
+only what the image bundles, at the bundled version:
+
+- **A bundled add-on, installed at the bundled version, comes back by itself.**
+- **Any other add-on is lost at the next deploy**: one you uploaded, or one you updated past the
+  image's copy. The Add-ons page still shows it as installed and on, and none of it loads. The boot
+  log names it: `installed add-on is not on this server …`, with its key and version.
+- **A newer Adminium image can bundle a newer version.** Then the version you installed from the
+  old image is lost the same way. The Add-ons page offers **Upgrade** to the version the new image
+  carries, and upgrading brings the add-on back.
+- The cached online catalog is gone too, until **Check for newer** runs again.
+
+To bring a lost add-on back, upload the same package again through the sideload card, with its
+fingerprint. It is back at once, server code included, with its settings and connection as they
+were.
+
+To keep add-ons across deploys, run Adminium where the data directory is on a persistent disk, or
+build your own image that carries them — see [`ADMINIUM_BUNDLED_ADD_ONS`](#adminium_bundled_add_ons).
+
+:::caution[0.2.9 and earlier]
+These releases load add-on server code before the boot has copied the bundled add-ons back. After a
+deploy onto an empty data directory, a bundled add-on with server code — Invoices & Receipts, for
+one — is listed as on but does nothing until the add-ons are reloaded. Switch any one installed
+add-on off and on again; that reloads all of them. The same step is needed after re-uploading a
+lost package.
+:::
+
 ## Uninstalling
 
 Uninstalling an add-on removes its **package files** and Adminium's own records
@@ -145,3 +176,16 @@ sidecar holding the `sha512-…` string. A directory that does not exist is a
 no-op, not an error. Every tarball is verified against its sidecar on the way
 into the store — the variable chooses where the seed reads from, never whether
 verification happens.
+
+On a host with no persistent disk, this folder is the only place an add-on
+outside the bundled set survives a deploy. The image's working directory is
+`/app`, so an image you build from the published one can add files to the
+folder it already has, with nothing to set:
+
+```dockerfile
+FROM ghcr.io/mosofi/adminium:<version>
+COPY add-ons-bundle/ /app/add-ons-bundle/
+```
+
+Put in the exact version you install. A version the image does not carry is
+lost again at the next deploy.

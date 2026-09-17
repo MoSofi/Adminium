@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Locale registry tests (10-i18n-theming.md §2.1): the 8 BRIEF locales with
- * native names, derived direction, tags, and the tag → id inverse mapping.
+ * Locale registry tests: the 8 BRIEF locales with native names, derived
+ * direction, tags, and the tag → id inverse mapping.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -56,7 +56,7 @@ describe('locale registry', () => {
     expect(localeFromTag('xx-YY')).toBe('en_US');
   });
 
-  // 23 §5.1/§5.2. `isLocaleId` is a SHAPE check and `isBuiltinLocaleId` the
+  // `isLocaleId` is a SHAPE check and `isBuiltinLocaleId` the
   // membership check — the split exists because a cached preference may name
   // a locale this build does not compile in, and rejecting it would strand
   // that user on en-US.
@@ -71,7 +71,7 @@ describe('locale registry', () => {
     expect(isBuiltinLocaleId('he_IL')).toBe(false);
   });
 
-  // 23 §5.2. These helpers run inside a theme subscriber. `emitTheme` isolates
+  // These helpers run inside a theme subscriber. `emitTheme` isolates
   // each listener now, so a throw is no longer a white screen — it is a locale
   // switch that stamps `dir`/`lang` and then abandons the string swap, which
   // nothing on screen explains. The orphan id (deleted locale, restored
@@ -83,7 +83,7 @@ describe('locale registry', () => {
     expect(isRtlLocale('sw_KE')).toBe(false);
   });
 
-  // 23 §5.5. A single-replacement converter leaves `zh-Hant_TW`, which is not
+  // A single-replacement converter leaves `zh-Hant_TW`, which is not
   // a valid BCP-47 tag — and the formatter layer coalesces invalid tags to
   // en-US, silently degrading exactly what `intlTag` exists to prevent.
   it('converts every underscore, not just the first', () => {
@@ -118,7 +118,7 @@ describe('locale registry', () => {
       expect(allLocales().map((l) => l.id)).toContain('he_IL');
     });
 
-    // 23 §3.1 field lock: a built-in row carries enabled/sortOrder ONLY, so an
+    // The field lock: a built-in row carries enabled/sortOrder ONLY, so an
     // admin cannot flip ar_EG to ltr and corrupt a shipped bundle's rendering.
     it('lets a built-in row change only enabled and order', () => {
       setRuntimeLocales([

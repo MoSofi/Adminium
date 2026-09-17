@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Installed apps, projected into the surfaces the rest of the server already
- * knows how to serve (47-app-installation.md D2, D4).
+ * knows how to serve.
  *
  * An installed package holds one directory per side:
  *
@@ -81,7 +81,7 @@ export function surfacesOfInstalled(store: AppStore, ref: InstalledAppRef): Host
         manifest = parseSurfaceManifest(readFileSync(manifestPath, 'utf8'));
       } catch {
         // Unreadable is the same as absent: the surface still serves and only
-        // the internal placement is unavailable (29 D7's degradation).
+        // the internal placement is unavailable (degradation).
         manifest = null;
       }
     }

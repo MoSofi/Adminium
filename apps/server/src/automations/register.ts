@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * ONE-CALL WIRING for the rule engine (42-automations-and-workflow-logs.md
- * §3.3, §3.4). `compose.ts` calls this once; everything else reaches the
- * engine through `app.automations` or through the handle returned here.
+ * ONE-CALL WIRING for the rule engine. `compose.ts` calls this once;
+ * everything else reaches the engine through `app.automations` or through
+ * the handle returned here.
  *
  * --- Why `app.automations` is optional -------------------------------------
  *

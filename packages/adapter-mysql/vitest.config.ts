@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Coverage floor — 15-quality.md §1 asks 90% statements / 85% branches.
+ * Coverage floor — asks 90% statements / 85% branches.
  *
  * THIS FLOOR IS UNCONDITIONAL, and that is the change. It used to be gated on
  * the same `TEST_MYSQL_URL` the live suite is gated on:
@@ -9,8 +9,8 @@
  *
  * which had two holes. Without the env var there was NO floor at all, so a
  * laptop run enforced nothing; and the live figure it did enforce — 77%
- * branches — was itself below the §1 requirement, so neither mode actually
- * gated on §1.
+ * branches — was itself below the requirement, so neither mode actually gated
+ * anything.
  *
  * The gate existed because the two modes genuinely disagreed:
  *

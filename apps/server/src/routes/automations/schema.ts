@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The wire shapes for `/automations` and `/automation-runs`
- * (42-automations-and-workflow-logs.md §3.1).
+ * The wire shapes for `/automations` and
+ * `/automation-runs`.
  *
  * The STORED shapes live in `@adminium/meta`'s `json-payloads.ts` and are
  * reused verbatim for the bodies — a rule the API accepts and a rule the
@@ -115,7 +115,7 @@ const sourceTableSchema = z.object({
   columns: z.array(sourceColumnSchema),
   /**
    * Tables whose rows point AT this one, and the column that does it —
-   * 34 §3.7 step 3's child-table picker, seeded from foreign keys.
+   * child-table picker, seeded from foreign keys.
    *
    * ONLY EDGES THE PIPELINE CAN ACTUALLY JOIN appear here. `readSource` reads
    * children with `where <fk> = row[<parent pk[0]>]`, so a composite foreign

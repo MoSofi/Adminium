@@ -17,12 +17,12 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `calendar-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { capacityBoardConfigSchema, capacityBoardDemoData } from './calendar-config.js';
 export type { CapacityBoardConfig } from './calendar-config.js';
 
 /**
- * `capacity-board` (annex §5) — a per-member stacked utilization bar: the track
+ * `capacity-board` (annex) — a per-member stacked utilization bar: the track
  * fills with per-project segments (width = hours / capacity, project-colored,
  * tooltips), with a legend row and a util-% + status pill (Overloaded > 100 /
  * Balanced 75–100 / Available < 75), scaled per week or month. Binds to a
@@ -57,7 +57,7 @@ const STATUS_LABEL: Record<LoadStatus, string> = {
 };
 /**
  * Literal bundle key per status/period, so the extractor and the bundle-parity
- * tests see every key and a new enum member is a compile error (10 §2.5).
+ * tests see every key and a new enum member is a compile error.
  */
 const STATUS_KEY = {
   overloaded: 'ui:widgets.calendar.capacityBoard.status.overloaded',

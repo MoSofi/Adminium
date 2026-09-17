@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The installed-app package store (47-app-installation.md D1).
+ * The installed-app package store.
  *
  * Packages live at `<dataDir>/apps/<key>/<version>/`, a sibling of `add-ons/`
  * and `files/`. This is deliberately NOT `ADMINIUM_SURFACES_DIR`: that
- * directory belongs to the operator (29-app-surfaces.md), may be read-only,
- * may not be set at all, and is read exactly once at boot — so an install that
- * wrote there would need a restart to take effect and would silently fight
- * whatever else put files in it.
+ * directory belongs to the operator, may be read-only, may not be set at all,
+ * and is read exactly once at boot — so an install that wrote there would need
+ * a restart to take effect and would silently fight whatever else put files in
+ * it.
  *
  * There is no second implementation here, and that is the point. An uploaded
  * surface bundle is an archive from outside, served afterwards at the

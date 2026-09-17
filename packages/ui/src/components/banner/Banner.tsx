@@ -36,7 +36,7 @@ export interface BannerProps extends ComponentPropsWithRef<'div'> {
 /**
  * Banner — full-width top alert variant: tone-soft strip with a `color-mix`
  * bottom hairline, icon + message + optional action, dismissible
- * (research/design-system.md §3 Tier 3). Mount above the app shell.
+ * (research/design-system.md Tier 3). Mount above the app shell.
  */
 export function Banner({
   tone = 'info',

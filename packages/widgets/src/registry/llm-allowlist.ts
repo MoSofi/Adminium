@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LLM allow-lists (06-llm-assist.md §4.4/§5) — the closed vocabularies the
- * schema-enrichment prompt injects so the model can only ever suggest page
- * templates, dashboard widgets and status tones the runtime can actually render.
+ * LLM allow-lists — the closed vocabularies the schema-enrichment prompt
+ * injects so the model can only ever suggest page templates, dashboard
+ * widgets and status tones the runtime can actually render.
  *
  * All three lists are DERIVED from the live registries in this package
  * (`pageTemplateRegistry`, `widgetRegistry`) plus the shared widget-config tone
@@ -41,7 +41,7 @@ function contractShapes(contract: DataShape | DataShape[]): readonly DataShape[]
  * Can the widget-data pipeline actually FEED this widget? A dashboard tile is
  * only useful if some query descriptor produces a payload its data contract
  * accepts, and the compiler implements sixteen of the eighteen canonical
- * shapes (04 §5.2).
+ * shapes.
  *
  * Without this test the prompt offered widgets no binding could ever satisfy —
  * every one guaranteed to render "Unexpected data shape" or reject with 422 the
@@ -64,17 +64,17 @@ function isBindable(definition: WidgetDefinition): boolean {
 
 /**
  * The RECOMMENDABLE page-template vocabulary, injected as
- * `{{ALLOWED_PAGE_TEMPLATE_IDS_JSON}}` (06 §5 builder notes: "the recommendable
+ * `{{ALLOWED_PAGE_TEMPLATE_IDS_JSON}}` (builder notes: "the recommendable
  * templates … exported as `LLM_ALLOWED_TEMPLATES`"). One coherent contract,
  * shared by the prompt and the response referential check (both receive this
  * same list via `AllowedVocabularies`):
  *
  *   - the prompt offers ONLY templates the model may recommend per table;
- *   - the referential membership check (`referential.ts` §7.3) therefore
- *     rejects every non-recommendable id — the tool surfaces (`page-builder`,
- *     `page-wizard`, `page-settings`) fall out as `LLM_UNKNOWN_TEMPLATE`, and
- *     `page-crud` keeps its bespoke "always generated" rejection (06 §5
- *     decision 6), which fires before the membership test.
+ * - the referential membership check (`referential.ts`) therefore rejects
+ *   every non-recommendable id — the tool surfaces (`page-builder`,
+ *   `page-wizard`, `page-settings`) fall out as `LLM_UNKNOWN_TEMPLATE`, and
+ *   `page-crud` keeps its bespoke "always generated" rejection, which fires
+ *   before the membership test.
  *
  * Renderability stays a superset: `pageTemplateRegistry` still carries the
  * non-recommendable templates for Studio's picker and the render layer.
@@ -86,9 +86,9 @@ export const LLM_ALLOWED_PAGE_TEMPLATES: readonly string[] = sortedUnique(
 );
 
 /**
- * Alias under the name used in 06-llm-assist.md §5's builder notes
- * (`LLM_ALLOWED_TEMPLATES`). Same value as {@link LLM_ALLOWED_PAGE_TEMPLATES};
- * exported so the prompt builder resolves regardless of which spelling it imports.
+ * Alias under the name used builder notes (`LLM_ALLOWED_TEMPLATES`). Same
+ * value as {@link LLM_ALLOWED_PAGE_TEMPLATES}; exported so the prompt builder
+ * resolves regardless of which spelling it imports.
  */
 export const LLM_ALLOWED_TEMPLATES: readonly string[] = LLM_ALLOWED_PAGE_TEMPLATES;
 
@@ -98,8 +98,7 @@ export const LLM_ALLOWED_TEMPLATES: readonly string[] = LLM_ALLOWED_PAGE_TEMPLAT
  * Widget families the LLM composes dashboards from — every registered widget in
  * these families is a suggestable dashboard tile (KPI stats, charts, activity/
  * feed summaries). Families that render page bodies, overlays or chrome are not
- * dashboard analytics and are excluded (06 §5 decision 7 / the curated subset in
- * §5's builder notes).
+ * dashboard analytics and are excluded (/ the curated subset builder notes).
  */
 const LLM_DASHBOARD_WIDGET_FAMILIES: ReadonlySet<WidgetFamily> = new Set<WidgetFamily>([
   'kpi',
@@ -134,7 +133,7 @@ function isLlmDashboardWidget(definition: WidgetDefinition): boolean {
 /**
  * Curated dashboard-widget subset of the registry, injected as
  * `{{ALLOWED_WIDGET_IDS_JSON}}`. Derived from `widgetRegistry` so the prompt and
- * the render layer can never drift (06 §5 builder notes).
+ * the render layer can never drift (builder notes).
  */
 export const LLM_ALLOWED_WIDGETS: readonly string[] = sortedUnique(
   [...widgetRegistry.values()].filter(isLlmDashboardWidget).map((definition) => definition.id),
@@ -147,7 +146,7 @@ export const LLM_ALLOWED_WIDGETS: readonly string[] = sortedUnique(
  * Injected into `@adminium/llm`'s apply planner the same way the allow-lists
  * above are injected into the prompt builder and the referential checks — as
  * plain data, so the LLM package keeps its "no dependency on the render layer"
- * rule (01 §2.3).
+ * rule.
  *
  * The planner needs it because a query descriptor's `shape` is what decides
  * which envelope the server returns, and picking that from the bound columns
@@ -170,10 +169,10 @@ export const LLM_WIDGET_DATA_CONTRACTS: Readonly<Record<string, readonly DataSha
 
 /**
  * Status-pill / enum tones the LLM may assign when classifying enum values
- * (06 §5 decision 3, mirrored by the frozen `Tone` enum in the response schema,
- * 06 §6). A closed set: every enrichment tone maps onto a tone the widgets
- * runtime can render (`llm-allowlist.test.ts` asserts the subset relation
- * against the shared widget-config tone vocabulary).
+ * (mirrored by the frozen `Tone` enum in the response schema). A closed set:
+ * every enrichment tone maps onto a tone the widgets runtime can render
+ * (`llm-allowlist.test.ts` asserts the subset relation against the shared
+ * widget-config tone vocabulary).
  */
 export type LlmSemanticTone = 'pos' | 'warn' | 'danger' | 'accent' | 'muted';
 

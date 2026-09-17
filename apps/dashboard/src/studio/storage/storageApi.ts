@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Storage-destinations data layer (37-files-and-storage.md §3.8, 37-T21) over
- * `/api/v1/storage/*` and `GET /api/v1/files/usage`
- * (`apps/server/src/routes/storage/`, `routes/files/`).
+ * Storage-destinations data layer over `/api/v1/storage/*` and `GET
+ * /api/v1/files/usage` (`apps/server/src/routes/storage/`, `routes/files/`).
  *
  * Shapes mirror the server's Zod replies (`routes/storage/schema.ts` and the
  * config schemas in `@adminium/meta`'s `json-payloads.ts`) — the copied-mirror
@@ -23,10 +22,10 @@
  *    silent drop.
  *
  * 2. **"This server's disk" is not a row.** `destination_id IS NULL` is the
- *    implicit destination (37 D3): it has no id, cannot be edited, disabled or
- *    deleted, and is addressed on the migrate route by the sentinel string
- *    `local` ({@link LOCAL_DESTINATION_VALUE}). Every picker in this feature
- *    has to offer it on both sides, so the sentinel lives here and not in a
+ * implicit destination: it has no id, cannot be edited, disabled or deleted,
+ *    and is addressed on the migrate route by the sentinel string `local`
+ *    ({@link LOCAL_DESTINATION_VALUE}). Every picker in this feature has to
+ *    offer it on both sides, so the sentinel lives here and not in a
  *    component.
  *
  * 3. **The presets fill mechanics, never a wrong value.** A preset that cannot
@@ -106,7 +105,7 @@ export interface StorageUsageEntry {
   driver: string;
   files: number;
   bytes: number;
-  /** Local destinations only — a bucket cannot know (37 D23). */
+  /** Local destinations only — a bucket cannot know. */
   available?: number;
 }
 
@@ -524,8 +523,8 @@ export interface S3Preset {
  * calls at the render site, because a key assembled from `preset.id` would be
  * invisible to the extractor and to the parity gate (`no-dynamic-i18n-key`).
  *
- * Provider names are used nominatively as picker labels, which 24 D12 allows;
- * what it bans is logos, and there are none.
+ * Provider names are used nominatively as picker labels, which allows; what
+ * it bans is logos, and there are none.
  */
 /*
  * WHY THESE DISAGREE WITH THE ENVIRONMENT SEED, ON PURPOSE.

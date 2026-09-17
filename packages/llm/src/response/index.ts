@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/** `@adminium/llm` response contract + validation barrel — 06-llm-assist.md §6, §7. */
+/** `@adminium/llm` response contract + validation barrel. */
 export * from './schema.js';
 export * from './errors.js';
 export * from './extract.js';

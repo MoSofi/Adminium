@@ -1,26 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The email document envelope — what one `adminium_email_templates` row
- * MEANS, as opposed to what it stores (39-email-templates-and-campaigns.md
- * §3.3; 39-T02).
+ * MEANS, as opposed to what it stores.
  *
  * Three jobs, all pure:
  *
  *   1. {@link normalizeDocument} — a document arriving on the wire (a `PUT`
  *      body, an import bundle, a starter) or read off a row becomes one shape:
- *      a trailing legacy `email.footer` block is lifted into `footer` (39 D5),
- *      every block carries an id, absent fields get their empty value.
+ * a trailing legacy `email.footer` block is lifted into `footer`, every block
+ *      carries an id, absent fields get their empty value.
  *   2. {@link validateDocument} — the rules the repo deliberately does NOT
  *      enforce, because they need context the meta store has no business
  *      holding: a known kind's data shape (Appendix C), a `From` that is a
- *      configured sender (39 D7), the attachment cap (39 D8), `https:` on a
- *      pasted image URL (39 D9). UNKNOWN KINDS PASS THROUGH UNTOUCHED — a row a
- *      newer server wrote must survive an older one's save, the same
- *      forward-compatibility rule the renderer has always had.
+ * configured sender, the attachment cap, `https:` on a pasted image URL.
+ *      UNKNOWN KINDS PASS THROUGH UNTOUCHED — a row a newer server wrote must
+ *      survive an older one's save, the same forward-compatibility rule the
+ *      renderer has always had.
  *   3. {@link mintKey} / {@link documentVars} — a key from a name
  *      (`weekly-digest`, `weekly-digest-2`, never a built-in's key) and the
  *      variables a document may use, which are DERIVED from what it is rather
- *      than stored beside it (39 D18).
+ * than stored beside it.
  *
  * The block vocabulary itself — the 24 comp types as `email.*` kinds — is
  * declared once in `render.ts` (`EMAIL_BLOCK_KINDS`), because the gate that
@@ -102,7 +101,7 @@ export function normalizeBlock(raw: Record<string, unknown>): EmailBlock {
   };
 }
 
-/** A row or a wire body → the one envelope shape (the read side of 39 D5). */
+/** A row or a wire body → the one envelope shape (the read side). */
 export function normalizeDocument(
   input: EmailDocumentInput | Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer' | 'brand' | 'attachments'>,
 ): EmailDocument {
@@ -211,11 +210,12 @@ export const EMAIL_BLOCK_DATA_SCHEMAS: Readonly<Record<EmailBlockKind, z.ZodType
 // --- validation ------------------------------------------------------------------------
 
 export interface ValidateDocumentContext {
-  /** Every address a document may send from — `email.smtp.from` plus `email.senders` (39 D7). */
+  /** Every address a document may send from — `email.smtp.from` plus
+   * `email.senders`. */
   senders: readonly string[];
   /** `email.maxAttachmentBytes`. */
   maxAttachmentBytes: number;
-  /** Size of each referenced library file; `null` = missing or trashed (39 D8). */
+  /** Size of each referenced library file; `null` = missing or trashed. */
   attachmentSizes: ReadonlyMap<string, number | null>;
 }
 
@@ -227,11 +227,11 @@ export function bareAddress(value: string): string {
 
 /**
  * Refuses what a save must not persist, with a 422 whose `details.code` names
- * the rule so the editor can point at the field (39 §3.1 `PUT`).
+ * the rule so the editor can point at the field (`PUT`).
  *
  * Attachments: a MISSING file is not refused here — the row may be saved and
- * the editor shows *File missing* (39 D8); what is refused is a total over
- * the cap, computed over the files that exist.
+ * the editor shows *File missing*; what is refused is a total over the cap,
+ * computed over the files that exist.
  */
 export function validateDocument(doc: EmailDocument, ctx: ValidateDocumentContext): void {
   for (const [index, block] of doc.blocks.entries()) {
@@ -288,7 +288,7 @@ export const EMAIL_KEY_RE = /^[a-z0-9][a-z0-9-]{0,79}$/;
 
 const RESERVED_KEYS: ReadonlySet<string> = new Set<string>(BUILTIN_EMAIL_TEMPLATE_KEYS);
 
-/** True for a key the built-ins own (39 D4: those reset instead of dying). */
+/** True for a key the built-ins own (those reset instead of dying). */
 export function isBuiltinEmailKey(key: string): boolean {
   return RESERVED_KEYS.has(key);
 }
@@ -310,7 +310,7 @@ export function slugKey(name: string): string {
  * A free key for `name`: the slug, or `slug-2`, `slug-3`, … past every key in
  * `taken` (the repo's `keysLike(slug)`) and every built-in key — an operator
  * naming a template "Password reset" gets `password-reset-2`, never the row
- * the forgot-password flow renders from (39 §3.1).
+ * the forgot-password flow renders from.
  */
 export function mintKey(name: string, taken: readonly string[]): string {
   const base = slugKey(name);
@@ -323,14 +323,14 @@ export function mintKey(name: string, taken: readonly string[]): string {
   }
 }
 
-// --- variables (39 D18) ---------------------------------------------------------------
+// --- variables ---------------------------------------------------------------
 
-/** What a workspace-user send fills per recipient (39 D11). */
+/** What a workspace-user send fills per recipient. */
 export const WORKSPACE_USER_VARS = ['appName', 'name', 'first_name', 'email'] as const;
 
 /**
- * The variables a document may use — from what it IS, never stored (39 D18):
- * a built-in key reads its enqueue contract; a starter family reads the
+ * The variables a document may use — from what it IS, never stored: a
+ * built-in key reads its enqueue contract; a starter family reads the
  * workspace-user set plus the starter's own; a blank document the workspace
  * set alone.
  */

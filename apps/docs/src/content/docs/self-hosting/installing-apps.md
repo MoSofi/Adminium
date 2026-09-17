@@ -21,13 +21,13 @@ over the network. Add-ons, which extend a deployment rather than being one, have
 
 | Source | Network | Where it comes from |
 |---|---|---|
-| **Bundled** | none | Tarballs baked into the Docker image and the desktop app, seeded into the app store at boot. |
+| **Bundled** | none | Tarballs in the folder [`ADMINIUM_BUNDLED_APPS`](#adminium_bundled_apps) names, seeded into the app store at boot. |
 | **Uploaded** | none | A `.tgz` you upload yourself, with the fingerprint you paste. |
 | **The online app catalogue** | opt-in | Released apps listed by adminium.dev, downloaded from `downloads.adminium.dev`. |
 
-A checkout running from source (`pnpm dev`) ships **no bundled set** — those are baked in at image
-build time — so a source run shows an empty shelf until you upload an app or switch browsing online
-on. That is expected, not a misconfiguration.
+No build Adminium publishes carries a bundled app set — not the Docker image, not the desktop app,
+not a source checkout — so the shelf is empty until you upload an app or switch browsing online on.
+That is expected, not a misconfiguration. An image you build yourself can carry one.
 
 ## Browsing online: an explicit opt-in of its own
 
@@ -109,6 +109,31 @@ Sideloading is a first-class source, not an escape hatch: the uploaded bytes go 
 hash verification, hardened unpack and schema plan as a bundled or downloaded one. A tarball that
 does not match the fingerprint you pasted is refused, and nothing is staged.
 
+## On a host with no persistent disk
+
+An installed app's files are kept in `ADMINIUM_DATA_DIR/apps`. The meta store only records that the
+app is installed, and a [storage destination](/self-hosting/env-vars/#adminium_storage_url) does not
+hold it. So on a host that empties the data directory on every deploy — DigitalOcean App Platform,
+or a container with no volume — **every installed app is lost at the next deploy**:
+
+- Studio still lists it under **Installed apps**, but it is not served. Its `/apps/…` addresses show
+  the dashboard's "page not found" page, with HTTP 200, so an uptime check that reads only the status
+  code stays green.
+- The tables it created in your database are kept, with their rows.
+- The boot log names it: `installed app is not on this server …`, with its key and version.
+- The cached catalogue is gone too, so the shelf is empty until **Check for newer** runs again.
+
+To bring an app back, choose **Install an app**, upload the same version's file with its
+fingerprint, and confirm. The plan reuses the tables the app already has: nothing is created twice
+and nothing is dropped. The shelf cannot do this for you: it shows the app as installed and offers
+no download.
+
+To keep apps across deploys, run Adminium where the data directory is on a persistent disk, or build
+your own image that carries the app files in `/app/apps-bundle` — see
+[`ADMINIUM_BUNDLED_APPS`](#adminium_bundled_apps). Each boot then copies them back. In 0.2.9 and
+earlier, an app copied back this way is not served until an app is installed or uninstalled, so
+install any one app again, at the same version, after each deploy.
+
 ## Uninstalling
 
 Uninstalling an app removes its **package files**, its surfaces and Adminium's own records of it. It
@@ -118,5 +143,16 @@ outlives the code that produced it; drop the tables yourself if you truly want t
 ## `ADMINIUM_BUNDLED_APPS`
 
 Where the boot seed looks for the bundled set. Default: `./apps-bundle`, relative to the server's
-working directory — which is where the Docker image parks it, so a container needs nothing set. See
-[Environment variables](/self-hosting/env-vars/#adminium_bundled_apps).
+working directory. The published Docker image has no such folder. Its working directory is `/app`,
+so an image you build from it can add `/app/apps-bundle` and needs nothing set:
+
+```dockerfile
+FROM ghcr.io/mosofi/adminium:<version>
+COPY apps-bundle/ /app/apps-bundle/
+```
+
+Each app is a `<key>-<version>.tgz` next to a `<key>-<version>.tgz.integrity` file holding its
+`sha512-…` fingerprint, the one shown beside its Download link. Every file is checked against its
+fingerprint at boot, and a version already in the store is skipped. Put in the exact version you
+install: a version the image does not carry is lost again at the next deploy on a host with no
+persistent disk. See [Environment variables](/self-hosting/env-vars/#adminium_bundled_apps).

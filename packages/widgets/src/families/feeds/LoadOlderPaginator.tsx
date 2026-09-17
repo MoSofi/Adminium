@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `load-older-paginator` (annex §4) — the footer button that appends N older
+ * `load-older-paginator` (annex) — the footer button that appends N older
  * records per click and relabels (or disappears) on exhaustion. Attached to a
  * feed, so `placement: 'inline'` — no WidgetFrame chrome of its own.
  *
  * The presentational component is CONTROLLED (`loaded`/`total`/`onLoadOlder`):
  * the host owns the cursor, exactly as `pagination-footer` does for the grid.
  * The widget wrapper keeps a local `loaded` count so the button is live in
- * demo/story/QA mode; the real binding layer (04 §5) replaces that by driving
- * `loaded` off the query's cursor.
+ * demo/story/QA mode; the real binding layer replaces that by driving `loaded`
+ * off the query's cursor.
  */
 
 import { Button, MonoText, Spinner } from '@adminium/ui';
@@ -22,7 +22,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `feeds-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { loadOlderPaginatorConfigSchema, loadOlderPaginatorDemoData } from './feeds-config.js';
 export type { LoadOlderPaginatorConfig } from './feeds-config.js';
 
@@ -63,7 +63,7 @@ export function LoadOlderPaginator({
   testId,
 }: LoadOlderPaginatorProps) {
   const t = useMaybeT();
-  // Annex §4: "relabels/disappears on exhaustion".
+  // Annex: "relabels/disappears on exhaustion".
   if (!hasMore && hideWhenExhausted) return null;
 
   // Mono counts render in data context (latn digits, aligned in ar_EG).
@@ -102,7 +102,7 @@ export function LoadOlderPaginator({
   );
 }
 
-/** Read the cursor envelope's scalars (04 §3 `record-list`). */
+/** Read the cursor envelope's scalars (`record-list`). */
 export function cursorStateOf(data: unknown): { loaded: number; total: number | null; hasCursor: boolean } {
   if (typeof data !== 'object' || data === null) return { loaded: 0, total: null, hasCursor: false };
   const record = data as { rows?: unknown; total?: unknown; loaded?: unknown; cursor?: unknown };

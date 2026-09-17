@@ -5,33 +5,33 @@ import { formatMetricValue } from '../../lib/format.js';
 import type { MetricFormat, MetricFormatOptions } from '../../lib/format.js';
 
 /**
- * Shared helpers for the `kpi` family (annex §1) — SVG gauge geometry, the
+ * Shared helpers for the `kpi` family (annex) — SVG gauge geometry, the
  * qualitative band vocabulary the gauges tint against, the `micro-kpi-subtitle`
  * template interpolator, and the `stat-pair-card` derived-metric arithmetic.
  *
  * PURE module: no JSX, no @adminium/ui component imports, no React. The
  * registry's EAGER metadata graph reaches this file through `kpi-config.ts`, so
- * nothing here may drag component code into the eager chunk (04 §2.3;
- * enforced by `qa/chunk-budget.test.ts`). Icon ELEMENTS live in `kpi-icons.tsx`.
- * `import type { Tone }` is erased at compile time, so it carries no runtime
- * edge into @adminium/ui.
+ * nothing here may drag component code into the eager chunk (enforced by
+ * `qa/chunk-budget.test.ts`). Icon ELEMENTS live in `kpi-icons.tsx`. `import
+ * type { Tone }` is erased at compile time, so it carries no runtime edge into
+ * @adminium/ui.
  *
- * DIRECTIONALITY (10-i18n-theming.md §5.2, and the @adminium/charts donut /
- * radial-bar policy verbatim): gauge geometry NEVER mirrors under RTL. A
- * clockwise sweep and a 180° speedometer arc are rotational, not directional —
- * mirroring them would read as "the needle runs backwards", exactly as it would
- * for a donut. Only the surrounding chrome (labels, captions, footers, the
- * cluster grid) flips, which is plain logical-property CSS. The stories capture
- * both directions to prove the chrome genuinely mirrors while the canvas holds.
+ * DIRECTIONALITY (and the @adminium/charts donut / radial-bar policy verbatim):
+ * gauge geometry NEVER mirrors under RTL. A clockwise sweep and a 180°
+ * speedometer arc are rotational, not directional — mirroring them would read
+ * as "the needle runs backwards", exactly as it would for a donut. Only the
+ * surrounding chrome (labels, captions, footers, the cluster grid) flips, which
+ * is plain logical-property CSS. The stories capture both directions to prove
+ * the chrome genuinely mirrors while the canvas holds.
  */
 
-/** Fixed demo epoch so `demoData(seed)` is byte-identical across runs (04 §7.7). */
+/** Fixed demo epoch so `demoData(seed)` is byte-identical across runs. */
 export const KPI_DEMO_EPOCH = Date.UTC(2026, 6, 14, 12, 0, 0);
 
 // ── Qualitative bands ───────────────────────────────────────────────────────
 
 /**
- * A qualitative gauge band (annex §1 `bands` [{to, color, label}]). `to` is the
+ * A qualitative gauge band (annex `bands` [{to, color, label}]). `to` is the
  * INCLUSIVE upper cutoff in the gauge's own value space (not a percent), `tone`
  * names a semantic token — never a raw colour, so bands re-theme with the app.
  * `kpi-config.ts` mirrors this as its Zod schema.
@@ -73,11 +73,11 @@ export function fractionOf(value: number, max: number): number {
   return clampValue(value, upper) / upper;
 }
 
-// ── gauge-ring geometry (annex §1) ──────────────────────────────────────────
+// ── gauge-ring geometry (annex) ─────────────────────────────────────────────
 
 export type GaugeSize = 'sm' | 'md' | 'lg';
 
-/** Outer diameter + stroke thickness per `size` (annex §1 `size`). */
+/** Outer diameter + stroke thickness per `size` (annex `size`). */
 export const RING_SIZES: Record<GaugeSize, { size: number; thickness: number }> = {
   sm: { size: 96, thickness: 8 },
   md: { size: 132, thickness: 11 },
@@ -98,7 +98,7 @@ export interface RingGeometry {
 }
 
 /**
- * `gauge-ring`'s stroke-dashoffset geometry (annex §1). The value stroke starts
+ * `gauge-ring`'s stroke-dashoffset geometry (annex). The value stroke starts
  * fully offset (invisible) and animates to `dashOffset`; the caller rotates the
  * circle -90° so the sweep begins at 12 o'clock.
  */
@@ -118,7 +118,7 @@ export function gaugeRingGeometry(value: number, max: number, size: GaugeSize = 
   };
 }
 
-// ── gauge-arc geometry (annex §1) ───────────────────────────────────────────
+// ── gauge-arc geometry (annex) ──────────────────────────────────────────────
 
 /**
  * A point on the gauge circle. Angles are degrees in SVG space (y grows DOWN):
@@ -168,7 +168,7 @@ export interface ArcGeometry {
   trackPath: string;
   /** Value sweep from the arc's start to the needle. */
   valuePath: string;
-  /** Per-band coloured segments across the track (annex §1 `bands`). */
+  /** Per-band coloured segments across the track (annex `bands`). */
   bandSegments: ArcBandSegment[];
   /** Needle tip; the tail sits at (cx, cy). */
   needle: { x: number; y: number };
@@ -176,10 +176,10 @@ export interface ArcGeometry {
 }
 
 /**
- * `gauge-arc`'s 180° speedometer geometry (annex §1): a background sweep, one
+ * `gauge-arc`'s 180° speedometer geometry (annex): a background sweep, one
  * coloured segment per band, the value sweep, and the needle tip. Deterministic
  * and DOM-free — the same paths render in Node (scheduled reports) and the
- * browser (04 §7.1).
+ * browser.
  */
 export function gaugeArcGeometry(
   value: number,
@@ -233,7 +233,7 @@ export function gaugeArcGeometry(
   };
 }
 
-// ── micro-kpi-subtitle (annex §1) ───────────────────────────────────────────
+// ── micro-kpi-subtitle (annex) ──────────────────────────────────────────────
 
 /**
  * A scalar bag narrowed off a `single-metric` payload: `value` plus any sibling
@@ -246,7 +246,7 @@ const TOKEN_RE = /\{([a-zA-Z0-9_.-]+)\}/g;
 
 /**
  * Interpolate a `micro-kpi-subtitle` template against the bound scalars (annex
- * §1 `template`). Numeric scalars route through the Intl metric formatter (so
+ * `template`). Numeric scalars route through the Intl metric formatter (so
  * "1.2k"/"74%" localize); string scalars pass through verbatim.
  *
  * An UNKNOWN placeholder resolves to the empty string rather than leaking the
@@ -278,12 +278,12 @@ export function templateKeys(template: string): string[] {
   return [...seen];
 }
 
-// ── stat-pair-card (annex §1) ───────────────────────────────────────────────
+// ── stat-pair-card (annex) ──────────────────────────────────────────────────
 
 /**
- * The closed derived-metric vocabulary (annex §1 `derivedFormula` — "second may
- * be a formula over the first", e.g. LTV = MRR × lifetime months). Deliberately
- * an ENUM of four arithmetic ops rather than an expression string: a stored
+ * The closed derived-metric vocabulary (annex `derivedFormula` — "second may be
+ * a formula over the first", e.g. LTV = MRR × lifetime months). Deliberately an
+ * ENUM of four arithmetic ops rather than an expression string: a stored
  * dashboard config must never be able to smuggle evaluable code into the
  * renderer.
  */
@@ -302,10 +302,10 @@ export function applyDerived(a: number, op: DerivedOp, operand: number): number 
   return Number.isFinite(result) ? result : null;
 }
 
-// ── auto-insights (annex §1) ────────────────────────────────────────────────
+// ── auto-insights (annex) ───────────────────────────────────────────────────
 
 /**
- * The insight glyph vocabulary (annex §1: "sparkles icon", "tone icon"). Closed
+ * The insight glyph vocabulary (annex: "sparkles icon", "tone icon"). Closed
  * set — `kpi-icons.tsx` maps each key to a Lucide element, and an unrecognised
  * `icon` column value falls back to `sparkles`.
  */
@@ -336,11 +336,11 @@ export function toneOf(value: unknown, fallback: Tone = 'accent'): Tone {
 }
 
 /**
- * The SHARED config's `tone` (04 §2.1) → the @adminium/ui `Tone` vocabulary.
- * The two enums are deliberately not identical: the shared config offers
- * `muted` (the widget-author-facing name for "no emphasis") where the component
- * layer calls the same thing `neutral`, and the shared enum has no `neutral` at
- * all. Widening the config enum would change a stored-config contract, so the
+ * The SHARED config's `tone` → the @adminium/ui `Tone` vocabulary. The two
+ * enums are deliberately not identical: the shared config offers `muted` (the
+ * widget-author-facing name for "no emphasis") where the component layer calls
+ * the same thing `neutral`, and the shared enum has no `neutral` at all.
+ * Widening the config enum would change a stored-config contract, so the
  * translation lives here — `undefined` falls back to the caller's default.
  */
 export function sharedToneOf(

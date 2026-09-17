@@ -37,10 +37,10 @@ afterEach(() => {
 
 describe('format vocabulary', () => {
   /**
-   * The 422 guard. `xlsx` is in the §3.25 vocabulary but `POST /exports`
-   * rejects it — no spreadsheet dependency exists in this repo — so neither
-   * export control may ever offer it. This is the assertion that fails if
-   * someone "completes" the vocabulary here.
+   * The 422 guard. `xlsx` is in the vocabulary but `POST /exports` rejects
+   * it — no spreadsheet dependency exists in this repo — so neither export
+   * control may ever offer it. This is the assertion that fails if someone
+   * "completes" the vocabulary here.
    */
   it('offers csv and json only — never xlsx', () => {
     expect([...TABULAR_EXPORT_FORMATS]).toEqual(['csv', 'json']);

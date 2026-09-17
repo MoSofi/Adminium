@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Widget-data API (04-widget-registry.md §5.2, M4-T04 subset):
+ * Widget-data API (subset):
  *
  * - `POST /api/v1/widget-data/query` — one descriptor → one shaped payload;
  * - `POST /api/v1/widget-data/batch` — ≤40 `{ instanceId, descriptor }`
@@ -11,8 +11,8 @@
  * Pipeline per item: Zod validation (route schema) → snapshot identifier
  * resolution → per-table RBAC read check (403 TABLE_FORBIDDEN + audit on
  * denial) → PII column refusal (403 COLUMN_FORBIDDEN, in the compiler) →
- * dynamic-Kysely execution on the data connection → §3 envelope shaping →
- * 30 s in-memory cache keyed on descriptor+params+connection+role scope.
+ * dynamic-Kysely execution on the data connection → envelope shaping → 30
+ * s in-memory cache keyed on descriptor+params+connection+role scope.
  */
 
 import type { FastifyRequest } from 'fastify';
@@ -82,7 +82,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       await manager.mustFind(connectionId);
       const view = await viewFor(connectionId);
 
-      // Identifier resolution FIRST, then RBAC on the resolved name (08 §5.2).
+      // Identifier resolution FIRST, then RBAC on the resolved name.
       const table = resolveSource(view, descriptor);
       const permission = `table:${connectionId}:${table.id}:read`;
       if (!(await request.can(permission))) {
@@ -126,7 +126,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       }
       const result = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId });
 
-      // Execution metrics for the Studio slow-query panel (04 §5.2) — the
+      // Execution metrics for the Studio slow-query panel — the
       // structured log line is the v1 sink.
       request.log.info(
         {
@@ -178,7 +178,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
                   },
                 };
               }
-              // Never leak raw driver/SQL text to widgets (04 §4 error state).
+              // Never leak raw driver/SQL text to widgets (error state).
               request.log.error({ err: error }, 'widget-data batch item failed');
               return {
                 instanceId: item.instanceId,

@@ -23,17 +23,17 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * TRACK CAL contribution to the `calendar` family (annex §5). Metadata only —
- * the config schemas and demo generators come from the pure `calendar-config`
- * module, and the @adminium/ui-heavy widget components load through the
+ * TRACK CAL contribution to the `calendar` family (annex). Metadata only — the
+ * config schemas and demo generators come from the pure `calendar-config` module,
+ * and the @adminium/ui-heavy widget components load through the
  * `calendar-track-components` barrel via `lazy(() => import(...))`, so the family
  * stays in one lazy chunk and the registry metadata never eagerly pulls the
- * component code (04 §2.3; the boards/domain/media convention). The GREEN LOOP
- * spreads `calendarTrackDefinitions` into `families/calendar/definitions.ts`
- * (and wires that into the registry map). Widget ids match the annex catalog
- * exactly (acceptance #1).
+ * component code (the boards/domain/media convention). The GREEN LOOP spreads
+ * `calendarTrackDefinitions` into `families/calendar/definitions.ts` (and wires
+ * that into the registry map). Widget ids match the annex catalog exactly
+ * (acceptance #1).
  *
- * Sizing is annex rows → 40px half-units (04 §6.1: `h = round(annexRows × 2)`).
+ * Sizing is annex rows → 40px half-units (`h = round(annexRows × 2)`).
  */
 
 export const calendarMonthDefinition: WidgetDefinition = defineWidget({
@@ -89,14 +89,14 @@ export const capacityBoardDefinition: WidgetDefinition = defineWidget({
   descriptionKey: 'widgets.calendar.capacityBoard.description',
 });
 
-// ── M7 Wave-4 TAIL — the four §5 widgets that complete the family ──────────
+// ── M7 Wave-4 TAIL — the four widgets that complete the family ─────────────
 
 export const calendarLegendFilterDefinition: WidgetDefinition = defineWidget({
   id: 'calendar-legend-filter',
   family: 'calendar',
   component: lazy(() => import('./calendar-track-components.js').then((m) => ({ default: m.CalendarLegendFilterWidget }))),
   configSchema: calendarLegendFilterConfigSchema,
-  // The legend is a VIEW of the calendar's own events (annex §5: "categories
+  // The legend is a VIEW of the calendar's own events (annex: "categories
   // aggregated from events"), so it binds to the identical payload rather than
   // declaring a second contract.
   dataContract: 'calendar-events',
@@ -125,8 +125,8 @@ export const dateRangePickerDefinition: WidgetDefinition = defineWidget({
   family: 'calendar',
   component: lazy(() => import('./calendar-track-components.js').then((m) => ({ default: m.DateRangePickerWidget }))),
   configSchema: dateRangePickerConfigSchema,
-  // annex §5: "date pair (control, feeds other widgets' queries)" — a control's
-  // payload is its own value, which is the `form-state` shape (§3).
+  // annex: "date pair (control, feeds other widgets' queries)" — a control's
+  // payload is its own value, which is the `form-state` shape.
   dataContract: 'form-state',
   sizing: { minW: 3, minH: 6, defaultW: 3, defaultH: 6 }, // annex "popover/inline 3×3"
   placement: 'inline', // toolbar/popover chrome, never a grid tile (annex)

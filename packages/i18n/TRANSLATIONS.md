@@ -1,7 +1,8 @@
 # Translation workflow — `@adminium/i18n`
 
 How UI strings flow through the repo, and how to change or add them without
-breaking the parity gate. Full policy: `10-i18n-theming.md` (§2–§3).
+breaking the parity gate. The rules themselves are public at
+<https://docs.adminium.dev/anatomy/decisions/i18n-rules/>.
 
 ## Where strings live
 
@@ -15,11 +16,11 @@ packages/i18n/
 ```
 
 - **Locales (8):** `en-US`, `de-DE`, `fr-FR`, `cs-CZ`, `da-DK`, `zh-CN`,
-  `zh-TW`, `ar-EG` — the set locked in `research/BRIEF.md` §2, registered in
-  `src/locales.ts` (id, BCP-47 tag, native name, `dir`, font hint). `dir` is
-  derived from the locale; `ar-EG` is the only RTL locale today.
+  `zh-TW`, `ar-EG` — the set locked, registered in `src/locales.ts` (id,
+  BCP-47 tag, native name, `dir`, font hint). `dir` is derived from the
+  locale; `ar-EG` is the only RTL locale today.
 - **Namespaces (5):** `common`, `ui`, `studio`, `generated`, `errors` —
-  one file per surface, see 10-i18n-theming.md §2.4.
+  one file per surface.
 - `en-US` is the **source of truth**: keys are added there first, English text
   is authored there, and every other locale mirrors its key set exactly.
 
@@ -46,7 +47,7 @@ packages/i18n/
   every locale at once or not at all.
 - Numbers/dates inside prose may use `{n, number}` (locale digits apply —
   Arabic-Indic in `ar-EG` prose); anything in a mono data cell goes through
-  `@adminium/i18n/format` instead so the latn-digits policy applies (§4.2).
+  `@adminium/i18n/format` instead so the latn-digits policy applies.
 - Cardinal plural categories per language:
 
   | Locale | Categories to write |
@@ -120,8 +121,8 @@ locale picker reads to label a language "(community draft)". `src/review-status.
 fails if that generated file ever disagrees with the tracked data — otherwise a
 stale hand-edit could claim a bundle was reviewed when nobody had read it.
 
-**Ship gate (§3.3).** v1.0 needs `reviewed` = 100% for `common`/`ui`/`errors`
-and ≥95% for `studio`/`generated`. Every locale is currently 0% — all 19,439
+**Ship gate.** v1.0 needs `reviewed` = 100% for `common`/`ui`/`errors` and
+≥95% for `studio`/`generated`. Every locale is currently 0% — all 19,439
 tracked strings are machine drafts.
 
 ## Lint gates
@@ -139,4 +140,4 @@ locale:
   flags *fabrication* only; validity of `t(KEYS[x])` is the type checker's job.
 
 Machine-translation bootstrap (`i18n:mt`) and the extraction gate
-(`i18n:extract`) remain 10-T14/10-T15 and have not landed.
+(`i18n:extract`) remain and have not landed.

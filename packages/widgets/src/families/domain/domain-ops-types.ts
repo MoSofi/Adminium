@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK OPS — data-contract shapes for the §13 ops / billing / API / marketing
+ * TRACK OPS — data-contract shapes for the ops / billing / API / marketing
  * cards (the 18 ids that are neither `document-canvas` nor a `block-*`).
  *
  * Every one of these is a projection of a REAL table an Adminium user already
  * has (a monitors table, a payment-methods table, an api_keys table…), so none
- * of them invents a bespoke envelope: they bind the canonical §3 `record` /
+ * of them invents a bespoke envelope: they bind the canonical `record` /
  * `record-list` shapes and normalize at the component boundary. The interfaces
  * below are the POST-resolution normalized views the components render — field
  * NAMES on the wire are config-driven (`nameField`, `statusField`, …), exactly
  * as `GanttTask` is to a task row (see domain-types.ts).
  *
  * Envelopes carry `total` so the host's shared `isEmptyByShape['record-list']`
- * predicate routes the empty state on it (04 §3).
+ * predicate routes the empty state on it.
  */
 
-/** The §3 `record-list` envelope every list-shaped widget here binds. */
+/** The `record-list` envelope every list-shaped widget here binds. */
 export interface OpsListData {
   rows: Record<string, unknown>[];
   total: number;
 }
 
-/** The §3 `record` envelope every single-row card here binds. */
+/** The `record` envelope every single-row card here binds. */
 export interface OpsRecordData {
   row: Record<string, unknown> | null;
 }
@@ -29,7 +29,7 @@ export interface OpsRecordData {
 // --- slo-monitor-card / uptime-segment-bar -----------------------------------
 
 /**
- * Per-day service health (annex §13: "30-bar daily uptime sparkline (height +
+ * Per-day service health (annex: "30-bar daily uptime sparkline (height +
  * color by Operational/Degraded/Down)"). A closed vocabulary so a corrupt
  * status column can never smuggle an unknown state into the tone map.
  */

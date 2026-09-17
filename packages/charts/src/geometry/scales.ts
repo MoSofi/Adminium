@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Scale constructors encoding the RTL policy (04-widget-registry.md
- * §7.4 as corrected by 10-i18n-theming.md §5.5):
+ * Scale constructors encoding the RTL policy:
  *   - horizontal CATEGORICAL scales mirror in RTL (range flipped);
  *   - TIME axes NEVER mirror — oldest left, newest right, inside RTL pages.
  * Geometry stays pure and DOM-free so scheduled-report workers can reuse it.

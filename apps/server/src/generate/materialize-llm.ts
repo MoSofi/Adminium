@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LLM page-row materialization (06-llm-assist.md §8.3 step 3).
+ * LLM page-row materialization.
  *
  * The apply executor seeds `origin: 'llm'` page rows with a minimal config —
  * `{source, llmRunId}` for template pages, `{domain, tables, layout, source,
- * llmRunId}` for dashboards — and defers the full §6.1 envelope to "the
+ * llmRunId}` for dashboards — and defers the full envelope to "the
  * regeneration hook". This module IS that expansion. `runGeneration` calls it
  * after every persist, so the post-apply hook AND any manual regeneration
  * repair seed rows into envelopes the client can parse; `upsertGenerated`
- * itself never touches non-generated origins (user delta wins, 04 §6.3), so
- * without this pass a seed row would stay an invalid-config card forever.
+ * itself never touches non-generated origins (user delta wins), so without
+ * this pass a seed row would stay an invalid-config card forever.
  *
  * Failure is per-row and non-fatal: a table that is excluded from the run, a
  * template whose required slot cannot fill, or an envelope the frozen contract
@@ -22,8 +22,8 @@
  * group, icon back-fill) from the validated envelope: the bootstrap tree and
  * the client's `/p/$slug` resolver read the row columns, not the document, so
  * without the sync a materialized llm page would stay invisible and
- * unreachable. An §8.3 nav-group re-placement still wins — the envelope
- * follows the row's group when one was stamped.
+ * unreachable. An nav-group re-placement still wins — the envelope follows
+ * the row's group when one was stamped.
  */
 
 import { composeRequestedArchetype, hashEnvelope, type DatabaseModel } from '@adminium/engine';
@@ -55,7 +55,7 @@ function seedTable(seed: Record<string, unknown>): string | null {
   return typeof table === 'string' ? table : null;
 }
 
-/** Compose the §14 archetype envelope a template-page seed asked for. */
+/** Compose the archetype envelope a template-page seed asked for. */
 function templateEnvelope(
   page: Page,
   seed: Record<string, unknown>,
@@ -77,14 +77,14 @@ function templateEnvelope(
       reason: detail || `table ${table} is not part of this run (excluded/system/join)`,
     };
   }
-  // The row's nav column is authoritative for the tree; a §8.3 nav-group write
+  // The row's nav column is authoritative for the tree; a nav-group write
   // may have re-placed the row after seeding, so the envelope follows the row.
   const nav = built.envelope['nav'] as Record<string, unknown>;
   if (page.navGroup !== null) nav['group'] = page.navGroup;
   return { envelope: built.envelope, reason: '' };
 }
 
-/** Wrap a dashboard seed's bound layout (§8.3 `dashboard`+`widget`) per §6.1. */
+/** Wrap a dashboard seed's bound layout (`dashboard`+`widget`). */
 function dashboardEnvelope(
   page: Page,
   seed: Record<string, unknown>,
@@ -121,8 +121,8 @@ function dashboardEnvelope(
 
 /**
  * Expand every still-seed `origin: 'llm'` page row of a connection into a
- * validated §6.1 envelope. Idempotent — materialized rows (config carries `v`)
- * are never re-touched, so a user's later layout edits survive regeneration.
+ * validated envelope. Idempotent — materialized rows (config carries `v`) are
+ * never re-touched, so a user's later layout edits survive regeneration.
  */
 export async function materializeLlmPages(opts: {
   meta: MetaDb;
@@ -177,9 +177,9 @@ export async function materializeLlmPages(opts: {
 
     // Sync the row's nav projection (title/group/icon) from the envelope: the
     // bootstrap tree and the `/p/$slug` resolver read the ROW columns, so a
-    // seed left with its apply-time `nav_group` (null, or an §8.3 llm group
+    // seed left with its apply-time `nav_group` (null, or an llm group
     // slug) would materialize into an unreachable page. The envelope already
-    // encodes the §8.3 precedence — a nav-group write on the row wins,
+    // encodes the precedence — a nav-group write on the row wins,
     // otherwise the archetype's fixed group — so the row simply follows it.
     const icon = (envelope['nav'] as Record<string, unknown>)['icon'];
     await repo.replaceConfig(page.id, parsed.data, {

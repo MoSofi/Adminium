@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/public-api` (28-T13).
+ * `/studio/public-api`.
  *
  * Router-mounted rather than bare, because three of the things worth proving
  * only exist through the router: the route is LAZY (it must be — the entry
@@ -227,7 +227,7 @@ describe('PublicApiPage', () => {
 
   it('shows EVERY compile issue the server returned', async () => {
     // The operator wrote the document and is the only person who can fix it.
-    // The anonymous surface still says nothing at all — that asymmetry is §3.2.
+    // The anonymous surface still says nothing at all — that asymmetry is.
     await renderPage({ scopeIssues: true });
     await screen.findByRole('heading', { name: 'Scopes' });
     // Both cards have a "Name" field; the forms carry accessible names so a

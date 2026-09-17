@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * Render tests for the M7 "time, forecast & flow" chart primitives (04-T09):
- * SVG structure + token-only colors, the RTL policy per chart (categorical /
- * rank axes mirror; time-axis charts stay LTR islands), and the reduced-motion
+ * Render tests for the M7 "time, forecast & flow" chart primitives: SVG
+ * structure + token-only colors, the RTL policy per chart (categorical / rank
+ * axes mirror; time-axis charts stay LTR islands), and the reduced-motion
  * final-state path. Storybook lives in the @adminium/widgets wrappers.
  */
 import { cleanup, render } from '@testing-library/react';

@@ -2,12 +2,11 @@
 /**
  * Right-pane inspector for a selected table: label override, icon picker,
  * nav group (read-only — see note below), include/exclude toggle, and the
- * read-only table-shape classification (05-introspection-engine.md §8).
+ * read-only table-shape classification.
  *
- * Nav group: the v1 override vocabulary (07-meta-store.md §3.15) has no
- * `table.navGroup` op — nav placement is generator-owned — so the select is
- * rendered disabled with an explanatory caption instead of staging an op the
- * server would 422.
+ * Nav group: the v1 override vocabulary has no `table.navGroup` op — nav
+ * placement is generator-owned — so the select is rendered disabled with an
+ * explanatory caption instead of staging an op the server would 422.
  */
 import { Badge, FormField, Input, KeyValueList, MonoText, Select, Switch, Tag } from '@adminium/ui';
 

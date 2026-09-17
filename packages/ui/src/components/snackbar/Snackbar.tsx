@@ -18,7 +18,7 @@ export interface SnackbarProps extends ComponentPropsWithRef<'div'> {
 
 /**
  * Snackbar — inverted dark pill (`fg` background / `bg` text) with an inline
- * Undo action (research/design-system.md §3 Tier 3). For queued, tonal
+ * Undo action (research/design-system.md Tier 3). For queued, tonal
  * notifications use `Toast`/`useToastQueue`; Snackbar is the single
  * lightweight confirmation.
  */

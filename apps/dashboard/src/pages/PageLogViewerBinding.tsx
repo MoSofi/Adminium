@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-log-viewer` binding (09-generated-app.md §4.1, §7.8): projects the
- * page envelope onto the real `PageLogViewer` template from
- * `@adminium/widgets`.
+ * `page-log-viewer` binding: projects the page envelope onto the real
+ * `PageLogViewer` template from `@adminium/widgets`.
  *
  * Data: `usePageWidgetStates` runs the ONE deduped
  * `POST /api/v1/widget-data/batch` per page mount under the shared
  * `['widget-data', pageId, …]` key, so WS `widget-data:*`/`table:*`
  * invalidations refetch automatically; the materialized per-instance states
  * feed the template's `states` prop (unbound instances keep the deterministic
- * demo path, 04 §5.3).
+ * demo path).
  *
  * Live tail: the log slot's stored descriptor names the source table, so the
  * binding derives the `widget-data:{connectionId}:{table}` channel

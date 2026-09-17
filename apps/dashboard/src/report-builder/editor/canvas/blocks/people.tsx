@@ -7,7 +7,7 @@
  * The signature name/title and the terms label are edited INLINE on the sheet
  * as well as in the inspector (the comp's own duplication, D25, kept). The
  * attachments block types a name and a size — it is not wired to the Files
- * library, which is another surface's decision (43 §5 item 6).
+ * library, which is another surface's decision.
  */
 import { cn } from '@adminium/ui';
 

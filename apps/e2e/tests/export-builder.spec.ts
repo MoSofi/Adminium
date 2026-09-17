@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Export Builder end to end (41-export-builder.md T19, acceptance 1, 4,
- * 5, 6, 8): choose Northwind's `orders`, add the suggested customer company
- * name (a linked value) and a fold over `order_details`, read the sample,
- * export, and parse the downloaded file — on whichever engine the run is on.
+ * The Export Builder end to end (acceptance 1, 4, 5, 6, 8): choose
+ * Northwind's `orders`, add the suggested customer company name (a linked
+ * value) and a fold over `order_details`, read the sample, export, and
+ * parse the downloaded file — on whichever engine the run is on.
  */
 import { expect, test } from '@playwright/test';
 
@@ -108,8 +108,8 @@ test.describe('the export builder', () => {
   });
 
   /**
-   * 41-T15's remaining done-when: "pointer drag verified in real Chrome".
-   * Every other reorder assertion in this repo is a jsdom call into
+   * The remaining done-when: "pointer drag verified in real Chrome". Every
+   * other reorder assertion in this repo is a jsdom call into
    * `model.moveColumn`/`dropOn` (`model.test.ts`), which proves the reducer and
    * nothing about dnd-kit — the sensor, the 4px activation distance, the
    * `onDragMove` half-test that picks before/after, and the comp's insertion

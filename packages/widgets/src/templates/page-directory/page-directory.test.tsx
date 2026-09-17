@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `page-directory` template tests (M7 people track, 09 §7.7): renders the
- * stored config body as a person card grid, search + dept filter chips narrow
- * it (with the filtered empty state distinct from first-use), a card click
- * opens the record drawer + emits `record-open`, the org-chart variant mounts
- * the cycle-safe tree, and loading/error/invalid states never crash.
+ * `page-directory` template tests (M7 people track): renders the stored
+ * config body as a person card grid, search + dept filter chips narrow it
+ * (with the filtered empty state distinct from first-use), a card click opens
+ * the record drawer + emits `record-open`, the org-chart variant mounts the
+ * cycle-safe tree, and loading/error/invalid states never crash.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';

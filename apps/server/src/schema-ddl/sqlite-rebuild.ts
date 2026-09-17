@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The SQLite 12-step table rebuild — 35-schema-authoring.md §7, 35-T06.
+ * The SQLite 12-step table rebuild.
  *
  * ─── Why a whole module for one dialect ────────────────────────────────────
  *
@@ -121,9 +121,9 @@ export function readSchemaObjectsSql(table: string, db: Db): CompiledQuery {
  *
  * Steps 2 and 10 (`BEGIN`/`COMMIT`) are the caller's — the apply job owns the
  * transaction so it can roll the whole plan back on SQLite, which is one of
- * the two dialects that can (§5). Steps 1 and 12 are also the caller's,
- * because both are reads whose RESULTS this function needs: step 1 is passed
- * in as `objects`, and step 12 is a re-introspection the executor performs and
+ * the two dialects that can. Steps 1 and 12 are also the caller's, because
+ * both are reads whose RESULTS this function needs: step 1 is passed in as
+ * `objects`, and step 12 is a re-introspection the executor performs and
  * compares.
  *
  * So what is returned here is steps 3–9 and 11: the write half, in order.
@@ -340,7 +340,7 @@ export function assertNoForeignKeyViolations(rows: readonly unknown[]): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Execute the twelve-step rebuild — 35-schema-authoring.md §7, 35-T06.
+ * Execute the twelve-step rebuild.
  *
  * ─── Why this function had to exist ────────────────────────────────────────
  *

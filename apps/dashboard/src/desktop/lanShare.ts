@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LAN share, as the SPA sees it (11-electron.md §8.3).
+ * LAN share, as the SPA sees it.
  *
  * ─── Why this module has two feeds and not one ───────────────────────────────
  *
- * §8.3's panel is assembled from both sides of the process boundary, and neither
+ * The panel is assembled from both sides of the process boundary, and neither
  * side can answer the other's questions:
  *
- *  - **The bridge** (§4's `getRuntimeInfo`/`setConfig`) owns `config.lanShare` —
- *    the toggle, the port, and the reachable `http://<LAN-IPv4>:<port>` URLs.
- *    `config.json` is the main process's file (§2.3), the URL list comes from
- *    `os.networkInterfaces()` in the process that HAS interfaces, and the rebind
- *    is main's child to restart. The server cannot write any of it.
+ * - **The bridge** (`getRuntimeInfo`/`setConfig`) owns `config.lanShare` — the
+ *  toggle, the port, and the reachable `http://<LAN-IPv4>:<port>` URLs.
+ *  `config.json` is the main process's file, the URL list comes from
+ *  `os.networkInterfaces()` in the process that HAS interfaces, and the rebind
+ *  is main's child to restart. The server cannot write any of it.
  *  - **`GET /api/v1/desktop/lan-share`** owns who is connected and whether there
- *    is anyone to invite. Those are meta-store reads, and §1 principle 2 makes
- *    the server the only thing allowed to make them.
+ * is anyone to invite. Those are meta-store reads, makes the server the only
+ *    thing allowed to make them.
  *
  * ─── Intent vs. reality, which is the panel's whole subtlety ─────────────────
  *
  * `config.lanShare.enabled` is what the user ASKED for; the route's `active` is
  * what the socket actually DID. They disagree for a whole server lifetime when a
  * rebind has failed or has not happened yet, and the panel must show the second
- * — see {@link LanShareView}. This is the same reason §8.1's chip reads
- * `system/info`'s `lanShare` rather than the bridge.
+ * — see {@link LanShareView}. This is the same reason chip reads `system/info`'s
+ * `lanShare` rather than the bridge.
  */
 import { queryOptions } from '@tanstack/react-query';
 
@@ -30,18 +30,18 @@ import { api } from '../app/api.js';
 import { getDesktopApi } from '../lib/desktop-runtime.js';
 
 /**
- * The panel's anchor, for §8.1's "click → LAN panel".
+ * The panel's anchor, for "click → LAN panel".
  *
- * A hash and not a route: §8.3 calls this a panel opened FROM the toggle, and it
+ * A hash and not a route: this is a panel opened FROM the toggle, and it
  * lives on the desktop settings page next to the switch that controls it. The
  * chip needs somewhere to send you, not a second page to maintain.
  */
 export const LAN_SHARE_PANEL_HASH = 'lan-share';
 
-/** §8.3 / BRIEF §3. Mirrors `main/config.ts`'s `DEFAULT_LAN_PORT`. */
+/** Mirrors `main/config.ts`'s `DEFAULT_LAN_PORT`. */
 export const DEFAULT_LAN_PORT = 4600;
 
-/** What §4's bridge reports about `config.lanShare` (§2.3). */
+/** What bridge reports about `config.lanShare`. */
 export interface LanShareConfig {
   enabled: boolean;
   port: number;
@@ -58,7 +58,7 @@ export async function readLanShare(): Promise<LanShareConfig | null> {
 }
 
 /**
- * Write the toggle to `config.json` and let main rebind the child (§8.3).
+ * Write the toggle to `config.json` and let main rebind the child.
  *
  * Both fields go every time, including the unchanged one. `setConfig` takes a
  * PATCH whose `lanShare` is replaced wholesale, so sending `{ enabled }` alone
@@ -75,7 +75,7 @@ export async function setLanShare(next: { enabled: boolean; port: number }): Pro
 }
 
 /**
- * §8.3's "Try 4601", parsed out of the rejection message.
+ * The "Try 4601" suggestion, parsed out of the rejection message.
  *
  * A regex over prose is not the shape anyone would choose, and it is the shape
  * the wire has: `main/ipc.ts` flattens a thrown error to `{ code, message }` and
@@ -146,9 +146,9 @@ export function lanShareStatusQuery() {
  *   flight, or the status is not loaded yet). Shows no URLs: handing out an
  *   address that nothing is listening on is the panel's worst output.
  * - `mismatch` — the config says OFF and the server is bound wide anyway. This
- *   should be unreachable (main reverts a failed rebind, §8.3), and if it
- *   happens it is a live network exposure the user did not ask for, so it is
- *   reported loudly rather than rendered as `off`.
+ * should be unreachable (main reverts a failed rebind), and if it happens it
+ *   is a live network exposure the user did not ask for, so it is reported
+ *   loudly rather than rendered as `off`.
  */
 export type LanShareView = 'off' | 'sharing' | 'pending' | 'mismatch';
 

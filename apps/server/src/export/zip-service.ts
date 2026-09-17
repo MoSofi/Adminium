@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zip-export service (M10-T03, 01-architecture.md §4.1/§6.1/§8.2; BRIEF §3).
+ * Zip-export service (BRIEF).
  *
  * WHAT IT EXPORTS — the design decision the docs make loudly, so the
  * implementation cannot drift: **server + config, never source code.** The zip
@@ -9,9 +9,8 @@
  * schema snapshots, overrides, pages/dashboards, views, settings, roles — plus a
  * manifest for version replay on re-import and a README that says all of this in
  * its first heading. Adminium does not emit an app; the bundle names its runtime
- * by pinning the `@adminiumjs/adminium` npm package (01 §4.1: that one package *is* the
- * complete install — server + dashboard dist + meta migrations), it does not
- * carry a copy of it.
+ * by pinning the `@adminiumjs/adminium` npm package (that one package *is* the complete
+ * install — server + dashboard dist + meta migrations), it does not carry a copy of it.
  *
  * The secret policy lives in `redaction.ts` and fails closed: every field that
  * leaves is on an allow-list, and any value that must be ciphertext is asserted
@@ -96,10 +95,10 @@ export interface ExportZipResult {
 export type ExportZip = (opts: ExportZipOptions) => Promise<ExportZipResult>;
 
 /**
- * The meta-schema high-water mark for the manifest (§8.2 `metaVersion`): the
- * name of the last migration this store has applied. Read from the ledger, not
- * from {@link ALL_MIGRATIONS}, because what matters for replay is what the
- * *source* actually ran, not what its build happened to ship.
+ * The meta-schema high-water mark for the manifest (`metaVersion`): the name
+ * of the last migration this store has applied. Read from the ledger, not from
+ * {@link ALL_MIGRATIONS}, because what matters for replay is what the *source*
+ * actually ran, not what its build happened to ship.
  */
 async function readMetaVersion(meta: MetaDb): Promise<string> {
   const rows = await meta.db

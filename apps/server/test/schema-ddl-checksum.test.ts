@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a plan's checksum has to cover — 35-schema-authoring.md D2, D18.
+ * What a plan's checksum has to cover.
  *
  * ─── The replay this file exists to keep closed ────────────────────────────
  *

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard builder UX (04-widget-registry.md task 04-T14) — the edit-mode
- * surface layered onto the `page-dashboard` render path.
+ * Dashboard builder UX — the edit-mode surface layered onto the
+ * `page-dashboard` render path.
  */
 export { DashboardBuilder, type DashboardBuilderProps } from './DashboardBuilder.js';
 export { canEditSharedLayout, editTargetForCapability, type EditTarget } from './permissions.js';

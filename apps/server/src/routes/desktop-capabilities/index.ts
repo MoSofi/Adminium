@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The desktop capability grant table over REST (11-electron.md §12, §1 principle 2).
+ * The desktop capability grant table over REST.
  *
  * `GET` / `POST` / `DELETE /api/v1/desktop/capability-grants` — the server half of
  * the capability pipeline (manifest → consent → grant → IPC → provider). The
@@ -8,29 +8,29 @@
  * dashboard consent/revoke UI and the main-process `CapabilityHost` reach it
  * here rather than opening the meta store from the renderer or main.
  *
- * ─── The gates, mirroring `routes/desktop/index.ts` (§9's backup) ────────────
+ * ─── The gates, mirroring `routes/desktop/index.ts` (backup) ─────────────────
  *
  *  1. EXISTENCE. `compose.ts` registers this factory only when
  *     `ADMINIUM_RUNTIME=desktop`. Off-desktop there is no capability host to
  *     grant to, so an absent route is the honest answer — self-host and Cloud
- *     report every capability `unavailable` (§12), which is the SPA's job, not a
- *     grant table's.
- *  2. PEER. The SOCKET peer must be loopback. §8.3 binds `0.0.0.0` when LAN share
+ * report every capability `unavailable`, which is the SPA's job, not a grant
+ *     table's.
+ *  2. PEER. The SOCKET peer must be loopback. The server binds `0.0.0.0` when LAN share
  *     is on, and a capability grant authorizes reaching THIS machine's hardware —
  *     a decision that belongs to the person sitting at it, never to a LAN peer,
  *     however privileged their account.
  *  3. SESSION + RBAC. All three verbs require `system:settings:manage` — the same
- *     grant §9 puts on the backup route, and for the same reading: which apps may
- *     reach this machine's hardware is administrative state, whether you are
- *     reading it or changing it. The host reads grants on every invoke carrying
- *     the WINDOW'S session cookie (§4), which in single-user desktop — the default
- *     — is the super admin's, so the gate is transparent there.
+ * grant puts on the backup route, and for the same reading: which apps may reach
+ *     this machine's hardware is administrative state, whether you are reading it
+ *     or changing it. The host reads grants on every invoke carrying the WINDOW'S
+ *     session cookie, which in single-user desktop — the default — is the super
+ *     admin's, so the gate is transparent there.
  *
- *     A future non-admin POS operator (13-marketplace.md §10) invoking a consented
- *     capability would need `GET` relaxed to plain authentication so the host can
- *     read grants AS them; that is a deliberate v1 deferral, not an oversight —
- *     the invoke path is loopback-only (§4), so only the local operator is ever
- *     affected, and v1 ships a stub provider nobody prints through yet.
+ * A future non-admin POS operator invoking a consented capability would need `GET`
+ *     relaxed to plain authentication so the host can read grants AS them; that is
+ *     a deliberate v1 deferral, not an oversight — the invoke path is
+ *     loopback-only, so only the local operator is ever affected, and v1 ships a
+ *     stub provider nobody prints through yet.
  */
 import type { Socket } from 'node:net';
 

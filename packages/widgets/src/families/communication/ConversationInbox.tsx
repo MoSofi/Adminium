@@ -26,15 +26,15 @@ export { conversationInboxConfigSchema, conversationInboxDemoData } from './comm
 export type { ConversationInboxConfig };
 
 /**
- * `conversation-inbox` (annex §9) — selectable conversation rows: avatar with a
+ * `conversation-inbox` (annex) — selectable conversation rows: avatar with a
  * presence dot, name, relative time, last-message preview (bold when unread),
  * and an unread count pill. Selecting a row clears its unread state and emits
- * `onSelect(id)`, which the page wires to a sibling `chat-thread` (annex §14:
+ * `onSelect(id)`, which the page wires to a sibling `chat-thread` (annex:
  * conversations + messages tables → an inbox + thread page).
  *
  * The selected row is marked by a `border-s-2` accent rail + accent-soft tint —
- * a LOGICAL inline-start border, so it moves to the right edge under `dir="rtl"`
- * (10 §5.2). Ports Chat.dc.html (conversation list pane).
+ * a LOGICAL inline-start border, so it moves to the right edge under
+ * `dir="rtl"`. Ports Chat.dc.html (conversation list pane).
  */
 
 export interface ConversationRow {
@@ -259,7 +259,7 @@ export function ConversationInboxWidget({ config, data, onEvent }: WidgetProps<C
       {...(config.testId === undefined ? {} : { testId: config.testId })}
       onSelect={(id) => {
         // Selection is a record-open intent: the page host focuses the sibling
-        // chat-thread on this conversation (annex §14 inbox + thread pairing).
+        // chat-thread on this conversation (annex inbox + thread pairing).
         onEvent({
           type: 'record-open',
           ...(source.connectionId === undefined ? {} : { connectionId: source.connectionId }),

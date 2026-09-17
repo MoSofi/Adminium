@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Direction/lang derivation for the locale axis (23-runtime-translations.md
- * §5.4, §5.5).
+ * Direction/lang derivation for the locale axis.
  *
  * These are the helpers that had to stop assuming the eight compiled locales
  * are the only ones that exist. ThemeProvider's own suite drives them through
@@ -15,7 +14,7 @@ import { LOCALES, builtinLocaleDir, dirForLocale, langForLocale } from './types.
 
 describe('theme barrel', () => {
   it('publishes the direction helpers', () => {
-    // `builtinLocaleDir` shipped in 23 §5.4 but was left out of this barrel,
+    // `builtinLocaleDir` shipped but was left out of this barrel,
     // so the only way to reach it was a deep path into `types.js`. It answers
     // a question callers outside this package genuinely have — "is this one of
     // the eight, and which way does it run?" — so it stays exported.
@@ -100,7 +99,7 @@ describe('langForLocale', () => {
   });
 
   it('replaces EVERY underscore, not just the first', () => {
-    // 23 §5.5. A single `.replace('_', '-')` leaves `zh-Hant_TW`, which is not
+    // A single `.replace('_', '-')` leaves `zh-Hant_TW`, which is not
     // a valid tag — it would reach the `lang` attribute and `Intl`, where an
     // invalid tag degrades silently to en-US.
     expect(langForLocale('zh_Hant_TW')).toBe('zh-Hant-TW');

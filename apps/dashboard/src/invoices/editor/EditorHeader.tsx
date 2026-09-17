@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The editor's header row (comp 328-362; 34-invoices-add-on.md Appendix E
- * §E1–E10): kind pill · inline name · save chip · undo/redo · language menu
- * · Images · Duplicate · Delete · primary. Sticky under the shell's topbar,
- * blurred like the comp's.
+ * The editor's header row (comp 328-362): kind pill · inline name
+ * · save chip · undo/redo · language menu · Images · Duplicate · Delete ·
+ * primary. Sticky under the shell's topbar, blurred like the comp's.
  *
  * Back is NOT here: the shell's topbar owns the back affordance (published
  * through `PageActions backTo`), and the discard guard is a router blocker,
@@ -16,7 +15,7 @@
  * The primary (comp 360, 1599; O24): a template's is *Save template*; an
  * invoice's is *Send invoice* only when a document provider is installed —
  * with none (always, today: `useProvider`) it reads *Save invoice* and only
- * saves (24 D6). No Test, no device switch, no campaign chrome (E10).
+ * saves. No Test, no device switch, no campaign chrome (E10).
  */
 import { Copy, FileText, Image, LayoutTemplate, Redo2, Save, Send, Trash2, Undo2 } from 'lucide-react';
 import type { FocusEvent, Ref } from 'react';

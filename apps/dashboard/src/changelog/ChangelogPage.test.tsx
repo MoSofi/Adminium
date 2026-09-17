@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/changelog` (M10-T06): renders from the checked-in feed (not a literal in the
+ * `/changelog`: renders from the checked-in feed (not a literal in the
  * component), formats dates through the Intl layer, and — the keeper worth a
  * regression test — hides releases a filter leaves empty rather than showing an
  * empty card that implies a change nobody made.

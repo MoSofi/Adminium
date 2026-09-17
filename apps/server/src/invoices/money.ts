@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The invoice arithmetic law (34-invoices-add-on.md D20 as amended by O25):
+ * The invoice arithmetic law (as amended by O25):
  *
  *   a line rounds once           lineMinor  = round(qty × rate, in minor units)
  *   a document discount applies  discount   = round(subtotal × discountRate)
@@ -15,8 +15,8 @@
  * INTEGERS ONLY. Money is integer minor units, a rate is basis points, and
  * every product is divided with one half-away-from-zero rounding, so the same
  * subject gives the same cents on every runtime. `money-fixture.json` beside
- * this file is the table three trees assert (34-T54): this one, the server's
- * summary and, once it ships, the add-on's renderer — `scripts/check-invoice-
+ * this file is the table three trees assert: this one, the server's summary
+ * and, once it ships, the add-on's renderer — `scripts/check-invoice-
  * money-fixture.mjs` keeps the copies byte-equal.
  *
  * "Total", not the comp's "Total due" (452): recorded payments never reduce

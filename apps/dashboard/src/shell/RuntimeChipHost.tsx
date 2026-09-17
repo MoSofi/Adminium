@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The topbar's runtime chip (11-electron.md §8.1) — the two feeds §8.1
- * sanctions, joined to `runtimeChipState()`'s precedence, rendered as
- * `@adminium/ui`'s `RuntimeChip`.
+ * The topbar's runtime chip — the two feeds sanctions, joined to
+ * `runtimeChipState()`'s precedence, rendered as `@adminium/ui`'s
+ * `RuntimeChip`.
  *
- * §8.1, verbatim: "The chip is a `@adminium/ui` component fed by
- * `GET /api/v1/system/info` + a lightweight connection-health poll — no preload
- * involvement." Both halves matter. The preload prohibition is §4's rule about
- * where authority lives (the server gates features; the bridge only offers
- * native affordances), and it is also what lets this component render in a
- * browser tab, in the suite, and in the packaged app from the same code.
+ * Verbatim: "The chip is a `@adminium/ui` component fed by `GET
+ * /api/v1/system/info` + a lightweight connection-health poll — no preload
+ * involvement." Both halves matter. The preload prohibition is rule about where
+ * authority lives (the server gates features; the bridge only offers native
+ * affordances), and it is also what lets this component render in a browser
+ * tab, in the suite, and in the packaged app from the same code.
  *
  * NON-SUSPENDING, ON PURPOSE: `useQuery`, not `useSuspenseQuery`. The topbar is
  * chrome around whatever the user came here to do, and a chip is the least
@@ -64,9 +64,9 @@ export function RuntimeChipHost() {
   const state = runtimeChipState({
     runtime,
     connections,
-    // 11-T11. The signal is `GET /api/v1/system/info`'s `lanShare` — the
+    // The signal is `GET /api/v1/system/info`'s `lanShare` — the
     // server's own bind address under the desktop runtime — which is the honest
-    // one and the only one §8.1 allows: "no preload involvement". The bridge
+    // one and the only one allows: "no preload involvement". The bridge
     // could answer faster from `config.json`, and would be answering a different
     // question (what the user ASKED for, not what the socket DID).
     lanShare: flags.lanShare,
@@ -81,10 +81,10 @@ export function RuntimeChipHost() {
         })
       : undefined;
 
-  // §8.1: `lan-share` is the one state with an action behind it — "click → LAN
-  // panel (§8.3)". The other three describe the world and cannot change it, so
-  // they stay non-interactive; `RuntimeChip` renders a `<span>` when no handler
-  // is passed, which is the honest control for a thing that does nothing.
+  // `lan-share` is the one state with an action behind it — "click → LAN
+  // panel". The other three describe the world and cannot change it, so they
+  // stay non-interactive; `RuntimeChip` renders a `<span>` when no handler is
+  // passed, which is the honest control for a thing that does nothing.
   const onClick =
     state === 'lan-share'
       ? () => {

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The telemetry payload (M10-T04) — the EXACT and complete document a
- * consenting instance ever sends. Documented here because "what is sent" is a
- * promise, not an implementation detail: the first-run consent screen renders
- * this same list (dashboard `TelemetryConsent`), and `telemetry-payload.test.ts`
- * pins the key set so the shape cannot drift without a failing test.
+ * The telemetry payload — the EXACT and complete document a consenting instance
+ * ever sends. Documented here because "what is sent" is a promise, not an
+ * implementation detail: the first-run consent screen renders this same list
+ * (dashboard `TelemetryConsent`), and `telemetry-payload.test.ts` pins the key
+ * set so the shape cannot drift without a failing test.
  *
  * ────────────────────────────────────────────────────────────────────────────
  * WHAT IS SENT (all of it):
@@ -27,13 +27,13 @@
  * WHAT IS NEVER SENT — no schema content (no table/column/enum names), no row
  * data, no connection strings/hosts/credentials, no user identities (emails,
  * names, ids), no page/widget configs, no LLM run contents or prompts. The BYO
- * promise in 06-llm-assist.md §9 — that BYO runs are never reported — holds
- * because nothing about any LLM run has a field to travel in: the payload is
- * built from a fixed allow-list below, never by spreading a wider object.
+ * promise — that BYO runs are never reported — holds because nothing about any
+ * LLM run has a field to travel in: the payload is built from a fixed
+ * allow-list below, never by spreading a wider object.
  * ────────────────────────────────────────────────────────────────────────────
  */
 
-/** Meta/source engine identifiers (07-meta-store.md); a closed vocabulary. */
+/** Meta/source engine identifiers; a closed vocabulary. */
 export const TELEMETRY_ENGINES = ['postgres', 'mysql', 'sqlite'] as const;
 export type TelemetryEngine = (typeof TELEMETRY_ENGINES)[number];
 

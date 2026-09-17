@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The local-bridge seed store (08-server-api.md §1.2, `routes/bridge`).
+ * The local-bridge seed store (`routes/bridge`).
  *
  * ── WHAT THE BRIDGE IS, AND WHAT IT DELIBERATELY IS NOT ─────────────────────
  * A web page cannot open a TCP socket to PostgreSQL, so adminium.dev can never

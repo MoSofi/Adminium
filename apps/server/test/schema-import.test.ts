@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * POST /api/v1/schema-import/parse (M5-T01 schema-file source mode):
- * guard, sql-ddl + json-ir fallback parsing, preview summary counts,
- * unsupported-format and parse-failure 422s. Offline — no database needed.
+ * POST /api/v1/schema-import/parse (schema-file source mode): guard,
+ * sql-ddl + json-ir fallback parsing, preview summary counts,
+ * unsupported-format and parse-failure 422s. Offline — no database
+ * needed.
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

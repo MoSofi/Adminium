@@ -15,7 +15,7 @@ export { calendarLegendFilterConfigSchema, calendarLegendFilterDemoData };
 export type { CalendarLegendFilterConfig };
 
 /**
- * `calendar-legend-filter` (annex §5) — per-category rows or chips: a coloured
+ * `calendar-legend-filter` (annex) — per-category rows or chips: a coloured
  * check square/dot, the label, and a mono count; toggling one filters the
  * sibling calendar (Calendar Scheduler, Release Calendar's env chips).
  *
@@ -25,8 +25,8 @@ export type { CalendarLegendFilterConfig };
  * disagree with the grid beside them.
  *
  * Toggling emits the HIDDEN set as a drill-through against `linkTarget`; the
- * host owns the cross-widget wiring (04 §2 — widgets never reach into siblings).
- * The visible/hidden state is client-only view state, so it is not a mutation.
+ * host owns the cross-widget wiring (widgets never reach into siblings). The
+ * visible/hidden state is client-only view state, so it is not a mutation.
  */
 
 export interface LegendCategory {
@@ -157,7 +157,7 @@ export function CalendarLegendFilter({
 }
 
 /**
- * Aggregate a `calendar-events` payload into legend categories (annex §5).
+ * Aggregate a `calendar-events` payload into legend categories (annex).
  * `uncategorizedLabel` is the localized bucket-name DEFAULT the widget resolves
  * through `t()`; the config's explicit `uncategorizedLabel` still wins, and bare
  * callers (tests/stories) keep the English default.

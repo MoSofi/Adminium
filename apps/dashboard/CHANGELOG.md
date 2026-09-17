@@ -171,11 +171,11 @@
   with everything else about an add-on's reach left to the install plan, which is
   the security surface.
   
-  **The page is the comp again.** `designs/Integrations.dc.html` draws a category
-  rail with per-category counts, a search box and a card grid; the shipped page
-  rendered a flat list of names. The browse half moves to its own component and
-  gains all three, plus distinct empty states for "this build shipped none",
-  "nothing matched your filter" and "the catalog is on but found nothing".
+  **The page is the comp again.** draws a category rail with per-category counts, a
+  search box and a card grid; the shipped page rendered a flat list of names. The
+  browse half moves to its own component and gains all three, plus distinct empty
+  states for "this build shipped none", "nothing matched your filter" and "the
+  catalog is on but found nothing".
   
   Browsing remains a disk read: no page load, category click or search makes an
   outbound request.
@@ -227,16 +227,14 @@
   fell back to "Home" above them — the schema editor, and the AI review, which
   was rendering a second `<h1>` in its summary card. Both now publish their real
   heading, so the topbar, the tab and the body agree.
-- f2fd258: Email templates become email documents (39-email-templates-and-campaigns.md
-  WS-A/WS-B). Migration 0026 gives `adminium_email_templates` a kind
-  (template | campaign), a category, a fixed footer, a preheader, a per-document
-  brand, attachments, archiving and starter provenance, and adds
-  `adminium_email_blocks` (saved sections) and `adminium_email_runs` (campaign
-  runs). The renderer speaks the comp's 24 block types, draws the brand banner
-  and the envelope footer, and references the brand mark and Files images by
-  CID; delivery reads attachment bytes from the file store right before
-  `sendMail` and fails loudly on a missing file. Twelve localizable starters ship
-  behind `GET /email-templates/starters`.
+- f2fd258: Email templates become email documents (WS-A/WS-B). Migration 0026 gives
+  `adminium_email_templates` a kind (template | campaign), a category, a fixed footer, a
+  preheader, a per-document brand, attachments, archiving and starter provenance, and
+  adds `adminium_email_blocks` (saved sections) and `adminium_email_runs` (campaign
+  runs). The renderer speaks the comp's 24 block types, draws the brand banner and the
+  envelope footer, and references the brand mark and Files images by CID; delivery reads
+  attachment bytes from the file store right before `sendMail` and fails loudly on a
+  missing file. Twelve localizable starters ship behind `GET /email-templates/starters`.
   
   Routes: `PUT /email-templates/:key/:locale` and `POST /email-templates/:key/test-send`
   are retired — the editor saves explicitly through `PUT /email-templates/:id`,
@@ -255,14 +253,14 @@
   stops a running one. The `email.campaign` notification kind is the opt-out;
   `email.campaign.sent` tells the creator how many were sent and failed.
   
-  Dashboard: the Email templates manager is rebuilt to the design (WS-C, 39-T08–T10):
-  Templates/Campaigns trays with counts, group by topic or language, gallery and
-  list layouts remembered per browser, the actions menu (import, senders, export,
-  settings, archived), inline rename, duplicate and delete with Undo, archived
-  mode with restore / delete for good / reset to built-in, the New modal with the
-  twelve starters and *Your templates* for campaigns, and the import modal. The
-  old autosaving page under `pages/builders` is gone; the editor route
-  (`/email-templates/:id`) shows the document's facts until the new editor lands.
+  Dashboard: the Email templates manager is rebuilt to the design (WS-C):
+  Templates/Campaigns trays with counts, group by topic or language, gallery and list
+  layouts remembered per browser, the actions menu (import, senders, export, settings,
+  archived), inline rename, duplicate and delete with Undo, archived mode with restore
+  / delete for good / reset to built-in, the New modal with the twelve starters and
+  *Your templates* for campaigns, and the import modal. The old autosaving page under
+  `pages/builders` is gone; the editor route (`/email-templates/:id`) shows the
+  document's facts until the new editor lands.
   
   The Email templates surface's messages move to a deferred `email` namespace
   (`DEFERRED_NAMESPACES`), loaded by its two routes like the studio's: the
@@ -307,14 +305,13 @@
   The prompt now says only what it means — an explanation for the missing pages —
   and renders alongside the tail rather than instead of it. The admin gate is
   unchanged: a viewer still sees only the ungated rows.
-- cb398f1: The Report builder ships at `/report-builder` (43-report-builder.md): a
-  two-collection manager plus a block editor, over a new envelope — a report is a
-  header (kicker · title · subtitle) plus an ORDERED ARRAY of self-contained
-  blocks, each with its own title, width and visibility, drawn from a palette of
-  25 kinds. Migration 0030 adds `adminium_report_documents` (prefix `rpt`): one
-  table, two kinds (template | report), the comp's three-value status
-  (draft | sent | live), a starter key, a soft `origin_id`, the manager's
-  `position` and a denormalised `summary`.
+- cb398f1: The Report builder ships at `/report-builder`: a two-collection manager
+  plus a block editor, over a new envelope — a report is a header (kicker · title ·
+  subtitle) plus an ORDERED ARRAY of self-contained blocks, each with its own title,
+  width and visibility, drawn from a palette of 25 kinds. Migration 0030 adds
+  `adminium_report_documents` (prefix `rpt`): one table, two kinds (template |
+  report), the comp's three-value status (draft | sent | live), a starter key, a
+  soft `origin_id`, the manager's `position` and a denormalised `summary`.
   
   Not Scheduled Reports. That surface keeps `/reports`, its `reports.*` keys, the
   `rep` prefix and `system:reports:manage`; this one is `/report-builder`, the
@@ -458,20 +455,17 @@
   read by nothing rather than dropped, because it is empty and dropping a column
   is the one thing a migration cannot take back.
   
-  **Attachments are a join table.** The wave's plan originally recommended two
-  manifest rows keyed `(manifest_key, attached_to)` for an add-on attached to two
-  hosts; that recommendation was withdrawn and the join table ratified. Three costs argue against it, and the
-  third only became visible once the table turned out to be shipped: two rows mean
-  two copies of the manifest document, which an upgrade must then rewrite
-  atomically or leave one host on an older version; the credential FK becomes
-  ambiguous, since a DHL API key belongs to the add-on rather than to one of its
-  attachments, so disconnecting "the other one" either orphans a secret or deletes
-  a live one; and it requires dropping and recreating the shipped
-  `uq_adminium_manifests_manifest_key` across three dialects, against §4's own
-  "never edit a shipped migration". An attachment is a many-to-many fact and now
-  has the table that models one. `disabledAt` lives there rather than on the
-  manifest, so an add-on can be live on one host and off on another — which a
-  single flag could not represent.
+  **Attachments are a join table.** The wave's plan originally recommended two manifest rows keyed
+  `(manifest_key, attached_to)` for an add-on attached to two hosts; that recommendation was withdrawn and the
+  join table ratified. Three costs argue against it, and the third only became visible once the table turned
+  out to be shipped: two rows mean two copies of the manifest document, which an upgrade must then rewrite
+  atomically or leave one host on an older version; the credential FK becomes ambiguous, since a DHL API key
+  belongs to the add-on rather than to one of its attachments, so disconnecting "the other one" either orphans
+  a secret or deletes a live one; and it requires dropping and recreating the shipped
+  `uq_adminium_manifests_manifest_key` across three dialects, against own "never edit a shipped migration". An
+  attachment is a many-to-many fact and now has the table that models one. `disabledAt` lives there rather than
+  on the manifest, so an add-on can be live on one host and off on another — which a single flag could not
+  represent.
   
   **Credentials get their own key, not the DSN's.** `deriveKey`'s `info` parameter
   exists to keep purposes apart, and these are genuinely different: a DSN opens
@@ -497,14 +491,13 @@
   
   **`manifests.manage` is grantable, in the same change that landed its first
   enforcement point** — which is the rule its own reserved list documents. It went
-  to `operations` rather than `workspace`: installing an add-on runs its server
-  half in this process, which is closer to starting a job than to changing a
-  setting, and 26 D3 exists precisely to stop it riding on `settings.manage`. The
-  reserved set had four hard-coded copies rather than the two that were expected,
-  and one of them is production code — `RESERVED_GRANTS` in the dashboard's
-  `rolesApi.ts`, which the dashboard cannot import from `@adminium/meta`, so
-  nothing detects drift and a key left there is silently dropped from the matrix
-  with no error and no failing test.
+  to `operations` rather than `workspace`: installing an add-on runs its server half
+  in this process, which is closer to starting a job than to changing a setting,
+  exists precisely to stop it riding on `settings.manage`. The reserved set had four
+  hard-coded copies rather than the two that were expected, and one of them is
+  production code — `RESERVED_GRANTS` in the dashboard's `rolesApi.ts`, which the
+  dashboard cannot import from `@adminium/meta`, so nothing detects drift and a key
+  left there is silently dropped from the matrix with no error and no failing test.
   
   Applying a plan that needs new tables lands in the same release — see the
   add-on schema changeset — so an add-on whose tables the host database already
@@ -584,8 +577,7 @@
   Thirteen tasks of server work become something an operator can use.
   `/studio/add-ons` presents them in the order they actually matter — what is
   available, what installing would do, what is installed — and the design input
-  (`designs/Integrations.dc.html`) supplies the shapes while this supplies the
-  data story behind them.
+  supplies the shapes while this supplies the data story behind them.
   
   **Browsing is a disk read, and the page says so.** A fresh install lists what
   came with the build, with no network call at all, so it is useful before anyone
@@ -596,21 +588,21 @@
   something the page does on load.
   
   **The consent dialog is the security surface, so it shows the plan first.**
-  26 §7 calls it that explicitly, and what it shows is the real server-computed
-  plan: the tables an add-on will use, the tables installing will CREATE, the
-  hosts it may contact, and — when the answer is no — the reason, in a sentence
-  naming the missing table. Install is not offered for a plan that cannot be
-  applied. The one schema case that stays refused is a table that exists but
-  lacks columns the add-on needs, and the honest surface for that is the plan
-  naming those columns, not a button that would fail.
+  calls it that explicitly, and what it shows is the real server-computed plan:
+  the tables an add-on will use, the tables installing will CREATE, the hosts it
+  may contact, and — when the answer is no — the reason, in a sentence naming the
+  missing table. Install is not offered for a plan that cannot be applied. The
+  one schema case that stays refused is a table that exists but lacks columns the
+  add-on needs, and the honest surface for that is the plan naming those columns,
+  not a button that would fail.
   
-  **Three outcomes get three sentences.** Disable keeps everything and is one
-  click to undo. Disconnect deletes the keys and keeps every table and every row.
+  **Three outcomes get three sentences.** Disable keeps everything and is one click
+  to undo. Disconnect deletes the keys and keeps every table and every row.
   Uninstall additionally removes the files from the server, and still keeps every
   table and every row. A shared "are you sure?" would make the safest of the three
   read like the most destructive, so each confirm says what it actually does — and
-  each says the data survives, because that is the promise 24 D16 makes and the
-  dialog is where a person either believes it or does not.
+  each says the data survives, because that is the promise makes and the dialog is
+  where a person either believes it or does not.
   
   Fifty-one keys across all eight locales, German and French translated, the rest
   drafted from English and marked for review the way the i18n gate expects.
@@ -787,9 +779,9 @@
 - 37c99f2: The Studio's messages are their own namespace, and nobody downloads them until
   they open the Studio.
   
-  `10-i18n-theming.md` §2.4 has always specified `studio` as a namespace that
-  loads "lazily when a Studio route mounts", and §2.5's own example key is
-  `studio:connect.wizard.testCta`. The build never did it. All 971 console
+  `studio` was always meant to be a namespace that loads lazily when a Studio
+  route mounts, with keys of the shape `studio:connect.wizard.testCta`. The
+  build never did it. All 971 console
   messages lived in `common.studio.*` and `common.studioPages.*`, and every en-US
   namespace was imported statically into the caller's main chunk — so the connect
   wizard, the schema remap editor, the LLM review screens and the workspace
@@ -917,3 +909,13 @@
   - @adminium/tokens@0.1.0
   - @adminium/ui@0.1.0
   - @adminium/widgets@0.1.0
+
+---
+
+*A note on the entries above.* Some of them cited the internal work plan this
+repository was built from — a document filename, a section, or a task id. That
+plan was never published, so those citations were dead ends for every reader but
+their author, and they were reworded on 2026-09-17. No entry's substance
+changed: only the references went. The reasoning they pointed at is public now,
+one short page per decision, at
+<https://docs.adminium.dev/anatomy/decisions/>.

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The SYNCHRONOUS, boot-path half of the override layer
- * (23-runtime-translations.md §4.7).
+ * The SYNCHRONOUS, boot-path half of the override layer.
  *
  * Only the warm-cache read has to happen before the first paint; everything
  * that touches the network (`./overrides.ts`) is post-boot and is

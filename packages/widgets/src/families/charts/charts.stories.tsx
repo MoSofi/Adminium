@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Charts family stories (M4-T05): each registry widget's loaded variants
- * plus the WidgetFrame states through WidgetHost (acceptance criterion
- * #4). Demo payloads are the same deterministic seeded generators the
- * registry's `demoData` uses, so stories match demo mode exactly. Typed
- * loosely — the 04-T17 QA harness wires widgets stories into the
- * workspace Storybook.
+ * Charts family stories: each registry widget's loaded variants plus the
+ * WidgetFrame states through WidgetHost (acceptance criterion #4). Demo
+ * payloads are the same deterministic seeded generators the registry's
+ * `demoData` uses, so stories match demo mode exactly. Typed loosely —
+ * the QA harness wires widgets stories into the workspace Storybook.
  */
 import { WidgetHost } from '../../frame/WidgetHost.js';
 import {

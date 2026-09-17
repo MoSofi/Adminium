@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The inspector's shared parts (34-invoices-add-on.md Appendix E §I2, §I3,
- * §I7; the comp's 729-1033): the 11 px uppercase eyebrow the comp repeats
- * ~40 times, the divider, the option pill (`statusList` 1579, `recurOptions`
- * 1726, `apprOptions` 1685, `langOptions` 1641), the 30 px swatch (1577), the
- * dashed *Add …* row (`addSecStyle` 1729), the 38×22 toggle (`trackStyle` /
- * `knob` 1582-1583), the boxed `.nb-fld` input (61-62) as text, textarea and
- * unit-suffixed fields, the file-input label every upload affordance is, the
- * bordered *Remove section* footer every optional panel ends with (879 etc.,
- * `hideSec` 1361) and the surface-2 hint card (779, 839, 887, 922).
+ * The inspector's shared parts (the comp's 729-1033): the 11
+ * px uppercase eyebrow the comp repeats ~40 times, the divider, the option
+ * pill (`statusList` 1579, `recurOptions` 1726, `apprOptions` 1685,
+ * `langOptions` 1641), the 30 px swatch (1577), the dashed *Add …* row
+ * (`addSecStyle` 1729), the 38×22 toggle (`trackStyle` / `knob` 1582-1583),
+ * the boxed `.nb-fld` input (61-62) as text, textarea and unit-suffixed
+ * fields, the file-input label every upload affordance is, the bordered
+ * *Remove section* footer every optional panel ends with (879 etc., `hideSec`
+ * 1361) and the surface-2 hint card (779, 839, 887, 922).
  *
  * The email inspector's `parts.tsx` is the precedent; these carry no `email:`
  * key. Native inputs styled as the comp's `.nb-fld`, not `@adminium/ui`'s

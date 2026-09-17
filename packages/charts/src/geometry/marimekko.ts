@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure Marimekko / Mekko layout (`chart-marimekko`, research/widget-registry.md
- * §2): column width = outer share, vertical segments = inner mix. DOM-free.
- * Input is a `matrix` (rowKeys = inner categories, colKeys = outer columns,
- * cells[row][col] = value). Columns mirror in RTL (first column at inline-start,
- * the right edge under `rtl`); vertical stacking is direction-invariant.
+ * Pure Marimekko / Mekko layout (`chart-marimekko`,
+ * research/widget-registry.md): column width = outer share, vertical segments =
+ * inner mix. DOM-free. Input is a `matrix` (rowKeys = inner categories, colKeys
+ * = outer columns, cells[row][col] = value). Columns mirror in RTL (first column
+ * at inline-start, the right edge under `rtl`); vertical stacking is
+ * direction-invariant.
  */
 
 export interface MarimekkoSegment {
@@ -42,7 +43,7 @@ export interface MarimekkoLayoutOptions {
 }
 
 /**
- * `cells[rowIndex][colIndex]` — the widget adapts the §3 `matrix` envelope
+ * `cells[rowIndex][colIndex]` — the widget adapts the `matrix` envelope
  * (rowKeys × colKeys × cells) into this shape.
  */
 export function layoutMarimekko(

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CI chunk-budget gate — 04-widget-registry.md acceptance #3 / 04-T17 (5):
- * the default `page-dashboard` bundle must pull only the kpi/charts/tables/feeds
- * family chunks, and the heavy per-family dependencies (Leaflet for `map-bubble`,
- * dnd-kit for the boards family) must stay out of the eager graph — acceptance
- * #3's "Leaflet code is absent unless `map-bubble` is placed".
+ * CI chunk-budget gate — #3 / (5): the default `page-dashboard` bundle must pull
+ * only the kpi/charts/tables/feeds family chunks, and the heavy per-family
+ * dependencies (Leaflet for `map-bubble`, dnd-kit for the boards family) must
+ * stay out of the eager graph — acceptance #3's "Leaflet code is absent unless
+ * `map-bubble` is placed".
  *
  * A real bundler split is verified in CI's build step; what is checkable at the
  * source level (and enforced here) is:
@@ -15,8 +15,8 @@
  *     is reached only by a dynamic `import()`);
  *   - no module transitively reachable by STATIC imports from any family's
  *     definitions module — i.e. the registry's eager graph — names either;
- *   - every widget component is a `React.lazy` ref (⇒ one lazy chunk per family,
- *     04 §2.3) so families are never eagerly pulled into a sibling's chunk;
+ * - every widget component is a `React.lazy` ref (⇒ one lazy chunk per family)
+ *   so families are never eagerly pulled into a sibling's chunk;
  *   - no family's definitions module statically imports a component (`.tsx`)
  *     module — the leak that makes a `lazy()` ref decorative, see that test;
  *   - the default page-dashboard layout references only Wave-1 families.
@@ -41,7 +41,7 @@ const widgetsRoot = join(here, '..'); // packages/widgets/src
 const pkgRoot = join(widgetsRoot, '..'); // packages/widgets
 
 /**
- * Leaflet powers `map-bubble` (annex §7, shipped in M7 Wave 4) — a legitimate
+ * Leaflet powers `map-bubble` (annex, shipped in M7 Wave 4) — a legitimate
  * dependency now, but the ONLY one of these: the alternatives were evaluated and
  * not adopted, so any of them appearing means a second map stack crept in.
  */
@@ -51,8 +51,8 @@ const MAP_DEPS = [SHIPPED_MAP_DEP, ...UNSHIPPED_MAP_DEPS];
 /**
  * dnd-kit powers the `boards` family (Wave 2, shipped) — it is now a legitimate
  * dependency, but must stay CONFINED to families/boards so it never lands in a
- * sibling family's chunk (04 §2.3). `@dnd-kit/sortable` is NOT used (boards
- * drives its own drag layer), so it must stay absent too.
+ * sibling family's chunk. `@dnd-kit/sortable` is NOT used (boards drives its
+ * own drag layer), so it must stay absent too.
  */
 const BOARD_DEPS = ['@dnd-kit/core', '@dnd-kit/sortable'];
 /** Everything a family source must never statically import (bar its owner). */
@@ -68,7 +68,7 @@ const HEAVY_DEPS = [...MAP_DEPS, ...BOARD_DEPS];
 const WAVE1_FAMILY_DIRS = ['kpi', 'charts', 'tables', 'feeds'];
 /** The only family allowed to import dnd-kit. */
 const BOARD_FAMILY_DIR = 'boards';
-/** The only family allowed to name Leaflet at all (annex §7). */
+/** The only family allowed to name Leaflet at all (annex). */
 const GEO_FAMILY_DIR = 'geo';
 
 const familiesRoot = join(widgetsRoot, 'families');
@@ -328,7 +328,7 @@ describe('chunk budget — per-family lazy split (acceptance #3)', () => {
     // boundary: X is a same-module binding, so the component (and its
     // @adminium/ui deps) gets pulled into whatever chunk statically imports the
     // definition. Every family must lazy-load its components via a cross-module
-    // `import('./…')` instead (the kpi/charts convention, 04 §2.3).
+    // `import('./…')` instead (the kpi/charts convention).
     const offenders: string[] = [];
     for (const family of ALL_FAMILY_DIRS) {
       for (const file of sourceFiles(join(familiesRoot, family))) {
@@ -352,7 +352,7 @@ describe('chunk budget — per-family lazy split (acceptance #3)', () => {
     // The fix is the `<family>-config.ts` convention (boards, domain, media,
     // communication, forms, chrome, system): schemas + demo generators live in
     // a PURE module the definitions may import, leaving components reachable
-    // only through the lazy barrel. Metadata only — 04 §2.3 acceptance #3.
+    // only through the lazy barrel. Metadata only — #3.
     const offenders: string[] = [];
     for (const family of ALL_FAMILY_DIRS) {
       for (const file of definitionFiles(join(familiesRoot, family))) {

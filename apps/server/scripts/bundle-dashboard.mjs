@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Copy the dashboard build into the published package (01-architecture.md §4.1:
- * the `adminium` package "bundles the server, the dashboard `dist/`, and the
- * meta migrations — one `npx adminium` is a complete install").
+ * Copy the dashboard build into the published package (the `adminium` package
+ * "bundles the server, the dashboard `dist/`, and the meta migrations — one
+ * `npx @adminiumjs/adminium` is a complete install").
  *
  *   node scripts/bundle-dashboard.mjs [--check]
  *

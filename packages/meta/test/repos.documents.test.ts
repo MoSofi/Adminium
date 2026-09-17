@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * documentProfilesRepo + documentsRepo + addOnSettingsRepo
- * (34-invoices-add-on.md §3.3, 34-T08).
+ * documentProfilesRepo + documentsRepo + addOnSettingsRepo.
  *
  * The behaviours worth pinning are the ones a later change could quietly
  * break, and for this wave they are all about SURVIVAL and DISCLOSURE:
  *
- *  - uninstalling an add-on must not take documents or profiles with it (D5,
- *    24 D16) — there is no FK to `adminium_manifests` anywhere, so the test
- *    that proves it deletes the manifest row and reads the documents back;
+ * - uninstalling an add-on must not take documents or profiles with it (D5)
+ *  — there is no FK to `adminium_manifests` anywhere, so the test that
+ *  proves it deletes the manifest row and reads the documents back;
  *  - a redacted read is still a row, minus exactly three fields;
  *  - a composite primary key round-trips through `entity_id` on every
  *    dialect, because `jsonb` reorders object keys on PostgreSQL and MySQL;
@@ -143,7 +142,7 @@ for (const dialect of TEST_DIALECTS) {
       });
 
       it('disables an add-on’s profiles without deleting the operator’s work', async () => {
-        // §7.10. Uninstall stops rendering; it does not throw away twenty
+        // Uninstall stops rendering; it does not throw away twenty
         // columns pointed at twenty slots, because reinstalling should not
         // mean doing that again.
         await makeProfile({ name: 'One' });
@@ -304,15 +303,15 @@ for (const dialect of TEST_DIALECTS) {
 
       it('SURVIVES the ADD-ON BEING UNINSTALLED — the whole point of the soft ref', async () => {
         /*
-         * 34-T08's own done-when, and the assertion the schema was shaped
-         * around: `add_on_key` is a SOFT string reference with no foreign key
-         * to `adminium_manifests`, so deleting the manifest row cannot cascade
+         * The own done-when, and the assertion the schema was shaped around:
+         * `add_on_key` is a SOFT string reference with no foreign key to
+         * `adminium_manifests`, so deleting the manifest row cannot cascade
          * into anything here.
          *
-         * The rule is 24 D16 — uninstall keeps the customer's DATA — and this
-         * is the case that makes it concrete: a business that removes the
-         * add-on which drew its invoices still has the invoices, and can still
-         * hand one to an auditor two years later. A cascade here would destroy
+         * The rule is — uninstall keeps the customer's DATA — and this is the
+         * case that makes it concrete: a business that removes the add-on
+         * which drew its invoices still has the invoices, and can still hand
+         * one to an auditor two years later. A cascade here would destroy
          * business records as a side effect of tidying up an integration.
          */
         const manifests = manifestsRepo(db.meta, testCredentialCrypto);
@@ -349,7 +348,7 @@ for (const dialect of TEST_DIALECTS) {
         expect(after?.addOnKey).toBe('invoices');
         expect(after?.subject).toEqual({ customerName: 'Acme', total: 1234 });
 
-        // And so is the profile — §7.10 DISABLES it rather than deleting it,
+        // And so is the profile — DISABLES it rather than deleting it,
         // so the operator's mapping survives a reinstall.
         expect(await profiles.findById(profile.id)).not.toBeNull();
 

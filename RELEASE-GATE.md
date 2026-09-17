@@ -19,25 +19,23 @@ not deleting it.
 ## Performance
 
 - [x] Dashboard entry chunk meets its budget — **308.3 KiB gz (315,684 bytes)
-      against the 350 KiB target, measured 2026-08-20.** Down from 655.1 KiB, a
-      52% reduction, in four changes: the fourteen page-template bindings are
-      lazy (`pages/templates.tsx`, −97.0 KiB — a page renders one template and
-      downloaded all fourteen); the two data-io route bodies are lazy
-      (`data-io/routes.tsx`, −14.9 KiB — and `ImportWizardPage` is the
-      `page-wizard` template body, so until this landed that binding's "lazy"
-      chunk held a 22-line wrapper while the body shipped on boot anyway); the
-      lucide catalogue is no longer imported as a
-      map (`scripts/gen-icon-core.mjs` + `packages/ui/.../icon-resolver.ts`,
-      −112.6 KiB — all 1,611 icon modules were in the entry for the ~136 the
-      product draws); and eleven route components are lazy (`app/router.tsx`,
-      −62.7 KiB — `EmailTemplatesPage` alone reached `PageBuilder` →
-      `WidgetHost` → the whole widget registry).
-      **The six earlier raises blamed the wrong thing.** They attributed the
-      growth to the en-US i18n catalogue and named 10-T06 as the fix. Measured:
-      deleting `EN_US_RESOURCES` entirely is worth 48.7 KiB gz — a seventh of
-      what was available, and it was not needed. The full record, including why
-      the i18n split was deliberately NOT taken, is in
-      `apps/dashboard/chunk-budget.json`
+  against the 350 KiB target, measured 2026-08-20.** Down from 655.1 KiB, a 52%
+  reduction, in four changes: the fourteen page-template bindings are lazy
+  (`pages/templates.tsx`, −97.0 KiB — a page renders one template and downloaded
+  all fourteen); the two data-io route bodies are lazy (`data-io/routes.tsx`,
+  −14.9 KiB — and `ImportWizardPage` is the `page-wizard` template body, so until
+  this landed that binding's "lazy" chunk held a 22-line wrapper while the body
+  shipped on boot anyway); the lucide catalogue is no longer imported as a map
+  (`scripts/gen-icon-core.mjs` + `packages/ui/.../icon-resolver.ts`, −112.6 KiB —
+  all 1,611 icon modules were in the entry for the ~136 the product draws); and
+  eleven route components are lazy (`app/router.tsx`, −62.7 KiB —
+  `EmailTemplatesPage` alone reached `PageBuilder` → `WidgetHost` → the whole
+  widget registry). **The six earlier raises blamed the wrong thing.** They
+  attributed the growth to the en-US i18n catalogue and named as the fix.
+  Measured: deleting `EN_US_RESOURCES` entirely is worth 48.7 KiB gz — a seventh
+  of what was available, and it was not needed. The full record, including why
+  the i18n split was deliberately NOT taken, is in
+  `apps/dashboard/chunk-budget.json`
 - [x] Bundle-size gate runs in CI so the entry chunk cannot regress silently
       (`apps/dashboard/scripts/check-entry-budget.mjs` runs at the end of the
       dashboard build, which the CI verify job executes)
@@ -45,73 +43,65 @@ not deleting it.
       never a blind exact `COUNT(*)` (`apps/server/src/crud/list.ts`,
       proven live in `apps/server/test/crud-estimated-count.test.ts`)
 
-- [x] Every package meets the coverage floor 15-quality.md §1 specifies —
-      **closed 2026-08-19.** All 12 floored packages now configure a threshold at
-      or above their §1 number on both axes, and all 12 pass it. The three §1
-      exempts (`ui`, `widgets`, `charts`) collect and report without asserting,
-      which is what §1 prescribes — screenshots and axe are the signal there.
-      Configured floor / §1 / measured:
-      engine 94-88 / 90-85 · config 95-88 / 90-85 · i18n 91-90 / 90-85 ·
-      tokens 90-85 / 90-85 (100/100) · llm 94-86 / 90-85 (95.41/87.70) ·
-      meta 93-90 / 90-85 (94.37/91.60) · schema-import 97-90 / 90-85 (98.67/91.91) ·
-      adapter-sqlite 98-90 / 90-85 (99.91/91.95) · adapter-postgres 98-97 / 90-85
-      (99.82/98.86 live) · adapter-mysql 99-95 / 90-85 (100/96.22 offline) ·
-      server 88-80 / 85-80 (90.54/81.31) · dashboard 75-82 / 75-70 (75.47/84.25).
-      **Two structural defects closed with it.** `packages/tokens` declared a
-      90/85 floor and enforced nothing: its test script never passed
-      `--coverage`, and the shared helper sets `enabled: false` so that flag is
-      what turns it on — it was the one package whose floor equalled its §1
-      number on paper and could not fail. `packages/adapter-mysql` carried NO
-      floor unless `TEST_MYSQL_URL` was set, so a laptop run enforced nothing;
-      its floor is now unconditional, which became safe once every one of its 7
-      source files is executed offline (verified: zero placeholder-shaped files,
-      so the denominator is already in its fully-executed shape and the live leg
-      can only add covered branches).
-      **Floors carry deliberate margin rather than being rounded down from the
-      measurement.** v8's branch TOTAL is not stable run to run — the same
-      adapter-sqlite suite reported 582 and 584 total branches on consecutive
-      runs, ~0.3 of a point — so a floor a quarter-point under the reading is
-      decided by noise. Every floor here still clears §1 with room.
-      **The one number not measured in CI's own configuration** is `apps/server`
-      with the MySQL leg: re-measured here with a real pg16 and CI's
-      `TEST_POSTGRES_URL`/`PGUSER`/`PGPASSWORD` (1477 tests, 7 skipped) at
-      90.54/81.31, but this machine has no MySQL and no Docker. That leg is why
-      fb8b2ae lowered this floor to 79 off a CI reading. Server's denominator is
-      close to fully expanded — 4 of 211 files unexecuted, all four entrypoints
-      no database leg reaches — so MySQL should add covered branches rather than
-      expand the total. If `verify` reddens on coverage, that is the line to
-      re-check, and this row gets unchecked per the rule above.
-- [x] Performance budgets — **9 of the 10 rows in 15-quality.md §5 are WAIVED
-      for v1.0** (owner decision 2026-08-19). The tenth is measured and gated and
-      stays that way: the dashboard entry chunk, 308.3 KiB gz against 350, by
-      `apps/dashboard/scripts/check-entry-budget.mjs` at the end of the dashboard
-      build. (Same measurement as the Performance row above — the two lines said
-      321.3 and 321.4 for one number, and both were stale besides.) That gate
-      counts JS only: the entry stylesheet blocks paint and is uncounted, and at
-      20,955 bytes gz it puts the real blocking payload at 336,639 against
-      358,400.
-      **Rationale.** v1 is a free, self-hosted, source-available admin tool with
-      no hosted multi-tenant surface, so there is no fleet whose p95 anyone is
-      accountable for; an operator runs it against their own database at their
-      own scale. Building nine benchmark harnesses to confirm limits that nothing
-      suggests are being exceeded is not the best use of the remaining v1 time.
-      Same shape as the external-pentest waiver above, and for the same reason.
-      **What the waiver rests on, stated honestly, because two of these are
-      different in kind.** Spot-measured and NOT violated today: the per-family
-      widget chunk ceiling (largest real family chunk 61.5 KiB gz against 120)
-      and the per-locale ceiling (31.8–36.4 KiB). Genuinely UNKNOWN, with no
-      measurement of any kind ever taken: 500-table introspection on sqlite,
-      postgres and mysql (3 rows), peak engine memory under 256 MB, record-list
-      p95 at 1M rows, and deep-offset degradation. A spot measurement is not a
-      gate, and "unknown" is not "fine" — this waiver says those five are not
-      worth measuring BEFORE v1, not that they pass.
-      **Un-deferral triggers.** Revisit before any hosted/Cloud GA (where the p95
-      becomes someone's SLO); on the first user report of slowness at scale; or
-      if `DataGrid` gains virtualization, since the 1M-row row exists precisely
-      because it renders unwindowed today and every shipped call site caps it at
-      200–1,000 rows.
-      Do not read this row as "performance is handled". Read it as "one budget is
-      enforced, two are spot-checked, five are unknown, and that was a decision".
+- [x] Every package meets the coverage floor specifies — **closed 2026-08-19.** All 12
+  floored packages now configure a threshold at or above their number on both axes,
+  and all 12 pass it. The three exempts (`ui`, `widgets`, `charts`) collect and report
+  without asserting, which is what prescribes — screenshots and axe are the signal
+  there. Configured floor / / measured: engine 94-88 / 90-85 · config 95-88 / 90-85 ·
+  i18n 91-90 / 90-85 · tokens 90-85 / 90-85 (100/100) · llm 94-86 / 90-85
+  (95.41/87.70) · meta 93-90 / 90-85 (94.37/91.60) · schema-import 97-90 / 90-85
+  (98.67/91.91) · adapter-sqlite 98-90 / 90-85 (99.91/91.95) · adapter-postgres 98-97
+  / 90-85 (99.82/98.86 live) · adapter-mysql 99-95 / 90-85 (100/96.22 offline) ·
+  server 88-80 / 85-80 (90.54/81.31) · dashboard 75-82 / 75-70 (75.47/84.25). **Two
+  structural defects closed with it.** `packages/tokens` declared a 90/85 floor and
+  enforced nothing: its test script never passed `--coverage`, and the shared helper
+  sets `enabled: false` so that flag is what turns it on — it was the one package
+  whose floor equalled its number on paper and could not fail.
+  `packages/adapter-mysql` carried NO floor unless `TEST_MYSQL_URL` was set, so a
+  laptop run enforced nothing; its floor is now unconditional, which became safe once
+  every one of its 7 source files is executed offline (verified: zero
+  placeholder-shaped files, so the denominator is already in its fully-executed shape
+  and the live leg can only add covered branches). **Floors carry deliberate margin
+  rather than being rounded down from the measurement.** v8's branch TOTAL is not
+  stable run to run — the same adapter-sqlite suite reported 582 and 584 total
+  branches on consecutive runs, ~0.3 of a point — so a floor a quarter-point under the
+  reading is decided by noise. Every floor here still clears with room. **The one
+  number not measured in CI's own configuration** is `apps/server` with the MySQL leg:
+  re-measured here with a real pg16 and CI's `TEST_POSTGRES_URL`/`PGUSER`/`PGPASSWORD`
+  (1477 tests, 7 skipped) at 90.54/81.31, but this machine has no MySQL and no Docker.
+  That leg is why fb8b2ae lowered this floor to 79 off a CI reading. Server's
+  denominator is close to fully expanded — 4 of 211 files unexecuted, all four
+  entrypoints no database leg reaches — so MySQL should add covered branches rather
+  than expand the total. If `verify` reddens on coverage, that is the line to
+  re-check, and this row gets unchecked per the rule above.
+- [x] Performance budgets — **9 of the 10 rows are WAIVED for v1.0** (owner
+  decision 2026-08-19). The tenth is measured and gated and stays that way: the
+  dashboard entry chunk, 308.3 KiB gz against 350, by
+  `apps/dashboard/scripts/check-entry-budget.mjs` at the end of the dashboard
+  build. (Same measurement as the Performance row above — the two lines said 321.3
+  and 321.4 for one number, and both were stale besides.) That gate counts JS only:
+  the entry stylesheet blocks paint and is uncounted, and at 20,955 bytes gz it
+  puts the real blocking payload at 336,639 against 358,400. **Rationale.** v1 is a
+  free, self-hosted, source-available admin tool with no hosted multi-tenant
+  surface, so there is no fleet whose p95 anyone is accountable for; an operator
+  runs it against their own database at their own scale. Building nine benchmark
+  harnesses to confirm limits that nothing suggests are being exceeded is not the
+  best use of the remaining v1 time. Same shape as the external-pentest waiver
+  above, and for the same reason. **What the waiver rests on, stated honestly,
+  because two of these are different in kind.** Spot-measured and NOT violated
+  today: the per-family widget chunk ceiling (largest real family chunk 61.5 KiB gz
+  against 120) and the per-locale ceiling (31.8–36.4 KiB). Genuinely UNKNOWN, with
+  no measurement of any kind ever taken: 500-table introspection on sqlite,
+  postgres and mysql (3 rows), peak engine memory under 256 MB, record-list p95 at
+  1M rows, and deep-offset degradation. A spot measurement is not a gate, and
+  "unknown" is not "fine" — this waiver says those five are not worth measuring
+  BEFORE v1, not that they pass. **Un-deferral triggers.** Revisit before any
+  hosted/Cloud GA (where the p95 becomes someone's SLO); on the first user report
+  of slowness at scale; or if `DataGrid` gains virtualization, since the 1M-row row
+  exists precisely because it renders unwindowed today and every shipped call site
+  caps it at 200–1,000 rows. Do not read this row as "performance is handled". Read
+  it as "one budget is enforced, two are spot-checked, five are unknown, and that
+  was a decision".
 
 ## Security
 

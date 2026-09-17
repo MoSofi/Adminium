@@ -196,7 +196,7 @@
   vertical-align: middle;
 }
 
-/* --- Bars & ranking group (04-T09) ------------------------------------------
+/* --- Bars & ranking group ------------------------------------------
    In-SVG sans label with NO fill so the fill presentation attribute controls
    color (e.g. on-segment labels use var(--surface) for contrast); plus the
    shared horizontal-bar legend. Reuses the sanctioned --adm-dot custom prop

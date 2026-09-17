@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * page-builder binding tests (M7-T06, 09 §7.11): envelope → PageBuilder
- * projection, the doc-in-layout persistence path (shared vs personal routed on
+ * page-builder binding tests: envelope → PageBuilder projection, the
+ * doc-in-layout persistence path (shared vs personal routed on
  * `canEditLayout`, autosave choreography), save-as-version through the
- * saved-views API, draft-mutation filtering, and the docState pure
- * algebra. Persistence hooks are mocked like DashboardBuilder.test.tsx; the
- * views API rides a fetch mock like the sibling suites (no msw).
+ * saved-views API, draft-mutation filtering, and the docState pure algebra.
+ * Persistence hooks are mocked like DashboardBuilder.test.tsx; the views API
+ * rides a fetch mock like the sibling suites (no msw).
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';

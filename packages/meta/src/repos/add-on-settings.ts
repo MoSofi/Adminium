@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * addOnSettingsRepo — adminium_add_on_settings (34-invoices-add-on.md §3.3;
- * wave 0031). Closes 0.2 item 10 for every add-on with a settings panel.
+ * addOnSettingsRepo — adminium_add_on_settings (wave 0031). Closes 0.2 item
+ * 10 for every add-on with a settings panel.
  *
  * Every add-on in the fleet ships a `settings.add-on.panel` fill and, until
  * this table, none of them had anywhere to put what somebody typed into it.
@@ -137,10 +137,10 @@ export function addOnSettingsRepo(meta: MetaDb) {
   }
 
   /**
-   * Drop an add-on's settings — uninstall's half that lives here (§7.10).
+   * Drop an add-on's settings — uninstall's half that lives here.
    *
-   * This is the one place "uninstall keeps data" (24 D16) bends, and it bends
-   * on purpose: what that rule protects is the CUSTOMER'S data — their rows,
+   * This is the one place "uninstall keeps data" bends, and it bends on
+   * purpose: what that rule protects is the CUSTOMER'S data — their rows,
    * their files, the documents already issued. An add-on's own configuration
    * is not that. It is part of the add-on, it means nothing without it, and it
    * goes with it exactly as a credential does.

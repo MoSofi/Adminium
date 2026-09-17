@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * OpenAI client — mocked-fetch wire tests (06-llm-assist.md §3.1): Bearer auth,
- * /v1/chat/completions body with the system message prepended, response parsing,
- * temperature-0 enforcement, chat-model filtering + static fallback.
+ * OpenAI client — mocked-fetch wire tests: Bearer auth, /v1/chat/completions
+ * body with the system message prepended, response parsing, temperature-0
+ * enforcement, chat-model filtering + static fallback.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -108,7 +108,7 @@ describe('createOpenAiClient.complete', () => {
 describe('createOpenAiClient.listModels', () => {
   it('filters to chat models and labels by id, excluding o-series reasoning models', async () => {
     // o4-mini is a reasoning model: the fixed max_tokens + temperature:0 body
-    // (a §3.1 mandate) always 400s on it, so it must not be offered.
+    // (a mandate) always 400s on it, so it must not be offered.
     const calls = stubFetch(
       jsonResponse({ data: [{ id: 'gpt-4o' }, { id: 'text-embedding-3-small' }, { id: 'o4-mini' }, { id: 'whisper-1' }] }),
     );

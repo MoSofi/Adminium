@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The block vocabulary (43-report-builder.md Appendix B, D13; the comp's
- * `palDefs` 608 and `kindMeta` 473): the 25 kinds in palette order, the
- * label and glyph each one carries, and the seed a palette click creates.
+ * The block vocabulary (the comp's `palDefs` 608 and `kindMeta` 473):
+ * the 25 kinds in palette order, the label and glyph each one carries,
+ * and the seed a palette click creates.
  *
  * ─── THE `kindMeta` DEFECT IS FIXED BY CONSTRUCTION (D13) ──────────────────
  *
@@ -12,7 +12,7 @@
  * The bug is a shape, not a typo: nothing in `['award', 'Loyalty points']`
  * says which half is which. Here the pair is a RECORD with named fields, so
  * the swap is unrepresentable, and `blocks.test.ts` pins every entry
- * (15-quality.md:257's row, now on the surface that ships).
+ * (257's row, now on the surface that ships).
  *
  * The labels below are the ENGLISH fallbacks. Every one is also a
  * `reportBuilder:block.<kind>.label` key; `blockText.ts` is where the editor
@@ -39,7 +39,7 @@ export { REPORT_BLOCK_KINDS, isReportBlockKind, type ReportBlockKind } from './e
 export interface BlockKindMeta {
   /** Title-cased copy — the palette row and the inspector banner (608, 632). */
   label: string;
-  /** A lucide slug the surface's `icons.ts` resolves (43 §0.1.7). */
+  /** A lucide slug the surface's `icons.ts` resolves. */
   icon: string;
 }
 
@@ -109,8 +109,8 @@ export interface BlockSeedText {
 
 /**
  * The comp's `newBlockContent` (536), with Appendix D applied: the contact
- * seed names a fictional business rather than the company (24 D12), and the
- * loyalty field is `loyLevel` where the comp's name is a 17 §2 word.
+ * seed names a fictional business rather than the company, and the loyalty
+ * field is `loyLevel` where the comp's name is a word.
  */
 export const DEFAULT_BLOCK_SEED: BlockSeedText = {
   title: '',

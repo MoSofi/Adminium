@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The three projection families of a CRUD read — `lookup=`, `agg=` and
- * `compute=` — resolved together, in alias-namespace order
- * (36-derived-columns.md D13, D26; 41-export-builder.md D2).
+ * `compute=` — resolved together, in alias-namespace order.
  *
  * Extracted from `routes/data` so that the export preview and the export job
  * resolve an export definition through EXACTLY the code a page read uses. A
@@ -57,7 +56,7 @@ export interface Projections {
   measures: ResolvedMeasure[];
   /** Base columns a derived field reads (merged into the SELECT list, never `select=`). */
   requiredColumns: readonly string[];
-  /** Derived fields, evaluated after masking (36-derived-columns.md §3.5). */
+  /** Derived fields, evaluated after masking. */
   fields: ParsedCompute['fields'];
   /** Per-caller refusals, for the caller's audit trail. */
   refusals: ProjectionRefusal[];

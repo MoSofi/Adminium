@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dialect-parameterized test harness (07-meta-store.md 07-T07 / 15-quality.md):
- * every suite iterates TEST_DIALECTS with `describe.skipIf(!d.available)`.
- * SQLite (better-sqlite3, in-memory) always runs; PostgreSQL and MySQL join
- * in when TEST_POSTGRES_URL / TEST_MYSQL_URL are set (same env-var names the
- * rest of the wave uses — apps/e2e/tests/constants.ts, ci.yml). `pg` and
- * `mysql2` are dev dependencies of this package, so the `resolvable()` guard is
- * only a belt-and-braces check — the legs run whenever their URL is set, they
- * are not silently skipped for a missing driver.
+ * Dialect-parameterized test harness: every suite iterates TEST_DIALECTS with
+ * `describe.skipIf(!d.available)`. SQLite (better-sqlite3, in-memory) always
+ * runs; PostgreSQL and MySQL join in when TEST_POSTGRES_URL / TEST_MYSQL_URL
+ * are set (same env-var names the rest of the wave uses —
+ * apps/e2e/tests/constants.ts, ci.yml). `pg` and `mysql2` are dev dependencies
+ * of this package, so the `resolvable()` guard is only a belt-and-braces check
+ * — the legs run whenever their URL is set, they are not silently skipped for a
+ * missing driver.
  *
  * TEST_*_URL is a server-level DSN and may carry NO database path — CI's is
  * the bare `mysql://root:root@127.0.0.1:3306` (ci.yml). Pooling straight to a

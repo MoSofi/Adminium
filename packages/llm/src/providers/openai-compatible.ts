@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * OpenAI-compatible client (06-llm-assist.md §3.1): same Chat Completions wire
- * format as OpenAI against a user-supplied `baseUrl` (Groq, Together, vLLM, LM
- * Studio, …). The Bearer key is optional; the model-list endpoint may be absent,
- * so a 404 is tolerated → empty list → free-text model field in the UI.
+ * OpenAI-compatible client: same Chat Completions wire format as OpenAI against
+ * a user-supplied `baseUrl` (Groq, Together, vLLM, LM Studio, …). The Bearer key
+ * is optional; the model-list endpoint may be absent, so a 404 is tolerated →
+ * empty list → free-text model field in the UI.
  */
 import {
   buildOpenAiChatBody,

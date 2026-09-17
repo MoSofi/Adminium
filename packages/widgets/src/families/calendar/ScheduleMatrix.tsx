@@ -24,12 +24,12 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `calendar-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { scheduleMatrixConfigSchema, scheduleMatrixDemoData } from './calendar-config.js';
 export type { ScheduleMatrixConfig } from './calendar-config.js';
 
 /**
- * `schedule-matrix` (annex §5) — the resource-scheduling grid: rows = people
+ * `schedule-matrix` (annex) — the resource-scheduling grid: rows = people
  * (avatar, role, total hours), columns = days, cells hold up to N type-colored
  * shift chips, with per-day coverage micro-bars (danger at zero) and a shift-type
  * legend strip. The first (resource) column and the day columns are a single

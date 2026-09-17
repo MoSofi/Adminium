@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Send campaign (39 D11). The comp leaves it undrawn (§0.2 row 15: *Send
- * campaign* toasts "Campaign sent"), so it borrows the test-send modal's
- * anatomy (comp 67-115): header icon/title/subtitle, labelled fields, an
- * info box, a footer count, Cancel/primary, then a success phase. *Send to*
- * = Workspace users with the roles as chips (none = everyone); *When* = Now
- * / Schedule with a date-time in the actor's zone (stored as epoch ms); the
- * count comes from `POST /:id/audience/preview`; success reads *Campaign
- * sent!* / *Campaign scheduled!*. The caller saves first (D1) and POSTs
- * `/send`.
+ * Send campaign. The comp leaves it undrawn (row 15: *Send campaign* toasts
+ * "Campaign sent"), so it borrows the test-send modal's anatomy (comp
+ * 67-115): header icon/title/subtitle, labelled fields, an info box, a
+ * footer count, Cancel/primary, then a success phase. *Send to* = Workspace
+ * users with the roles as chips (none = everyone); *When* = Now / Schedule
+ * with a date-time in the actor's zone (stored as epoch ms); the count
+ * comes from `POST /:id/audience/preview`; success reads *Campaign sent!* /
+ * *Campaign scheduled!*. The caller saves first (D1) and POSTs `/send`.
  */
 import { useQuery } from '@tanstack/react-query';
 import { CalendarClock, Info, Send, Users } from 'lucide-react';

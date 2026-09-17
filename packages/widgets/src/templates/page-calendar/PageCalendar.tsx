@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-calendar` template renderer (09-generated-app.md §7.6, 04 §10 manifest
- * `page-calendar.json`, annex §14 "date + title → calendar").
+ * `page-calendar` template renderer (manifest `page-calendar.json`, annex).
  *
  * Composes the calendar family over the stored archetype config: the required
  * `calendar` slot renders `calendar-month`; the `agenda` slot renders the
@@ -16,7 +15,7 @@
  * candidate vocabulary; a true `{ events: [...] }` envelope (demo data,
  * future server shaper) passes through unchanged.
  *
- * Behaviors (09 §7.6):
+ * Behaviors:
  * - day select on the month grid drives the agenda pane;
  * - agenda rows are clickable → `record-open` (the host opens the record
  *   drawer); the shipped `day-agenda` widget exposes no row callback, so the
@@ -85,11 +84,11 @@ export interface PageCalendarLabels {
 export interface PageCalendarProps {
   /** The stored page config body: `{ templateVersion, toolbar, overlays, layout }`. */
   config: unknown;
-  /** Per-instance data states from the host binding; absent → demo data (04 §5.3). */
+  /** Per-instance data states from the host binding; absent → demo data. */
   states?: TemplateDataStates | undefined;
   onEvent?: ((instanceId: string, event: WidgetEvent) => void | Promise<unknown>) | undefined;
   /** Published page-control params (`dateRange.start`/`dateRange.end`) — the
-   *  host binding forwards them into the widget-data batch (04 §5.1). */
+   * host binding forwards them into the widget-data batch. */
   onParamsChange?: ((params: Record<string, unknown>) => void) | undefined;
   /** Deterministic "today" (`YYYY-MM-DD`) for stories/tests; defaults to the wall clock. */
   referenceDate?: string | undefined;
@@ -160,9 +159,9 @@ function minutesOf(event: CalendarEvent): number {
 
 /**
  * The selected day's agenda: clickable event rows (same anatomy as the
- * family's `day-agenda`) + the inline composer (09 §7.6 "day select →
- * day-agenda with inline composer"). Rendered here because the shipped
- * DayAgenda exposes neither a row-click callback nor a composer.
+ * family's `day-agenda`) + the inline composer. Rendered here because
+ * the shipped DayAgenda exposes neither a row-click callback nor a
+ * composer.
  */
 function AgendaPane({
   day,

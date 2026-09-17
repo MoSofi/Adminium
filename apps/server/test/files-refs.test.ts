@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The stored reference (37-files-and-storage.md D7/D31, §3.6, 37-T04).
+ * The stored reference.
  *
  * The asymmetry is the whole design and is what these tests pin: WRITING uses
  * exactly the configured shape, READING accepts all three plus "this is
@@ -166,14 +166,14 @@ describe('parseRef — reading accepts all three shapes', () => {
 });
 
 /**
- * The LIST grammar (38-files-library-and-attachments.md D1/D5).
+ * The LIST grammar.
  *
  * A `multiple` column stores a JSON array of references in a `text` column, so
  * every existing reader keeps seeing a string. The reason this is a grammar
- * rather than a `json` column is in §0.3 of the plan; the reason it is
- * TOLERANT is the same asymmetry the tests above pin — a column may be made
- * `multiple` long after it started holding one plain value, and a foreign app
- * may keep writing its own links into it.
+ * rather than a `json` column is of the plan; the reason it is TOLERANT is the
+ * same asymmetry the tests above pin — a column may be made `multiple` long
+ * after it started holding one plain value, and a foreign app may keep writing
+ * its own links into it.
  */
 const ID2 = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCE';
 

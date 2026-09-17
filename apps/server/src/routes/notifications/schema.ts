@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the notification-centre resource (M7 reports/notifications
- * track; 07-meta-store.md §3.20/§3.21, 09-generated-app.md §5.4):
- * `/me/notifications` (keyset list + read transitions) and
+ * track): `/me/notifications` (keyset list + read transitions) and
  * `/me/notification-prefs` (event × channel matrix).
  */
 import { z } from 'zod';
@@ -38,7 +37,7 @@ export const notificationsListQuery = z.object({
 export const notificationsListReply = z.object({
   data: z.object({
     items: z.array(notificationView),
-    /** The nav-badge number (09 §5.4 `unread-count`) — always the full count. */
+    /** The nav-badge number (`unread-count`) — always the full count. */
     unreadCount: z.number(),
     /** Pass back as `?before=` for the next page; null = no more rows. */
     nextCursor: z.string().nullable(),
@@ -61,7 +60,7 @@ export const notificationsReadAllReply = z.object({
 
 // --- notification prefs -----------------------------------------------------------
 
-/** §3.21 event keys: dotted kebab/lower segments, same grammar as `kind`. */
+/** Event keys: dotted kebab/lower segments, same grammar as `kind`. */
 export const eventKeySchema = z
   .string()
   .min(1)
@@ -70,7 +69,7 @@ export const eventKeySchema = z
 
 /**
  * One delivery channel's availability. `available: false` ALWAYS carries a
- * `reason` — the §8.2 never-hide-always-explain rule: the client renders the
+ * `reason` — the never-hide-always-explain rule: the client renders the
  * toggle (intent is stored) plus the explanation, never a silent gap.
  */
 export const channelAvailabilityView = z.object({

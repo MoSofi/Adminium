@@ -7,8 +7,8 @@
  * This module imports ONLY zod — it must
  * stay free of engine imports, widget component code, and node: builtins so
  * that `@adminium/engine/config` can consume it without creating a dependency
- * cycle (01-architecture.md §6.1, 07-meta-store.md §3.17). Enforced by the
- * dependency-cruiser gate and by test/leaf-purity.test.ts.
+ * cycle. Enforced by the dependency-cruiser gate and by
+ * test/leaf-purity.test.ts.
  */
 export {
   COMPILABLE_DATA_SHAPES,
@@ -45,7 +45,7 @@ export {
   parseCrudLabels,
   type CrudLabelsConfig,
 } from './crud-labels.js';
-// A `multiple` file column's stored value (38 D5). The renderer's half of the
+// A `multiple` file column's stored value. The renderer's half of the
 // grammar `apps/server/src/files/refs.ts` owns; change the two together.
 export { formatRefList, parseRefList } from './file-refs.js';
 export {
@@ -65,7 +65,7 @@ export {
   type GridSemantic,
   type GridTone,
 } from './grid-column-spec.js';
-// Derived columns (36-derived-columns.md WS-A): the stored measure/field
+// Derived columns (WS-A): the stored measure/field
 // vocabulary, the exact decimal arithmetic every consumer shares, and the
 // evaluator the server and the Studio preview both run.
 export {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Measures on the CRUD read endpoints — the `compute=` param's fold half
- * (36-derived-columns.md WS-B: 36-T06, 36-T07, 36-T08, 36-T09).
+ * (WS-B).
  *
  * What is actually being pinned here, beyond "the numbers are right":
  *
@@ -99,7 +99,7 @@ describe('CRUD measures (fake adapter)', () => {
     return row as Record<string, unknown>;
   };
 
-  // --- 36-T07: what actually reaches the database ---------------------------
+  // ---: what actually reaches the database ---------------------------
 
   describe('the emitted fold', () => {
     it('parenthesizes every term and qualifies every column', async () => {
@@ -251,7 +251,7 @@ describe('CRUD measures (fake adapter)', () => {
     });
   });
 
-  // --- 36-T08: the masking fixes -------------------------------------------
+  // ---: the masking fixes -------------------------------------------
 
   describe('refusals degrade, and now cover every column that reaches the subquery', () => {
     it('refuses a measure over a table the caller cannot read', async () => {
@@ -321,7 +321,7 @@ describe('CRUD measures (fake adapter)', () => {
     });
   });
 
-  // --- 36-T09: the audit gap -----------------------------------------------
+  // ---: the audit gap -----------------------------------------------
 
   it('writes one audit row per refused projection', async () => {
     const before = await t.meta.db
@@ -345,7 +345,7 @@ describe('CRUD measures (fake adapter)', () => {
     expect(changes).toContain('table-read');
   });
 
-  // --- 36-T06: the envelope ------------------------------------------------
+  // ---: the envelope ------------------------------------------------
 
   describe('the compute envelope', () => {
     const field = (expr: Json): Json => ({ measures: [], fields: [{ id: 'f', scale: 2, expr }] });
@@ -416,7 +416,7 @@ describe('CRUD measures (fake adapter)', () => {
     });
   });
 
-  // --- 36-T06: the shared budget and the shared namespace -------------------
+  // ---: the shared budget and the shared namespace -------------------
 
   describe('one budget and one namespace across all four projection families', () => {
     it('refuses 7 aggregates plus 6 measures', async () => {

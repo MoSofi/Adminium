@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * React-query keys for the email documents (39-email-templates-and-
- * campaigns.md §3.6). Everything hangs off `['email-templates']` so one
+ * campaigns.md). Everything hangs off `['email-templates']` so one
  * invalidation after a mutation refreshes the manager's list, its counts and
  * any open detail together — a rename on a card is visible in the editor's
  * language menu without a second round of bookkeeping.

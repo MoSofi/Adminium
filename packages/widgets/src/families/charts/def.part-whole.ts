@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family — part-to-whole & hierarchy group (04-T09): registry
- * definitions + deterministic demoData for `chart-treemap`, `chart-sunburst`,
+ * `charts` family — part-to-whole & hierarchy group: registry definitions +
+ * deterministic demoData for `chart-treemap`, `chart-sunburst`,
  * `chart-funnel`, `chart-radial-bar`, `chart-radar`, `chart-chord`,
  * `chart-wordcloud`.
  *
  * This module holds METADATA ONLY — it never statically imports the
  * @adminium/charts chart primitives (those load lazily through
- * PartWholeWidgets.tsx, one chunk per family, 04 §2.3), so registry metadata and
- * demoData stay importable without pulling component code. Config schemas, config
- * types and the pure §3→primitive input mappers live in `part-whole-config.ts`
- * (so the wrappers can consume them without importing this definitions module —
- * that would be an import cycle, 01 §2.3) and are re-exported here for back-compat.
- * Demo payloads are the §3 envelopes the live server returns, seeded by the
- * deterministic mulberry32 PRNG (04 §7.7).
+ * PartWholeWidgets.tsx, one chunk per family), so registry metadata and demoData
+ * stay importable without pulling component code. Config schemas, config types and
+ * the pure →primitive input mappers live in `part-whole-config.ts` (so the
+ * wrappers can consume them without importing this definitions module — that would
+ * be an import cycle) and are re-exported here for back-compat. Demo payloads are
+ * the envelopes the live server returns, seeded by the deterministic mulberry32
+ * PRNG.
  */
 import { lazy } from 'react';
 import { mulberry32 } from '@adminium/charts';
@@ -32,7 +32,7 @@ import {
 
 export * from './part-whole-config.js';
 
-// --- demoData (deterministic §3 envelopes) -----------------------------------
+// --- demoData (deterministic envelopes) -----------------------------------
 
 export function treemapDemoData(seed: number): { items: { key: string; label: string; value: number }[]; total: number } {
   const rng = mulberry32(seed);

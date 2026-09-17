@@ -3,7 +3,7 @@
  * The Tax breakdown panel (comp 971-978; `taxbEdit` 1710, `addTaxb` 1711):
  * label · 76 px rate box · remove per component, *Add tax line*, the note,
  * *Remove section* (`taxbShow`). The note names the discounted subtotal, not
- * the comp's bare "subtotal" (976): 34 O25 puts every component on the
+ * the comp's bare "subtotal" (976): every component goes on the
  * ladder's own base, and the copy must say what the arithmetic does.
  */
 import { cn } from '@adminium/ui';

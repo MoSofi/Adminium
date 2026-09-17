@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * e2e boot script (M9-T05): boots the BUILT @adminium/server serving the
- * BUILT dashboard, against a Northwind source database on the engine chosen
- * by E2E_ENGINE, then seeds the full demo state over the real API:
+ * e2e boot script: boots the BUILT @adminium/server serving the BUILT
+ * dashboard, against a Northwind source database on the engine chosen by
+ * E2E_ENGINE, then seeds the full demo state over the real API:
  *
  *   1. prepare the source DB
  *        sqlite   → temp file seeded from packages/adapter-sqlite/fixtures
@@ -46,10 +46,10 @@ const dashboardDist = join(repoRoot, 'apps', 'dashboard', 'dist');
  * The shared server seeds a super admin before it listens, which is what every
  * other spec signs in as — and which makes `/setup` unreachable, because the
  * route guard bounces it to `/login` the moment `setup.state.required` is
- * false. The six-step onboarding wizard (45-onboarding.md) can therefore only
- * be walked on a server that has NOT been bootstrapped. Same script, same
- * seeded Northwind (the wizard needs a real DSN to type), everything after the
- * migrations skipped. See `tests/onboarding.spec.ts`.
+ * false. The six-step onboarding wizard can therefore only be walked on a
+ * server that has NOT been bootstrapped. Same script, same seeded Northwind
+ * (the wizard needs a real DSN to type), everything after the migrations
+ * skipped. See `tests/onboarding.spec.ts`.
  */
 const FIRST_RUN = process.env.E2E_FIRST_RUN === '1';
 const ENGINE = process.env.E2E_ENGINE ?? 'sqlite';
@@ -69,12 +69,12 @@ const FILES_ADMIN_PASSWORD = process.env.E2E_FILES_ADMIN_PASSWORD ?? 'adminium-e
 const CONNECTION_NAME = process.env.E2E_CONNECTION_NAME ?? 'northwind';
 const E2E_DATABASE = process.env.E2E_DATABASE ?? 'adminium_e2e';
 /**
- * The SMTP sink (39-email-templates-and-campaigns.md 39-T19): an in-process
- * `smtp-server` on loopback, plain (no STARTTLS, no AUTH — the transport
- * drops `requireTLS` for a loopback host and sends no AUTH for an empty
- * user), parsed by `mailparser` and served back to the specs as JSON over a
- * second loopback port. Both ports derive from the API port so the three
- * engines never collide (tests/constants.ts mirrors the arithmetic).
+ * The SMTP sink: an in-process `smtp-server` on loopback, plain (no
+ * STARTTLS, no AUTH — the transport drops `requireTLS` for a loopback host
+ * and sends no AUTH for an empty user), parsed by `mailparser` and served
+ * back to the specs as JSON over a second loopback port. Both ports derive
+ * from the API port so the three engines never collide (tests/constants.ts
+ * mirrors the arithmetic).
  */
 const SMTP_PORT = Number(process.env.E2E_SMTP_PORT ?? PORT + 100);
 const SINK_PORT = Number(process.env.E2E_SINK_PORT ?? PORT + 101);
@@ -135,8 +135,8 @@ const fixture = (engineDir, file) =>
   join(repoRoot, 'packages', engineDir, 'fixtures', file);
 
 /**
- * The one column Northwind does not have and this suite needs
- * (37-files-and-storage.md §6 item 1).
+ * The one column Northwind does not have and this suite
+ * needs.
  *
  * The owner's original sentence for the whole files feature is "while creating
  * an invoice, attach a PDF and store the link in the invoices table" — a
@@ -159,10 +159,10 @@ const fixture = (engineDir, file) =>
  * of the grid and the chip would never render. No other spec touches shippers,
  * so the column cannot perturb an unrelated assertion.
  *
- * WHY `varchar(400)`. The seeded reference shape is `url` (37 D31) and a
- * content URL needs 200 characters (`files/refs.ts` REF_MIN_WIDTH); a narrower
- * column would store a truncated link on some engines and refuse the write on
- * others. Nullable, so the create form has nothing extra to satisfy.
+ * WHY `varchar(400)`. The seeded reference shape is `url` and a content URL
+ * needs 200 characters (`files/refs.ts` REF_MIN_WIDTH); a narrower column
+ * would store a truncated link on some engines and refuse the write on others.
+ * Nullable, so the create form has nothing extra to satisfy.
  */
 const SHIPPER_FILE_COLUMN = 'document_url';
 
@@ -411,7 +411,7 @@ try {
   expectStatus('login', login, 200);
   const setCookie = login.headers['set-cookie'];
   const cookie = (Array.isArray(setCookie) ? setCookie[0] : setCookie).split(';')[0];
-  // Point the relay at the sink (39-T19). `user: ''` → no AUTH; loopback → plain.
+  // Point the relay at the sink. `user: ''` → no AUTH; loopback → plain.
   const emailSettings = await inject('PUT', '/api/v1/settings/email', {
     cookie,
     payload: { smtp: { host: HOST, port: SMTP_PORT, user: '', from: `E2E <${ADMIN_EMAIL}>`, secure: false } },

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared helpers for the PLANNING archetype templates — `page-board`,
- * `page-calendar`, `page-scheduler` (09-generated-app.md §7.5/§7.6,
- * 04-widget-registry.md §10, annex §14).
+ * `page-calendar`, `page-scheduler` (annex).
  *
  * These templates render a stored page config body (the engine's
  * `composeTemplate` output wrapped by generate/archetype.ts):
@@ -41,7 +40,7 @@ export interface ParsedTemplateConfig {
   layout: PageLayout;
   toolbar: readonly string[];
   overlays: readonly string[];
-  /** True when `config.layout` failed `pageLayoutSchema` (09 §3.1 never-crash). */
+  /** True when `config.layout` failed `pageLayoutSchema` (never-crash). */
   invalid: boolean;
 }
 
@@ -91,9 +90,9 @@ export interface PlanningSource {
 /**
  * The `connectionId` + schema-qualified table a widget's `mutate`/`record-open`
  * events must carry, read STRUCTURALLY from the stored `config.binding`
- * descriptor (04 §5.1 — `binding.source.name` + optional `schema`). `null` for
- * unbound (demo) items: a demo widget must never emit a write against a table
- * that is not there (the boards/calendar family convention).
+ * descriptor (`binding.source.name` + optional `schema`). `null` for unbound
+ * (demo) items: a demo widget must never emit a write against a table that is
+ * not there (the boards/calendar family convention).
  */
 export function planningSourceOf(config: Record<string, unknown>): PlanningSource | null {
   const binding = config['binding'];
@@ -110,14 +109,14 @@ export function planningSourceOf(config: Record<string, unknown>): PlanningSourc
 
 // --- board vocabulary -----------------------------------------------------------
 
-/** Column ids the annex classifies as "Completed" (09 §7.5: drop → pct = 100). */
+/** Column ids the annex classifies as "Completed" (drop → pct = 100). */
 const COMPLETED_COLUMN_RE = /^(done|completed?|closed|shipped|resolved|finished)$/i;
 
 export function isCompletedColumn(columnId: string): boolean {
   return COMPLETED_COLUMN_RE.test(columnId.trim());
 }
 
-// --- roadmap quarter bucketing (09 §7.5) ---------------------------------------
+// --- roadmap quarter bucketing ---------------------------------------
 
 /** `2026-08-14…` → `2026-Q3`; empty for unparseable dates. */
 export function quarterKeyOf(dateIso: string): string {
@@ -171,9 +170,9 @@ function demoStateFor(item: LayoutItem, registry: ReadonlyMap<string, WidgetDefi
 /**
  * Resolve every layout item to a `WidgetDataState`: the host-provided state
  * wins; items the host did not bind fall back to the widget's deterministic
- * `demoData(hash(instanceId))` (04 §5.3 demo mode) — resolved through the
- * offline asset policy exactly like `useDashboardData` does, so desktop demo
- * pages seed the widget that will actually mount.
+ * `demoData(hash(instanceId))` (demo mode) — resolved through the offline
+ * asset policy exactly like `useDashboardData` does, so desktop demo pages
+ * seed the widget that will actually mount.
  */
 export function useTemplateStates(
   layout: PageLayout,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Remote key layout (37-files-and-storage.md D19).
+ * Remote key layout.
  *
  * `<prefix>/<kind>/<yyyy>/<mm>/<file_id>-<safe-name>`
  *

@@ -21,7 +21,7 @@ export interface HarnessOptions {
   /** Return a Response to override the default 200 echo. */
   onPut?: ((body: unknown) => Response | undefined) | undefined;
   generate?: (() => GenerateReply) | undefined;
-  /** Design mode's three POSTs (35 §3.5). Each gets the request body. */
+  /** Design mode's three POSTs. Each gets the request body. */
   onPlan?: ((body: unknown) => Response) | undefined;
   onApply?: ((body: unknown) => Response) | undefined;
   onAdopt?: ((body: unknown) => Response) | undefined;

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Create a local SQLite database and register it (11-electron.md §6 step 2
- * card 1, task 11-T07).
+ * Create a local SQLite database and register it (card 1, task).
  *
- * §6: "Name → slug → creates `<dataDir>/databases/<slug>.sqlite` (WAL, §9).
+ * "Name → slug → creates `<dataDir>/databases/<slug>.sqlite` (WAL).
  * Sub-choice: *Blank* … or *From a schema file* … translated to SQLite DDL and
  * applied; includes the 'Auto-generate placeholder entries' toggle."
  *
@@ -16,8 +15,8 @@
  * `sqlite:/…/new.sqlite` cannot be the implementation of "create a new local
  * database": it fails, and it fails for a good reason. This route is where the
  * file legitimately comes into existence, and it is desktop-only for the same
- * reason `desktop-demo` is — §2.1's "the server is the only data owner" holds,
- * and `<dataDir>` only means something under the shell.
+ * reason `desktop-demo` is — "the server is the only data owner" holds, and
+ * `<dataDir>` only means something under the shell.
  *
  * ─── WHY `better-sqlite3` DIRECTLY AND NOT THROUGH THE ADAPTER ───────────────
  *
@@ -27,7 +26,7 @@
  * SQL-injection review starts at. Creating a file and running a CREATE TABLE
  * script is a different act from serving a connection, so it is spelled
  * differently. `@adminium/adapter-sqlite`'s own pragma helper is reused rather
- * than a second copy of §9's four lines (see `applyDataPragmas` below).
+ * than a second copy of four lines (see `applyDataPragmas` below).
  */
 
 import BetterSqlite3 from 'better-sqlite3';
@@ -41,7 +40,7 @@ import type { ConnectionManager } from '../../connections/manager.js';
 import { emitSqliteDdl, orderTables, quoteIdent, type DdlWarning } from './sqlite-ddl.js';
 import { planPlaceholderRows } from './placeholder.js';
 
-/** §6: `<dataDir>/databases/<slug>.sqlite`. Shared with `desktop-demo`'s copy. */
+/** `<dataDir>/databases/<slug>.sqlite`. Shared with `desktop-demo`'s copy. */
 export const LOCAL_DATABASE_DIR = 'databases';
 
 /**
@@ -75,7 +74,7 @@ export function localDatabaseFile(dataDir: string, slug: string): string {
   return join(resolve(dataDir), LOCAL_DATABASE_DIR, `${slug}.sqlite`);
 }
 
-/** §6: "registered in `adminium_connections` as `sqlite:<absolute path>`". */
+/** "registered in `adminium_connections` as `sqlite:<absolute path>`". */
 export function localDsn(file: string): string {
   return `sqlite:${file}`;
 }
@@ -92,7 +91,7 @@ export interface LocalDatabaseResult {
 
 export interface LocalDatabaseDeps {
   manager: ConnectionManager;
-  /** `ADMINIUM_DATA_DIR` — the database lands under it (§2.2/§6). */
+  /** `ADMINIUM_DATA_DIR` — the database lands under it. */
   dataDir: string;
   /**
    * Parse a schema file into the engine IR. Production passes
@@ -117,7 +116,7 @@ export interface LocalDatabaseInput {
 }
 
 /**
- * §9's four pragmas, applied at creation so the file is WAL from its first byte.
+ * The four pragmas, applied at creation so the file is WAL from its first byte.
  *
  * They are re-applied by `adapter-sqlite`'s data role on every open, which is
  * what actually keeps them true — `journal_mode` is the only one that persists in
@@ -144,7 +143,7 @@ export async function createLocalDatabaseHandler(
 
   // Two different conflicts, and collapsing them would be a lie in one
   // direction or the other: a file already here is the user's data (never
-  // overwritten — §9's ethos is that the app moves data aside and never
+  // overwritten — ethos is that the app moves data aside and never
   // destroys it), while a connection already here is a naming collision.
   if (existsSync(file)) {
     throw new AppError(
@@ -205,11 +204,11 @@ export async function createLocalDatabaseHandler(
       }
     }
 
-    // §9: "`wal_checkpoint(TRUNCATE)` runs on server shutdown so `.sqlite` files
-    // are self-contained at rest." The same reasoning applies the moment this
-    // handle closes: the connection that opens the file next is a different
-    // process' handle in dev, and a user who backs up or copies the file
-    // seconds after the wizard created it should get all of it.
+    // "`wal_checkpoint(TRUNCATE)` runs on server shutdown so `.sqlite` files are
+    // self-contained at rest." The same reasoning applies the moment this handle
+    // closes: the connection that opens the file next is a different process'
+    // handle in dev, and a user who backs up or copies the file seconds after
+    // the wizard created it should get all of it.
     db.pragma('wal_checkpoint(TRUNCATE)');
   } catch (error) {
     db.close();

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `/setup` route, end to end (M10-T04, rewritten by 45-T10 when the
- * two-step wizard became six).
+ * The `/setup` route, end to end (rewritten by when the two-step wizard
+ * became six).
  *
  * Every guarantee the two-step wizard was pinned on still holds and is still
  * asserted here — the routing gate, telemetry defaulting to OFF, the consent

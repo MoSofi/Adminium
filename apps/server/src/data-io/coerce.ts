@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Import-time type coercion (M7-T07): CSV cells are strings; the effective
- * schema's `logicalType` says what the column wants. Coercion is strict —
- * a cell that does not parse is a per-row validation issue, never a silent
- * NULL or NaN — with the two §11.1 auto-resolutions the wizard advertises:
+ * Import-time type coercion: CSV cells are strings; the effective schema's
+ * `logicalType` says what the column wants. Coercion is strict — a cell
+ * that does not parse is a per-row validation issue, never a silent NULL
+ * or NaN — with the two auto-resolutions the wizard advertises:
  * surrounding whitespace is trimmed, and empty cells map to NULL for
  * nullable columns.
  */
@@ -115,7 +115,7 @@ export function coerceCell(raw: string, column: ResolvedColumn): CoercionResult 
           message: `${JSON.stringify(text)} is not an ISO date (use YYYY-MM-DD[ HH:mm[:ss]][Z])`,
         };
       }
-      // §11.1 auto-resolution: normalize to ISO; `date` keeps the date part.
+      // Auto-resolution: normalize to ISO; `date` keeps the date part.
       return { ok: true, value: column.logicalType === 'date' ? iso.slice(0, 10) : iso };
     }
     case 'json': {

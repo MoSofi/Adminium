@@ -3,7 +3,7 @@
  * The four data blocks (comp 317-320): the KPI row, the bar chart, the line
  * chart and the two-column table. All four hold LITERALS — a report is typed,
  * never computed; binding a block to a page's data or a 36 measure is a
- * candidate for a later wave (43 §5 item 7).
+ * candidate for a later wave.
  *
  * THE GEOMETRY IS THE COMP'S, NOT A CHART LIBRARY'S (D7). `@adminium/charts`'
  * `sparkLine`/`sparkBars` pad differently from these four lines, and the

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The aggregated set of Wave-1 widget definitions the QA harness (04-T17) runs
- * against — determinism, config-fuzz, four-state, story, and parity checks all
- * iterate this list.
+ * The aggregated set of Wave-1 widget definitions the QA harness runs against
+ * — determinism, config-fuzz, four-state, story, and parity checks all iterate
+ * this list.
  *
  * WHY THIS EXISTS SEPARATELY FROM `registry/index.ts`: the per-track definition
  * arrays (`barsRankingChartDefinitions`, `feedsTrackFDefinitions`, …) are
@@ -44,20 +44,20 @@ import type { WidgetDefinition, WidgetFamily } from '../registry/types.js';
 
 /** Every per-track definition array delivered so far, in family order. */
 const DELIVERED_ARRAYS: readonly (readonly WidgetDefinition[])[] = [
-  // kpi (M4 slice + the M7 Wave-4 tail — annex §1 complete, 10/10)
+  // kpi (M4 slice + the M7 Wave-4 tail — annex complete, 10/10)
   kpiWidgetDefinitions,
-  // charts (M4 slice + 04-T09 waves)
+  // charts (M4 slice + waves)
   chartsWidgetDefinitions,
   barsRankingChartDefinitions,
   distributionCorrelationChartDefinitions,
   partWholeChartDefinitions,
   matrixGeoChartDefinitions,
   timeFlowChartDefinitions,
-  // tables (M4 slice + Track F + the M7 Wave-4 TAIL that completes annex §3)
+  // tables (M4 slice + Track F + the M7 Wave-4 TAIL that completes annex)
   tablesWidgetDefinitions,
   tablesTrackFDefinitions,
   tablesTailDefinitions,
-  // feeds (Track F + the M7 Wave-4 tail — annex §4 complete, 7/7)
+  // feeds (Track F + the M7 Wave-4 tail — annex complete, 7/7)
   feedsTrackFDefinitions,
   // calendar (Track CAL — M7 Wave 2 + the Wave-4 tail: legend filter, upcoming
   // feed, date-range-picker control, scheduled-jobs list)
@@ -75,21 +75,21 @@ const DELIVERED_ARRAYS: readonly (readonly WidgetDefinition[])[] = [
   communicationTrackDefinitions,
   // domain (Track DOMAIN — M7 Wave 3; the two exit-criteria widgets)
   domainTrackDefinitions,
-  // domain (TRACK BUILDER — M7 Wave 4; the §13 DOCUMENT half: `document-canvas`
+  // domain (TRACK BUILDER — M7 Wave 4; the DOCUMENT half: `document-canvas`
   // and its 22-block shared library. Metadata only: the blocks load through
   // `blocks-track-components.js` behind a dynamic import, so importing this
   // array costs no component code — acceptance #3.)
   blocksTrackDefinitions,
-  // domain (TRACK OPS — M7 Wave 4; the §13 OPS/billing/API/marketing tail: the
+  // domain (TRACK OPS — M7 Wave 4; the OPS/billing/API/marketing tail: the
   // eighteen ids that close the annex catalog. Metadata only, same as above —
   // the cards load through `domain-ops-track-components.js` behind a dynamic
   // import, so importing this array costs no component code.)
   domainOpsTrackDefinitions,
-  // system (Track FCS — M7 Wave 3; annex §12)
+  // system (Track FCS — M7 Wave 3; annex)
   systemTrackDefinitions,
-  // chrome (Track FCS — M7 Wave 3; annex §11)
+  // chrome (Track FCS — M7 Wave 3; annex)
   chromeTrackDefinitions,
-  // forms (Track FCS — M7 Wave 3; annex §10)
+  // forms (Track FCS — M7 Wave 3; annex)
   formsTrackDefinitions,
 ];
 

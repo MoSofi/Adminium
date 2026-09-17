@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * In-process single-use undo store for an LLM apply (06-llm-assist.md §8.3 /
- * §10.3 "success toast with Undo").
+ * In-process single-use undo store for an LLM apply.
  *
  * `applyRun` captures a full before-image ({@link ApplyUndo}) inside its write
  * transaction; the apply route parks that image here under a `llmundo_<hex>`
@@ -11,7 +10,7 @@
  *
  * Mirrors the CRUD `UndoStore` (crud/undo.ts): tokens are SHA-256-indexed,
  * single-use, expire after the toast window, and record the issuing user so only
- * the applier may undo. Single-process topology per 08-server-api.md §6.
+ * the applier may undo. Single-process topology.
  */
 
 import { createHash, randomBytes } from 'node:crypto';

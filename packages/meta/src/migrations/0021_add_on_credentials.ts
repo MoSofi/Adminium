@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0021 — `adminium_add_on_credentials`: the secret a connected add-on was
- * given, and nothing else (26-add-on-runtime.md §4, D2, D5).
+ * given, and nothing else.
  *
  * ─── One row per connected add-on ──────────────────────────────────────────
  *
@@ -35,11 +35,11 @@
  *
  * ─── D5: disconnect deletes this row, and only this row ────────────────────
  *
- * 24 D16 / 26 D5 — disconnecting keeps every table the add-on brought and
- * destroys the keys. That is a DELETE here plus nothing anywhere else, which is
- * a property the schema should make easy to get right: this table holds only
- * secrets, so "delete the secrets" is one statement and cannot take data with
- * it by accident.
+ * Disconnecting keeps every table the add-on brought and destroys the keys.
+ * That is a DELETE here plus nothing anywhere else, which is a property the
+ * schema should make easy to get right: this table holds only secrets, so
+ * "delete the secrets" is one statement and cannot take data with it by
+ * accident.
  *
  * The FK cascades for the uninstall path — a credential outliving its manifest
  * is an orphaned secret nothing can reach to revoke, which is strictly worse

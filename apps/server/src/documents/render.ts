@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * THE RENDER PIPELINE (34-invoices-add-on.md §7.3, D8; 34-T11).
+ * THE RENDER PIPELINE.
  *
  * One function, called from two places, and that is the whole shape of the
  * file:
@@ -23,7 +23,7 @@
  *      failure: an operator who turned a profile off has not caused an error.
  *   2. Find the provider BY THE PROFILE'S ADD-ON KEY. Not `resolveProvider`,
  *      which picks the lowest key and would render an invoice through a
- *      barcode add-on (§0.3 trap 11).
+ * barcode add-on (trap 11).
  *   3. Read the source row and its children with the REQUESTER'S grants
  *      (D16) — never with ambient authority, because a triggered render runs
  *      as whoever wrote the row.
@@ -107,7 +107,7 @@ export interface RenderDeps {
     connectionId: string | null,
   ) => Promise<{ currency: string; timezone: string }>;
   /**
-   * Where step 8's delivery reports itself (§7.7).
+   * Where step 8's delivery reports itself.
    *
    * Optional because the outcome is written to the register row either way —
    * the log is for an operator watching a queue, and its absence costs
@@ -224,7 +224,7 @@ export async function renderDocument(
   if (provider === null) {
     /*
      * The add-on is uninstalled, disabled, or failed to load. SKIP, not fail:
-     * §7.10 disables a profile in the same transaction as an uninstall, so
+     * A profile is disabled in the same transaction as an uninstall, so
      * reaching here means a job was already in flight when that happened —
      * an ordinary race, not a fault anybody can act on.
      */
@@ -281,9 +281,9 @@ export async function renderDocument(
     row: source.row,
     collections: source.collections,
     lookups: source.lookups,
-    // §3.7 step 4 — the values somebody typed into the mapping rather than
-    // pointing at a column. Absent on every profile made before the editor
-    // offered them, which `buildSubject` reads as "nothing typed".
+    // The values somebody typed into the mapping rather than pointing at a
+    // column. Absent on every profile made before the editor offered them,
+    // which `buildSubject` reads as "nothing typed".
     ...(options.literals === undefined ? {} : { values: options.literals }),
     now: { iso: new Date(at).toISOString(), timezone: source.timezone },
     locale,
@@ -388,7 +388,7 @@ export async function renderDocument(
   );
 
   /*
-   * 8 — DELIVERY, after the audit row and after the number (§7.7).
+   * 8 — DELIVERY, after the audit row and after the number.
    *
    * Last on purpose. Every earlier step is what makes the document exist, and
    * this one is about what happens to it afterwards: an email that cannot be
@@ -416,7 +416,7 @@ export async function renderDocument(
   return { status: 'rendered', document: done! };
 }
 
-// --- the request-shaped intent (D15; §7.6) -----------------------------------------
+// --- the request-shaped intent (D15) -----------------------------------------
 
 export interface IntentRequest {
   /** Which kind to draw. The provider is resolved from it — see below. */
@@ -426,7 +426,7 @@ export interface IntentRequest {
   collections: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
   /** The connection whose currency and number sequence this borrows (D11). */
   connectionId: string | null;
-  /** Stamped LAST, so a failure leaves no claimable row (§7.6). */
+  /** Stamped LAST, so a failure leaves no claimable row. */
   claim?: { column: string; value: string } | undefined;
   requestedBy?: string | null;
   actorKind?: string;
@@ -570,10 +570,10 @@ export async function renderIntent(
   await documents.markDelivery(document.id, 'pending-review');
 
   /*
-   * The CLAIM, last (§7.6). A row that failed to draw must not be claimable:
-   * stamping it first would leave a `failed` document a customer can list, and
-   * "your invoice could not be made" is a sentence the operator should say, not
-   * a status a stranger discovers.
+   * The CLAIM, last. A row that failed to draw must not be claimable: stamping
+   * it first would leave a `failed` document a customer can list, and "your
+   * invoice could not be made" is a sentence the operator should say, not a
+   * status a stranger discovers.
    */
   if (request.claim !== undefined) await documents.stampClaim(document.id, request.claim);
 

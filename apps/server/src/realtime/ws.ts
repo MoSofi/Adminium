@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * WebSocket gateway `GET /ws` (08-server-api.md §3, M2-T07). JSON frames:
+ * WebSocket gateway `GET /ws`. JSON frames:
  *
  *   client → server: { op: "subscribe" | "unsubscribe", channel } | { op: "ping" }
  *   server → client: { channel, type, data, ts } events,
  *                    { op: "pong" } | { op: "subscribed" | "unsubscribed", channel }
  *                    | { op: "error", code, channel? }
  *
- * (`sub`/`unsub` are accepted as aliases per the §3 protocol sketch.)
+ * (`sub`/`unsub` are accepted as aliases per the protocol sketch.)
  * Unauthenticated upgrades are rejected pre-handshake; channel authorization
  * runs at subscribe time via `authorizeChannel`. Hygiene: protocol-level ping
  * every 30 s (dropped after 2 missed pongs), ≤ 64 channels per socket.
@@ -15,7 +15,7 @@
  * The `@fastify/websocket` plugin must be registered before this route —
  * `registerJobsAndRealtime` (jobs/register.ts) does both.
  *
- * ─── Origin check on the upgrade (§7 item 4) ─────────────────────────────────
+ * ─── Origin check on the upgrade ─────────────────────────────────────────────
  *
  * This is the leg where the passive CSRF defences give the least cover, and
  * the one a prefix-scoped defence misses: `/ws` hangs off the ROOT app, not
@@ -31,9 +31,9 @@
  * `WebSocket` constructor cannot set headers, and smuggling a token through
  * the query string would put a credential in every access log and referrer.
  * `Origin` is the one signal browsers are REQUIRED to send on a handshake
- * (RFC 6455 §4.1), so it is the right and sufficient control. A handshake with
- * no `Origin` at all is a non-browser client (a CLI, a test, a service) and
- * had to obtain the session cookie some other way.
+ * (RFC 64), so it is the right and sufficient control. A handshake with no
+ * `Origin` at all is a non-browser client (a CLI, a test, a service) and had
+ * to obtain the session cookie some other way.
  */
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -92,7 +92,7 @@ export function registerWsRoute(app: FastifyInstance, deps: RealtimeGatewayDeps)
     {
       websocket: true,
       // Runs before the upgrade completes — a thrown 401/403 rejects the
-      // handshake with the standard error envelope (§3 "pre-handshake").
+      // handshake with the standard error envelope.
       preValidation: async (request) => {
         // Order matters: a foreign page learns nothing about whether the
         // visitor even has a session here.

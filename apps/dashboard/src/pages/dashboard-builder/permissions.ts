@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard-builder edit-permission gate (04-widget-registry.md §6.3).
+ * Dashboard-builder edit-permission gate.
  *
  * Two editing paths, resolved from the SERVER's per-page `page:<pageId>:edit`
  * capability (delivered on the page document as `canEditLayout`, computed by

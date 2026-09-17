@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The manager's view-model helpers (39-email-templates-and-campaigns.md
- * Appendix A §M4–M6): a document's derived status, the language facts behind
- * the lang pill, the comp's search and grouping rules.
+ * The manager's view-model helpers: a document's derived status,
+ * the language facts behind the lang pill, the comp's search and grouping
+ * rules.
  *
- * STATUS IS DERIVED, never stored (39 D2). A template is live when it is
- * enabled; a campaign's pill is its latest run — no run yet is a draft, and a
- * cancelled run reads as one too because the campaign is back to being
- * editable copy that nobody has received.
+ * STATUS IS DERIVED, never stored. A template is live when it is enabled; a
+ * campaign's pill is its latest run — no run yet is a draft, and a cancelled
+ * run reads as one too because the campaign is back to being editable copy
+ * that nobody has received.
  */
 import { LOCALES, isLocaleId, localeEntry } from '@adminium/i18n';
 import type { Tone } from '@adminium/ui';
@@ -78,8 +78,8 @@ export function categoryLabel(category: EmailCategory): string {
 /**
  * The card's second line (comp 1385): a template shows its subject; a
  * campaign that has gone out shows its counts — "N sent · M failed", opens
- * being refused (39 D12) — one going out right now shows the job's progress,
- * and one that has not shows its category.
+ * being refused — one going out right now shows the job's progress, and one
+ * that has not shows its category.
  */
 export function cardMeta(doc: EmailDocumentSummary, progress: RunProgress | null = null): string {
   if (doc.kind === 'template') return doc.subject;

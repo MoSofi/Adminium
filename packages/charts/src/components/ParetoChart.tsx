@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-pareto` primitive (research/widget-registry.md §2): sorted bars + a
+ * `chart-pareto` primitive (research/widget-registry.md): sorted bars + a
  * cumulative-% accent line with an optional 80% cutline. Composed from
  * ChartSurface + pure `layoutPareto` geometry (deterministic path strings).
  * Bars grow from the baseline on mount; the line fades in; token-only colors;

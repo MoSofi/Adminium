@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Undo-token pattern (08-server-api.md §2.7.3): mutations execute
- * immediately; before-images are captured in the same transaction; the
- * reply carries a single-use `undo_<ulid>` token; `POST /data/undo/:token`
- * runs compensating writes.
+ * Undo-token pattern: mutations execute immediately; before-images are
+ * captured in the same transaction; the reply carries a single-use
+ * `undo_<ulid>` token; `POST /data/undo/:token` runs compensating writes.
  *
  * Memory + meta hybrid: the live token index is in-process (single-process
- * topologies per 08 §6) keyed by SHA-256 of the token; the full undo
- * payload also lands in the audit row (`changes.undo`) for tamper-evidence
- * and post-mortems. Tokens expire after 60 s (§2.7.3 step 2).
+ * topologies) keyed by SHA-256 of the token; the full undo payload also
+ * lands in the audit row (`changes.undo`) for tamper-evidence and
+ * post-mortems. Tokens expire after 60 s.
  */
 
 import { createHash, randomBytes } from 'node:crypto';
@@ -21,7 +20,7 @@ export type UndoAction = 'create' | 'update' | 'delete';
 
 export interface UndoEntry {
   auditId: string | null;
-  /** Only the issuing user may undo (§2.7.3 step 4). */
+  /** Only the issuing user may undo. */
   userId: string;
   connectionId: string;
   /** Snapshot table id, e.g. `public.orders`. */
@@ -35,7 +34,7 @@ export interface UndoEntry {
   /** Update undo: the column set to compare + restore ([] = all columns). */
   changedColumns: string[];
   /**
-   * Files trashed alongside this write (37-files-and-storage.md D12).
+   * Files trashed alongside this write.
    *
    * They are here rather than re-derived at undo time because once the row is
    * deleted there is nothing left to derive them FROM: the column values that
@@ -107,8 +106,8 @@ export class UndoStore {
 }
 
 /**
- * Value-normalizing row comparison for the unchanged-since-mutation check
- * (§2.7.3 step 4). Dates round-trip as ISO strings; bigints as strings.
+ * Value-normalizing row comparison for the unchanged-since-mutation
+ * check. Dates round-trip as ISO strings; bigints as strings.
  */
 function normalize(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();

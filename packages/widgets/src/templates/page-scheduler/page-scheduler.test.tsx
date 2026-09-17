@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * page-scheduler template tests (09-generated-app.md §7.6, M7-T03 modal→grid
- * fix): record-list shift rows map into the interactive matrix via the stored
+ * page-scheduler template tests (modal→grid fix): record-list shift rows map
+ * into the interactive matrix via the stored
  * `personColumn`/`dateColumn`/`typeColumn` vocabulary, a chip click cycles the
  * shift type (PATCH intent) with optimistic apply + rollback, cycling past the
  * last type deletes, an empty slot inserts, coverage flags zero days, week nav

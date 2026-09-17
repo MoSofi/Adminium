@@ -50,7 +50,7 @@ export interface UserRoleRef {
   name: string;
 }
 
-/** Public projection of `adminium_users` — never hashes or secrets (07 §7.6). */
+/** Public projection of `adminium_users` — never hashes or secrets. */
 export interface UserDto {
   id: string;
   email: string;

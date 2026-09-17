@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the scheduled-reports resource (M7 reports track,
- * 07-meta-store.md §3.24). Schedule/recipients/format vocabularies come from
- * meta's payload schemas — one authority, no drift.
+ * Zod schemas for the scheduled-reports resource (M7 reports track).
+ * Schedule/recipients/format vocabularies come from meta's payload schemas —
+ * one authority, no drift.
  */
 import { z } from 'zod';
 import { reportFormatSchema, reportRecipientsSchema, reportScheduleSchema } from '@adminium/meta';
@@ -16,7 +16,7 @@ export const scheduledReportView = z.object({
   name: z.string(),
   schedule: reportScheduleSchema,
   recipients: reportRecipientsSchema,
-  /** §3.24 stored INTENT (`pdf | png`); v1 delivers a CSV data snapshot. */
+  /** Stored INTENT (`pdf | png`); v1 delivers a CSV data snapshot. */
   format: reportFormatSchema,
   enabled: z.boolean(),
   lastRunAt: z.number().nullable(),

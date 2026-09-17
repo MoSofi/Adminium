@@ -11,7 +11,7 @@ export type DeltaTrend = 'up' | 'down' | 'flat';
 
 /**
  * Trend pill: trending-up/down/flat Lucide icon + a mono % value, tones
- * pos/danger/muted (research/design-system.md §3 Tier 1).
+ * pos/danger/muted (research/design-system.md Tier 1).
  */
 export const deltaPillVariants = cva(
   'inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10.5px] font-bold leading-none',

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * readJson must accept BOTH driver shapes (07-meta-store.md §2.1 repos own
- * JSON round-tripping):
+ * readJson must accept BOTH driver shapes (repos own JSON round-tripping):
  *  - serialized text — SQLite `text` columns always, or pg/mysql2 configured
  *    for JSON-as-string;
  *  - driver-decoded values — `pg` parses `jsonb` and `mysql2` parses `json`

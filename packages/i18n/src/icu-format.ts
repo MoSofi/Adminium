@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ICU i18nFormat module for i18next, built directly on intl-messageformat's
- * NAMED export (10-i18n-theming.md §2.3).
+ * NAMED export.
  *
  * Replaces `i18next-icu`, whose ESM build does `import IntlMessageFormat from
  * 'intl-messageformat'` — under Node ESM that default resolves to the CJS
@@ -39,7 +39,7 @@ export class IcuFormat {
         // Never throw at render time. The console warning is for developers;
         // the ring is what the Translations editor reads, because the person
         // who broke an admin-authored message is not looking at devtools
-        // (23 §4.5).
+        // .
         console.warn(`[adminium/i18n] ICU parse failed for "${key}":`, error);
         recordFormatFailure({
           key,
@@ -61,7 +61,7 @@ export class IcuFormat {
     if (typeof res !== 'string' || !res.includes('{')) return res;
     try {
       // The tag handed to ICU is the locale's INTL tag, not i18next's active
-      // language (23 §4.5). For the compiled eight they are the same string;
+      // language. For the compiled eight they are the same string;
       // for an admin-created locale they are not, and using `lng` there means
       // ICU has no plural data for the tag and silently resolves every
       // message to `other` — with nothing thrown and nothing logged. The

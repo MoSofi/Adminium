@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `describeFileDriver` — the driver contract, run identically against every
- * implementation (37-files-and-storage.md D30, 37-T04/T05/T06).
+ * implementation.
  *
  * WHY ONE SUITE AND NOT THREE. Everything above the driver interface — the
  * store facade, the routes, the retention sweep, the migrate job — is written
- * once. "The same e2e passes against three drivers" is an acceptance criterion
- * (§6 item 2), and it can only be a criterion if the drivers are held to one
+ * once. "The same e2e passes against three drivers" is an acceptance
+ * criterion, and it can only be a criterion if the drivers are held to one
  * definition of correct. Three hand-written suites would drift, and the leg
  * that drifts is always the one nobody runs locally.
  *

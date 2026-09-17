@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 5 — bring your team (45-onboarding.md §2).
+ * Step 5 — bring your team.
  *
  * The case that matters is the one a fresh `npx` install always hits: no SMTP,
  * so the invitation comes back with `emailSent: false` and a link that is shown

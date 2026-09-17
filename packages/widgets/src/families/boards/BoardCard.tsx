@@ -14,8 +14,8 @@ export { boardCardConfigSchema, boardCardDemoData };
 export type { BoardCardConfig };
 
 /**
- * `board-card` presentational body (annex §6) — the draggable card's contents:
- * a tone/lane-tinted tag pill, a grip affordance, the bold title, optional
+ * `board-card` presentational body (annex) — the draggable card's contents: a
+ * tone/lane-tinted tag pill, a grip affordance, the bold title, optional
  * client/points/priority rows, a percent label + column-toned progress bar, a
  * gradient-initials owner avatar, a due chip, and the mono card id. Purely
  * presentational: dragging/keyboard live in the shell (`DraggableCard`), so this

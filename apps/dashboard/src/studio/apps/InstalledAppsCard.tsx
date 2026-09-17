@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The installed-apps list, ported from `Marketplace.dc.html`'s manage screen
- * (47-app-installation.md step 3).
+ * The installed-apps list, ported from `Marketplace.dc.html`'s manage
+ * screen.
  *
  * The comp's row: app tile, name, version pill, "category · installed <when>",
  * an open link, and Uninstall.
@@ -10,7 +10,7 @@
  * its update pills — it is the installed package's own manifest, so a bundled
  * or uploaded app has one too, not only a listed one.
  *
- * ─── Updates (48 §6b G8-D6/D7) ──────────────────────────────────────────────
+ * ─── Updates (b G8-D6/D7) ───────────────────────────────────────────────────
  *
  * The comp's update elements now have a source: the header's "N updates
  * available" pill, the row's "Update to vX" pill beside the version, and the
@@ -274,8 +274,8 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
         /*
          * The tables are NOT mentioned as being removed, because they are not.
          * Uninstall drops the bundle and the record; what an install created in
-         * the operator's own database stays theirs — 24 D16 / 26 D5, disabling
-         * never destroys data.
+         * the operator's own database stays theirs, disabling never destroys
+         * data.
          */
         body={t(
           'studio:hostedApps.installed.confirmBody',

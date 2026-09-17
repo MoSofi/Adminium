@@ -51,7 +51,7 @@ export interface PasswordStrengthProps extends ComponentPropsWithRef<'div'> {
 
 /**
  * PasswordStrength — segmented 4-bar meter + tone-colored label, injectable
- * scoring (research/design-system.md §3 Tier 3, Auth screens). Announces via
+ * scoring (research/design-system.md Tier 3, Auth screens). Announces via
  * `role="meter"`; the label updates in an `aria-live` region.
  */
 export function PasswordStrength({

@@ -1,6 +1,6 @@
 # Fly.io — Adminium on a persistent volume holding the embedded SQLite meta
-# store, files, and backups. Fly routes to `internal_port`; Adminium defaults to
-# 4600, so no PORT juggling is needed.
+# store, files, installed apps and add-ons, and backups. Fly routes to
+# `internal_port`; Adminium defaults to 4600, so no PORT juggling is needed.
 #
 # ADMINIUM_SECRET is NOT in this file on purpose — secrets never belong in a
 # committed manifest. Set it once, before the first deploy, and never change it
@@ -11,7 +11,7 @@
 #   fly deploy
 #
 # DRAFT: authored against the published image; not yet validated by a live Fly
-# deploy (workplan 17-T17 / owner step).
+# deploy (workplan / owner step).
 app = "adminium"
 primary_region = "iad"
 

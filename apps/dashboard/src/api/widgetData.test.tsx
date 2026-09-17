@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Widget-data batch binding (04 §5, 09 §4.1): descriptor extraction from the
- * dashboard layout, batch dedupe (one round trip per page mount), and the
- * per-item error → per-widget error state mapping — a failing item or a
- * failing batch never crashes the page.
+ * Widget-data batch binding: descriptor extraction from the dashboard
+ * layout, batch dedupe (one round trip per page mount), and the per-item
+ * error → per-widget error state mapping — a failing item or a failing batch
+ * never crashes the page.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';

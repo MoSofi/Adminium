@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * An in-process S3-protocol server for the driver conformance suite
- * (37-files-and-storage.md D30, 37-T05).
+ * An in-process S3-protocol server for the driver conformance
+ * suite.
  *
  * WHAT THIS PROVES, AND WHAT IT DOES NOT.
  *
  * It does NOT prove signature interop. Re-implementing SigV4 here to check the
  * signature would be checking the signer against itself; that is what the
  * published AWS vectors (`files-sigv4.test.ts`) and the MinIO leg in CI
- * (`TEST_S3_URL`, 37-T09) are for, and neither is replaced by this.
+ * (`TEST_S3_URL`) are for, and neither is replaced by this.
  *
  * It DOES prove the half a vector cannot: that the driver puts the right URL
  * on the wire for both addressing styles, that a streamed PUT arrives

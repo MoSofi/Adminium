@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The first-boot source-connection seed (28-public-surface.md 28-T31).
+ * The first-boot source-connection seed.
  *
  * `ADMINIUM_SOURCE_URL` names the database the back office is generated FROM.
  * On a boot that has never had a healthy seed, this creates the connection,
- * introspects it, and generates the pages — the chain `adminium init` walks
+ * introspects it, and generates the pages — the chain `adminium try` walks
  * interactively (`cli/commands/init.ts`: `testDsn` → `connections.create` →
  * `runIntrospection` → `runGeneration`), driven from configuration instead of
  * from prompts. It calls those same four functions rather than reimplementing

@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * reportDocumentsRepo — adminium_report_documents (43-report-builder.md
- * §3.2; wave 0030). One table, two kinds: a `template` is a reusable layout,
- * a `report` is a document built from one or from scratch. Both carry the
- * same envelope in `body`; the row's `kind`, `name`, `status` and `starter`
- * are columns.
+ * reportDocumentsRepo — adminium_report_documents (wave 0030). One table,
+ * two kinds: a `template` is a reusable layout, a `report` is a document
+ * built from one or from scratch. Both carry the same envelope in `body`;
+ * the row's `kind`, `name`, `status` and `starter` are columns.
  *
  * NOT `scheduledReportsRepo`. That one (`adminium_scheduled_reports`, prefix
  * `rep`) is the recurring CSV snapshot of a page. This one is the report
  * BUILDER's authored source, prefix `rpt` — the two share only the English
- * word (43 §0.3 traps 1 and 7).
+ * word (traps 1 and 7).
  *
  * `body` is the OPEN record (`reportBodySchema`); the concrete field shape is
  * owned by `apps/server/src/report-documents/document.ts` — the repo validates
@@ -27,7 +26,7 @@
  *                        directly after its source, comp `duplicate` 555)
  *
  * There is no third placement: this comp has no language variations and no
- * topics (43 §5 item 3), so no family for a row to join.
+ * topics, so no family for a row to join.
  *
  * A source that no longer exists is placed at the end rather than refused:
  * the route has already answered 404 for a missing row, so the fallback only
@@ -56,9 +55,9 @@ export interface ReportDocument {
   kind: ReportDocumentKind;
   name: string;
   status: ReportStatus;
-  /** Which starter minted it; null for blank documents (43 D14). */
+  /** Which starter minted it; null for blank documents. */
   starter: string | null;
-  /** The template a report was built from (43 D6); null otherwise. */
+  /** The template a report was built from; null otherwise. */
   originId: string | null;
   /** The manager's sort key within the kind. */
   position: number;
@@ -241,7 +240,8 @@ export function reportDocumentsRepo(meta: MetaDb) {
       return await findById(id);
     },
 
-    /** Hard delete — this surface has no archive (the comp's `doDelete`, 560; 43 D8). */
+    /** Hard delete — this surface has no archive (the comp's `doDelete`, 560).
+     * */
     async removeById(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_report_documents').where('id', '=', id).executeTakeFirst();
       return affected(res.numDeletedRows as bigint | undefined) === 1;

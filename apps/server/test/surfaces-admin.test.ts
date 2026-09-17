@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `routes/surfaces-admin` (29-app-surfaces.md §3.1, 29-T17): the surface list,
- * the placement toggle, and domain attachment — including the property the
- * whole write path exists for: a saved mapping takes effect on the NEXT
- * request, because the route invalidates the same cache Host routing reads.
+ * `routes/surfaces-admin`: the surface list, the placement toggle, and domain
+ * attachment — including the property the whole write path exists for: a saved
+ * mapping takes effect on the NEXT request, because the route invalidates the
+ * same cache Host routing reads.
  */
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * MySQL table-statistics collector — 06-llm-assist.md §4.2.
+ * MySQL table-statistics collector.
  *
  * Cheap-first strategy (sample-free by default): row-count from
  * `information_schema.TABLES.TABLE_ROWS` (the InnoDB estimate) with an exact

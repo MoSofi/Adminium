@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A real app bundle, built in the test (47-app-installation.md step 1).
+ * A real app bundle, built in the test.
  *
  * The install path's first defence is `archive.ts`'s hardened USTAR allowlist,
  * so a fixture that is not a genuine npm-shaped tarball would be refused before

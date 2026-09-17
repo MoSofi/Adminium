@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The editing surface every canvas block and inspector field group speaks to
- * (43-report-builder.md §3.5, Appendix A/B). One interface, implemented once
- * by the editor's `useDocumentEdits`, so the 25 field groups and the 25
- * canvas blocks never touch the draft hook directly.
+ * (/B). One interface, implemented once by the editor's `useDocumentEdits`,
+ * so the 25 field groups and the 25 canvas blocks never touch the draft hook
+ * directly.
  *
  * TWO TEMPOS, THE COMP'S (523-525): `beginEdit` records a history step and is
  * called on FOCUS, so a run of keystrokes in one field is one undo; the plain

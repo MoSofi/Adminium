@@ -2,17 +2,16 @@
 /**
  * The seeded document and the twelve starters behind the New modal — the
  * comp's `base()` (1083-1115), `starterDefs()` (1117-1130), `fromStarter`
- * (1136) and `createBlank` (1383), re-themed under 34-invoices-add-on.md
- * Appendix D.2 (34-T46, Appendix G).
+ * (1136) and `createBlank` (1383), re-themed.2.
  *
  * WHAT CHANGED FROM THE COMP, AND WHY. The comp's default document is the
  * vendor invoicing a customer for seats and credits, over the vendor's own
- * letterhead — 24 D12 ("this add-on names no company") and 17 §2 head-on,
- * as product content rather than as copy. Every seeded string here is a
- * neutral fictional seller (Orchard Lane Studio) selling neutral goods to a
- * fictional customer, and none names Adminium, a real company, or a
- * subscription/seat/credit line item. The words the 17 §2 sweep would catch
- * are spelled out in Appendix D.2; `invoice-starters.test.ts` greps every
+ * letterhead — ("this add-on names no company") head-on, as product content
+ * rather than as copy. Every seeded string here is a neutral fictional
+ * seller (Orchard Lane Studio) selling neutral goods to a fictional
+ * customer, and none names Adminium, a real company, or a
+ * subscription/seat/credit line item. The words the sweep would catch are
+ * spelled out in Appendix D.2; `invoice-starters.test.ts` greps every
  * string here for them, and for the vendor's name.
  *
  * A starter is a PATCH over the base (`fromStarter`): it never touches
@@ -57,7 +56,7 @@ export function isInvoiceStarterKey(value: unknown): value is InvoiceStarterKey 
 /** The comp's nine categories (Appendix G), as the lowercase keys the card carries. */
 export type StarterCategory = 'business' | 'payments' | 'adjustments' | 'sales' | 'recurring' | 'services' | 'projects' | 'shipping' | 'nonprofit';
 
-/** The family a starter's row joins (34 §3.9 `topic`); blank documents are `other`. */
+/** The family a starter's row joins (`topic`); blank documents are `other`. */
 export type StarterTopic = 'recurring' | 'services' | 'receipts' | 'sales' | 'logistics';
 
 /** What the New modal shows per card (comp 123-136). */

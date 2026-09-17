@@ -1,4 +1,4 @@
-# RTL audit — @adminium/ui components (M1-T06/M1-T07, 2026-07-13)
+# RTL audit — @adminium/ui components (2026-07-13)
 
 Scope: all 61 component directories under `packages/ui/src/components/` plus
 `src/lib`, `src/theme`, `src/styles`, `.storybook`. Method: grep sweeps for
@@ -32,7 +32,7 @@ rounded-s`) are used consistently everywhere a side matters.
 | `Pagination` | `ChevronLeft`/`ChevronRight` prev/next | `rtl:-scale-x-100` on both | OK |
 | `DeltaPill` | trend arrow | `rtl:-scale-x-100` | OK |
 | `Select`, `Combobox`, `NumberStepper` | `ChevronDown`/`ChevronUp` | vertical — no mirroring needed (correct) | OK |
-| Button stories | `ArrowRight` in "Continue" | `rtl:-scale-x-100` at call site (per §3.4 the consumer mirrors semantic-direction icons) | OK |
+| Button stories | `ArrowRight` in "Continue" | `rtl:-scale-x-100` at call site (the consumer mirrors semantic-direction icons) | OK |
 
 ## Directional animation & layout
 
@@ -68,5 +68,5 @@ tooltip, two-phase-modal.
 2. `DateInput`/`TimeInput` render native pickers; the popup calendar is
    browser chrome and follows the page `dir` — nothing to do in-library, but
    the M8 i18n audit should verify week-start handling at the app layer.
-3. `Kbd` shortcut glyphs (⌘K etc.) are deliberately **not** mirrored
-   (15-quality.md §8.3 "unmirrored shortcuts") — current behavior correct.
+3. `Kbd` shortcut glyphs (⌘K etc.) are deliberately **not** mirrored —
+   current behavior correct.

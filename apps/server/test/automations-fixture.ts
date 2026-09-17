@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The fixture the automations suites read: the four tables the OWNER'S OWN
- * EXAMPLES need (42-automations-and-workflow-logs.md Appendix C), and nothing
- * else.
+ * EXAMPLES need, and nothing else.
  *
  *   users                        the sign-up trigger, with a watchable
  *                                `created_at` and an `updated_at`
@@ -151,11 +150,10 @@ export function automationsModel(): DatabaseModel {
         to: { tableId: 'main.users', columns: ['id'] },
       },
       /*
-       * Two edges the child-table picker must NOT offer (34 §3.7 step 3).
-       * The pipeline reads children with `where <fk> = row[primaryKey[0]]`, so
-       * each of these is a join a stored mapping cannot express — and a picker
-       * that offered one would fill a collection with the wrong rows and look
-       * like it worked.
+       * Two edges the child-table picker must NOT offer. The pipeline reads
+       * children with `where <fk> = row[primaryKey[0]]`, so each of these is a
+       * join a stored mapping cannot express — and a picker that offered one
+       * would fill a collection with the wrong rows and look like it worked.
        */
       {
         id: 'fk_appointments_users_composite',

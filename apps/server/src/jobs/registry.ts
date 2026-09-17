@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Typed job-handler registry (08-server-api.md §2.17 job kinds, M2-T07).
- * Each kind pairs a Zod payload schema with an async handler; the worker
- * parses the stored payload against the schema before every run (the queue
- * row is `json` — 07-meta-store.md §3.12 "Zod-validated by the worker").
+ * Typed job-handler registry (job kinds). Each kind pairs a Zod payload
+ * schema with an async handler; the worker parses the stored payload
+ * against the schema before every run (the queue row is `json`).
  */
 
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import { z, type ZodType } from 'zod';
 
-/** Last reported progress of a job (08 §3 `progress` event data). */
+/** Last reported progress of a job (`progress` event data). */
 export interface JobProgress {
   /** Integer 0–100. */
   pct: number;
@@ -26,8 +25,8 @@ export interface JobHandlerContext {
   attempt: number;
   maxAttempts: number;
   /**
-   * Cooperative cancellation (08 §2.17): aborted by `POST /jobs/:id/cancel`
-   * and by worker drain timeouts. Handlers check it between batches.
+   * Cooperative cancellation: aborted by `POST /jobs/:id/cancel` and by
+   * worker drain timeouts. Handlers check it between batches.
    */
   signal: AbortSignal;
   /** Report progress: persisted by the worker and published on `jobs:<id>`. */

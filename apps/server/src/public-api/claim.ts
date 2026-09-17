@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * End-customer claims and the predicate they buy (28-public-surface.md §3.4,
- * 28-T19).
+ * End-customer claims and the predicate they buy.
  *
  * ── ADMINIUM GROWS NO SECOND IDENTITY SYSTEM ───────────────────────────────
  * A claimed customer is a row in `adminium_public_sessions` and nothing else.
- * There is no user, no password, no profile — deliberately (§3.4). The whole of
- * what a claim produces is a `ClaimGrant`: one column, one value, on one
- * resource. Everything downstream is that grant ANDed into a query.
+ * There is no user, no password, no profile — deliberately. The whole of what a
+ * claim produces is a `ClaimGrant`: one column, one value, on one resource.
+ * Everything downstream is that grant ANDed into a query.
  *
  * ── THE HONEST LIMIT, STATED WHERE THE CODE IS ─────────────────────────────
  * In the `lookup` tier, POSSESSION OF A REFERENCE **IS** THE CREDENTIAL. Someone
@@ -134,7 +133,7 @@ export async function resolveClaim(opts: {
  * this design exists to make impossible.
  *
  * Callers must therefore treat `{ reachable: false }` as a 404, using the same
- * body as an unknown ref (§3.2).
+ * body as an unknown ref.
  */
 export function claimPredicateFor(
   resource: CompiledResource,
@@ -166,7 +165,7 @@ export function claimPredicateFor(
    * `via` — ONE hop. The referencing column on this resource must equal the
    * grant's value, which is what makes "my order's line items" work without a
    * join. Two hops is a join planner with an authorization boundary inside it
-   * and §3.4 refuses it; `compileScope` has already rejected anything deeper.
+   * refuses it; `compileScope` has already rejected anything deeper.
    */
   if (resource.claim.via !== undefined) {
     return {

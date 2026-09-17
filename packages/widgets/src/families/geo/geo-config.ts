@@ -19,14 +19,14 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * `lazy(() => import('./geo-track-components.js'))`; the component files
  * re-export these symbols so barrel/story/test import points stay one-per-widget.
  *
- * FIELD-NAMING CONFIG (04 §5, annex §7): the auto-instantiation rule
+ * FIELD-NAMING CONFIG (annex): the auto-instantiation rule
  * (`geo.lat-lng-pair`, registry/candidates.ts) binds a real table and passes
  * `latColumn`/`lngColumn` for the classifier's `geo-point` pair, so those two
  * names are FIXED BY THAT RULE — renaming them here silently breaks every
  * generated map. The rest follow the family's `*Field` convention.
  */
 
-// ── map-bubble (annex §7) ───────────────────────────────────────────────────
+// ── map-bubble (annex) ──────────────────────────────────────────────────────
 
 /** A `[lat, lng]` pair, validated to the real coordinate domain. */
 const latLngSchema = z.tuple([z.number().min(-90).max(90), z.number().min(-180).max(180)]);
@@ -42,7 +42,7 @@ export const mapBubbleConfigSchema = widgetSharedConfigSchema.extend({
   nameField: z.string().default('name'),
   codeField: z.string().default('code'),
   /**
-   * Switchable metrics (annex §7 config `metrics`) — the tabs above the map, and
+   * Switchable metrics (annex config `metrics`) — the tabs above the map, and
    * what sizes the circle markers. Empty → every numeric column is inferred as a
    * metric, so an unconfigured instance still plots something sensible.
    */
@@ -50,13 +50,13 @@ export const mapBubbleConfigSchema = widgetSharedConfigSchema.extend({
   /** Already-translated tab labels, keyed by metric name (host resolves i18n). */
   metricLabels: z.record(z.string(), z.string()).default({}),
   valueFormat: z.enum(['plain', 'compact', 'currency', 'percent']).default('compact'),
-  /** annex §7 config `initialZoom/center`. */
+  /** annex config `initialZoom/center`. */
   initialCenter: latLngSchema.optional(),
   initialZoom: z.number().int().min(1).max(18).default(DEFAULT_ZOOM),
-  /** Clicking a marker flies the map to it (annex §7 "flyTo on click"). */
+  /** Clicking a marker flies the map to it (annex). */
   flyToOnClick: z.boolean().default(true),
   /**
-   * annex §7 config `linkedList` — the INSTANCE id of a sibling
+   * annex config `linkedList` — the INSTANCE id of a sibling
    * `ranked-entity-list` this map pairs with. The widget doesn't reach for it
    * (widgets never talk to each other); it rides along on the `record-open`
    * event as `linkedInstanceId` so the PAGE HOST can focus the paired list.
@@ -94,8 +94,8 @@ const DEMO_CITIES: readonly (readonly [string, number, number, number])[] = [
 ];
 
 /**
- * Deterministic `geo-points` payload (04 §7.7) in the canonical §3 `{ points }`
- * envelope. Two metrics so the annex's metric switcher has something to switch.
+ * Deterministic `geo-points` payload in the canonical `{ points }` envelope.
+ * Two metrics so the annex's metric switcher has something to switch.
  */
 export function mapBubbleDemoData(seed: number): {
   points: { name: string; lat: number; lng: number; values: { users: number; revenue: number } }[];
@@ -119,10 +119,10 @@ export function mapBubbleDemoData(seed: number): {
   return { points };
 }
 
-// ── map-choropleth-grid (annex §7) ──────────────────────────────────────────
+// ── map-choropleth-grid (annex) ─────────────────────────────────────────────
 
 /**
- * annex §7: "See `chart-choropleth-grid` (registered in Charts; cross-listed
+ * annex: "See `chart-choropleth-grid` (registered in Charts; cross-listed
  * here). Region-coded tiles when only region codes exist, no coordinates."
  *
  * CROSS-LISTED, SO IT SHARES THE GEOMETRY, NOT A COPY OF IT: the component
@@ -130,7 +130,7 @@ export function mapBubbleDemoData(seed: number): {
  * `chart-choropleth-grid` renders, over the same `choroplethLayout` tilegram. The
  * two registry ids differ only in FAMILY and in the entry point the generator
  * reaches them by: the charts id is the analytics-dashboard tile, this one is
- * what the annex §7 auto-instantiation rule ("country/state/region code column +
+ * what the annex auto-instantiation rule ("country/state/region code column +
  * numeric → `map-choropleth-grid`") emits when a table has region codes but no
  * coordinates, i.e. when `map-bubble` cannot be built.
  *
@@ -169,8 +169,8 @@ const DEMO_STATES: readonly (readonly [string, string])[] = [
 ];
 
 /**
- * Deterministic `geo-points` payload keyed by region code (04 §7.7) — the same
- * `{ points: [{code, name, values}] }` envelope `chart-choropleth-grid`'s
+ * Deterministic `geo-points` payload keyed by region code — the same `{
+ * points: [{code, name, values}] }` envelope `chart-choropleth-grid`'s
  * generator emits, since the two ids share a data contract by the annex's
  * cross-listing.
  */

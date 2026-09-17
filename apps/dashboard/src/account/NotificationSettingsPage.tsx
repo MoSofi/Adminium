@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/account/notifications` — the ACCOUNT-group Notification Settings surface
- * (research/ia-mapping.md §2A; comp: Notification Settings.dc.html).
+ * (comp: Notification Settings.dc.html).
  *
- * 09 §2.2 wants the Engine to seed a `page-settings` utility page for this so
+ * The Engine is meant to seed a `page-settings` utility page for this so
  * nav/permissions ride `adminium_pages` like every other page. The Engine does
  * not seed utility pages yet (the same gap that makes `/imports`/`/exports`
  * direct routes — see data-io/routes.tsx), so this static route mounts the

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Design mode — 35-schema-authoring.md §3.6, D1, D2, D8, 35-T12/T13/T14.
+ * Design mode.
  *
  * The flow the whole plan is shaped around: edit a desired model → review the
  * real statements → confirm → apply.
@@ -11,7 +11,7 @@
  * SEES it, so planning is a first-class step with its own button and its own
  * pane, and Apply is not reachable until a plan exists. Bytebase is the only
  * tool the survey found that does this; Supabase Studio shows the current
- * definition, not the pending diff (§6.2).
+ * definition, not the pending diff.
  *
  * ─── Why destructive applies type-to-confirm ───────────────────────────────
  *
@@ -131,8 +131,8 @@ export function DesignMode({
      * pre-application, the `rename-table` step, the compiler, the meta-store
      * repair — existed and were tested, and NOTHING CALLED THIS. Typing a new
      * name into the field produced "No schema changes yet."; the rename round
-     * trip was unreachable from the product. Found by running §10's criterion
-     * 13 rather than by any test.
+     * trip was unreachable from the product. Found by running criterion 13
+     * rather than by any test.
      */
     if (table.id !== null) {
       const original = tables.find((candidate) => candidate.id === table.id);

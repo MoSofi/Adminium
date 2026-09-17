@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Stage 6 — referential cross-checks against the live schema snapshot and the
- * registry allow-lists (06-llm-assist.md §7.3, exhaustive).
+ * registry allow-lists (exhaustive).
  *
  * The Zod pass (stage 4) proves a response is *shaped* right; this proves it is
  * *true*: every table/column it names exists, every relation it confirms was
  * really declared, every enum's values match the catalog, every widget binds to
  * a real (correctly-typed) column, and every page-template / widget / icon comes
- * from a vocabulary the runtime can render. Each violation is a per-item error
- * (§7.2): it drops exactly one suggestion (and its dependents — a hallucinated
- * table also drops the dashboard widgets bound to it) and lets everything else
- * apply.
+ * from a vocabulary the runtime can render. Each violation is a per-item error:
+ * it drops exactly one suggestion (and its dependents — a hallucinated table
+ * also drops the dashboard widgets bound to it) and lets everything else apply.
  *
  * Browser-safe: the engine is imported TYPE-ONLY, so no DB-driver code can reach
  * `@adminium/dashboard` through here (the numeric/temporal type sets below are
@@ -38,9 +37,9 @@ import type { LlmResponseV1, LocaleCode } from './schema.js';
 /**
  * Everything the referential checks read. `snapshot` is the classified schema
  * IR the run was built against (validation always runs against the run's
- * snapshot — §7.4); `allowedTemplates` / `allowedWidgets` are Track W's
- * registry allow-lists (`LLM_ALLOWED_TEMPLATES` / `LLM_ALLOWED_WIDGETS`),
- * injected as data so this package never depends on `@adminium/widgets`.
+ * snapshot); `allowedTemplates` / `allowedWidgets` are Track W's registry
+ * allow-lists (`LLM_ALLOWED_TEMPLATES` / `LLM_ALLOWED_WIDGETS`), injected as
+ * data so this package never depends on `@adminium/widgets`.
  */
 export interface ReferentialContext {
   /** The classified schema model the response is validated against. */
@@ -63,7 +62,7 @@ export interface ReferentialContext {
    * kebab-case); when present, an unknown icon is a warning + `table` fallback.
    *
    * Injected, not imported, for the usual reason: this package must not depend
-   * on `@adminium/ui` (01 §2.3). It reaches `apps/server` as a snapshot inside
+   * on `@adminium/ui`. It reaches `apps/server` as a snapshot inside
    * `AllowedVocabularies.icons` (`bundle-allowlists.mjs` → `cli/allowlist.ts`),
    * and travels the same wiring as `allowedTemplates`/`allowedWidgets`.
    *
@@ -76,23 +75,23 @@ export interface ReferentialContext {
   allowedIcons?: ReadonlySet<string> | readonly string[];
   /**
    * Tables present only as chunk context (`"stub": true`); a suggestion for one
-   * is treated like a hallucinated table (§4.5 / §7.3 row 1).
+   * is treated like a hallucinated table (row 1).
    */
   stubTables?: readonly string[];
   /**
    * The run's collected statistics (same array the prompt was built from). Used
-   * ONLY to recover the `pseudoEnumCandidate` flag (§4.2): a low-cardinality
-   * non-PII text column the prompt flagged and asked the model to classify. §7.3
-   * row 4 accepts an `enums[]` suggestion on such a column even without a declared
-   * DB enum/CHECK. Absent ⇒ pseudo-enum acceptance is off (only declared-enum
-   * columns qualify), matching the sample-free corpus fixtures.
+   * ONLY to recover the `pseudoEnumCandidate` flag: a low-cardinality non-PII text
+   * column the prompt flagged and asked the model to classify. Row 4 accepts
+   * an `enums[]` suggestion on such a column even without a declared DB
+   * enum/CHECK. Absent ⇒ pseudo-enum acceptance is off (only declared-enum columns
+   * qualify), matching the sample-free corpus fixtures.
    */
   stats?: readonly StatsResult[];
 }
 
 /* ---------------------------------------------------------------- constants */
 
-/** The fallback icon a rejected/unknown icon downgrades to (§7.3 icon row). */
+/** The fallback icon a rejected/unknown icon downgrades to (icon row). */
 export const FALLBACK_ICON = 'table';
 
 const NUMERIC_TYPES: ReadonlySet<LogicalType> = new Set<LogicalType>([
@@ -109,14 +108,14 @@ const TEMPORAL_TYPES: ReadonlySet<LogicalType> = new Set<LogicalType>([
   'timestamptz',
 ]);
 
-/** A single-column PK of one of these types reads as a surrogate id (§7.3). */
+/** A single-column PK of one of these types reads as a surrogate id. */
 const SURROGATE_PK_TYPES: ReadonlySet<LogicalType> = new Set<LogicalType>([
   'uuid',
   'integer',
   'bigint',
 ]);
 
-/** Aggregations that require a numeric metric column (§7.3 widget row). */
+/** Aggregations that require a numeric metric column (widget row). */
 const NUMERIC_AGGS = new Set<string>(['sum', 'avg', 'min', 'max']);
 
 /* -------------------------------------------------------------- prune model */
@@ -214,7 +213,8 @@ interface TableIndex {
   primaryKey: readonly string[];
   /** column name → its declared enum's ordered value set (when enum-backed). */
   enumValuesByColumn: Map<string, readonly string[]>;
-  /** Column names flagged `pseudoEnumCandidate` from stats (§4.2); empty when no stats. */
+  /** Column names flagged `pseudoEnumCandidate` from stats; empty when no
+   * stats. */
   pseudoEnumColumns: Set<string>;
 }
 
@@ -304,9 +304,9 @@ function buildSchemaIndex(
 function isEnumLikeColumn(column: ColumnModel, table: TableIndex): boolean {
   if (column.logicalType === 'enum' || column.enumRef !== null) return true;
   if (table.enumValuesByColumn.has(column.name)) return true;
-  // §7.3 row 4: a low-cardinality text column the prompt flagged
-  // `pseudoEnumCandidate` is a legitimate enum target even without a declared
-  // DB enum/CHECK — the prompt explicitly asks the model to classify it.
+  // A low-cardinality text column the prompt flagged `pseudoEnumCandidate` is
+  // a legitimate enum target even without a declared DB enum/CHECK — the
+  // prompt explicitly asks the model to classify it.
   if (table.pseudoEnumColumns.has(column.name)) return true;
   const semantics = column.semantics;
   return (
@@ -315,7 +315,7 @@ function isEnumLikeColumn(column: ColumnModel, table: TableIndex): boolean {
   );
 }
 
-/** `(tableId, column) → distinctCount | null`, built from the run's stats (§4.2). */
+/** `(tableId, column) → distinctCount | null`, built from the run's stats. */
 function distinctCountByColumn(
   stats: readonly StatsResult[],
   defaultSchema: string,
@@ -329,10 +329,10 @@ function distinctCountByColumn(
 }
 
 /**
- * Mirror of the serializer's `pseudoEnumCandidate` rule (§4.2): a non-PII,
- * non-secret text/varchar column with no declared enum whose distinctCount is at
- * or below {@link PSEUDO_ENUM_MAX_DISTINCT}. Kept in lockstep with the prompt via
- * the shared threshold so what the prompt flags is exactly what validation accepts.
+ * Mirror of the serializer's `pseudoEnumCandidate` rule: a non-PII, non-secret
+ * text/varchar column with no declared enum whose distinctCount is at or below
+ * {@link PSEUDO_ENUM_MAX_DISTINCT}. Kept in lockstep with the prompt via the
+ * shared threshold so what the prompt flags is exactly what validation accepts.
  */
 function isPseudoEnumCandidate(column: ColumnModel, distinctCount: number | null): boolean {
   const isText = column.logicalType === 'text' || column.logicalType === 'varchar';
@@ -379,8 +379,8 @@ export interface ReferentialResult {
 }
 
 /**
- * Run the exhaustive §7.3 cross-checks. Produces per-item errors + warnings and
- * the {@link ResponsePrunes} the caller applies with {@link applyPrunes}. Never
+ * Run the exhaustive cross-checks. Produces per-item errors + warnings and the
+ * {@link ResponsePrunes} the caller applies with {@link applyPrunes}. Never
  * throws and never mutates `response`.
  */
 export function runReferentialChecks(
@@ -415,7 +415,7 @@ export function runReferentialChecks(
  * `label.en_US` — so a reused string ships two pages a human cannot tell apart in
  * the nav. This is a WARNING, not an item error: dropping a whole dashboard (and
  * its ranked widgets) over a naming clash costs far more than it fixes, and the
- * §7.2 review diff is where a human retitles it before anything is applied.
+ * review diff is where a human retitles it before anything is applied.
  *
  * Comparison is trimmed + case-folded: "Knowledge base" and "Knowledge Base"
  * collide in the nav exactly as identical strings do.

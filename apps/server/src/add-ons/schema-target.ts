@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * WHICH DATABASE an add-on's tables go into, and getting them there (26-T02).
+ * WHICH DATABASE an add-on's tables go into, and getting them there.
  *
  * `applyInstall` in `install-ddl.ts` is deliberately ignorant of connections: it
  * takes a `Kysely` and a dialect and creates tables. This file answers the
@@ -112,10 +112,10 @@ export type SchemaTargetCoreDeps = Pick<AddOnSchemaTargetDeps, 'meta' | 'manager
  * The tables a planner diffs against, for ONE named connection.
  *
  * Split out of the add-on wrapper below so the app install path
- * (47-app-installation.md step 2) reads the same snapshot through the same
- * function. The two paths differ only in how they arrive at a connection id —
- * an add-on infers it from its host, an app is told it by the operator — and
- * everything after that point must not be able to diverge.
+ * reads the same snapshot through the same function. The two paths differ
+ * only in how they arrive at a connection id — an add-on infers it from its
+ * host, an app is told it by the operator — and everything after that point
+ * must not be able to diverge.
  */
 export async function readExistingTables(
   deps: SchemaTargetCoreDeps,
@@ -146,8 +146,7 @@ export async function readExistingTables(
  * the snapshot so the new tables are addressable.
  *
  * The two write guards live here rather than in `install-ddl.ts`, which stays a
- * pure DDL emitter that knows nothing about connections
- * (35-schema-authoring.md 35-T18).
+ * pure DDL emitter that knows nothing about connections.
  */
 export async function applyPlanTo(
   deps: SchemaTargetCoreDeps,
@@ -155,7 +154,7 @@ export async function applyPlanTo(
   plan: InstallPlan,
   manifest: Manifest,
 ): Promise<ApplyInstallResult> {
-  // 13 §2.5 specified this guard when it specified the install path — a
+  // This guard came with the install path — a
   // `create` outcome is "refused when the `data` role is read-only" — and
   // `install-ddl.ts` never implemented it, so until it was retrofitted an
   // install ran CREATE TABLE against a connection Adminium had already

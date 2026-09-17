@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * First-run onboarding checklist derivation (M5-T06, 09-generated-app.md).
+ * First-run onboarding checklist derivation.
  *
  * The checklist is REACTIVE: each step's `done` is computed from real
  * workspace state at request time, never from a boolean stored when the user

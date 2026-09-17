@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * /settings/defaults — the Global Defaults admin page (10-i18n-theming.md
- * §7.3, a comp gap: no design file exists). Four axis pickers for the
- * workspace defaults, per-axis adoption meters ("N of M users follow this
- * default"), an explicit Save (this page is consequential — no autosave),
- * and live propagation: the PUT broadcasts `settings.defaults.updated`,
- * which the realtime mapping turns into a bootstrap invalidation so users
- * following a default re-resolve without a reload.
+ * /settings/defaults — the Global Defaults admin page (a comp gap: no
+ * design file exists). Four axis pickers for the workspace defaults,
+ * per-axis adoption meters ("N of M users follow this default"), an
+ * explicit Save (this page is consequential — no autosave), and live
+ * propagation: the PUT broadcasts `settings.defaults.updated`, which the
+ * realtime mapping turns into a bootstrap invalidation so users following
+ * a default re-resolve without a reload.
  *
  * Client-side gate: super-admin only (roles from bootstrap); direct access
  * by anyone else renders the 403 system state. The server enforces
@@ -94,7 +94,7 @@ function DefaultsForm({ initial }: { initial: SettingsDefaultsData }): ReactNode
     putSettingsDefaults(values)
       .then((data) => {
         queryClient.setQueryData(SETTINGS_DEFAULTS_QUERY_KEY, data);
-        // Sessions following a default re-resolve (§7.2); ours included.
+        // Sessions following a default re-resolve; ours included.
         void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
         toasts.push({ variant: 'success', title: t('settings.defaults.saved', 'Workspace defaults updated') });
       })

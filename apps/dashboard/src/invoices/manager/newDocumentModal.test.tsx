@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The New modal (34-invoices-add-on.md Appendix E §M15, O20): the grid is
- * Blank + the twelve starters, plus *Your templates* on the invoices tab; a
- * pick creates through the API and hands the reply up.
+ * The New modal (O20): the grid is Blank + the twelve starters, plus
+ * *Your templates* on the invoices tab; a pick creates through the API and
+ * hands the reply up.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';

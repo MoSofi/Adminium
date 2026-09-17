@@ -26,7 +26,7 @@ export interface DateInputProps
 /**
  * DateInput / TimeInput — native `date`/`time`/`datetime-local` input with
  * the shared Input chrome and JetBrains Mono value
- * (research/design-system.md §3 Tier 2). The native picker follows the theme
+ * (research/design-system.md Tier 2). The native picker follows the theme
  * automatically: `color-scheme` is set per `data-theme` by @adminium/tokens
  * and inherits into the control. Values are ISO strings; display formatting
  * is the caller's job (`@adminium/i18n`).

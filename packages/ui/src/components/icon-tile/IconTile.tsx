@@ -5,7 +5,7 @@ import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { cn } from '../../lib/cn.js';
 import { toneSoftClasses } from '../../lib/tones.js';
 
-// Canonical vocabulary lives in lib/tones.ts (03-component-library.md §3.3);
+// Canonical vocabulary lives in lib/tones.ts;
 // re-exported here because this module was the barrel's historical source.
 export { toneSoftClasses, toneSolidClasses } from '../../lib/tones.js';
 export type { Tone } from '../../lib/tones.js';
@@ -44,7 +44,7 @@ export interface IconTileProps
 
 /**
  * IconTile — the universal "Lucide icon in a tinted rounded square"
- * (research/design-system.md §3 Tier 1). Tone-soft background + tone-colored
+ * (research/design-system.md Tier 1). Tone-soft background + tone-colored
  * icon across all 6 tones; sizes 28/36/44/56px.
  */
 export function IconTile({ icon, label, tone, size, className, children, ...props }: IconTileProps) {

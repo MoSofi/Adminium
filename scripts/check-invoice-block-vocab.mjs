@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Invoice block vocabulary gate — the editor's canvas and every renderer of
- * the authored body must agree on the 27 kinds (34-invoices-add-on.md 34-T50,
- * §3.9 "Two vocabularies, three trees, one gate").
+ * the authored body must agree on the 27 kinds.
  *
  * The canvas (`apps/dashboard/src/invoices/model/blocks.ts`) derives its list
  * from the block order and the four custom types. The renderer that turns an

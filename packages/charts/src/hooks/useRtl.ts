@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Chart direction context (04-widget-registry.md §7.4). Wave B widget
- * wrappers bridge the i18n `dir` into this context (or pass `dir` straight to
- * a chart); inside the charts package the policy is applied per scale:
- * categorical x mirrors, time x never does (10-i18n-theming.md §5.5).
+ * Chart direction context. Wave B widget wrappers bridge the i18n `dir` into
+ * this context (or pass `dir` straight to a chart); inside the charts package
+ * the policy is applied per scale: categorical x mirrors, time x never does.
  */
 import { createContext, useContext } from 'react';
 

@@ -48,21 +48,21 @@ import type { TimelineEntry } from '../../families/feeds/feeds-types.js';
 import type { WidgetEvent } from '../../registry/types.js';
 
 /**
- * `page-record` — the record detail page (30-record-pages.md D4; 09 §7.1;
- * Customer 360 comp): the template every generated `page-crud` body has named
- * in `config.detail.template` since the body vocabulary was written, now
- * rendered for real at `/p/$slug/r/$recordId`.
+ * `page-record` — the record detail page (Customer 360 comp): the template
+ * every generated `page-crud` body has named in `config.detail.template`
+ * since the body vocabulary was written, now rendered for real at
+ * `/p/$slug/r/$recordId`.
  *
  * Composition: key-field hero (+ status/timestamp meta and Edit/Delete per
  * grants and `readOnly`), the `detail-key-value` field grid (two columns at
  * `lg`), then one tab per `detail.tabs[]` entry — each a REAL paginated
  * `data-grid` over the referencing table, count-pilled from
  * `referenceCounts` — plus the per-record Activity timeline when the host
- * wires one (absent otherwise, 30 D6).
+ * wires one (absent otherwise).
  *
  * All data access flows through the injected seams: the page's own `CrudApi`,
  * a `PageRecordRelated` host adapter for the referencing tables (list +
- * column resolution + linkability, 30 D5), and a `RecordActivityFeed` for the
+ * column resolution + linkability), and a `RecordActivityFeed` for the
  * audit-backed timeline. Widgets never import the dashboard's api layer.
  */
 
@@ -71,7 +71,7 @@ export const PAGE_RECORD_TEMPLATE_ID = 'page-record';
 /** Default related-tab page size — a record's related list, not a workbench. */
 const RELATED_PAGE_SIZE = 10;
 
-/** One `detail.tabs[]` entry, as stored (30-T01's schema). */
+/** One `detail.tabs[]` entry, as stored (schema). */
 export interface PageRecordTabConfig {
   /** Referencing table id ("public.invoice_items"). */
   table: string;
@@ -80,7 +80,7 @@ export interface PageRecordTabConfig {
   label?: string | undefined;
 }
 
-/** Grid metadata for a referencing table that has its own page (30 D5). */
+/** Grid metadata for a referencing table that has its own page. */
 export interface PageRecordRelatedResolution {
   columns: readonly GridColumnSpec[];
   defaultSort: CrudSort | null;
@@ -96,7 +96,7 @@ export interface PageRecordRelatedResolution {
   canCreate?: boolean | undefined;
 }
 
-/** Host adapter for the related-record tabs (30 D5). */
+/** Host adapter for the related-record tabs. */
 export interface PageRecordRelated {
   /** List rows of `table` — the host's CrudApi bound to that table. */
   list(table: string, params: CrudListParams): Promise<CrudListResult>;
@@ -105,7 +105,7 @@ export interface PageRecordRelated {
    * when no page shows it — the tab then derives text columns from the rows.
    */
   resolve(table: string): Promise<PageRecordRelatedResolution | null>;
-  /** Whether rows of `table` navigate to that table's record page (30 D5). */
+  /** Whether rows of `table` navigate to that table's record page. */
   linkable(table: string): boolean;
   /**
    * The host's full CrudApi bound to `table` — what the in-tab create writes
@@ -116,7 +116,7 @@ export interface PageRecordRelated {
   api?(table: string): CrudApi | null;
 }
 
-/** One per-record audit entry, already shaped for display (30 D6). */
+/** One per-record audit entry, already shaped for display. */
 export interface RecordActivityEntry {
   id: string;
   /** Actor display label ("Ava Reyes"). */
@@ -125,7 +125,7 @@ export interface RecordActivityEntry {
   action: string;
   /** Epoch ms. */
   at: number;
-  /** Changed-column count — never the images themselves (30 D6). */
+  /** Changed-column count — never the images themselves. */
   changedFields?: number | undefined;
 }
 
@@ -139,28 +139,27 @@ export interface RecordActivityFeed {
   list(params: { cursor?: string | undefined }): Promise<RecordActivityPage>;
 }
 
-/** One sidecar attachment, as the panel shows it (37 §3.5). */
+/** One sidecar attachment, as the panel shows it. */
 export interface RecordAttachment {
   id: string;
   filename: string;
   mime: string;
   sizeBytes: number;
   createdAt: number;
-  /** Same-origin path — never a destination's public URL (37 D24). */
+  /** Same-origin path — never a destination's public URL. */
   contentPath: string;
 }
 
 /**
- * Host adapter for record attachments (37-files-and-storage.md §3.5, D6;
- * 38-files-library-and-attachments.md D13).
+ * Host adapter for record attachments.
  *
  * ONE PANEL, TWO ADAPTERS. The four calls below say nothing about where the
  * files live, and that is deliberate — the host decides:
  *
  *   - SIDECAR (37): linked on Adminium's side only, through
  *     `entity_connection_id` / `entity_table` / `entity_id`. Needs no column in
- *     the customer's table, so it works on a READ-ONLY source — which after 38
- *     D2 is the only reason it still exists.
+ * the customer's table, so it works on a READ-ONLY source — which after is the
+ *     only reason it still exists.
  *   - COLUMN (38): the page's `config.attachments.column` names a column on the
  *     customer's own table holding a JSON list of references. `list` reads that
  *     value, `upload`/`remove` write it back through the CRUD route, and the
@@ -170,9 +169,8 @@ export interface RecordAttachment {
  * component stay unaware: it renders a list, a dropzone and an undo, and the
  * two modes differ only in what the promises do.
  *
- * ABSENT ⇒ NO PANEL, exactly like `related` and `activity` (30 D5/D6). A page
- * whose `config.attachments` is off passes nothing and renders as it always
- * did.
+ * ABSENT ⇒ NO PANEL, exactly like `related` and `activity`. A page whose
+ * `config.attachments` is off passes nothing and renders as it always did.
  */
 export interface PageRecordAttachments {
   list(): Promise<RecordAttachment[]>;
@@ -182,7 +180,7 @@ export interface PageRecordAttachments {
     onProgress: (fraction: number) => void;
   }): Promise<RecordAttachment>;
   remove(fileId: string): Promise<void>;
-  /** Restore a file the panel just removed — the undo affordance (37 D12). */
+  /** Restore a file the panel just removed — the undo affordance. */
   restore?(fileId: string): Promise<void>;
 }
 
@@ -206,20 +204,20 @@ export interface PageRecordProps {
   entityName?: string | undefined;
   /** `config.keyField` — hero headline column; falls back to the display value. */
   keyField?: string | null | undefined;
-  /** `config.readOnly` — no write affordance anywhere on the page (30 D7). */
+  /** `config.readOnly` — no write affordance anywhere on the page. */
   readOnly?: boolean | undefined;
-  /** `config.detail.tabs` (30-T01). */
+  /** `config.detail.tabs`. */
   tabs?: readonly PageRecordTabConfig[] | undefined;
   related?: PageRecordRelated | undefined;
-  /** Absent/null ⇒ the Activity tab does not render (30 D6). */
+  /** Absent/null ⇒ the Activity tab does not render. */
   activity?: RecordActivityFeed | null | undefined;
-  /** Absent/null ⇒ the Attachments panel does not render (37 §3.5). */
+  /** Absent/null ⇒ the Attachments panel does not render. */
   attachments?: PageRecordAttachments | null | undefined;
   /**
    * May this caller attach a file? Beside `canUpdate`/`canDelete` and NOT the
    * same as either: a sidecar attach is authorised by `update` on the entity's
-   * table (37 D11) but the page reply carries it explicitly so the panel never
-   * offers a dropzone the server would refuse.
+   * table but the page reply carries it explicitly so the panel never offers a
+   * dropzone the server would refuse.
    */
   canAttach?: boolean | undefined;
   /** Workspace upload cap, so the dropzone refuses before a request starts. */
@@ -228,7 +226,7 @@ export interface PageRecordProps {
   canDelete?: boolean | undefined;
   canUnmask?: boolean | undefined;
   onEvent?: ((event: WidgetEvent) => void) | undefined;
-  /** The record was deleted — navigate off the page (30 §3.2). */
+  /** The record was deleted — navigate off the page. */
   onDeleted?: ((undoToken: string | null) => void) | undefined;
   /** The record does not exist (404) — host renders its not-found state. */
   onMissing?: (() => void) | undefined;
@@ -237,7 +235,7 @@ export interface PageRecordProps {
   locale?: string | undefined;
   currency?: string | undefined;
   /**
-   * EXTRA PANELS the host wants on this record (34 §7.8, 34-T15).
+   * EXTRA PANELS the host wants on this record.
    *
    * ─── Why a seam and not another typed adapter ──────────────────────────
    *
@@ -251,7 +249,7 @@ export interface PageRecordProps {
    * So this is a rendering seam. The host passes nodes; the page gives them a
    * place and a heading and has no opinion about their contents. That is also
    * what 30's follow-up chips need for grants-driven affordances, which is why
-   * §7.8 calls it owed regardless.
+   * calls it owed regardless.
    *
    * ABSENT ⇒ NOTHING EXTRA RENDERS, exactly like the three adapters above. A
    * deployment with no `document-render` provider installed passes nothing and
@@ -259,7 +257,7 @@ export interface PageRecordProps {
    */
   panels?: readonly PageRecordPanel[] | undefined;
   /**
-   * EXTRA TOPBAR ACTIONS — the "Make ▾" menu's home (34 §7.8).
+   * EXTRA TOPBAR ACTIONS — the "Make ▾" menu's home.
    *
    * Same seam, different place: the host owns what the action does, this
    * component owns where it sits. Rendered beside Edit and Delete and after
@@ -299,7 +297,7 @@ function isNotFound(reason: unknown): boolean {
 
 /**
  * Minimal text specs derived from row keys — the degradation for a
- * referencing table with no page of its own (30 D5). Masking still renders
+ * referencing table with no page of its own. Masking still renders
  * faithfully: `CellValue` reads the row's `_masked` marker, not the spec.
  */
 function derivedColumns(rows: readonly CrudRow[]): GridColumnSpec[] {
@@ -346,7 +344,7 @@ function RelatedRecordsTab({
   /** The pill count — doubles as the footer total. */
   count: number | null;
   connectionId: string | null;
-  /** The PARENT page's write gate (30 D7): readOnly hides every affordance. */
+  /** The PARENT page's write gate: readOnly hides every affordance. */
   writable: boolean;
   /** A row was created here — the parent refreshes its count pills. */
   onCreated?: (() => void) | undefined;
@@ -569,8 +567,8 @@ function RelatedRecordsTab({
   }
 
   const columns = resolution?.columns ?? derivedColumns(rows);
-  // Rows navigate only when the table has a page of its own (30 D5) — a link
-  // that goes nowhere is worse than no link.
+  // Rows navigate only when the table has a page of its own — a link that
+  // goes nowhere is worse than no link.
   const linkable = resolution !== null && related.linkable(tab.table);
   const rangeStart = rows.length === 0 ? 0 : cursorStack.length * pageSize + 1;
   const rangeEnd = cursorStack.length * pageSize + rows.length;
@@ -638,7 +636,7 @@ function RelatedRecordsTab({
 // --- attachments panel --------------------------------------------------------
 
 /**
- * The record's sidecar files (37-files-and-storage.md §3.5, D6, D12).
+ * The record's sidecar files.
  *
  * THIS IS THE FIRST CALLER THE MEDIA FAMILY HAS EVER HAD. `UploadDropzone`,
  * `AttachmentList` and `UploadProgressList` shipped in M7 and have sat
@@ -983,8 +981,8 @@ export function PageRecord({
 
   const heroValue = useMemo(() => {
     if (record === null) return null;
-    // Key-field highlight (09 §8.3) — read off the RECORD, not the column
-    // specs: `keyField` is generation's chosen display column, and the ~8-column
+    // Key-field highlight — read off the RECORD, not the column specs:
+    // `keyField` is generation's chosen display column, and the ~8-column
     // list cap routinely drops it from `config.columns` (a free-text company
     // name never makes the grid) while `api.get` still returns it. Masked or
     // absent values fall through to the drawer's PK fallback — row identity
@@ -1080,8 +1078,8 @@ export function PageRecord({
     try {
       const removed = await api.remove(recordId, { confirm: true });
       setDeleteTarget(null);
-      // The record no longer exists — staying is a 404 with extra steps
-      // (30 §3.2). The host owns the navigation and the undo toast.
+      // The record no longer exists — staying is a 404 with extra
+      // steps. The host owns the navigation and the undo toast.
       onDeleted?.(isDeletePreview(removed) ? null : removed.undoToken);
     } catch (reason) {
       queue.push({
@@ -1128,7 +1126,7 @@ export function PageRecord({
 
   const hasTabs = tabs.length > 0 && related !== undefined;
   const hasActivity = activity !== null && activity !== undefined;
-  // Absent ⇒ no panel, the same rule `related` and `activity` follow (30 D5/D6).
+  // Absent ⇒ no panel, the same rule `related` and `activity` follow.
   const hasAttachments = attachments !== null && attachments !== undefined;
   const pkValue = pkValueOf(columns, record);
 
@@ -1255,7 +1253,7 @@ export function PageRecord({
                 attachments={attachments}
                 // NOT `writable && canAttach`. A read-only SOURCE is exactly the
                 // case the sidecar exists for: the row cannot be edited and a
-                // file still can be attached beside it (37 §3.5, D11). The
+                // file still can be attached beside it. The
                 // server already says so — `routes/pages/index.ts` computes
                 // `canAttach` from the table's `:update` grant and deliberately
                 // does NOT derive it from `canUpdate`, "or it would hide the
@@ -1277,7 +1275,7 @@ export function PageRecord({
       )}
 
       {/*
-        * HOST-SUPPLIED PANELS (34 §7.8, 34-T15).
+        * HOST-SUPPLIED PANELS.
         *
         * BELOW the tabs rather than inside them, and that is the decision worth
         * recording. A tab hides its contents until somebody clicks it, and the

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The prose blocks (comp 458-495, 548-553, 614-638; 34-invoices-add-on.md
- * Appendix F B6–B8, B13, B19–B21): `paynotes` — *Payment* lines beside a
- * *Notes* textarea over a top border; `signature` — the optional scanned
- * signature, an underline, name and title, and a *Date signed* underline;
- * `terms` — a 20 px checkbox beside the acceptance label; `poterms`,
- * `legal` (with its scale glyph and top border) and `refund` — a kicker over
- * a textarea; `contact` — name, email and phone rows.
+ * The prose blocks (comp 458-495, 548-553, 614-638; B6–B8, B13, B19–B21):
+ * `paynotes` — *Payment* lines beside a *Notes* textarea over a top border;
+ * `signature` — the optional scanned signature, an underline, name and
+ * title, and a *Date signed* underline; `terms` — a 20 px checkbox beside
+ * the acceptance label; `poterms`, `legal` (with its scale glyph and top
+ * border) and `refund` — a kicker over a textarea; `contact` — name, email
+ * and phone rows.
  */
 import { Check, Mail, Phone, Scale, UserRound } from 'lucide-react';
 import { cn } from '@adminium/ui';

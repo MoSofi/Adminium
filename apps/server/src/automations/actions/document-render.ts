@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * DRAW A DOCUMENT (34-invoices-add-on.md §7.2 as ruled by D55; 34-T10).
+ * DRAW A DOCUMENT (as ruled by D55).
  *
  * ─── Why this is a rule's STEP and not a trigger table of its own ──────────
  *
- * §7.2 designed `adminium_record_triggers`: a second table, a second matcher,
+ * `adminium_record_triggers` was designed as: a second table, a second matcher,
  * a second undo window, a second dedupe key, a second delay-by-origin rule.
  * Every one of those already existed by the time 34b started — plan 42 built
  * them for automations on 2026-09-08 — and O4's only objection to reusing

@@ -36,10 +36,10 @@ export function formatShortDate(date: Date, locale = 'en-US'): string {
 }
 
 /**
- * Short weekday names indexed 0=Sun..6=Sat for the given locale — the
- * calendar-grid label default (NOT bundle keys; 10 §4 date names come from
- * Intl). `en-US` output is byte-identical to the previous hardcoded arrays:
- * Sun, Mon, Tue, Wed, Thu, Fri, Sat.
+ * Short weekday names indexed 0=Sun.6=Sat for the given locale — the
+ * calendar-grid label default (NOT bundle keys; date names come from Intl).
+ * `en-US` output is byte-identical to the previous hardcoded arrays: Sun,
+ * Mon, Tue, Wed, Thu, Fri, Sat.
  */
 export function shortWeekdayNames(locale = 'en-US'): readonly string[] {
   let names = weekdayNameCache.get(locale);

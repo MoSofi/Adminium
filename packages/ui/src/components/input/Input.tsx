@@ -6,7 +6,7 @@ import type * as React from 'react';
 import { cn } from '../../lib/cn.js';
 
 /**
- * Input chrome per research/design-system.md §3 Tier 2: radius 10
+ * Input chrome per research/design-system.md Tier 2: radius 10
  * (`rounded-md`), 1px `--border-strong`, `--surface-2` fill, 13px text;
  * focus = accent border + 3px accent-soft ring; error (via `aria-invalid`) =
  * danger border + danger-soft ring; disabled = 40% alpha.
@@ -44,7 +44,7 @@ export interface InputProps
 }
 
 /**
- * Single-line text input (research/design-system.md §3 Tier 2). Label,
+ * Single-line text input (research/design-system.md Tier 2). Label,
  * captions and describedby/invalid wiring belong to `FormField`.
  */
 export function Input({ className, mono, error = false, ...props }: InputProps) {

@@ -2,7 +2,7 @@
 /**
  * Effective schema = active snapshot + active override ops applied in
  * created_at order, later ops winning per (op, table, column) target
- * (07-meta-store.md §3.15; M3-T06 read path). Pure functions — no I/O.
+ * (read path). Pure functions — no I/O.
  *
  * The returned model is the snapshot's `DatabaseModel` JSON with
  * display-layer fields attached (`label`, `hidden`, `excluded`, …). It is a
@@ -43,10 +43,10 @@ function tableId(table: TableModel): string {
   return table.id;
 }
 
-/** Locale every connection resolves L10n bundles to in v1 (06 §6.1: always required). */
+/** Locale every connection resolves L10n bundles to in v1 (always required). */
 const DEFAULT_LOCALE = 'en_US';
 
-/** Resolve one §8.3 locale→string map to `locale`, falling back to en_US. */
+/** Resolve one locale→string map to `locale`, falling back to en_US. */
 function resolveLocalized(map: unknown, locale: string): string | null {
   if (typeof map !== 'object' || map === null || Array.isArray(map)) return null;
   const rec = map as Record<string, unknown>;
@@ -55,8 +55,7 @@ function resolveLocalized(map: unknown, locale: string): string | null {
 }
 
 /**
- * Resolve a USER-authored label, which may be either shape
- * (23-runtime-translations.md §8).
+ * Resolve a USER-authored label, which may be either shape.
  *
  * Until now a user rename was a bare string, so an operator who renamed
  * "Records" to "Patients" got one language forever — while `llm.label` rows
@@ -75,10 +74,10 @@ function resolveUserLabel(value: unknown, locale: string): string | null {
 
 /**
  * Effective table-label map (`tableName` → label) from active override rows.
- * Provenance user > llm > heuristic (06 §8.3): a user `table.label` row beats
- * an accepted `llm.label` bundle for the same table REGARDLESS of created_at
- * order; within one origin, later rows win (§3.15). `llm.label` values are
- * localized bundles — resolved to the connection's default locale (en_US).
+ * Provenance user > llm > heuristic: a user `table.label` row beats an
+ * accepted `llm.label` bundle for the same table REGARDLESS of created_at
+ * order; within one origin, later rows win. `llm.label` values are localized
+ * bundles — resolved to the connection's default locale (en_US).
  *
  * Shared by {@link applyOverrides} (the read path) and the generation
  * pipeline (`generate/run.ts` overlays it onto the parsed model so generated
@@ -97,7 +96,7 @@ export function activeTableLabels(
     if (op === 'table.label') {
       // ANY active user row locks the table against llm bundles — including a
       // degenerate empty label (the write path now rejects '', but legacy rows
-      // may exist). '' acts as an explicit clear so §3.15 later-row-wins holds
+      // may exist). '' acts as an explicit clear so later-row-wins holds
       // verbatim without ever emitting a label the engine's min(1) forbids.
       userLabeled.add(row.tableName);
       const label = resolveUserLabel(row.value.label, defaultLocale);
@@ -116,14 +115,14 @@ export function activeTableLabels(
 
 /**
  * Fold the `relation.add` / `relation.remove` ops of a set of active
- * overrides onto a relation list, in created_at order (§3.15 later-row-wins,
- * so add-then-remove and remove-then-add both mean what they read like).
+ * overrides onto a relation list, in created_at order (later-row-wins, so
+ * add-then-remove and remove-then-add both mean what they read like).
  *
- * An accepted relation enters at `kind: 'override'`, `confidence: 1` — 05 §6:
- * a human decision is as certain as a declared foreign key, and outranks the
- * 0.8 gate every downstream detector applies. A removal matches
- * STRUCTURALLY, on (fromTable, fromColumn, toTable), not by id, which is what
- * lets it suppress a `declared-fk` and an `inferred-name` alike.
+ * An accepted relation enters at `kind: 'override'`, `confidence: 1`: a human
+ * decision is as certain as a declared foreign key, and outranks the 0.8 gate
+ * every downstream detector applies. A removal matches STRUCTURALLY, on
+ * (fromTable, fromColumn, toTable), not by id, which is what lets it suppress
+ * a `declared-fk` and an `inferred-name` alike.
  *
  * Extracted from {@link applyOverrides} because the read path was the only
  * caller: `generate/run.ts` re-parsed the raw snapshot and never saw these
@@ -156,7 +155,7 @@ export function applyRelationOverrides(
         // A virtual relation is a badge Adminium owns, not a row in the
         // customer's catalog — so there is no constraint name to carry, and
         // that absence is what tells a DDL plan it cannot DROP this one
-        // (35-schema-authoring.md D13).
+        // .
         constraintName: null,
       };
       // An accepted relation SUPERSEDES the inferred one it was accepted
@@ -231,7 +230,7 @@ export function applyOverrides(
         if (table === undefined) break;
         // Empty label = explicit clear (legacy rows only — the write path
         // rejects ''); mirrors activeTableLabels so both paths agree. A
-        // locale map resolves for the viewer's locale (23 §8).
+        // locale map resolves for the viewer's locale.
         const label = resolveUserLabel(value.label, locale);
         if (label !== null) table.label = label;
         else delete table.label;
@@ -303,7 +302,7 @@ export function applyOverrides(
         break;
       }
       case 'llm.label': {
-        // §8.3 label bundle (origin 'llm'): `value.label` is a locale→string
+        // The label bundle (origin 'llm'): `value.label` is a locale→string
         // map; table-scoped when columnName is null, column-scoped otherwise.
         // Silently skipped before M11 — the accepted rename never reached the
         // effective model. TABLE labels are folded in by the post-loop
@@ -338,10 +337,10 @@ export function applyOverrides(
 }
 
 /**
- * Column mask/secret resolution for the serialization layer (08 §5.3).
- * Source of truth: `column.pii` override rows; classifier `maskedByDefault`
- * fills in when no row targets the column. `secret` columns are
- * hard-excluded (05 §7.1 rule 1) and not unmaskable.
+ * Column mask/secret resolution for the serialization layer. Source of
+ * truth: `column.pii` override rows; classifier `maskedByDefault` fills in
+ * when no row targets the column. `secret` columns are hard-excluded and
+ * not unmaskable.
  */
 export interface TableColumnPolicy {
   masked: ReadonlySet<string>;

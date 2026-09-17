@@ -1,34 +1,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `POST /api/v1/desktop/backup` — the §9 backup, run where the data lives
- * (11-electron.md §9, §1 principle 2).
+ * `POST /api/v1/desktop/backup` — the backup, run where the data
+ * lives.
  *
  * ─── The gates, in order, mirroring `routes/auth/desktop-session.ts` ─────────
  *
  *  1. EXISTENCE. `compose.ts` registers this factory only when
  *     `ADMINIUM_RUNTIME=desktop`. A self-host, Docker or npx instance does not
  *     have the route at all — an absent route cannot be misconfigured or
- *     bypassed, which is why §5's sibling takes the same shape. It is also
- *     simply correct: `<dataDir>/backups` and `config.json` are desktop
- *     concepts, and self-host's answer to "back up my instance" is
- *     `adminium export-zip` plus whatever backs up its Postgres.
+ * bypassed, which is why sibling takes the same shape. It is also simply
+ *     correct: `<dataDir>/backups` and `config.json` are desktop concepts, and
+ *     self-host's answer to "back up my instance" is `adminium export-zip`
+ *     plus whatever backs up its Postgres.
  *  2. PEER. The SOCKET's `remoteAddress` must be loopback. Not `request.ip` —
  *     see `auth/desktop-session.ts` for why that distinction is the difference
  *     between a check and a vulnerability. It matters here for the same reason
- *     it matters there: §8.3 binds `0.0.0.0` whenever LAN share is on, and a
+ *     it matters there: the server binds `0.0.0.0` whenever LAN share is on, and a
  *     backup archive is every row in every database plus every user record.
  *     Whoever can call this can exfiltrate the whole install in one request.
  *  3. SESSION + RBAC. `system:settings:manage`, i.e. Super Admin. There is no
  *     `backups.manage` in meta's closed set (`SYSTEM_ACTION_KEYS`) and this
  *     route is not the place to invent one; `settings:manage` is the strictest
  *     grant that exists and a backup deserves the strictest. A LAN user with a
- *     real super-admin account CAN take a backup — that is §8.3's RBAC promise
- *     working, not a hole — but gate 2 means they cannot: they are not loopback.
- *     Both gates, and the AND is the point.
+ * real super-admin account CAN take a backup — that is RBAC promise working, not
+ *     a hole — but gate 2 means they cannot: they are not loopback. Both gates,
+ *     and the AND is the point.
  *
  * ─── The save dialog's path never reaches this process ───────────────────────
  *
- * §9's manual flow is "saveFile dialog → server does the work", which reads like
+ * The manual flow is "saveFile dialog → server does the work", which reads like
  * the chosen path should be the request body. It is not, and this is the one
  * design decision in the route worth arguing with. An `outPath` parameter would
  * make this endpoint an arbitrary-file-write primitive with the server's
@@ -39,10 +39,10 @@
  * So the server writes only inside `<dataDir>/backups`, and `destination:
  * "staged"` puts the archive somewhere the MAIN PROCESS can then move to the
  * path the user picked. Main is allowed to write there — the user just chose it
- * in a native dialog — and main is where §4 already puts every other path
- * decision (`main/ipc.ts`'s `saveFileSchema` refuses a separator inside
- * `defaultName` for precisely this reason). The cost is one rename; the benefit
- * is that the API surface has no path in it to abuse.
+ * in a native dialog — and main is where already puts every other path decision
+ * (`main/ipc.ts`'s `saveFileSchema` refuses a separator inside `defaultName`
+ * for precisely this reason). The cost is one rename; the benefit is that the
+ * API surface has no path in it to abuse.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { DsnCrypto, MetaDb } from '@adminium/meta';
@@ -80,7 +80,7 @@ export function desktopRoutes(deps: DesktopRoutesDeps): FastifyPluginAsyncZod {
         // anonymous request has no principal to resolve and is refused before
         // the handler exists.
         preHandler: [app.requireMeta, app.rbac.require(PERMISSIONS.settingsManage)],
-        // §7 item 4. The one caller is the Electron MAIN process, which reads
+        // The one caller is the Electron MAIN process, which reads
         // `adminium_session` out of Electron's cookie jar and POSTs by hand
         // through Node's `fetch` (apps/desktop/src/main/index.ts): it is a
         // cookie-authenticated non-GET caller that can carry neither a
@@ -149,7 +149,7 @@ export function desktopRoutes(deps: DesktopRoutesDeps): FastifyPluginAsyncZod {
   };
 
   /**
-   * §9's "Completion raises an `adminium_notifications` entry".
+   * "Completion raises an `adminium_notifications` entry".
    *
    * Best-effort, and deliberately so: the archive is already on disk and its
    * path is already in the reply. Failing the request because a courtesy row

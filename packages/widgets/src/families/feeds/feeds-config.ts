@@ -14,7 +14,7 @@
  * `lazy(() => import('./feeds-track-f-components.js'))` refs buying nothing.
  * Holding them here (the boards/domain/media `*-config` convention) lets the
  * definitions import metadata only, so the components stay reachable exclusively
- * through the lazy barrel (04 §2.3, acceptance #3; enforced by
+ * through the lazy barrel (acceptance #3; enforced by
  * `qa/chunk-budget.test.ts`).
  *
  * The component files re-export these symbols, so the family barrel, stories and
@@ -33,7 +33,7 @@ import type {
 } from './feeds-types.js';
 import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
-// ── activity-feed (annex §4) ───────────────────────────────────────────────
+// ── activity-feed (annex) ──────────────────────────────────────────────────
 export const activityFeedConfigSchema = widgetSharedConfigSchema.extend({
   limit: z.number().int().min(1).max(50).default(6),
   viewAllHref: z.string().optional(),
@@ -54,7 +54,7 @@ const EVENTS = [
   { icon: 'deployed', tone: 'info', action: 'deployed', target: 'web@v2.4.0' },
 ] as const;
 
-/** Deterministic `record-list` of activity rows (04 §7.7). */
+/** Deterministic `record-list` of activity rows. */
 export function activityFeedDemoData(seed: number): { data: ActivityItem[] } {
   const random = mulberry32(seed || 1);
   const data = Array.from({ length: 8 }, (_, index) => {
@@ -72,7 +72,7 @@ export function activityFeedDemoData(seed: number): { data: ActivityItem[] } {
   return { data };
 }
 
-// ── notification-feed (annex §4) ───────────────────────────────────────────
+// ── notification-feed (annex) ──────────────────────────────────────────────
 export const notificationFeedConfigSchema = widgetSharedConfigSchema.extend({
   tabs: z.boolean().default(true),
   inlineActions: z.boolean().default(true),
@@ -127,7 +127,7 @@ export function notificationFeedDemoData(seed: number): { data: NotificationItem
   return { data };
 }
 
-// ── realtime-feed (annex §4) ───────────────────────────────────────────────
+// ── realtime-feed (annex) ──────────────────────────────────────────────────
 export const realtimeFeedConfigSchema = widgetSharedConfigSchema.extend({
   maxRows: z.number().int().min(3).max(200).default(40),
   pausable: z.boolean().default(true),
@@ -156,7 +156,7 @@ const STREAM_EVENTS = [
 ] as const;
 const STREAM_ACTORS = ['edge-1', 'worker-3', 'api-gw', 'cron', 'jordan@globex.com'] as const;
 
-/** Deterministic `stream` snapshot (04 §7.7). */
+/** Deterministic `stream` snapshot. */
 export function realtimeFeedDemoData(seed: number): { snapshot: StreamEvent[]; cursor: string } {
   const random = mulberry32(seed || 1);
   const snapshot = Array.from({ length: 24 }, (_, index) => {
@@ -174,7 +174,7 @@ export function realtimeFeedDemoData(seed: number): { snapshot: StreamEvent[]; c
   return { snapshot, cursor: `c_${String(seed)}` };
 }
 
-// ── timeline-vertical (annex §4) ───────────────────────────────────────────
+// ── timeline-vertical (annex) ──────────────────────────────────────────────
 const timelineVariant = z.enum(['activity', 'changelog', 'incidents', 'trace']);
 
 export const timelineVerticalConfigSchema = widgetSharedConfigSchema.extend({
@@ -206,7 +206,7 @@ export function timelineVerticalDemoData(seed: number, variant: TimelineVertical
   return { data };
 }
 
-// ── unread-badge (annex §4) ────────────────────────────────────────────────
+// ── unread-badge (annex) ───────────────────────────────────────────────────
 export const unreadBadgeConfigSchema = widgetSharedConfigSchema.extend({
   /** Overflow cap — counts above render as "{max}+". */
   max: z.number().int().min(1).max(9999).default(99),
@@ -219,21 +219,21 @@ export const unreadBadgeConfigSchema = widgetSharedConfigSchema.extend({
 });
 export type UnreadBadgeConfig = z.infer<typeof unreadBadgeConfigSchema>;
 
-/** Deterministic non-zero count (04 §7.7). */
+/** Deterministic non-zero count. */
 export function unreadBadgeDemoData(seed: number): { value: number } {
   const random = mulberry32(seed || 1);
   return { value: Math.floor(random() * 40) + 1 };
 }
 
-// ── load-older-paginator (annex §4) ────────────────────────────────────────
+// ── load-older-paginator (annex) ───────────────────────────────────────────
 export const loadOlderPaginatorConfigSchema = widgetSharedConfigSchema.extend({
-  /** Older records appended per click (annex §4 `batchSize`). */
+  /** Older records appended per click (annex `batchSize`). */
   batchSize: z.number().int().min(1).max(200).default(20),
   /** Button copy ("Load older"). */
   label: z.string().optional(),
   /** In-flight copy ("Loading…"). */
   loadingLabel: z.string().optional(),
-  /** Relabel on exhaustion — the annex's "relabels/disappears" (annex §4). */
+  /** Relabel on exhaustion — the annex's "relabels/disappears" (annex). */
   exhaustedLabel: z.string().optional(),
   /** Disappear instead of relabelling once the pool is drained. */
   hideWhenExhausted: z.boolean().default(false),
@@ -245,10 +245,10 @@ export const loadOlderPaginatorConfigSchema = widgetSharedConfigSchema.extend({
 export type LoadOlderPaginatorConfig = z.infer<typeof loadOlderPaginatorConfigSchema>;
 
 /**
- * Deterministic `record-list` cursor demo payload (04 §7.7). The annex's
- * contract is "cursor into older pool", which rides the canonical §3
- * `record-list` envelope: `rows` are what is already on screen, `total` is the
- * pool size, and a non-null `cursor` is what makes more fetchable.
+ * Deterministic `record-list` cursor demo payload. The annex's contract is
+ * "cursor into older pool", which rides the canonical `record-list`
+ * envelope: `rows` are what is already on screen, `total` is the pool size,
+ * and a non-null `cursor` is what makes more fetchable.
  */
 export function loadOlderPaginatorDemoData(seed: number): {
   rows: unknown[];
@@ -262,22 +262,22 @@ export function loadOlderPaginatorDemoData(seed: number): {
   return { rows: Array.from({ length: loaded }, (_, index) => ({ id: index + 1 })), total, cursor: `older-${loaded}`, loaded };
 }
 
-// ── toast-stack (annex §4; cross-listed as undo-toast in §12) ──────────────
+// ── toast-stack (annex; cross-listed as undo-toast) ────────────────────────
 
 /**
  * The overlay toast HOST. Registered as a thin wrapper over @adminium/ui's
- * `ToastStack` + `useToastQueue` (03 §7.2) rather than a reimplementation —
- * max-4 clamping, FIFO overflow, per-variant auto-dismiss, pause-on-hover and
- * the undo-action duration already live there and are already tested.
+ * `ToastStack` + `useToastQueue` rather than a reimplementation — max-4
+ * clamping, FIFO overflow, per-variant auto-dismiss, pause-on-hover and the
+ * undo-action duration already live there and are already tested.
  */
 export const toastStackConfigSchema = widgetSharedConfigSchema.extend({
-  /** Simultaneously visible toasts (annex §4 `maxVisible`, max 4). */
+  /** Simultaneously visible toasts (annex `maxVisible`, max 4). */
   maxVisible: z.number().int().min(1).max(4).default(4),
-  /** Auto-dismiss in ms (annex §4 `durations`: 2.6s plain). */
+  /** Auto-dismiss in ms (annex `durations`: 2.6s plain). */
   duration: z.number().int().min(500).max(60_000).default(2600),
-  /** Auto-dismiss for a toast carrying Undo (annex §4: 5.2s). */
+  /** Auto-dismiss for a toast carrying Undo (annex: 5.2s). */
   undoDuration: z.number().int().min(500).max(60_000).default(5200),
-  /** Annex §4 `position`. */
+  /** Annex `position`. */
   position: z.enum(['bottom-center', 'bottom-end', 'top-center', 'top-end']).default('bottom-center'),
   undoLabel: z.string().optional(),
   dismissLabel: z.string().optional(),
@@ -296,9 +296,9 @@ const TOAST_SAMPLES: readonly { message: string; variant: string; undoable: bool
 ];
 
 /**
- * Deterministic ephemeral-toast demo payload (04 §7.7). SEEDED rather than
- * fixed: `toast-stack` is a `static`-contract widget, but its payload is a
- * SAMPLE from a catalogue (unlike `upload-dropzone`/`empty-state`, whose whole
+ * Deterministic ephemeral-toast demo payload. SEEDED rather than fixed:
+ * `toast-stack` is a `static`-contract widget, but its payload is a SAMPLE
+ * from a catalogue (unlike `upload-dropzone`/`empty-state`, whose whole
  * payload IS their config), so the determinism gate's "seed actually threads
  * into the generator" check applies and the id stays off `SEED_INVARIANT_IDS`.
  */

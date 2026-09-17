@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The SQLite rebuild, executed — 35-schema-authoring.md §7, 35-T06.
+ * The SQLite rebuild, executed.
  *
  * ─── Why this file exists ──────────────────────────────────────────────────
  *

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The framework-free leaf of the `feeds` family (annex §4): the deterministic
+ * The framework-free leaf of the `feeds` family (annex): the deterministic
  * seeded PRNG, the fixed demo epoch, and the day constant the demo payloads and
  * the time-bucketing share. No React, no @adminium/ui — nothing here can pull a
  * component into a chunk.
@@ -9,8 +9,8 @@
  * `FeedSentence` / `RelativeTime` JSX elements, so the pure `feeds-config`
  * module (which the registry's eager metadata graph reaches) cannot import from
  * it without dragging those components — and their @adminium/ui deps — into the
- * eager chunk (04 §2.3, acceptance #3). `feed-lib.tsx` re-exports everything
- * here, so existing `./feed-lib.js` import points stay stable.
+ * eager chunk (acceptance #3). `feed-lib.tsx` re-exports everything here, so
+ * existing `./feed-lib.js` import points stay stable.
  */
 
 /** Mulberry32 — the repo's deterministic seeded PRNG (see tables/demo-data.ts). */
@@ -30,7 +30,7 @@ export function pickFrom<T>(random: () => number, items: readonly T[]): T {
   return items[Math.floor(random() * items.length) % items.length] as T;
 }
 
-/** Fixed demo epoch so `demoData(seed)` is byte-identical across runs (04 §7.7). */
+/** Fixed demo epoch so `demoData(seed)` is byte-identical across runs. */
 export const DEMO_EPOCH = Date.UTC(2026, 6, 14, 12, 0, 0);
 
 /** One day in ms — demo timestamp offsets + the notification day-bucketing. */

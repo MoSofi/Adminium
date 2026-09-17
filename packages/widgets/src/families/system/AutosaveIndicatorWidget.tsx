@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `autosave-indicator` (annex §12) — header pill cycling warn-dot "Unsaved
+ * `autosave-indicator` (annex) — header pill cycling warn-dot "Unsaved
  * changes" → spinner "Saving…" → green check "All changes saved", stamping the
  * updated time. Bound to the host document's `{dirty, saving, savedAt}` state
  * (Invoice Builder, Report Builder, Notification Settings).
@@ -8,7 +8,7 @@
  * Wraps @adminium/ui's `AutosaveIndicator` (which owns the pill, the fade
  * transition, and the polite live region). The widget is PURELY a projection of
  * bound state — it never debounces or saves; `config.debounceMs` only documents
- * the host's window for the info popover (04 §4).
+ * the host's window for the info popover.
  */
 
 import { AutosaveIndicator, MonoText } from '@adminium/ui';

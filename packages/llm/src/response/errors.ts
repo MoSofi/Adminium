@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Validation error model shared by the whole response pipeline
- * (06-llm-assist.md §7.2). Every stage — extract, parse, version, Zod, locale,
- * referential, run-binding — reports through the ONE {@link LlmValidationError}
- * shape so the paste UI and the CLI `--dry-run` can render a single precise
- * per-path list (§7.2).
+ * Validation error model shared by the whole response pipeline. Every stage —
+ * extract, parse, version, Zod, locale, referential, run-binding — reports
+ * through the ONE {@link LlmValidationError} shape so the paste UI and the CLI
+ * `--dry-run` can render a single precise per-path list.
  *
  * Two axes matter downstream:
- *  - `code` — the machine code (§7.2/§7.3 tables), rendered verbatim.
+ * - `code` — the machine code (tables), rendered verbatim.
  *  - `severity` — how the pipeline reacts:
  *      • `fatal`   → rejects the whole run (stays `awaiting_response` / `failed`).
  *      • `item`    → drops only the offending suggestion; the rest applies
@@ -20,7 +19,7 @@
  * it is safe for `@adminium/dashboard` (browser) to pull transitively.
  */
 
-/** Every code the pipeline can emit (§7.2 stages + §7.3 referential list). */
+/** Every code the pipeline can emit (stages + referential list). */
 export const LLM_VALIDATION_CODES = [
   // Stage 1–4 — fatal (reject the run)
   'LLM_JSON_PARSE',
@@ -30,7 +29,7 @@ export const LLM_VALIDATION_CODES = [
   'LLM_SCHEMA_INVALID',
   // Stage 5 — per-item
   'LLM_LOCALE_KEYS',
-  // Stage 6 — referential, per-item (§7.3)
+  // Stage 6 — referential, per-item
   'LLM_UNKNOWN_TABLE',
   'LLM_UNKNOWN_COLUMN',
   'LLM_BAD_DISPLAY_COLUMN',
@@ -56,7 +55,7 @@ export type LlmValidationSeverity = 'fatal' | 'item' | 'warning';
  * One validation failure. `path` is a JSON path into the response
  * (`tables[3].table`, `dashboards[0].widgets[5].metricColumn`, `schema_version`,
  * or `''` for the whole document) so the UI can point at the exact field.
- * `message` is a human sentence rendered verbatim (§7.2).
+ * `message` is a human sentence rendered verbatim.
  */
 export interface LlmValidationError {
   code: LlmValidationCode;
@@ -64,9 +63,9 @@ export interface LlmValidationError {
   /** JSON path into the response; `''` = the whole document. */
   path: string;
   message: string;
-  /** Extra remediation line (e.g. the §4.3 regeneration hint). */
+  /** Extra remediation line (e.g. the regeneration hint). */
   hint?: string;
-  /** Stable §8.1 suggestion id of the dropped suggestion, when one applies. */
+  /** Stable suggestion id of the dropped suggestion, when one applies. */
   suggestionId?: string;
 }
 
@@ -84,7 +83,7 @@ const WARNING_CODES = new Set<LlmValidationCode>([
   'LLM_RUN_MISMATCH',
 ]);
 
-/** The fixed severity of a code (§7.2 "Failure class" column). */
+/** The fixed severity of a code (column). */
 export function severityOf(code: LlmValidationCode): LlmValidationSeverity {
   if (FATAL_CODES.has(code)) return 'fatal';
   if (WARNING_CODES.has(code)) return 'warning';

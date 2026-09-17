@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-parallel-coordinates` primitive (research/widget-registry.md §2):
- * evenly spaced vertical axes with one colored polyline per record. Axis order
+ * `chart-parallel-coordinates` primitive (research/widget-registry.md): evenly
+ * spaced vertical axes with one colored polyline per record. Axis order
  * mirrors in RTL. Values normalise within each axis's [min, max]. Records are
  * colored by segment from the viz palette. Fade-in on mount.
  */

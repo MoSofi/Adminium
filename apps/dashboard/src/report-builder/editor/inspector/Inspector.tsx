@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The inspector (comp 349-428; 43-report-builder.md Appendix A I1–I4, D18):
- * a 288 px right aside under the accent-soft banner, holding the header
- * panel, one of the 25 block field groups, or the *Nothing selected* fallback.
+ * The inspector (comp 349-428; I1–I4, D18): a 288 px right aside under the
+ * accent-soft banner, holding the header panel, one of the 25 block field
+ * groups, or the *Nothing selected* fallback.
  *
- * BELOW `lg` IT IS A DRAWER under the canvas (D18, 34 §E11's fill): the comp
+ * BELOW `lg` IT IS A DRAWER under the canvas (D18): the comp
  * draws no responsive rule at all (E11), and two aside columns beside a 760 px
  * sheet cannot fit a 390 px viewport. Both instances mount at once below `lg`
  * (one hidden by `lg:hidden`, one by `hidden lg:flex`), so an e2e or axe pass
  * that reaches for a panel test id finds it TWICE — scope to the aside or the
- * drawer, never a bare `getByTestId` (43 §0.3 trap 9).
+ * drawer, never a bare `getByTestId` (trap 9).
  *
  * THE BANNER'S HINT IS AT FULL ACCENT (34 DEP-29): the comp draws it at
  * `opacity: .75` on the accent-soft wash (351), which measures 3.3:1 and

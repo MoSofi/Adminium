@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-master-detail` binding (09-generated-app.md §4.1, §7.3): projects the
- * page envelope onto the `PageMasterDetail` template from `@adminium/widgets`.
+ * `page-master-detail` binding: projects the page envelope onto the
+ * `PageMasterDetail` template from `@adminium/widgets`.
  *
  * Selection is route-controlled through the canonical record route
  * `/p/$slug/r/$recordId` (recordId ⇄ adapters.openRecord) — deep links
- * restore the selected record exactly as §7.3 asks; the spec's `?sel=`
- * search param is deliberately traded for the record route every other
- * template already uses (one canonical deep-link shape per page). The
- * template's own `record-open` echo is swallowed here — selection routing
- * owns the push.
+ * restore the selected record exactly asks; the spec's `?sel=` search
+ * param is deliberately traded for the record route every other template
+ * already uses (one canonical deep-link shape per page). The template's
+ * own `record-open` echo is swallowed here — selection routing owns the
+ * push.
  */
 import { PageMasterDetail } from '@adminium/widgets';
 

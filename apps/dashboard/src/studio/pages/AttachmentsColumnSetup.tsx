@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Binding a page's attachments to a COLUMN on the customer's own table
- * (38-files-library-and-attachments.md D6, D7, §3.5, §3.6; 38-T07).
+ * Binding a page's attachments to a COLUMN on the customer's own
+ * table.
  *
  * ─── What this is ─────────────────────────────────────────────────────────
  *
@@ -22,8 +22,8 @@
  * moves. So the flow is: `plan` → show the operator the exact statement
  * (`PlanReview`) → `apply` on confirm.
  *
- * It uses the `addColumns` edit form rather than `upsertTables` (38-T16): a
- * caller holding only a snapshot cannot restate a whole table faithfully —
+ * It uses the `addColumns` edit form rather than `upsertTables`: a caller
+ * holding only a snapshot cannot restate a whole table faithfully —
  * `logicalType` is a closed enum, so one column of a display-only type makes
  * the request invalid, and a default the vocabulary cannot author comes back
  * `null` and reads as an intentional drop.
@@ -67,7 +67,8 @@ import type { DesiredColumn, SchemaEdit, SchemaPlan } from '../remap/design/type
 const IDENTIFIER_RE = /^[a-z][a-z0-9_]*$/;
 const IDENTIFIER_MAX = 128;
 
-/** What a column must be to hold a list of references (§0.3, `FILE_CAPABLE_TYPES`). */
+/** What a column must be to hold a list of references (`FILE_CAPABLE_TYPES`).
+ * */
 const TEXTISH = new Set(['text', 'varchar']);
 
 export interface AttachmentsColumnSetupProps {

@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `printer.escpos` — the v1 STUB provider (11-electron.md §12).
+ * `printer.escpos` — the v1 STUB provider.
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ STUB in both senses. **11-T17 owns this file.** 11-T01 created it so the │
- * │ §3 tree exists and the scaffold builds.                                  │
+ * │ STUB in both senses. ** owns this file.** created it so the │ │ tree
+ * exists and the scaffold builds. │
  * └─────────────────────────────────────────────────────────────────────────┘
  *
  * Note that "stub" here is the SHIPPING BEHAVIOUR, not a placeholder to be
- * removed in M11: §12 specifies `status: "stub"`, `listDevices` returning `[]`
+ * removed in M11: the contract specifies `status: "stub"`, `listDevices` returning `[]`
  * and `print` rejecting with `CAPABILITY_STUB`, precisely so the manifest →
  * consent → grant → IPC → provider pipeline is exercisable end-to-end now while
- * the concrete escpos/USB driver work stays out of scope (§1) until the POS
- * micro-SaaS plan. 11-T17 implements this contract; the POS plan replaces the
+ * the concrete escpos/USB driver work stays out of scope until the POS
+ * micro-SaaS plan. The shell implements this contract; the POS plan replaces the
  * internals and nothing above it changes.
  */
 

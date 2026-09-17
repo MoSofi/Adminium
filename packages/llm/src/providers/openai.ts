@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * OpenAI Chat Completions client (06-llm-assist.md §3.1). Auth: `Authorization:
- * Bearer`; POST `/v1/chat/completions`. The wire-format helpers are exported and
- * reused by the openai-compatible client. Fetch only, temperature fixed at 0.
+ * OpenAI Chat Completions client. Auth: `Authorization: Bearer`; POST
+ * `/v1/chat/completions`. The wire-format helpers are exported and reused by the
+ * openai-compatible client. Fetch only, temperature fixed at 0.
  */
 import { pingComplete, requestJson, toCompleteResult } from './http.js';
 import { listOpenAiModels } from './model-catalog.js';

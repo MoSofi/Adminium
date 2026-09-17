@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The first-boot source seed (28-T31) end to end, unmocked, against a real
- * database — the boot a `docker compose up` performs, minus the container.
+ * The first-boot source seed end to end, unmocked, against a real database
+ * — the boot a `docker compose up` performs, minus the container.
  *
  * `source-seed.test.ts` owns the state machine with the chain mocked, which is
  * the right seam for the four answers but would pass just as happily if

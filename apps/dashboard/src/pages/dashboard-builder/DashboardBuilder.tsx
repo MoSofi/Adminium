@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard builder shell (04-widget-registry.md §6.2/§6.3, task 04-T14).
- * Wraps the `page-dashboard` render path with an edit-mode surface:
+ * Dashboard builder shell. Wraps the `page-dashboard` render path with an
+ * edit-mode surface:
  *
  *  - a header "Edit" button (any viewer may edit; page-edit roles edit the
  *    SHARED default, everyone else their PERSONAL override — `editTargetForRoles`);
@@ -81,9 +81,9 @@ const EMPTY_LAYOUT: PageLayout = { version: 1, items: [] };
 
 export interface DashboardBuilderProps {
   page: PageEnvelope;
-  /** Per-caller `page:<id>:edit` capability from the server (04 §6.3). When
-   *  true the builder edits the SHARED default; otherwise a PERSONAL override.
-   *  This matches the server's per-page grant model — never role slugs. */
+  /** Per-caller `page:<id>:edit` capability from the server. When true the
+   * builder edits the SHARED default; otherwise a PERSONAL override. This
+   * matches the server's per-page grant model — never role slugs. */
   canEditLayout?: boolean | undefined;
   states?: DashboardDataStates | undefined;
   onEvent?: ((instanceId: string, event: WidgetEvent) => void | Promise<unknown>) | undefined;

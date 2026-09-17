@@ -1,12 +1,12 @@
-# Adminium via Docker Compose — 01-architecture.md §4.2.
+# Adminium via Docker Compose.
 #
 #   ADMINIUM_SECRET=$(openssl rand -hex 32) docker compose up
 #     → http://localhost:4600 → the first-run wizard.
 #
 # Meta store: by default Adminium falls back to embedded SQLite under the
-# `adminium-data` volume (§3.1) and says so at boot. For a real deployment, run
-# the bundled Postgres AND point Adminium at it — the profile starts the
-# container, it does not wire anything to it, so BOTH of these are needed:
+# `adminium-data` volume and says so at boot. For a real deployment, run the
+# bundled Postgres AND point Adminium at it — the profile starts the container,
+# it does not wire anything to it, so BOTH of these are needed:
 #
 #   export ADMINIUM_META_URL=postgres://adminium:adminium@meta-db:5432/adminium
 #   docker compose --profile with-meta up
@@ -16,10 +16,9 @@
 # only sign is the "Using embedded SQLite meta store" line at boot — which reads
 # as informational to someone who believes they just started Postgres.
 #
-# YOUR SOURCE DATABASE IS ALWAYS EXTERNAL to this file (§4.2) — Adminium connects
-# out to it. There is deliberately no source-DB service here to "get started
-# with"; you point Adminium at the database you already have, in the first-run
-# wizard.
+# YOUR SOURCE DATABASE IS ALWAYS EXTERNAL to this file — Adminium connects out to
+# it. There is deliberately no source-DB service here to "get started with"; you
+# point Adminium at the database you already have, in the first-run wizard.
 
 name: adminium
 
@@ -36,13 +35,13 @@ services:
       - '4600:4600'
     environment:
       # Required. Derives the AES-256-GCM key for every stored DSN and API key,
-      # the session HMAC key, and the CSRF key (§7.1). It is NOT baked into the
-      # image and it must be stable across restarts: change it and every stored
-      # secret becomes undecryptable.
-      # Quoted, and with no `$(...)` in the message, on purpose: an unquoted
-      # value containing ": " parses as a nested YAML mapping, and Compose
-      # interpolates `$` inside `${...}` — so a bare command substitution here
-      # would need escaping as `$$(...)`. Either one breaks `compose config`.
+      # the session HMAC key, and the CSRF key. It is NOT baked into the image
+      # and it must be stable across restarts: change it and every stored
+      # secret becomes undecryptable. Quoted, and with no `$(...)` in the
+      # message, on purpose: an unquoted value containing ": " parses as a
+      # nested YAML mapping, and Compose interpolates `$` inside `${...}` — so
+      # a bare command substitution here would need escaping as `$$(...)`.
+      # Either one breaks `compose config`.
       ADMINIUM_SECRET: '${ADMINIUM_SECRET:?required - generate one with openssl rand -hex 32}'
       # Meta-store DSN: postgres:// | mysql:// | sqlite:<path>. Unset → embedded
       # SQLite in ADMINIUM_DATA_DIR. With --profile with-meta, use:
@@ -70,8 +69,10 @@ services:
       # Matches the volume mount below; also the image default.
       ADMINIUM_DATA_DIR: /data
     volumes:
-      # Files, exports, backups, and the embedded SQLite meta store. Named, so
-      # the instance survives `docker compose down` and image upgrades.
+      # Files, exports, backups, installed apps and add-ons, and the embedded
+      # SQLite meta store. Named, so the instance survives `docker compose down`
+      # and image upgrades. Keep it even with ADMINIUM_META_URL set: without it,
+      # every recreated container loses its installed apps and add-ons.
       - adminium-data:/data
     healthcheck:
       # LIVENESS, pinned here as well as in the image so the contract is visible

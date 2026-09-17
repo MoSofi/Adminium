@@ -55,12 +55,12 @@ export interface AuthLayoutProps extends Omit<ComponentPropsWithRef<'div'>, 'sty
 }
 
 /**
- * AuthLayout — Tier-5 auth shell (research/design-system.md §3 Tier 5,
- * Login.dc.html + Auth & Onboarding.dc.html): split
- * brand panel with the accent gradient, logo block, testimonial + trust-badge
- * slots, and a 380px form column. The brand panel is purely decorative
- * marketing surface: it is `aria-hidden`, collapses away below `lg`, and the
- * layout uses logical flow only, so RTL mirrors for free.
+ * AuthLayout — Tier-5 auth shell (research/design-system.md Tier 5,
+ * Login.dc.html + Auth & Onboarding.dc.html): split brand panel with the
+ * accent gradient, logo block, testimonial + trust-badge slots, and a 380px
+ * form column. The brand panel is purely decorative marketing surface: it is
+ * `aria-hidden`, collapses away below `lg`, and the layout uses logical flow
+ * only, so RTL mirrors for free.
  */
 export function AuthLayout({
   variant = 'split',

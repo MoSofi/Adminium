@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Deterministic email renderer: an email document → one MIME-ready
- * `{ subject, html, text, inline }` (39-email-templates-and-campaigns.md §3.4).
+ * `{ subject, html, text, inline }`.
  *
  * WHY THIS IS HAND-ROLLED. There is no React on this path and there will not
  * be one: `apps/server` has zero React dependencies, and pulling
@@ -20,21 +20,21 @@
  * Tailwind class strings respectively; neither applies here. This is the one
  * module in the repo where hardcoded colour and inline style are the correct
  * answer — please do not "fix" it. The literals are the COMP'S mail colours
- * (`designs/Email Templates.dc.html` 1407-1457), which the canvas renders
- * inside `adm-always-light` for the same reason: mail has one palette.
+ * (1407-1457), which the canvas renders inside `adm-always-light` for the
+ * same reason: mail has one palette.
  *
  * BLOCK VOCABULARY. Server-owned kinds under an `email.*` prefix — the comp's
  * 24 block types plus two legacy kinds (`email.spacer`, `email.footer`) that
  * stay renderable because seeded rows and every install's edits hold them.
  *
- * THREE COPIES OF THE LIST, AND A GATE HOLDS THEM TOGETHER (39 D16).
+ * THREE COPIES OF THE LIST, AND A GATE HOLDS THEM TOGETHER.
  * `apps/dashboard/src/email/model/blocks.ts` declares the same kinds for the
  * editor, and `packages/widgets/.../block-lib.ts` still declares the original
- * six for the generic page-builder canvas. Neither tree may import this one
- * (01-architecture.md §2.3), so the copies are held identical by
- * `scripts/check-email-block-vocab.mjs` in CI: the dashboard registry equals
- * this list, and the widgets' six are a prefix of it. ADD OR RENAME A KIND
- * HERE AND THE DASHBOARD LIST CHANGES IN THE SAME COMMIT, or the gate fails.
+ * six for the generic page-builder canvas. Neither tree may import this one,
+ * so the copies are held identical by `scripts/check-email-block-vocab.mjs`
+ * in CI: the dashboard registry equals this list, and the widgets' six are a
+ * prefix of it. ADD OR RENAME A KIND HERE AND THE DASHBOARD LIST CHANGES IN
+ * THE SAME COMMIT, or the gate fails.
  *
  * UNKNOWN KINDS ARE SKIPPED, NEVER THROWN ON. A template row is editable at
  * runtime and round-trips through an editor that deliberately preserves block
@@ -43,10 +43,10 @@
  * account. Skipping degrades one paragraph; throwing degrades the only
  * recovery path the product has.
  *
- * WHAT MAIL CANNOT SEND AS THE COMP DRAWS IT (39 §0.2). The logo mark is an
- * `<img>` over bytes the caller attaches by CID, never an inline SVG; the
- * brand banner is a solid `bgcolor`, never a gradient; a workspace image is a
- * CID part and a pasted URL is used only when it is `https:`. None of that
+ * WHAT MAIL CANNOT SEND AS THE COMP DRAWS IT. The logo mark is an `<img>`
+ * over bytes the caller attaches by CID, never an inline SVG; the brand
+ * banner is a solid `bgcolor`, never a gradient; a workspace image is a CID
+ * part and a pasted URL is used only when it is `https:`. None of that
  * changes what the operator sees on the canvas — it is what the recipient's
  * client can actually render.
  *
@@ -62,8 +62,8 @@ import type { EmailBlockStyle, EmailBrand } from '@adminium/meta';
 /**
  * Where the bytes of an inline image come from. The renderer never holds
  * bytes: it emits `cid:` references and reports what it referenced, and
- * delivery resolves each one right before `sendMail` (39 D6, D8, D9) — so
- * the same render serves a test send, a queued job and a campaign run.
+ * delivery resolves each one right before `sendMail` — so the same render
+ * serves a test send, a queued job and a campaign run.
  */
 export type EmailInlineRef =
   | { cid: string; kind: 'mark'; mark: string }
@@ -122,7 +122,7 @@ export function isEmailBlockKind(value: unknown): value is EmailBlockKind {
 
 /**
  * The comp's mail palette (comp 1408-1457) — hex literals, not tokens; see
- * the header. `accent` is the one value that varies per document (39 D6).
+ * the header. `accent` is the one value that varies per document.
  */
 const PALETTE = {
   page: '#f6f6f8',
@@ -147,10 +147,10 @@ export const DEFAULT_EMAIL_ACCENT = '#4f46e5';
 export const DEFAULT_EMAIL_MARK = 'hexagon';
 
 /**
- * The workspace accent as a mail colour — the sixth swatch (39 D6). Mail has
- * one palette, so these are the LIGHT values of `packages/tokens/src/accents.css`,
- * copied rather than imported: that package is CSS, and a variable never
- * resolves in a mail client.
+ * The workspace accent as a mail colour — the sixth swatch. Mail has one palette,
+ * so these are the LIGHT values of `packages/tokens/src/accents.css`, copied
+ * rather than imported: that package is CSS, and a variable never resolves in a
+ * mail client.
  */
 export const WORKSPACE_ACCENT_HEX: Readonly<Record<string, string>> = {
   indigo: '#4f46e5',
@@ -173,10 +173,10 @@ const MONO = "'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace";
 
 const TEXT_RULE = '--------------------------------';
 
-/** The CID the brand mark travels under (39 D6). */
+/** The CID the brand mark travels under. */
 export const MARK_CID = 'mark';
 
-/** The CID a Files image travels under (39 D9). */
+/** The CID a Files image travels under. */
 export function imageCid(fileId: string): string {
   return `img-${fileId}`;
 }
@@ -337,7 +337,7 @@ interface RenderCtx {
   /** `text-align` for the reading direction. */
   align: 'left' | 'right';
   accent: string;
-  /** The Files images delivery can attach by CID, by file id (39 D9). */
+  /** The Files images delivery can attach by CID, by file id. */
   imageFiles: ReadonlySet<string>;
   /** References this render emitted — filled as blocks render. */
   used: EmailInlineRef[];
@@ -465,7 +465,7 @@ function renderSpacer(data: Record<string, unknown>): BlockOut {
   };
 }
 
-/** The legacy footer BLOCK — still rendered for rows never re-saved (39 D5). */
+/** The legacy footer BLOCK — still rendered for rows never re-saved. */
 function renderFooterBlock(data: Record<string, unknown>, ctx: RenderCtx): BlockOut | null {
   const text = filledOr(data['text'], ctx);
   if (text === null) return null;
@@ -491,10 +491,10 @@ function renderBox(data: Record<string, unknown>, ctx: RenderCtx): BlockOut | nu
 }
 
 /**
- * A Files image travels as a CID part the caller resolved (39 D9); a pasted
- * URL is used only when it is `https:`. With neither there is nothing a mail
- * client could show, so the block is omitted rather than sent as a broken
- * image — the canvas's dashed placeholder is an authoring aid, not content.
+ * A Files image travels as a CID part the caller resolved; a pasted URL is
+ * used only when it is `https:`. With neither there is nothing a mail client
+ * could show, so the block is omitted rather than sent as a broken image —
+ * the canvas's dashed placeholder is an authoring aid, not content.
  */
 function renderImage(data: Record<string, unknown>, ctx: RenderCtx): BlockOut | null {
   const alt = strOr(data['alt']);
@@ -925,7 +925,8 @@ function wrapBlock(out: BlockOut, style: EmailBlockStyle, first: boolean, ctx: R
 
 // --- the document ----------------------------------------------------------------------
 
-/** The brand as the renderer needs it — resolved by the caller from the row and the workspace (39 D6). */
+/** The brand as the renderer needs it — resolved by the caller from the row and
+ * the workspace. */
 export interface EffectiveBrand {
   name: string;
   accent: string;
@@ -940,7 +941,8 @@ export interface RenderableDocument {
 }
 
 export interface RenderEmailInput {
-  /** The document (39 §3.3). `template` is the pre-39 name of the same thing and still accepted. */
+  /** The document. `template` is the pre-39 name of the same thing and still
+   * accepted. */
   document?: RenderableDocument | undefined;
   template?: { subject: string; blocks: readonly unknown[] } | undefined;
   /** Canonical locale id (`en_US`, `ar_EG`, …) — becomes the `lang` attribute. */
@@ -955,12 +957,13 @@ export interface RenderEmailInput {
    */
   brand?: EffectiveBrand | undefined;
   /**
-   * The mark delivery will attach under `cid:mark` (39 D6) — one of the
-   * twelve shipped PNGs or the workspace logo's file id. Absent: the banner
+   * The mark delivery will attach under `cid:mark` — one of the twelve
+   * shipped PNGs or the workspace logo's file id. Absent: the banner
    * carries the name only.
    */
   mark?: Omit<Extract<EmailInlineRef, { kind: 'mark' }>, 'cid'> | Omit<Extract<EmailInlineRef, { kind: 'file' }>, 'cid'> | undefined;
-  /** The Files images delivery can attach by CID (39 D9); an image block naming any other id falls back to its URL. */
+  /** The Files images delivery can attach by CID; an image block naming any
+   * other id falls back to its URL. */
   imageFiles?: ReadonlySet<string> | undefined;
 }
 
@@ -979,11 +982,11 @@ export function effectiveBrand(
 /**
  * Render one document into the HTML and plain-text parts of a message.
  *
- * Order (39 §3.4): hidden preheader → brand header → blocks, each in its
- * style cell → the fixed footer → any legacy footer block met on the way is
- * rendered in place. `dir: 'rtl'` sets `dir` on `<html>` and on every cell
+ * Order: hidden preheader → brand header → blocks, each in its style cell →
+ * the fixed footer → any legacy footer block met on the way is rendered in
+ * place. `dir: 'rtl'` sets `dir` on `<html>` and on every cell
  * AND flips every block's text alignment — Arabic laid out flush-left reads
- * as broken even when the direction attribute is right (10-T18).
+ * as broken even when the direction attribute is right.
  */
 export function renderEmail(input: RenderEmailInput): RenderedEmail {
   const document: RenderableDocument = input.document ?? {
@@ -1020,7 +1023,7 @@ export function renderEmail(input: RenderEmailInput): RenderedEmail {
   const preheader = sanitizeSubject(fill(document.preheader ?? '', input.vars, identity));
   const lang = escapeHtml(tagFromLocaleId(input.locale));
 
-  // --- the brand header (39 D6): bgcolor, never a gradient; the mark by CID ---
+  // --- the brand header: bgcolor, never a gradient; the mark by CID ---
   const brandName = input.brand?.name ?? input.vars['appName'] ?? '';
   let markHtml = '';
   if (input.mark !== undefined) {

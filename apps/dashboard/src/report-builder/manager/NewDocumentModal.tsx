@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The New modal (43-report-builder.md Appendix A M15; comp 64-96, props
- * 570-577): a dashed *Blank report* tile and the twelve starters in a
- * four-column grid, each starter a miniature sheet in its own accent. On the
- * Reports tab a *Your templates* section follows (43 D6/O3): a report can
- * begin as a copy of one of the workspace's report templates, which
- * `POST /:id/from-template` makes server-side, recording the origin — the
- * flow the comp's own subtitle (141) and empty state (600) promise and its
- * `createFrom` (553) never wires.
+ * The New modal (M15; comp 64-96, props 570-577): a dashed *Blank report*
+ * tile and the twelve starters in a four-column grid, each starter a
+ * miniature sheet in its own accent. On the Reports tab a *Your templates*
+ * section follows: a report can begin as a copy of one of the workspace's
+ * report templates, which `POST /:id/from-template` makes server-side,
+ * recording the origin — the flow the comp's own subtitle (141) and empty
+ * state (600) promise and its `createFrom` (553) never wires.
  *
  * Picking creates the row at once and hands the reply up — the manager opens
  * the editor on it. There is no name step: the starter's name is the name
@@ -86,7 +85,7 @@ function StarterTile({ starter, disabled, onPick }: { starter: ReportStarterCard
 export function NewDocumentModal({ kind, onClose, onCreated }: NewDocumentModalProps) {
   const toasts = useAppToasts();
   const starters = useQuery(reportStartersQuery());
-  // 43 D6/O3: a report may start from one of the workspace's report templates.
+  // A report may start from one of the workspace's report templates.
   const templates = useQuery({ ...reportDocumentsQuery({ kind: 'template' }), enabled: kind === 'report' });
   const [picking, setPicking] = useState<string | null>(null);
   const PlusGlyph = reportIcon('plus');

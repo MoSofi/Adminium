@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The envelope (34-invoices-add-on.md 34-T47): a partial body is completed
- * with every default, a full body survives the wire unchanged, and the
- * composition is reconciled — no orphan keys, nothing lost, nothing twice.
+ * The envelope: a partial body is completed with every default, a full
+ * body survives the wire unchanged, and the composition is reconciled — no
+ * orphan keys, nothing lost, nothing twice.
  */
 import { describe, expect, it } from 'vitest';
 

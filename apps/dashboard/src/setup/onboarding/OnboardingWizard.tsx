@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The first-run wizard's chrome, from `designs/Onboarding.dc.html`
- * (45-onboarding.md §2): a 300px rail carrying the step list and a progress
- * bar, and a centred 560px column carrying kicker, title, description, the
- * step's own body and the Back / Skip / Continue row.
+ * The first-run wizard's chrome,: a 300px rail carrying the step list and a
+ * progress bar, and a centred 560px column carrying kicker, title,
+ * description, the step's own body and the Back / Skip / Continue row.
  *
  * PRESENTATIONAL ON PURPOSE. It owns no step state and no submit: which step
  * is showing, what "Continue" does and whether it may be pressed all belong to

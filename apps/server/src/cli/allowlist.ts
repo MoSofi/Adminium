@@ -3,13 +3,13 @@
  * LLM allowed-vocabulary loading for the CLI.
  *
  * `LLM_ALLOWED_TEMPLATES` / `LLM_ALLOWED_WIDGETS` live in `@adminium/widgets`,
- * which **the server tree may never import** (01-architecture.md §2.3, enforced
- * by `.dependency-cruiser.cjs` `server-no-ui-widgets-charts`). Routes solve this
- * by having the app-wiring layer inject them (`LlmRoutesDeps.allowed`); the CLI
- * has no wiring layer above it, so it reads them as DATA at runtime. Every
- * specifier below is computed, so no static import edge exists for the rule to
- * catch and none is created — the ban is about the compiled import graph, and
- * this respects it.
+ * which **the server tree may never import** (enforced by
+ * `.dependency-cruiser.cjs` `server-no-ui-widgets-charts`). Routes solve this by
+ * having the app-wiring layer inject them (`LlmRoutesDeps.allowed`); the CLI has
+ * no wiring layer above it, so it reads them as DATA at runtime. Every specifier
+ * below is computed, so no static import edge exists for the rule to catch and
+ * none is created — the ban is about the compiled import graph, and this
+ * respects it.
  *
  * THE CANDIDATE ORDER IS THE WHOLE POINT. `@adminium/widgets` is not a
  * dependency of `@adminium/server` and cannot become one: it is `private: true`,
