@@ -9,8 +9,8 @@
  * unguarded. All 16 KB articles linked to routes that do not exist and the whole
  * in-app help surface 404'd, with nothing in CI to notice.
  *
- * These read files rather than importing across app boundaries (01 §2.3), which
- * is also what lets one suite check both sides of a cross-app promise.
+ * These read files rather than importing across app boundaries, which is also
+ * what lets one suite check both sides of a cross-app promise.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { COMMANDS } from '../src/cli/run.js';
 import { envSchema } from '../src/config/env.js';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -137,6 +138,15 @@ describe('the docs describe the build that shipped', () => {
     expect(read('apps/docs/src/content/docs/self-hosting/export-zip.md')).toContain(
       'adminium import-zip',
     );
+  });
+
+  it('gives every registered command a section in the CLI reference', () => {
+    // The same promise, kept for the commands added later (`new`, `dev`, …)
+    // rather than for one command someone happened to check by hand.
+    const cli = read('apps/docs/src/content/docs/reference/cli.md');
+    for (const command of COMMANDS) {
+      expect(cli, `reference/cli.md has no section for \`${command.name}\``).toContain(`## \`${command.name}\``);
+    }
   });
 
   it('the REST reference names every operation the API actually serves', () => {
@@ -260,6 +270,84 @@ describe('the docs describe the build that shipped', () => {
     // And the removed one is gone from the page entirely, except where the page
     // deliberately explains its absence.
     expect(table).not.toContain('`DATABASE_URL`');
+  });
+
+  it('publishes the Projects section, and links every page of it in the sidebar', () => {
+    // The section a developer needs BEFORE they have a project is the one the
+    // product's own output points at: `adminium new` writes a README linking
+    // /projects/deploy/, Studio's empty project card names `adminium new`, and
+    // the CLI reference links the guides. The sidebar is explicit, so a page
+    // nobody links is a page nobody finds.
+    const routes = docsRoutes();
+    const pages = [
+      'projects',
+      'projects/folder',
+      'projects/page-files',
+      'projects/pull-and-check',
+      'projects/hooks-and-actions',
+      'projects/pages-and-widgets',
+      'projects/deploy',
+    ];
+    for (const route of pages) {
+      expect(routes, `the docs site does not publish /${route}`).toContain(route);
+    }
+    const config = read('apps/docs/astro.config.mjs');
+    expect(config).toContain("label: 'Projects'");
+    for (const route of pages) {
+      const link = route === 'projects' ? '/projects/' : `/${route}/`;
+      expect(config, `the sidebar does not link ${link}`).toContain(`link: '${link}'`);
+    }
+    // The project template's README is the other entry point into it.
+    expect(read('apps/server/src/project/scaffold.ts')).toContain('docs.adminium.dev/projects/');
+  });
+
+  it('links every decision page from both the sidebar and the decisions index', () => {
+    // The decision pages are where the SOURCE points instead of carrying a
+    // backstory, so one that nothing links is a page a reader cannot reach from
+    // either direction. Derived from the filesystem rather than a list here, so
+    // adding a page without wiring it up is what goes red.
+    const dir = join(docsRoot, 'anatomy', 'decisions');
+    const slugs = readdirSync(dir)
+      .filter((name) => /\.mdx?$/.test(name))
+      .map((name) => name.replace(/\.mdx?$/, ''))
+      .filter((slug) => slug !== 'index');
+    expect(slugs.length, 'the decisions section is empty').toBeGreaterThan(0);
+    const config = read('apps/docs/astro.config.mjs');
+    expect(config).toContain("label: 'Decisions'");
+    expect(config).toContain("link: '/anatomy/decisions/'");
+    const index = read('apps/docs/src/content/docs/anatomy/decisions/index.md');
+    for (const slug of slugs) {
+      const link = `/anatomy/decisions/${slug}/`;
+      expect(config, `the sidebar does not link ${link}`).toContain(`link: '${link}'`);
+      expect(index, `the decisions index does not link ${link}`).toContain(`(${link})`);
+    }
+  });
+
+  it('never tells anyone to run the unscoped `npx adminium`', () => {
+    // The unscoped npm name belongs to someone else, so a docs page that writes
+    // `npx adminium` sends a reader to install an unrelated package. The pages
+    // that name it do so to warn against it, and say `never` on the same line,
+    // which is what this gate checks for.
+    const offenders: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(path);
+          continue;
+        }
+        if (!/\.mdx?$/.test(entry.name)) continue;
+        readFileSync(path, 'utf8')
+          .split('\n')
+          .forEach((line, index) => {
+            if (!/npx adminium(?![\w-])/.test(line)) return;
+            if (/never/i.test(line)) return;
+            offenders.push(`${path.slice(repoRoot.length + 1)}:${String(index + 1)}: ${line.trim()}`);
+          });
+      }
+    };
+    walk(docsRoot);
+    expect(offenders, 'write `npx @adminiumjs/adminium` (or `npm run …`) instead').toEqual([]);
   });
 
   it('describes ADMINIUM_TELEMETRY as the override it now is', () => {
