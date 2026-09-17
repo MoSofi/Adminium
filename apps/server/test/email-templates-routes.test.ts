@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The email-documents routes (39-email-templates-and-campaigns.md §3.1;
- * 39-T03) — driven through a bare Fastify app with the real rbac plugin and
- * an `x-test-user-id` header, the way `email-send.test.ts` mounts them.
+ * The email-documents routes — driven through a bare Fastify app with the
+ * real rbac plugin and an `x-test-user-id` header, the way
+ * `email-send.test.ts` mounts them.
  *
  * The assertions that carry the wave: a test send queues the REQUEST's
- * document, never the stored row (39 D1); a save with mirror ops changes
- * every sibling and nothing else; a built-in is reset rather than deleted
- * (D4); an export re-imports byte-identical (D14); and every write is a
+ * document, never the stored row; a save with mirror ops changes every
+ * sibling and nothing else; a built-in is reset rather than deleted (D4);
+ * an export re-imports byte-identical (D14); and every write is a
  * `settings.manage` power while every read is a session's.
  */
 import { createHash } from 'node:crypto';
@@ -104,7 +104,7 @@ async function jobRows(meta: MetaDb) {
   return await meta.db.selectFrom('adminium_jobs').selectAll().orderBy('id', 'asc').execute();
 }
 
-describe('email document routes (39-T03)', () => {
+describe('email document routes', () => {
   let meta: MetaDb;
   let app: BareApp;
   let manager: User;
@@ -167,7 +167,7 @@ describe('email document routes (39-T03)', () => {
     const res = await app.inject({ method: 'GET', url: '/email-templates?kind=template', headers: as(viewer) });
     expect(res.statusCode).toBe(200);
     const body = res.json() as { items: { key: string; locale: string; isBuiltin: boolean; topicLabel: string }[]; counts: { template: number; campaign: number; archived: number } };
-    // Four built-ins × eight compiled locales (34 §7.7 added `document-ready`).
+    // Four built-ins × eight compiled locales (added `document-ready`).
     expect(body.counts).toEqual({ template: 32, campaign: 0, archived: 0 });
     const reset = body.items.filter((i) => i.key === 'password-reset');
     expect(reset).toHaveLength(8);
@@ -262,7 +262,7 @@ describe('email document routes (39-T03)', () => {
     expect(mirrored.document.blocks).toHaveLength(before.document.blocks.length + 1);
     expect(mirrored.document.blocks[1]?.block).toBe('email.divider');
     expect(mirrored.document.blocks[1]?.id).not.toBe('new-divider');
-    // The German subject is untouched — only structure mirrors (39 D1).
+    // The German subject is untouched — only structure mirrors.
     expect(mirrored.document.subject).toBe(before.document.subject);
     expect((await detail(other.id)).document.blocks).toHaveLength(other.document.blocks.length);
   });
@@ -316,7 +316,7 @@ describe('email document routes (39-T03)', () => {
     expect((await app.inject({ method: 'PATCH', url: `/email-templates/${doc.id}`, headers: as(manager), payload: {} })).statusCode).toBe(422);
   });
 
-  it('DELETE on a built-in resets it to the shipped copy instead of removing it (39 D4)', async () => {
+  it('DELETE on a built-in resets it to the shipped copy instead of removing it', async () => {
     const seeded = await emailTemplatesRepo(meta).findByKeyLocale('password-reset', 'en_US');
     if (seeded === null) throw new Error('seed missing');
     const edited = await app.inject({
@@ -338,7 +338,7 @@ describe('email document routes (39-T03)', () => {
     expect(row.document.footer).toContain('{{resetUrl}}');
   });
 
-  it('test-send queues one job per address carrying the REQUEST document, with its parts (39 D1, D8)', async () => {
+  it('test-send queues one job per address carrying the REQUEST document, with its parts', async () => {
     const doc = await create({ kind: 'template', name: 'Test me', starter: 'welcome' });
     const unset = await app.inject({ method: 'POST', url: `/email-templates/${doc.id}/test-send`, headers: as(manager), payload: { to: ['ops@adminium.test'], document: doc.document } });
     expect(unset.statusCode).toBe(409);
@@ -371,6 +371,35 @@ describe('email document routes (39-T03)', () => {
     expect(envelope.html).toContain('cid:mark');
     // The stored row was never touched by the test send.
     expect((await detail(doc.id)).document.subject).toBe(doc.document.subject);
+  });
+
+  it("test-send links point at the instance, never at the caller's Origin", async () => {
+    await configureSmtp(meta);
+    const seeded = await emailTemplatesRepo(meta).findByKeyLocale('password-reset', 'en_US');
+    if (seeded === null) throw new Error('seed missing');
+    const { document } = await detail(seeded.id);
+    const send = (headers: Record<string, string>) =>
+      app.inject({
+        method: 'POST',
+        url: `/email-templates/${seeded.id}/test-send`,
+        headers: { ...as(manager), ...headers },
+        payload: { to: ['ops@adminium.test'], document },
+      });
+
+    // Nothing stored: the host the request was sent to.
+    expect((await send({ origin: 'https://evil.example', host: 'admin.example.com' })).statusCode).toBe(202);
+    // Stored: that, whatever the request says.
+    await settingsRepo(meta).set('system.publicOrigin', 'https://links.example.com', { updatedBy: null });
+    expect((await send({ origin: 'https://evil.example', host: 'evil.example' })).statusCode).toBe(202);
+
+    const bodies = (await jobRows(meta)).map((row) => {
+      const payload = JSON.parse(String(row.payload)) as { envelope: string };
+      return (JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(TEST_SECRET))) as { html: string }).html;
+    });
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toContain('http://admin.example.com/reset/sample-token');
+    expect(bodies[1]).toContain('https://links.example.com/reset/sample-token');
+    for (const html of bodies) expect(html).not.toContain('evil.example');
   });
 
   it('export → import round-trips documents byte-identically in Replace mode and creates none in Skip mode', async () => {

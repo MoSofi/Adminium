@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Auth handlers (08-server-api.md §2.1): login (with 2FA step-up), 2FA
+ * Auth handlers: login (with 2FA step-up), 2FA
  * verify/enroll/activate/disable, logout, current session, own-session list
  * and revoke, password forgot/reset/change. Every mutation writes an `auth`
  * audit entry; login failures are uniform INVALID_CREDENTIALS regardless of
  * which check failed.
  *
- * The workspace's `auth.*` policy (07-meta-store.md §7.1) is read here rather
- * than assumed: `auth.passwordMinLength` gates every password write, and
- * `auth.require2fa` both flags accounts that have no TOTP and refuses to let
- * one turn TOTP off. (`auth.sessionTtlHours` is applied by createSession.)
+ * The workspace's `auth.*` policy is read here rather than assumed:
+ * `auth.passwordMinLength` gates every password write, and `auth.require2fa`
+ * both flags accounts that have no TOTP and refuses to let one turn TOTP off.
+ * (`auth.sessionTtlHours` is applied by createSession.)
  */
 import { randomBytes } from 'node:crypto';
 
@@ -57,9 +57,10 @@ import {
   hashRecoveryCodes,
   verifyTotpCode,
 } from '../../auth/totp.js';
-import { PASSWORD_RESET_TEMPLATE_KEY, enqueueEmail, requestOrigin } from '../../email/send.js';
+import { PASSWORD_RESET_TEMPLATE_KEY, enqueueEmail } from '../../email/send.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import type { AuthContext } from '../../plugins/auth.js';
+import { capturePublicOriginQuietly, linkOrigin } from '../../security/public-origin.js';
 import type {
   Auth2faActivateBody,
   Auth2faActivateReply,
@@ -79,13 +80,13 @@ import type {
   OkReply,
 } from './schema.js';
 
-/** Uniform credential failure — no user enumeration (§2.1). */
+/** Uniform credential failure — no user enumeration. */
 function invalidCredentials(message = 'Invalid email or password.'): AppError {
   return new AppError(401, 'INVALID_CREDENTIALS', message);
 }
 
 /**
- * The workspace password policy (`auth.passwordMinLength`, §7.1) applied to a
+ * The workspace password policy (`auth.passwordMinLength`) applied to a
  * password the caller is choosing. Every write path runs this — the setup
  * wizard has its own copy in setup/service.ts, so an invited user finishing a
  * reset can no longer land under the floor an admin set.
@@ -152,6 +153,18 @@ function requestMeta(request: FastifyRequest) {
   };
 }
 
+/**
+ * A sign-in is one of the moments `system.publicOrigin` is learned
+ * (security/public-origin.ts). The request carries no session yet, so the
+ * write hook in plugins/public-origin.ts cannot see it. Never fails the sign-in.
+ */
+async function learnPublicOrigin(request: FastifyRequest, ctx: AuthContext, user: User): Promise<void> {
+  await capturePublicOriginQuietly(
+    { meta: ctx.meta, allowedOrigins: request.server.csrfOrigins, user, log: request.log },
+    request,
+  );
+}
+
 /** The authenticated user/session, guaranteed by the requireAuth preHandler. */
 function principal(request: FastifyRequest): { user: User; sessionId: string } {
   if (request.user === null || request.session === null) {
@@ -188,7 +201,7 @@ export async function loginHandler(
   // `user` is non-null with a non-null hash beyond this point.
   const activeUser = user;
 
-  // Transparent parameter upgrades on successful verify (§7 item 7).
+  // Transparent parameter upgrades on successful verify.
   if (activeUser.passwordHash !== null && needsRehash(activeUser.passwordHash)) {
     await users.updatePassword(activeUser.id, await hashPassword(body.password), now);
   }
@@ -212,6 +225,7 @@ export async function loginHandler(
     actorId: activeUser.id,
     actorLabel: activeUser.name,
   });
+  await learnPublicOrigin(request, ctx, activeUser);
   const fresh = (await users.findById(activeUser.id)) ?? activeUser;
   const setupRequired = await needsTwoFactorSetup(ctx.meta, fresh);
   return {
@@ -261,11 +275,12 @@ export async function verify2faHandler(
     throw invalidCredentials('Invalid authentication code.');
   }
 
-  // Fresh token on successful 2FA verify — fixation defense (§2.1).
+  // Fresh token on successful 2FA verify — fixation defense.
   const { token } = await createSession(ctx.meta, user.id, requestMeta(request), now);
   await users.recordLogin(user.id, now);
   setSessionCookie(reply, token, request);
   await auditAuth(ctx.meta, request, { action: 'login', actorId: user.id, actorLabel: user.name });
+  await learnPublicOrigin(request, ctx, user);
   const fresh = (await users.findById(user.id)) ?? user;
   return { data: { user: toUserView(fresh) } };
 }
@@ -304,7 +319,7 @@ export async function forgotPasswordHandler(
 ): Promise<OkReply> {
   const now = Date.now();
   const user = await usersRepo(ctx.meta).findByEmail(body.email);
-  // Always 200 — the response never reveals whether the account exists (§2.1).
+  // Always 200 — the response never reveals whether the account exists.
   if (user === null || user.status === 'suspended') return OK;
 
   const token = mintToken(RESET_TOKEN_PREFIX);
@@ -318,7 +333,7 @@ export async function forgotPasswordHandler(
   // the queue is the real one. Both fire so the suites that assert on the hook
   // keep passing while a shipped instance actually mails the token.
   ctx.deliverResetToken?.({ userId: user.id, email: user.email, token, expiresAt });
-  // NOTHING here may change the reply. §2.1's whole point is that
+  // NOTHING here may change the reply. The whole point is that
   // `POST /auth/password/forgot` answers identically for a known and an unknown
   // address, so an SMTP outage must not turn into a 500 that says "this account
   // exists". `enqueueEmail` already degrades quietly; the catch covers the rest.
@@ -335,7 +350,10 @@ export async function forgotPasswordHandler(
           name: user.name,
           email: user.email,
           // The dashboard route that consumes it (`ResetPage`, `/reset/$token`).
-          resetUrl: `${requestOrigin(request)}/reset/${token}`,
+          // NEVER from this request's `Origin`: whoever calls this route picks
+          // it, and the token would be mailed under their host
+          // (security/public-origin.ts).
+          resetUrl: `${await linkOrigin(ctx.meta, request)}/reset/${token}`,
           expiresInMinutes: String(Math.round(RESET_TOKEN_TTL_MS / 60_000)),
         },
       },
@@ -377,9 +395,9 @@ export async function resetPasswordHandler(
   }
 
   await users.updatePassword(user.id, await hashPassword(body.newPassword), now);
-  // Invite-activation path (§2.1): first password set activates the account.
+  // Invite-activation path: first password set activates the account.
   if (user.status === 'invited') await users.updateStatus(user.id, 'active', now);
-  // Credential change revokes every existing session (§7 item 7).
+  // Credential change revokes every existing session.
   await sessionsRepo(ctx.meta).revokeAllForUser(user.id, now);
   await auditAuth(ctx.meta, request, {
     action: 'password_reset',
@@ -459,9 +477,9 @@ export async function revokeSessionHandler(
  *
  * Knowing the current password is the whole authorization: this acts on the
  * caller's own account, so no RBAC grant applies. The change revokes every
- * session (§7 item 7) and then mints a fresh one for this request, because
- * signing someone out of the tab they just typed their new password into
- * reads as a failure and sends them looking for what broke.
+ * session and then mints a fresh one for this request, because signing
+ * someone out of the tab they just typed their new password into reads as a
+ * failure and sends them looking for what broke.
  */
 export async function changePasswordHandler(
   ctx: AuthContext,
@@ -502,7 +520,7 @@ export async function enroll2faHandler(
   }
 
   const enrollment = generateTotpEnrollment(user.email);
-  // Secret encrypted at rest; not yet active until /auth/2fa/activate (§2.1).
+  // Secret encrypted at rest; not yet active until /auth/2fa/activate.
   await ctx.meta.db
     .updateTable('adminium_users')
     .set({

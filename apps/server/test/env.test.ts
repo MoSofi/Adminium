@@ -45,28 +45,28 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_TELEMETRY: undefined,
       // `true`, and NOT tri-state, unlike the two above: no stored setting sits
       // underneath for an unset value to defer to, so "unset" has exactly one
-      // meaning. It reports 11-electron.md §8.2's `networkFeaturesAllowed` —
+      // meaning. It reports `networkFeaturesAllowed`
       // operator POLICY for outbound features, never a claim that the network is
       // reachable. Default on because a self-host with an internet connection is
       // the common case; `off` is the air-gap switch.
       ADMINIUM_NETWORK_FEATURES: true,
       ADMINIUM_TRUST_PROXY: false,
       ADMINIUM_CORS_ORIGINS: undefined,
-      // The 11-electron.md §2.2 desktop block. `self-host` is the default because
+      // The desktop block. `self-host` is the default because
       // every deployment that is not the Electron shell is one, and because the
-      // value gates whether `POST /auth/desktop-session` EXISTS (§5) — the safe
+      // value gates whether `POST /auth/desktop-session` EXISTS — the safe
       // answer to "nobody said" is the one with no auto-login door.
       ADMINIUM_RUNTIME: 'self-host',
       ADMINIUM_BOOT_TOKEN: undefined,
       // Tri-state like ADMINIUM_TELEMETRY, and for the same reason: it mirrors an
-      // answer stored elsewhere (config.json, §2.3), so "unset" must stay
+      // answer stored elsewhere (config.json), so "unset" must stay
       // distinguishable from "off" or the mirror would overwrite what it mirrors.
       ADMINIUM_DESKTOP_SINGLE_USER: undefined,
     });
   });
 
   it('rejects a boot token that is not 32 bytes of hex', () => {
-    // The shape is §2.2 step 4's, and a truncating or re-encoding generator
+    // The shape is, and a truncating or re-encoding generator
     // upstream must fail the boot loudly rather than ship a weaker token.
     for (const token of ['abc', 'g'.repeat(64), 'a'.repeat(63), 'a'.repeat(65)]) {
       expect(() =>
@@ -141,7 +141,7 @@ describe('loadEnv — valid input', () => {
   });
 
   it('accepts ADMINIUM_STATIC_ROOT, empty meaning unset (auto-detect the build)', () => {
-    // The desktop shell has set this name since 11-electron §3; validating it
+    // The desktop shell has set this name since 11-electron; validating it
     // here is what lets `adminium start` honor the same override instead of a
     // stale bundled dashboard/ silently shadowing a fresh build.
     expect(
@@ -174,6 +174,80 @@ describe('loadEnv — valid input', () => {
   ])('parses boolean-ish ADMINIUM_TRUST_PROXY=%s as %s', (raw, expected) => {
     const env = loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_TRUST_PROXY: raw }, makeStderr());
     expect(env.ADMINIUM_TRUST_PROXY).toBe(expected);
+  });
+
+  it('parses ADMINIUM_TRUSTED_PROXIES as a trimmed CSV, and leaves it unset by default', () => {
+    // Unset stays undefined so app.ts can tell "the default" from a list the
+    // operator wrote; the default itself lives in security/trust-proxy.ts.
+    expect(
+      loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_TRUST_PROXY: 'on' }, makeStderr())
+        .ADMINIUM_TRUSTED_PROXIES,
+    ).toBeUndefined();
+    const env = loadEnv(
+      {
+        ADMINIUM_SECRET: SECRET,
+        ADMINIUM_TRUST_PROXY: 'on',
+        ADMINIUM_TRUSTED_PROXIES: ' loopback , 172.18.0.0/16,, 10.1.2.3 , fd00::/8 ',
+      },
+      makeStderr(),
+    );
+    expect(env.ADMINIUM_TRUSTED_PROXIES).toEqual([
+      'loopback',
+      '172.18.0.0/16',
+      '10.1.2.3',
+      'fd00::/8',
+    ]);
+    expect(
+      loadEnv(
+        { ADMINIUM_SECRET: SECRET, ADMINIUM_TRUST_PROXY: 'on', ADMINIUM_TRUSTED_PROXIES: ' , ' },
+        makeStderr(),
+      ).ADMINIUM_TRUSTED_PROXIES,
+    ).toBeUndefined();
+  });
+
+  it('names every ADMINIUM_TRUSTED_PROXIES entry that is not an address or range', () => {
+    const stderr = makeStderr();
+    expect(() =>
+      loadEnv(
+        {
+          ADMINIUM_SECRET: SECRET,
+          ADMINIUM_TRUST_PROXY: 'on',
+          ADMINIUM_TRUSTED_PROXIES: 'loopback,caddy,10.0.0.0/33,on',
+        },
+        stderr,
+      ),
+    ).toThrow(EnvValidationError);
+    const out = stderr.output();
+    expect(out).toContain('ADMINIUM_TRUSTED_PROXIES');
+    expect(out).toContain('"caddy", "10.0.0.0/33", "on" are not an address');
+    expect(out).not.toContain('"loopback"');
+  });
+
+  it.each(['0.0.0.0/0', '::/0', '*'])(
+    'refuses ADMINIUM_TRUSTED_PROXIES=%s — "trust everyone" is not a proxy list',
+    (value) => {
+      expect(() =>
+        loadEnv(
+          { ADMINIUM_SECRET: SECRET, ADMINIUM_TRUST_PROXY: 'on', ADMINIUM_TRUSTED_PROXIES: value },
+          makeStderr(),
+        ),
+      ).toThrow(EnvValidationError);
+    },
+  );
+
+  it.each([
+    ['unset', {}],
+    ['off', { ADMINIUM_TRUST_PROXY: 'off' }],
+  ])('refuses ADMINIUM_TRUSTED_PROXIES while ADMINIUM_TRUST_PROXY is %s', (_label, flag) => {
+    // A list that does nothing is how this setting failed silently before.
+    const stderr = makeStderr();
+    expect(() =>
+      loadEnv(
+        { ADMINIUM_SECRET: SECRET, ADMINIUM_TRUSTED_PROXIES: '10.0.0.5', ...flag },
+        stderr,
+      ),
+    ).toThrow(EnvValidationError);
+    expect(stderr.output()).toContain('ADMINIUM_TRUST_PROXY is off');
   });
 
   it('parses ADMINIUM_CORS_ORIGINS as a trimmed CSV list', () => {
@@ -210,7 +284,7 @@ describe('loadEnv — valid input', () => {
   });
 });
 
-describe('loadEnv — the `self` sentinel (29-app-surfaces.md D2, 29-T01)', () => {
+describe('loadEnv — the `self` sentinel', () => {
   it('accepts `self` as the sole value, without URL-parsing it', () => {
     // A bare `self` does not parse as a URL. It has to be special-cased BEFORE
     // the parse or the whole opt-in is rejected at boot — which is the one way

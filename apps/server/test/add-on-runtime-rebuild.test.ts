@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The runtime rebuild and uninstall's document half (34-invoices-add-on.md
- * §7.10; 34-T13).
+ * The runtime rebuild and uninstall's document half.
  *
  * ─── The behaviour `runtime.ts` claimed for a fortnight and never had ──────
  *
  * "Rebuild whole after each of the three routes" has been in that file since
  * wave 26. `compose.ts` built the state once, at boot, and kept it nowhere —
  * so a provider installed at 10am was unreachable until the process restarted,
- * and 26 D6's round trip step `install-without-restart` could never have
- * passed. Nothing could have caught it: the runtime had no reader, so a stale
- * one and a fresh one were indistinguishable.
+ * round trip step `install-without-restart` could never have passed. Nothing
+ * could have caught it: the runtime had no reader, so a stale one and a fresh
+ * one were indistinguishable.
  *
  * These tests exercise the HOOKS rather than a live install, because a live
  * install needs a staged package and a real store — which
@@ -101,7 +100,7 @@ describe('uninstall reaches the document tables, and stops there', () => {
     expect(after?.enabled).toBe(false);
     expect(after?.mapping).toEqual({ customerName: { column: 'customer' } });
 
-    // The document is untouched — number, subject and all (24 D16).
+    // The document is untouched — number, subject and all.
     const stillThere = await documentsRepo(meta).findById(document.id);
     expect(stillThere?.number).toBe('INV-1');
     expect(stillThere?.subject).toEqual({ fields: { customerName: 'Acme' } });
@@ -185,22 +184,26 @@ describe('the add-on routes call the hooks at all', () => {
   it('declares both, so a composition that forgets one is a type error', async () => {
     // The cheap half of "does it have a caller". The expensive half —
     // installing a real package and watching a provider appear without a
-    // restart — is the round trip's (§7.11), which needs a staged tarball.
+    // restart — is the round trip's, which needs a staged tarball.
     const { readFile } = await import('node:fs/promises');
     const routes = await readFile(
       new URL('../src/routes/add-ons/index.ts', import.meta.url),
       'utf8',
     );
-    // Install, upgrade, enable/disable and uninstall — four rebuild sites.
-    expect(routes.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(4);
+    // Install, upgrade, enable/disable, uninstall, and an upload of the
+    // installed version (files put back after a data directory was lost) —
+    // five rebuild sites.
+    expect(routes.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(5);
     expect(routes).toContain('deps.onAddOnRemoved?.(key)');
 
     const compose = await readFile(new URL('../src/compose.ts', import.meta.url), 'utf8');
     expect(compose).toContain('rebuildRuntime: () => rebuildAddOnRuntime()');
     expect(compose).toContain('onAddOnRemoved:');
     // And the rebuild is ONE function, used by boot and by the routes alike.
+    // Boot calls it once the bundled seed has settled; what that ordering buys
+    // is `boot-empty-data-dir.test.ts`'s to prove.
     expect(compose).toContain('rebuildAddOnRuntime = async () =>');
-    expect(compose).toContain('void rebuildAddOnRuntime()');
+    expect(compose).toMatch(/void addOnSeed\s*\.then\(\(\) => rebuildAddOnRuntime\(\)\)/);
   });
 
   it('clears the provider map when the LAST add-on goes', async () => {

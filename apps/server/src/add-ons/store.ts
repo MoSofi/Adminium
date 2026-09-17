@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The add-on package store (32-add-on-distribution.md §4.1, D11).
+ * The add-on package store.
  *
  * Packages live at `<dataDir>/add-ons/<key>/<version>/`, a sibling of `files/`,
  * cloning `files/storage.ts`'s fail-closed discipline: a key is accepted only
@@ -14,10 +14,10 @@
  * package. A package is also a TREE, not a blob — the runtime serves individual
  * files out of it by relative path.
  *
- * THE THREE SOURCES ARE ONE PATH. Bundled (D3), downloaded (48 D4) and
- * sideloaded (D4) packages all arrive here as a tarball plus an expected sha512,
- * and all three go through {@link AddOnStore.stage}. There is deliberately no
- * second, softer entry point.
+ * THE THREE SOURCES ARE ONE PATH. Bundled (D3), downloaded and sideloaded (D4)
+ * packages all arrive here as a tarball plus an expected sha512, and all three
+ * go through {@link AddOnStore.stage}. There is deliberately no second, softer
+ * entry point.
  *
  * THE TOCTOU WINDOW, AND WHY THE HASH MANIFEST EXISTS. The data volume is
  * shared, writable state: between the moment a package is unpacked and the
@@ -136,8 +136,8 @@ export interface AddOnStore {
   /** Read one file out of a package by relative path (containment-checked). */
   readFile(key: string, version: string, relativePath: string): Promise<Buffer>;
   /**
-   * Read one file AND check it against the pin recorded at unpack — 26 §5.4's
-   * "checked on read", scoped to the one file being served.
+   * Read one file AND check it against the pin recorded at unpack — "checked
+   * on read", scoped to the one file being served.
    *
    * Separate from {@link AddOnStore.verifyTree} on purpose: serving a bundle
    * re-hashes ONE file, where verifying the whole tree on every asset request
@@ -269,8 +269,7 @@ export function createAddOnStore(opts: {
   dataDir: string;
   limits?: ArchiveLimits;
   /**
-   * Store root under `<dataDir>`, default `add-ons`
-   * (47-app-installation.md D1).
+   * Store root under `<dataDir>`, default `add-ons`.
    *
    * Installed micro-SaaS apps are the second tenant of this module, at
    * `<dataDir>/apps/`. They are a DIFFERENT store, never a shared one: an app
@@ -686,9 +685,8 @@ export async function seedBundledPackages(
   bundleDir: string,
   log: (message: string, data?: Record<string, unknown>) => void = () => {},
   /**
-   * The noun in this seed's log lines — `add-on`, or `app`
-   * (47-app-installation.md step 4). The function itself is already generic
-   * over the store; only the words were not.
+   * The noun in this seed's log lines — `add-on`, or `app`. The function
+   * itself is already generic over the store; only the words were not.
    */
   noun = 'add-on',
 ): Promise<{ seeded: string[]; skipped: string[]; failed: string[] }> {
@@ -762,4 +760,29 @@ export async function seedBundledPackages(
   }
 
   return { seeded, skipped, failed };
+}
+
+/**
+ * The installed packages whose files are not in the store.
+ *
+ * The meta store remembers an install; only the data directory holds its
+ * files. A host with no persistent disk (DigitalOcean App Platform, a container
+ * with no volume) empties that directory on every deploy, and the bundled seed
+ * can put back only the exact versions the build carries — so an uploaded
+ * package, a version the build does not bundle, or any app it does not bundle
+ * is simply gone. Asked once at boot, after the seed, so the log names each one
+ * instead of the install looking healthy while nothing of it loads.
+ *
+ * A key the grammar refuses counts as missing: nothing can be on disk under it.
+ */
+export async function installedNotInStore(
+  store: AddOnStore,
+  installed: readonly PackageIdentity[],
+): Promise<PackageIdentity[]> {
+  const missing: PackageIdentity[] = [];
+  for (const ref of installed) {
+    const versions = await store.versions(ref.key).catch(() => [] as string[]);
+    if (!versions.includes(ref.version)) missing.push({ key: ref.key, version: ref.version });
+  }
+  return missing;
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Global-defaults settings routes (10-i18n-theming.md §7.2/§7.3, M8-T04):
+ * Global-defaults settings routes:
  *
  *   GET /api/v1/settings/defaults — the four workspace default axes plus
  *     per-axis adoption counts (`following` = users with a NULL override,
@@ -24,6 +24,11 @@ import { assertSmtpHostAllowed, emailSecretKey } from '../../email/config.js';
 import { ValidationFailedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
+  PUBLIC_ORIGIN_SETTING,
+  normalizePublicOrigin,
+  notePublicOrigin,
+} from '../../security/public-origin.js';
+import {
   settingsBrandingPutBody,
   settingsDefaultsPutBody,
   settingsDefaultsReply,
@@ -43,7 +48,7 @@ import {
   type SettingsWorkspaceReply,
 } from './schema.js';
 
-/** Realtime event type carried on the `config-changed` channel (§7.2). */
+/** Realtime event type carried on the `config-changed` channel. */
 export const SETTINGS_DEFAULTS_UPDATED = 'settings.defaults.updated';
 
 export interface SettingsRoutesDeps {
@@ -60,13 +65,13 @@ export interface SettingsRoutesDeps {
   emailKey?: Uint8Array;
 }
 
-/** The stored shape of the `email.smtp` registry key (07-meta-store.md §7.1). */
+/** The stored shape of the `email.smtp` registry key. */
 type StoredSmtp = SettingValue<'email.smtp'>;
 
 const AXES = ['theme', 'accent', 'density', 'locale'] as const;
 type Axis = (typeof AXES)[number];
 
-/** Settings-registry key per preference axis (07-meta-store.md §7.1). */
+/** Settings-registry key per preference axis. */
 const SETTING_KEY: Record<Axis, 'appearance.theme' | 'appearance.accent' | 'appearance.density' | 'locale.default'> = {
   theme: 'appearance.theme',
   accent: 'appearance.accent',
@@ -87,11 +92,11 @@ function sameSmtp(a: StoredSmtp, b: StoredSmtp): boolean {
   );
 }
 
+/** Everything on the email section that is not the transport. */
+type EmailExtras = Pick<SettingsEmailView, 'senders' | 'maxAttachmentBytes' | 'publicOrigin'>;
+
 /** The password-free projection used by both the reply and the audit row. */
-function viewOf(
-  stored: StoredSmtp,
-  extra: { senders: SettingsEmailView['senders']; maxAttachmentBytes: number },
-): SettingsEmailView {
+function viewOf(stored: StoredSmtp, extra: EmailExtras): SettingsEmailView {
   if (stored === null) {
     return { configured: false, host: null, port: null, user: null, from: null, secure: null, ...extra };
   }
@@ -164,12 +169,13 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
     };
   }
 
-  async function emailExtras(): Promise<{ senders: SettingsEmailView['senders']; maxAttachmentBytes: number }> {
-    const [senders, maxAttachmentBytes] = await Promise.all([
+  async function emailExtras(): Promise<EmailExtras> {
+    const [senders, maxAttachmentBytes, publicOrigin] = await Promise.all([
       settings.get('email.senders'),
       settings.get('email.maxAttachmentBytes'),
+      settings.get(PUBLIC_ORIGIN_SETTING),
     ]);
-    return { senders, maxAttachmentBytes };
+    return { senders, maxAttachmentBytes, publicOrigin };
   }
 
   async function emailReply(): Promise<SettingsEmailReply> {
@@ -218,7 +224,7 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
     return { data: { ...defaults, adoption } };
   }
 
-  /** Registry-backed workspace identity view (M5-T05), logo included. */
+  /** Registry-backed workspace identity view, logo included. */
   async function workspaceReply(): Promise<SettingsWorkspaceReply> {
     return { data: { branding: await readBranding(meta) } };
   }
@@ -233,7 +239,7 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
     return { data: { sessionTtlHours, require2fa, passwordMinLength } };
   }
 
-  /** The two outbound-call consents (M10-T04). */
+  /** The two outbound-call consents. */
   async function telemetryReply(): Promise<SettingsTelemetryReply> {
     const [telemetry, updateCheck] = await Promise.all([
       settings.get('telemetry.enabled'),
@@ -285,7 +291,7 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
           changes: { before: { ...before }, after: { ...next } },
         });
 
-        // Live propagation (§7.2/§7.3): every signed-in session follows
+        // Live propagation: every signed-in session follows
         // `config-changed`; clients following a default re-resolve via
         // bootstrap invalidation on this event type.
         if (app.hasDecorator('realtime')) {
@@ -296,7 +302,7 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
       },
     );
 
-    // --- workspace identity (M5-T05, sectioned puts per 08 §2.16) -------------
+    // --- workspace identity (sectioned puts) -------------
     // Same conventions as /settings/defaults: Zod body, super-admin guard,
     // audit with before/after images. No realtime broadcast — nothing in the
     // bootstrap payload derives from this key yet.
@@ -404,7 +410,7 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
       },
     );
 
-    // --- telemetry + update check (M10-T04) ----------------------------------
+    // --- telemetry + update check ----------------------------------
     // Where the first-run consent answers are revisited. Audited like every
     // other settings write: flipping telemetry on is a decision someone should
     // be able to trace later.
@@ -492,13 +498,13 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
             ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
             : null;
 
-        // Absent = untouched (39-T04): the senders card saves on its own.
+        // Absent = untouched: the senders card saves on its own.
         const next = request.body.smtp;
         const value = next === undefined ? stored : next === null ? null : buildSmtpValue(next, stored);
         if (next !== undefined && !sameSmtp(stored, value)) {
           await settings.set('email.smtp', value, { updatedBy: actingUserId, at });
         }
-        // The senders list (39 D7) and the attachment cap (39 D8), each written
+        // The senders list and the attachment cap, each written
         // only when the body carries it.
         const senders = request.body.senders;
         if (senders !== undefined) {
@@ -516,6 +522,19 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
             updatedBy: actingUserId,
             at,
           });
+        }
+        // Where links in email point (security/public-origin.ts). Cleared by
+        // deleting the row, so "unset" has one spelling and the server can learn
+        // the origin again.
+        const publicOrigin = request.body.publicOrigin;
+        if (publicOrigin !== undefined) {
+          const normalized = publicOrigin === null ? null : normalizePublicOrigin(publicOrigin);
+          if (normalized === null) {
+            await settings.unset(PUBLIC_ORIGIN_SETTING);
+          } else if (normalized !== extrasBefore.publicOrigin) {
+            await settings.set(PUBLIC_ORIGIN_SETTING, normalized, { updatedBy: actingUserId, at });
+          }
+          notePublicOrigin(meta, normalized);
         }
 
         const after = viewOf(value, await emailExtras());

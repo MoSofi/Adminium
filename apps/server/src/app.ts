@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `buildServer()` — the Fastify 5 application skeleton (08-server-api.md §1,
- * M2-T01). Assembles: pino logger with the §1.3 redaction set, `req_`-prefixed
- * request ids echoed as `x-request-id`, fastify-type-provider-zod compilers,
- * the global §1.4 error envelope, the core/static plugins, and the `/api/v1`
- * route tree. Wave 1 boots with no meta DB configured — auth/meta wiring is
- * wave 2 (01-architecture.md §8.1 gates arrive with it).
+ * `buildServer()` — the Fastify 5 application skeleton. Assembles: pino logger
+ * with the redaction set, `req_`-prefixed request ids echoed as
+ * `x-request-id`, fastify-type-provider-zod compilers, the global error
+ * envelope, the core/static plugins, and the `/api/v1` route tree. Wave 1
+ * boots with no meta DB configured — auth/meta wiring is wave 2 (gates arrive
+ * with it).
  */
 import { randomBytes } from 'node:crypto';
+import type { IncomingMessage } from 'node:http';
 import { createRequire } from 'node:module';
 
 import { fastify, type FastifyBaseLogger, type FastifyError, type FastifyRequest } from 'fastify';
@@ -32,8 +33,14 @@ import { scrubUrlForLog } from './log-scrub.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
 import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
 import { corePlugin } from './plugins/core.js';
+import { publicOriginPlugin } from './plugins/public-origin.js';
 import { staticPlugin } from './plugins/static.js';
 import { isHostReservedPath, surfacesPlugin } from './plugins/surfaces.js';
+import {
+  compileProxyTrust,
+  DEFAULT_TRUSTED_PROXIES,
+  type ProxyTrust,
+} from './security/trust-proxy.js';
 import { createSetupService } from './setup/service.js';
 import { createUpdateCheckService } from './telemetry/update-check.js';
 import { API_PREFIX, registerRoutes } from './routes/index.js';
@@ -45,7 +52,7 @@ import { setupRoutes } from './routes/setup/index.js';
 import { APP_VERSION } from './version.js';
 import { scrubSecretFields } from './log-redaction.js';
 
-/** Pino deny-by-path redaction set (08-server-api.md §1.3 + ADMINIUM_SECRET). */
+/** Pino deny-by-path redaction set (+ ADMINIUM_SECRET). */
 export const REDACT_PATHS: readonly string[] = [
   'req.headers.authorization',
   'req.headers.cookie',
@@ -60,10 +67,10 @@ export const REDACT_PATHS: readonly string[] = [
   '*.dsn',
   '*.connectionString',
   '*.smtpUrl',
-  // 11-electron.md §2.2 step 4: the desktop per-boot token. `*.token` above does
-  // not match `bootToken` — pino paths are field names, not substrings — and the
-  // field travels in this product (the §5 exchange body). The QUERY-STRING half
-  // of the same secret is `log-scrub.ts`'s job; paths cannot reach into a string.
+  // The desktop per-boot token. `*.token` above does not match `bootToken` —
+  // pino paths are field names, not substrings — and the field travels in this
+  // product (the exchange body). The QUERY-STRING half of the same secret is
+  // `log-scrub.ts`'s job; paths cannot reach into a string.
   '*.bootToken',
   'ADMINIUM_BOOT_TOKEN',
   '*.ADMINIUM_BOOT_TOKEN',
@@ -124,7 +131,7 @@ function canResolvePinoPretty(): boolean {
   }
 }
 
-/** Structured pino logger: level from env, §1.3 redaction, pretty in dev. */
+/** Structured pino logger: level from env, redaction, pretty in dev. */
 export function buildLogger(env: Env, opts: BuildLoggerOptions = {}): Logger {
   // `&&`, so the resolve only runs when something actually wants pretty.
   const pretty =
@@ -145,7 +152,7 @@ export function buildLogger(env: Env, opts: BuildLoggerOptions = {}): Logger {
   return opts.stream === undefined ? pino(options) : pino(options, opts.stream);
 }
 
-/** Maps residual (non-AppError) status codes to §1.4 canonical codes. */
+/** Maps residual (non-AppError) status codes to canonical codes. */
 const CODE_BY_STATUS: Readonly<Record<number, string>> = {
   400: 'VALIDATION_FAILED',
   401: 'UNAUTHENTICATED',
@@ -218,20 +225,20 @@ export interface BuildServerOptions {
    */
   surfaces?: readonly HostedSurface[] | undefined;
   /**
-   * Apps installed into this instance (47-app-installation.md D2), served
-   * alongside `surfaces` and refreshed without a restart. Omitted ⇒ only what
-   * boot discovered is served.
+   * Apps installed into this instance, served alongside `surfaces` and
+   * refreshed without a restart. Omitted ⇒ only what boot discovered is
+   * served.
    */
   installedApps?: InstalledApps | undefined;
   /**
    * Include real messages in 500 envelopes. Default: `NODE_ENV !== 'production'`.
    * In production the message is generic; the stack goes to the log under the
-   * same requestId (the §1.4 support handshake).
+   * same requestId (the support handshake).
    */
   exposeInternalErrors?: boolean | undefined;
   /**
-   * Connected meta store (07-meta-store.md). When absent the server still
-   * boots (wave-1 behavior) and auth/me routes answer 503 META_NOT_CONFIGURED.
+   * Connected meta store. When absent the server still boots (wave-1
+   * behavior) and auth/me routes answer 503 META_NOT_CONFIGURED.
    */
   metaDb?: MetaDb | undefined;
   /** Delivery hook for password-reset tokens (email transport lands later). */
@@ -268,9 +275,9 @@ export const OPENAPI_INFO = {
 } as const;
 
 /**
- * The two ways a caller authenticates (08-server-api.md §2.1, §2.16). Declared
- * here rather than per route: every `/api/v1` route outside the unauthenticated
- * set accepts either, and repeating that 90-odd times documents nothing.
+ * The two ways a caller authenticates. Declared here rather than per route:
+ * every `/api/v1` route outside the unauthenticated set accepts either, and
+ * repeating that 90-odd times documents nothing.
  */
 export const OPENAPI_SECURITY_SCHEMES = {
   sessionCookie: {
@@ -282,7 +289,7 @@ export const OPENAPI_SECURITY_SCHEMES = {
   apiKey: {
     type: 'http',
     scheme: 'bearer',
-    description: 'Workspace API key: `Authorization: Bearer adm_sk_…` (§2.16).',
+    description: 'Workspace API key: `Authorization: Bearer adm_sk_…`.',
   },
 } as const;
 
@@ -299,6 +306,13 @@ export async function buildServer(opts: BuildServerOptions = {}) {
       : typeof opts.logger === 'object'
         ? opts.logger
         : buildLogger(env);
+
+  // Which connection is the reverse proxy (security/trust-proxy.ts). `false`
+  // while the flag is off: then no forwarded header and no inbound request id
+  // is believed, from anyone.
+  const trustProxy: ProxyTrust | false = env.ADMINIUM_TRUST_PROXY
+    ? compileProxyTrust(env.ADMINIUM_TRUSTED_PROXIES ?? DEFAULT_TRUSTED_PROXIES)
+    : false;
 
   const app = fastify({
     loggerInstance,
@@ -317,20 +331,35 @@ export async function buildServer(opts: BuildServerOptions = {}) {
      * that would otherwise hold the process open forever.
      */
     forceCloseConnections: true,
-    // §1.3: `req_` + 8 lowercase hex chars, e.g. req_8f2a91cd.
-    genReqId: () => `req_${randomBytes(4).toString('hex')}`,
-    // An inbound x-request-id is honored only behind a trusted proxy (§1.3).
-    requestIdHeader: env.ADMINIUM_TRUST_PROXY ? 'x-request-id' : false,
-    // Hop count 1, NEVER a bare `true`: `trustProxy: true` trusts every hop,
-    // so proxy-addr returns the LEFT-most (fully client-supplied)
-    // X-Forwarded-For entry as `request.ip` — an attacker rotating the header
-    // then gets a fresh §6 rate-limit bucket per request and forges the audit
-    // trail's source ip. With `1`, only the immediate peer (Caddy) is trusted
-    // and `request.ip` is the RIGHT-most entry — the one Caddy itself
-    // appended, which no client controls. The documented deployment is a
-    // single reverse proxy (§7 item 5: "behind Caddy/TLS").
-    trustProxy: env.ADMINIUM_TRUST_PROXY ? 1 : false,
-    bodyLimit: 1_048_576, // 1 MiB JSON; multipart gets its own limits (§3.10)
+    // `req_` + 8 lowercase hex chars, e.g. req_8f2a91cd. An inbound
+    // x-request-id is honored only from a trusted proxy, which is the same
+    // test the X-Forwarded-* headers pass. Fastify's `requestIdHeader` is not
+    // used for it: that would take the header from any connection once the
+    // flag is on.
+    requestIdHeader: false,
+    genReqId: (req: IncomingMessage) => {
+      const inbound = req.headers['x-request-id'];
+      if (
+        trustProxy !== false &&
+        typeof inbound === 'string' &&
+        inbound !== '' &&
+        trustProxy(req.socket.remoteAddress, 0)
+      ) {
+        return inbound;
+      }
+      return `req_${randomBytes(4).toString('hex')}`;
+    },
+    // NEVER a bare `true`: that trusts every hop, so proxy-addr returns the
+    // LEFT-most (fully client-supplied) X-Forwarded-For entry as `request.ip`,
+    // and an attacker rotating the header gets a fresh rate-limit bucket per
+    // request and forges the audit trail's source ip. And never a hop count:
+    // Fastify 5.12.1 made a number trust nobody (GHSA-3m5p-2c4r-xxw2). The
+    // function trusts the immediate peer when its address is listed, so
+    // `request.ip` is the RIGHT-most entry, the one the proxy itself appended,
+    // which no client controls. The documented deployment is a single reverse
+    // proxy ("behind Caddy/TLS").
+    trustProxy,
+    bodyLimit: 1_048_576, // 1 MiB JSON; multipart gets its own limits
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
@@ -357,7 +386,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     });
   }
 
-  // The §7-item-9 audit-coverage ledger. Collected HERE — not from a test —
+  // The -item-9 audit-coverage ledger. Collected HERE — not from a test —
   // because `onRoute` fires during registration and `composeServer` has
   // registered everything by the time it returns; there is no later moment at
   // which a hook could still see the routes. (`printRoutes()` is not a way
@@ -368,14 +397,14 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   const auditCoverage = createAuditCoverageRegistry();
   app.decorate('auditCoverage', auditCoverage);
 
-  // Every /api route must declare a schema — no untyped routes (§1.1, 08-T01).
+  // Every /api route must declare a schema — no untyped routes.
   app.addHook('onRoute', (route) => {
     const methods = Array.isArray(route.method) ? route.method : [route.method];
     if (!route.url.startsWith('/api/')) return;
     if (methods.every((method) => method === 'HEAD' || method === 'OPTIONS')) return;
     if (route.schema === undefined) {
       throw new Error(
-        `route ${methods.join(',')} ${route.url} registered without a schema (08-server-api.md §1.1)`,
+        `route ${methods.join(',')} ${route.url} registered without a schema`,
       );
     }
     // Records the mark, and THROWS on a malformed one — same boot-time failure
@@ -383,12 +412,12 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     auditCoverage.record(route);
   });
 
-  // The request id is echoed on every response (§1.3).
+  // The request id is echoed on every response.
   app.addHook('onSend', async (request, reply) => {
     void reply.header('x-request-id', request.id);
   });
 
-  // Global §1.4 error envelope.
+  // Global error envelope.
   app.setErrorHandler((error: FastifyError, request, reply) => {
     const requestId = request.id;
 
@@ -427,7 +456,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     }
 
     // Unexpected: full stack to the log under the same requestId; message
-    // hidden from the client in production (§1.4).
+    // hidden from the client in production.
     request.log.error({ err: error }, 'unhandled error');
     const message = exposeInternalErrors
       ? error.message
@@ -443,6 +472,10 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     metaDb: opts.metaDb ?? null,
     deliverResetToken: opts.onPasswordResetToken,
   });
+  // Learns where links in email point from a settings admin's writes
+  // (security/public-origin.ts). Before any route scope exists, like the hooks
+  // above, so it reaches the routes compose.ts registers too.
+  await app.register(publicOriginPlugin);
   // Surfaces before the dashboard: `/apps/<key>/<side>/*` is more specific than
   // the dashboard's root wildcard either way, but registering in this order
   // makes the precedence a property of the file rather than of find-my-way.
@@ -450,9 +483,9 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
     ...(opts.installedApps === undefined ? {} : { installed: opts.installedApps }),
     ...(opts.metaDb === undefined ? {} : { metaDb: opts.metaDb }),
-    // For the `surface-config.json` route (29 D10) — the same envelope
-    // connection DSNs use, so the publishable key is re-readable here exactly
-    // as it is on the Studio reveal path.
+    // For the `surface-config.json` route — the same envelope connection DSNs
+    // use, so the publishable key is re-readable here exactly as it is on the
+    // Studio reveal path.
     crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
   });
   await app.register(staticPlugin, { root: opts.staticRoot });
@@ -463,13 +496,13 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     const isApi = request.url.startsWith('/api/');
     const isDocument = request.method === 'GET' || request.method === 'HEAD';
 
-    // A MAPPED host's fallback is the mapped surface's index (29 D3), ahead of
-    // every other branch. Normally the root-level serve hook in
-    // plugins/surfaces.ts has already answered these requests; this branch is
-    // the same decision restated where the other two fallbacks live, so that a
-    // request reaching this handler by any path an onRequest hook did not
-    // cover still cannot fall through to the dashboard's index on a host the
-    // operator pointed at an app.
+    // A MAPPED host's fallback is the mapped surface's index, ahead of every
+    // other branch. Normally the root-level serve hook in plugins/surfaces.ts
+    // has already answered these requests; this branch is the same decision
+    // restated where the other two fallbacks live, so that a request reaching
+    // this handler by any path an onRequest hook did not cover still cannot
+    // fall through to the dashboard's index on a host the operator pointed at
+    // an app.
     if (!isApi && isDocument && !isHostReservedPath(request.url.split('?')[0] ?? request.url)) {
       const mapped = await app.surfaceForHost(request);
       if (mapped !== null) {
@@ -507,18 +540,17 @@ export async function buildServer(opts: BuildServerOptions = {}) {
 
   await registerRoutes(app, env);
 
-  // Auth + me + bootstrap resources (08-server-api.md §2.1–§2.2,
-  // 09-generated-app.md §2.1) under the same prefix.
+  // Auth + me + bootstrap resources under the same prefix.
   await app.register(
     async (api) => {
       await api.register(authRoutes);
       await api.register(meRoutes);
       await api.register(bootstrapRoutes);
 
-      // First-run setup + About (M10-T04). Both need a meta store to say
-      // anything at all, so — unlike auth, whose 503 is itself the answer —
-      // they are wired only when one is configured. Composition roots that
-      // want injected services (tests with a stubbed release feed, the CLI)
+      // First-run setup + About. Both need a meta store to say anything at
+      // all, so — unlike auth, whose 503 is itself the answer — they are
+      // wired only when one is configured. Composition roots that want
+      // injected services (tests with a stubbed release feed, the CLI)
       // build the server without `metaDb` and register these factories
       // themselves, exactly as the LLM/settings resources are wired.
       const meta = opts.metaDb;
