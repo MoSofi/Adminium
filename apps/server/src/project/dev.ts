@@ -14,7 +14,7 @@
  * imports, changes, the supervisor rebuilds only them; the running server
  * sees the new build and swaps them in (`project/code/runtime.ts`). Pages and
  * widgets work the same way: the supervisor rebuilds them, and the server
- * tells open dashboards to load the new files (49 §6.4).
+ * tells open dashboards to load the new files.
  */
 
 import { createHash } from 'node:crypto';

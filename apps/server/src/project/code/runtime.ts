@@ -9,7 +9,7 @@
  * the build folder, and this runtime notices the new manifest and swaps the
  * whole set in one step. A reload that finds broken files keeps the rest. New
  * pages and widgets are handed to `onClientChanged`, which updates the page
- * rows and tells open dashboards (49 §6.4).
+ * rows and tells open dashboards.
  */
 
 import { join } from 'node:path';

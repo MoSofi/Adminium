@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A project's widgets, drawn (49-developer-projects.md §6.3). Loaded lazily by
- * `scope.tsx` the first time a page shows one.
+ * A project's widgets, drawn. Loaded lazily by `scope.tsx` the first time a
+ * page shows one.
  *
  * - A **cell** that cannot be drawn (no such widget, a card where a cell was
  *   asked for, a file that did not load, a component that threw) shows the

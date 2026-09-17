@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The UI kit's controls (49-developer-projects.md §6.2): `Button`, `Input`,
- * `Select` and `Switch`, on the design system's own components. A `label`
- * wraps the control in a `FormField`, which names it for screen readers.
+ * The UI kit's controls: `Button`, `Input`, `Select` and `Switch`, on the
+ * design system's own components. A `label` wraps the control in a
+ * `FormField`, which names it for screen readers.
  */
 
 import { createElement, useId, type ReactElement, type ReactNode } from 'react';

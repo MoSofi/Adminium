@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The kit's `GeneratedPage` mounts a template itself (49-developer-projects.md
- * §6.2): inside the project page's gutter, with the render-error card and a
- * Retry that loads a template again when its code did not load, and the
- * unknown-template card.
+ * The kit's `GeneratedPage` mounts a template itself: inside the project
+ * page's gutter, with the render-error card and a Retry that loads a template
+ * again when its code did not load, and the unknown-template card.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router';

@@ -6,8 +6,8 @@
  * branch with its own alignment and formatter. A host that wants to draw some
  * cells itself provides a renderer here, and every table below it asks that
  * renderer first. Two hosts use it: the dashboard, for a column whose spec
- * names a project widget (`widget: "project.flag-cell"`, 49 §6.3), and the
- * project UI kit's `DataTable`, for a column with a `render` function.
+ * names a project widget (`widget: "project.flag-cell"`), and the project UI
+ * kit's `DataTable`, for a column with a `render` function.
  *
  * A renderer returns `undefined` for the cells it leaves alone. Providers
  * nest: the inner one is asked first, then the outer one, so a kit table

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `ADMINIUM_TRUST_PROXY`, as the Fastify an npm install resolves applies it
- * (08-server-api.md §7 item 5; `security/trust-proxy.ts`).
+ * (`security/trust-proxy.ts`).
  *
  * THE BUG THIS PINS. `app.ts` passed `trustProxy: 1`, a hop count. Fastify
  * 5.12.1 (GHSA-3m5p-2c4r-xxw2) made a numeric `trustProxy` trust NOBODY, and

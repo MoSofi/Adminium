@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The loader that imports the project's browser code
- * (49-developer-projects.md §6.3); `bootstrapProject.ts` reads where it is.
+ * The loader that imports the project's browser code;
+ * `bootstrapProject.ts` reads where it is.
  *
  * A server that runs a project folder lists its built pages and widgets in
  * `bootstrap.project.client`: for each one, the ES module to import, the

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What a project server tells the dashboard about the project, and the files
- * it serves it (49-developer-projects.md §6.3):
+ * it serves it:
  *
  * - `bootstrap()`: the database keys, and every built page and widget with the
  *   URLs of its module, chunks and stylesheets and their integrity hashes;

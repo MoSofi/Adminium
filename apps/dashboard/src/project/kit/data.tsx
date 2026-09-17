@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The UI kit's data pieces (49-developer-projects.md §6.2): `DataTable` and
- * `Stat`. `DataTable` is the dashboard's own grid, so a project table sorts,
- * aligns and formats values the way generated pages do; a column's `render`
- * goes through the grid's host-drawn cells (`CustomCellProvider`).
+ * The UI kit's data pieces: `DataTable` and `Stat`. `DataTable` is the
+ * dashboard's own grid, so a project table sorts, aligns and formats values
+ * the way generated pages do; a column's `render` goes through the grid's
+ * host-drawn cells (`CustomCellProvider`).
  */
 
 import { createElement, useCallback, useContext, useMemo, type ReactNode } from 'react';

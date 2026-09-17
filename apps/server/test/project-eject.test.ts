@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `adminium eject` (49-developer-projects.md §7): the page of code it writes,
- * the command, and what happens to the page's row once the folder changed:
- * the page keeps its id, grants, database and data source, whichever of the
- * file sync and the page build sees the change first, and regeneration leaves
- * it alone.
+ * `adminium eject`: the page of code it writes, the command, and what happens
+ * to the page's row once the folder changed: the page keeps its id, grants,
+ * database and data source, whichever of the file sync and the page build
+ * sees the change first, and regeneration leaves it alone.
  */
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

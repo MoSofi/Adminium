@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Lets project code call `toast()` as a plain function (49 §6.2).
+ * Lets project code call `toast()` as a plain function.
  *
  * The app's toast queue is a React context (`pages/toasts.tsx`), and a
  * project's click handler is not a component. `ProjectToastBridge`, mounted by

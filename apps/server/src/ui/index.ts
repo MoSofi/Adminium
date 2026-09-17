@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `@adminiumjs/adminium/ui`: what a project's `pages/*.tsx` and
- * `widgets/*.tsx` import (49-developer-projects.md §6).
+ * `widgets/*.tsx` import.
  *
  * This file is public API, so it stays small, and every change to it goes in
  * the release notes. It has two halves:

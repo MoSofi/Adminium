@@ -4,8 +4,7 @@
  *
  * The registry (`registry/index.ts`) is a closed, typed map built once. A host
  * app that has widgets of its own, today the dashboard with a project's
- * `widgets/*.tsx` cards (`project.<name>`, 49-developer-projects.md §6.3),
- * provides a resolver here. Everything that looks a widget up by id asks the
+ * `widgets/*.tsx` cards (`project.<name>`), provides a resolver here. Everything that looks a widget up by id asks the
  * registry first and this resolver second, so a registry id can never be
  * shadowed, and an id neither knows still renders the `widget-missing` card.
  * A resolved widget's `descriptionKey` is not read: its text is not in the

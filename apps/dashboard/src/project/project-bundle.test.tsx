@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 49-developer-projects.md, acceptance 8: a `pages/*.tsx` page and a
- * `widgets/*.tsx` cell render inside the dashboard with one React instance,
- * and a broken bundle shows the error state while the rest keeps working.
+ * A `pages/*.tsx` page and a `widgets/*.tsx` cell render inside the dashboard
+ * with one React instance, and a broken bundle shows the error state while the
+ * rest keeps working.
  *
  * Nothing here is a stand-in for the build: the files are built by the
  * server's own `buildClientCode` (read from its source, which is why this

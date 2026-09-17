@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Which connection is the reverse proxy — Fastify's `trustProxy`, as
- * `ADMINIUM_TRUST_PROXY` and `ADMINIUM_TRUSTED_PROXIES` configure it
- * (08-server-api.md §7 item 5).
+ * `ADMINIUM_TRUST_PROXY` and `ADMINIUM_TRUSTED_PROXIES` configure
+ * it.
  *
  * ─── Why not a hop count ─────────────────────────────────────────────────────
  *

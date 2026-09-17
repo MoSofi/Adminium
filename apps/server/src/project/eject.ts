@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The page of code `adminium eject` writes in place of a page file
- * (49-developer-projects.md §7).
+ * The page of code `adminium eject` writes in place of a page
+ * file.
  *
  * Version 1 is a starting point, not an expansion into components: the page
  * file's settings become a constant, and the UI kit's `GeneratedPage` draws

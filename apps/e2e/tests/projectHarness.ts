@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A project folder for `project.spec.ts` (49-T28), run the way a developer
- * runs one.
+ * A project folder for `project.spec.ts`, run the way a developer runs
+ * one.
  *
  * - **The folder** is made by the BUILT CLI, `adminium new --database`, in a
  *   temp folder. `--no-install` skips npm: the project's one dependency the

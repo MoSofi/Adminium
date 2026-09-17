@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What the bootstrap payload says about the project a server runs
- * (49-developer-projects.md §6.3): its database keys, and its built pages and
- * widgets. Plain reads, with no imports of their own, so the UI kit can use
- * them without reaching the loader that installs it (`client.ts`).
+ * What the bootstrap payload says about the project a server runs: its
+ * database keys, and its built pages and widgets. Plain reads, with no
+ * imports of their own, so the UI kit can use them without reaching the
+ * loader that installs it (`client.ts`).
  */
 
 import type {

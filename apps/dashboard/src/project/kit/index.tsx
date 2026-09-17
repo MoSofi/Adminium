@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The project UI kit object the dashboard publishes as `ui` on the host
- * runtime global (49-developer-projects.md §6.2). Its names and shapes are
- * `@adminiumjs/adminium/ui`'s `ProjectUiKit`, checked here by the compiler,
- * and its keys are `PROJECT_UI_EXPORTS`, checked by `kit.test.tsx`.
+ * runtime global. Its names and shapes are `@adminiumjs/adminium/ui`'s
+ * `ProjectUiKit`, checked here by the compiler, and its keys are
+ * `PROJECT_UI_EXPORTS`, checked by `kit.test.tsx`.
  *
  * Loaded lazily by `../runtime.ts`: nothing here reaches the entry chunk.
  */

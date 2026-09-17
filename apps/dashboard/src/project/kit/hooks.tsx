@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The UI kit's data and navigation hooks (49-developer-projects.md §6.2).
+ * The UI kit's data and navigation hooks.
  *
  * Records are read and written through the same `/api/v1/data` routes as
  * generated pages, as the signed-in person: their table permissions, masking

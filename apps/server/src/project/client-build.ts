@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Building a project's browser code: `pages/*.tsx` and `widgets/*.tsx`
- * (49-developer-projects.md §6.3).
+ * Building a project's browser code: `pages/*.tsx` and
+ * `widgets/*.tsx`.
  *
  * Two esbuild runs over the same files:
  *
