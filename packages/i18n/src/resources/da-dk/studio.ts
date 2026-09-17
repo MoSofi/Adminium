@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GENERATED MIRROR of ../../../locales/da-DK/studio.json — do not edit by hand.
- * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
  * without JSON import attributes (browser + NodeNext safe).
@@ -1214,6 +1214,7 @@ export default {
       "generated": "Genereret",
       "llm": "Assistent",
       "manifest": "Tilføjelse",
+      "project": "Projektkode",
       "system": "System",
       "user": "Egen"
     },
@@ -1228,6 +1229,34 @@ export default {
     "preview": {
       "note": "En illustration af layoutet, ikke dine data. Den rigtige side fyldes ud, når den er gemt.",
       "untitled": "Side uden titel"
+    },
+    "project": {
+      "badge": {
+        "changed": "Ændret på serveren",
+        "conflict": "Konflikt",
+        "outside": "Ikke i projektet"
+      },
+      "changed": {
+        "body": "Hent ændringerne ind i dit projekt og udrul det, ellers findes de kun på denne server:",
+        "title": "{count, plural, one {# side er ændret på denne server} other {# sider er ændret på denne server}}"
+      },
+      "conflicts": {
+        "body": "Denne server beholder sin egen version, indtil du vælger en.",
+        "title": "{count, plural, one {# side er ændret både her og i projektet} other {# sider er ændret både her og i projektet}}"
+      },
+      "fromCode": "Denne side kommer fra {source}. Ret den dér.",
+      "invalid": {
+        "body": "Ret disse filer. Indtil da bruges den seneste gyldige version.",
+        "title": "{count, plural, one {# projektfil blev ikke anvendt} other {# projektfiler blev ikke anvendt}}"
+      },
+      "keepServer": "Behold serverens version",
+      "notConfigured": "Nogle af dem hører til en database, som projektet ikke nævner. Tilføj den i adminium.config.ts for at beholde dens sider i projektet.",
+      "outside": {
+        "body": "De findes kun på denne server. Hent dem ind i projektet for at beholde dem:",
+        "title": "{count, plural, one {# side er ikke i projektet} other {# sider er ikke i projektet}}"
+      },
+      "resolveFailed": "Det kunne ikke ændres.",
+      "useProject": "Brug projektets version"
     },
     "row": {
       "menu": "Handlinger for {title}"
@@ -1264,6 +1293,84 @@ export default {
       "narrow": "Smal (720 px)",
       "page": "Side (1080 px)",
       "wide": "Bred (1800 px)"
+    }
+  },
+  "project": {
+    "actions": {
+      "bulk": "En eller flere poster",
+      "empty": "Ingen handlinger. En fil i actions/ sætter en knap på poster.",
+      "needs": "Kræver: {permission}",
+      "single": "Én post",
+      "title": "Handlinger"
+    },
+    "changes": {
+      "empty": "Alle side- og skemafiler stemmer med denne server.",
+      "open": "Løs det under Sider",
+      "title": "Ændret på denne server"
+    },
+    "code": {
+      "disabled": "Ikke indlæst: skrivebordsappen kører aldrig projektkode",
+      "label": "Projektkode",
+      "loaded": "Indlæst {when}",
+      "none": "Intet indlæst"
+    },
+    "failures": {
+      "empty": "Ingen hook er fejlet, siden serveren startede.",
+      "title": "Hook-fejl"
+    },
+    "files": {
+      "count": "{count, plural, one {# fil} other {# filer}}",
+      "pages": "Sidefiler",
+      "schema": "Skemafiler",
+      "title": "Filer"
+    },
+    "folder": "Mappe",
+    "hooks": {
+      "empty": "Ingen hooks. En fil i hooks/ kører kode, når poster ændres.",
+      "onImport": "Også ved CSV-import",
+      "title": "Hooks"
+    },
+    "loadFailed": "Projektet kunne ikke indlæses",
+    "mode": {
+      "dev": "Udvikling: mappen og Studio holdes i takt",
+      "label": "Kører som",
+      "server": "Server: mappen ændres kun ved en udrulning"
+    },
+    "none": {
+      "body": "Et projekt er en mappe oprettet med `npx @adminiumjs/adminium new`. Dets sider, hooks og handlinger vises her, når serveren kører det.",
+      "title": "Denne server kører intet projekt"
+    },
+    "pages": {
+      "empty": "Ingen sider. En .tsx-fil i pages/ tilføjer en side, du selv har skrevet.",
+      "hidden": "Ikke i sidepanelet",
+      "title": "Sider"
+    },
+    "permission": {
+      "create": "Tilføje",
+      "delete": "Slette",
+      "read": "Se",
+      "update": "Redigere"
+    },
+    "problems": {
+      "body": "Ret disse filer. Resten af projektkoden kører.",
+      "title": "{count, plural, one {# fil blev ikke indlæst} other {# filer blev ikke indlæst}}"
+    },
+    "status": {
+      "changed": "Ændret på denne server",
+      "conflict": "Konflikt",
+      "invalid": "Ugyldig",
+      "outside": "Ikke i projektet",
+      "pending": "Ikke anvendt endnu"
+    },
+    "subtitle": "Projektmappen, som denne server kører, og den kode, den har indlæst.",
+    "superAdminOnly": "Kun en superadministrator kan se det projekt, som denne server kører.",
+    "title": "Projekt",
+    "version": "Adminium",
+    "widgets": {
+      "card": "Dashboardkort",
+      "cell": "Tabelcelle",
+      "empty": "Ingen widgets. En fil i widgets/ tilføjer en tabelcelle eller et dashboardkort.",
+      "title": "Widgets"
     }
   },
   "publicApi": {
@@ -1449,11 +1556,11 @@ export default {
       "searchPlaceholder": "Søg i tabeller…",
       "unsaved": "Ugemt ændring"
     },
-    "unavailableBody": "Dette build indeholder endnu ikke ommapnings-editoren (09-T12). Kør genereringen igen, når den er kommet, for at ommappe etiketter, typer og relationer.",
+    "unavailableBody": "Dette build indeholder endnu ikke ommapnings-editoren. Kør genereringen igen, når den er kommet, for at ommappe etiketter, typer og relationer.",
     "unavailableTitle": "Editor til skema-ommapning ikke tilgængelig"
   },
   "review": {
-    "unavailableBody": "Denne build indeholder endnu ikke berigelsens gennemgangsskærm (06-T14). Den kommer med diff-og-anvend-flowet.",
+    "unavailableBody": "Denne build indeholder endnu ikke berigelsens gennemgangsskærm. Den kommer med diff-og-anvend-flowet.",
     "unavailableTitle": "Gennemgangsskærm ikke tilgængelig"
   },
   "settings": {
@@ -1600,6 +1707,11 @@ export default {
         "error": "Kun et værtsnavn eller en IP-adresse — uden skema, port eller loginoplysninger.",
         "label": "SMTP-vært"
       },
+      "linkOrigin": {
+        "error": "Angiv en adresse som https://admin.example.com uden sti.",
+        "helper": "Links til nulstilling af adgangskode og invitationer åbner denne adresse. Hvis den er tom, udfylder Adminium den fra den næste administrator, der logger ind eller gemmer en ændring, medmindre vedkommende bruger localhost.",
+        "label": "Adresse i e-maillinks"
+      },
       "pass": {
         "error": "Dette brugernavn kræver en adgangskode.",
         "helper": "Gemmes krypteret og vises aldrig igen. Lad feltet stå tomt for at beholde den nuværende.",
@@ -1664,6 +1776,11 @@ export default {
       "body": "Tilføj, rediger og slet sider, skift hvad hver enkelt viser, og omarranger sidepanelet.",
       "cta": "Administrer sider",
       "heading": "Sider"
+    },
+    "projectCard": {
+      "body": "Projektmappen, som denne server kører: dens hooks, handlinger og sidefiler.",
+      "cta": "Åbn projekt",
+      "heading": "Projekt"
     },
     "publicApiCard": {
       "body": "Lad dine egne kunde- eller medarbejdervendte sider læse denne database gennem et scope, du definerer.",

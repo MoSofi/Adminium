@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The host-run OAuth2 + PKCE flow (26-T08, D2, acceptance #2).
+ * The host-run OAuth2 + PKCE flow (acceptance #2).
  *
  * The claim under test is "the add-on never sees the client secret", and the
  * things that make it true are: Adminium runs the exchange, the verifier never
@@ -62,7 +62,7 @@ function tokenClient(
   });
 }
 
-describe('26-T08: starting a flow', () => {
+describe('Starting a flow', () => {
   it('builds an authorize URL with PKCE S256 and a state', () => {
     const store = createOAuthFlowStore();
     const { state, authorizeUrl } = store.start(START);
@@ -118,7 +118,7 @@ describe('26-T08: starting a flow', () => {
   });
 });
 
-describe('26-T08: the OAuth hosts are held to the add-on allow-list', () => {
+describe('The OAuth hosts are held to the add-on allow-list', () => {
   it('refuses a tokenUrl on a host the manifest never declared', () => {
     // The gap the manifest validator leaves: it requires both URLs and does not
     // require their hosts to be in `network.allow`. Adminium will not POST a
@@ -165,7 +165,7 @@ describe('26-T08: the OAuth hosts are held to the add-on allow-list', () => {
   });
 });
 
-describe('26-T08: exchanging the code', () => {
+describe('Exchanging the code', () => {
   it('sends the verifier and the secret, and returns the tokens', async () => {
     const store = createOAuthFlowStore();
     const { state, authorizeUrl } = store.start(START);
@@ -262,7 +262,7 @@ describe('26-T08: exchanging the code', () => {
   });
 });
 
-describe('26-T08: refresh', () => {
+describe('Refresh', () => {
   const envelope: OAuthEnvelope = {
     clientId: 'client-123',
     clientSecret: 'shhh-secret',
@@ -336,7 +336,7 @@ describe('26-T08: refresh', () => {
   });
 });
 
-describe('26-T08: acceptance #2 — the add-on never sees the client secret', () => {
+describe('Acceptance #2 — the add-on never sees the client secret', () => {
   it('hands the add-on the access token and nothing else', () => {
     const visible = addOnVisibleOAuthCredential({
       clientId: 'client-123',

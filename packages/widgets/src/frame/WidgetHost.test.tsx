@@ -133,7 +133,7 @@ describe('WidgetHost', () => {
     expect(screen.getByText('Queue drained')).toBeDefined();
   });
 
-  it('unknown widget id renders the widget-missing card naming the id (04 §2.2)', async () => {
+  it('unknown widget id renders the widget-missing card naming the id', async () => {
     render(
       <WidgetHost
         widgetId="x-uninstalled-widget"

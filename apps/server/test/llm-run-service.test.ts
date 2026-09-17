@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LLM run-service lifecycle (06-llm-assist.md §7.4, §9).
+ * LLM run-service lifecycle.
  *
  * Runs entirely on an in-memory SQLite meta store — no live database, no
- * provider network (the run-service performs no network I/O; §9). Covers:
- *  - createRun persists a valid `draft` (BYO ⇒ provider/model NULL, §9);
+ * provider network (the run-service performs no network I/O). Covers:
+ * - createRun persists a valid `draft` (BYO ⇒ provider/model NULL);
  *  - the status machine's legal + illegal transitions and post-terminal
  *    immutability;
  *  - validate-on-receive advancing awaiting_response → validated.
@@ -152,7 +152,7 @@ describe('createRunService', () => {
     await meta.db.destroy();
   });
 
-  it('createRun persists a valid BYO draft with provider/model NULL (§9)', async () => {
+  it('createRun persists a valid BYO draft with provider/model NULL', async () => {
     const { run, artifact } = await service.createRun({
       ...(await baseCreateInput(connectionId, snapshotId)),
       mode: 'byo',
@@ -167,7 +167,7 @@ describe('createRunService', () => {
     expect(run.promptHash).toMatch(/^[0-9a-f]{64}$/);
     expect(run.promptText).toContain('=== SYSTEM ===');
     expect(run.promptText).toContain('=== USER ===');
-    // The run id is the runId embedded in the prompt (§7.4).
+    // The run id is the runId embedded in the prompt.
     expect(run.promptText).toContain(run.id);
     expect(run.chunksTotal).toBe(artifact.chunks.length);
     expect(run.locales).toEqual(['en_US']);
@@ -178,7 +178,7 @@ describe('createRunService', () => {
     expect(artifact.byo).toBe(`=== SYSTEM ===\n${artifact.system}\n\n=== USER ===\n${artifact.user}`);
   });
 
-  it('createRun rejects a BYO run that carries a provider/model (§9)', async () => {
+  it('createRun rejects a BYO run that carries a provider/model', async () => {
     await expect(
       service.createRun({
         ...(await baseCreateInput(connectionId, snapshotId)),
@@ -222,7 +222,7 @@ describe('createRunService', () => {
     expect((validated.responseJson as { tables: unknown[] }).tables).toHaveLength(1);
   });
 
-  it('a fatal paste keeps the run in awaiting_response with errors preserved (§7.5)', async () => {
+  it('a fatal paste keeps the run in awaiting_response with errors preserved', async () => {
     const { run } = await service.createRun({
       ...(await baseCreateInput(connectionId, snapshotId)),
       mode: 'byo',
@@ -272,7 +272,7 @@ describe('createRunService', () => {
     expect(applied.appliedBy).toBe(userId);
     expect(applied.appliedAt).not.toBeNull();
 
-    // Terminal → immutable (§7.4).
+    // Terminal → immutable.
     await expect(service.markApplied(run.id, { appliedBy: userId })).rejects.toBeInstanceOf(
       RunImmutableError,
     );

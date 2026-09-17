@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Connect wizard component tests (M5-T01/02/03 + M9-T04) — happy-dom, fetch
- * mocked like the sibling api tests (no msw): step navigation, source-mode
- * switching, DSN validation gating, the engine picker (scheme sync, SQLite
- * file-path form), the schema-file format picker (auto-detect + override
- * re-parse), parse preview + parser warnings, capability degradation (file
- * sources: notes in the log, — row counts), inclusion defaults (high-volume
+ * Connect wizard component tests (/02/03 +) — happy-dom, fetch mocked like
+ * the sibling api tests (no msw): step navigation, source-mode switching,
+ * DSN validation gating, the engine picker (scheme sync, SQLite file-path
+ * form), the schema-file format picker (auto-detect + override re-parse),
+ * parse preview + parser warnings, capability degradation (file sources:
+ * notes in the log, — row counts), inclusion defaults (high-volume
  * unchecked, join pre-hidden), read-only meta gating, and the full connect →
  * introspect → include → meta → generate → success walk.
  */
@@ -195,7 +195,7 @@ describe('step navigation + source modes', () => {
   });
 });
 
-describe('engine picker (M9-T04)', () => {
+describe('engine picker', () => {
   async function toSource() {
     scriptFetch();
     renderWizard();
@@ -335,7 +335,7 @@ describe('schema-file mode', () => {
     expect(continueButton()).toHaveProperty('disabled', true);
   });
 
-  it('no-live-DB path (M9-T04): upload → analyze log with capability notes → — row counts', async () => {
+  it('no-live-DB path: upload → analyze log with capability notes → — row counts', async () => {
     scriptFetch({
       'POST /api/v1/schema-import/parse': () =>
         jsonResponse(200, {
@@ -640,7 +640,7 @@ describe('meta step — carrying out the placement choice', () => {
   it('does not try to move a store that is already where it belongs', async () => {
     const { calls } = scriptFetch({
       // A WRITABLE source, so the same-db card is selectable at all — the
-      // default script's role is read-only, which disables it for the §3.1
+      // default script's role is read-only, which disables it for the
       // reason the other tests cover.
       //
       // BOTH endpoints, because `TestStep` patches `readOnly` twice: once from

@@ -1,0 +1,18 @@
+{
+  "cell": {
+    "notCell": "{id} er et kort, ikke en tabelcelle.",
+    "unknown": "Dette projekt har ingen widget {id}."
+  },
+  "page": {
+    "failed": {
+      "title": "Koden til denne side blev ikke indlæst"
+    },
+    "missing": {
+      "body": "Dens kode kommer fra projektmappen. Byg projektet igen, eller genstart Adminium, for at indlæse den.",
+      "title": "Denne side er ikke med i det kørende build"
+    }
+  },
+  "table": {
+    "empty": "Ingen poster"
+  }
+}

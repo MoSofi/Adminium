@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The §2.2 handshake and the §2.2 step 9 restart policy, driven with a fake
- * child and a fake clock. No Electron, no fork, no socket.
+ * The handshake and the restart policy, driven with a fake child and a fake
+ * clock. No Electron, no fork, no socket.
  *
  * The restart cases are the reason this file exists. "Three crashes within 60 s
  * ⇒ stop auto-restarting" has no way to fail loudly in manual testing — you have
@@ -80,7 +80,7 @@ class FakeChild implements ServerChildLike {
     for (const handler of [...this.#messageHandlers]) handler(message);
   }
 
-  /** §2.2 step 7's ready message. */
+  /** The ready message. */
   ready(port = 51234, applied = 0): void {
     this.send({
       type: 'ready',
@@ -148,7 +148,7 @@ function harness(overrides: Partial<CreateServerManagerOptions> = {}): Harness {
   const clock = fakeTimers();
   const log = createMemoryLogSink();
 
-  // One token per fork (§5), numbered so a test can tell child 0's from child
+  // One token per fork, numbered so a test can tell child 0's from child
   // 1's: `TOKEN` is fork 0's, `tokenFor(1)` is the restart's.
   let minted = 0;
   const manager = createServerManager({
@@ -201,7 +201,7 @@ describe('decideRestart', () => {
     ).toEqual({ action: 'none' });
   });
 
-  it('restarts an unexpected exit 0 immediately (§2.2: the LAN toggle)', () => {
+  it('restarts an unexpected exit 0 immediately (the LAN toggle)', () => {
     expect(decideRestart({ expected: false, exitCode: 0, exitsInWindow: [1], policy })).toEqual({
       action: 'restart',
       delayMs: 0,
@@ -230,7 +230,7 @@ describe('decideRestart', () => {
     expect(decision).toMatchObject({ action: 'restart', delayMs: generous.maxDelayMs });
   });
 
-  it('gives up on the third exit inside the window (§2.2)', () => {
+  it('gives up on the third exit inside the window', () => {
     const decision = decideRestart({
       expected: false,
       exitCode: 1,
@@ -251,7 +251,7 @@ describe('decideRestart', () => {
   });
 });
 
-// ─── The handshake (§2.2 steps 5–7) ──────────────────────────────────────────
+// ─── The handshake (steps 5–7) ───────────────────────────────────────────────
 
 describe('ServerManager.start — the handshake', () => {
   it('resolves with the port the child reports, not one we assumed', () => {
@@ -268,7 +268,7 @@ describe('ServerManager.start — the handshake', () => {
     });
   });
 
-  it('forks the entry with the §2.2 step 5 env block', () => {
+  it('forks the entry with the env block', () => {
     const h = harness();
     void h.manager.start().catch(() => undefined);
 
@@ -336,7 +336,7 @@ describe('ServerManager.start — the handshake', () => {
   });
 
   it('does NOT enter the restart loop when the first boot fails', async () => {
-    // §2.2 step 7 sends a failed boot to the crash screen. Re-forking a server
+    // A failed boot goes to the crash screen. Re-forking a server
     // that cannot open its data dir would flash the crash screen and hide it.
     const h = harness();
     const started = h.manager.start();
@@ -397,7 +397,7 @@ describe('ServerManager.start — the handshake', () => {
   });
 });
 
-// ─── The restart policy (§2.2 step 9) ────────────────────────────────────────
+// ─── The restart policy ──────────────────────────────────────────────────────
 
 describe('ServerManager — supervision', () => {
   async function started(overrides: Partial<CreateServerManagerOptions> = {}): Promise<Harness> {
@@ -556,7 +556,7 @@ describe('ServerManager.stop', () => {
     return h;
   }
 
-  it('asks politely first — kill() would leave WAL sidecars behind (§9)', async () => {
+  it('asks politely first — kill() would leave WAL sidecars behind', async () => {
     const h = await started();
 
     const stopping = h.manager.stop();
@@ -611,7 +611,7 @@ describe('ServerManager.stop', () => {
 });
 
 describe('ServerManager.restart', () => {
-  it('re-forks with the new host/port and does not count against the cap (§8.3)', async () => {
+  it('re-forks with the new host/port and does not count against the cap', async () => {
     const h = harness();
     const first = h.manager.start();
     childAt(h, 0).ready();
@@ -634,7 +634,7 @@ describe('ServerManager.restart', () => {
   });
 
   it('has no boot token before the first fork', () => {
-    // Not a placeholder: until a child exists there is no boot, and §5's token
+    // Not a placeholder: until a child exists there is no boot, token
     // is a per-boot fact. `appUrl` omits the parameter entirely for this.
     expect(harness().manager.bootToken).toBeNull();
   });
@@ -648,13 +648,12 @@ describe('ServerManager.restart', () => {
     expect(h.manager.bootToken).toBe(TOKEN);
     expect(h.forkCalls[0]?.env.ADMINIUM_BOOT_TOKEN).toBe(TOKEN);
 
-    // §8.3's LAN toggle. The regression this pins is the one this suite used to
+    // The LAN toggle. The regression this pins is the one this suite used to
     // ASSERT as correct under the name "keeps the boot token stable across a
     // restart": the manager re-emitted `#opts.bootToken` into every fork, so the
-    // restarted child built a fresh `createBootTokenGuard(T)` with
-    // `consumed = false` and T — already spent by the first exchange, and still
-    // sitting in the window URL — bought a SECOND passwordless super-admin
-    // session.
+    // restarted child built a fresh `createBootTokenGuard(T)` with `consumed =
+    // false` and T — already spent by the first exchange, and still sitting in
+    // the window URL — bought a SECOND passwordless super-admin session.
     const restarting = h.manager.restart({ host: '0.0.0.0', port: 4600 });
     childAt(h, 0).exit(0);
     await vi.waitFor(() => {
@@ -670,7 +669,7 @@ describe('ServerManager.restart', () => {
   });
 
   it('mints a fresh boot token for a CRASH restart too', async () => {
-    // The path a `setBootToken()` on §8.3's toggle would have missed entirely:
+    // The path a `setBootToken()` on toggle would have missed entirely:
     // nobody calls anything here, the supervisor just forks again — up to 3
     // times per 60 s, each one previously re-arming the same spent token.
     const h = harness();

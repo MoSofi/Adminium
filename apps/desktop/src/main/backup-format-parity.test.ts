@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The §9 format, restated in two packages — pinned (11-electron.md §9).
+ * The format, restated in two packages — pinned.
  *
  * `apps/server/src/backup/format.ts` OWNS the archive format. The main process
  * has to agree with it byte for byte, and it may not import it at runtime: an
@@ -57,14 +57,14 @@ import { SESSION_COOKIE_NAME } from './index.js';
 
 const AT = Date.parse('2026-07-12T14:30:05.123Z');
 
-describe('§9 format parity: apps/desktop mirror ≡ @adminium/server', () => {
+describe('format parity: apps/desktop mirror ≡ @adminium/server', () => {
   it('agrees on the frozen formatVersion', () => {
     expect(BACKUP_FORMAT_VERSION).toBe(SERVER_FORMAT_VERSION);
   });
 
-  it('agrees on §9’s rotation default of 7', () => {
+  it('agrees on rotation default of 7', () => {
     // `config.json`'s schema owns this default; the server needs it as the
-    // route's fallback. Neither module gets to invent it — §9 says 7.
+    // route's fallback. Neither module gets to invent it — says 7.
     expect(DEFAULT_AUTO_BACKUP_KEEP).toBe(SERVER_DEFAULT_KEEP);
     expect(DEFAULT_AUTO_BACKUP_KEEP).toBe(7);
     expect(createDefaultConfig('/data').autoBackup).toEqual({ enabled: true, keep: 7 });
@@ -89,7 +89,7 @@ describe('§9 format parity: apps/desktop mirror ≡ @adminium/server', () => {
   });
 
   it('agrees on the session cookie main sends to the backup route', () => {
-    // §9's route is session-guarded and main calls it with the window's cookie.
+    // The route is session-guarded and main calls it with the window's cookie.
     // A typo here is not a crash — it is a backup that reports "sign in first"
     // forever, to a user who is signed in.
     expect(SESSION_COOKIE_NAME).toBe(SESSION_COOKIE);

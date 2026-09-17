@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * About resource (M10-T04): `GET /api/v1/about` + `GET /api/v1/about/update-check`.
+ * About resource: `GET /api/v1/about` + `GET /api/v1/about/update-check`.
  *
  * Covers the exit criterion "the About screen shows version/license", the AGPL
- * §13 source offer (01-architecture.md §9.3), the meta-store engine, and the
- * update notice's gating on `updates.checkEnabled`.
+ * source offer, the meta-store engine, and the update notice's gating on
+ * `updates.checkEnabled`.
  */
 
 import { settingsRepo } from '@adminium/meta';
@@ -15,7 +15,7 @@ import { aboutRoutes } from '../src/routes/about/index.js';
 import { APP_VERSION } from '../src/version.js';
 import { buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
 
-describe('GET /api/v1/about (M10-T04)', () => {
+describe('GET /api/v1/about', () => {
   let t: AuthTestApp;
   let cookie: string;
 
@@ -49,7 +49,7 @@ describe('GET /api/v1/about (M10-T04)', () => {
 
     expect(data.version).toBe(APP_VERSION);
     expect(data.license).toBe('AGPL-3.0-only');
-    // AGPL §13: the instance links to the corresponding source + full licence.
+    // AGPL: the instance links to the corresponding source + full licence.
     expect(data.sourceUrl).toBe('https://github.com/MoSofi/Adminium');
     expect(data.licenseUrl).toContain('/LICENSE');
     // The harness runs on the SQLite meta store — reported, not hardcoded null.
@@ -77,7 +77,7 @@ describe('GET /api/v1/about (M10-T04)', () => {
   });
 });
 
-describe('GET /api/v1/about/update-check (M10-T04)', () => {
+describe('GET /api/v1/about/update-check', () => {
   let t: AuthTestApp;
   let cookie: string;
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * M7-T07 data-io end-to-end over the fake SQLite-backed adapter (same harness
+ * Data-io end-to-end over the fake SQLite-backed adapter (same harness
  * as crud-e2e.test.ts): upload → validate → import-run job → rows in the
  * source db → export-run job → downloadable CSV artifact — plus the RBAC
  * guards (per-table export/import grants), PII masking captured at request
- * time, the xlsx rejection, and the §11.1 stats invariant.
+ * time, the xlsx rejection, and the stats invariant.
  */
 
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -265,7 +265,7 @@ describe('data-io routes + jobs (fake adapter)', () => {
     ],
   };
 
-  it('validates: per-row issues, non-blocking (§11.1)', async () => {
+  it('validates: per-row issues, non-blocking', async () => {
     const res = await t.app.inject({
       method: 'POST',
       url: '/api/v1/imports',
@@ -333,7 +333,7 @@ describe('data-io routes + jobs (fake adapter)', () => {
     };
     expect(view.status).toBe('succeeded');
     expect(view.stats).toEqual({ total: 4, inserted: 3, updated: 0, skipped: 1 });
-    // The §11.1 invariant: total = inserted + updated + skipped.
+    // The invariant: total = inserted + updated + skipped.
     expect(view.stats.total).toBe(view.stats.inserted + view.stats.updated + view.stats.skipped);
     expect(view.errorReportFileId).not.toBeNull();
 

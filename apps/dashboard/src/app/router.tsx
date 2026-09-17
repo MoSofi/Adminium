@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TanStack Router tree — code-based, per 09-generated-app.md §2.3: a single
- * dynamic `/p/$slug` route resolves generated pages from the nav tree (the
- * nav is data, the route is code), auth screens are public, `/state/$stateId`
- * addresses every system state directly, and the catch-all renders the
- * branded 404. `hrefForPage`/`hrefForRecord` are the only way shell code
- * builds links.
+ * TanStack Router tree — code-based,: a single dynamic `/p/$slug` route
+ * resolves generated pages from the nav tree (the nav is data, the route is
+ * code), auth screens are public, `/state/$stateId` addresses every system
+ * state directly, and the catch-all renders the branded 404.
+ * `hrefForPage`/`hrefForRecord` are the only way shell code builds links.
  */
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
@@ -39,6 +38,7 @@ import { reportsRoutes } from '../reports/routes.js';
 import { setupStateQuery } from '../setup/setupApi.js';
 import { HomePage } from '../pages/HomePage.js';
 import { PageRenderer } from '../pages/PageRenderer.js';
+import { preloadPageTemplates } from '../pages/templates.js';
 import { ForgotPage } from '../auth/ForgotPage.js';
 import { LoginPage } from '../auth/LoginPage.js';
 import { OtpPage } from '../auth/OtpPage.js';
@@ -122,7 +122,7 @@ export interface RouterContext {
   queryClient: QueryClient;
 }
 
-// --- link helpers (§2.3: the only way shell code builds links) --------------
+// --- link helpers (the only way shell code builds links) --------------
 
 export { hrefForPage, hrefForRecord } from './links.js';
 
@@ -133,9 +133,9 @@ function toThemePrefs(prefs: ResolvedPrefs): Partial<ThemePrefs> {
 }
 
 /**
- * Direction for a locale `@adminium/ui` cannot know about (23 §5.4). That
- * package has no dependency on `@adminium/i18n`, so the app injects the
- * lookup; `null` defers to the compiled table and the cached `dir` axis.
+ * Direction for a locale `@adminium/ui` cannot know about. That package
+ * has no dependency on `@adminium/i18n`, so the app injects the lookup;
+ * `null` defers to the compiled table and the cached `dir` axis.
  */
 function resolveLocaleDir(locale: string): 'ltr' | 'rtl' | null {
   const entry = allLocales().find((l) => l.id === locale);
@@ -145,7 +145,7 @@ function resolveLocaleDir(locale: string): 'ltr' | 'rtl' | null {
 function RootComponent() {
   // Cache subscription only — pre-auth surfaces render from the localStorage
   // pre-paint baseline; once bootstrap lands, server-resolved axes win
-  // (ThemeProvider resolution order, 02-design-system.md §4.2).
+  // (ThemeProvider resolution order).
   const boot = useQuery({ ...bootstrapQuery(), enabled: false });
   const authed = boot.data !== undefined;
 
@@ -154,8 +154,8 @@ function RootComponent() {
   // the ones the shell never wraps.
   useBrandedDocumentTitle();
 
-  // Re-render the route tree when runtime overrides change (23 §4.4). This is
-  // a RE-RENDER, never a keyed remount: keying this subtree would remount
+  // Re-render the route tree when runtime overrides change. This is a
+  // RE-RENDER, never a keyed remount: keying this subtree would remount
   // ThemeProvider — the owner of the locale axis and of the optimistic
   // `setPref` layer — which silently reverts a locale the user just chose and
   // destroys the Translations editor's own unsaved buffer on every save.
@@ -166,7 +166,7 @@ function RootComponent() {
       resolveDir={resolveLocaleDir}
       {...(boot.data === undefined ? {} : { userPrefs: toThemePrefs(boot.data.prefs) })}
       onPrefChange={(key, value) => {
-        // Persist per-user axes once signed in (09 §5.1 ThemeProvider wiring).
+        // Persist per-user axes once signed in (ThemeProvider wiring).
         if (!authed) return;
         api.patch('/api/v1/me/prefs', { [key]: value }).catch(() => {
           // Non-fatal: the axis still applied locally; next boot re-resolves.
@@ -175,9 +175,9 @@ function RootComponent() {
     >
       <TooltipProvider>
         <ShortcutsProvider>
-          {/* Bridge i18n dir → charts so chart chrome mirrors in RTL (§5.5). */}
+          {/* Bridge i18n dir → charts so chart chrome mirrors in RTL. */}
           <ChartDirectionBridge>
-            {/* The offline asset policy (11-electron.md §7). It belongs HERE, on
+            {/* The offline asset policy. It belongs HERE, on
                 the root route, rather than deeper: every widget in the product
                 mounts through a WidgetHost under this Outlet — generated pages,
                 the dashboard builder's canvas, the palette's previews — and each
@@ -204,7 +204,7 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
 
 // --- public: auth group + direct-address system states ----------------------
 
-/** Authed users bounce off auth screens back into the app (09 §2.3 guard). */
+/** Authed users bounce off auth screens back into the app (guard). */
 function redirectIfAuthed(queryClient: QueryClient): void {
   if (queryClient.getQueryData(bootstrapQuery().queryKey) !== undefined) {
     throw redirect({ to: '/' });
@@ -212,10 +212,10 @@ function redirectIfAuthed(queryClient: QueryClient): void {
 }
 
 /**
- * First-run gate (M10-T04). A never-bootstrapped instance has no user to sign
- * in as, so every pre-auth surface routes to the wizard instead of showing a
- * sign-in form nobody can satisfy. `setupStateQuery` is `staleTime: Infinity`
- * and setup state is a one-way door, so this costs one request per session.
+ * First-run gate. A never-bootstrapped instance has no user to sign in as, so
+ * every pre-auth surface routes to the wizard instead of showing a sign-in
+ * form nobody can satisfy. `setupStateQuery` is `staleTime: Infinity` and
+ * setup state is a one-way door, so this costs one request per session.
  *
  * Never fatal: if the probe itself fails (offline, 503 META_NOT_CONFIGURED),
  * fall through to the normal screen rather than trapping the user on a wizard
@@ -235,13 +235,13 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
   /*
-   * Two return channels, deliberately distinct (29-app-surfaces.md D4):
-   * `returnTo` is the dashboard's own — a client-side push after login.
-   * `next` is what the SURFACE gate appends — the target may be a hosted
-   * app path this SPA cannot render (on a mapped staff domain, EVERY
-   * non-reserved path is surface-owned), so honoring it must be a DOCUMENT
-   * navigation, which only LoginPage/OtpPage can perform. Both accept
-   * paths only — `//host` and absolute URLs are dropped, never followed.
+   * Two return channels, deliberately distinct: `returnTo` is the
+   * dashboard's own — a client-side push after login. `next` is what the
+   * SURFACE gate appends — the target may be a hosted app path this SPA
+   * cannot render (on a mapped staff domain, EVERY non-reserved path is
+   * surface-owned), so honoring it must be a DOCUMENT navigation, which
+   * only LoginPage/OtpPage can perform. Both accept paths only — `//host`
+   * and absolute URLs are dropped, never followed.
    */
   validateSearch: (search: Record<string, unknown>): { returnTo?: string; next?: string } => ({
     ...(typeof search.returnTo === 'string' &&
@@ -279,22 +279,22 @@ const setupRoute = createRoute({
 });
 
 /**
- * `/desktop/setup` — the DESKTOP first-run wizard (11-electron.md §6, 11-T07).
+ * `/desktop/setup` — the DESKTOP first-run wizard.
  *
  * NOT `/setup`, and the two are not variants of each other. `/setup` above is
  * M10's self-host bootstrap: an admin account and the consent answers, on a
  * server someone has already configured. This one also picks the data
- * directory, seeds the first database from one of §6's four source cards, and
+ * directory, seeds the first database from one of four source cards, and
  * writes `config.json` — none of which exists off the desktop shell.
  *
  * ─── THIS ROUTE IS THE SHELL'S FRONT DOOR ────────────────────────────────────
  *
  * `main/index.ts`'s `appUrl` navigates the window here on EVERY launch with no
- * `config.json` (§2.2 step 8), and only this wizard writes one. The route
- * missing is therefore not a dead link, it is an unusable product: the shipped
- * tree navigated here, TanStack fell through to `notFoundComponent`, and a
- * brand-new user's first and only screen was the branded 404 — with no account,
- * no database, and no way forward on this or any subsequent launch.
+ * `config.json`, and only this wizard writes one. The route missing is
+ * therefore not a dead link, it is an unusable product: the shipped tree
+ * navigated here, TanStack fell through to `notFoundComponent`, and a brand-new
+ * user's first and only screen was the branded 404 — with no account, no
+ * database, and no way forward on this or any subsequent launch.
  *
  * ─── WHY THERE IS NO `beforeLoad` GUARD ──────────────────────────────────────
  *
@@ -302,11 +302,11 @@ const setupRoute = createRoute({
  * setup is done. This one deliberately does not, because the checks that would
  * matter here cannot be made from a route guard:
  *
- *  - "is this the desktop app?" is a §4 BRIDGE question (`window.adminiumDesktop`),
- *    and `settingsDesktopRoute` below already establishes the house answer —
- *    the component owns that check, not the guard.
+ * - "is this the desktop app?" is a BRIDGE question (`window.adminiumDesktop`), and
+ *  `settingsDesktopRoute` below already establishes the house answer — the
+ *  component owns that check, not the guard.
  *  - "is this a first run?" is a question about `config.json`, which the SERVER
- *    cannot see (§2.3: main owns that file) — so no server probe can answer it.
+ * cannot see (main owns that file) — so no server probe can answer it.
  *
  * The component is what degrades: off-desktop, or on a configured install, it
  * renders through and the server's own 409 on `POST /setup/super-admin` is the
@@ -340,14 +340,13 @@ const otpRoute = createRoute({
 });
 
 /**
- * `/state/$stateId` addresses every system state directly (§6.1) — including
+ * `/state/$stateId` addresses every system state directly — including
  * `suspended`, the 402 workspace-suspended screen (administrative copy since the
- * free-launch pivot, 17-deferred-monetization.md). 11-electron.md §8.2 row 1 says
- * hosted-plan surfaces are "not rendered at all" outside Cloud, and on
- * self-host/desktop its primary action already goes nowhere (`StatePage`'s
- * `suspended: () => undefined`), so this is the one hosted-plan surface the SPA
- * can actually reach. The 404 is the honest answer:
- * on a build with no billing, a billing page does not exist.
+ * free-launch pivot). Hosted-plan surfaces are
+ * "not rendered at all" outside Cloud, and on self-host/desktop its primary
+ * action already goes nowhere (`StatePage`'s `suspended: () => undefined`), so
+ * this is the one hosted-plan surface the SPA can actually reach. The 404 is the
+ * honest answer: on a build with no billing, a billing page does not exist.
  */
 function StateRouteComponent() {
   const { stateId } = stateRoute.useParams();
@@ -376,11 +375,11 @@ const appRoute = createRoute({
       const bootstrap = await context.queryClient.ensureQueryData(bootstrapQuery());
       return { bootstrap };
     } catch (error) {
-      // 401 → login with returnTo (09 §2.1 failure branches); everything else
-      // falls through to the errorComponent's system-state mapping.
+      // 401 → login with returnTo (failure branches); everything else falls
+      // through to the errorComponent's system-state mapping.
       if (error instanceof ApiError && error.status === 401) {
         // ...unless nobody has bootstrapped this instance yet, in which case
-        // there is no account to return to — send them to the wizard (M10-T04).
+        // there is no account to return to — send them to the wizard.
         await redirectIfSetupRequired(context.queryClient);
         throw redirect({ to: '/login', search: { returnTo: location.href } });
       }
@@ -396,7 +395,7 @@ const indexRoute = createRoute({
   path: '/',
   beforeLoad: ({ context }) => {
     // `/` → the first Workspace nav item; empty nav renders the
-    // empty-no-sources home (§2.3).
+    // empty-no-sources home.
     const slug = defaultPageSlug(context.bootstrap.nav);
     if (slug !== null) throw redirect({ to: '/p/$slug', params: { slug } });
   },
@@ -404,7 +403,7 @@ const indexRoute = createRoute({
 });
 
 /**
- * Loader contract (09 §2.3): resolve the slug against the bootstrap nav tree
+ * Loader contract: resolve the slug against the bootstrap nav tree
  * (unknown slug → 404 in-component, NO server round trip) and prime
  * `['page', pageId]` via ensureQueryData. Loader failures (403/404/5xx from
  * the pages API) render the matching system state inside the content outlet.
@@ -418,6 +417,8 @@ async function loadPageDocument(
   // an existence fact; deep links and record cross-links land here.
   const item = findPageBySlug(bootstrap, slug);
   if (item === null) return; // PageRenderer renders the branded 404.
+  // The templates' loaders arrive with the page document, not after it.
+  void preloadPageTemplates().catch(() => undefined);
   await queryClient.ensureQueryData(pageQuery(item.pageId));
 }
 
@@ -436,7 +437,7 @@ const pageRoute = createRoute({
   component: PageRenderer,
 });
 
-/** Record detail child route (09 §2.3): template-dependent rendering (§7.1). */
+/** Record detail child route: template-dependent rendering. */
 const pageRecordRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/p/$slug/r/$recordId',
@@ -446,7 +447,7 @@ const pageRecordRoute = createRoute({
 });
 
 /**
- * Hosted app surfaces, blended into the shell (29-app-surfaces.md D5).
+ * Hosted app surfaces, blended into the shell.
  *
  * TWO routes for one screen because TanStack's splat does not match the empty
  * remainder: `/a/clients` alone would fall through to `notFoundComponent`
@@ -478,16 +479,16 @@ const accountRoute = createRoute({
   component: AccountPageLazy,
 });
 
-/** First-run onboarding surface (M5-T06); admin-gated in-component. */
+/** First-run onboarding surface; admin-gated in-component. */
 const welcomeRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/welcome',
   component: OnboardingChecklistLazy,
 });
 
-// --- M8 preference surfaces (10-i18n-theming.md §7.3–§7.4) -------------------
-// APPEND-ONLY additions coordinated with the concurrent /studio/* route work:
-// this block adds exactly two routes and their two imports below.
+// --- M8 preference surfaces ------------------- APPEND-ONLY additions
+// coordinated with the concurrent /studio/* route work: this block adds exactly
+// two routes and their two imports below.
 
 const accountPreferencesRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -496,7 +497,7 @@ const accountPreferencesRoute = createRoute({
 });
 
 /**
- * Notification settings (M7 T6, ia-mapping §2A ACCOUNT group) — the
+ * Notification settings (M7 T6, ia-mapping A ACCOUNT group) — the
  * `page-settings` binding on a static route until the Engine seeds the
  * utility page (see account/NotificationSettingsPage.tsx). Per-user surface,
  * no role guard: `/me/notification-prefs` is session-scoped on the server.
@@ -508,7 +509,7 @@ const accountNotificationsRoute = createRoute({
 });
 
 /**
- * Email templates manager (M7 wave 2, TRACK BUILDERS; ia-mapping §2A LIBRARY
+ * Email templates manager (M7 wave 2, TRACK BUILDERS; ia-mapping A LIBRARY
  * group). No client role guard: GET list/detail are session-scoped on the
  * server — the manager is read-useful to non-admins — and PUT is guarded by
  * `system:settings:manage`, whose 403 flows through the standard route error
@@ -516,11 +517,10 @@ const accountNotificationsRoute = createRoute({
  */
 /**
  * LAZY: the manager and the editor are one admin screen's worth of code the
- * rest of the app never needs (39-email-templates-and-campaigns.md D16), and
- * the editor pulls the block registry behind it. The split predates 39 — the
- * old page reached `@adminium/widgets`' whole registry through `page-builder`,
- * 336 KiB minified in every user's entry chunk — and stays for the same
- * reason.
+ * rest of the app never needs, and the editor pulls the block registry behind
+ * it. The split predates 39 — the old page reached `@adminium/widgets`' whole
+ * registry through `page-builder`, 336 KiB minified in every user's entry
+ * chunk — and stays for the same reason.
  */
 const EmailTemplatesPageLazy = lazy(async () => {
   const mod = await import('../email/EmailTemplatesPage.js');
@@ -533,8 +533,8 @@ const EmailEditorPageLazy = lazy(async () => {
 });
 
 /**
- * The `email` message namespace is deferred like `studio`'s (39 §6.1): the
- * route bodies wait for it under the same Suspense boundary that waits for
+ * The `email` message namespace is deferred like `studio`'s: the route
+ * bodies wait for it under the same Suspense boundary that waits for
  * their chunk, so a translated locale never paints the editor in English.
  */
 function EmailMessages({ children }: { children: ReactElement }) {
@@ -576,12 +576,12 @@ const emailEditorRoute = createRoute({
 });
 
 /**
- * Invoices — the authored surface (34-invoices-add-on.md §3.9, 34-T48): the
- * same manager+editor machine as the email surface, in the same shape — lazy
+ * Invoices — the authored surface: the same manager+editor machine as the
+ * email surface, in the same shape — lazy
  * chunks, a deferred `invoices` message namespace gated under the Suspense
  * boundary that waits for the chunk, and the nav entry gating discovery.
- * Unconditional whether or not a `document-render` provider is installed
- * (34 O17): authoring needs no provider; only rendering does.
+ * Unconditional whether or not a `document-render` provider is installed:
+ * authoring needs no provider; only rendering does.
  */
 const InvoicesPageLazy = lazy(async () => {
   const mod = await import('../invoices/InvoicesPage.js');
@@ -632,15 +632,15 @@ const invoiceEditorRoute = createRoute({
 });
 
 /**
- * The report builder — the authored surface (43-report-builder.md §3.6,
- * 43-T09): the same manager+editor machine as the invoice surface, in the
+ * The report builder — the authored surface: the same manager+editor
+ * machine as the invoice surface, in the
  * same shape — lazy chunks, a deferred `reportBuilder` message namespace
  * gated under the Suspense boundary that waits for the chunk, and the nav
  * entry gating discovery.
  *
  * `/report-builder`, NOT `/reports`: that path is Scheduled Reports'
- * (`reports/routes.tsx`), a different feature that shares the English word
- * (43 O1 → D1).
+ * (`reports/routes.tsx`), a different feature that shares the English
+ * word.
  */
 const ReportBuilderPageLazy = lazy(async () => {
   const mod = await import('../report-builder/ReportBuilderPage.js');
@@ -691,8 +691,8 @@ const reportEditorRoute = createRoute({
 });
 
 /**
- * Automations (42-automations-and-workflow-logs.md §3.6, 42-T18): two admin
- * routes in the same shape as the email and invoice surfaces — lazy chunks,
+ * Automations: two admin routes in the same shape as the email and invoice
+ * surfaces — lazy chunks,
  * the deferred `automations` message namespace gated under the Suspense
  * boundary that waits for the chunk, and the two `PLATFORM_NAV` rows gating
  * discovery. `system:automations:manage` is enforced on every route the
@@ -754,8 +754,8 @@ const settingsDefaultsRoute = createRoute({
 });
 
 /**
- * Languages & translations (23-runtime-translations.md §7). No client role
- * guard here — the component renders the 403 state for non-super-admins and
+ * Languages & translations. No client role guard here — the component
+ * renders the 403 state for non-super-admins and
  * the server enforces `system:settings:manage` on every write regardless.
  */
 const settingsTranslationsRoute = createRoute({
@@ -791,10 +791,10 @@ const accountSplatRoute = createRoute({
 });
 
 /**
- * The desktop settings panel (11-electron.md §2.3/§8) — this device's own
- * settings, not the workspace's. Renders the 404 state outside the Electron
+ * The desktop settings panel — this device's own settings, not the
+ * workspace's. Renders the 404 state outside the Electron
  * shell; the component owns that check, because "is this the desktop app?" is a
- * §4 bridge question and not something a route guard can ask the server.
+ * bridge question and not something a route guard can ask the server.
  */
 const settingsDesktopRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -802,21 +802,21 @@ const settingsDesktopRoute = createRoute({
   component: DesktopSettingsPageLazy,
 });
 
-/** About / version / licence + the self-host update notice (M10-T04). */
+/** About / version / licence + the self-host update notice. */
 const aboutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/about',
   component: AboutPageLazy,
 });
 
-// --- M10-T06 in-app product comms -------------------------------------------
-// Two of these are for EVERYONE and one is not, and the split is the point:
-// help and release notes are things any signed-in user needs (a viewer hitting
-// a wall needs the docs more than an admin does), while API keys mint
-// credentials and stay behind the same role ≥ Admin gate as the rest of the
-// platform surfaces (`ia-mapping.md` §2B lists all three under Surface B).
-// The server independently guards `/api-keys` with `system:api-keys:manage` —
-// this gate is UX, not the security boundary.
+// --- in-app product comms ------------------------------------------- Two of
+// these are for EVERYONE and one is not, and the split is the point: help and
+// release notes are things any signed-in user needs (a viewer hitting a wall
+// needs the docs more than an admin does), while API keys mint credentials and
+// stay behind the same role ≥ Admin gate as the rest of the platform surfaces
+// (B lists all three under Surface B). The server independently guards
+// `/api-keys` with `system:api-keys:manage` — this gate is UX, not the
+// security boundary.
 
 const knowledgeBaseRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -844,12 +844,12 @@ const apiKeysRoute = createRoute({
   component: ApiKeysRouteComponent,
 });
 
-// --- people & accountability (08-T08, M2-T05, 09-T14) ------------------------
-// All four are LAZY for the same reason `TranslationsPage` is: they are admin
-// surfaces opened occasionally, and the entry chunk is already ~664 KiB gz
-// against a 350 KiB v1.0 target. Statically importing a permission matrix, an
-// audit table and a session list would spend the ratchet's remaining headroom
-// on screens most sessions never open.
+// --- people & accountability ------------------------ All four are LAZY for
+// the same reason `TranslationsPage` is: they are admin surfaces opened
+// occasionally, and the entry chunk is already ~664 KiB gz against a 350 KiB
+// v1.0 target. Statically importing a permission matrix, an audit table and a
+// session list would spend the ratchet's remaining headroom on screens most
+// sessions never open.
 //
 // Team/roles/audit sit behind `StudioGuard` like `apiKeysRoute` — role ≥ Admin.
 // That gate is UX; the server independently enforces `system:users:manage`,
@@ -913,8 +913,8 @@ function AuditRouteComponent() {
 }
 
 /**
- * `/files` (37-files-and-storage.md §3.8) — a SYSTEM page like the audit log,
- * not a generated one and not the `page-files` template (which browses a
+ * `/files` — a SYSTEM page like the audit log, not a generated one and not
+ * the `page-files` template (which browses a
  * file-shaped table in the customer's own database).
  *
  * Behind `StudioGuard` for the same reason the audit log is: the server's real
@@ -987,7 +987,7 @@ const routeTree = rootRoute.addChildren([
   otpRoute,
   stateRoute,
   setupRoute,
-  // §6's wizard. A CHILD OF ROOT, not of `appRoute`: `appRoute`'s beforeLoad
+  // The wizard. A CHILD OF ROOT, not of `appRoute`: `appRoute`'s beforeLoad
   // demands a bootstrap, and at first run there is no user to bootstrap as — it
   // would redirect the wizard to `/login`, which is the screen nobody can
   // satisfy on an install with zero accounts.
@@ -1025,9 +1025,9 @@ const routeTree = rootRoute.addChildren([
     reportEditorRoute,
     automationsRoute,
     workflowLogsRoute,
-    // Studio (09 §8.1): connect wizard + remap route contract, role ≥ Admin.
+    // Studio: connect wizard + remap route contract, role ≥ Admin.
     ...studioRoutes(appRoute),
-    // M7 wave 2 SPA surfaces (data-io §11, scheduled reports): same factory
+    // M7 wave 2 SPA surfaces (data-io, scheduled reports): same factory
     // pattern as studioRoutes — the modules define the surfaces, the router
     // only wires them. Server-side grants are the security boundary.
     ...dataIoRoutes(appRoute),

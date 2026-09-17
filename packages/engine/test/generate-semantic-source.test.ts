@@ -12,9 +12,8 @@ import { generatePages, parseDatabaseModel, type PageEnvelope } from '../src/ind
  * and pinned here:
  *
  *  1. Column stamps with `source: 'llm' | 'override'` still WIN over the
- *     recomputed tag (05 §7 "overrides always win") — in dashboards *and*
- *     crud bodies (the bespoke crud builder ignored them; that was the bug,
- *     not the contract).
+ * recomputed tag — in dashboards *and* crud bodies (the bespoke crud
+ *     builder ignored them; that was the bug, not the contract).
  *  2. On an `includedTables`-filtered model, a stamped join table whose
  *     partner was excluded genuinely stops being a join table: it earns a
  *     `page-crud` (unchanged from the bespoke builder) AND becomes eligible
@@ -112,7 +111,7 @@ function layoutIds(dashboard: PageEnvelope): string[] {
 }
 
 describe('column stamps: override/llm beat the recomputed tag, heuristic stamps do not', () => {
-  /** A float column no §7.1 name rule calls money — only the stamp says so. */
+  /** A float column no name rule calls money — only the stamp says so. */
   const moneyStamp = (source: string) => ({
     primary: 'money',
     flags: { secret: false, pii: null, maskedByDefault: false },
@@ -199,7 +198,7 @@ describe('filtered model: a stamped join table with an excluded partner reclassi
 
   it('the table earns a page-crud, not the join-table skip (unchanged behavior)', () => {
     expect(result.warnings).not.toContain(
-      'skipped join table public.order_tags — hidden from nav, relation still powers M2M (05 §8.2)',
+      'skipped join table public.order_tags — hidden from nav, relation still powers M2M',
     );
     expect(result.pages.some((p) => p.template === 'page-crud' && p.nav.slug === 'order-tags')).toBe(
       true,

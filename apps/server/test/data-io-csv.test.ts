@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * RFC 4180 CSV serializer/parser (M7-T07, data-io/csv.ts): quoting/escaping
- * rules, CRLF records, the documented BOM decision, streaming splits, and
- * the serialize → parse round trip.
+ * RFC 4180 CSV serializer/parser (data-io/csv.ts): quoting/escaping rules,
+ * CRLF records, the documented BOM decision, streaming splits, and the
+ * serialize → parse round trip.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -16,7 +16,7 @@ import {
 } from '../src/data-io/csv.js';
 
 describe('serializeCsvField', () => {
-  it('quotes only when needed and doubles embedded quotes (RFC 4180 §2.5–2.7)', () => {
+  it('quotes only when needed and doubles embedded quotes (RFC 41–2.7)', () => {
     expect(serializeCsvField('plain')).toBe('plain');
     expect(serializeCsvField('with,comma')).toBe('"with,comma"');
     expect(serializeCsvField('say "hi"')).toBe('"say ""hi"""');
@@ -34,7 +34,7 @@ describe('serializeCsvField', () => {
 });
 
 describe('serializeCsvRow', () => {
-  it('joins with commas and terminates every record with CRLF (§2.1)', () => {
+  it('joins with commas and terminates every record with CRLF', () => {
     expect(serializeCsvRow(['a', 'b'])).toBe(`a,b${CRLF}`);
     expect(serializeCsvRow([null, 'x,y'])).toBe(`,"x,y"${CRLF}`);
   });

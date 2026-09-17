@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The browse half of `/studio/add-ons` (40-add-on-browsing.md §3.3).
+ * The browse half of `/studio/add-ons`.
  *
  * Split out of `AddOnsPage.tsx` because that file had reached the point where
  * adding a stateful filter to it made the CONSENT code harder to read, and the
- * consent dialog is the security surface (26 §7) — the one part of this screen
- * that must stay easy to audit. The page keeps consent, the installed list, the
+ * consent dialog is the security surface — the one part of this screen that
+ * must stay easy to audit. The page keeps consent, the installed list, the
  * sideload card and the catalogue switch's owner; this component owns only what
  * an operator looks at while choosing.
  *
  * ── WHAT THIS COMPONENT MAY NOT DO ─────────────────────────────────────────
- * It never fetches. `GET /add-ons/catalog` is a disk read on the server (32
- * §4.3) and that is what makes this screen work identically on an air-gapped
- * install; a filter that "completed" the list by refreshing would turn every
- * category click into an outbound call. Refresh stays the separate, visible
- * action it already was, in the header, next to the switch that enables it.
+ * It never fetches. `GET /add-ons/catalog` is a disk read on the server and
+ * that is what makes this screen work identically on an air-gapped install; a
+ * filter that "completed" the list by refreshing would turn every category
+ * click into an outbound call. Refresh stays the separate, visible action it
+ * already was, in the header, next to the switch that enables it.
  *
- * Design input: `designs/Integrations.dc.html` — the category rail with counts,
+ * Design input: the comp’s category rail with counts,
  * the search box, and the card grid are its `cats`/`catLabels`/`catList`,
- * `state.query` and card render respectively. Departures are numbered in 40 §4.
+ * `state.query` and card render respectively. Departures are numbered.
  */
 import { useState } from 'react';
 import { Blocks, CloudDownload, KeyRound, Search, ShieldCheck } from 'lucide-react';
@@ -38,19 +38,19 @@ import { t } from '../../i18n/t.js';
 import type { CatalogBrowse, CatalogEntry } from './addOnsApi.js';
 
 /**
- * 24 D2's vocabulary, which is also `ADD_ON_CATEGORIES` in
+ * The vocabulary, which is also `ADD_ON_CATEGORIES` in
  * `@adminium/add-on-contracts`. Kept as a local list rather than imported
  * because this is a LABEL ORDER, not a validation: the rail renders these five
  * first, in this order, and anything else an add-on declares follows in the
- * order the server sent it (40 D4). Importing the enum would tie the rail's
- * layout to a package whose job is to police manifests.
+ * order the server sent it. Importing the enum would tie the rail's layout to
+ * a package whose job is to police manifests.
  */
 const KNOWN_CATEGORIES = ['artwork', 'delivery', 'payments', 'email', 'data'] as const;
 
 /**
  * A category's label, or the slug itself.
  *
- * The fallback is not defensive coding — it is 40 D4. The feed types categories
+ * The fallback is not defensive coding — it is. The feed types categories
  * `z.array(z.string())`, so a future add-on may carry a slug this build has
  * never heard of, and the honest thing is to show the operator what it says
  * rather than drop the row out of the rail and the grid with it.
@@ -72,7 +72,7 @@ function categoryLabel(slug: string): string {
   }
 }
 
-/** What installing will ask for, said before a download starts (40 D5). */
+/** What installing will ask for, said before a download starts. */
 function ConnectLine({ kind }: { kind: CatalogEntry['connectKind'] }) {
   if (kind === 'none') return null;
   return (
@@ -93,10 +93,10 @@ function ConnectLine({ kind }: { kind: CatalogEntry['connectKind'] }) {
  * One add-on card.
  *
  * The comp draws a brand monogram on a per-add-on hex (`mark`, `c`). Departure
- * 1 in 40 §4: 02-design-system forbids raw hex, and the feed carries no icon or
- * colour field to replace one with, so the card uses the token `IconTile` the
- * rest of Studio uses. Everything else on it is the comp's: name, category,
- * one line of what it does, and a full-width action.
+ * 1: 02-design-system forbids raw hex, and the feed carries no icon or colour
+ * field to replace one with, so the card uses the token `IconTile` the rest of
+ * Studio uses. Everything else on it is the comp's: name, category, one line of
+ * what it does, and a full-width action.
  */
 function AddOnCard({
   entry,
@@ -201,13 +201,13 @@ export function AddOnBrowser({
   onDiscard,
   onUpgrade,
 }: AddOnBrowserProps) {
-  /* Component state, not route state (40 D7): nothing links to a pre-filtered
+  /* Component state, not route state: nothing links to a pre-filtered
      add-ons view, and a URL encoding a filter would be a shareable link into a
      screen whose contents differ per deployment. */
   const [category, setCategory] = useState<string>('all');
   const [query, setQuery] = useState('');
 
-  /* Rail order: the five known slugs first (in 24 D2's order), then anything
+  /* Rail order: the five known slugs first (order), then anything
      else an add-on declared, so an unfamiliar category is reachable rather
      than merely visible on a card. */
   const present = new Set(catalog.addOns.flatMap((entry) => entry.categories));
@@ -217,7 +217,7 @@ export function AddOnBrowser({
   ];
 
   const needle = query.trim().toLowerCase();
-  /* The comp filters on name alone. Including the tagline is 40 D6 — additive,
+  /* The comp filters on name alone. Including the tagline is — additive,
      costs nothing, and matches what an operator actually types. */
   const matches = (entry: CatalogEntry): boolean =>
     (category === 'all' || entry.categories.includes(category)) &&
@@ -265,7 +265,7 @@ export function AddOnBrowser({
           )}
           {/*
             THE SWITCH IS HERE, beside what it changes, rather than in
-            Settings. 26 D3: these routes are gated on `manifests.manage` and
+            Settings. These routes are gated on `manifests.manage` and
             the /settings/* routes are not, so a switch deciding whether this
             deployment talks to a package registry belongs with the add-ons.
           */}

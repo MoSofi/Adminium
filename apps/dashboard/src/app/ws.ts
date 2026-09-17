@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Realtime client (09-generated-app.md §2.1 step 4/5): connects to the
- * server's `GET /ws` gateway (apps/server/src/realtime/ws.ts protocol),
- * subscribes channels, and dispatches events. Falls back to the SSE endpoint
- * (`GET /api/v1/events?channels=…`) after repeated WS failures.
+ * Realtime client (/5): connects to the server's `GET /ws` gateway
+ * (apps/server/src/realtime/ws.ts protocol), subscribes channels, and
+ * dispatches events. Falls back to the SSE endpoint (`GET
+ * /api/v1/events?channels=…`) after repeated WS failures.
  *
  * The shell wires `config-changed` → invalidate `['bootstrap']` + `['page']`
  * so regeneration and nav edits propagate live without reload; three
  * consecutive connection failures flip `onStatusChange(false)` (offline
- * banner trigger per §6.1).
+ * banner trigger).
  */
 
 export interface RealtimeEvent {
@@ -70,7 +70,7 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
   let failures = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   // Mutable subscription set — seeded from options, grown/shrunk at runtime by
-  // `subscribe`/`unsubscribe` (per-widget stream bindings, 04 §5.3).
+  // `subscribe`/`unsubscribe` (per-widget stream bindings).
   const channels = new Set(options.channels);
 
   const dispatch = (raw: unknown): void => {
@@ -129,7 +129,16 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     // Server frames SSE as `event: <type>` + `data: <RealtimeEvent JSON>`
     // (apps/server/src/realtime/sse.ts) — named events bypass `onmessage`.
     sse.onmessage = (event) => dispatch(event.data);
-    const types = options.sseEventTypes ?? ['config-changed', 'changed', 'created', 'updated', 'deleted', 'progress'];
+    const types = options.sseEventTypes ?? [
+      'config-changed',
+      // A project server's rebuilt code.
+      'project-changed',
+      'changed',
+      'created',
+      'updated',
+      'deleted',
+      'progress',
+    ];
     for (const type of types) {
       sse.addEventListener(type, (event) => dispatch((event as MessageEvent).data));
     }

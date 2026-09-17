@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Realtime `stream` bindings — server half (04-widget-registry.md §5.3, 04-T11).
- * Offline units (no DB): the `widget-data:*` channel grammar + subscription
- * auth, the `stream`-shape compiler/shaper (server-authoritative channel +
- * PII-masked snapshot), and the CRUD/job stream publisher (never streams a
- * forbidden column).
+ * Realtime `stream` bindings — server half. Offline units (no DB): the
+ * `widget-data:*` channel grammar + subscription auth, the `stream`-shape
+ * compiler/shaper (server-authoritative channel + PII-masked snapshot), and the
+ * CRUD/job stream publisher (never streams a forbidden column).
  */
 
 import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely';
@@ -301,9 +300,9 @@ describe('publishWidgetDataStream (CRUD write path)', () => {
   });
 });
 
-describe('publishPublicWrite (the PUBLIC write path, 33-T11)', () => {
+describe('publishPublicWrite (the PUBLIC write path)', () => {
   /*
-   * `routes/data` has published every write to this channel since 04 §5.3.
+   * `routes/data` has published every write to this channel since.
    * `routes/public` published nothing, so a dashboard page bound to a table an
    * anonymous visitor can write to learned about that write only on its next
    * refetch — an operator's chat inbox going quiet while somebody is typing

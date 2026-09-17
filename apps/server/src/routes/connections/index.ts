@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Connections manager routes (08-server-api.md §2.4, M3-T04):
- * create (test + encrypt + meta-placement enforcement), list with health,
- * get/patch, type-to-confirm delete (pool disposal included), pre-create and
- * per-connection test, and introspection (202 job when the jobs worker is
- * wired; synchronous fallback otherwise).
+ * Connections manager routes: create (test + encrypt + meta-placement
+ * enforcement), list with health, get/patch, type-to-confirm delete (pool
+ * disposal included), pre-create and per-connection test, and introspection
+ * (202 job when the jobs worker is wired; synchronous fallback otherwise).
  *
  * All routes are guarded by `system:connections:manage` — the v1 closed
  * grant set (meta SYSTEM_ACTION_KEYS) has no `connections.read`, so reads
@@ -63,7 +62,7 @@ function testReply(summary: ConnectionTestSummary): ConnectionTestReply {
   };
 }
 
-/** Table count from the snapshot's normalized model (opaque to meta — 05 §2). */
+/** Table count from the snapshot's normalized model (opaque to meta). */
 function modelTableCount(schema: unknown): number | null {
   if (schema === null || typeof schema !== 'object') return null;
   const tables = (schema as { tables?: unknown }).tables;
@@ -164,7 +163,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         const introspectDsn = body.roles?.introspect ?? body.dsn ?? body.roles?.data;
         const dataDsn = body.roles?.data ?? body.dsn ?? introspectDsn;
         if (introspectDsn === undefined || dataDsn === undefined) {
-          throw new ValidationFailedError('Provide `dsn` or `roles.data` (§2.4).', {});
+          throw new ValidationFailedError('Provide `dsn` or `roles.data`.', {});
         }
 
         // Test the data role — its probe drives read-only + meta placement.
@@ -219,7 +218,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         schema: { body: connectionTestBody, response: { 200: connectionTestReply } },
       },
       async (request) => {
-        // Capability probes only — never persists (§2.4).
+        // Capability probes only — never persists.
         const summary = await manager.testDsn(request.body.engine, request.body.dsn);
         return testReply(summary);
       },
@@ -334,7 +333,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       },
       async (request) => {
         const connection = await manager.mustFind(request.params.id);
-        // Type-to-confirm contract (§2.4): the submitted name must match.
+        // Type-to-confirm contract: the submitted name must match.
         if (request.body.confirmName !== connection.name) {
           throw new ConflictError('Type the connection name to confirm deletion.', 'CONFLICT', {
             expectedName: connection.name,
@@ -407,7 +406,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
             ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
             : null;
 
-        // Async path (§2.4): enqueue when the jobs worker is wired.
+        // Async path: enqueue when the jobs worker is wired.
         if (app.hasDecorator('jobs') && app.jobs.registry.has(INTROSPECT_JOB_KIND)) {
           const job = await app.jobs.enqueue({
             kind: INTROSPECT_JOB_KIND,
@@ -426,7 +425,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           return reply.status(202).send({ jobId: job.id });
         }
 
-        // Synchronous fallback with the 05 §10 duration budget.
+        // Synchronous fallback with the duration budget.
         const result = await runIntrospection({
           manager,
           meta,

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * PageRecordBinding integration (30-record-pages.md WS-C/WS-E): the real
- * router at `/p/customers/r/1` with a detail-block envelope mounts the REAL
+ * PageRecordBinding integration (WS-C/WS-E): the real router at
+ * `/p/customers/r/1` with a detail-block envelope mounts the REAL
  * `page-record` template — hero, fields, related tab with count pill and
  * cross-links, permission-gated activity — while an envelope without a
  * `detail` block keeps its own template on the record route byte-for-byte
- * (criterion 9). Plus the parity criteria (30 D7), the deleted-record 404
- * (criterion 7), and the grants-driven write affordances (30 D4): the page
- * reply's per-caller canCreate/canUpdate/canDelete — resolved server-side
- * from the caller's table grants — hide New row / Edit / Delete in the list,
- * the peek, and the record page.
+ * (criterion 9). Plus the parity criteria, the deleted-record 404 (criterion
+ * 7), and the grants-driven write affordances: the page reply's per-caller
+ * canCreate/canUpdate/canDelete — resolved server-side from the caller's
+ * table grants — hide New row / Edit / Delete in the list, the peek, and the
+ * record page.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -56,7 +56,7 @@ const ORDERS = [
   { id: 22, customer_id: 1, total: '85' },
 ];
 
-/** The customers envelope with the stored detail block (30-T01's shape). */
+/** The customers envelope with the stored detail block (shape). */
 function recordEnvelope(overrides: Partial<PageEnvelope> = {}): PageEnvelope {
   const base = makeCrudEnvelope();
   return {
@@ -89,8 +89,8 @@ function recordEnvelope(overrides: Partial<PageEnvelope> = {}): PageEnvelope {
 
 /**
  * The same page with the sidecar block on and no related tabs, so the
- * Attachments panel is the tab that opens (37 §3.5). `tabs: []` is what makes
- * it the default: `hasTabs` gates on the stored tabs, not on the adapter.
+ * Attachments panel is the tab that opens. `tabs: []` is what makes it the
+ * default: `hasTabs` gates on the stored tabs, not on the adapter.
  */
 function attachmentsEnvelope(): PageEnvelope {
   const base = recordEnvelope();
@@ -150,10 +150,14 @@ interface Fixture {
   auditReply?: () => Response;
   /** `GET /api/v1/files?…` — the Attachments panel's list, per call. */
   filesReply?: () => Response;
-  /** `POST /api/v1/files/resolve` — the column-mode panel's batch (38 D13). */
+  /** `POST /api/v1/files/resolve` — the column-mode panel's batch. */
   resolveReply?: () => Response;
   /** `PATCH` of the customer record; column mode writes the list through it. */
   patchReply?: () => Response;
+  /** `GET /api/v1/project/actions`; absent answers 404, as a server with no project does. */
+  projectActions?: unknown[];
+  /** `POST /api/v1/project/actions/:id`. */
+  actionReply?: () => Response;
 }
 
 function stubFetch(fixture: Fixture = {}) {
@@ -162,7 +166,7 @@ function stubFetch(fixture: Fixture = {}) {
     const method = init?.method ?? 'GET';
     if (url.startsWith('/api/v1/bootstrap')) {
       const bootstrap = fixture.bootstrap?.() ?? makeBootstrap();
-      // The table→slug map's inputs (30 D5): each page names its source table.
+      // The table→slug map's inputs: each page names its source table.
       for (const group of bootstrap.nav.groups) {
         for (const item of group.items) {
           if (item.slug === 'customers') Object.assign(item, { connectionId: 'conn_1', sourceTable: 'public.customers' });
@@ -179,6 +183,14 @@ function stubFetch(fixture: Fixture = {}) {
     }
     if (url.startsWith('/api/v1/data/conn_1/public.orders') && method === 'POST') {
       return Promise.resolve(jsonResponse(201, { data: { id: 23 }, undoToken: null }));
+    }
+    if (url === '/api/v1/project/actions' && fixture.projectActions !== undefined) {
+      return Promise.resolve(jsonResponse(200, { data: fixture.projectActions }));
+    }
+    if (url.startsWith('/api/v1/project/actions/') && method === 'POST') {
+      return Promise.resolve(
+        fixture.actionReply?.() ?? jsonResponse(200, { data: { message: 'Refunded.', refresh: true } }),
+      );
     }
     if (url.startsWith('/api/v1/files/resolve')) {
       return Promise.resolve(fixture.resolveReply?.() ?? jsonResponse(200, { data: {} }));
@@ -269,15 +281,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('the record route renders the record PAGE (30 D1)', () => {
+describe('the record route renders the record PAGE', () => {
   it('mounts the real page-record template: hero, fields, no drawer', async () => {
     await renderAt('/p/customers/r/1');
-    // Key-field hero + the field grid — a page, not a dialog (30 D1).
+    // Key-field hero + the field grid — a page, not a dialog.
     expect((await screen.findByRole('heading', { level: 2 })).textContent).toBe('Northwind');
     const fields = document.querySelector('[data-part="record-fields"]') as HTMLElement;
     expect(within(fields).getByText('Status')).toBeDefined();
     expect(screen.queryByRole('dialog')).toBeNull();
-    // Masked column renders the masked treatment on the page too (30 D7).
+    // Masked column renders the masked treatment on the page too.
     expect(fields.querySelector('[data-part="cell-masked"]')).not.toBeNull();
     // Document title carries the record (WS-C), under the workspace name. It
     // is published through the topbar channel rather than written here, so it
@@ -285,7 +297,7 @@ describe('the record route renders the record PAGE (30 D1)', () => {
     await waitFor(() => expect(document.title).toBe('Northwind · Customers · Adminium'));
   });
 
-  it('related tab: count pill, rows from the referencing table, cross-link to its record page (30 D5)', async () => {
+  it('related tab: count pill, rows from the referencing table, cross-link to its record page', async () => {
     const user = userEvent.setup();
     const { router } = await renderAt('/p/customers/r/1');
     const tab = await screen.findByRole('tab', { name: /Orders/ });
@@ -293,7 +305,7 @@ describe('the record route renders the record PAGE (30 D1)', () => {
     // The tab grid lists the referencing rows (money column proves the target
     // page's OWN specs resolved, not derived text columns).
     expect(await screen.findByText('$120')).toBeDefined();
-    // A row navigates to the orders page's record route (30 D5).
+    // A row navigates to the orders page's record route.
     await user.click(screen.getByText('$120'));
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/p/orders/r/21');
@@ -396,7 +408,7 @@ describe('the record route renders the record PAGE (30 D1)', () => {
     expect(screen.queryByRole('button', { name: 'New row' })).toBeNull();
   });
 
-  it('activity: present for an admin with entries; ABSENT for a viewer (30 D6)', async () => {
+  it('activity: present for an admin with entries; ABSENT for a viewer', async () => {
     const user = userEvent.setup();
     const first = await renderAt('/p/customers/r/1');
     await user.click(await screen.findByRole('tab', { name: 'Activity' }));
@@ -423,7 +435,7 @@ describe('the record route renders the record PAGE (30 D1)', () => {
     expect(screen.queryByRole('tab', { name: 'Activity' })).toBeNull();
   });
 
-  it('readOnly page: no Edit, no Delete anywhere (30 D7)', async () => {
+  it('readOnly page: no Edit, no Delete anywhere', async () => {
     await renderAt('/p/customers/r/1', {
       pageReply: () => {
         const envelope = recordEnvelope();
@@ -490,13 +502,13 @@ describe('the record route renders the record PAGE (30 D1)', () => {
 });
 
 /**
- * Grants-driven write affordances (30 D4): the page reply's per-caller
+ * Grants-driven write affordances: the page reply's per-caller
  * canCreate/canUpdate/canDelete — resolved server-side from the caller's
  * `table:` grants — thread through the crud/record bindings, so a read-only
  * grantee never sees a New row / Edit / Delete that would 403. The server
  * still enforces; this is affordance honesty.
  */
-describe('grants-driven write affordances (30 D4)', () => {
+describe('grants-driven write affordances', () => {
   /** The reply of a read-only table grantee: every write capability false. */
   const viewerReply = () =>
     jsonResponse(200, {
@@ -549,7 +561,7 @@ describe('grants-driven write affordances (30 D4)', () => {
 });
 
 /**
- * The Attachments panel's realtime refresh (37-files-and-storage.md D27).
+ * The Attachments panel's realtime refresh.
  *
  * The panel fetches its list once, on mount. Everything that changes it — a
  * colleague attaching a file, this user's own second tab, a form write that
@@ -559,7 +571,7 @@ describe('grants-driven write affordances (30 D4)', () => {
  * arrive (`STREAM_SSE_EVENT_TYPES`, streamTransport.test.ts) and the binding
  * has to react to it.
  */
-describe('attachments refetch on record.attachments (37 D27)', () => {
+describe('attachments refetch on record.attachments', () => {
   const CHANNEL = 'widget-data:conn_1:public.customers';
   const attachmentsFixture: Fixture = {
     pageReply: () => jsonResponse(200, { data: attachmentsEnvelope() }),
@@ -579,7 +591,7 @@ describe('attachments refetch on record.attachments (37 D27)', () => {
     deliver({
       channel: CHANNEL,
       type: 'record.attachments',
-      // The publisher's frame shape: the pk masked, no row (37 D27).
+      // The publisher's frame shape: the pk masked, no row.
       data: { type: 'record.attachments', pk: { id: 1 }, row: null },
       ts: '2026-09-05T00:00:00.000Z',
     });
@@ -628,7 +640,7 @@ describe('attachments refetch on record.attachments (37 D27)', () => {
   });
 
   it('opens no stream channel at all for a page without the attachments block', async () => {
-    // 30 D5/D6's rule, applied to the socket: a page that configures no
+    // The rule, applied to the socket: a page that configures no
     // sidecar must cost nothing, not even a subscription.
     const { fetchMock } = await renderAt('/p/customers/r/1');
     await screen.findByRole('heading', { level: 2 });
@@ -638,7 +650,7 @@ describe('attachments refetch on record.attachments (37 D27)', () => {
 });
 
 /**
- * COLUMN-mode attachments (38-files-library-and-attachments.md D13).
+ * COLUMN-mode attachments.
  *
  * The panel is the same component; only the adapter differs. In column mode
  * the record's own column holds a JSON list of references, so `list` reads the
@@ -647,7 +659,7 @@ describe('attachments refetch on record.attachments (37 D27)', () => {
  * that left the reference behind would leave the grid showing a chip for a
  * trashed file.
  */
-describe('attachments bound to a column (38 D13)', () => {
+describe('attachments bound to a column', () => {
   const FILE_A = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD';
   const FILE_B = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCE';
 
@@ -729,5 +741,105 @@ describe('attachments bound to a column (38 D13)', () => {
     expect(await screen.findByText('sidecar.pdf')).toBeTruthy();
     const urls = fetchMock.mock.calls.map((call) => String(call[0]));
     expect(urls.some((url) => url.includes('/api/v1/files?') && url.includes('recordId'))).toBe(true);
+  });
+});
+
+describe('project actions (the project’s own buttons)', () => {
+  const refund = {
+    id: 'refund',
+    label: 'Refund',
+    icon: 'undo-2',
+    confirm: 'Refund this customer?',
+    bulk: true,
+    permission: 'update',
+    database: 'main',
+    connectionId: 'conn_1',
+    table: 'public.customers',
+  };
+  const other = { ...refund, id: 'ship', label: 'Ship', confirm: null, bulk: false, table: 'public.orders' };
+
+  const actionCalls = (fetchMock: ReturnType<typeof vi.fn>) =>
+    fetchMock.mock.calls
+      .filter(([url, init]) => String(url).startsWith('/api/v1/project/actions/') && (init as RequestInit | undefined)?.method === 'POST')
+      .map(([url, init]) => ({ url: String(url), body: JSON.parse(String((init as RequestInit).body)) as unknown }));
+
+  it('record page: asks the action’s question, runs it on this record, and reads the record again', async () => {
+    const user = userEvent.setup();
+    const { fetchMock } = await renderAt('/p/customers/r/1', { projectActions: [refund, other] });
+    const button = await screen.findByTestId('project-action-refund');
+    expect(button.textContent).toContain('Refund');
+    // Another table's action stays on its own table.
+    expect(screen.queryByTestId('project-action-ship')).toBeNull();
+    const reads = () =>
+      fetchMock.mock.calls.filter(
+        ([url, init]) => String(url).startsWith('/api/v1/data/conn_1/public.customers/1') && (init as RequestInit | undefined)?.method === undefined,
+      ).length;
+    const before = reads();
+
+    await user.click(button);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Refund this customer?')).toBeDefined();
+    await user.click(within(dialog).getByTestId('project-action-confirm'));
+
+    await waitFor(() => {
+      expect(actionCalls(fetchMock)).toEqual([
+        { url: '/api/v1/project/actions/refund', body: { database: 'main', table: 'public.customers', ids: ['1'] } },
+      ]);
+    });
+    expect(await screen.findByText('Refunded.')).toBeDefined();
+    await waitFor(() => {
+      expect(reads()).toBeGreaterThan(before);
+    });
+  });
+
+  it('record page: shows the server’s refusal', async () => {
+    const user = userEvent.setup();
+    await renderAt('/p/customers/r/1', {
+      projectActions: [{ ...refund, confirm: null }],
+      actionReply: () =>
+        jsonResponse(422, { error: { code: 'VALIDATION_FAILED', message: 'Already refunded.', requestId: 'req_a' } }),
+    });
+    await user.click(await screen.findByTestId('project-action-refund'));
+    expect(await screen.findByText('Refund did not finish')).toBeDefined();
+    expect(await screen.findByText('Already refunded.')).toBeDefined();
+  });
+
+  it('record page: no project, no buttons', async () => {
+    await renderAt('/p/customers/r/1');
+    await screen.findByRole('heading', { level: 2 });
+    expect(screen.queryByTestId('project-action-refund')).toBeNull();
+  });
+
+  it('list: a row menu and, for a bulk action, the bulk bar; the rows are read again after each', async () => {
+    const user = userEvent.setup();
+    const { fetchMock } = await renderAt('/p/customers', { projectActions: [{ ...refund, confirm: null }] });
+    await screen.findByText('Northwind');
+    const listReads = () =>
+      fetchMock.mock.calls.filter(
+        ([url, init]) =>
+          String(url).startsWith('/api/v1/data/conn_1/public.customers?') && (init as RequestInit | undefined)?.method === undefined,
+      ).length;
+    const before = listReads();
+
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    await user.click(await screen.findByTestId('project-action-refund'));
+    await waitFor(() => {
+      expect(actionCalls(fetchMock).at(-1)?.body).toEqual({ database: 'main', table: 'public.customers', ids: ['1'] });
+    });
+    await waitFor(() => {
+      expect(listReads()).toBeGreaterThan(before);
+    });
+    const afterMenu = listReads();
+
+    const [selectAll] = screen.getAllByRole('checkbox');
+    await user.click(selectAll as HTMLElement);
+    const bar = await screen.findByRole('toolbar');
+    await user.click(within(bar).getByRole('button', { name: 'Refund' }));
+    await waitFor(() => {
+      expect(actionCalls(fetchMock)).toHaveLength(2);
+    });
+    await waitFor(() => {
+      expect(listReads()).toBeGreaterThan(afterMenu);
+    });
   });
 });

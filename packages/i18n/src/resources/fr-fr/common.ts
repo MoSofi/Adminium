@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GENERATED MIRROR of ../../../locales/fr-FR/common.json — do not edit by hand.
- * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
  * without JSON import attributes (browser + NodeNext safe).
@@ -300,6 +300,13 @@ export default {
   "undo": {
     "done": "Modification annulée",
     "failed": "Impossible d’annuler cette modification"
+  },
+  "projectAction": {
+    "done": "{label} : terminé",
+    "failed": "{label} n’a pas abouti",
+    "menu": "Actions",
+    "run": "Exécuter",
+    "selected": "{count, plural, one {# enregistrement} other {# enregistrements}}"
   },
   "prefs": {
     "theme": {
@@ -1013,7 +1020,7 @@ export default {
     "article": {
       "install": {
         "title": "Installer Adminium",
-        "excerpt": "Lancez depuis un dépôt source ou via docker run, et atteignez l’assistant de première exécution en une minute."
+        "excerpt": "Créez un projet avec une seule commande, ou lancez Adminium via docker run ou depuis un dépôt source."
       },
       "firstAdmin": {
         "title": "Créer votre premier super-administrateur",
@@ -1622,6 +1629,7 @@ export default {
       "jobsRead": "Voir toutes les tâches en arrière-plan",
       "llmRun": "Utiliser l’assistance IA",
       "pagesManage": "Créer et organiser les pages",
+      "projectRead": "Lire les modifications de pages et de schéma pour une récupération de projet",
       "reportsManage": "Gérer les rapports planifiés",
       "rolesManage": "Gérer les rôles et les permissions",
       "schemaRemap": "Modifier les libellés et les remplacements du schéma",

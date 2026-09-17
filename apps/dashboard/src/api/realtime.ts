@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Realtime event → TanStack Query invalidation map (09-generated-app.md §2.1
- * step 5, §4.1):
+ * Realtime event → TanStack Query invalidation map:
  *
  * - `config-changed` → `['bootstrap']` + every `['page', *]` (regeneration and
- *   nav edits propagate live without reload);
+ *   nav edits propagate live without reload), and the project queries; its
+ * `project-changed` event is a rebuilt project;
  * - `table:{connectionId}:{schema.table}` (CRUD mutation fan-out) →
  *   `['data', connectionId, table, *]` lists + the `['widget-data']` prefix;
  * - `widget-data:{connectionId}:{table}` publications → same as above;
  * - `jobs:{jobId}` terminal events of an `email.campaign-run` job → the
- *   `['email-templates']` prefix (39 D12): a run that finished, failed or was
- *   cancelled changes a campaign's status pill and counts. The editor and the
- *   manager subscribe per run (`email/useRunProgress.ts`) and route every
+ * `['email-templates']` prefix: a run that finished, failed or was cancelled
+ *   changes a campaign's status pill and counts. The editor and the manager
+ *   subscribe per run (`email/useRunProgress.ts`) and route every
  *   non-progress event through here, so this stays the one map.
  *
  * Pure function so the AppShell subscription stays a one-liner and the map is
@@ -25,7 +25,7 @@ const TABLE_CHANNEL = /^(?:table|widget-data):([^:]+):(.+)$/;
 
 export function invalidateForRealtimeEvent(queryClient: QueryClient, event: RealtimeEvent): void {
   if (event.channel === 'config-changed' && event.type === 'settings.defaults.updated') {
-    // Global defaults changed (10-i18n-theming.md §7.2): re-resolve prefs for
+    // Global defaults changed: re-resolve prefs for
     // sessions following a workspace default (bootstrap carries the resolved
     // axes) and refresh the Global Defaults admin page if it is open. Pages
     // are untouched — this event never changes page configs.
@@ -51,6 +51,12 @@ export function invalidateForRealtimeEvent(queryClient: QueryClient, event: Real
     void queryClient.invalidateQueries({ queryKey: ['page'] });
     // Connecting/generating changes the reactive onboarding checklist too.
     void queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+    // A project server's page edits, and its `project-changed` (code rebuilt
+    // under `adminium dev`), change the project's actions and Studio's
+    // overview. Rebuilt pages and widgets need nothing more: the bootstrap
+    // lists them under new URLs, and open pages load those.
+    void queryClient.invalidateQueries({ queryKey: ['project'] });
+    void queryClient.invalidateQueries({ queryKey: ['studio', 'project'] });
     return;
   }
 

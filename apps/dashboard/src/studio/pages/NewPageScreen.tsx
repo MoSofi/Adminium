@@ -178,7 +178,7 @@ export function NewPageScreen() {
               >
                 {/* page-record is a crud page's child route, not a page of
                     its own — offering it here would create dead-end shells
-                    (30 D3, `standalone: false`). */}
+                    (`standalone: false`). */}
                 {pageTemplateDefinitions
                   .filter((definition) => definition.standalone !== false)
                   .map((definition) => (

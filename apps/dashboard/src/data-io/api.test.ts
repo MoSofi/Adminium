@@ -3,7 +3,7 @@
  * Import/export client. Two halves, both of which fail silently if they drift.
  *
  * `uploadImportFile` is the ONE non-JSON call in the SPA, so it hand-rolls
- * `fetch` — which means it also hand-rolls the CSRF header and the §1.4 error
+ * `fetch` — which means it also hand-rolls the CSRF header and the error
  * envelope that `app/api.ts` would otherwise have given it. A missing header is
  * a 403 at the upload step of every CSV import; a missing envelope read is an
  * "Upload failed with status 422" where the server sent a reason.
@@ -76,7 +76,7 @@ describe('uploadImportFile', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe('/api/v1/imports/upload?filename=upload.csv');
   });
 
-  it('reads the §1.4 error envelope back out of a rejected upload', async () => {
+  it('reads the error envelope back out of a rejected upload', async () => {
     stubFetch(422, {
       error: {
         code: 'CSV_TOO_LARGE',

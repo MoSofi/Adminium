@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The editor shell, canvas and palette (43-report-builder.md 43-T06
- * done-when; Appendix A E1–E11, C1–C8, P1–P2): explicit save with its chip
- * and history, the discard guard, the palette's 25 kinds, the block card's
- * four states, both reorder paths, the half width, the *Show in export*
- * toggle and the primary's two meanings.
+ * The editor shell, canvas and palette (E1–E11, C1–C8, P1–P2): explicit
+ * save with its chip and history, the discard guard, the palette's 25
+ * kinds, the block card's four states, both reorder paths, the half width,
+ * the *Show in export* toggle and the primary's two meanings.
  *
  * Rendered through the real router and shell so the topbar's Back and the
  * blocker are the product's own; the API is a fetch stub keyed on the routes
@@ -288,7 +287,7 @@ describe('the canvas (C1–C8)', () => {
     });
   });
 
-  it('a `show: false` block renders at 50 % and STAYS IN PLACE (§0.3 trap 2)', async () => {
+  it('a `show: false` block renders at 50 % and STAYS IN PLACE (trap 2)', async () => {
     await renderEditor(detail({}, body({ blocks: [block('text', 'b1'), block('kpi', 'b2', { show: false }), block('bar', 'b3')] })));
     expect(blockIds()).toEqual(['b1', 'b2', 'b3']);
     const dimmed = screen.getAllByTestId('report-block')[1] as HTMLElement;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The public namespace (28-public-surface.md §3.1, 28-T07/T08).
+ * The public namespace.
  *
  * Registered as a SIBLING of the `/api/v1` block, with its own prefix, its own
  * CORS posture and its own limiter (D8). It must not move inside that block:
@@ -19,8 +19,8 @@
  * route, because it CANNOT be used on a wrong one: `parseBearerApiKey` gates on
  * `adm_sk_`, so an `adm_pub_` token never becomes an rbac principal and
  * `request.can()` is false for it everywhere in the server (D3). That property
- * is asserted by `public-api-isolation.test.ts` (28-T09) rather than restated
- * here as a runtime guard that could rot.
+ * is asserted by `public-api-isolation.test.ts` rather than restated here as a
+ * runtime guard that could rot.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -61,14 +61,16 @@ import {
   type PublicSessionContext,
 } from '../../public-api/claim.js';
 import { generatePublicSessionToken, hashPublishableKey } from '../../public-api/keys.js';
-// `insertRow` lives in the data route because that is where it was written;
-// it is a row primitive, not a route concern. Imported rather than moved:
-// relocating a 50-line mysql-quirk function during a feature wave is a
-// refactor with its own risk, and `check-deps` is the arbiter of whether this
-// import is allowed (it is — routes may share exported helpers).
-import { insertRow } from '../data/index.js';
-import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
+import { parseRecordId, pkLabel } from '../../crud/records.js';
+import type { Row } from '../../crud/mask.js';
 import { emitRecordEvent } from '../../crud/after-record-write.js';
+import {
+  HookRejectedError,
+  createWriteService,
+  type RecordWriteService,
+  type WriteContext,
+  type WriteTarget,
+} from '../../crud/write-service.js';
 import { audited } from '../../audit/coverage.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { renderDocument, renderIntent, type RenderDeps } from '../../documents/render.js';
@@ -104,15 +106,24 @@ export interface PublicRoutesDeps {
   /** Injectable for tests; a fresh limiter otherwise. */
   limiter?: PublicRateLimiter | undefined;
   /**
-   * The document pipeline (34 §7.6). Absent = this build cannot draw
-   * documents, and every `/public/documents*` route says so with the same
-   * refusal a key without the flag gets — a deployment's capabilities are not
-   * a stranger's business.
+   * The document pipeline. Absent = this build cannot draw documents, and
+   * every `/public/documents*` route says so with the same refusal a key
+   * without the flag gets — a deployment's capabilities are not a stranger's
+   * business.
    */
   documents?: RenderDeps | undefined;
   /** Where a document's bytes are read from, for the content route. */
   storage?: FileStore | undefined;
+  /** Where every write goes, with the project's hooks. A service with no hooks otherwise. */
+  writes?: RecordWriteService | undefined;
 }
+
+/** A failed statement on this surface; answered without naming the constraint. */
+class PublicWriteRefused extends Error {}
+
+const refuseWrite = (): never => {
+  throw new PublicWriteRefused();
+};
 
 /**
  * Is a bind address loopback-only?
@@ -132,12 +143,12 @@ export interface PublicRoutesDeps {
  * strings starts with `/api/v1/public`. So a naive
  * `url.startsWith('/api/v1/public')` matches them too.
  *
- * That is not cosmetic. The isolation test (28-T09) skips this namespace when
- * sweeping the route tree, and with a loose prefix it would have skipped the
- * management routes as well — silently stopping the check that a publishable
- * key cannot mint ANOTHER publishable key. The trailing slash is what separates
- * them, and it is load-bearing enough to deserve a named export rather than a
- * literal repeated at each call site.
+ * That is not cosmetic. The isolation test skips this namespace when sweeping
+ * the route tree, and with a loose prefix it would have skipped the management
+ * routes as well — silently stopping the check that a publishable key cannot
+ * mint ANOTHER publishable key. The trailing slash is what separates them, and
+ * it is load-bearing enough to deserve a named export rather than a literal
+ * repeated at each call site.
  */
 export const PUBLIC_NAMESPACE_PREFIX = '/api/v1/public/';
 
@@ -207,6 +218,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const scopes = publicScopesRepo(meta);
   const sessions = publicSessionsRepo(meta);
   const audit = auditRepo(meta);
+  const writes = deps.writes ?? createWriteService();
+
+  /** A public write is anonymous: the key is the only name it has. */
+  const publicWriteContext = (request: FastifyRequest, keyId: string): WriteContext => ({
+    origin: 'public',
+    hops: 0,
+    actor: { kind: 'public', id: null, label: `public:${keyId}` },
+    request,
+  });
 
   const viewCache = new Map<string, { stamp: string; view: SnapshotView }>();
 
@@ -244,10 +264,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       };
     },
     /*
-     * 28-T34: the tenant's zone and currency live on the CONNECTION, and a
-     * scope inherits them when it does not state its own. Read here rather
-     * than baked into the scope document so that changing a business's zone is
-     * one edit, not one edit per scope — and so a surface with no scope at all
+     * The tenant's zone and currency live on the CONNECTION, and a scope
+     * inherits them when it does not state its own. Read here rather than
+     * baked into the scope document so that changing a business's zone is one
+     * edit, not one edit per scope — and so a surface with no scope at all
      * (one Adminium hosts itself) can reach the same value.
      */
     tenantConfigOf: async (connectionId) => {
@@ -258,9 +278,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
   /**
    * Echo the caller's origin when it is allow-listed, and NEVER emit
-   * `Access-Control-Allow-Credentials` (§3.6). A browser therefore strips
-   * cookies from anything sent here, which is what keeps an admin session from
-   * riding along on a storefront's request.
+   * `Access-Control-Allow-Credentials`. A browser therefore strips cookies
+   * from anything sent here, which is what keeps an admin session from riding
+   * along on a storefront's request.
    *
    * Returns whether CORS headers were emitted — i.e. whether this is an
    * allow-listed CROSS-ORIGIN caller. Same-origin callers are decided
@@ -368,7 +388,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      */
     const key = await resolver.resolve(token);
     if (key === null) {
-      // One code for unknown, wrong, revoked, expired and uncompilable (§3.2).
+      // One code for unknown, wrong, revoked, expired and uncompilable.
       fail(reply, 401, 'PUBLIC_KEY_INVALID', 'A publishable key is required.');
       return null;
     }
@@ -382,9 +402,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * same-origin call, because a same-origin GET carries no `Origin` to match
      * (D2's premise, one level down). A key bound to a surface Adminium hosts
      * itself is minted with NO origins — the instance-level `self` is its
-     * bound — which is what 29-T15's mint flow does. Teaching this list the
-     * sentinel would mean teaching the mint schema and Studio to accept a
-     * non-URL, and that belongs with the binding work, not here.
+     * bound — which is what mint flow does. Teaching this list the sentinel
+     * would mean teaching the mint schema and Studio to accept a non-URL, and
+     * that belongs with the binding work, not here.
      */
     if (key.origins.length > 0) {
       const origin = request.headers.origin;
@@ -514,10 +534,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     action: string,
     changes: Record<string, unknown>,
     /**
-     * WHICH ROW, when there is one (34 §7.1). Without it a public write left
-     * an audit entry naming the table and nothing else, so the per-record
-     * history a record page shows (30 WS-A) had a hole exactly where an
-     * anonymous caller had been — the writes an operator most wants to trace.
+     * WHICH ROW, when there is one. Without it a public write left an audit
+     * entry naming the table and nothing else, so the per-record history a
+     * record page shows (WS-A) had a hole exactly where an anonymous
+     * caller had been — the writes an operator most wants to trace.
      */
     entity: RecordRef | null = null,
   ): Promise<void> => {
@@ -546,9 +566,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * answers with the DASHBOARD's envelope: `VALIDATION_FAILED`, a
      * `requestId`, and a `details.issues` list naming the offending field. That
      * breaks both of this surface's contracts at once. It is prose and internal
-     * structure on a wire that is supposed to carry only codes (§3.6), and it
-     * is a distinguishable shape, which is exactly the oracle §3.2 refuses —
-     * "this field exists but you sent the wrong value" is information.
+     * structure on a wire that is supposed to carry only codes, and it is a
+     * distinguishable shape, which is exactly the oracle refuses — "this field
+     * exists but you sent the wrong value" is information.
      *
      * Found by probing a live instance, not by a test: every unit test built a
      * request that was already valid.
@@ -728,66 +748,84 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
         }
 
-        let inserted;
-        try {
-          inserted = await insertRow(found.db, found.dialect, found.table, values);
-        } catch {
-          /*
-           * A constraint violation is not spelled out. `routes/data` maps
-           * unique/FK failures to friendly shapes naming the constraint and the
-           * columns — exactly the detail that tells an anonymous caller which
-           * values already exist, which is a membership oracle.
-           */
-          return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
-        }
-
-        const createdPk = Object.fromEntries(found.table.primaryKey.map((c) => [c, inserted[c]]));
-        const createdRef: RecordRef = {
+        const target: WriteTarget = {
           connectionId: ok.key.connectionId,
-          table: found.table.id,
-          pk: createdPk,
-          label: pkLabel(found.table, createdPk),
+          view: found.view,
+          table: found.table,
+          db: found.db,
+          dialect: found.dialect,
         };
-        await auditWrite(
-          request,
-          ok,
-          'public.record.create',
-          { ref: request.params.ref, table: found.resource.table },
-          createdRef,
-        );
-        await keys.touchLastUsed(ok.key.keyId);
-        /*
-         * The UNPROJECTED row, deliberately. What comes back to the anonymous
-         * caller is narrowed to `expose`, because a create must not return more
-         * than a read of the same row would — but the stream's subscribers are
-         * signed-in staff holding a table-read grant, and narrowing THEIR frame
-         * to a customer scope's `expose` would hand the dashboard a half-row it
-         * would have to refetch to complete. The publisher masks it for PII and
-         * secrets on the way out, which is the check that applies here.
-         */
-        publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
-          connectionId: ok.key.connectionId,
-          table: found.table,
-          action: 'create',
-          pk: createdPk,
-          row: inserted,
-        });
-        /*
-         * The sign-ups a rule most needs to see. A public create never reached
-         * `routes/data`, so before this a "when a record is created in users"
-         * rule was blind to exactly the rows 28's public surface and 33's
-         * live-chat make (42 §0.3). No undo window: nobody can take an
-         * anonymous caller's write back.
-         */
-        await emitRecordEvent(app, {
-          connectionId: ok.key.connectionId,
-          table: found.table,
-          action: 'create',
-          entity: createdRef,
-          before: null,
-          after: inserted,
-          origin: 'public',
-        });
+        let inserted: Row;
+        try {
+          inserted = await writes.create({
+            target,
+            values,
+            context: publicWriteContext(request, ok.key.keyId),
+            /*
+             * A constraint violation is not spelled out. `routes/data` maps
+             * unique/FK failures to friendly shapes naming the constraint and
+             * the columns — exactly the detail that tells an anonymous caller
+             * which values already exist, which is a membership oracle.
+             */
+            mapError: refuseWrite,
+            announce: async (row) => {
+              const createdPk = Object.fromEntries(found.table.primaryKey.map((c) => [c, row[c]]));
+              const createdRef: RecordRef = {
+                connectionId: ok.key.connectionId,
+                table: found.table.id,
+                pk: createdPk,
+                label: pkLabel(found.table, createdPk),
+              };
+              await auditWrite(
+                request,
+                ok,
+                'public.record.create',
+                { ref: request.params.ref, table: found.resource.table },
+                createdRef,
+              );
+              await keys.touchLastUsed(ok.key.keyId);
+              /*
+               * The UNPROJECTED row, deliberately. What comes back to the
+               * anonymous caller is narrowed to `expose`, because a create must
+               * not return more than a read of the same row would — but the
+               * stream's subscribers are signed-in staff holding a table-read
+               * grant, and narrowing THEIR frame to a customer scope's `expose`
+               * would hand the dashboard a half-row it would have to refetch to
+               * complete. The publisher masks it for PII and secrets on the way
+               * out, which is the check that applies here.
+               */
+              publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
+                connectionId: ok.key.connectionId,
+                table: found.table,
+                action: 'create',
+                pk: createdPk,
+                row,
+              });
+              /*
+               * The sign-ups a rule most needs to see. A public create never
+               * reached `routes/data`, so before this a "when a record is
+               * created in users" rule was blind to exactly the rows 28's public
+               * surface and 33's live-chat make. No undo window: nobody can take
+               * an anonymous caller's write back.
+               */
+              await emitRecordEvent(app, {
+                connectionId: ok.key.connectionId,
+                table: found.table,
+                action: 'create',
+                entity: createdRef,
+                before: null,
+                after: row,
+                origin: 'public',
+              });
+            },
+          });
+        } catch (error) {
+          if (error instanceof PublicWriteRefused) {
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          }
+          if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          throw error;
+        }
 
         // Only the exposed columns come back — a create must not return more
         // than a read of the same row would.
@@ -844,80 +882,105 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * update whose WHERE lacks the predicate can move a row the caller was
          * never allowed to touch. So both go into one statement.
          */
-        let updated = 0;
-        try {
-          let qb = found.db.updateTable(found.table.id).set(values as never);
-          for (const [column, value] of Object.entries(pk)) {
-            qb = qb.where(found.db.dynamic.ref(column), '=', value as never);
-          }
-          const predicate = found.predicate;
-          if (predicate !== null) {
-            qb = qb.where((eb) =>
-              compileFilter(
-                eb as never,
-                {
-                  view: found.view,
-                  table: found.table,
-                  canReadPii: false,
-                  dynamic: found.db.dynamic,
-                  dialect: found.dialect,
-                },
-                predicate,
-              ),
-            );
-          }
-          const res = await qb.executeTakeFirst();
-          updated = Number(res.numUpdatedRows);
-        } catch {
-          return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
-        }
-
-        // Zero rows means "no such record" whether it does not exist, is out of
-        // scope, or belongs to somebody else. One answer for all three.
-        if (updated === 0) {
-          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
-        }
-
+        const predicate = found.predicate;
+        const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
+          predicate === null
+            ? query
+            : (query.where as (factory: (eb: never) => unknown) => Q)((eb) =>
+                compileFilter(
+                  eb,
+                  {
+                    view: found.view,
+                    table: found.table,
+                    canReadPii: false,
+                    dynamic: found.db.dynamic,
+                    dialect: found.dialect,
+                  },
+                  predicate,
+                ),
+              );
+        const target: WriteTarget = {
+          connectionId: ok.key.connectionId,
+          view: found.view,
+          table: found.table,
+          db: found.db,
+          dialect: found.dialect,
+        };
         const updatedRef: RecordRef = {
           connectionId: ok.key.connectionId,
           table: found.table.id,
           pk,
           label: pkLabel(found.table, pk),
         };
-        await auditWrite(
-          request,
-          ok,
-          'public.record.update',
-          { ref: request.params.ref, table: found.resource.table },
-          updatedRef,
-        );
-        await keys.touchLastUsed(ok.key.keyId);
+        let outcome;
+        try {
+          outcome = await writes.update({
+            target,
+            pk,
+            values,
+            context: publicWriteContext(request, ok.key.keyId),
+            refine: inScope,
+            // Only a hook reads the row first, and it reads it inside the
+            // scope, so a hook never sees (and a refusal never reveals) a row
+            // this caller could not update.
+            load: async () => {
+              let query = found.db.selectFrom(found.table.id).selectAll();
+              for (const [column, value] of Object.entries(pk)) {
+                query = query.where(found.db.dynamic.ref(column), '=', value as never);
+              }
+              return ((await inScope(query).executeTakeFirst()) as Row | undefined) ?? null;
+            },
+            skipIfNone: true,
+            mapError: refuseWrite,
+            announce: async ({ after }) => {
+              await auditWrite(
+                request,
+                ok,
+                'public.record.update',
+                { ref: request.params.ref, table: found.resource.table },
+                updatedRef,
+              );
+              await keys.touchLastUsed(ok.key.keyId);
+              publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
+                connectionId: ok.key.connectionId,
+                table: found.table,
+                action: 'update',
+                pk,
+                row: after,
+              });
+              await emitRecordEvent(app, {
+                connectionId: ok.key.connectionId,
+                table: found.table,
+                action: 'update',
+                entity: updatedRef,
+                // The before-image is not read on this path — the predicate goes
+                // into the UPDATE itself rather than a lookup before it (see
+                // above), and adding a SELECT to recover it would reopen the
+                // TOCTOU window that design closed. A rule's `when` therefore
+                // evaluates on the after image, which is what it evaluates on
+                // for every other origin too.
+                before: null,
+                after,
+                origin: 'public',
+              });
+            },
+          });
+        } catch (error) {
+          if (error instanceof PublicWriteRefused) {
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          }
+          if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          throw error;
+        }
 
-        const after = await fetchByPk(found.db, found.table, pk);
-        publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
-          connectionId: ok.key.connectionId,
-          table: found.table,
-          action: 'update',
-          pk,
-          row: after ?? null,
-        });
-        await emitRecordEvent(app, {
-          connectionId: ok.key.connectionId,
-          table: found.table,
-          action: 'update',
-          entity: updatedRef,
-          // The before-image is not read on this path — the predicate goes into
-          // the UPDATE itself rather than a lookup before it (see above), and
-          // adding a SELECT to recover it would reopen the TOCTOU window that
-          // design closed. A rule's `when` therefore evaluates on the after
-          // image, which is what it evaluates on for every other origin too.
-          before: null,
-          after: after ?? null,
-          origin: 'public',
-        });
+        // Zero rows means "no such record" whether it does not exist, is out of
+        // scope, or belongs to somebody else. One answer for all three.
+        if (outcome.count === 0) {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        }
 
         const projected: Record<string, unknown> = {};
-        for (const column of found.resource.expose) projected[column] = after?.[column];
+        for (const column of found.resource.expose) projected[column] = outcome.after?.[column];
         return reply.send({ data: projected });
       },
     );
@@ -991,10 +1054,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
     /* ------------------------------------------------------------ documents */
     /*
-     * 34 §7.6. Five routes, and every one of them names a gate — the route-table
-     * test asserts exactly that, because this server has no ambient auth hook
-     * and a `/public/*` route without a gate serves the operator's data to
-     * anybody who asks.
+     * Five routes, and every one of them names a gate — the route-table test
+     * asserts exactly that, because this server has no ambient auth hook and a
+     * `/public/*` route without a gate serves the operator's data to anybody who
+     * asks.
      *
      * ─── WHAT A CLAIM REACHES ─────────────────────────────────────────────
      *
@@ -1175,7 +1238,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
            * NO DELAY. The 60-second window exists so a person can take back a
            * write they made in the dashboard; a public caller pressing "send me
            * a copy" is asking for the thing itself, and waiting a minute to
-           * start would be inexplicable (§7.11 checks this).
+           * start would be inexplicable, and an e2e case holds that.
            */
           const outcome = await renderDocument(deps.documents, {
             profileId: profile.id,
@@ -1338,10 +1401,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
         }
         /*
-         * TO THE CLAIM'S OWN ADDRESS, never to one in the request (§7.6). This
-         * route is a caller asking for their own copy — the ONLY thing it can
-         * decide is whether, and the address is whatever the session was bound
-         * to when it was claimed.
+         * TO THE CLAIM'S OWN ADDRESS, never to one in the request. This route
+         * is a caller asking for their own copy — the ONLY thing it can decide
+         * is whether, and the address is whatever the session was bound to
+         * when it was claimed.
          */
         const to = String(ok.session!.grant.value);
         if (!to.includes('@')) {

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The inspector (39-email-templates-and-campaigns.md 39-T13 done-when):
- * selecting a block opens Design on it; every kind's schema renders its
- * fields and row cells; a cycle cell steps; Save as reusable POSTs and the
- * Sections tab lists it; every style button writes its axis; the Branding
- * panel's From email is a configured sender or a refusal with the hint.
- * Rendered through the real router (the editor owns the state).
+ * The inspector: selecting a block opens Design on it; every kind's schema
+ * renders its fields and row cells; a cycle cell steps; Save as reusable
+ * POSTs and the Sections tab lists it; every style button writes its axis;
+ * the Branding panel's From email is a configured sender or a refusal with
+ * the hint. Rendered through the real router (the editor owns the state).
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -128,7 +127,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('Inspector (39-T13)', () => {
+describe('Inspector', () => {
   it("selecting a block switches to Design with the block's icon, label and hint", async () => {
     const { user } = await renderEditor();
     expect(screen.getByTestId('email-sections-tab')).toBeDefined();
@@ -192,7 +191,7 @@ describe('Inspector (39-T13)', () => {
     expect(last.getAttribute('data-value')).toBe('done');
     await user.click(last);
     expect(last.getAttribute('data-value')).toBe('todo');
-    // Back to exactly what was saved: dirty is derived (§6.1 departure 16).
+    // Back to exactly what was saved: dirty is derived (departure 16).
     expect(screen.getByTestId('email-save-chip').textContent).toBe('All changes saved');
     expect(within(screen.getByTestId('email-block')).getByText('Delivered')).toBeDefined();
   });

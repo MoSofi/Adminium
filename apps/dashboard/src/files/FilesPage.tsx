@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/files` — the workspace file browser (37-files-and-storage.md §3.8, last
- * bullet; task 37-T25).
+ * `/files` — the workspace file browser (last bullet; task).
  *
  * WHAT THIS IS. A SYSTEM page, in the mould of `audit/AuditLogPage.tsx`: a
  * screen over one of Adminium's OWN meta tables (`adminium_files`), reached
@@ -18,7 +17,7 @@
  *
  * ── WHY THIS IS NOT THE `file-browser` WIDGET ─────────────────────────────
  *
- * §3.8 says "`FileBrowser` over `GET /files`". It cannot be, and the evidence
+ * The plan said "`FileBrowser` over `GET /files`". It cannot be, and the evidence
  * is in the widget's own contract:
  *
  *  1. **Its rail vocabulary is a closed four-value set.**
@@ -33,9 +32,9 @@
  *     defaults `parentField: 'parentId'`, `media-lib.ts:276` defines a
  *     synthetic `ROOT_ID`, and `FileBrowser.tsx:41-44` states that opening a
  *     folder re-filters rows ALREADY IN THE PAYLOAD, with the breadcrumb
- *     walked from self-FK parent pointers. Plan §4's first refusal row bans
- *     folders over Adminium's own store outright — files belong to records and
- *     tables, and a second hierarchy is a second product.
+ * walked from self-FK parent pointers. Plan first refusal row bans folders
+ *     over Adminium's own store outright — files belong to records and tables,
+ *     and a second hierarchy is a second product.
  *
  *  3. **Its filtering is client-side over one payload; ours is server-side.**
  *     Every preset here is a different `GET /files` request (`filesQueries.ts`
@@ -49,7 +48,7 @@
  *
  * ── THERE IS NO "EMPTY TRASH" BUTTON ──────────────────────────────────────
  *
- * §3.8 lists one, and the wire cannot honour it. Appendix C's routes are the
+ * One was listed, and the wire cannot honour it. The routes are the
  * whole file surface, and none of them purges: `DELETE /files/:id`
  * (`apps/server/src/routes/files/index.ts:693`) TRASHES, and its repo call is
  * `markDeleted`, whose UPDATE carries `.where('deletedAt', 'is', null)`
@@ -65,7 +64,7 @@
  * a reversible action trains people to dismiss dialogs, which is exactly the
  * habit you want them out of by the time one is irreversible.
  *
- * ── COPY IS A GATE HERE (Appendix D, 17 §2) ───────────────────────────────
+ * ── COPY IS A GATE HERE (Appendix D) ──────────────────────────────────────
  *
  * The usage strip says "128 GB used" and, for a local destination only,
  * "41 GB available on this disk". Never a denominator, never "free", never a
@@ -138,10 +137,10 @@ import { UploadFilesDialog } from './UploadFilesDialog.js';
 /**
  * A file's destination, named — and the `null` case is the whole point.
  *
- * `destination_id IS NULL` genuinely means this server's disk (37 D3), and
- * that is the only thing that may render as "This server's disk". A map MISS
- * is a different fact: the usage query has not resolved yet, or it 403'd
- * because the caller holds neither `files.manage` nor `storage.manage`, or the
+ * `destination_id IS NULL` genuinely means this server's disk, and that is the
+ * only thing that may render as "This server's disk". A map MISS is a
+ * different fact: the usage query has not resolved yet, or it 403'd because
+ * the caller holds neither `files.manage` nor `storage.manage`, or the
  * destination row was deleted after the file was written. Collapsing all three
  * into the local label tells the operator their invoices are on this box when
  * they are in a bucket — which is exactly the question the Files page exists
@@ -346,7 +345,7 @@ export function FilesPage(): ReactNode {
             </IconToggle>
           </div>
           {/*
-            A file always belongs to a CONNECTION (38 D4), so with none
+            A file always belongs to a CONNECTION, so with none
             configured there is nowhere to put one and the button would open a
             dialog that could only refuse.
           */}
@@ -533,7 +532,7 @@ function UsageStrip({ entries }: { entries: readonly StorageUsageEntry[] }): Rea
             </span>
           </div>
           {/*
-            THE ONE PLACE A FRACTION IS HONEST (38 D10).
+            THE ONE PLACE A FRACTION IS HONEST.
 
             37 Appendix D banned "N of M" outright, and it was right about
             buckets: a bucket has no capacity, so a denominator would be a
@@ -593,7 +592,7 @@ interface PresetRailProps {
  * clicking one changes `GET /files`'s parameters and refetches.
  *
  * The plan calls these "smart folders". They are not folders and this page
- * never says the word: §4 refuses a hierarchy over Adminium's own store, and
+ * never says the word: a hierarchy over Adminium's own store is refused, and
  * calling a saved query a folder is how a hierarchy gets asked for next.
  */
 function PresetRail({ filters, connections, tables, destinations, showCounts, onSelect }: PresetRailProps): ReactNode {
@@ -651,7 +650,7 @@ function PresetRail({ filters, connections, tables, destinations, showCounts, on
                 id={`connection-${entry.id}`}
                 icon={<Database aria-hidden className="size-4" />}
                 label={entry.name}
-                // No table: since 38 D4 a connection alone is a real query,
+                // No table: since a connection alone is a real query,
                 // and it is the only preset that finds a LIBRARY file — one
                 // that belongs to the workspace and to no record.
                 target={{ ...base, state: filters.state, connectionId: entry.id }}
@@ -819,7 +818,7 @@ function FilesTable(props: FilesTableProps): ReactNode {
               <td className="px-4 py-2.5">
                 {file.entity === null ? (
                   // A library file belongs to a CONNECTION and to no row
-                  // (38 D4/D18). Saying only "Not attached" would leave the
+                  // . Saying only "Not attached" would leave the
                   // reader with no idea which source it was uploaded for.
                   <div className="flex min-w-0 flex-col">
                     <span className="text-fg-subtle">
@@ -1018,7 +1017,7 @@ function IconToggle({
 }
 
 /**
- * The comp's tile view (38 D9).
+ * The comp's tile view.
  *
  * The SAME rows the list draws, laid out differently — no second query and no
  * second filter. Deliberately smaller than the list: a tile has room for a

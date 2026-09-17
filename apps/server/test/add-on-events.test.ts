@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Add-on event handlers as job kinds (26-T10, §5.3).
+ * Add-on event handlers as job kinds.
  *
  * What these actually have to establish: that an add-on's server half is run
  * through the SAME worker substrate as everything else (so it gets retries,
@@ -54,7 +54,7 @@ function event(over: Partial<RegisterableAddOnEvent> = {}): RegisterableAddOnEve
   };
 }
 
-describe('26-T10: registering add-on events as job kinds', () => {
+describe('Registering add-on events as job kinds', () => {
   it('namespaces the kind so an add-on cannot shadow a first-party one', () => {
     // Job kinds are one flat string space shared with export-run, import-run
     // and the rest. An add-on called `export` declaring an event `run` must not
@@ -82,7 +82,7 @@ describe('26-T10: registering add-on events as job kinds', () => {
 
     expect(out).toEqual({ tracking: 'JD01' });
     expect(handle).toHaveBeenCalledWith({ orderId: 'o1' }, expect.anything());
-    // Progress rides the existing topic unchanged (§5.3) — nothing new to build
+    // Progress rides the existing topic unchanged — nothing new to build
     // for an add-on progress UI.
     expect(ctx.steps.map((s) => s.step)).toEqual(['start', 'done']);
     expect(ctx.steps.at(-1)?.pct).toBe(100);
@@ -188,7 +188,7 @@ describe('26-T10: registering add-on events as job kinds', () => {
   });
 });
 
-describe('26-T10: a module that does not implement the contract', () => {
+describe('A module that does not implement the contract', () => {
   it('is refused and NAMED, never registered as a kind that cannot run', () => {
     // A registered kind whose handler cannot run is worse than no kind: the job
     // is enqueued, retried three times, and fails with a message about a

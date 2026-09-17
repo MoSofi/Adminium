@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure contract for the "time, forecast & flow" widget group (04-T09): config-
- * schema defaults + per-widget empty copy, §3 envelope narrowing, deterministic
- * demo payloads, and registry metadata (ids/sizing/contract/skeleton/export).
- * No rendering — this runs in the node env, independent of the @adminium/charts
+ * Pure contract for the "time, forecast & flow" widget group: config- schema
+ * defaults + per-widget empty copy, envelope narrowing, deterministic demo
+ * payloads, and registry metadata (ids/sizing/contract/skeleton/export). No
+ * rendering — this runs in the node env, independent of the @adminium/charts
  * build. The isolated pure modules also have dedicated tests (time-flow-meta,
- * time-flow-adapters); this file ties them to the registry `WidgetDefinition`s.
+ * time-flow-adapters); this file ties them to the registry
+ * `WidgetDefinition`s.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -53,7 +54,7 @@ describe('config schemas', () => {
     for (const schema of schemas) expect(schema.safeParse({}).success).toBe(true);
   });
 
-  it('each carries per-widget empty copy (04 §4)', () => {
+  it('each carries per-widget empty copy', () => {
     for (const schema of schemas) {
       const parsed = schema.parse({});
       expect(typeof parsed.emptyState?.titleKey).toBe('string');
@@ -112,7 +113,7 @@ describe('demo payloads', () => {
     }
   });
 
-  it('match their declared §3 envelope and read as non-empty', () => {
+  it('match their declared envelope and read as non-empty', () => {
     for (const [name, generator, shape] of cases) {
       expect(isEmptyData(generator(7), shape), name).toBe(false);
     }
@@ -148,7 +149,7 @@ describe('registry metadata', () => {
     expect(byId.get('chart-timeline-lanes')?.sizing).toEqual({ minW: 6, minH: 4, defaultW: 8, defaultH: 4 });
   });
 
-  it('maps each id to its §3 data contract', () => {
+  it('maps each id to its data contract', () => {
     expect(byId.get('chart-multiline')?.dataContract).toBe('multi-timeseries');
     expect(byId.get('chart-stream')?.dataContract).toBe('multi-timeseries');
     expect(byId.get('chart-forecast')?.dataContract).toBe('timeseries');

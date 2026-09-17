@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `computeTotals` against the ONE invoice money fixture
- * (34-invoices-add-on.md 34-T54, D20).
+ * `computeTotals` against the ONE invoice money fixture.
  *
  * ─── WHY THIS TREE IS IN THE FIXTURE'S SCOPE AT ALL ────────────────────────
  *
- * 34-T54 asks that every tree which computes an invoice total assert the same
+ * Every tree that computes an invoice total must assert the same
  * table of cases, and names three: the add-on's renderer, the dashboard
  * canvas, and — "until O27 retires it" — the `block-*` widgets. The first two
  * were wired when the fixture was written; this is the third, and it was
@@ -28,8 +27,8 @@
  * builder draws and what the document renders for the same data, and it is
  * pinned here rather than left to be met on an invoice.
  *
- * O27 retires this flavor (deposited as 27-T75). Until it does, this file is
- * what stops the difference growing.
+ * O27 retires this flavor (deposited). Until it does, this file is what
+ * stops the difference growing.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -102,7 +101,7 @@ const KNOWN_DIVERGENCES = [
   'a third decimal in the rate rounds half away from zero',
 ];
 
-describe('the block-* canvas against the one money fixture (34-T54)', () => {
+describe('the block-* canvas against the one money fixture', () => {
   it('reads a fixture with cases in it', () => {
     // An absence over an empty case list is indistinguishable from a pass —
     // the failure mode this whole fixture exists to close.

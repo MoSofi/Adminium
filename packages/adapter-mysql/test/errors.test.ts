@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline unit tests — driver error → `AdapterError` mapping (05 §3).
+ * Offline unit tests — driver error → `AdapterError` mapping.
  *
  * mysql2 rejects with an `Error` carrying a symbolic `code` (`ER_…`) plus
  * `errno`/`sqlState`; socket failures carry Node errnos. Those shapes are
@@ -22,7 +22,7 @@ function mysqlError(code: string, message: string): Error {
   return Object.assign(new Error(message), { code });
 }
 
-describe('toAdapterError — the §3 code table', () => {
+describe('toAdapterError — the code table', () => {
   it.each([
     // Authentication and database selection — all "check your credentials".
     ['ER_ACCESS_DENIED_ERROR', "Access denied for user 'app'@'10.0.0.1'", 'AUTH'],

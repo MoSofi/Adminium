@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The diagram — 35-schema-authoring.md 35-T20/T21/T23/T24, D15, D16.
+ * The diagram.
  *
  * The graph mapping and the layout are pure, so most of this needs no canvas.
  * What DOES need one is the a11y contract (D16): the text-equivalent view has
@@ -59,7 +59,7 @@ const model = (tables: unknown[], relations: unknown[] = []): EffectiveModel =>
 
 // ---------------------------------------------------------------------------
 
-describe('buildGraph — the three kinds of edge (35-T21)', () => {
+describe('buildGraph — the three kinds of edge', () => {
   const m = model(
     [table('orders'), table('customers'), table('notes'), table('tags')],
     [
@@ -106,7 +106,7 @@ describe('buildGraph — the three kinds of edge (35-T21)', () => {
   });
 });
 
-describe('large schemas (35-T23)', () => {
+describe('large schemas', () => {
   const many = Array.from({ length: 200 }, (_, i) => table(`t${i}`));
 
   it('engages the ceiling rather than drawing 200 unreadable boxes', () => {
@@ -171,7 +171,7 @@ describe('search-to-focus', () => {
   });
 });
 
-describe('layout (35-T22)', () => {
+describe('layout', () => {
   const graph = buildGraph(model([table('a'), table('b')], [relation('a', 'b')]));
 
   it('positions every node', () => {
@@ -203,7 +203,7 @@ describe('layout (35-T22)', () => {
   });
 });
 
-describe('the text equivalent (D16, 35-T24)', () => {
+describe('the text equivalent (D16)', () => {
   const graph = buildGraph(
     model([table('orders'), table('customers')], [relation('orders', 'customers')]),
   );
@@ -232,7 +232,7 @@ describe('the text equivalent (D16, 35-T24)', () => {
   });
 });
 
-describe('the canvas actually renders (35-T20, §8.1)', () => {
+describe('the canvas actually renders', () => {
   /**
    * The trap this guards: React Flow measures nodes through `ResizeObserver`,
    * which happy-dom does not implement — so without the stubs in
@@ -282,9 +282,9 @@ describe('the canvas actually renders (35-T20, §8.1)', () => {
      * hidden table could not match at any point. Typing one of the hidden names
      * changed nothing at all.
      *
-     * Found on a generated 200-table connection (§9.7), not by this suite: the
-     * unit tests passed `focus` themselves, which is exactly the caller the
-     * product did not have.
+     * Found on a generated 200-table connection, not by this suite: the unit
+     * tests passed `focus` themselves, which is exactly the caller the product
+     * did not have.
      */
     const { DiagramMode } = await import('./DiagramMode.js');
     // 80 tables, and `needle_table` is the LEAST connected — last out of the
@@ -317,8 +317,8 @@ describe('the canvas actually renders (35-T20, §8.1)', () => {
      * and no name; its edges get "Edge from x to y" for free. So a keyboard
      * user tabbing a 200-table diagram reached 60 nodes and 103 edges — every
      * edge announced, every node announced as "node, group". Measured in a
-     * browser on a real 200-table connection (§9.7), which is the only place
-     * the asymmetry is visible.
+     * browser on a real 200-table connection, which is the only place the
+     * asymmetry is visible.
      */
     const { DiagramMode } = await import('./DiagramMode.js');
     const { container } = render(

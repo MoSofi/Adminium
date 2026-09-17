@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The portable column-type contract (07-meta-store.md §2.1).
+ * The portable column-type contract.
  *
  * `columnHelpers` is one of the few modules allowed to branch on dialect, and
  * what it returns is not a value any repo can observe — it is DDL, emitted once
@@ -54,7 +54,7 @@ const DIALECTS: Record<MetaDialect, Dialect> = {
   },
 };
 
-/** The DDL one dialect emits for a table that uses every helper in §2.1. */
+/** The DDL one dialect emits for a table that uses every helper. */
 function createTableSql(dialect: MetaDialect): string {
   const db = new Kysely<Record<string, never>>({ dialect: DIALECTS[dialect] });
   const c = columnHelpers(dialect);
@@ -73,7 +73,7 @@ function createTableSql(dialect: MetaDialect): string {
     .compile().sql;
 }
 
-describe('columnHelpers emits the §2.1 type table', () => {
+describe('columnHelpers emits the type table', () => {
   it('postgres', () => {
     expect(createTableSql('postgres')).toBe(
       'create table "probe" (' +
@@ -120,10 +120,10 @@ describe('columnHelpers emits the §2.1 type table', () => {
   });
 
   /**
-   * The one deliberate deviation from the §2.1 table, and the reason it exists:
+   * The one deliberate deviation from the table, and the reason it exists:
    * postgres `char(36)` is `bpchar`, which blank-pads on write and hands the
    * padding back on every read, so a 31-character `view_<ULID>` round-trips as
-   * `'view_…     '` and stops matching itself. MySQL strips CHAR padding at
+   * `'view_… '` and stops matching itself. MySQL strips CHAR padding at
    * retrieval and SQLite ignores the length, so only postgres needs `varchar`.
    *
    * Pinned separately from the table above because "make the three dialects

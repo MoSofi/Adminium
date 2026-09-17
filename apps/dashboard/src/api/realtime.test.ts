@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Realtime → cache invalidation map (09 §2.1 step 5, §4.1): `config-changed`
- * refreshes bootstrap + every page document; table / widget-data publications
- * refresh the matching data lists and the widget-data prefix.
+ * Realtime → cache invalidation map: `config-changed` refreshes bootstrap +
+ * every page document; table / widget-data publications refresh the matching
+ * data lists and the widget-data prefix.
  */
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
@@ -20,14 +20,17 @@ function spyClient() {
 }
 
 describe('invalidateForRealtimeEvent', () => {
-  it('config-changed → bootstrap + page documents + onboarding (live regeneration, §2.1)', () => {
+  it('config-changed → bootstrap + page documents + onboarding + project (live regeneration)', () => {
     const { queryClient, invalidate } = spyClient();
     invalidateForRealtimeEvent(queryClient, makeEvent('config-changed', 'config-changed'));
     expect(invalidate.mock.calls.map((call) => call[0]?.queryKey)).toEqual([
       ['bootstrap'],
       ['page'],
-      // Connecting/generating changes the reactive onboarding checklist (M5-T06).
+      // Connecting/generating changes the reactive onboarding checklist.
       ['onboarding'],
+      // A project server's actions and Studio overview.
+      ['project'],
+      ['studio', 'project'],
     ]);
   });
 
@@ -55,7 +58,7 @@ describe('invalidateForRealtimeEvent', () => {
     expect(invalidate.mock.calls.map((call) => call[0]?.queryKey)).toEqual([['notifications']]);
   });
 
-  it('jobs:<id> terminal events of an email.campaign-run job → the ["email-templates"] prefix (39 D12)', () => {
+  it('jobs:<id> terminal events of an email.campaign-run job → the ["email-templates"] prefix', () => {
     const { queryClient, invalidate } = spyClient();
     invalidateForRealtimeEvent(queryClient, { ...makeEvent('jobs:job_1', 'completed'), data: { jobId: 'job_1', kind: 'email.campaign-run' } });
     invalidateForRealtimeEvent(queryClient, { ...makeEvent('jobs:job_1', 'cancelled'), data: { jobId: 'job_1', kind: 'email.campaign-run' } });

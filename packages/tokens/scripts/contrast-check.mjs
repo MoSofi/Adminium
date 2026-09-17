@@ -4,11 +4,11 @@
  * @adminium/tokens — WCAG 2.1 contrast gate.
  *
  * Implements the audit promised twice in the specs:
- *   - 02-design-system.md task 02-T15 — `packages/tokens/scripts/contrast-check.mjs`
- *   - 15-quality.md §7.4        — the 8-accent x 2-theme "contrast matrix"
- * Those two specs describe ONE audit under two names; this file is that audit, placed at the
- * 02-T15 path because it must sit next to (and parse) the token CSS it validates and be wired
- * into this package's own `test` script. §7.4's pair table is implemented in full here.
+ * - — `packages/tokens/scripts/contrast-check.mjs`
+ * - — the 8-accent x 2-theme "contrast matrix" Those two specs describe ONE audit under two
+ *   names; this file is that audit, placed at the path because it must sit next to (and
+ *   parse) the token CSS it validates and be wired into this package's own `test` script.
+ *   The pair table is implemented in full here.
  *
  * HOW IT WORKS
  *   1. Parses the real CSS in ../src/{tokens,accents,exceptions}.css — no palette is hardcoded,
@@ -61,13 +61,12 @@
  * DELIBERATE SKIPS (see SKIPPED below for the printed rationale)
  *   --shadow*, --accent-glow, --scrim, --border*, viz.css.
  *
- * Usage:  node scripts/contrast-check.mjs [--all] [--strict] [--json]
- *   --all     print every measured pair, not just failures (the §7.4 artifact table)
- *   --strict  promote the documented exemptions (EXEMPT groups below) to hard failures.
- *             `pnpm run contrast` (and therefore CI) passes --strict: the exemption mechanism
- *             exists to DOCUMENT a shortfall, never to downgrade one silently.
- *   --json    emit machine-readable results instead of the table
- * Exits 1 if any GATED pair is below its threshold.
+ * Usage: node scripts/contrast-check.mjs [--all] [--strict] [--json] --all print every
+ * measured pair, not just failures (the artifact table) --strict promote the documented
+ * exemptions (EXEMPT groups below) to hard failures. `pnpm run contrast` (and therefore CI)
+ * passes --strict: the exemption mechanism exists to DOCUMENT a shortfall, never to downgrade
+ * one silently. --json emit machine-readable results instead of the table Exits 1 if any
+ * GATED pair is below its threshold.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -82,17 +81,15 @@ const UI_NONTEXT = 3.0; // WCAG 1.4.11 — non-text contrast (focus ring, contro
 /**
  * What each measured group is, and whether it BLOCKS the build.
  *
- * `gated: true`  — a failure here fails CI. These are the load-bearing pairs: every text
- *                  foreground on every surface and on every tint it can be painted over, the
- *                  focus ring and the hover fill at the 1.4.11 floor, the primary-button label
- *                  in both its resting and hover states, and every semantic tone on its soft
- *                  partner.
- * `gated: false` — the documented exemption list 02-T15 requires this script to carry. Such a
- *                  group is still measured and still printed (as WARN), and `--strict` promotes
- *                  it to a failure — and CI runs `--strict`, so an exemption added here turns
- *                  the build red until someone removes it deliberately. THE LIST IS CURRENTLY
- *                  EMPTY: 02-T15 anticipated exempting --fg-subtle (~2.9:1) and §7.4 anticipated
- *                  exempting the dark black accent, and both were instead fixed in the palette.
+ * `gated: true` — a failure here fails CI. These are the load-bearing pairs: every text
+ * foreground on every surface and on every tint it can be painted over, the focus ring and the
+ * hover fill at the 1.4.11 floor, the primary-button label in both its resting and hover states,
+ * and every semantic tone on its soft partner. `gated: false` — the documented exemption list
+ * requires this script to carry. Such a group is still measured and still printed (as WARN), and
+ * `--strict` promotes it to a failure — and CI runs `--strict`, so an exemption added here turns
+ * the build red until someone removes it deliberately. THE LIST IS CURRENTLY EMPTY: the port
+ * anticipated exempting --fg-subtle (~2.9:1) anticipated exempting the dark black accent, and
+ * both were instead fixed in the palette.
  */
 const GROUPS = {
   text: {
@@ -190,7 +187,7 @@ const SKIPPED = [
   ['--scrim', 'modal dimmer; darkens the backdrop, carries no information'],
   ['--border, --border-strong', 'decorative separators; component state is carried by --accent (checked at 3:1)'],
   ['--accent-dark', 'per-theme INPUT; the theme selects it into --accent, which is measured'],
-  ['viz-1..8 (viz.css)', 'series palette governed by the adjacency rules in 02-design-system.md §1.3'],
+  ['viz-1..8 (viz.css)', 'series palette governed by the adjacency rules'],
   ['density/motion/fonts/tailwind.css', 'declare no colour of their own — enforced by the sweep below, not assumed'],
 ];
 
@@ -493,7 +490,7 @@ function parseColor(input) {
   throw new Error(`unsupported colour syntax "${value}"`);
 }
 
-/** color-mix(in srgb, A p%, B q%) — alpha-premultiplied, per css-color-5 §2.1. */
+/** color-mix(in srgb, A p%, B q%) — alpha-premultiplied, per css-color-5. */
 function parseColorMix(value) {
   const args = splitTop(value.slice(value.indexOf('(') + 1, matchParen(value, 0))).map((s) => s.trim());
   const space = args[0].replace(/^in\s+/i, '').trim();
@@ -660,7 +657,7 @@ const toHex = (c) =>
   (c[3] < 1 ? Math.round(c[3] * 255).toString(16).padStart(2, '0') : '');
 
 /**
- * 15-quality.md §7.4 anticipates a "documented token override" that splits the accent's
+ * A "documented token override" is anticipated that splits the accent's
  * text/icon role from its fill role (the dark black accent). If such a token is ever added,
  * point INK_ROLE at it EXPLICITLY and the text/ring groups will measure it instead of --accent.
  * The opt-in is deliberate: an implicit "use it if it exists" hook fails OPEN — merely declaring
@@ -721,22 +718,24 @@ function buildChecks(get, has, vocab) {
   //     without it, mixing the dark accent toward #000 again produces zero failures.
   if (has('--accent-hover')) for (const s of surfaces) push('state-fill', '--accent-hover', s, UI_NONTEXT);
 
-  // 3. --accent as TEXT (links, active nav, Toast action, soft Button label) — 15-quality §7.4.
+  // 3. --accent as TEXT (links, active nav, Toast action, soft Button label) —
+  // 15-quality.
   for (const s of surfaces) push('accent-text', inkRole, s, AA_TEXT);
 
-  // 4. Primary-button label at rest and on hover, all accents x themes — 15-quality §7.4.
+  // 4. Primary-button label at rest and on hover, all accents x themes —
+  // 15-quality.
   push('accent-button', '--accent-fg', '--accent', AA_TEXT);
   if (has('--accent-hover')) push('accent-hover', '--accent-fg', '--accent-hover', AA_TEXT);
 
   // 5. Soft accent badges/pills/chips: --accent on --accent-soft (translucent -> composited
-  //    over each surface it can sit on) — 15-quality §7.4.
+  // over each surface it can sit on) — 15-quality.
   if (has('--accent-soft')) {
     for (const s of surfaces) {
       push(s === '--surface' ? 'accent-soft' : 'accent-soft-deep', inkRole, '--accent-soft', AA_TEXT, { on: s });
     }
   }
 
-  // 6. Semantic tone on its -soft partner, over every surface — 15-quality §7.4.
+  // 6. Semantic tone on its -soft partner, over every surface — 15-quality.
   for (const tone of tones) for (const s of surfaces) push('semantic', tone, `${tone}-soft`, AA_TEXT, { on: s });
 
   // 6b. The same label on the OPAQUE chip tint. `on: s` is kept even though an opaque background
@@ -881,7 +880,8 @@ export function runAudit({ strict = false, css: cssOverride } = {}) {
   const accents = [...new Set([...css.matchAll(/\[data-accent="([^"]+)"\]/g)].map((m) => m[1]))];
   const themes = ['light', ...new Set([...css.matchAll(/\[data-theme="([^"]+)"\]/g)].map((m) => m[1]))]
     .filter((t, i, a) => a.indexOf(t) === i);
-  // Every class selector that declares tokens is an inverted subtree (exceptions.css §6).
+  // Every class selector that declares tokens is an inverted subtree
+  // (exceptions.css).
   const scopes = [
     ...new Set(
       rules

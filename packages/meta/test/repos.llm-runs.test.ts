@@ -16,7 +16,7 @@ const testCrypto: DsnCrypto = {
   decrypt: (token) => Buffer.from(token.slice('enc:test:'.length), 'base64').toString('utf8'),
 };
 
-/** Columns 0007_llm_runs adds on top of 0006 (§7.4). */
+/** Columns 0007_llm_runs adds on top of 0006. */
 const ADDED_COLUMNS = [
   'status',
   'sections',
@@ -57,7 +57,7 @@ for (const dialect of TEST_DIALECTS) {
       await t.destroy();
     });
 
-    it('0007 adds every §7.4 column to adminium_llm_runs', async () => {
+    it('0007 adds every column to adminium_llm_runs', async () => {
       const tables = await t.meta.db.introspection.getTables();
       const runs = tables.find((table) => table.name === 'adminium_llm_runs');
       expect(runs).toBeDefined();
@@ -67,7 +67,7 @@ for (const dialect of TEST_DIALECTS) {
       }
     });
 
-    it('creates a BYO draft with provider/model NULL and round-trips builder inputs (§9)', async () => {
+    it('creates a BYO draft with provider/model NULL and round-trips builder inputs', async () => {
       const repo = llmRunsRepo(t.meta);
       const run = await repo.create({
         connectionId,
@@ -231,7 +231,7 @@ for (const dialect of TEST_DIALECTS) {
       ).rejects.toThrow(/review/);
     });
 
-    it('rejects every builder payload the §4.1 schemas do not accept', async () => {
+    it('rejects every builder payload the schemas do not accept', async () => {
       // These arrive from the run-builder UI and are echoed back into the
       // prompt on a retry, so a payload that survives the write is a payload
       // that reaches a provider. Each is refused before the INSERT.

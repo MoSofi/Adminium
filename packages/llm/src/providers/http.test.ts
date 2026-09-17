@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shared HTTP helper tests (06-llm-assist.md §3): secret scrubbing, non-2xx →
- * status-mapped ProviderError, network + timeout mapping, and bad_response on an
- * unparseable 2xx body.
+ * Shared HTTP helper tests: secret scrubbing, non-2xx → status-mapped
+ * ProviderError, network + timeout mapping, and bad_response on an unparseable
+ * 2xx body.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -53,7 +53,7 @@ describe('requestJson error mapping', () => {
     expect((err as ProviderError).code).toBe('network');
   });
 
-  it('keeps the API key out of the network-error cause chain (acceptance §10)', async () => {
+  it('keeps the API key out of the network-error cause chain (acceptance)', async () => {
     const SECRET = 'sk-leak-me-in-the-cause';
     vi.stubGlobal('fetch', vi.fn(async () => {
       // A fetch impl whose error echoes the outgoing Authorization header.

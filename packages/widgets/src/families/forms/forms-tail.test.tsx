@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * TRACK FORMS — unit tests for the M7 Wave-4 `forms` TAIL (annex §10):
- * rule-builder, flow-builder, connection-string-field, table-inclusion-checklist,
+ * TRACK FORMS — unit tests for the M7 Wave-4 `forms` TAIL (annex): rule-builder,
+ * flow-builder, connection-string-field, table-inclusion-checklist,
  * column-mapping-table, export-builder, question-builder, inline-editable-field.
  *
  * The QA harness (qa/*) already proves the generic contracts for every delivered
@@ -192,7 +192,7 @@ describe('table-inclusion rules — the rule the Studio wizard now shares', () =
 
 // ── connection-string-field ────────────────────────────────────────────────
 
-describe('connection-string-field (annex §10)', () => {
+describe('connection-string-field (annex)', () => {
   it('detects the engine, parses the host and renders the status line', () => {
     render(
       <ConnectionStringFieldWidget
@@ -299,7 +299,7 @@ describe('connection-string-field (annex §10)', () => {
 
 // ── table-inclusion-checklist ──────────────────────────────────────────────
 
-describe('table-inclusion-checklist (annex §10)', () => {
+describe('table-inclusion-checklist (annex)', () => {
   const ROWS = {
     rows: [
       { name: 'public.customers', rowCount: 900, pii: 3, tag: 'Customers' },
@@ -375,7 +375,7 @@ describe('table-inclusion-checklist (annex §10)', () => {
 
 // ── rule-builder ───────────────────────────────────────────────────────────
 
-describe('rule-builder (annex §10)', () => {
+describe('rule-builder (annex)', () => {
   const CATALOG = [
     { name: 'plan', label: 'Plan', type: 'enum' as const, options: [{ value: 'pro' }, { value: 'free' }] },
     { name: 'mrr', label: 'MRR', type: 'number' as const },
@@ -491,7 +491,7 @@ describe('rule-builder (annex §10)', () => {
 
 // ── flow-builder ───────────────────────────────────────────────────────────
 
-describe('flow-builder (annex §10)', () => {
+describe('flow-builder (annex)', () => {
   const DATA = {
     fields: [],
     values: {
@@ -547,7 +547,7 @@ describe('flow-builder (annex §10)', () => {
 
 // ── column-mapping-table ───────────────────────────────────────────────────
 
-describe('column-mapping-table (annex §10)', () => {
+describe('column-mapping-table (annex)', () => {
   const TARGETS = [
     { key: 'full_name', label: 'Full name' },
     { key: 'email', label: 'Email' },
@@ -603,7 +603,7 @@ describe('column-mapping-table (annex §10)', () => {
 
 // ── export-builder ─────────────────────────────────────────────────────────
 
-describe('export-builder (annex §10)', () => {
+describe('export-builder (annex)', () => {
   it('the payload phase wins over an optimistic local one', () => {
     expect(exportPhaseOf('idle', false)).toBe('idle');
     expect(exportPhaseOf('idle', true)).toBe('running'); // submitted, host silent
@@ -680,7 +680,7 @@ describe('export-builder (annex §10)', () => {
 
 // ── question-builder ───────────────────────────────────────────────────────
 
-describe('question-builder (annex §10)', () => {
+describe('question-builder (annex)', () => {
   const DATA = {
     fields: [],
     values: {
@@ -751,7 +751,7 @@ describe('question-builder (annex §10)', () => {
 
 // ── inline-editable-field ──────────────────────────────────────────────────
 
-describe('inline-editable-field (annex §10)', () => {
+describe('inline-editable-field (annex)', () => {
   const DATA = { row: { id: 'doc-1', name: 'Invoice INV-2026-0142' } };
 
   it('click-to-edit, Enter commits and emits an update for the bound record', () => {
@@ -892,7 +892,7 @@ describe('inline-editable-field (annex §10)', () => {
   });
 });
 
-// ── junk-payload tolerance (04 §3: unknown in, no crash out) ────────────────
+// ── junk-payload tolerance (unknown in, no crash out) ───────────────────────
 
 describe('the tail tolerates junk payloads', () => {
   const JUNK: [string, unknown][] = [

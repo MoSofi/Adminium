@@ -31,8 +31,8 @@ import {
 } from '../page-dashboard/data-adapter.js';
 
 /**
- * `page-log-viewer` template renderer (09-generated-app.md §7.8; annex §14 —
- * comps: Audit Log / Webhooks Log / Workflow Logs).
+ * `page-log-viewer` template renderer (annex — comps: Audit Log / Webhooks
+ * Log / Workflow Logs).
  *
  * Renders the stored `config.layout` of a log archetype page: the KPI band via
  * `WidgetHost` (per-instance states, demo fallback — the page-dashboard
@@ -41,11 +41,11 @@ import {
  * and TIME (All/1h/24h/7d) filters, and the `trace` slot as
  * `timeline-vertical`. Selecting a row (the log-table's inspect action) swaps
  * the trace pane to the selection's related events — per-step status dots +
- * mono snippets (§7.8) — with a clear-selection control.
+ * mono snippets — with a clear-selection control.
  *
- * LIVE TAIL (§7.8 "live tail (WS `stream`)"): when the host passes
- * `liveChannel` (`widget-data:{connectionId}:{table}`, from the log binding's
- * source), the template folds realtime record events into the snapshot through
+ * LIVE TAIL: when the host passes `liveChannel`
+ * (`widget-data:{connectionId}:{table}`, from the log binding's source), the
+ * template folds realtime record events into the snapshot through
  * `useWidgetStream` over the injected StreamTransport, renders the Live pill,
  * and offers Pause/Resume with a held-events counter. Without a channel the
  * page is a plain fetched log — stories and demo mode need no socket.
@@ -72,7 +72,7 @@ export interface PageLogViewerLabels {
  * Literal bundle key per time window (`all` reuses the shared filter-bar "All").
  * Indexed rather than assembled so the extractor sees each key and a fifth
  * `LOG_TIME_WINDOWS` entry is a compile error, not a raw dotted string in the
- * toolbar (10 §2.5).
+ * toolbar.
  */
 const WINDOW_KEY = {
   all: 'ui:widgets.forms.filterChipBar.all',
@@ -84,7 +84,7 @@ const WINDOW_KEY = {
 export interface PageLogViewerProps {
   /** The page's `config.layout` document (raw — validated here). */
   layout: unknown;
-  /** Transport for bound widgets; absent → demo mode (04 §5.3). */
+  /** Transport for bound widgets; absent → demo mode. */
   adapter?: DashboardDataAdapter | undefined;
   /** Page-control params forwarded to every binding. */
   params?: Record<string, unknown> | undefined;
@@ -189,7 +189,7 @@ export function PageLogViewer({
     [rawRows, fieldMap],
   );
 
-  // --- toolbar filters (09 §7.8: level/time in the toolbar) --------------------
+  // --- toolbar filters (level/time in the toolbar) --------------------
   const [level, setLevel] = useState<LogLevelKey>('all');
   const [window, setWindow] = useState<LogTimeWindowKey>('all');
   const clock = now ?? Date.now();
@@ -215,7 +215,7 @@ export function PageLogViewer({
 
   return (
     <div data-part="page-log-viewer" data-testid={testId} className={`flex h-full min-h-0 flex-col gap-4 ${className ?? ''}`}>
-      {/* KPI band — hosted instances with per-item states/demo (04 §5.3). */}
+      {/* KPI band — hosted instances with per-item states/demo. */}
       {stats.length > 0 && (
         <div data-part="log-kpi-row" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {stats.map((item) => (
@@ -232,7 +232,7 @@ export function PageLogViewer({
         </div>
       )}
 
-      {/* Toolbar — level + time filters, live tail controls (09 §7.8). */}
+      {/* Toolbar — level + time filters, live tail controls. */}
       <div data-part="log-toolbar" className="flex flex-wrap items-center gap-2">
         <div
           className="inline-flex items-center rounded-md bg-surface-2 p-0.5"

@@ -3,7 +3,7 @@
   "notes": [
     "Seeded-schema golden for the T15 BYO round-trip e2e — the Northwind demo the e2e boot script loads on sqlite/postgres/mysql.",
     "Referentially clean against the live snapshot: only `main.`-qualified tables/columns, non-surrogate display columns, allowed dashboard widgets, exactly the en_US+de_DE locales; no enums/relations (undeclared in this build).",
-    "M7 pageTemplates: queue+board (orders), directory (employees). Board cannot compose here (no workflow enum) — the e2e pins its park. Orders/employees sit in NO navGroup on purpose: an §8.3 group stamp would move their template pages out of the fixed five-group sidebar."
+    "pageTemplates: queue+board (orders), directory (employees). Board cannot compose here (no workflow enum) — the e2e pins its park. Orders/employees sit in NO navGroup on purpose: a group stamp would move their template pages out of the fixed five-group sidebar."
   ],
   "tables": [
     {

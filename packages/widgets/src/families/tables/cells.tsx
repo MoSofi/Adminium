@@ -17,17 +17,17 @@ import {
   uiToneOf,
 } from './column-spec.js';
 import type { GridColumnSpec, GridRow } from './column-spec.js';
+import { useCustomCellRenderer } from './custom-cells.js';
 import { parseRefList } from '../../page-config/file-refs.js';
 import type { WidgetEvent } from '../../registry/types.js';
 
 /**
- * Type-aware cell renderers for the `tables` family (annex §3 `data-grid`;
- * 09-generated-app.md §7.1 list keepers): money → mono end-aligned Intl
- * currency, status/category enum → pill/badge, FK → avatar chip firing
- * `record-open`, boolean → ✓/✕ glyph, timestamp → relative + absolute title,
- * date → locale calendar day (wire-instant decoded, ISO-day title),
- * email/url → mono/link, PII → '•••' with an unmask affordance when the
- * caller may reveal.
+ * Type-aware cell renderers for the `tables` family (annex `data-grid`; list
+ * keepers): money → mono end-aligned Intl currency, status/category enum →
+ * pill/badge, FK → avatar chip firing `record-open`, boolean → ✓/✕ glyph,
+ * timestamp → relative + absolute title, date → locale calendar day
+ * (wire-instant decoded, ISO-day title), email/url → mono/link, PII → '•••'
+ * with an unmask affordance when the caller may reveal.
  */
 
 export interface CellContext {
@@ -43,7 +43,7 @@ export interface CellContext {
   revealLabel?: string | undefined;
   hideLabel?: string | undefined;
   /**
-   * Resolved file references for this page of rows (37 §3.5, D14).
+   * Resolved file references for this page of rows.
    *
    * The host batches one `POST /files/resolve` per fetched page and hands the
    * answers down as a map keyed by the STORED VALUE — so a grid of fifty rows
@@ -200,7 +200,7 @@ const THUMBNAIL_MIMES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg',
 
 /**
  * A resolved file in a grid cell: a thumbnail for a small raster image,
- * otherwise a chip with the name and size (37 D14, D24).
+ * otherwise a chip with the name and size.
  *
  * THE IMAGE IS THE ORIGINAL, rendered small. There is no server-side resizing
  * (D39), so the size cap is what stops a 40 px box from downloading twelve
@@ -294,6 +294,7 @@ function CellContent({
   context?: CellContext | undefined;
 }): ReactNode {
   const t = useMaybeT();
+  const custom = useCustomCellRenderer();
   const value = row[column.name];
   const maskedByServer = maskedColumnsOf(row).includes(column.name);
 
@@ -301,14 +302,22 @@ function CellContent({
   if (column.pii && value !== null && value !== undefined) {
     return <MaskedCell value={value} revealable={context.canUnmask === true} context={context} />;
   }
+  /*
+   * A host-drawn cell (`custom-cells.tsx`) comes after the masking, which a
+   * host must not be able to skip, and before everything else: it may draw an
+   * empty value too.
+   */
+  if (custom !== null) {
+    const drawn = custom(column, row);
+    if (drawn !== undefined) return drawn;
+  }
   if (value === null || value === undefined) return EMPTY_CELL;
 
   /*
    * An explicit `display` block wins over the semantic chain below, and it has
    * to be tested BEFORE it because a derived value has no useful `semantic` or
    * `logicalType` — a computed invoice total would otherwise fall all the way
-   * through to the plain mono-string branch and render `1367.28` unformatted
-   * (36-derived-columns.md D8).
+   * through to the plain mono-string branch and render `1367.28` unformatted.
    *
    * Opt-in by construction: absent on every generated page, so a page that
    * does not carry one renders exactly what it rendered before.
@@ -388,14 +397,14 @@ function CellContent({
   if (column.semantic === 'email') {
     return <MonoText data-part="cell-email" className="truncate">{String(value)}</MonoText>;
   }
-  // 37 D14: a `file` block, and a value this page's resolve call recognised.
+  // A `file` block, and a value this page's resolve call recognised.
   // Everything else about this column keeps rendering exactly as it did — an
   // unresolved value falls through to the link branch below, which is what a
   // foreign URL in a file column should look like.
   if (column.file !== undefined && value !== null && value !== undefined && String(value).trim() !== '') {
     if (column.file.multiple === true) {
       /*
-       * A LIST column (38 D20): the first file's chip, plus a count of the
+       * A LIST column: the first file's chip, plus a count of the
        * rest. A row is one line high, so showing every chip would either wrap
        * the row or truncate to the same thing this says explicitly.
        *

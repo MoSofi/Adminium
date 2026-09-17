@@ -34,7 +34,7 @@ const galleryConfig = {
   templateVersion: 1,
   toolbar: ['filter-chip-bar', 'global-search'],
   overlays: ['toast-stack'],
-  archetype: { score: 0.9, reasons: ['people-shaped table (annex §14)'] },
+  archetype: { score: 0.9, reasons: ['people-shaped table'] },
   layout: {
     version: 1,
     items: [

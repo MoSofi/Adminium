@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The stored shapes of a rule (42-automations-and-workflow-logs.md §3.2,
- * 42-T02). Two things are checked, and the split matters:
+ * The stored shapes of a rule. Two things are checked, and the split
+ * matters:
  *
  *  1. The OWNER'S OWN EXAMPLES parse. Appendix C writes his two asks —
  *     "welcome, then an offer, then a reminder" and the appointment
  *     reminder with its first-time / repeat no-show branch — as the rules
- *     the product will store. §0.4's standing rule is that if a later change
+ *     the product will store. The standing rule is that if a later change
  *     makes either inexpressible, the change is wrong; this suite is what
  *     notices.
  *
- *  2. The §5 refusals that are SHAPE refuse here rather than three layers
- *     later. Everything that needs a schema to resolve against (does this
- *     table have that column? is that template live?) is deliberately NOT
- *     here — the store cannot know, and a draft is allowed to be half-built
- *     (D12).
+ * 2. The refusals that are SHAPE refuse here rather than three layers
+ *  later. Everything that needs a schema to resolve against (does this
+ *  table have that column? is that template live?) is deliberately NOT here
+ *  — the store cannot know, and a draft is allowed to be half-built (D12).
  */
 import { describe, expect, it } from 'vitest';
 
@@ -183,7 +182,7 @@ describe('automation stored shapes — the owner’s examples', () => {
   });
 });
 
-describe('automation stored shapes — the §5 refusals that are shape', () => {
+describe('automation stored shapes — the refusals that are shape', () => {
   const trigger = { id: 'n1', kind: 'trigger', title: 'T' };
   const stop = (id: string) => ({ id, kind: 'stop', title: 'Stop' });
 

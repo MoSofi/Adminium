@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-record` binding (30-record-pages.md WS-C): mounts the record detail
- * page for `/p/$slug/r/$recordId` — the envelope's `config.detail.template`
- * resolved by TemplateMount (30 D1).
+ * `page-record` binding (WS-C): mounts the record detail page for
+ * `/p/$slug/r/$recordId` — the envelope's `config.detail.template` resolved
+ * by TemplateMount.
  *
  * What the binding wires that the widget cannot know:
  *
- * - the typed body (`columns`, `keyField`, `readOnly`, `detail` — 30-T01);
- * - the related-tab adapter (30 D5): per-tab lists through a CrudApi bound to
- *   the REFERENCING table, column specs + default sort from that table's own
- *   page envelope when one exists (the runtime table→slug map from
- *   bootstrap), honest linklessness otherwise;
- * - the per-record activity feed (30 D6) over the audit entity filter
- *   (WS-A), gated by the same role check the audit page uses — absent, not
- *   disabled, for a viewer (the server enforces regardless);
- * - the sidecar attachments adapter (37 §3.5) and its realtime refresh (D27):
- *   the table's widget-data channel re-creates the adapter, so a file attached
- *   in another tab appears in an open panel without a remount;
+ * - the typed body (`columns`, `keyField`, `readOnly`, `detail`);
+ * - the related-tab adapter: per-tab lists through a CrudApi bound to the
+ * REFERENCING table, column specs + default sort from that table's own page
+ * envelope when one exists (the runtime table→slug map from bootstrap),
+ * honest linklessness otherwise;
+ * - the per-record activity feed over the audit entity filter (WS-A),
+ * gated by the same role check the audit page uses — absent, not disabled,
+ * for a viewer (the server enforces regardless);
+ * - the sidecar attachments adapter and its realtime refresh (D27): the
+ * table's widget-data channel re-creates the adapter, so a file attached in
+ * another tab appears in an open panel without a remount;
  * - the per-caller `canUpdate`/`canDelete` capabilities the page reply
- *   resolved from the caller's table grants (30 D4) — a read-only grantee's
- *   record page has no Edit/Delete to 403 on;
+ * resolved from the caller's table grants — a read-only grantee's record
+ *   page has no Edit/Delete to 403 on;
  * - breadcrumb/back + document title, delete → back to the list with the
  *   undo toast at app level, and the deleted-record 404 state in-outlet.
  */
@@ -69,6 +69,7 @@ import {
 import { entityKey } from '../documents/documentsApi.js';
 import { StatePage } from '../states/StatePage.js';
 import { appStreamTransport } from './lmc/stream.js';
+import { ProjectActionButtons, useProjectActions } from './projectActions.js';
 import {
   parseColumns,
   parseDefaultSort,
@@ -144,7 +145,7 @@ export function PageRecordBinding({
     setHero(null);
   }, [recordId]);
 
-  /** The related-tab host adapter (30 D5) — resolution is per activation. */
+  /** The related-tab host adapter — resolution is per activation. */
   const related = useMemo<PageRecordRelated>(() => {
     const listApiFor = (table: string) =>
       connectionId === null ? null : createCrudApi(connectionId, table);
@@ -156,7 +157,7 @@ export function PageRecordBinding({
     // `agg` and `compute` were the defect this closes: the tab forwarded
     // `lookup` and nothing else, so a related tab showed an em-dash where the
     // lending page showed a count — and would have shown one where it shows a
-    // total (36-derived-columns.md §3.7).
+    // total.
     const tabLookups = new Map<string, string[]>();
     const tabProjections = new Map<string, { agg: string[]; compute: string | undefined }>();
     return {
@@ -203,7 +204,7 @@ export function PageRecordBinding({
           };
         } catch {
           // A page we cannot read degrades the tab to derived columns — the
-          // rows still render (09 §3.1 never-crash).
+          // rows still render (never-crash).
           return null;
         }
       },
@@ -218,7 +219,7 @@ export function PageRecordBinding({
    * Per-record activity over the WS-A entity filter. Same UX gate as the
    * audit page (role ≥ Admin — StudioGuard's rule); the server independently
    * enforces `system:audit:read`. A viewer's record page simply has fields
-   * and related records (30 D6: absent, not disabled).
+   * and related records (absent, not disabled).
    */
   /**
    * The entity's table, as both the attachments adapter and the subscription
@@ -230,9 +231,9 @@ export function PageRecordBinding({
 
   /**
    * A file attached or replaced in another tab — or by another user — has to
-   * reach an open panel (37 D27). Without this the list changes only for the
-   * session that did the upload, and everyone else sees yesterday's files
-   * until they remount the page.
+   * reach an open panel. Without this the list changes only for the session
+   * that did the upload, and everyone else sees yesterday's files until they
+   * remount the page.
    *
    * A NONCE, not a query invalidation, because the panel is not a react-query
    * consumer: `AttachmentsPanel` owns its list state and reloads when the
@@ -263,8 +264,8 @@ export function PageRecordBinding({
   }, [attachmentsConfig, connectionId, entityTable]);
 
   /**
-   * The record's attachments — in whichever of the two modes this page uses
-   * (37 §3.5/D6; 38 D13).
+   * The record's attachments — in whichever of the two modes this page
+   * uses.
    *
    * `config.attachments.column` names a column on the customer's own table
    * (38's default) and the list lives in that column's value; without it the
@@ -347,7 +348,7 @@ export function PageRecordBinding({
             action: entry.action,
             at: entry.createdAt,
             // Changed-column count from the before/after images — never the
-            // images themselves in v1 (30 D6). `diffRows` returns the UNION of
+            // images themselves in v1. `diffRows` returns the UNION of
             // both images' fields with a `changed` flag; only the flagged rows
             // are the count (the union is every column of the row).
             changedFields:
@@ -382,7 +383,7 @@ export function PageRecordBinding({
   );
 
   /*
-   * DOCUMENTS (34 §7.8, 34-T15).
+   * DOCUMENTS.
    *
    * Two questions, in this order, and both are queries rather than build
    * flags: is a `document-render` provider installed at all, and does any
@@ -440,6 +441,34 @@ export function PageRecordBinding({
     ];
   }, [hasProvider, profiles.data, recordId, t]);
 
+  /*
+   * PROJECT ACTIONS — buttons the project's own code defines for this table.
+   * After one runs, the record is read again: a new `api` object is what
+   * makes PageRecord fetch, and a derived object keeps every method the
+   * bound adapter has.
+   */
+  const [actionRuns, setActionRuns] = useState(0);
+  const projectActions = useProjectActions(
+    connectionId,
+    sourceTable ?? crud?.table,
+    useCallback(() => setActionRuns((n) => n + 1), []),
+  );
+  const recordApi = useMemo(() => {
+    const base = boundCrud ?? crud;
+    return actionRuns === 0 || base === null ? base : (Object.create(base) as typeof base);
+  }, [boundCrud, crud, actionRuns]);
+  const recordActions = useMemo(() => {
+    if (recordId === undefined || projectActions.record.length === 0) return documentActions;
+    return [
+      ...documentActions,
+      {
+        id: 'project-actions',
+        label: t('projectAction.menu', 'Actions'),
+        content: <ProjectActionButtons actions={projectActions} id={recordId} />,
+      },
+    ];
+  }, [documentActions, projectActions, recordId, t]);
+
   if (crud === null) {
     // Bad generation output (record page without a source) — caught by the
     // PageRenderer error boundary and rendered as the page error card.
@@ -474,55 +503,55 @@ export function PageRecordBinding({
         backTo={listHref}
       />
       <PageRecord
-        api={boundCrud ?? crud}
+        api={recordApi ?? crud}
         columns={columns}
         source={{ connectionId, table: sourceTable ?? crud.table }}
         recordId={recordId}
         keyField={keyField}
         readOnly={readOnly}
-        // Grants-driven affordances (30 D4): the envelope's `readOnly` blanks
+        // Grants-driven affordances: the envelope's `readOnly` blanks
         // everything structurally; these blank per-action on the caller's
         // table grants. Undefined keeps the widget's permissive default.
         canUpdate={canUpdate}
         canDelete={canDelete}
         // PII fields reveal only for callers the server sent clear values to.
         canUnmask={canUnmask}
-        // The connection's own currency for money cells (10 §4.4).
+        // The connection's own currency for money cells.
         {...(currency === undefined ? {} : { currency })}
         tabs={detail?.tabs ?? []}
         related={related}
         activity={activity}
-        // Sidecar attachments (37 §3.5). Absent ⇒ no panel, the same rule
+        // Sidecar attachments. Absent ⇒ no panel, the same rule
         // `related` and `activity` follow — a page whose `config.attachments`
         // is off renders exactly as it did before the feature existed.
         attachments={attachments}
         // Not the same as `canUpdate`: an attach is authorised by `update` on
-        // the entity's table (37 D11) but it is stated separately so the panel
+        // the entity's table but it is stated separately so the panel
         // never offers a dropzone the server would refuse. On a READ-ONLY
         // source the record cannot be edited and a sidecar file still can be —
         // that asymmetry is the whole point of the sidecar mode.
         canAttach={canAttach}
         {...(attachmentsConfig?.maxBytes === undefined ? {} : { maxFileBytes: attachmentsConfig.maxBytes })}
         /*
-         * Documents (34 §7.8). Both the panel and the Make button are ABSENT
-         * until a `document-render` provider is installed AND a mapping covers
-         * this table — an affordance that cannot do anything is worse than no
+         * Documents. Both the panel and the Make button are ABSENT until a
+         * `document-render` provider is installed AND a mapping covers this
+         * table — an affordance that cannot do anything is worse than no
          * affordance, because it invites a click and then explains itself.
          */
         {...(documentPanels.length === 0 ? {} : { panels: documentPanels })}
-        {...(documentActions.length === 0 ? {} : { actions: documentActions })}
+        {...(recordActions.length === 0 ? {} : { actions: recordActions })}
         onEvent={adapters.onEvent}
         onDeleted={handleDeleted}
         onMissing={() => setMissing(true)}
         onLoaded={({ hero: value }) => setHero(value)}
       />
+      {projectActions.dialog}
     </>
   );
 }
 
 /**
- * The COLUMN-mode attachments adapter (38-files-library-and-attachments.md
- * D13).
+ * The COLUMN-mode attachments adapter.
  *
  * The files this record owns are the value of one column on the customer's own
  * table, so every operation here goes through the CRUD route rather than

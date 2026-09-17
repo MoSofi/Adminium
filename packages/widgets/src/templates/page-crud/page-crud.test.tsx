@@ -80,7 +80,7 @@ function renderPage(api: CrudApi, extra: Partial<Parameters<typeof PageCrud>[0]>
   );
 }
 
-describe('PageCrud template (09 §7.1)', () => {
+describe('PageCrud template', () => {
   it('lists rows through the CrudApi with type-aware cells + keyset footer', async () => {
     const api = makeApi(rows);
     renderPage(api);
@@ -119,7 +119,7 @@ describe('PageCrud template (09 §7.1)', () => {
     const dialog = screen.getByRole('dialog');
     // enum arity 2 + required → SegmentedControl (radiogroup of segments)
     expect(within(dialog).getByRole('radiogroup')).toBeDefined();
-    // unique column shows the live-count microcopy (09 §7.1)
+    // unique column shows the live-count microcopy
     expect(await within(dialog).findByText('Checked against 8,402 rows.')).toBeDefined();
 
     await user.type(within(dialog).getByRole('textbox', { name: /Customer/ }), 'Acme Holdings');
@@ -141,7 +141,7 @@ describe('PageCrud template (09 §7.1)', () => {
     expect(await screen.findByRole('button', { name: 'Undo' })).toBeDefined();
   });
 
-  it('row click emits record-open with the page table; the eye opens the PEEK (30 D1)', async () => {
+  it('row click emits record-open with the page table; the eye opens the PEEK', async () => {
     const user = userEvent.setup();
     const api = makeApi(rows);
     const onEvent = vi.fn();
@@ -180,7 +180,7 @@ describe('PageCrud template (09 §7.1)', () => {
     const api = makeApi(rows);
     renderPage(api);
 
-    // open the PEEK via the row's eye action (30 D1 — rows navigate now)
+    // open the PEEK via the row's eye action (rows navigate now)
     await screen.findByText('Initech');
     const firstRow = screen.getAllByRole('row')[1] as HTMLElement;
     await user.click(within(firstRow).getByRole('button', { name: 'Peek' }));
@@ -231,7 +231,7 @@ describe('PageCrud template (09 §7.1)', () => {
     const bodyRows = screen.getAllByRole('row').slice(1);
     await user.click(within(bodyRows[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
 
-    // The bulk bar takes the CTA's slot (09 §7.1 "toolbar morphs") — and ONLY
+    // The bulk bar takes the CTA's slot — and ONLY
     // that slot. Search and the filter chips survive the selection: they are
     // how the user built the set they are now acting on, so hiding them mid-
     // task was the defect this asserts against.
@@ -336,7 +336,7 @@ describe('page-crud localization (ui:templates.crud.*)', () => {
  * implements `CrudApi.export`, browser-side serialization of the selection when
  * it does not) so it cannot regress to decoration.
  */
-describe('page-crud bulk Export (09 §11.2)', () => {
+describe('page-crud bulk Export', () => {
   /** Collect anchors the download helper creates, ignoring anything React renders. */
   function captureDownloads() {
     const anchors: HTMLAnchorElement[] = [];
@@ -698,16 +698,16 @@ describe('RecordForm date round-trip (client-portal audit repro, 2026-08-24)', (
 
 /**
  * File columns AT THE PAGE, which is the layer neither `file-field.test.tsx`
- * nor `cells.test.tsx` can reach (37-files-and-storage.md §3.5, §3.9).
+ * nor `cells.test.tsx` can reach.
  *
- * Both of 37-T17's and 37-T18's done-whens are stated about a PAGE, not a
- * field, and neither could fail in the unit suites: the batching lives in
- * `PageCrud`'s resolve effect, and the uploaded reference crosses three
- * components — `FileField` mints it, `RecordForm.submit` harvests it, and
- * `handleCreate` sends it — before anything reaches `CrudApi.create`. A green
- * `FileField` says nothing about either seam.
+ * Both of done-whens are stated about a PAGE, not a field, and neither could
+ * fail in the unit suites: the batching lives in `PageCrud`'s resolve effect,
+ * and the uploaded reference crosses three components — `FileField` mints it,
+ * `RecordForm.submit` harvests it, and `handleCreate` sends it — before
+ * anything reaches `CrudApi.create`. A green `FileField` says nothing about
+ * either seam.
  */
-describe('PageCrud file columns (37 §3.5, §3.9)', () => {
+describe('PageCrud file columns', () => {
   /** What the upload adapter mints. Deliberately shares nothing with the picked File. */
   const FILE_REF = 'https://admin.example.com/api/v1/files/file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD/content';
 
@@ -735,7 +735,7 @@ describe('PageCrud file columns (37 §3.5, §3.9)', () => {
     ...over,
   });
 
-  it('resolves a 50-row page of file refs in ONE call carrying all fifty (37-T18)', async () => {
+  it('resolves a 50-row page of file refs in ONE call carrying all fifty', async () => {
     const fiftyRows: CrudRow[] = Array.from({ length: 50 }, (_, index) => {
       const n = String(index + 1).padStart(4, '0');
       return { id: index + 1, name: `Customer ${n}`, invoice_pdf: `/api/v1/files/file_${n}/content` };
@@ -777,7 +777,7 @@ describe('PageCrud file columns (37 §3.5, §3.9)', () => {
     expect(document.querySelectorAll('[data-part="cell-file"]')).toHaveLength(50);
   });
 
-  it('create form: uploads on selection, shows the adapter’s file, submits its ref (37-T17)', async () => {
+  it('create form: uploads on selection, shows the adapter’s file, submits its ref', async () => {
     const user = userEvent.setup();
     const api = makeApi([{ id: 1, name: 'Initech', invoice_pdf: null }]);
     const uploaded = resolvedFile();

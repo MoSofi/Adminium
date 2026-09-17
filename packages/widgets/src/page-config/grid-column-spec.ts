@@ -6,8 +6,8 @@ import { WORKING_SCALE } from './decimal.js';
 
 /**
  * Column-spec vocabulary for the `page-crud` config body — the typed
- * `config.columns[]` contract (research/widget-registry.md §3 "column defs
- * generated from schema"; 01-architecture.md §6.1 `config.columns`).
+ * `config.columns[]` contract (research/widget-registry.md;
+ * `config.columns`).
  *
  * Lives in the page-config leaf (not `families/tables`) because it is a stored
  * config-body schema, not component code: the generator leaf's crud-body
@@ -25,7 +25,7 @@ import { WORKING_SCALE } from './decimal.js';
  * projects snapshot columns into them.
  */
 
-/** Logical column types the cell/form renderers branch on (engine §6 subset). */
+/** Logical column types the cell/form renderers branch on (engine subset). */
 export const GRID_LOGICAL_TYPES = [
   'text',
   'varchar',
@@ -51,9 +51,9 @@ export const gridLogicalTypeSchema = z.enum(GRID_LOGICAL_TYPES);
 export type GridLogicalType = z.infer<typeof gridLogicalTypeSchema>;
 
 /**
- * Column semantics the renderers act on (engine §7.1 SEMANTIC_TAGS — kept as
- * an open string so classifier additions never break stored configs; the
- * known ids below get dedicated treatments, everything else renders as text).
+ * Column semantics the renderers act on (engine SEMANTIC_TAGS — kept as an
+ * open string so classifier additions never break stored configs; the known
+ * ids below get dedicated treatments, everything else renders as text).
  */
 export const GRID_SEMANTICS = [
   'pk-id',
@@ -87,7 +87,7 @@ export type GridSemantic = (typeof GRID_SEMANTICS)[number] | (string & {});
 
 /**
  * The `@adminium/ui` tone vocabulary plus `'muted'` — the fallback tone the
- * crud generator and the LLM contract emit for enum values outside the §7.1
+ * crud generator and the LLM contract emit for enum values outside the
  * rule-7 keyword map ("inactive / draft / neutral"). Renderers map `'muted'`
  * onto the neutral treatment (`families/tables/cells.tsx`).
  */
@@ -105,7 +105,7 @@ export type ColumnDisplayKind = (typeof COLUMN_DISPLAY_KINDS)[number];
 
 /**
  * How to render THIS column's value — an opt-in override of the semantic
- * chain (36-derived-columns.md D8).
+ * chain.
  *
  * WHY A NEW BLOCK RATHER THAN READING THE EXISTING `format`. `column.format`
  * is written by the generator on every page already and read by zero
@@ -153,19 +153,19 @@ export type ColumnDisplay = z.infer<typeof columnDisplaySchema>;
 
 /**
  * One column definition — the `config.columns[]` entry of `page-crud`
- * (01 §6.1) and the column contract of `data-grid`/`detail-key-value`/
- * `mini-table` (annex §3: `{key, label, type, mono, align, pill?, fk?}`).
+ * and the column contract of `data-grid`/`detail-key-value`/
+ * `mini-table` (annex: `{key, label, type, mono, align, pill?, fk?}`).
  */
 /**
- * The reference shapes a file column may store (37-files-and-storage.md D7).
- * `url` is the default and what generation seeds (D31).
+ * The reference shapes a file column may store. `url` is the default and
+ * what generation seeds (D31).
  */
 export const COLUMN_FILE_REFS = ['url', 'id', 'key'] as const;
 export type ColumnFileRef = (typeof COLUMN_FILE_REFS)[number];
 
 /**
- * This column holds a FILE, not a string that happens to look like one
- * (37-files-and-storage.md D6, D14).
+ * This column holds a FILE, not a string that happens to look like
+ * one.
  *
  * WHY AN OPT-IN BLOCK AND NOT A SEMANTIC TAG. The classifier already tags
  * `file-ref` and `image-url` columns, and has since M5 — those tags are
@@ -174,7 +174,7 @@ export type ColumnFileRef = (typeof COLUMN_FILE_REFS)[number];
  * including pages a person has edited, and would move byte-pinned VRT
  * baselines for tables nobody asked to change. The same argument
  * `columnDisplaySchema` makes, for the same reason: an opt-in block changes
- * nothing that is not opted in (the 36 D8 rule).
+ * nothing that is not opted in (the rule).
  *
  * Generation SEEDS the block on NEW pages for `file-ref` / `image-url`
  * columns, so a freshly generated app gets upload affordances without anybody
@@ -218,8 +218,8 @@ export const columnFileSchema = z
     inline: z.boolean().optional(),
     /**
      * This column holds a LIST of files rather than one
-     * (38-files-library-and-attachments.md D1/D5) — the shape the Attachments
-     * card creates, and the shape a person means by "attach the files".
+     * — the shape the Attachments card creates, and the shape a person means
+     * by "attach the files".
      *
      * The value is a JSON array of references in this column's own `ref`
      * shape, stored in the same `text` column a single reference would use.
@@ -249,7 +249,7 @@ export const gridColumnSpecSchema = z.object({
   /** Humanized header/label ("Monthly revenue"). */
   label: z.string().min(1),
   logicalType: gridLogicalTypeSchema.default('text'),
-  /** Primary semantic tag from the classifier (engine §7.1 id). */
+  /** Primary semantic tag from the classifier (engine id). */
   semantic: z.string().nullable().default(null),
   /** Format hint ('currency' | 'percent' | 'relative-time' | 'mono' | …). */
   format: z.string().nullable().default(null),
@@ -257,7 +257,7 @@ export const gridColumnSpecSchema = z.object({
   currency: z.string().optional(),
   /** Enum members, when logicalType='enum'. */
   enumValues: z.array(z.string()).optional(),
-  /** enum value → tone map (01 §6.1 `enumTones`) — never hardcoded tints. */
+  /** enum value → tone map (`enumTones`) — never hardcoded tints. */
   enumTones: z.record(z.string(), gridToneSchema).optional(),
   /** Outbound FK — cell renders the display value as an avatar chip. */
   fk: z
@@ -318,8 +318,8 @@ export const gridColumnSpecSchema = z.object({
     .optional(),
   /**
    * Derived value — this column shows a page-level MEASURE or DERIVED FIELD
-   * declared in `config.derived` (36-derived-columns.md §3.2). `name` is then
-   * a synthetic alias, and `ref` names the definition to show.
+   * declared in `config.derived`. `name` is then a synthetic alias, and `ref`
+   * names the definition to show.
    *
    * The definitions live at page level rather than here because the numbers
    * form a chain that several columns share (subtotal -> tax -> total ->
@@ -344,6 +344,18 @@ export const gridColumnSpecSchema = z.object({
    * link in the grid and a `url` text input in the form.
    */
   file: columnFileSchema.optional(),
+  /**
+   * A widget from the project folder draws this column's cells:
+   * `project.<file name>` for a `widgets/<file name>.tsx` of kind
+   * `cell`. Absent on every generated page.
+   *
+   * Any non-empty string is kept, on purpose: an entry that fails this schema
+   * is dropped with its whole column, and a mistyped id should cost the
+   * custom drawing, not the column. A host that has no such widget draws the
+   * value as usual and marks the cell; `adminium check` names the file and
+   * the field.
+   */
+  widget: z.string().min(1).max(80).optional(),
   /**
    * Masked-by-default treatment ('•••' + unmask affordance).
    *
@@ -389,12 +401,12 @@ export const gridColumnSpecSchema = z.object({
   nullable: z.boolean().default(true),
   /** Column has a DB default (serial/uuid/now) — omittable on create. */
   hasDefault: z.boolean().default(false),
-  /** Unique index — the form runs the live uniqueness check (09 §7.1). */
+  /** Unique index — the form runs the live uniqueness check. */
   unique: z.boolean().default(false),
   /** Never editable (pk with default, created-at/updated-at, generated). */
   readOnly: z.boolean().default(false),
   maxLength: z.number().int().positive().nullable().default(null),
-  /** The table's primary display column (09 §8.3 "key field" highlight). */
+  /** The table's primary display column (highlight). */
   isDisplay: z.boolean().default(false),
 });
 

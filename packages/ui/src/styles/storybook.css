@@ -1,4 +1,4 @@
-/* Storybook Tailwind entry for @adminium/ui (03-component-library.md §8).
+/* Storybook Tailwind entry for @adminium/ui.
    Import order per @adminium/tokens/tailwind.css:
      tailwindcss → tokens/index.css (imported by .storybook/preview.tsx) → tokens/tailwind.css. */
 @import "tailwindcss";
@@ -11,7 +11,7 @@
 /* AND for the two packages whose stories `.storybook/main.ts` also loads.
    Tailwind v4 generates utilities from source TEXT, and these globs were
    missing while `main.ts` had been loading `../../widgets/src/**` and
-   `../../charts/src/**` stories since 04-T17 — so every widget and chart story
+ `././charts/src/**` stories since — so every widget and chart story
    rendered with its class attributes intact and NO rules behind them.
 
    That is not a cosmetic gap. The axe sweep runs over this same Storybook, and

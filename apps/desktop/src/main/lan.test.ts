@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `main/lan.ts` — the facts §8.3's panel and toggle are built on.
+ * `main/lan.ts` — the facts panel and toggle are built on.
  *
  * The interesting cases here are the ones a developer's laptop never produces,
  * which is the whole reason `os.networkInterfaces` is injectable: a Docker
@@ -24,7 +24,7 @@ import {
 const lo: NetworkInterfaceLike = { address: '127.0.0.1', family: 'IPv4', internal: true };
 const wifi: NetworkInterfaceLike = { address: '192.168.1.9', family: 'IPv4', internal: false };
 
-describe('enumerateLanUrls (§8.3)', () => {
+describe('enumerateLanUrls', () => {
   it('lists http://<LAN-IPv4>:<port> for each non-internal interface', () => {
     const urls = enumerateLanUrls(DEFAULT_LAN_PORT, () => ({ en0: [wifi] }));
     expect(urls).toEqual([
@@ -39,7 +39,7 @@ describe('enumerateLanUrls (§8.3)', () => {
     expect(urls.map((entry) => entry.url)).toEqual(['http://192.168.1.9:4600']);
   });
 
-  it('skips a non-internal IPv6 address: §8.3 says IPv4, and fe80:: is not typeable elsewhere', () => {
+  it('skips a non-internal IPv6 address: IPv4 only, and fe80:: is not typeable elsewhere', () => {
     const urls = enumerateLanUrls(4600, () => ({
       en0: [{ address: 'fe80::1c2b:3f4a:5d6e:7f80', family: 'IPv6', internal: false }, wifi],
     }));
@@ -74,14 +74,14 @@ describe('enumerateLanUrls (§8.3)', () => {
     expect(enumerateLanUrls(4600, () => ({ en0: undefined, en1: [wifi] }))).toHaveLength(1);
   });
 
-  it('lanShareUrls flattens to the string[] the §4 bridge carries', () => {
+  it('lanShareUrls flattens to the string[] the bridge carries', () => {
     expect(lanShareUrls(4600, () => ({ lo0: [lo], en0: [wifi] }))).toEqual([
       'http://192.168.1.9:4600',
     ]);
   });
 });
 
-describe('suggestNextPort (§8.3 "Try 4601")', () => {
+describe('suggestNextPort ("Try 4601")', () => {
   it('suggests the next port up', () => {
     expect(suggestNextPort(4600)).toBe(4601);
   });
@@ -91,7 +91,7 @@ describe('suggestNextPort (§8.3 "Try 4601")', () => {
   });
 });
 
-describe('probeBindable (§8.3 collision pre-flight)', () => {
+describe('probeBindable (collision pre-flight)', () => {
   it('reports a free port bindable', async () => {
     await expect(probeBindable('127.0.0.1', 0)).resolves.toEqual({ ok: true });
   });
@@ -118,7 +118,7 @@ describe('probeBindable (§8.3 collision pre-flight)', () => {
     await expect(probeBindable('127.0.0.1', port)).resolves.toEqual({ ok: true });
   });
 
-  it('reports `in-use` for a port something else holds — §8.3\'s collision', async () => {
+  it('reports `in-use` for a port something else holds — \'s collision', async () => {
     const server = net.createServer();
     await new Promise<void>((resolve) => {
       server.listen({ host: '127.0.0.1', port: 0, exclusive: true }, resolve);

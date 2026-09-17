@@ -15,7 +15,7 @@ function frameEl(): HTMLElement {
   return el;
 }
 
-describe('WidgetFrame states (04 §4)', () => {
+describe('WidgetFrame states', () => {
   it('loaded renders children inside the frame', () => {
     render(
       <WidgetFrame state="loaded" title="Orders">

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Registry-metadata + mapping tests for the part-to-whole & hierarchy charts
- * (04-T09). Kept free of the @adminium/charts chart primitives (they load
+ * Registry-metadata + mapping tests for the part-to-whole & hierarchy
+ * charts. Kept free of the @adminium/charts chart primitives (they load
  * lazily through PartWholeWidgets.tsx) so this suite collects against the
  * built barrel: it exercises definitions, config schemas + per-widget empty
- * copy, deterministic demoData against the declared §3 contract, the pure
+ * copy, deterministic demoData against the declared contract, the pure
  * config→primitive mappings, and the isEmpty predicates.
  */
 import { describe, expect, it } from 'vitest';
@@ -116,7 +116,7 @@ describe('deterministic demoData matches the declared contract', () => {
     }
   });
 
-  it('produces the right §3 envelope shape per widget', () => {
+  it('produces the right envelope shape per widget', () => {
     expect(treemapDemoData(1).items.length).toBe(8);
     expect(funnelDemoData(1).items[0]!.value).toBeGreaterThan(funnelDemoData(1).items[4]!.value); // monotone drop
     expect(radialBarDemoData(1).items.length).toBe(4);
@@ -173,7 +173,7 @@ describe('config → primitive mappings', () => {
 });
 
 describe('isEmpty predicates for the declared contracts', () => {
-  it('treats empty §3 envelopes as empty', () => {
+  it('treats empty envelopes as empty', () => {
     expect(isEmptyData({ items: [] }, 'categorical')).toBe(true);
     expect(isEmptyData({ rowKeys: [], colKeys: [], cells: [] }, 'matrix')).toBe(true);
     expect(isEmptyData({ nodes: [], links: [] }, 'flows')).toBe(true);

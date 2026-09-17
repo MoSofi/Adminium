@@ -3,10 +3,9 @@ import { layoutItemSchema, pageLayoutSchema, queryDescriptorSchema } from '@admi
 import { z } from 'zod';
 
 /**
- * The config envelope every stored config document uses (01-architecture.md
- * §6.1, 07-meta-store.md §3.17). The envelope persists verbatim into
- * `adminium_pages.config`; the stored version path the config-migration
- * runner keys on is `config.v`.
+ * The config envelope every stored config document uses. The envelope
+ * persists verbatim into `adminium_pages.config`; the stored version path
+ * the config-migration runner keys on is `config.v`.
  */
 export const CONFIG_KINDS = ['page', 'dashboard', 'view', 'nav', 'manifest-module'] as const;
 export const configKindSchema = z.enum(CONFIG_KINDS);
@@ -15,14 +14,14 @@ export type ConfigKind = z.infer<typeof configKindSchema>;
 /**
  * Prefixed document id: `page_`/`view_`/`nav_` + slug or ULID suffix.
  * Engine-generated ids carry ULID suffixes (`page_01HZX…`); hand-authored and
- * seeded documents may use readable slugs (`page_customers`, per the §3.17
+ * seeded documents may use readable slugs (`page_customers`, per the
  * examples), so the suffix alphabet is not restricted to Crockford base32.
  */
 export const configIdPattern = /^(page|view|nav)_[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
 const kebabCasePattern = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
-/** Nav placement block (01-architecture.md §6.1). */
+/** Nav placement block. */
 export const navConfigSchema = z.object({
   /**
    * OPTIONAL for one reason only: Studio's pre-2026-08-24 "Hide from sidebar"
@@ -39,12 +38,12 @@ export const navConfigSchema = z.object({
   slug: z.string().regex(kebabCasePattern, 'must be kebab-case').optional(),
   badge: z.string().min(1).optional(),
   /**
-   * Generated hidden-from-sidebar default (30-record-pages.md follow-up):
-   * cascade-owned child tables (invoice items, proposal items, …) get a page —
-   * routable, palette-searchable, and the source of their parent's record-page
-   * tab specs — but not a sidebar row; their home is the parent's record page.
-   * `group` stays REQUIRED beside it on purpose: the document remembers where
-   * the page belongs, so un-hiding in Studio restores the right group. The row
+   * Generated hidden-from-sidebar default (follow-up): cascade-owned child
+   * tables (invoice items, proposal items, …) get a page — routable,
+   * palette-searchable, and the source of their parent's record-page tab specs
+   * — but not a sidebar row; their home is the parent's record page. `group`
+   * stays REQUIRED beside it on purpose: the document remembers where the page
+   * belongs, so un-hiding in Studio restores the right group. The row
    * projection (`adminium_pages.nav_group = null`) is what nav-building reads.
    */
   hidden: z.boolean().optional(),
@@ -52,10 +51,10 @@ export const navConfigSchema = z.object({
 export type NavConfig = z.infer<typeof navConfigSchema>;
 
 /**
- * Per-page gutter override for the inner main section (02-design-system.md
- * §1.8). OMITTED is the common case and means "whatever this template
- * normally uses" — only an explicit value overrides, so the default can be
- * retuned centrally without rewriting stored documents.
+ * Per-page gutter override for the inner main section. OMITTED is the
+ * common case and means "whatever this template normally uses" — only an
+ * explicit value overrides, so the default can be retuned centrally
+ * without rewriting stored documents.
  *
  * `none` and `standard` name the two shared choices; the object form is an
  * explicit x/y pair in CSS pixels. Capped at 200px because the control that
@@ -90,7 +89,7 @@ export const pageWidthSchema = z.enum(['full', 'narrow', 'content', 'page', 'das
 export type PageWidthConfig = z.infer<typeof pageWidthSchema>;
 
 const envelopeShape = z.object({
-  v: z.literal(1), // config schema version (integer, 01-architecture.md §8.2)
+  v: z.literal(1), // config schema version (integer)
   kind: configKindSchema,
   id: z
     .string()
@@ -112,14 +111,14 @@ const envelopeShape = z.object({
   // template's own column from `pages/surfaceDefaults.ts`.
   width: pageWidthSchema.optional(),
   // Per-template body. Unknown fields are preserved on round-trip
-  // (forward compatibility, 01-architecture.md §6.2); per-template schemas
+  // (forward compatibility); per-template schemas
   // live in @adminium/widgets/page-config and are applied by kind below.
   // `config.templateVersion` (stamped by composeTemplate from the manifest) is
-  // ADVISORY-ONLY until the 04-T15 per-template migrations/ mechanism lands:
+  // ADVISORY-ONLY until the per-template migrations/ mechanism lands:
   // nothing validates or migrates on it — the migration chain keys solely on
   // the envelope `v` above, and stored pre-stamp documents render fine because
-  // layouts are self-contained. 04 §10's "version bumps let H5 migrate old
-  // configs deliberately" gets its enforcement surface with 04-T15.
+  // layouts are self-contained. The intent — "version bumps let a migration
+  // step change old configs deliberately" — has no enforcement surface yet.
   config: z.record(z.string(), z.unknown()),
 });
 
@@ -141,9 +140,8 @@ export type PageEnvelope = z.infer<typeof pageEnvelopeSchema>;
 export type PageConfig = PageEnvelope;
 
 /**
- * A validated dashboard widget instance (01-architecture.md §6.1): a grid
- * layout item whose `config.binding`, when present, must be a declarative
- * query descriptor (04-widget-registry.md §5.1).
+ * A validated dashboard widget instance: a grid layout item whose
+ * `config.binding`, when present, must be a declarative query descriptor.
  */
 export const widgetConfigSchema = layoutItemSchema.superRefine((item, ctx) => {
   const binding = item.config['binding'];

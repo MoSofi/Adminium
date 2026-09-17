@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Contract pin for the Studio remap editor (M5-T04): the exact PUT documents
- * the dashboard's edit buffer emits (see
+ * Contract pin for the Studio remap editor: the exact PUT documents the
+ * dashboard's edit buffer emits (see
  * apps/dashboard/src/studio/remap/overrides.test.ts — the literals here are
  * copies of the ones asserted there) must parse against the real server
  * schemas: `overridesPutBody` (route body) and `validateOverrideInput`
- * (@adminium/meta §3.15 op vocabulary). Offline — no DB, no HTTP.
+ * (@adminium/meta op vocabulary). Offline — no DB, no HTTP.
  */
 import { describe, expect, it } from 'vitest';
 import { MetaValidationError, validateOverrideInput } from '@adminium/meta';
@@ -88,7 +88,7 @@ describe('dashboard PUT documents parse against the route body schema', () => {
   }
 });
 
-describe('every item passes the §3.15 op-vocabulary validation', () => {
+describe('every item passes the op-vocabulary validation', () => {
   it('accepts each dashboard-emitted item', () => {
     for (const { document } of DASHBOARD_DOCUMENTS) {
       for (const item of document.overrides) {

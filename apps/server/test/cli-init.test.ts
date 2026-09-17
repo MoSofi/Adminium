@@ -54,7 +54,7 @@ describe('adminium init — which tables the panel covers', () => {
       { id: 'public.orders' },
       { id: 'public.products' },
       // Adminium's own store, which lands in the SOURCE database whenever the
-      // meta store is placed there — a supported §3.1 configuration.
+      // meta store is placed there — a supported configuration.
       { id: 'public.adminium_users', semantics: { role: 'system' } },
       { id: 'public.adminium_pages', system: true },
       // Join tables are traversed, never paged.
@@ -96,7 +96,7 @@ describe('adminium init — which tables the panel covers', () => {
       answers: ['postgres://u:p@localhost:5432/shop', 'shop'],
       ...(picks === undefined ? {} : { picks }),
     });
-    const code = await runCli([], { io, deps: fakeDeps({ env: ENV, runtime }) });
+    const code = await runCli(['try'], { io, deps: fakeDeps({ env: ENV, runtime }) });
     return { io, code, runtime };
   };
 
@@ -163,7 +163,7 @@ describe('adminium init — what happens once the pages exist', () => {
       answers: ['postgres://u:p@localhost:5432/shop', 'shop'],
     });
     const deps = fakeDeps({ env: ENV, runtime });
-    const code = await runCli(argv, { io, deps });
+    const code = await runCli(['try', ...argv], { io, deps });
     return { io, code, deps };
   };
 
@@ -205,7 +205,7 @@ describe('adminium init — what happens once the pages exist', () => {
     // Two front doors, one ending — they drifted apart precisely because each
     // wrote its own.
     const io = fakeIo({ selections: ['In your browser'] });
-    await runCli([], { io, deps: fakeDeps({ env: ENV }) });
+    await runCli(['try'], { io, deps: fakeDeps({ env: ENV }) });
     const lines = io.stdout().trimEnd().split('\n');
     expect(lines.at(-1)).toContain('http://localhost:4600');
     expect(lines.at(-1)).toContain('Ctrl-C to stop');
@@ -220,20 +220,20 @@ describe('adminium init — the terminal is a UI, not a log sink', () => {
   // the pairing code and the next steps under a screen of `GET /assets/…`.
   it('runs the server quietly, so browser mode is not buried in request logs', async () => {
     const deps = fakeDeps({ env: ENV });
-    await runCli([], { io: fakeIo({ selections: ['In your browser'] }), deps });
+    await runCli(['try'], { io: fakeIo({ selections: ['In your browser'] }), deps });
     expect(deps.openRuntime.mock.calls[0]?.[0]?.ADMINIUM_LOG_LEVEL).toBe('warn');
   });
 
   it('leaves an ADMINIUM_LOG_LEVEL already in the environment alone', async () => {
     // Someone who exported it made a decision; the wizard does not overrule it.
     const deps = fakeDeps({ env: { ...ENV, ADMINIUM_LOG_LEVEL: 'debug' } });
-    await runCli([], { io: fakeIo({ selections: ['In your browser'] }), deps });
+    await runCli(['try'], { io: fakeIo({ selections: ['In your browser'] }), deps });
     expect(deps.openRuntime.mock.calls[0]?.[0]?.ADMINIUM_LOG_LEVEL).toBe('debug');
   });
 
   it('--log-level wins over both the default and the environment', async () => {
     const deps = fakeDeps({ env: { ...ENV, ADMINIUM_LOG_LEVEL: 'debug' } });
-    await runCli(['--log-level', 'trace'], {
+    await runCli(['try', '--log-level', 'trace'], {
       io: fakeIo({ selections: ['In your browser'] }),
       deps,
     });
@@ -243,13 +243,13 @@ describe('adminium init — the terminal is a UI, not a log sink', () => {
   it('says it is quiet, and how to undo that', async () => {
     // A foreground process saying nothing is indistinguishable from a hung one.
     const io = fakeIo({ selections: ['In your browser'] });
-    await runCli([], { io, deps: fakeDeps({ env: ENV }) });
+    await runCli(['try'], { io, deps: fakeDeps({ env: ENV }) });
     expect(io.stdout()).toContain('--log-level info');
   });
 
   it('does not claim to be quiet when it was told to be loud', async () => {
     const io = fakeIo({ selections: ['In your browser'] });
-    await runCli(['--log-level', 'info'], { io, deps: fakeDeps({ env: ENV }) });
+    await runCli(['try', '--log-level', 'info'], { io, deps: fakeDeps({ env: ENV }) });
     expect(io.stdout()).toContain('Logging at info');
     expect(io.stdout()).not.toContain('Quiet by default');
   });
@@ -260,7 +260,7 @@ describe('adminium init — the terminal is a UI, not a log sink', () => {
 describe('adminium init — browser vs terminal', () => {
   it('asks which front door before anything else', async () => {
     const io = fakeIo({ selections: ['In your browser'] });
-    await expect(runCli([], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(0);
+    await expect(runCli(['try'], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(0);
     expect(io.menus()[0]?.title).toBe('How would you like to set this up?');
   });
 
@@ -271,9 +271,11 @@ describe('adminium init — browser vs terminal', () => {
     const deps = fakeDeps({ env: ENV });
     const io = fakeIo({ selections: ['In your browser'] });
 
-    await expect(runCli([], { io, deps })).resolves.toBe(0);
+    await expect(runCli(['try'], { io, deps })).resolves.toBe(0);
 
     expect(deps.startServer).toHaveBeenCalledOnce();
+    // `try` never runs a project, so a project's hooks and actions never load.
+    expect(vi.mocked(deps.startServer).mock.calls[0]?.[1]?.project).toBeUndefined();
     expect(io.menus()).toHaveLength(1);
     expect(io.stdout()).toContain('http://localhost:4600');
     expect(io.stdout()).not.toContain('Where should that state live?');
@@ -282,7 +284,7 @@ describe('adminium init — browser vs terminal', () => {
   it('browser mode opens a browser at the URL it just bound', async () => {
     const deps = fakeDeps({ env: ENV });
     const io = fakeIo({ selections: ['In your browser'] });
-    await runCli([], { io, deps });
+    await runCli(['try'], { io, deps });
     expect(deps.openBrowser).toHaveBeenCalledWith('http://localhost:4600');
     expect(io.stdout()).toContain('Opening it in your browser');
   });
@@ -290,7 +292,7 @@ describe('adminium init — browser vs terminal', () => {
   it('--no-open prints the URL without launching anything', async () => {
     const deps = fakeDeps({ env: ENV });
     const io = fakeIo({ selections: ['In your browser'] });
-    await runCli(['--no-open'], { io, deps });
+    await runCli(['try', '--no-open'], { io, deps });
     expect(deps.openBrowser).not.toHaveBeenCalled();
     expect(io.stdout()).toContain('Open that URL to continue.');
   });
@@ -300,13 +302,13 @@ describe('adminium init — browser vs terminal', () => {
     // failure: setup still succeeded and the URL is still the next step.
     const deps = fakeDeps({ env: ENV, browserOpens: false });
     const io = fakeIo({ selections: ['In your browser'] });
-    await expect(runCli([], { io, deps })).resolves.toBe(0);
+    await expect(runCli(['try'], { io, deps })).resolves.toBe(0);
     expect(io.stdout()).toContain('Open that URL to continue.');
   });
 
   it('--browser skips the question entirely', async () => {
     const io = fakeIo();
-    await expect(runCli(['--browser'], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(0);
+    await expect(runCli(['try', '--browser'], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(0);
     expect(io.menus()).toHaveLength(0);
   });
 
@@ -314,7 +316,7 @@ describe('adminium init — browser vs terminal', () => {
     // A pipe, CI, or TERM=dumb: asking would render as a wall of text and the
     // graphical path is strictly better there anyway, so it is simply taken.
     const io = fakeIo({ interactive: true, tui: false });
-    await runCli([], { io, deps: fakeDeps({ env: ENV }) });
+    await runCli(['try'], { io, deps: fakeDeps({ env: ENV }) });
     expect(io.menus().map((menu) => menu.title)).not.toContain(
       'How would you like to set this up?',
     );
@@ -342,7 +344,7 @@ describe('adminium init — the terminal path', () => {
       answers: opts.answers ?? [],
       ...(opts.picks === undefined ? {} : { picks: opts.picks }),
     });
-    const code = await runCli([], { io, deps: fakeDeps({ env: ENV, runtime }) });
+    const code = await runCli(['try'], { io, deps: fakeDeps({ env: ENV, runtime }) });
     return { io, code, runtime };
   };
 

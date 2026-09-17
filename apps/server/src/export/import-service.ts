@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zip-import service — the other half of M10-T03 (01-architecture.md §6.1,
- * §8.2; acceptance: "Zip export from version N imports into version N+1 with all
- * config documents upgraded to the current `v` and validating against
- * `@adminium/engine/config`").
+ * Zip-import service — the other half of (acceptance: "Zip export from version
+ * N imports into version N+1 with all config documents upgraded to the current
+ * `v` and validating against `@adminium/engine/config`").
  *
  * VERSION REPLAY, the whole point of the manifest carrying versions:
  *   1. the meta migrator brings the target's *schema* up (`firstRun`);
@@ -12,8 +11,8 @@
  * Order matters. Validating before migrating would reject exactly the old
  * bundles that replay exists to accept — a v1 page must be allowed in the door
  * so it can become a v2 page. So the bundle's row schemas (`bundle.ts`) are
- * structural only, and `@adminium/engine/config` — the §6.1 "single validation
- * authority ... [for] zip import" — is applied after the upgrade.
+ * structural only, and `@adminium/engine/config` — the single validation
+ * authority for a zip import — is applied after the upgrade.
  *
  * A bundle from a NEWER build is refused outright (exit ≠ 0), never partially
  * read: a build that does not understand `v: 3` would silently drop the parts of
@@ -90,9 +89,8 @@ export interface ImportZipOptions {
   configMigrations?: readonly ConfigMigration[] | undefined;
   /**
    * The envelope validator. **Tests only** — production must use the default,
-   * because `@adminium/engine/config` is the §6.1 "single validation authority
-   * ... [for] zip import" and a caller supplying its own would be exactly the
-   * fork that rule exists to prevent.
+   * because `@adminium/engine/config` is the and a caller supplying its own
+   * would be exactly the fork that rule exists to prevent.
    *
    * It exists because the validator and the migration chain are one world: the
    * shipped envelope pins `v: literal(CONFIG_VERSION)`, so injecting a v1→v2
@@ -199,8 +197,8 @@ function replayDocument(
   where: string,
   validator: EnvelopeValidator | null,
 ): ReplayResult {
-  // Documents without a `v` are not envelopes (view grid state is opaque JSON,
-  // 07 §3.18) — there is nothing to replay and nothing to validate.
+  // Documents without a `v` are not envelopes (view grid state is opaque JSON)
+  // — there is nothing to replay and nothing to validate.
   if (typeof config !== 'object' || config === null || Array.isArray(config)) {
     return { config, migrated: false };
   }
@@ -284,7 +282,7 @@ export const importZip: ImportZip = async (opts) => {
   const { manifest } = bundle;
   const warnings: string[] = [];
 
-  // §8.2 replay guard. `latestConfigVersion` accounts for the injected chain, so
+  // The replay guard. `latestConfigVersion` accounts for the injected chain, so
   // this is the same question the runner itself would ask, asked early and once.
   const target = latestConfigVersion(chain);
   if (manifest.configVersion > target) {
@@ -503,7 +501,7 @@ export const importZip: ImportZip = async (opts) => {
         .select('id')
         .where('id', '=', snapshot.id)
         .executeTakeFirst();
-      if (existing) continue; // snapshots are immutable (07 §3.14)
+      if (existing) continue; // snapshots are immutable
       // Exactly one active snapshot per connection is app-enforced; clear the
       // incumbent inside this transaction rather than trusting the target's state.
       if (snapshot.isActive) {
@@ -599,7 +597,7 @@ export const importZip: ImportZip = async (opts) => {
         await trx
           .updateTable('adminium_pages')
           // Bump the revision: watchers hold optimistic-concurrency tokens and an
-          // import is a write like any other (07 §3.16).
+          // import is a write like any other.
           .set({ ...shared, revision: existing.revision + 1 })
           .where('id', '=', existing.id)
           .execute();

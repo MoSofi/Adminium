@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The DDL executor — 35-schema-authoring.md 35-T05, 35-T06, D2.
+ * The DDL executor.
  *
- * 35-T05's done-when, asserted here:
+ * The done-when, asserted here:
  *   • a test compiles and EXECUTES the same function's output and asserts the
  *     strings match (the D2 invariant — the preview is the statement)
  *   • a MySQL test asserts a column default SURVIVES an unrelated type change
- *     (the `modifyColumn` full-restatement trap, §3.3)
+ * (the `modifyColumn` full-restatement trap)
  *   • a MySQL test asserts `ALGORITHM=INSTANT` on a predicted-`safe` add-column
  *   • a test asserts `lock_wait_timeout` is reset after apply
  *
@@ -190,7 +190,7 @@ describe('default rendering', () => {
   });
 });
 
-describe('35-T05: the MySQL modifyColumn full-restatement trap', () => {
+describe('the MySQL modifyColumn full-restatement trap', () => {
   const before = model([
     tbl({
       name: 't',
@@ -244,7 +244,7 @@ describe('35-T05: the MySQL modifyColumn full-restatement trap', () => {
   });
 });
 
-describe('35-T05: MySQL is asked to prove the prediction (§5, D4)', () => {
+describe('MySQL is asked to prove the prediction', () => {
   it('appends ALGORITHM=INSTANT where the hazard is safe', () => {
     expect(mysqlAlgorithmClause('safe')).toBe(', ALGORITHM=INSTANT');
   });
@@ -258,7 +258,7 @@ describe('35-T05: MySQL is asked to prove the prediction (§5, D4)', () => {
     expect(mysqlAlgorithmClause('lossy')).toBe('');
   });
 
-  it('leaves MariaDB alone: a fifth algorithm and an untested CI leg (§12)', () => {
+  it('leaves MariaDB alone: a fifth algorithm and an untested CI leg', () => {
     expect(mysqlAlgorithmClause('safe', { isMariaDb: true })).toBe('');
   });
 
@@ -277,7 +277,7 @@ describe('35-T05: MySQL is asked to prove the prediction (§5, D4)', () => {
   });
 });
 
-describe('35-T05: the session rails, and their reset (§5, D10)', () => {
+describe('the session rails, and their reset', () => {
   it('postgres sets lock_timeout INSIDE the transaction, where it dies with it', () => {
     const statements = sessionRails('postgres', compilerFor('postgres')).map((q) => q.sql);
     expect(statements[0]).toContain('SET LOCAL lock_timeout');
@@ -373,7 +373,7 @@ describe('compiled statements per step kind', () => {
     expect(joined).not.toMatch(/create type/i);
   });
 
-  it('adds and drops a foreign key by its catalog name (35-T33)', () => {
+  it('adds and drops a foreign key by its catalog name', () => {
     const relation: Relation = {
       id: 'fk:public.orders(customer_id)->public.customers(id)',
       kind: 'declared-fk', cardinality: 'one-to-many',
@@ -397,7 +397,7 @@ describe('compiled statements per step kind', () => {
   });
 });
 
-describe('35-T06: the SQLite rebuild (§7)', () => {
+describe('the SQLite rebuild', () => {
   const actual = tbl({
     name: 'notes',
     columns: [
@@ -486,7 +486,7 @@ describe('35-T06: the SQLite rebuild (§7)', () => {
   });
 });
 
-describe('35-T06: step 12 — the rebuilt table must match what was promised', () => {
+describe('the rebuilt table must match what was promised', () => {
   const desired = tbl({
     name: 'notes',
     columns: [
@@ -530,7 +530,7 @@ describe('35-T06: step 12 — the rebuilt table must match what was promised', (
   });
 });
 
-describe('D2: the preview IS the statement (35-T05)', () => {
+describe('D2: the preview IS the statement', () => {
   it('executes the exact string the preview showed, against a real database', async () => {
     const raw = new BetterSqlite3(':memory:');
     raw.exec('create table notes (id integer primary key, body text)');
@@ -588,7 +588,7 @@ describe('D2: the preview IS the statement (35-T05)', () => {
      * error there.
      *
      * Found by clicking "New row" on a table created two minutes earlier — the
-     * one step of §10 criterion 1 that no test performed.
+     * one step of criterion 1 that no test performed.
      */
     const desired = tbl({
       name: 'tickets',
@@ -616,7 +616,7 @@ describe('D2: the preview IS the statement (35-T05)', () => {
      *   key constraint 'fk_bookings_client_id' are incompatible.
      *
      * …at APPLY, on a real MySQL 26.7 server, after the review pane had shown
-     * the statement and called it safe. §10 criterion 2's first attempt.
+     * the statement and called it safe. The first attempt at it.
      */
     const desired = tbl({
       name: 'bookings',

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * KPI family (annex §1) render + unit tests, covering the complete 10-id slice:
+ * KPI family (annex) render + unit tests, covering the complete 10-id slice:
  * the M4 pair (kpi-stat-card formatting, delta-pill trend + "down-is-good"
  * inversion, sparkline toggle; usage-meter threshold tones) and the M7 Wave-4
  * tail — the pure gauge geometry, the template interpolator, the derived-metric
- * arithmetic, the compact tile, the hero's count-up, the two SVG gauges'
- * band tinting, the comparison footer, and auto-insights' ranking + rotation.
+ * arithmetic, the compact tile, the hero's count-up, the two SVG gauges' band
+ * tinting, the comparison footer, and auto-insights' ranking + rotation.
  *
  * Locale is pinned via `config.format` overrides so number formatting is
  * assertable regardless of the runner's environment.
@@ -163,7 +163,7 @@ describe('usage-meter', () => {
 });
 
 describe('kpi definitions', () => {
-  it('registers the complete annex §1 slice (10 ids)', () => {
+  it('registers the complete annex slice (10 ids)', () => {
     // M7 Wave 4 closed the family out; ANNEX_PENDING.kpi is now [] and the
     // parity gate asserts this list against the checked-in annex extraction.
     expect(kpiWidgetDefinitions.map((d) => d.id)).toEqual([
@@ -180,7 +180,7 @@ describe('kpi definitions', () => {
     ]);
   });
 
-  it('carries the annex grid sizing in 40px half-units (04 §6.1)', () => {
+  it('carries the annex grid sizing in 40px half-units', () => {
     const sizingOf = (id: string) => kpiWidgetDefinitions.find((d) => d.id === id)?.sizing;
     // h = round(annexRows × 2); widths map 1:1.
     expect(sizingOf('kpi-stat-card')).toEqual({ minW: 3, minH: 2, defaultW: 3, defaultH: 3 }); // 3×1.5
@@ -192,7 +192,7 @@ describe('kpi definitions', () => {
     expect(sizingOf('auto-insights')).toEqual({ minW: 4, minH: 4, defaultW: 6, defaultH: 4 }); // 4×2 → 6×2
   });
 
-  it('declares each widget’s §3 data contract and placement', () => {
+  it('declares each widget’s data contract and placement', () => {
     const byId = new Map(kpiWidgetDefinitions.map((d) => [d.id, d]));
     expect(byId.get('kpi-stat-card')?.dataContract).toBe('metric+delta');
     expect(byId.get('kpi-stat-card')?.placement).toBe('grid');
@@ -211,7 +211,7 @@ describe('kpi definitions', () => {
     }
   });
 
-  it('every demoData payload is deterministic per seed (04 §7.7)', () => {
+  it('every demoData payload is deterministic per seed', () => {
     const generators = [
       kpiStatCardDemoData,
       usageMeterDemoData,
@@ -588,7 +588,7 @@ describe('stat-pair-card', () => {
     ).toEqual({ a: 10, b: 20 });
   });
 
-  it('honours the configured field names (04 §5)', () => {
+  it('honours the configured field names', () => {
     expect(
       statPairValues(
         { mrr: 500, ltv: 12_000 },
@@ -702,7 +702,7 @@ describe('gauge-ring', () => {
     }
   });
 
-  it('starts the sweep empty and settles to the value (mount animation, 04 §7.5)', () => {
+  it('starts the sweep empty and settles to the value (mount animation)', () => {
     // Without reduced motion the first frame is the "from" state — that is what
     // makes the CSS transition run at all.
     const container = ring(100, { max: 100 });
@@ -788,8 +788,8 @@ describe('gauge-arc', () => {
    * `['single-metric', 'categorical']`, and `isEmptyData` reads a multi-shape
    * contract as empty only when EVERY shape does — `single-metric` never is. So
    * a cluster bound to a query that legitimately returns zero rows arrives in
-   * the `loaded` state, and the widget owns the per-widget empty copy (04 §4)
-   * rather than showing developer error prose.
+   * the `loaded` state, and the widget owns the per-widget empty copy rather
+   * than showing developer error prose.
    */
   it('renders its own empty copy for a cluster with no rows — never "Unexpected data shape"', () => {
     const { container } = render(
@@ -841,7 +841,7 @@ describe('gauge-arc', () => {
     expect(screen.getByText('180ms')).toBeDefined();
   });
 
-  it('reads the same demo payload through either accepted shape (04 §3)', () => {
+  it('reads the same demo payload through either accepted shape', () => {
     // `cluster` is config, so demoData carries BOTH `value` and `items`.
     const demo = gaugeArcDemoData(3);
     expect(typeof demo.value).toBe('number');
@@ -1028,7 +1028,7 @@ describe('auto-insights — projection + ranking', () => {
     expect(insightsOf({ rows: [{ title: 'a' }, { title: 'b' }] }, { ...config, pool: 1 })).toHaveLength(1);
   });
 
-  it('honours the configured field names (04 §5)', () => {
+  it('honours the configured field names', () => {
     const insights = insightsOf(
       { rows: [{ pk: 'r1', headline: 'Custom', detail: 'Body', rank: 9 }] },
       { ...config, idField: 'pk', titleField: 'headline', bodyField: 'detail', scoreField: 'rank' },

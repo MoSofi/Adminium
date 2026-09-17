@@ -69,7 +69,7 @@ body:
       description: OS, Node version, browser — whatever is relevant.
       placeholder: |
         OS: macOS 15
-        Node: 22.11.0
+        Node: 22.19.0
         Browser: Firefox 140
   - type: textarea
     id: logs

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * First-run setup resource (M10-T04): `GET /api/v1/setup/state` and
- * `POST /api/v1/setup/super-admin`. The dashboard's first-run wizard is one
- * front door onto `createSetupService`; the `adminium init` CLI wizard is the
+ * First-run setup resource: `GET /api/v1/setup/state` and `POST
+ * /api/v1/setup/super-admin`. The dashboard's first-run wizard is one front
+ * door onto `createSetupService`; the `adminium try` CLI wizard is the
  * other. All logic lives in the service — this module only translates HTTP.
  *
  * SECURITY. These are the only unauthenticated routes that can create a user,
@@ -15,20 +15,20 @@
  *    than two super admins. Once claimed the route answers 409 forever —
  *    including after every user is later deleted, which must not re-open an
  *    unauthenticated super-admin factory.
- *  - `rateLimitBucket` marks it for the §6 limiter alongside `auth/login`: it
- *    is credential-facing and unauthenticated.
+ * - `rateLimitBucket` marks it for the limiter alongside `auth/login`: it is
+ *  credential-facing and unauthenticated.
  *  - Failures are never enumerable: an already-set-up instance returns the
  *    same 409 regardless of the email or password submitted.
- *  - Both outcomes are AUDITED (§7 item 9). Creating the first super admin is
- *    the single most privileged act in the product, and it used to leave no
- *    trace at all: the audit log's earliest entry was whatever that account did
- *    next. The refusal is audited too, because on a long-running instance a
- *    `POST /setup/super-admin` is not a mistake — it is somebody probing for an
- *    un-set-up panel, and that is worth a row even though the client is told
- *    nothing beyond the invariant 409.
- *  - The 201 carries the new session's CSRF token (§7 item 4). This route MINTS
- *    a session, and a client that keeps mutating on the same screen afterwards
- *    has nowhere else to learn the token from — see `setupSuperAdminReply`.
+ * - Both outcomes are AUDITED. Creating the first super admin is the single
+ *  most privileged act in the product, and it used to leave no trace at all:
+ *  the audit log's earliest entry was whatever that account did next. The
+ *  refusal is audited too, because on a long-running instance a `POST
+ *  /setup/super-admin` is not a mistake — it is somebody probing for an
+ *  un-set-up panel, and that is worth a row even though the client is told
+ *  nothing beyond the invariant 409.
+ * - The 201 carries the new session's CSRF token. This route MINTS a session,
+ *  and a client that keeps mutating on the same screen afterwards has nowhere
+ *  else to learn the token from — see `setupSuperAdminReply`.
  *
  * `auditAuth` and not `app.rbac.audit`: these routes are registered inside
  * `buildServer`, and Fastify 5 snapshots the parent's decorators into a child
@@ -45,6 +45,7 @@ import { auditAuth } from '../../auth/audit.js';
 import { createSession, setSessionCookie } from '../../auth/sessions.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
+import { capturePublicOriginQuietly } from '../../security/public-origin.js';
 import { SetupClosedError, WeakPasswordError, type SetupService } from '../../setup/service.js';
 import { toUserView } from '../auth/handlers.js';
 import { RATE_LIMIT_BUCKETS } from '../auth/index.js';
@@ -151,11 +152,19 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
         });
         setSessionCookie(reply, token, request);
 
+        // The first moment this instance can learn where links in email should
+        // point (security/public-origin.ts). Unauthenticated, but whoever
+        // completes setup owns the instance anyway.
+        await capturePublicOriginQuietly(
+          { meta: ctx().meta, allowedOrigins: app.csrfOrigins, user, log: request.log },
+          request,
+        );
+
         void reply.status(201);
         return {
           data: {
             user: toUserView(user),
-            // The §7-item-4 token for the session this reply just minted. See
+            // The -item-4 token for the session this reply just minted. See
             // `setupSuperAdminReply` for why it cannot wait for `/bootstrap`.
             csrfToken: issueCsrfToken(csrfSigningKey(ctx().env.ADMINIUM_SECRET), session.id),
           },

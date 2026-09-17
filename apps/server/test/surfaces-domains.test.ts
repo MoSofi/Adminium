@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Domain attachment (29-app-surfaces.md D3/D4, 29-T06) and the served customer
- * config (D10, 29-T16).
+ * Domain attachment and the served customer config (D10).
  *
- * The two invariance properties §3.1 demands are tests here, not prose:
+ * The two invariance properties demands are tests here, not prose:
  *
  *  1. no request on a MAPPED host can reach the dashboard bundle outside the
  *     reserved set;
@@ -234,7 +233,7 @@ describe('unmapped hosts are byte-identical before and after a mapping exists', 
   });
 });
 
-describe('surface-config.json (D10, 29-T16)', () => {
+describe('surface-config.json (D10)', () => {
   const CONFIG_URL = '/apps/clients/customer/surface-config.json';
 
   async function seedBoundKey(fixture: AuthTestApp, at: number, revoked = false) {
@@ -327,8 +326,8 @@ describe('surface-config.json (D10, 29-T16)', () => {
     /*
      * This asserted that no staff variant existed AT ALL, which was true while
      * the document's only job was to carry a publishable key. It now also
-     * answers "which connection does this app read" (29 D9), a question the
-     * staff side had no way to answer and was guessing at.
+     * answers "which connection does this app read", a question the staff side
+     * had no way to answer and was guessing at.
      *
      * The invariant that mattered is unchanged and still asserted: whatever the
      * staff document grows, a key is never in it.
@@ -348,9 +347,9 @@ describe('surface-config.json (D10, 29-T16)', () => {
 
   it('serves an INSTANCE its own connection, at /apps/<key>/<slug>/<side>/', async () => {
     /*
-     * The same app over a second database (29 D9). One bundle, two mounts, two
-     * answers — which is the whole reason instances are a setting and not a
-     * second build.
+     * The same app over a second database. One bundle, two mounts, two answers
+     * — which is the whole reason instances are a setting and not a second
+     * build.
      */
     const { app } = await build();
     const crypto = dsnCryptoFromSecret(makeEnv().ADMINIUM_SECRET);
@@ -394,7 +393,7 @@ describe('surface-config.json (D10, 29-T16)', () => {
     expect(page.body).toContain('clients-staff');
   });
 
-  it('a mapped host serves its INSTANCE config at the root (29 D9)', async () => {
+  it('a mapped host serves its INSTANCE config at the root', async () => {
     /*
      * A mapped domain serves the app at `/`, and the bundle never sees the
      * domain map — so the root document is the only thing that can tell it

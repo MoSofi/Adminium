@@ -36,6 +36,7 @@ import {
   toNavOrderPayload,
   type PageSummaryDto,
 } from './pagesApi.js';
+import type { ProjectStatusDto } from './projectApi.js';
 
 function page(overrides: Partial<PageSummaryDto> = {}): PageSummaryDto {
   return {
@@ -187,7 +188,7 @@ interface StubOptions {
   destinations?: { id: string; name: string; isDefault: boolean; disabled: boolean }[];
   /**
    * `schemaAuthoring` on the schema reply — what decides which MODE the
-   * attachments card is in (38 D2). Absent = authorable, which is both the
+   * attachments card is in. Absent = authorable, which is both the
    * server's default and the tolerance `RemapEditor` applies to an older
    * server, so it is COLUMN mode unless a test says otherwise.
    */
@@ -199,6 +200,8 @@ interface StubOptions {
   planReply?: () => Response;
   /** `POST /connections/:id/schema/apply` — the column setup's confirm. */
   applyReply?: () => Response;
+  /** `GET /project/status`; undefined answers 404, as a server with no project folder does. */
+  projectStatus?: ProjectStatusDto;
 }
 
 interface Recorded {
@@ -319,6 +322,12 @@ function stubFetch(options: StubOptions = {}): Recorded[] {
         return jsonResponse(200, { data: page({ id: 'page_new', ...(body as object) }) });
       }
       if (path === '/api/v1/pages/nav-order') return jsonResponse(200, { data: { moved: 2 } });
+      if (path === '/api/v1/project/status' && options.projectStatus !== undefined) {
+        return jsonResponse(200, { data: options.projectStatus });
+      }
+      if (path === '/api/v1/project/resolve' && options.projectStatus !== undefined) {
+        return jsonResponse(200, { data: { ...options.projectStatus, entries: [] } });
+      }
       if (options.config !== undefined && path === `/api/v1/pages/${rows[0]?.id}` && method === 'GET') {
         return jsonResponse(200, {
           data: makeCrudEnvelope({ id: rows[0]?.id as string, config: options.config }),
@@ -395,6 +404,20 @@ describe('StudioPagesPage', () => {
     expect(screen.getByText('Custom')).toBeTruthy();
     expect(screen.getByText('Hidden')).toBeTruthy();
     expect(screen.getByTestId('studio-pages-count').textContent).toContain('2');
+  });
+
+  it('shows a page from the project code as code-owned: it opens the page, and offers no edits', async () => {
+    const { user } = renderAt('/studio/pages', {
+      pages: [page({ id: 'page_proj_revenue', slug: 'revenue', title: 'Revenue', origin: 'project', type: 'project-page', connectionId: null, connectionName: null })],
+    });
+    expect(await screen.findByText('/p/revenue')).toBeTruthy();
+    expect(screen.getByText('Project code')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Revenue/ }).getAttribute('href')).toBe('/p/revenue');
+    await user.click(screen.getByRole('button', { name: 'Actions for Revenue' }));
+    expect(await screen.findByText('This page comes from pages/revenue.tsx. Change it there.')).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Edit page' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Delete page' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Hide from sidebar' })).toBeNull();
   });
 
   it('explains the missing permission instead of showing an empty list', async () => {
@@ -783,13 +806,13 @@ describe('StudioPagesPage', () => {
     expect(screen.queryByTestId('studio-pages-new-row-label')).toBeNull();
   });
 
-  // --- attachments (37-files-and-storage.md §3.8, 37-T22) ----------------------
+  // --- attachments ----------------------
 
   /**
    * SIDECAR attachments — files linked on Adminium's side, needing no column
    * in the customer's table.
    *
-   * After 38 D2 this is the FALLBACK mode, reached only when the connection's
+   * After this is the FALLBACK mode, reached only when the connection's
    * schema cannot be authored, so every test below says so explicitly. The
    * behaviour itself is unchanged from 37: what a stored block puts on the
    * wire, and what turning the switch off leaves behind.
@@ -919,7 +942,7 @@ describe('StudioPagesPage', () => {
   });
 
   it('still offers the card when the destination list is refused', async () => {
-    // `storage.manage` is a different grant from `pages.manage` (37 D10). A
+    // `storage.manage` is a different grant from `pages.manage`. A
     // 403 there means the picker cannot be drawn — it must not mean the card
     // fails, because every attachment would follow the workspace default
     // regardless.
@@ -934,7 +957,7 @@ describe('StudioPagesPage', () => {
     expect(screen.queryByTestId('studio-pages-save-error')).toBeNull();
   });
 
-  // --- attachments in COLUMN mode (38 D2/D6/D7/D14, 38-T07) -------------------
+  // --- attachments in COLUMN mode -------------------
 
   /**
    * The owner's model: turning attachments on adds a column to the customer's
@@ -1145,5 +1168,74 @@ describe('StudioPagesPage', () => {
     // The COLUMN itself is untouched. Dropping one is the step Adminium
     // cannot take back.
     expect(calls.some((call) => call.path.endsWith('/schema/apply'))).toBe(false);
+  });
+});
+
+describe('StudioPagesPage on a server that runs a project folder', () => {
+  beforeAll(installTestI18n);
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const pages = [
+    page({ id: 'page_orders', slug: 'orders', title: 'Orders' }),
+    page({ id: 'page_customers', slug: 'customers', title: 'Customers' }),
+    page({ id: 'page_extra', slug: 'extra', title: 'Extra', origin: 'user' }),
+  ];
+  const status: ProjectStatusDto = {
+    mode: 'server',
+    entries: [
+      { path: 'pages/orders.json', kind: 'page', name: 'orders', pageId: 'page_orders', status: 'changed-on-server', serverEditedAt: 1 },
+      { path: 'pages/customers.json', kind: 'page', name: 'customers', pageId: 'page_customers', status: 'conflict', serverEditedAt: 2 },
+      { path: 'pages/extra.json', kind: 'page', name: 'extra', pageId: 'page_extra', status: 'not-in-project', serverEditedAt: null },
+    ],
+    outside: [{ pageId: 'page_other', slug: 'other', connectionId: 'conn_2', reason: 'its database is not in adminium.config.ts' }],
+  };
+
+  it('says what changed here, how to pull it, and flags each page', async () => {
+    renderAt('/studio/pages', { pages, projectStatus: status });
+    const changed = await screen.findByTestId('studio-pages-project-changed');
+    expect(changed.textContent).toContain('1 page was changed on this server');
+    expect(within(changed).getByTestId('studio-pages-pull-command').textContent).toBe(
+      `npm run pull -- --from ${window.location.origin}`,
+    );
+    const outside = screen.getByTestId('studio-pages-project-outside');
+    expect(outside.textContent).toContain('2 pages are not in the project');
+    expect(outside.textContent).toContain('Add it to adminium.config.ts');
+    const flags = screen.getAllByTestId('studio-pages-project-flag').map((badge) => badge.textContent);
+    expect(flags).toEqual(['Changed on server', 'Conflict', 'Not in project']);
+  });
+
+  it('settles a conflict with the button the admin picks', async () => {
+    const { user, calls } = renderAt('/studio/pages', { pages, projectStatus: status });
+    const conflicts = await screen.findByTestId('studio-pages-project-conflicts');
+    expect(conflicts.textContent).toContain('Customers');
+    await user.click(within(conflicts).getByRole('button', { name: 'Use project copy' }));
+    await waitFor(() => {
+      expect(calls.filter((call) => call.path === '/api/v1/project/resolve')).toEqual([
+        { method: 'POST', path: '/api/v1/project/resolve', body: { path: 'pages/customers.json', keep: 'project' } },
+      ]);
+    });
+  });
+
+  it('in dev lists only files it could not apply, with no pull command', async () => {
+    renderAt('/studio/pages', {
+      pages,
+      projectStatus: {
+        mode: 'dev',
+        entries: [{ path: 'pages/orders.json', kind: 'page', name: 'orders', pageId: 'page_orders', status: 'invalid', serverEditedAt: null, problems: ['title.fallback: Too small'] }],
+        outside: [],
+      },
+    });
+    const invalid = await screen.findByTestId('studio-pages-project-invalid');
+    expect(invalid.textContent).toContain('pages/orders.json: title.fallback: Too small');
+    expect(screen.queryByTestId('studio-pages-pull-command')).toBeNull();
+    expect(screen.queryByTestId('studio-pages-project-flag')).toBeNull();
+  });
+
+  it('shows nothing about projects on a server that runs none', async () => {
+    renderAt('/studio/pages', { pages });
+    await screen.findByText('Orders');
+    expect(screen.queryByTestId('studio-pages-project')).toBeNull();
   });
 });

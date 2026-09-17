@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline unit tests — dbType → LogicalType mapping table (05 §2.2), default
- * classification (05 §4.1), CHECK-enum synthesis, identifier quoting, and
- * the type-serialization policy. No database, no drivers.
+ * Offline unit tests — dbType → LogicalType mapping table, default
+ * classification, CHECK-enum synthesis, identifier quoting, and the
+ * type-serialization policy. No database, no drivers.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -14,7 +14,7 @@ import {
 } from '../src/serialization.js';
 import { classifyDefault, mapPostgresType } from '../src/type-map.js';
 
-describe('mapPostgresType — the §2.2 Postgres column', () => {
+describe('mapPostgresType — the Postgres column', () => {
   it.each([
     ['text', 'text'],
     ['citext', 'text'],
@@ -100,7 +100,7 @@ describe('mapPostgresType — the §2.2 Postgres column', () => {
   });
 });
 
-describe('classifyDefault — 05 §4.1', () => {
+describe('classifyDefault', () => {
   it('identity columns are autoincrement regardless of expression', () => {
     expect(classifyDefault(null, 'a')).toEqual({ kind: 'autoincrement' });
     expect(classifyDefault(null, 'd')).toEqual({ kind: 'autoincrement' });
@@ -154,7 +154,7 @@ describe('classifyDefault — 05 §4.1', () => {
   });
 });
 
-describe('parseCheckEnum — CHECK (col IN (...)) synthesis (05 §4.1)', () => {
+describe('parseCheckEnum — CHECK (col IN (...)) synthesis', () => {
   it('parses the normalized = ANY(ARRAY[...]) text form', () => {
     expect(
       parseCheckEnum("CHECK ((status = ANY (ARRAY['todo'::text, 'doing'::text, 'done'::text])))"),

@@ -7,7 +7,7 @@ import type { GridColumnSpecInput } from '../../families/tables/column-spec.js';
 
 const spec = (input: GridColumnSpecInput) => gridColumnSpecSchema.parse(input);
 
-describe('fieldKindFor — generated form mapping (09 §7.1)', () => {
+describe('fieldKindFor — generated form mapping', () => {
   it('pk with default and server-managed timestamps are hidden', () => {
     expect(fieldKindFor(spec({ name: 'id', label: 'ID', primaryKey: true, hasDefault: true }))).toBe('hidden');
     expect(fieldKindFor(spec({ name: 'created_at', label: 'Created', logicalType: 'timestamptz', semantic: 'created-at' }))).toBe('hidden');

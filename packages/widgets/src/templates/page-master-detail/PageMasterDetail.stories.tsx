@@ -40,7 +40,7 @@ const masterItem = {
   config: {
     title: 'Tickets',
     groupBy: 'status',
-    // Ticket Queue fix (M7-T04): tints flow from the stored tone map.
+    // Ticket Queue fix: tints flow from the stored tone map.
     enumTones: { high: 'danger', medium: 'warn', low: 'muted', open: 'info', pending: 'warn', closed: 'pos' },
     binding,
   },
@@ -50,7 +50,7 @@ const ticketConfig = {
   templateVersion: 1,
   toolbar: ['filter-chip-bar'],
   overlays: ['toast-stack'],
-  archetype: { score: 0.8, reasons: ['enum-heavy table with rich detail (annex §14)'] },
+  archetype: { score: 0.8, reasons: ['enum-heavy table with rich detail'] },
   layout: {
     version: 1,
     items: [

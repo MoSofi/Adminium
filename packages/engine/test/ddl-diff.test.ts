@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `diffTableDefinitions` and `applyRenames` — 35-schema-authoring.md 35-T31,
- * 35-T03.
+ * `diffTableDefinitions` and `applyRenames`.
  *
  * The load-bearing assertion in the first block is the pair: the definition
  * diff SEES a `varchar(50) → varchar(100)` and `diffModels` does not. That is
- * the entire reason 35-T31 exists, so it is asserted directly rather than
- * described in a comment.
+ * the entire reason exists, so it is asserted directly rather than described
+ * in a comment.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -94,7 +93,7 @@ const rel = (over: Partial<Relation> & { from: Relation['from']; to: Relation['t
 
 // ---------------------------------------------------------------------------
 
-describe('diffTableDefinitions — the gap diffModels leaves (35-T31)', () => {
+describe('diffTableDefinitions — the gap diffModels leaves', () => {
   const before = tbl({
     name: 'articles',
     columns: [
@@ -194,7 +193,7 @@ describe('diffTableDefinitions — the gap diffModels leaves (35-T31)', () => {
     expect(d.fksActionsChanged[0]?.to.onDelete).toBe('restrict');
   });
 
-  it('carries the catalog constraint name through, so a DROP is addressable (35-T33)', () => {
+  it('carries the catalog constraint name through, so a DROP is addressable', () => {
     const from = { tableId: 'public.orders', columns: ['customer_id'] };
     const to = { tableId: 'public.customers', columns: ['id'] };
     const d = diffTableDefinitions(tbl({ name: 'orders' }), tbl({ name: 'orders' }), {
@@ -210,7 +209,7 @@ describe('diffTableDefinitions — the gap diffModels leaves (35-T31)', () => {
   });
 });
 
-describe('applyRenames (35-T03)', () => {
+describe('applyRenames', () => {
   const customers = tbl({ name: 'customers' });
   const orders = tbl({
     name: 'orders',

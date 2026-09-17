@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Ordered, append-only migration list (07-meta-store.md §4). Up-only: a
+ * Ordered, append-only migration list. Up-only: a
  * mistake ships as a new compensating migration; an applied migration is never
  * edited (enforced by the runner's checksum drift detection).
  *
@@ -54,6 +54,8 @@ import { up as up0028 } from './0028_automations_runtime.js';
 import { up as up0029 } from './0029_dataio_files_email_namespace.js';
 import { up as up0031 } from './0031_documents.js';
 import { up as up0032 } from './0032_nav_group_width.js';
+import { up as up0033 } from './0033_connection_project_key.js';
+import { up as up0034 } from './0034_project_files.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -95,4 +97,6 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0030_report_documents', up: up0030 },
   { name: '0031_documents', up: up0031 },
   { name: '0032_nav_group_width', up: up0032 },
+  { name: '0033_connection_project_key', up: up0033 },
+  { name: '0034_project_files', up: up0034 },
 ];

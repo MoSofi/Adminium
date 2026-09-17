@@ -4,9 +4,9 @@
  * rule: suites skip cleanly pre-install). The headline assertions: loading
  * `fixtures/northwind.sqlite.sql` into a temp file and introspecting yields
  * the golden shape — the same 14 tables/FKs as the postgres reference
- * fixture — plus the §4.3 SQLite-specific behaviors: exact small-file
- * counts, sqlite_stat1 estimates, CHECK-enum synthesis from DDL, generated
- * columns, WITHOUT ROWID / STRICT flags, and declared-type hints.
+ * fixture — plus the SQLite-specific behaviors: exact small-file counts,
+ * sqlite_stat1 estimates, CHECK-enum synthesis from DDL, generated columns,
+ * WITHOUT ROWID / STRICT flags, and declared-type hints.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -102,7 +102,7 @@ describe.skipIf(!driverReady)('northwind fixture golden shape (file database)', 
     );
   });
 
-  it('collects EXACT small-file counts (the §4.3 exception, rowCountExact)', () => {
+  it('collects EXACT small-file counts (the exception, rowCountExact)', () => {
     expect(table('categories')).toMatchObject({ rowCountEstimate: 8, rowCountExact: true });
     expect(table('employees')).toMatchObject({ rowCountEstimate: 9, rowCountExact: true });
     expect(table('order_details')).toMatchObject({ rowCountEstimate: 52, rowCountExact: true });
@@ -135,7 +135,7 @@ describe.skipIf(!driverReady)('northwind fixture golden shape (file database)', 
   });
 });
 
-describe.skipIf(!driverReady)('§4.3 specifics (extras database)', () => {
+describe.skipIf(!driverReady)('SQLite specifics (extras database)', () => {
   let mod: AdapterModule;
   let dir = '';
   let model: DatabaseModel;

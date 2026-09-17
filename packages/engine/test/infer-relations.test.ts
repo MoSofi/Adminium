@@ -15,7 +15,7 @@ import {
 } from '../src/index.js';
 
 /**
- * §6 rules 1–2 on the schema they exist for: one that declares no foreign
+ * Rules 1–2 on the schema they exist for: one that declares no foreign
  * keys at all (MyISAM, legacy SQLite, most ORM-generated MySQL). Everything
  * downstream — domains, FK chips, join tables, hierarchies — reads
  * `model.relations`, so on this fixture the un-inferred model produces a
@@ -119,7 +119,7 @@ const named = new Map(
   inferNameRelations(FK_LESS).map((i) => [i.relation.from.columns.join('+'), i]),
 );
 
-describe('§6 rule 1 — name-convention inference', () => {
+describe('Name-convention inference', () => {
   it('resolves <table>_id onto the target key, singular or plural', () => {
     const relation = named.get('customer_id')?.relation;
     expect(relation?.kind).toBe('inferred-name');
@@ -144,14 +144,14 @@ describe('§6 rule 1 — name-convention inference', () => {
     expect(confidence).toBeLessThan(0.8);
   });
 
-  it('resolves §6 rule 3 hierarchy vocabulary to the column\'s own table', () => {
+  it('resolves hierarchy vocabulary to the column\'s own table', () => {
     const relation = named.get('manager_id')?.relation;
     expect(relation?.to.tableId).toBe('public.employees');
     expect(relation?.selfReferential).toBe(true);
     expect(relation?.confidence).toBeGreaterThanOrEqual(0.8);
   });
 
-  it('fabricates nothing for a §6 rule 4 polymorphic pair', () => {
+  it('fabricates nothing for a polymorphic pair', () => {
     expect(named.has('owner_id')).toBe(false);
   });
 
@@ -202,7 +202,7 @@ describe('§6 rule 1 — name-convention inference', () => {
   });
 });
 
-describe('§6 rule 2 — join-table inference', () => {
+describe('Join-table inference', () => {
   it('needs rule 1 to have run first', () => {
     // The pair is composite-PK, so it classifies as pk-id and is invisible
     // until name inference has put the two relations into the graph.

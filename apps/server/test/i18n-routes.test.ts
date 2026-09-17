@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Runtime-translations routes (23-runtime-translations.md §6).
+ * Runtime-translations routes.
  *
  * The assertions concentrate on the things that are load-bearing rather than
  * on CRUD happy paths: the validator's rejections (which are the ONLY thing
@@ -145,7 +145,7 @@ describe('i18n routes', () => {
       url: '/api/v1/i18n/bundle/de_DE/common',
       headers: asUser(t.viewer),
     });
-    // OVERRIDES only — never the compiled bundle (23 §6.1).
+    // OVERRIDES only — never the compiled bundle.
     expect(bundle.json().overrides).toEqual({ 'account.title': 'Mein Konto' });
   });
 
@@ -158,7 +158,7 @@ describe('i18n routes', () => {
     });
     expect(res.statusCode).toBe(200);
     // The version MUST move on a delete — a MAX(updated_at) stamp could not
-    // see this, and it is the most common admin operation (23 §3.4).
+    // see this, and it is the most common admin operation.
     expect(res.json().version).toBe(2);
     expect(await translationsRepo(t.meta).get(KEY)).toBeNull();
   });
@@ -179,7 +179,7 @@ describe('i18n routes', () => {
     });
     expect(drift.statusCode).toBe(422);
 
-    // Type change is the literal-token hazard (23 §4.6).
+    // Type change is the literal-token hazard.
     const typed = await put({
       locale: 'de_DE',
       namespace: 'studio',
@@ -322,7 +322,7 @@ describe('i18n routes', () => {
     expect(res.json().error.code).toBe('ERR_I18N_LOCALE_IS_DEFAULT');
   });
 
-  // The delete has to reach FOUR stores (23 §5.7). Missing one leaves an
+  // The delete has to reach FOUR stores. Missing one leaves an
   // orphan that renders as a raw identifier or collides on a unique index.
   it('cleans up user prefs, overrides and email variants when a locale is deleted', async () => {
     await t.app.inject({
@@ -373,7 +373,7 @@ describe('i18n routes', () => {
   });
 });
 
-describe('i18n transfer (23 §3.6)', () => {
+describe('i18n transfer', () => {
   let t: Harness;
 
   beforeEach(async () => {
@@ -430,7 +430,7 @@ describe('i18n transfer (23 §3.6)', () => {
   });
 
   // Carrying translations turns import into a UI-copy injection channel; the
-  // error and sign-in namespaces need saying yes on purpose (23 §3.6).
+  // error and sign-in namespaces need saying yes on purpose.
   it('refuses error copy without an explicit opt-in, and reports the count', async () => {
     const payload = { formatVersion: 1, entries: { errors: { NOT_FOUND: 'Gone.' } } };
 
@@ -454,7 +454,7 @@ describe('i18n transfer (23 §3.6)', () => {
 
   it('refuses a document from an unknown format version', async () => {
     const res = await importLocale('de_DE', { formatVersion: 9, entries: {} });
-    // 422 is this API's validation envelope (08-server-api.md §1.4).
+    // 422 is this API's validation envelope.
     expect(res.statusCode).toBe(422);
   });
 });

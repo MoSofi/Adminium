@@ -85,7 +85,7 @@ const GROUP_FALLBACK: Record<NavGroup, string> = {
   account: 'Account',
 };
 
-// --- attachments (37-files-and-storage.md §3.8) --------------------------------
+// --- attachments --------------------------------
 
 /**
  * The sentinel the upload route reads as "this server's own disk" rather than
@@ -182,7 +182,7 @@ interface AttachmentsPatch {
   accept?: string[] | null;
   maxBytes?: number | null;
   maxCount?: number | null;
-  /** The bound column (38 D14); `null` unbinds without touching the column. */
+  /** The bound column; `null` unbinds without touching the column. */
   column?: string | null;
 }
 
@@ -341,9 +341,9 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   );
   const columns = columnsDraft ?? storedColumns;
   /**
-   * The page's `config.derived` block (36-derived-columns.md §3.2) — measures
-   * and derived fields. `null` while untouched, so a page that never had one
-   * does not gain an empty block on an unrelated save.
+   * The page's `config.derived` block — measures and derived fields. `null`
+   * while untouched, so a page that never had one does not gain an empty
+   * block on an unrelated save.
    *
    * Held HERE rather than inside a card, because two surfaces edit it: the
    * inbound sub-picker in the Columns card writes measures, and the derived
@@ -360,9 +360,8 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   const derived = derivedDraft ?? storedDerived;
 
   /**
-   * The page's `config.attachments` block (37-files-and-storage.md §3.5) — the
-   * SIDECAR attachment mode, the one that needs no column in the customer's
-   * table.
+   * The page's `config.attachments` block — the SIDECAR attachment mode, the
+   * one that needs no column in the customer's table.
    *
    * THREE states, and the third is the point. `undefined` is untouched, a
    * block is the edited value, and `null` means "this page carries no
@@ -432,7 +431,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
     }
     setAttachmentsPending(false);
     /*
-     * OFF UNBINDS; IT NEVER DROPS (38 D7).
+     * OFF UNBINDS; IT NEVER DROPS.
      *
      * Three things happen together, and leaving any one out is a half-off
      * state somebody has to debug later: the block goes `enabled: false`, the
@@ -507,7 +506,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
    * That refusal is NOT a failure worth reporting when it does come: the
    * picker simply does not appear and every attachment follows the workspace
    * default, which is what the overwhelming majority of pages want in any
-   * case (37 D10). `retry: false` so a 403 is asked once, not three times.
+   * case. `retry: false` so a 403 is asked once, not three times.
    */
   // The SHARED query (`studio/storage/storageApi.ts`). Its own copy used a
   // third cache key for the same endpoint, so the two page surfaces never saw
@@ -515,7 +514,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   const destinations = useQuery(destinationsQuery());
 
   /**
-   * The connection's schema, for the attachments card (38 D6/D2).
+   * The connection's schema, for the attachments card.
    *
    * Two things come from it and nowhere else: whether this source's schema can
    * be authored at all, and the `snapshotId` a plan is built against — 35's
@@ -615,7 +614,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   /**
    * The config body to persist: the stored one with each edited block applied
    * over it, so untouched keys (`detail`, anything a newer build wrote) survive
-   * the round-trip (01 §6.2).
+   * the round-trip.
    *
    * An emptied label DELETES `labels.newRow` rather than storing `''`. The
    * template resolves its default with `labels?.newRow ?? t(…)`, which a present
@@ -700,7 +699,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
    * page can never read, which is worse than a card that is not there.
    */
   /**
-   * Which mode this page's attachments use (38 D2, §3.6).
+   * Which mode this page's attachments use.
    *
    * Decided by the CONNECTION, never by the person: `schemaAuthoring` says
    * whether this source's schema can be authored at all, and the four reasons
@@ -817,7 +816,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
               data-testid="studio-pages-template"
             >
               {/* Same filter as NewPageScreen: page-record is a crud page's
-                  child route, never a standalone template choice (30 D3). */}
+                  child route, never a standalone template choice. */}
               {pageTemplateDefinitions
                 .filter((definition) => definition.standalone !== false)
                 .map((definition) => (
@@ -1106,7 +1105,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
 
       {/*
         Derived numbers — arithmetic and rules over the folds the Columns card
-        authors (36-derived-columns.md §3.8). A sibling card rather than a
+        authors. A sibling card rather than a
         section of the one above, because the two answer different questions:
         Columns is "what does this table show", this is "what should be worked
         out from it". Same `isCrud` gate, same single save.
@@ -1134,7 +1133,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
       ) : null}
 
       {/*
-        Attachments — the sidecar mode (37-files-and-storage.md §3.5, D6).
+        Attachments — the sidecar mode.
 
         Its reason to exist, and the reason the helper text leads with it, is
         that it needs NO column in the customer's table: the link lives on

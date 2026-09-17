@@ -1,0 +1,18 @@
+{
+  "cell": {
+    "notCell": "{id} ist eine Karte, keine Tabellenzelle.",
+    "unknown": "Dieses Projekt hat kein Widget {id}."
+  },
+  "page": {
+    "failed": {
+      "title": "Der Code dieser Seite wurde nicht geladen"
+    },
+    "missing": {
+      "body": "Ihr Code stammt aus dem Projektordner. Bauen Sie das Projekt erneut oder starten Sie Adminium neu, um sie zu laden.",
+      "title": "Diese Seite ist nicht im laufenden Build"
+    }
+  },
+  "table": {
+    "empty": "Keine Datensätze"
+  }
+}

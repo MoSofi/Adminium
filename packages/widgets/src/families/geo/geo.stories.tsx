@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK COMM-GEO `geo` family stories (annex §7): the Leaflet bubble map and the
+ * TRACK COMM-GEO `geo` family stories (annex): the Leaflet bubble map and the
  * region-coded tilegram, the four WidgetFrame states through WidgetHost
  * (acceptance #4), and light/dark × LTR/RTL matrices with REAL geometry
  * (acceptance #9).
  *
- * WHAT "REAL GEOMETRY" MEANS FOR A MAP (04 §7.4): the RTL frames set `dir="rtl"`
- * on a genuine host wrapper, so the chrome — metric tabs, ranked list, legend —
+ * WHAT "REAL GEOMETRY" MEANS FOR A MAP: the RTL frames set `dir="rtl"` on a
+ * genuine host wrapper, so the chrome — metric tabs, ranked list, legend —
  * actually mirrors through logical properties. The map canvas and the US tilegram
  * deliberately do NOT: they are fixed-LTR islands, because geography is not a
  * reading order. A capture where the world map mirrored would be the bug, not the
@@ -14,8 +14,8 @@
  *
  * Widgets resolve through a LOCAL registry override so the stories work before
  * the green loop merges the definitions into the global map. Payloads are the
- * same seeded generators `demoData` uses, so VRT captures are byte-deterministic
- * (04-T17).
+ * same seeded generators `demoData` uses, so VRT captures are
+ * byte-deterministic.
  *
  * NOTE ON THE MAP IN CI: Leaflet loads on demand inside MapBubble's mount effect
  * and fetches Carto tiles over the network. In a sandboxed VRT runner it degrades
@@ -97,12 +97,12 @@ export const MapChoroplethGridStory = {
 };
 
 /**
- * The annex §7 pairing decision, side by side: coordinates → `map-bubble`;
- * region codes and no coordinates → `map-choropleth-grid`. Same data question,
- * two answers depending on what the table actually carries.
+ * The annex pairing decision, side by side: coordinates → `map-bubble`; region
+ * codes and no coordinates → `map-choropleth-grid`. Same data question, two
+ * answers depending on what the table actually carries.
  */
 export const BubbleAndChoropleth = {
-  name: 'map-bubble + map-choropleth-grid (the §7 pair)',
+  name: 'map-bubble + map-choropleth-grid (the pair)',
   render: () => (
     <Frame>
       <div className="flex flex-wrap gap-4">
@@ -153,7 +153,7 @@ export const MapChoroplethGridStates = {
  * Light × dark × LTR × RTL. The RTL frames genuinely mirror the CHROME — the
  * metric tabs and ranked list swap edges because they are expressed with logical
  * properties — while the map canvas stays `dir="ltr"`. That asymmetry is the
- * feature: a mirrored world map is a wrong map (04 §7.4).
+ * feature: a mirrored world map is a wrong map.
  *
  * The dark frames are also where the Carto tile swap shows: `subscribeTheme`
  * repoints the basemap at `dark_all` when the theme resolves to dark.
@@ -217,7 +217,7 @@ export const ChoroplethThemeAndDirectionMatrix = {
 /**
  * The compact `grid` layout — the annex's alternative to the US tilegram, for
  * non-US region codes. Unlike the tilegram this one IS categorical, so its
- * columns mirror under RTL (04 §7.4, applied by `choroplethLayout`).
+ * columns mirror under RTL (applied by `choroplethLayout`).
  */
 export const ChoroplethCompactGrid = {
   name: 'map-choropleth-grid (compact grid layout)',

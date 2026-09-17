@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Studio → Pages (09 §8.1 addition; server surface = 08-server-api.md §2.6).
+ * Studio → Pages (addition; server surface =).
  *
  * The one place an admin can change WHICH pages the Generated App has, rather
  * than what is on one of them. Before this, pages could only be created by the
@@ -15,6 +15,9 @@
  * - **Sidebar** — the rail. Move pages within and between the five fixed nav
  *   groups. Kept separate because reordering is a whole-rail operation with one
  *   bulk save, and mixing it into a per-row list makes both worse.
+ *
+ * On a server that runs a project folder, the pages that differ from the
+ * project's files are flagged here too (`ProjectFilesPanel`).
  *
  * Reordering is driven by keyboard-reachable buttons over a pure index algebra
  * (`movePage`), not a pointer drag. That is the house pattern — see
@@ -37,6 +40,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
   EmptyState,
   IconButton,
@@ -55,6 +59,8 @@ import { ApiError } from '../../app/api.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { t } from '../../i18n/t.js';
 import { DuplicatePageModal } from './DuplicatePageModal.js';
+import { ProjectFilesPanel, ProjectFlagBadge } from './ProjectFilesPanel.js';
+import { projectFlagsByPage, projectStatusQuery, type PageProjectFlag } from './projectApi.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { lucideByName } from '../../lib/lucide.js';
 import {
@@ -106,6 +112,8 @@ function originBadge(origin: string): { tone: 'neutral' | 'accent' | 'info'; lab
       return { tone: 'info', label: t('studio:pages.origin.llm', 'Assistant') };
     case 'system':
       return { tone: 'neutral', label: t('studio:pages.origin.system', 'System') };
+    case 'project':
+      return { tone: 'info', label: t('studio:pages.origin.project', 'Project code') };
     default:
       return { tone: 'neutral', label: t('studio:pages.origin.user', 'Custom') };
   }
@@ -166,27 +174,48 @@ interface PageRowProps {
   onDelete: (page: PageSummaryDto) => void;
   onToggle: (page: PageSummaryDto) => void;
   busy: boolean;
+  /** How this page differs from the project folder, on a server that runs one. */
+  projectFlag?: PageProjectFlag | undefined;
 }
 
-function PageRow({ page, onEdit, onDuplicate, onDelete, onToggle, busy }: PageRowProps) {
+function PageRow({ page, onEdit, onDuplicate, onDelete, onToggle, busy, projectFlag }: PageRowProps) {
   const badge = originBadge(page.origin);
   const Icon = lucideByName(page.icon ?? 'file');
+  // A page written in the project folder is changed there; the server refuses
+  // every edit made here, so its row opens the page instead of the editor.
+  const fromCode = page.origin === 'project';
+  const rowText = (
+    <>
+      <span className="text-body truncate text-fg">{page.title}</span>
+      <span className="text-body-sm truncate font-mono text-fg-subtle">{`/p/${page.slug}`}</span>
+    </>
+  );
   return (
     <li className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-b-0">
       <Icon className="size-4 shrink-0 text-fg-subtle" aria-hidden />
       {/* A real link, not a button with a navigate handler: the editor has a
           URL now, so the row should be middle-clickable and copyable like any
           other navigation. */}
-      <Link
-        to="/studio/pages/$pageId"
-        params={{ pageId: page.id }}
-        className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-start"
-      >
-        <span className="text-body truncate text-fg">{page.title}</span>
-        <span className="text-body-sm truncate font-mono text-fg-subtle">{`/p/${page.slug}`}</span>
-      </Link>
+      {fromCode ? (
+        <Link
+          to="/p/$slug"
+          params={{ slug: page.slug }}
+          className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-start"
+        >
+          {rowText}
+        </Link>
+      ) : (
+        <Link
+          to="/studio/pages/$pageId"
+          params={{ pageId: page.id }}
+          className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-start"
+        >
+          {rowText}
+        </Link>
+      )}
       <ConnectionChip page={page} />
       <Badge tone={badge.tone}>{badge.label}</Badge>
+      {projectFlag === undefined ? null : <ProjectFlagBadge flag={projectFlag} />}
       <span className="text-body-sm hidden text-fg-subtle sm:inline">{page.type}</span>
       {/*
         A PAUSED source outranks the page's own visibility, exactly as it does
@@ -227,24 +256,34 @@ function PageRow({ page, onEdit, onDuplicate, onDelete, onToggle, busy }: PageRo
           </IconButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          {/* A plain item, not `asChild` + `Link`: nesting a router Link inside
-              a Radix menu item stopped the menu content rendering at all. The
-              ROW above is the real link — middle-clickable, copyable — so this
-              only needs to navigate. */}
-          <DropdownMenuItem onSelect={() => onEdit(page)}>
-            {t('studio:pages.action.edit', 'Edit page')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onDuplicate(page)}>
-            {t('studio:pages.action.duplicate', 'Duplicate')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onToggle(page)}>
-            {page.isEnabled
-              ? t('studio:pages.action.hide', 'Hide from sidebar')
-              : t('studio:pages.action.show', 'Show in sidebar')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onDelete(page)}>
-            {t('studio:pages.action.delete', 'Delete page')}
-          </DropdownMenuItem>
+          {fromCode ? (
+            <DropdownMenuLabel className="max-w-64 font-normal text-fg-muted">
+              {t('studio:pages.project.fromCode', 'This page comes from {source}. Change it there.', {
+                source: `pages/${page.slug}.tsx`,
+              })}
+            </DropdownMenuLabel>
+          ) : (
+            <>
+              {/* A plain item, not `asChild` + `Link`: nesting a router Link inside
+                  a Radix menu item stopped the menu content rendering at all. The
+                  ROW above is the real link — middle-clickable, copyable — so this
+                  only needs to navigate. */}
+              <DropdownMenuItem onSelect={() => onEdit(page)}>
+                {t('studio:pages.action.edit', 'Edit page')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onDuplicate(page)}>
+                {t('studio:pages.action.duplicate', 'Duplicate')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onToggle(page)}>
+                {page.isEnabled
+                  ? t('studio:pages.action.hide', 'Hide from sidebar')
+                  : t('studio:pages.action.show', 'Show in sidebar')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onDelete(page)}>
+                {t('studio:pages.action.delete', 'Delete page')}
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </li>
@@ -423,6 +462,8 @@ export function StudioPagesPage() {
   const client = useQueryClient();
   const navigate = useNavigate();
   const pages = useQuery(studioPagesQuery());
+  const project = useQuery(projectStatusQuery());
+  const projectFlags = useMemo(() => projectFlagsByPage(project.data), [project.data]);
   const [duplicating, setDuplicating] = useState<PageSummaryDto | null>(null);
   const [deleting, setDeleting] = useState<PageSummaryDto | null>(null);
 
@@ -491,6 +532,8 @@ export function StudioPagesPage() {
         </div>
       ) : null}
 
+      {pages.isSuccess && project.data != null ? <ProjectFilesPanel status={project.data} pages={rows} /> : null}
+
       {pages.isSuccess ? (
         <Tabs defaultValue="inventory">
           <TabsList>
@@ -544,6 +587,7 @@ export function StudioPagesPage() {
                         onDelete={setDeleting}
                         onToggle={(target) => toggle.mutate(target)}
                         busy={toggle.isPending}
+                        projectFlag={projectFlags.get(page.id)}
                       />
                     ))}
                   </ul>

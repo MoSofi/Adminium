@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Manifest spec v1 validation (13-marketplace.md §2): a valid ecommerce-shop
- * manifest round-trips, and every documented rule rejects.
+ * Manifest spec v1 validation: a valid ecommerce-shop manifest round-trips,
+ * and every documented rule rejects.
  */
 import { describe, expect, it } from 'vitest';
 
 import { compareSemver, validateManifest, parseManifest } from '../src/index.js';
 
-/** A minimal-but-complete valid manifest, shaped after the §2 ecommerce-shop example. */
+/** A minimal-but-complete valid manifest, shaped after the ecommerce-shop
+ * example. */
 function validManifest(): Record<string, unknown> {
   return {
     manifestVersion: 1,
@@ -53,7 +54,7 @@ function validManifest(): Record<string, unknown> {
         kind: 'spa',
         entry: 'index.html',
         // VITE_-prefixed: only those reach browser code under Vite, which is
-        // why 13 §2.12.1's "frozen" bare names were unimplementable as written.
+        // why "frozen" bare names were unimplementable as written.
         env: {
           VITE_ADMINIUM_API_BASE_URL: { required: true, example: 'https://x.adminium.app/api/v1' },
           VITE_ADMINIUM_PUBLISHABLE_KEY: { required: true },
@@ -132,7 +133,7 @@ describe('validateManifest — requiredSchema', () => {
   });
 });
 
-describe('the three-sides rule (28 §4, D12)', () => {
+describe('the three-sides rule', () => {
   const withFrontends = (frontends: unknown) => ({ ...validManifest(), frontends });
 
   it('accepts a staff-only app', () => {
@@ -184,7 +185,7 @@ describe('the three-sides rule (28 §4, D12)', () => {
 
   it('keeps `routes` — the only machine-readable record of the split', () => {
     // Eleven shipped manifests carry it and the old strict schema rejected all
-    // of them. Deleting it during normalization would have made §4 uncheckable.
+    // of them. Deleting it during normalization would have made uncheckable.
     const out = validateManifest(
       withFrontends([{ side: 'customer', kind: 'spa', routes: { book: 'Book a visit' } }]),
     );

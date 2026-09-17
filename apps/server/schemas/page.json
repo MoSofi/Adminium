@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "v": {
+      "type": "number",
+      "const": 1,
+      "description": "Page document version."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "page",
+        "dashboard",
+        "view",
+        "nav",
+        "manifest-module"
+      ]
+    },
+    "template": {
+      "type": "string",
+      "description": "The page template, e.g. page-crud or page-dashboard."
+    },
+    "origin": {
+      "description": "Who made the page. Absent means user: regeneration never replaces it.",
+      "type": "string",
+      "enum": [
+        "generated",
+        "user",
+        "llm"
+      ]
+    },
+    "enabled": {
+      "description": "false hides the page everywhere. Absent means true.",
+      "type": "boolean"
+    },
+    "title": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fallback": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "key",
+        "fallback"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "database": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The database key from adminium.config.ts, or null for a page with no data source."
+        },
+        "table": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The table the page shows, e.g. public.orders."
+        }
+      },
+      "required": [
+        "database",
+        "table"
+      ]
+    },
+    "nav": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string",
+          "minLength": 1
+        },
+        "icon": {
+          "type": "string",
+          "minLength": 1
+        },
+        "order": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "badge": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hidden": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "icon",
+        "order"
+      ],
+      "description": "Where the page sits in the sidebar. `slug` must equal the file name."
+    },
+    "access": {
+      "type": "object",
+      "properties": {
+        "minRole": {
+          "type": "string",
+          "minLength": 1
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "minRole",
+        "permissions"
+      ]
+    },
+    "padding": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "type": "string",
+          "const": "standard"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 200
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 200
+            }
+          },
+          "required": [
+            "x",
+            "y"
+          ]
+        }
+      ]
+    },
+    "width": {
+      "type": "string",
+      "enum": [
+        "full",
+        "narrow",
+        "content",
+        "page",
+        "dash",
+        "wide"
+      ]
+    },
+    "config": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {},
+      "description": "The template's settings. Widgets name their database with \"database\", never an id."
+    },
+    "generated": {
+      "type": "object",
+      "properties": {
+        "hash": {
+          "description": "Set by Adminium. While it matches the page, regeneration may update the page.",
+          "type": "string"
+        },
+        "key": {
+          "description": "Set by Adminium for a generated page that was renamed.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "v",
+    "kind",
+    "template",
+    "title",
+    "source",
+    "nav",
+    "access",
+    "config"
+  ],
+  "additionalProperties": {},
+  "description": "An Adminium page. The file name is the page slug."
+}

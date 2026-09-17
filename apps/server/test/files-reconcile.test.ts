@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The lifecycle hook that keeps `adminium_files` honest about what a
- * customer's own columns say (37-files-and-storage.md §3.7, D12, 37-T13), and
- * the daily sweep that collects what nothing claims (D12, 37-T14).
+ * customer's own columns say, and the daily sweep that collects what nothing
+ * claims (D12).
  *
  * WHY THIS IS THE TEST THAT MATTERS MOST IN 37b. Without the hook, an upload
  * attached through a form stays `attached_at = NULL` and the sweep trashes it
@@ -324,7 +324,7 @@ describe('file reconcile', () => {
   });
 
   /**
-   * A column that holds MANY files (38-files-library-and-attachments.md D1/D5).
+   * A column that holds MANY files.
    *
    * The diff is a SET difference, and the case that makes it necessary is the
    * one a pairwise compare gets wrong: a file that stays but moves position.
@@ -441,7 +441,7 @@ describe('file reconcile', () => {
   });
 
   /**
-   * The write-time cap (38 D5) — the ONLY place a per-record count is knowable.
+   * The write-time cap — the ONLY place a per-record count is knowable.
    *
    * A column upload for a new record names no record, so the upload route cannot
    * ask "how many will this record have"; the write that sets the column is the
@@ -571,7 +571,7 @@ describe('the retention sweep’s two halves (D12)', () => {
   });
 });
 
-describe('the sidecar block reader (37 §3.5, 37-T22)', () => {
+describe('the sidecar block reader', () => {
   let meta: MetaDb;
   let conn: string;
 

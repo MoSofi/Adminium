@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `buildPrompt` — the single prompt producer (06-llm-assist.md §1, §4, §5).
+ * `buildPrompt` — the single prompt producer.
  *
  * Covers: BYO-marker byte-identity (criterion 1), the sample-free default
- * (criterion 8) at the whole-prompt level, section toggles (§4.4), locale
- * injection + the English-prompt/localized-output split, allow-list bounds, the
- * token estimate, and chunk rendering.
+ * (criterion 8) at the whole-prompt level, section toggles, locale injection +
+ * the English-prompt/localized-output split, allow-list bounds, the token
+ * estimate, and chunk rendering.
  */
 import { parseDatabaseModel, type StatsResult } from '@adminium/engine';
 import { describe, expect, it } from 'vitest';
@@ -195,7 +195,7 @@ describe('sample-free default (criterion 8)', () => {
   });
 });
 
-describe('section toggles (§4.4)', () => {
+describe('section toggles', () => {
   it('defaults to all ten sections when none are specified', () => {
     const artifact = buildPrompt(makeInput({ sections: [] }), options);
     expect(artifact.sections).toHaveLength(10);
@@ -228,7 +228,7 @@ describe('section toggles (§4.4)', () => {
   });
 });
 
-describe('response-schema key removal (§4.4, finding 1)', () => {
+describe('response-schema key removal (finding 1)', () => {
   /** The embedded RESPONSE SCHEMA object region (token-free, so all-active === verbatim). */
   function schemaBlock(user: string): string {
     return user.slice(user.indexOf('=== RESPONSE SCHEMA'), user.indexOf('=== INPUT: DATABASE SCHEMA ==='));
@@ -309,7 +309,7 @@ describe('token estimate + budget', () => {
   });
 });
 
-describe('chunk rendering (§4.5)', () => {
+describe('chunk rendering', () => {
   it('renders the chunk-info sentence and stubs out-of-chunk tables', () => {
     const artifact = buildPrompt(
       makeInput({ chunk: { index: 1, total: 2, stubTables: ['public.products'] } }),

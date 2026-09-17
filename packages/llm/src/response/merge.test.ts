@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `merge.ts` — deterministic chunk reduce + PROMPT_MERGE_V1 orchestration
- * (06-llm-assist.md §4.5). These focus on the reduce SEMANTICS with small
+ * `merge.ts` — deterministic chunk reduce + PROMPT_MERGE_V1
+ * orchestration. These focus on the reduce SEMANTICS with small
  * hand-built partials; `prompt/chunker.test.ts` exercises the criterion-7
  * end-to-end path over the 300-table schema.
  *
@@ -64,7 +64,7 @@ describe('mergeChunkResponses — per-table sections', () => {
     expect(merged.enums[0]?.confidence).toBe(0.95);
   });
 
-  it('dedupes inferred relations by endpoints, keeping highest confidence (§4.5)', () => {
+  it('dedupes inferred relations by endpoints, keeping highest confidence', () => {
     const rel = (confidence: number): Record<string, unknown> => ({
       fromTable: 'public.orders',
       fromColumns: ['product_id'],
@@ -216,7 +216,7 @@ describe('mergeChunkResponses — declined responses', () => {
   });
 });
 
-describe('buildMergePrompt (§4.5)', () => {
+describe('buildMergePrompt', () => {
   const responses = [
     resp({ navGroups: [grp('sales', ['public.orders'], 0.9)], dashboards: [] }),
     resp({ navGroups: [grp('catalog', ['public.products'], 0.9)], dashboards: [] }),

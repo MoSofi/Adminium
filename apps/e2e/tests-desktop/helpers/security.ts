@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Renderer security posture + navigation lockdown assertions (11-electron.md
- * §2.4, and the acceptance criterion "Renderer security: contextIsolation on,
- * sandbox on, nodeIntegration off, navigation locked to the loopback origin,
- * external links open the system browser — verified in E2E").
+ * Renderer security posture + navigation lockdown assertions (and the
+ * acceptance criterion "Renderer security: contextIsolation on, sandbox on,
+ * nodeIntegration off, navigation locked to the loopback origin, external
+ * links open the system browser — verified in E2E").
  *
  * The posture is proven BEHAVIOURALLY, which is stronger than reading back a
  * `webPreferences` flag: the frozen `WEB_PREFERENCES` object is already
@@ -22,10 +22,10 @@ import { appOrigin, readExternalOpens, stubExternalOpen } from './launch.js';
  * observe them:
  *  - no `require`/`process`/`module` in the main world (nodeIntegration off,
  *    sandbox on);
- *  - the §4 preload bridge IS present — which is only reachable through
- *    `contextBridge`, so its presence is proof contextIsolation held (a leaked
- *    main-world assignment would fail with isolation on, and a bridge exposed
- *    without isolation would not be an isolated-world object at all).
+ * - the preload bridge IS present — which is only reachable through
+ *  `contextBridge`, so its presence is proof contextIsolation held (a leaked
+ *  main-world assignment would fail with isolation on, and a bridge exposed
+ *  without isolation would not be an isolated-world object at all).
  */
 export async function assertRendererSecurity(page: Page): Promise<void> {
   const probe = await page.evaluate(() => {
@@ -40,13 +40,13 @@ export async function assertRendererSecurity(page: Page): Promise<void> {
   expect(probe.require, 'renderer must not expose require (nodeIntegration off)').toBe('undefined');
   expect(probe.process, 'renderer must not expose process (sandbox on)').toBe('undefined');
   expect(probe.module, 'renderer must not expose module').toBe('undefined');
-  expect(probe.bridge, 'the §4 preload bridge must be exposed (contextIsolation on)').toBe('object');
+  expect(probe.bridge, 'the preload bridge must be exposed (contextIsolation on)').toBe('object');
 }
 
 /**
- * §2.4: navigation is locked to `http://127.0.0.1:<port>`; external `https:`
- * goes to the system browser (`shell.openExternal`); everything else goes
- * nowhere and is NOT handed to the OS.
+ * Navigation is locked to `http://127.0.0.1:<port>`; external `https:` goes
+ * to the system browser (`shell.openExternal`); everything else goes nowhere
+ * and is NOT handed to the OS.
  */
 export async function assertNavigationLockdown(app: ElectronApplication, page: Page): Promise<void> {
   await stubExternalOpen(app);

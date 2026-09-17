@@ -173,7 +173,7 @@ export function ColumnBrowser({ schema, table, draft, onAdd, onAddCalc, onToast,
                       <span>{suggestion.label}</span>
                       {/* The comp dims this to 72% (292); at 10px bold on accent-soft that is
                           3.41:1 against WCAG's 4.5:1, so it stays at full accent — the one
-                          departure axe forced (41-export-builder.md run record). */}
+                          departure axe forced. */}
                       <span className="font-mono text-[10px]">{suggestion.meta}</span>
                     </button>
                   ))}

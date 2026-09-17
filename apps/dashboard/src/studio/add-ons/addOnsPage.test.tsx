@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/add-ons` (26-T14).
+ * `/studio/add-ons`.
  *
  * Router-mounted rather than bare, for the same three reasons the public-API
  * page is: the route is lazy, it sits behind `StudioGuard`, and the heading is
@@ -11,7 +11,7 @@
  *  1. an air-gapped instance browses without the page reaching for anything,
  *     and says so rather than showing a broken "check for newer";
  *  2. the consent dialog shows the plan BEFORE consent, and refuses to offer
- *     Install when the plan cannot be applied (26 §7 — the security surface);
+ * Install when the plan cannot be applied (the security surface);
  *  3. disconnect and uninstall say DIFFERENT things, because they do different
  *     things and the safest of them must not read like the most destructive.
  */
@@ -55,7 +55,7 @@ function makeEntry(over: Partial<CatalogEntry> = {}): CatalogEntry {
 function makeAddOn(over: Partial<AddOnDto> = {}): AddOnDto {
   return {
     // The manifest's declared settings; the panel generates its form from
-    // these (34 §7.9). Empty here so existing cases are unchanged.
+    // these. Empty here so existing cases are unchanged.
     settings: [],
     settingValues: {},
     key: 'shipping-dhl',
@@ -197,7 +197,7 @@ describe('AddOnsPage', () => {
   });
 
   it('browses air-gapped, and says so instead of offering a broken action', async () => {
-    // 32 D8: browse is a disk read. The page must be useful before anyone
+    // Browse is a disk read. The page must be useful before anyone
     // decides whether to switch the online catalogue on.
     const { calls } = await renderPage({ onlineEnabled: false });
     expect(await screen.findByText(/has contacted the internet/)).toBeTruthy();
@@ -225,8 +225,8 @@ describe('AddOnsPage', () => {
   });
 
   it('refuses to offer Install when the plan cannot be applied', async () => {
-    // 26 §7: the dialog is the security surface. A plan that names a missing
-    // host table must not have a live Install button beside it.
+    // The dialog is the security surface. A plan that names a missing host
+    // table must not have a live Install button beside it.
     const user = userEvent.setup();
     await renderPage({
       plan: makePlan({
@@ -251,7 +251,7 @@ describe('AddOnsPage', () => {
     expect(confirm).toBeTruthy();
   });
 
-  it('names the tables it will CREATE, before consent is given (26-T02)', async () => {
+  it('names the tables it will CREATE, before consent is given', async () => {
     // Install creates them now. The dialog has to say so and name them, because
     // this is the moment someone agrees to a write against their own database.
     const user = userEvent.setup();
@@ -330,12 +330,12 @@ describe('AddOnsPage', () => {
     });
   });
 
-  describe('32-T10: the acquisition story', () => {
+  describe('The acquisition story', () => {
     it('follows a download to completion instead of calling it done when enqueued', async () => {
       /*
-       * A download is a JOB (32 D10) — `POST /add-ons/download` answers
-       * `{ jobId }` immediately and the bytes arrive later. Reporting success on
-       * the enqueue is how an operator refreshes to find nothing staged.
+       * A download is a JOB — `POST /add-ons/download` answers `{ jobId }`
+       * immediately and the bytes arrive later. Reporting success on the enqueue
+       * is how an operator refreshes to find nothing staged.
        */
       const user = userEvent.setup();
       jobSteps = [
@@ -365,8 +365,8 @@ describe('AddOnsPage', () => {
     });
 
     it('switches the online catalogue on from the page that uses it', async () => {
-      // 26 D3: this lives with the add-on routes and `manifests.manage`, not
-      // under /settings/* and `settings.manage`.
+      // This lives with the add-on routes and `manifests.manage`, not under
+      // /settings/* and `settings.manage`.
       const user = userEvent.setup();
       const { calls } = await renderPage({ onlineEnabled: false });
       await user.click(
@@ -477,7 +477,7 @@ describe('AddOnsPage', () => {
     expect(screen.getByText('Nothing installed yet')).toBeTruthy();
   });
   /*
-   * 40-T07 — the browse surface (§6 acceptance 3-6).
+   * The browse surface (3-6).
    *
    * These drive the REAL page through the router, so every one of them also
    * proves the widened DTO survives the client mirror: a card cannot render a

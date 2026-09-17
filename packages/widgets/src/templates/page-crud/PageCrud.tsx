@@ -49,21 +49,20 @@ import type { WidgetEvent } from '../../registry/types.js';
 import { describeDataError } from '../../lib/data-error.js';
 
 /**
- * `page-crud` — the per-table resource template (09-generated-app.md §7.1;
- * annex §14): toolbar (search + filter chips + "New row" — DB framing) that
- * morphs into `bulk-action-toolbar` on selection (CSV export + cascade
- * delete), type-aware `data-grid` over the CRUD API, keyset
- * `pagination-footer`, generated create/edit forms (TwoPhaseModal create —
- * domain framing), references-preflight type-to-confirm cascade delete, and
- * undo toasts on every mutation.
+ * `page-crud` — the per-table resource template (annex): toolbar (search +
+ * filter chips + "New row" — DB framing) that morphs into
+ * `bulk-action-toolbar` on selection (CSV export + cascade delete),
+ * type-aware `data-grid` over the CRUD API, keyset `pagination-footer`,
+ * generated create/edit forms (TwoPhaseModal create — domain framing),
+ * references-preflight type-to-confirm cascade delete, and undo toasts on
+ * every mutation.
  *
- * ROW SEMANTICS (30-record-pages.md D1/§3.3): a row is a LINK — click/Enter
- * emit `record-open` and the host navigates to the record PAGE
- * (`/p/$slug/r/$recordId`, rendered by `page-record`). The old
- * route-controlled detail drawer survives as an ephemeral PEEK behind the eye
- * action in the row-actions column: plain component state, no URL write, and
- * an "Open page" affordance in its header so the peek is a step toward the
- * page, never a dead end.
+ * ROW SEMANTICS: a row is a LINK — click/Enter emit `record-open` and the
+ * host navigates to the record PAGE (`/p/$slug/r/$recordId`, rendered by
+ * `page-record`). The old route-controlled detail drawer survives as an
+ * ephemeral PEEK behind the eye action in the row-actions column: plain
+ * component state, no URL write, and an "Open page" affordance in its header
+ * so the peek is a step toward the page, never a dead end.
  *
  * All data access flows through the injected `CrudApi` — the dashboard
  * interpreter implements it against `/api/v1/data/:connectionId/:table`; the
@@ -95,14 +94,15 @@ export interface PageCrudLabels {
   undo?: string | undefined;
   editTitle?: string | undefined;
   close?: string | undefined;
-  /** Accessible name of the row's eye action (30 D1). */
+  /** Accessible name of the row's eye action. */
   peek?: string | undefined;
 }
 
 /**
- * The saved-view-relevant slice of the toolbar query state (M5-T06). The host
+ * The saved-view-relevant slice of the toolbar query state. The host
  * serializes this into `adminium_views.config` and restores it via the initial
- * props (`initialSearch`/`defaultSort`/`initialFilters`/`pageSize`) on remount.
+ * props (`initialSearch`/`defaultSort`/`initialFilters`/`pageSize`) on
+ * remount.
  */
 export interface PageCrudGridState {
   search: string;
@@ -134,21 +134,21 @@ export interface PageCrudProps {
   /** Caller may reveal PII cells (server sends them unmasked). */
   canUnmask?: boolean | undefined;
   /** Host event sink: row click/Enter and FK chips emit `record-open` here
-   *  (the host navigates to the record page, 30 D1), drill-through, mutate. */
+   * (the host navigates to the record page), drill-through, mutate. */
   onEvent?: ((event: WidgetEvent) => void) | undefined;
   locale?: string | undefined;
   currency?: string | undefined;
   labels?: PageCrudLabels | undefined;
   /**
-   * The file adapter (37 §3.5, §3.9). Absent ⇒ every `file` column renders
-   * exactly as it did before its block existed: a link in the grid, a `url`
-   * input in the form. This package has no transport of its own, so this is
-   * the whole of what a host must supply.
+   * The file adapter. Absent ⇒ every `file` column renders exactly as it
+   * did before its block existed: a link in the grid, a `url` input in the
+   * form. This package has no transport of its own, so this is the whole of
+   * what a host must supply.
    */
   files?: PageCrudFiles | undefined;
   testId?: string | undefined;
   /**
-   * EXTRA ROW ACTIONS, beside Peek (34 §7.8, 34-T16).
+   * EXTRA ROW ACTIONS, beside Peek.
    *
    * A PASS-THROUGH and nothing more: the host decides what the action is,
    * this component decides where it sits. `PageCrud` does not know what a
@@ -158,14 +158,35 @@ export interface PageCrudProps {
    * ABSENT ⇒ the row ends where it always did.
    */
   rowActions?: ((row: Record<string, unknown>) => ReactNode) | undefined;
+  /**
+   * EXTRA BULK ACTIONS, after Export and before Delete (a project's own
+   * actions). A pass-through like {@link PageCrudProps.rowActions}: the host
+   * decides what they do, this component only places them.
+   *
+   * ABSENT ⇒ the bulk bar is what it always was.
+   */
+  bulkActions?: readonly PageCrudBulkAction[] | undefined;
 }
+
+/** One host bulk action. */
+export interface PageCrudBulkAction {
+  key: string;
+  /** Already translated by the host. */
+  label: string;
+  disabled?: boolean | undefined;
+  /** Called with the selected row ids. */
+  run: (ids: readonly string[]) => void;
+}
+
+/** Host bulk-action keys, kept apart from the bar's own `export` and `delete`. */
+const HOST_BULK_PREFIX = 'host:';
 
 /** The host's file transport for one crud page. */
 export interface PageCrudFiles {
   /**
    * Resolve the file references on a page of rows — ONE call per page, not one
-   * per row (§3.5). Keys are the stored values; an unrecognised or unreadable
-   * value maps to `null` and renders as today's link.
+   * per row. Keys are the stored values; an unrecognised or unreadable value
+   * maps to `null` and renders as today's link.
    */
   resolve(refs: readonly string[]): Promise<ReadonlyMap<string, ResolvedFile | null>>;
   upload: FileFieldUpload;
@@ -240,6 +261,7 @@ export function PageCrud({
   locale,
   currency,
   rowActions,
+  bulkActions,
   labels,
   testId,
 }: PageCrudProps) {
@@ -353,7 +375,7 @@ export function PageCrud({
   }, [search, q]);
 
   // Report the saved-view-relevant query state so the host can persist a view
-  // from the current grid (M5-T06). Pagination cursor is intentionally excluded
+  // from the current grid. Pagination cursor is intentionally excluded
   // — a view restores a query, not a scroll position.
   useEffect(() => {
     onGridStateChange?.({ search, sort, filters: [...filters], pageSize });
@@ -378,7 +400,7 @@ export function PageCrud({
     };
   }, [api, listParams, reloadTick]);
 
-  // Count probe — keyset replies carry no total (08 §2.7), so the footer's
+  // Count probe — keyset replies carry no total, so the footer's
   // "of 8,402" and the unique-check microcopy come from one estimated count.
   useEffect(() => {
     let alive = true;
@@ -414,13 +436,13 @@ export function PageCrud({
           t('ui:templates.common.connectionPaused', 'This connection is paused'),
         );
 
-  // --- peek (30 D1) ----------------------------------------------------------
+  // --- peek ----------------------------------------------------------
   // EPHEMERAL local state, deliberately: the record URL now means the record
   // PAGE, so the peek writes nothing to the URL — closing it leaves search,
   // sort, filters and pagination exactly as they were.
   const [peekId, setPeekId] = useState<string | null>(null);
 
-  /** Row click/Enter → the host navigates to the record page (30 §3.3). */
+  /** Row click/Enter → the host navigates to the record page. */
   const openRecordPage = useCallback(
     (recordId: string) => {
       onEvent?.({
@@ -450,7 +472,7 @@ export function PageCrud({
   const [exporting, setExporting] = useState(false);
 
   /**
-   * Resolved file references for the rows currently on screen (§3.5).
+   * Resolved file references for the rows currently on screen.
    *
    * ONE request per page of rows. The effect keys on the row identities rather
    * than on the rows themselves so a re-render that did not change the data
@@ -466,7 +488,7 @@ export function PageCrud({
     const seen = new Set<string>();
     for (const row of list.rows) {
       for (const column of fileColumns) {
-        // `parseRefList` for BOTH shapes (38 D5): a single-value column is a
+        // `parseRefList` for BOTH shapes: a single-value column is a
         // list of one, so the batch is built the same way whether or not the
         // column is `multiple`. Resolving the raw value of a list column would
         // ask the server about the JSON array itself, which names nothing.
@@ -606,7 +628,7 @@ export function PageCrud({
   const openDeleteFor = (record: CrudRow) => {
     setDeleteTarget({ record, references: [], loaded: false });
     const recordId = rowIdOf(columns, record);
-    // References preflight — consequences render in the confirm modal (09 §7.1).
+    // References preflight — consequences render in the confirm modal.
     api
       .remove(recordId, { dryRun: true })
       .then((result) => {
@@ -790,7 +812,7 @@ export function PageCrud({
           `max-h-full` resolves against, so both are load-bearing. */}
       <div className="flex max-h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-card">
         {/* Toolbar. Search first, then the views/filter control, then the
-            active filter chips; only the END slot swaps on selection (09 §7.1
+            active filter chips; only the END slot swaps on selection (
             "morphs"). Selecting rows used to replace the WHOLE rail, which took
             the search box and the chips off screen exactly when a user is
             mid-way through narrowing a set — so they could no longer see, let
@@ -833,6 +855,11 @@ export function PageCrud({
                   label: labels?.exportAction ?? t('ui:templates.crud.exportAction', 'Export'),
                   disabled: exporting,
                 },
+                ...(bulkActions ?? []).map((action) => ({
+                  key: `${HOST_BULK_PREFIX}${action.key}`,
+                  label: action.label,
+                  ...(action.disabled === undefined ? {} : { disabled: action.disabled }),
+                })),
                 ...(canDelete
                   ? [{ key: 'delete', label: labels?.deleteAction ?? t('ui:action.delete', 'Delete'), danger: true }]
                   : []),
@@ -840,6 +867,9 @@ export function PageCrud({
               onAction={(key, ids) => {
                 if (key === 'delete') setBulkDeleteIds(ids);
                 if (key === 'export') void runExport(BULK_EXPORT_FORMAT, ids);
+                if (key.startsWith(HOST_BULK_PREFIX)) {
+                  bulkActions?.find((action) => `${HOST_BULK_PREFIX}${action.key}` === key)?.run(ids);
+                }
               }}
               onClear={() => setSelected(new Set())}
             />
@@ -919,11 +949,11 @@ export function PageCrud({
               rowEnd={(row) => (
                 <>
                   {/*
-                    * Host row actions BESIDE Peek, before it (34 §7.8,
-                    * 34-T16). Peek stays rightmost because it is the row's
-                    * own affordance and has been in that position since the
-                    * grid shipped; an add-on's action arriving to the LEFT of
-                    * it moves nothing a person has already learned.
+                    * Host row actions BESIDE Peek, before it. Peek stays
+                    * rightmost because it is the row's own affordance and has
+                    * been in that position since the grid shipped; an
+                    * add-on's action arriving to the LEFT of it moves nothing
+                    * a person has already learned.
                     */}
                   {rowActions?.(row)}
                   <IconButton
@@ -969,7 +999,7 @@ export function PageCrud({
         />
       </div>
 
-      {/* Create — TwoPhaseModal, domain framing (09 §7.1). */}
+      {/* Create — TwoPhaseModal, domain framing. */}
       <TwoPhaseModal
         flow={createFlow}
         open={createOpen}
@@ -1022,7 +1052,7 @@ export function PageCrud({
         </ModalBody>
       </TwoPhaseModal>
 
-      {/* Peek — ephemeral row preview behind the eye action (30 D1). The
+      {/* Peek — ephemeral row preview behind the eye action. The
           header's "Open page" lands on the record page, so the peek is a step
           toward it, never a dead end. */}
       <Drawer open={peekId !== null} onOpenChange={(open) => !open && setPeekId(null)} size="md">
@@ -1086,7 +1116,7 @@ export function PageCrud({
         </DrawerBody>
       </Drawer>
 
-      {/* Cascade-aware type-to-confirm delete (09 §7.1). */}
+      {/* Cascade-aware type-to-confirm delete. */}
       <ConfirmModal
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}

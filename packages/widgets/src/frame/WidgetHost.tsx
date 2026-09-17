@@ -12,23 +12,25 @@ import { widgetMissingDefinition } from '../registry/widget-missing.js';
 import { SkeletonSilhouette } from './SkeletonSilhouette.js';
 import { WidgetFrame } from './WidgetFrame.js';
 import type { WidgetFrameState } from './WidgetFrame.js';
+import { useExternalWidgetResolver } from './ExternalWidgetsContext.js';
 import { useResolvedWidgetId } from './WidgetRuntimeContext.js';
 import type { WidgetDefinition, WidgetEvent } from '../registry/types.js';
 
 /**
- * The data state handed to WidgetHost by the page renderer. DECISION (04
- * §5.3): @adminium/widgets stays free of @tanstack/react-query — the
+ * The data state handed to WidgetHost by the page renderer. DECISION:
+ * @adminium/widgets stays free of @tanstack/react-query — the
  * `useWidgetData` hook (TanStack Query, batching, refreshInterval, params)
- * lives in apps/dashboard (04-T03 binding layer), and this shape mirrors a
+ * lives in apps/dashboard (binding layer), and this shape mirrors a
  * TanStack Query result so the hook's output spreads straight in. Storybook
- * and demo mode pass `{ status: 'success', data: demoData(seed) }` directly.
+ * and demo mode pass `{ status: 'success', data: demoData(seed) }`
+ * directly.
  */
 export interface WidgetDataState<T = unknown> {
   status: 'loading' | 'error' | 'success';
   data?: T | undefined;
   error?: unknown;
   refetch?: (() => void) | undefined;
-  /** Stale-while-revalidate: true keeps `loaded` + header spinner (04 §4). */
+  /** Stale-while-revalidate: true keeps `loaded` + header spinner. */
   isRefetching?: boolean | undefined;
 }
 
@@ -37,7 +39,7 @@ export interface WidgetHostProps {
   widgetId: string;
   /** Widget instance id (`layout.items[].i`, nanoid). */
   instanceId: string;
-  /** Raw stored instance config — validated here on mount (04 §2.2). */
+  /** Raw stored instance config — validated here on mount. */
   config?: unknown;
   data: WidgetDataState;
   onEvent?: ((event: WidgetEvent) => void) | undefined;
@@ -72,11 +74,11 @@ function errorMessageOf(error: unknown): string | undefined {
 
 /**
  * WidgetHost — binds a WidgetDefinition + stored instance config + a data
- * state to WidgetFrame and the lazy widget component (04 §2.2, §4):
+ * state to WidgetFrame and the lazy widget component:
  *
  * - unknown widget id → the `widget-missing` system card, never a crash;
  * - `map-*` → `map-choropleth-grid` under the offline asset policy, so the
- *   desktop app never imports a map engine (11-electron.md §7; registry/offline.ts);
+ * desktop app never imports a map engine (registry/offline.ts);
  * - `validateInstanceConfig` on mount, per-field default fallback + one
  *   structured console warning;
  * - loading → skeleton silhouette; error → error card + Retry (refetch);
@@ -98,14 +100,17 @@ export function WidgetHost({
   registry,
 }: WidgetHostProps) {
   const map = registry ?? widgetRegistry;
-  // §7's offline asset policy, applied BEFORE the map is read — resolving the id
+  // The offline asset policy, applied BEFORE the map is read — resolving the id
   // is what keeps the map chunk (and Leaflet behind it) from ever being imported
-  // in the desktop shell. Identity online, so self-host/Cloud are untouched.
-  // A custom `registry` that lacks the fallback target renders widget-missing
+  // in the desktop shell. Identity online, so self-host/Cloud are untouched. A
+  // custom `registry` that lacks the fallback target renders widget-missing
   // rather than the map: in an offline runtime that is the conservative answer,
   // and `registry/offline.test.tsx` pins the target's presence in the real map.
   const resolvedId = useResolvedWidgetId(widgetId);
-  const resolved = map.get(resolvedId);
+  // The registry first, so a host's own widgets can never shadow a registry id.
+  const external = useExternalWidgetResolver();
+  const registered = map.get(resolvedId);
+  const resolved = registered ?? external?.(resolvedId);
   const missing = resolved === undefined;
   const definition = resolved ?? widgetMissingDefinition;
 
@@ -158,13 +163,19 @@ export function WidgetHost({
   // humanized widget id is the dangling-key fallback.
   // An explicit `null` SUPPRESSES the popover, so the test is `=== undefined`,
   // not `??`: `??` would read the suppressing null as "nothing was passed".
-  // i18n-dynamic-key: per-definition descriptionKey from an open registry.
-  const resolvedInfo = info === undefined ? t(`ui:${definition.descriptionKey}`, humanizedId) : info;
+  // A host's own widget (`ExternalWidgetsContext.tsx`) has no catalogue text,
+  // so it gets no popover unless the host passes one.
+  const hostWidget = registered === undefined && resolved !== undefined;
+  let resolvedInfo = info;
+  if (resolvedInfo === undefined && !hostWidget) {
+    // i18n-dynamic-key: per-definition descriptionKey from an open registry.
+    resolvedInfo = t(`ui:${definition.descriptionKey}`, humanizedId);
+  }
 
   const Component = definition.component;
   const frameless = definition.placement === 'page';
 
-  // Raster export (04 §2.1 `capabilities.exportPng`). The module is dynamic —
+  // Raster export (`capabilities.exportPng`). The module is dynamic
   // it is DOM-only code nobody has clicked yet, and the dashboard entry chunk
   // is on a ratchet (apps/dashboard/scripts/check-entry-budget.mjs).
   const frameRef = useRef<HTMLElement | null>(null);
@@ -183,7 +194,7 @@ export function WidgetHost({
   }, [instanceId, definition.id, exportTitle]);
 
   // "Download", not "Export": in Adminium "Export" names the QUEUED server-side
-  // export-run that lands an artifact on the Data exports page (09 §11.2), and
+  // export-run that lands an artifact on the Data exports page, and
   // this item does the opposite — it rasterizes what is already on screen and
   // hands the browser a file. `ui:widgets.media.download` is this package's
   // existing shared download label (AttachmentList, UploadProgressList), so the
@@ -217,7 +228,7 @@ export function WidgetHost({
       skeleton={definition.skeleton}
       // titleKey/bodyKey are i18n keys — the dashboard resolves them via
       // @adminium/i18n; passed through raw here so overrides stay visible
-      // even before the i18n hookup (04-T06 wires the translator).
+      // even before the i18n hookup (wires the translator).
       empty={
         emptyOverride === undefined
           ? undefined

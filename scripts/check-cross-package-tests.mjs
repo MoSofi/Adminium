@@ -29,7 +29,7 @@
  *
  * ─── Why two phases ────────────────────────────────────────────────────────
  *
- * Six of these files need a built workspace package (engine, widgets, meta,
+ * Eight of these files need a built workspace package (engine, widgets, meta,
  * i18n, the adapters), so they can only run once `turbo run build` has. The
  * other five touch no workspace `dist/` at all: traced, including existence
  * probes, and run green in a fresh clone with no build. generate-notices.test.ts
@@ -71,7 +71,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TESTS = [
   // ── phase: source ────────────────────────────────────────────────────────
   {
-    // 35-T08: the dashboard's hand-copied RESERVED_GRANTS may not import
+    // The dashboard's hand-copied RESERVED_GRANTS may not import
     // @adminium/meta, so meta reads the file. 2 of the file's 6 tests.
     dir: 'packages/meta',
     file: 'test/system-action-keys.test.ts',
@@ -105,7 +105,7 @@ const TESTS = [
   },
   {
     // In-app help links resolve to real docs pages, and the docs describe the
-    // build that shipped. rest-api-docs-check covers 2 of its 12 tests.
+    // build that shipped. rest-api-docs-check covers 2 of its 16 tests.
     dir: 'apps/server',
     file: 'test/docs-contract.test.ts',
     reads: [
@@ -123,6 +123,25 @@ const TESTS = [
     dir: 'apps/desktop',
     file: 'src/test/check-offline-assets.test.ts',
     reads: ['scripts/check-offline-assets.mjs'],
+    phase: 'source',
+  },
+  {
+    // The `pnpm dev` setup step. It spawns a COPY of the root script in a temp
+    // dir, and also asserts the wiring that makes it run at all — the root
+    // `dev` script, `turbo.json`'s `dev` -> `^build` edge, `.gitignore` and
+    // CONTRIBUTING.md's three commands. None of that is in this package's
+    // cache key, and the rule it holds (a secret is written once and NEVER
+    // regenerated) fails in a way nobody would notice for weeks.
+    dir: 'apps/server',
+    file: 'test/dev-setup.test.ts',
+    reads: [
+      'scripts/dev-setup.mjs',
+      'package.json',
+      'turbo.json',
+      '.gitignore',
+      'CONTRIBUTING.md',
+      'apps/desktop/resources/demo/demo-seed.mjs',
+    ],
     phase: 'source',
   },
   // ── phase: dist ──────────────────────────────────────────────────────────
@@ -147,7 +166,7 @@ const TESTS = [
     phase: 'dist',
   },
   {
-    // 34-T54: the block-* canvas against the one money fixture.
+    // The block-* canvas against the one money fixture.
     // check-invoice-money-fixture holds the copies byte-identical but never
     // runs computeTotals, so a fixture change copied to every tree replays.
     dir: 'packages/widgets',
@@ -178,11 +197,44 @@ const TESTS = [
     phase: 'dist',
   },
   {
-    // 11-T08's acceptance test seeds with the REAL desktop demo script.
+    // The acceptance test seeds with the REAL desktop demo script.
     // apps/desktop depends on apps/server, not the other way round.
     dir: 'apps/server',
     file: 'test/desktop-demo.test.ts',
     reads: ['apps/desktop/resources/demo/demo-seed.mjs'],
+    phase: 'dist',
+  },
+  {
+    // The Node floor: the root `engines.node` must equal the server's (1 of
+    // the file's tests). The rest of the file reads only its own package and
+    // meta, a dependency.
+    dir: 'apps/server',
+    file: 'test/m10-regressions.test.ts',
+    reads: ['package.json'],
+    phase: 'dist',
+  },
+  {
+    // `adminium new --sample` seeds with the desktop demo script, as a
+    // published package does from its bundled copy (1 of the file's tests).
+    dir: 'apps/server',
+    file: 'test/cli-project.test.ts',
+    reads: ['apps/desktop/resources/demo/demo-seed.mjs'],
+    phase: 'dist',
+  },
+  {
+    // 49 acceptance 8: a project page and cell, built by the server's own
+    // build code (its source, with the kit module it bundles), render in the
+    // dashboard with one React. The dashboard does not depend on the server.
+    // Needs add-on-contracts' and widgets' dist.
+    dir: 'apps/dashboard',
+    file: 'src/project/project-bundle.test.tsx',
+    reads: [
+      'apps/server/src/project/client-build.ts',
+      'apps/server/src/project/paths.ts',
+      'apps/server/src/project/config.ts',
+      'apps/server/src/cli/exit.ts',
+      'apps/server/src/ui/index.ts',
+    ],
     phase: 'dist',
   },
 ];

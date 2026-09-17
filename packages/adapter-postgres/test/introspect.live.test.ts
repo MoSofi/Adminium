@@ -12,7 +12,7 @@
  * (`packages/engine/test/fixtures/northwind.model.json`) after normalizing
  * order and the volatile fields (introspectedAt, stats.durationMs,
  * rowCountEstimate, sizeBytes, activity, warnings — the same set the
- * canonical snapshot hash strips, 05 §9).
+ * canonical snapshot hash strips).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -57,7 +57,7 @@ describe.skipIf(!psqlAvailable)('northwind fixture equivalence (psql executor)',
     expect(() => parseDatabaseModel(JSON.stringify(model))).not.toThrow();
   });
 
-  it('keeps the catalog constraint name on every declared FK (35-T33)', () => {
+  it('keeps the catalog constraint name on every declared FK', () => {
     // `Relation.id` is derived from the endpoints, so it names nothing the
     // catalog knows — a DROP CONSTRAINT needs the name Postgres assigned.
     // `conname` has been selected by `constraintsSql` all along; this asserts

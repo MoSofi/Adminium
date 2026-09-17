@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-settings` template (04 §10; comp: Notification Settings
- * .dc.html) — an event × delivery-channel preference matrix with PER-CELL
- * AUTOSAVE choreography: every toggle fires immediately (no Save button), the
- * header indicator walks idle → saving → saved, and in-flight cells carry the
- * ToggleMatrix dirty dot until the host confirms them.
+ * `page-settings` template (comp: Notification Settings.dc.html) — an event ×
+ * delivery-channel preference matrix with PER-CELL AUTOSAVE choreography:
+ * every toggle fires immediately (no Save button), the header indicator walks
+ * idle → saving → saved, and in-flight cells carry the ToggleMatrix dirty dot
+ * until the host confirms them.
  *
  * PRESENTATIONAL AND HOST-DRIVEN (the PageCrud/PageWizard discipline): cell
  * truth lives in the `events` prop — the ui ToggleMatrix is driven fully
  * controlled, so a host rollback (failed PUT) visibly snaps the cell back.
  * The template never fetches and never translates; labels flow in with
- * English fallbacks (04 §2 — widgets never translate).
+ * English fallbacks (widgets never translate).
  *
- * UNAVAILABLE CHANNELS (§8.2 never-hide-always-explain): a channel with
+ * UNAVAILABLE CHANNELS (never-hide-always-explain): a channel with
  * `available: false` stays fully togglable — the intent is STORED — and its
  * column header carries a tag plus an explanation line under the matrix. A
  * silently disabled column would hide the product truth; a hidden column
@@ -38,7 +38,7 @@ export interface SettingsChannelDef {
   label: string;
   /** False = no transport in this build; the column stays togglable. */
   available: boolean;
-  /** REQUIRED alongside `available: false` — the §8.2 explanation. */
+  /** REQUIRED alongside `available: false` — the explanation. */
   reason?: string | undefined;
 }
 
@@ -230,7 +230,8 @@ export function PageSettings({
         </div>
       )}
 
-      {/* --- §8.2 channel explanations ------------------------------------------ */}
+      {/* --- channel explanations ------------------------------------------
+       * */}
       {unavailable.length > 0 && status === 'ready' ? (
         <ul data-part="channel-notes" className="flex flex-col gap-1.5">
           {unavailable.map((channel) => (

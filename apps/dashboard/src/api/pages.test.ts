@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Page-config client (09-generated-app.md §3): migrate → validate, with every
- * failure mode returned as a value — too-new documents and invalid envelopes
- * render cards, never crash and never throw into the route error path.
+ * Page-config client: migrate → validate, with every failure mode returned as
+ * a value — too-new documents and invalid envelopes render cards, never crash
+ * and never throw into the route error path.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ConfigMigration } from '@adminium/engine/config';
@@ -23,7 +23,7 @@ describe('parsePageDocument', () => {
     expect(result.page.source.table).toBe('public.customers');
   });
 
-  it('maps a document newer than this build to the too-new card state (§3.1)', () => {
+  it('maps a document newer than this build to the too-new card state', () => {
     const result = parsePageDocument({ ...makeCrudEnvelope(), v: 99 });
     expect(result).toEqual({ status: 'too-new', v: 99, latest: 1 });
   });
@@ -53,7 +53,7 @@ describe('parsePageDocument', () => {
     expect(result.issues.join('\n')).toContain('template');
   });
 
-  it('runs the client-side migration chain before validating (§3.1)', () => {
+  it('runs the client-side migration chain before validating', () => {
     const migrate = vi.fn<ConfigMigration['migrate']>((doc) => ({
       ...doc,
       config: { renamed: (doc['config'] as Record<string, unknown>)['legacy'] },

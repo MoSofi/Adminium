@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/about` — the About / version / license screen (M10-T04; v0.5 exit
+ * `/about` — the About / version / license screen (v0.5 exit
  * criterion "the About screen shows version/license").
  *
- * Carries the AGPL §13 source offer (01-architecture.md §9.3: an instance
- * satisfies §13 by linking the corresponding source from its About screen), the
- * running version, the meta-store engine, and the self-host update notice.
+ * Carries the AGPL source offer (an instance satisfies section 13 by linking
+ * the corresponding source from its About screen), the running version, the
+ * meta-store engine, and the self-host update notice.
  *
  * The update notice is gated on `updates.checkEnabled`: when the instance has
  * opted out this page does not even ISSUE the request (`enabled` below), and
@@ -24,7 +24,7 @@ import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { DesktopAboutSections } from './DesktopAboutSections.js';
 
-/** Display names for the three v1 meta engines (07-meta-store.md). */
+/** Display names for the three v1 meta engines. */
 function engineLabel(engine: MetaEngine): string {
   switch (engine) {
     case 'postgres':
@@ -103,10 +103,10 @@ function UpdateNotice({ about }: { about: AboutData }): ReactNode {
 
 export function AboutPage(): ReactNode {
   const { data: about } = useSuspenseQuery(aboutQuery());
-  // The Electron shell adds §13's desktop-only sections (versions, data dir,
+  // The Electron shell adds desktop-only sections (versions, data dir,
   // secret-storage mode, in-app licence viewers, telemetry, diagnostics) and
-  // replaces the self-host GitHub update notice with §11's desktop updater — so
-  // the two are mutually exclusive, not stacked. `isDesktopRuntime()` is §4's
+  // replaces the self-host GitHub update notice with the desktop updater — so
+  // the two are mutually exclusive, not stacked. `isDesktopRuntime()` is
   // detection contract; the extra data is native-affordance only.
   const desktop = isDesktopRuntime();
 
@@ -120,7 +120,7 @@ export function AboutPage(): ReactNode {
         subtitle={t('about.subtitle', 'Version, licence, and where this instance’s source code lives.')}
       />
 
-      {/* The self-host summary. On desktop it is omitted: §13's System card
+      {/* The self-host summary. On desktop it is omitted: the System card
           below carries the same version/engine facts in fuller form, and showing
           both would print the server version twice. */}
       {desktop ? null : (
@@ -139,9 +139,9 @@ export function AboutPage(): ReactNode {
       )}
 
       {desktop ? (
-        // §13: the shell owns its own AGPL notice (with an in-app licence viewer),
-        // its own §11 updater, telemetry, and diagnostics — so the self-host
-        // licence + GitHub-update cards below are replaced, not supplemented.
+        // The shell owns its own AGPL notice (with an in-app licence viewer), its
+        // own updater, telemetry, and diagnostics — so the self-host licence +
+        // GitHub-update cards below are replaced, not supplemented.
         <DesktopAboutSections about={about} />
       ) : (
         <>
@@ -162,7 +162,7 @@ export function AboutPage(): ReactNode {
                     <ExternalLink className="size-3.5" aria-hidden="true" />
                   </a>
                 </Button>
-                {/* The AGPL §13 source offer — this link IS the compliance artifact. */}
+                {/* The AGPL section 13 source offer — this link IS the compliance artifact. */}
                 <Button asChild variant="outline" size="md">
                   <a href={about.sourceUrl} target="_blank" rel="noreferrer noopener">
                     {t('about.viewSource', 'Get the source code')}

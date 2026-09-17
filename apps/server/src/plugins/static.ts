@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `static` plugin (08-server-api.md §1.2): serves a dashboard build directory
- * when one exists, with an SPA fallback to `index.html` for non-`/api/*`
- * GET/HEAD requests (the fallback itself lives in the app's not-found handler,
- * keyed off the `spaRoot` decoration). When the directory is absent — the
- * dashboard ships M4 — the plugin cleanly no-ops and the server still boots.
+ * `static` plugin: serves a dashboard build directory when one exists, with an
+ * SPA fallback to `index.html` for non-`/api/*` GET/HEAD requests (the
+ * fallback itself lives in the app's not-found handler, keyed off the
+ * `spaRoot` decoration). When the directory is absent — the dashboard ships M4
+ * — the plugin serves nothing and the server still boots.
+ *
+ * Either way it decorates `reply.sendFile`. App surfaces send their files with
+ * it (plugins/surfaces.ts, and the not-found handler's surface fallbacks), and
+ * an API-only server serves them too.
  */
 import { stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -48,6 +52,12 @@ export const staticPlugin = fp<StaticPluginOptions>(
         // which applies the SPA fallback for non-/api paths.
         wildcard: true,
       });
+    } else {
+      // No dashboard, but app surfaces still send their files with
+      // `reply.sendFile`, always passing their own root. So add the decorator
+      // and nothing else: no route, no default root. Only one registration may
+      // add it, which is why this is the `else`.
+      await app.register(fastifyStatic, { serve: false });
     }
   },
   { name: 'adminium-static', fastify: '5.x' },

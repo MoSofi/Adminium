@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "comment": "The bundled add-on set (32 D3). Exact pins only; refreshed per add-ons release from RELEASES.json in Adminiumjs/add-ons.",
+  "comment": "The bundled add-on set. Exact pins only; refreshed per add-ons release from RELEASES.json in Adminiumjs/add-ons.",
   "addOns": [
     {
       "key": "barcode-labels",

@@ -2,20 +2,20 @@
 /**
  * The CLI's composition root.
  *
- * THE GOVERNING RULE (16-milestones.md, M10 risk register): "CLI subcommands
- * share the same server services as the Studio routes; **one code path, two
- * front doors**." This module is where that is made true — it builds the exact
- * service graph `scripts/demo-v01.mjs` and the route wiring build
- * (`ConnectionManager`, `runIntrospection`, `runGeneration`, the run/apply/prompt
- * services), and the subcommands consume nothing else. A command that reached
- * past this into its own query or its own HTTP call would be the drift the risk
- * register warns about.
+ * THE GOVERNING RULE (M10 risk register): "CLI subcommands share the same server
+ * services as the Studio routes; **one code path, two front doors**." This module
+ * is where that is made true — it builds the exact service graph
+ * `scripts/demo-v01.mjs` and the route wiring build (`ConnectionManager`,
+ * `runIntrospection`, `runGeneration`, the run/apply/prompt services), and the
+ * subcommands consume nothing else. A command that reached past this into its own
+ * query or its own HTTP call would be the drift the risk register warns about.
  *
  * Everything is injectable ({@link CliDeps}) so the subcommand tests drive the
  * dispatcher against fakes: no meta store, no source database, no listening
  * socket.
  */
 
+import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 import { adapterRegistry } from '@adminium/engine/adapter';
@@ -37,6 +37,7 @@ import { createConnectionStatsCollector } from '../llm/stats-collector.js';
 import type { CollectRunStats } from '../llm/prompt-service.js';
 import type { OnMetaRelocated } from '../meta/relocate.js';
 import { openMetaStore, type MetaStoreHandle } from '../meta/store.js';
+import type { ProjectServerOptions } from '../project/service.js';
 import { loadAllowedVocabularies } from './allowlist.js';
 import { CliError } from './exit.js';
 import { defaultDataDir } from './data-dir.js';
@@ -46,7 +47,7 @@ import { discoverSurfaces, resolveSurfacesDir } from './surfaces-root.js';
 // ─── Env ─────────────────────────────────────────────────────────────────────
 
 /**
- * Flag overrides applied ON TOP of the process environment. 01 §7.1 makes env
+ * Flag overrides applied ON TOP of the process environment. Env
  * the configuration substrate; the CLI's contract is that an explicit flag beats
  * an inherited variable, so they are merged BEFORE the Zod schema runs and the
  * result is validated exactly once, by exactly the existing schema.
@@ -68,10 +69,13 @@ export interface EnvOverrides {
  * {@link envSchema}. A missing/short `ADMINIUM_SECRET` is called out on its own
  * because it gates the AES-256-GCM helper that every stored DSN and provider key
  * depends on — booting without it would mean a store that cannot be read back.
+ * `sources` names where a project took a variable from (`.env` or a config
+ * field), so a failing one points at the file to fix.
  */
 export function loadCliEnv(
   env: Record<string, string | undefined>,
   overrides: EnvOverrides = {},
+  sources: Readonly<Record<string, string>> = {},
 ): Env {
   const merged: Record<string, string | undefined> = {
     ...env,
@@ -102,7 +106,11 @@ export function loadCliEnv(
   if (result.success) return result.data;
 
   const secretIssue = result.error.issues.some((issue) => issue.path[0] === 'ADMINIUM_SECRET');
-  const table = formatEnvErrorTable(result.error.issues);
+  // A flag replaced the value, so the project is not where it came from.
+  const origins = [...new Set(result.error.issues.map((issue) => String(issue.path[0])))]
+    .filter((name) => sources[name] !== undefined && merged[name] === env[name])
+    .map((name) => `${name} came from ${sources[name] ?? ''}.`);
+  const table = [formatEnvErrorTable(result.error.issues), ...(origins.length > 0 ? ['', ...origins] : [])].join('\n');
   throw new CliError(
     secretIssue
       ? 'ADMINIUM_SECRET is required — it derives the key that encrypts every stored DSN and API key.'
@@ -129,7 +137,7 @@ export interface CliRuntime {
   allowed: AllowedVocabularies | null;
   /** Why {@link promptService} is null, for the command's error message. */
   promptServiceError: Error | null;
-  /** §4.2 aggregates over the connection's data role — what `--sampling` needs. */
+  /** Aggregates over the connection's data role — what `--sampling` needs. */
   collectStats: CollectRunStats;
   close(): Promise<void>;
 }
@@ -163,12 +171,12 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
   const manager = new ConnectionManager({
     meta: metaStore.meta,
     crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
-    // The embedded fallback has no DSN to collide with (01 §3.1).
+    // The embedded fallback has no DSN to collide with.
     metaDsn: metaStore.source === 'embedded' ? null : metaStore.url,
     ...(opts.blockLoopback === undefined ? {} : { blockLoopback: opts.blockLoopback }),
   });
 
-  // §3.1 pre-flight, and it has to be HERE — before `start`/`init` call
+  // The placement pre-flight, and it has to be HERE — before `start`/`init` call
   // `firstRun` — because its whole job is refusing a foreign `adminium_*`
   // namespace while the database is still untouched. See the method for why the
   // migration ledger is what tells our tables from somebody else's.
@@ -176,7 +184,7 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
 
   const runService = createRunService({ meta: metaStore.meta });
 
-  // The real §4.2 collector, not the `NO_STATS` default: `generate-prompt
+  // The real collector, not the `NO_STATS` default: `generate-prompt
   // --sampling` promises "sampled example values in the prompt" in its own
   // `--help`, and the prompt service silently omits every aggregate when nobody
   // injects one. Both front doors now inject the same collector (see
@@ -204,9 +212,9 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     ...(allowed?.widgetContracts === undefined
       ? {}
       : { widgetContracts: allowed.widgetContracts }),
-    // §8.3 step 3 — the real runGeneration-backed hook (both front doors share
-    // this service graph): pages pick up the freshly applied overrides, and the
-    // apply's `origin: 'llm'` seed rows are expanded into envelopes
+    // The real runGeneration-backed hook (both front doors share this service
+    // graph): pages pick up the freshly applied overrides, and the apply's
+    // `origin: 'llm'` seed rows are expanded into envelopes
     // (generate/materialize-llm.ts). Failures propagate to the caller AFTER the
     // apply is durable — applyRun fires the hook post-commit by design.
     regenerate: async ({ connectionId, appliedBy }) => {
@@ -255,6 +263,8 @@ export interface StartServerOptions {
    * a button that half-moves an instance and then keeps serving the old store.
    */
   onMetaRelocated?: OnMetaRelocated | undefined;
+  /** The project folder this server runs, when there is one. */
+  project?: ProjectServerOptions | undefined;
 }
 
 /** Boot + listen. Injected ({@link CliDeps.startServer}) so tests never bind a port. */
@@ -274,10 +284,10 @@ export function displayUrl(host: string, port: number): string {
  *
  * It used to be `buildServer` alone, which is only the Fastify SKELETON — six of
  * the seventeen `/api/v1` namespaces the dashboard calls. `adminium start`,
- * `adminium init`'s final boot and the Docker CMD therefore all served an API
+ * `adminium try`'s final boot and the Docker CMD therefore all served an API
  * whose connect wizard 404'd; the full wiring existed only inside
  * `scripts/demo-v01.mjs`. `composeServer` is that wiring, moved somewhere the
- * shipped artifact actually reaches (01 §4: "All four deployment modes run the
+ * shipped artifact actually reaches ("All four deployment modes run the
  * identical `@adminium/server` process; only the wrapper differs").
  */
 export const startServer: StartServer = async (runtime, opts = {}) => {
@@ -301,6 +311,7 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
     ...(staticRoot === undefined ? {} : { staticRoot }),
     ...(surfaces.length === 0 ? {} : { surfaces }),
     ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
+    ...(opts.project === undefined ? {} : { project: opts.project }),
   });
   // Falling through on a missed override is the resolver's contract (the
   // implicit candidates degrade the same way), but a path the operator WROTE
@@ -481,20 +492,62 @@ export function installSignalShutdown(
 
 // ─── Injected dependency bag ─────────────────────────────────────────────────
 
+/**
+ * Run a program to completion: an install or `git init` for `adminium new`.
+ * `inherit` shows its output in the terminal; otherwise stdout is returned.
+ */
+export type RunProcess = (
+  command: string,
+  args: readonly string[],
+  opts: { cwd: string; inherit?: boolean },
+) => { status: number | null; stdout: string };
+
+export const runProcess: RunProcess = (command, args, opts) => {
+  const result = spawnSync(command, [...args], {
+    cwd: opts.cwd,
+    stdio: opts.inherit === true ? 'inherit' : ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8',
+    // npm, pnpm and yarn are `.cmd` shims on Windows, which only a shell runs.
+    // The arguments are fixed words, never user input.
+    shell: process.platform === 'win32',
+  });
+  return {
+    status: result.error === undefined ? result.status : null,
+    stdout: typeof result.stdout === 'string' ? result.stdout : '',
+  };
+};
+
 export interface CliDeps {
   env: Record<string, string | undefined>;
   cwd: string;
+  /** Runs installs and git for `adminium new`; the real one when omitted. */
+  runProcess?: RunProcess;
   /** Opens the shared service graph. */
   openRuntime: (env: Env, opts?: OpenRuntimeOptions) => Promise<CliRuntime>;
   /** Boots + listens. */
   startServer: StartServer;
-  /** M10-T03's bundler. */
+  /** The bundler. */
   exportZip: ExportZip;
-  /** M10-T03's restore path — the same service a Studio upload route would call. */
+  /** The restore path — the same service a Studio upload route would call. */
   importZip: ImportZip;
   /** Launches the setup wizard's browser mode. Resolves false when it could not. */
   openBrowser: OpenBrowser;
+  /** HTTP for `pull --from`; the global `fetch` when omitted. */
+  fetch?: typeof fetch;
+  /** Starts the server `adminium dev` runs; a real `adminium start` process when omitted. */
+  spawnDevServer?: SpawnDevServer;
+  /** Stops a command that runs until Ctrl-C (`dev`) when it aborts. */
+  signal?: AbortSignal;
 }
+
+/** Runs `adminium <args>` as a child process with this folder and environment. */
+export type SpawnDevServer = (
+  args: readonly string[],
+  opts: { cwd: string; env: Record<string, string | undefined> },
+) => {
+  kill(signal: NodeJS.Signals): void;
+  onExit(listener: (code: number | null, signal: NodeJS.Signals | null) => void): void;
+};
 
 /** Injected so the wizard tests never shell out. */
 export type OpenBrowser = (url: string) => Promise<boolean>;
@@ -545,6 +598,7 @@ export function defaultCliDeps(): CliDeps {
   return {
     env: process.env,
     cwd: process.cwd(),
+    runProcess,
     openRuntime,
     startServer,
     exportZip: defaultExportZip,

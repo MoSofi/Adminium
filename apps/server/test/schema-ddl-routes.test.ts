@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The schema-authoring routes — 35-schema-authoring.md 35-T10, 35-T15, 35-T17,
- * D6, D7, D23.
+ * The schema-authoring routes.
  *
  * Runs the whole HTTP path over the fake SQLite-backed adapter, so every
  * assertion here is about what a caller actually gets rather than what a unit
@@ -13,7 +12,7 @@
  *
  *   • no `schema.ddl` grant                    → 403
  *   • an API key principal (D23/O7)            → 403
- *   • a read-only connection (D5/35-T15)       → 403 READ_ONLY_MODE
+ * • a read-only connection (D5/) → 403 READ_ONLY_MODE
  *   • a schema-file connection                 → 403 READ_ONLY_MODE
  *   • a destructive step without Super Admin   → 403 (D7)
  */
@@ -182,7 +181,7 @@ beforeAll(async () => {
   // and this suite needs the connection's dialect to MATCH its executor —
   // otherwise the service selects Postgres session rails and runs them at
   // SQLite. (That the rails failing aborts the apply is correct product
-  // behaviour: proceeding without `lock_timeout` is the outage §5 describes.)
+  // behaviour: proceeding without `lock_timeout` is the outage describes.)
   const created = await t.app.inject({
     method: 'POST',
     url: '/api/v1/connections',
@@ -328,7 +327,7 @@ describe('the plan (D2, D4)', () => {
     expect(res.statusCode).toBe(422);
   });
 
-  it('refuses a system table by name (§4, META_NAMESPACE / SYSTEM_TABLE)', async () => {
+  it('refuses a system table by name (META_NAMESPACE / SYSTEM_TABLE)', async () => {
     const res = await t.app.inject({
       method: 'POST',
       url: `/api/v1/connections/${connectionId}/schema/plan`,
@@ -430,7 +429,7 @@ describe('apply (D2, D7)', () => {
   });
 });
 
-describe('honest absence, enforced server-side (D5, 35-T15)', () => {
+describe('honest absence, enforced server-side (D5)', () => {
   it('403 READ_ONLY_MODE on a read-only connection', async () => {
     await grantDdl();
     await t.meta.db
@@ -475,7 +474,7 @@ describe('honest absence, enforced server-side (D5, 35-T15)', () => {
   });
 });
 
-describe('the diagram layout route (D21, 35-T37)', () => {
+describe('the diagram layout route (D21)', () => {
   it('accepts schema.remap and persists the positions', async () => {
     const res = await t.app.inject({
       method: 'PUT',

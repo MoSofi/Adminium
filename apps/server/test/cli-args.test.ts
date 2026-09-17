@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CLI argument parsing, `--help`, and `--version` (M10-T01).
+ * CLI argument parsing, `--help`, and `--version`.
  *
  * These assert the SHAPE of the front door: which flags exist, how repeatable
  * and CSV list flags collapse, and that help is derived from the same specs the
@@ -48,7 +48,7 @@ describe('parseFlags', () => {
   });
 });
 
-describe('splitList — the §10.4 `--sections a,b` / repeated-flag forms', () => {
+describe('splitList — the `--sections a,b` / repeated-flag forms', () => {
   it('splits a CSV value', () => {
     expect(splitList(parseFlags(['--sections', 'labels,enums'], SPECS).values.sections)).toEqual([
       'labels',
@@ -149,10 +149,16 @@ describe('help text is derived from the flag specs', () => {
 });
 
 describe('command registry', () => {
-  it('exposes exactly the M10-T01 subcommands', () => {
+  it('lists the project commands first, then the rest', () => {
     expect(COMMANDS.map((command) => command.name)).toEqual([
-      'init',
+      'new',
+      'dev',
+      'build',
       'start',
+      'check',
+      'pull',
+      'eject',
+      'try',
       'migrate',
       'introspect',
       'generate-prompt',
@@ -165,5 +171,10 @@ describe('command registry', () => {
   it('resolves a command by name', () => {
     expect(findCommand('migrate')?.name).toBe('migrate');
     expect(findCommand('nope')).toBeUndefined();
+  });
+
+  it('resolves an alias to its command, and keeps the alias out of the help list', () => {
+    expect(findCommand('init')?.name).toBe('try');
+    expect(renderRootHelp(COMMANDS, '9.9.9')).not.toMatch(/^\s+init\s/m);
   });
 });

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Stage 6 referential cross-checks (06-llm-assist.md §7.3), row by row.
+ * Stage 6 referential cross-checks, row by row.
  *
  * `validate.test.ts` pins the fixture corpus — one file per documented code —
  * which proves each code is REACHABLE. This file covers the rows that corpus
  * does not: the second and third rejection inside a check that already has a
  * fixture for its first, and the exact repair each one performs.
  *
- * The repair is the part worth pinning. §7.3 rejections are per-item (§7.2): a
- * bad `displayColumn` nulls that one field and keeps the table, a bad enum drops
+ * The repair is the part worth pinning. Rejections are per-item: a bad
+ * `displayColumn` nulls that one field and keeps the table, a bad enum drops
  * that one enum and keeps its table, a duplicate nav group drops the SECOND
  * claimant and keeps the first. A check that produced the right error code while
  * dropping the wrong thing — or the whole response — would satisfy the corpus
@@ -122,7 +122,7 @@ function body(parts: Json): string {
 
 /* ------------------------------------------------------ table key columns */
 
-describe('§7.3 — key columns are repaired, not dropped with their table', () => {
+describe('Key columns are repaired, not dropped with their table', () => {
   it('nulls a displayColumn that does not exist and keeps everything else', () => {
     const result = validateResponse(
       body({
@@ -205,7 +205,7 @@ describe('§7.3 — key columns are repaired, not dropped with their table', () 
 
 /* ------------------------------------------------------------------ enums */
 
-describe('§7.3 row 4 — enum suggestions', () => {
+describe('Enum suggestions', () => {
   it('drops an enum whose column does not exist on a table that does', () => {
     const result = validateResponse(
       body({ tables: [ordersTable()], enums: [statusEnum({ column: 'state' })] }),
@@ -293,7 +293,7 @@ describe('§7.3 row 4 — enum suggestions', () => {
 
 /* -------------------------------------------------------------- relations */
 
-describe('§7.3 rows 2–3 — inferred relations', () => {
+describe('Inferred relations', () => {
   it('rejects an inferred relation that merely restates a declared foreign key', () => {
     // `orders.customer_id → customers.id` IS a declared FK in the snapshot.
     // Listing it as inferred is not harmless: `confirmed` and `inferred` land in
@@ -378,7 +378,7 @@ describe('§7.3 rows 2–3 — inferred relations', () => {
 
 /* -------------------------------------------------------------- navGroups */
 
-describe('§7.3 row 6 — nav groups', () => {
+describe('Nav groups', () => {
   it('drops a slug too long for the column it becomes — and keeps the run', () => {
     // `adminium_pages.nav_group` is bounded (@adminium/meta 0032). It was
     // `varchar(12)` and nothing checked the model's side at all, so
@@ -487,7 +487,7 @@ describe('§7.3 row 6 — nav groups', () => {
 
 /* ------------------------------------------------------------- dashboards */
 
-describe('§7.3 row 7 — dashboard widget bindings', () => {
+describe('Dashboard widget bindings', () => {
   it('rejects a numeric aggregation over a non-numeric metric column', () => {
     // `sum(order_number)` is not a query that fails at review time — it fails at
     // render time, on the operator's dashboard, after everything was applied.

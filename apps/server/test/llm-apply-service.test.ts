@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LLM apply EXECUTOR (06-llm-assist.md §8.3, T10b) — integration against a
- * seeded in-memory SQLite meta store (no live source DB, no provider network).
+ * LLM apply EXECUTOR (b) — integration against a seeded in-memory SQLite
+ * meta store (no live source DB, no provider network).
  *
  * Covers the acceptance criteria this track owns:
- *  - #3  applying the valid-demo accepted set writes the exact §8.3 row set —
- *        localized label/key/enum/relation/PII/micro-copy overrides + nav groups,
- *        template pages and a bound dashboard page;
+ * - #3 applying the valid-demo accepted set writes the exact row set — localized
+ *  label/key/enum/relation/PII/micro-copy overrides + nav groups, template pages
+ *  and a bound dashboard page;
  *  - #11 a `source: 'user'` override survives applying a new run (provenance),
  *        and re-executing the same plan is idempotent (no duplicate rows/pages);
  *  - partial acceptance lands `partially_applied` with the right review lists;
@@ -134,7 +134,7 @@ describe('createApplyService', () => {
     await meta.db.destroy();
   });
 
-  it('writes the exact §8.3 override + page set for the valid-demo accepted set (#3)', async () => {
+  it('writes the exact override + page set for the valid-demo accepted set (#3)', async () => {
     await seedGeneratedPages();
     const runId = await seedValidatedRun();
 
@@ -146,7 +146,7 @@ describe('createApplyService', () => {
     expect(result.review.rejected).toEqual([]);
     expect(result.plan.excludedUserLocked).toEqual([]);
 
-    // 27 §8.3 overrides, all origin:'llm' with the run's provenance.
+    // Overrides, all origin:'llm' with the run's provenance.
     const overrides = await llmOverridesRepo(meta).listForConnection(connectionId);
     expect(overrides).toHaveLength(27);
     for (const o of overrides) {
@@ -154,7 +154,7 @@ describe('createApplyService', () => {
       expect(o.confidence).toBeGreaterThanOrEqual(0);
       expect(o.confidence).toBeLessThanOrEqual(1);
     }
-    // The enum-semantics suggestion carries its exact model confidence (§6.3).
+    // The enum-semantics suggestion carries its exact model confidence.
     expect(overrides.find((o) => o.field === 'enum_semantics')?.confidence).toBe(0.97);
 
     const byField = (field: string) => overrides.filter((o) => o.field === field);
@@ -202,7 +202,7 @@ describe('createApplyService', () => {
     const dashboard = llmPages.find((p) => p.type === 'page-dashboard');
     expect((dashboard?.config as { layout: { items: unknown[] } }).layout.items).toHaveLength(5);
 
-    // Nav groups stamped onto every page of each member table (§8.3 `group`).
+    // Nav groups stamped onto every page of each member table (`group`).
     const ordersCrud = pages.find((p) => p.origin === 'generated' && p.slug === 'orders');
     const productsCrud = pages.find((p) => p.origin === 'generated' && p.slug === 'products');
     expect(ordersCrud?.navGroup).toBe('sales');
@@ -278,7 +278,7 @@ describe('createApplyService', () => {
     expect(afterSecond).toEqual(afterFirst);
   });
 
-  it('re-applying a NEWER run supersedes the llm_run_id in place (§8.3)', async () => {
+  it('re-applying a NEWER run supersedes the llm_run_id in place', async () => {
     await seedGeneratedPages();
     const runA = await seedValidatedRun();
     await service.applyRun(runA, ALL_IDS, { appliedBy: userId });
@@ -464,7 +464,7 @@ describe('createApplyService', () => {
     await expect(service.applyRun(run.id, [])).rejects.toBeInstanceOf(RunNotApplicableError);
   });
 
-  it('fires the regeneration hook after a durable apply (§8.3 step 3)', async () => {
+  it('fires the regeneration hook after a durable apply', async () => {
     await seedGeneratedPages();
     const runId = await seedValidatedRun();
     const calls: { connectionId: string; snapshotId: string; runId: string }[] = [];

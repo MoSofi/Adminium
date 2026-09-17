@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard layout persistence (04-widget-registry.md §6.3, 04-T13):
+ * Dashboard layout persistence:
  *
  * - the RBAC split — a viewer may save a personal override but NOT the shared
  *   default (viewer PUT /me/views 200; viewer PATCH /pages/:id/layout 403);
@@ -91,7 +91,7 @@ async function buildHarness(): Promise<Harness> {
 
   // Grant page-EDIT to the editor's built-in role for this page only, and
   // page-VIEW (no edit) to the viewer's — GET /pages/:pageId enforces the
-  // view grant (09 §2.1), and the RBAC split under test is view-vs-edit.
+  // view grant, and the RBAC split under test is view-vs-edit.
   const editorRole = await roles.findBySlug('editor');
   if (editorRole === null) throw new Error('missing editor role');
   await permissionsRepo(meta).grant(editorRole.id, 'page', page.id, { view: true, edit: true });
@@ -273,7 +273,7 @@ describe('dashboard layout persistence', () => {
   });
 });
 
-describe('page view gate + nav filter (09 §2.1)', () => {
+describe('page view gate + nav filter', () => {
   let t: Harness;
   beforeEach(async () => {
     t = await buildHarness();

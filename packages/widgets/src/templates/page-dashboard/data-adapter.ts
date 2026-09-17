@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * DashboardData adapter contract (04-widget-registry.md §5.2/§5.3).
+ * DashboardData adapter contract.
  *
  * The template is transport-agnostic: it hands every bound widget's
  * descriptor to `queryBatch` in ONE call (a dashboard loads in one round
  * trip; failures are per-item) and receives per-instance WidgetDataStates
  * back. The dashboard app implements this over
- * `POST /api/v1/widget-data/batch` with TanStack Query (04-T03);
- * Storybook/tests pass canned states or rely on demo mode.
+ * `POST /api/v1/widget-data/batch` with TanStack Query; Storybook/tests
+ * pass canned states or rely on demo mode.
  *
- * Demo mode (04 §5.3): items without a parseable `config.binding` never
- * reach the adapter — they resolve synchronously to
+ * Demo mode: items without a parseable `config.binding` never reach the
+ * adapter — they resolve synchronously to
  * `definition.demoData(hash(instanceId))`.
  */
 
@@ -21,6 +21,7 @@ import { useMaybeT } from '@adminium/i18n/react';
 import { widgetRegistry } from '../../registry/index.js';
 import { queryDescriptorSchema, type PageLayout, type QueryDescriptor } from '../../page-config/index.js';
 import { resolveOfflineWidgetId } from '../../registry/offline.js';
+import { useExternalWidgetResolver } from '../../frame/ExternalWidgetsContext.js';
 import { useWidgetRuntimeEnv } from '../../frame/WidgetRuntimeContext.js';
 import type { WidgetDataState } from '../../frame/WidgetHost.js';
 import type { WidgetDefinition } from '../../registry/types.js';
@@ -74,12 +75,15 @@ export function useDashboardData(
     return requests;
   }, [layout]);
 
-  // §7's offline policy decides WHICH widget mounts, so it must also decide
+  // The offline policy decides WHICH widget mounts, so it must also decide
   // whose `demoData` runs — `WidgetHost` resolves the id before it reads the
   // registry, and this used to read the registry with the STORED id. On desktop
   // that fed a map-bubble's lat/lng points to the choropleth tilegram: a blank
   // map with a list of world cities under it. See `useResolvedWidgetId`.
   const runtimeEnv = useWidgetRuntimeEnv();
+  // A host's own widgets (`ExternalWidgetsContext.tsx`) get their demo data the
+  // same way, after the registry, exactly as `WidgetHost` resolves them.
+  const external = useExternalWidgetResolver();
 
   // Latest-t ref: the batch effect keys on `run`, so a locale switch must
   // re-label FUTURE errors without refiring the whole query batch.
@@ -92,10 +96,11 @@ export function useDashboardData(
     const states: DashboardDataStates = {};
     for (const item of layout.items) {
       if (adapter !== undefined && boundIds.has(item.i)) continue;
-      states[item.i] = demoState(item.i, registry.get(resolveOfflineWidgetId(item.widget, runtimeEnv)));
+      const id = resolveOfflineWidgetId(item.widget, runtimeEnv);
+      states[item.i] = demoState(item.i, registry.get(id) ?? external?.(id));
     }
     return states;
-  }, [layout, bound, adapter, registry, runtimeEnv]);
+  }, [layout, bound, adapter, registry, runtimeEnv, external]);
 
   const [remoteStates, setRemoteStates] = useState<DashboardDataStates>({});
   const generation = useRef(0);

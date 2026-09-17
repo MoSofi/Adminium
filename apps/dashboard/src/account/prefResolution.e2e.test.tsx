@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * M8-T06 — preference-resolution end-to-end contract, app half
- * (10-i18n-theming.md §7, 02-design-system.md §4).
+ * Preference-resolution end-to-end contract, app half.
  *
  * Drives the WHOLE chain through the real router: preHydrationScript stamps
  * the pre-paint frame from the localStorage cache → GET /api/v1/bootstrap
@@ -51,7 +50,7 @@ interface AxisValues {
 interface FakeServer {
   /** Workspace defaults (adminium_settings) — mutate to simulate an admin change. */
   defaults: AxisValues;
-  /** Per-user overrides (adminium_user_prefs); `null` = inherit (§7.2). */
+  /** Per-user overrides (adminium_user_prefs); `null` = inherit. */
   raw: RawUserPrefs;
   patchCalls: Array<Partial<RawUserPrefs>>;
 }
@@ -72,7 +71,7 @@ function makeServer(
   };
 }
 
-/** Server-side resolution (§7.1): user override ?? workspace default, dir derived. */
+/** Server-side resolution: user override ?? workspace default, dir derived. */
 function resolvePrefs(server: FakeServer): ResolvedPrefs {
   const locale = server.raw.locale ?? server.defaults.locale;
   const sourceOf = (override: unknown): 'user' | 'global' => (override === null ? 'global' : 'user');
@@ -240,7 +239,7 @@ afterEach(() => {
 // --- boot ----------------------------------------------------------------------
 
 describe('boot — pre-auth surfaces', () => {
-  it('login renders from the pre-paint cache without an authenticated resolution (§4.2 pre-auth)', async () => {
+  it('login renders from the pre-paint cache without an authenticated resolution (pre-auth)', async () => {
     window.localStorage.setItem(STORAGE_KEYS.theme, 'dark');
     window.localStorage.setItem(STORAGE_KEYS.accent, 'teal');
     runPreHydration();

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two DesiredTable → TableModel transforms — 35-schema-authoring.md §3.1
- * (`desiredTableToModel`) and 38-files-library-and-attachments.md D6
+ * The two DesiredTable → TableModel transforms — (`desiredTableToModel`)
  * (`tableWithAddedColumns`).
  *
  * `test/ddl-edit.test.ts` covers the vocabulary and the validator: what a
@@ -167,7 +166,7 @@ const recordingTypeMap = (answer = 'text') => {
 
 // ---------------------------------------------------------------------------
 
-describe('tableWithAddedColumns — the snapshot’s own table, extended (38 D6)', () => {
+describe('tableWithAddedColumns — the snapshot’s own table, extended', () => {
   it('appends the new columns after every existing one, in the order given', () => {
     const result = tableWithAddedColumns(
       invoices,

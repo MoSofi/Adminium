@@ -95,7 +95,7 @@ function ctx(overrides: Partial<CrudBodyContext> = {}): CrudBodyContext {
   };
 }
 
-/** The §15 archetypal table: pk + display + money + status + created-at. */
+/** The archetypal table: pk + display + money + status + created-at. */
 const orders = build(
   'public.orders',
   [
@@ -119,7 +119,7 @@ const orders = build(
   { displayColumn: 'order_ref' },
 );
 
-describe('enumTones — §7.1 rule-7 heuristic tone map', () => {
+describe('enumTones — rule-7 heuristic tone map', () => {
   it('maps the pos/warn/danger vocabularies and defaults to muted', () => {
     expect(enumTones(['paid', 'pending', 'failed', 'refunded'])).toEqual({
       paid: 'pos',
@@ -130,7 +130,7 @@ describe('enumTones — §7.1 rule-7 heuristic tone map', () => {
   });
 });
 
-describe('composeCrudBody — column selection (05 §7.1)', () => {
+describe('composeCrudBody — column selection', () => {
   const body = composeCrudBody(orders.table, orders.classified, ctx());
 
   it('orders the visible list: display column, status, money, dates, fk, rest', () => {
@@ -250,7 +250,7 @@ describe('composeCrudBody — sort, key field, read-only derivation', () => {
   });
 });
 
-describe('composeCrudBody — form fields (09 §7.1)', () => {
+describe('composeCrudBody — form fields', () => {
   const body = composeCrudBody(orders.table, orders.classified, ctx());
   const fields = body.form?.fields ?? [];
   const byColumn = new Map(fields.map((f) => [f.column, f]));
@@ -500,7 +500,7 @@ describe('composeCrudBody — detail tabs from inbound FKs', () => {
   });
 });
 
-describe('composeCrudBody — the `file` block seeding (37 D14)', () => {
+describe('composeCrudBody — the `file` block seeding', () => {
   it('seeds a block on the columns the classifier already calls files', () => {
     const { table, classified } = build('public.invoices', [
       { name: 'invoice_id', logicalType: 'varchar', semantic: 'pk-id', isPrimaryKey: true },
@@ -526,7 +526,7 @@ describe('composeCrudBody — the `file` block seeding (37 D14)', () => {
       { name: 'product_id', logicalType: 'varchar', semantic: 'pk-id', isPrimaryKey: true },
       { name: 'name', logicalType: 'varchar', semantic: 'label' },
       { name: 'photo_url', logicalType: 'varchar', semantic: 'image-url' },
-      // Bytes inside the customer's database: a different feature (§4), and it
+      // Bytes inside the customer's database: a different feature, and it
       // must stay out of the grid whatever its tag says.
       { name: 'thumbnail', logicalType: 'binary', semantic: 'image-url' },
     ]);

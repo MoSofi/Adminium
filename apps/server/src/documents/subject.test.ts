@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The subject resolver (34-invoices-add-on.md §3.7, D20; 34-T11).
+ * The subject resolver.
  *
  * This is where a database row meets the contract's wire law, and the whole
  * file is about that boundary being exact: money as integer minor units,
@@ -194,7 +194,7 @@ describe('building a subject from a mapped row', () => {
   });
 });
 
-describe('a value typed into the mapping instead of a column (§3.7 step 4)', () => {
+describe('a value typed into the mapping instead of a column', () => {
   it('fills the slot, through the SAME coercion a column goes through', () => {
     // The whole point of routing it through `coerceSlot`: "20" typed into a
     // percent slot has to become 2000 basis points, exactly as the numeric

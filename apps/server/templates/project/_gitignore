@@ -1,0 +1,5 @@
+# Adminium
+node_modules/
+data/
+.adminium/
+.env

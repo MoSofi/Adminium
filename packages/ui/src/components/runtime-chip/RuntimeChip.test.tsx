@@ -7,9 +7,9 @@ import { RuntimeChip, type RuntimeChipState } from './RuntimeChip.js';
 import { toneSoftClasses, type Tone } from '../../lib/tones.js';
 
 /**
- * 11-electron.md §8.1's table, as data — every row is asserted below.
+ * The table, as data — every row is asserted below.
  *
- * The tone column is §8.1's own ("muted" → neutral, "accent-soft" → accent, "warn" → warn); the
+ * The tone column is own ("muted" → neutral, "accent-soft" → accent, "warn" → warn); the
  * utilities behind it come from the shared chip recipe rather than being spelled out here, which
  * is the point of the recipe. The previous version hardcoded `bg-accent-soft` and matched it with
  * `className.toContain` — a substring test that went on passing after the chip tints became
@@ -23,7 +23,7 @@ const ROWS: ReadonlyArray<{ state: RuntimeChipState; tone: Tone }> = [
 ];
 
 describe('RuntimeChip', () => {
-  it.each(ROWS)('renders the §8.1 tone for $state', ({ state, tone }) => {
+  it.each(ROWS)('renders the tone for $state', ({ state, tone }) => {
     render(<RuntimeChip state={state} label="Chip" />);
     const chip = screen.getByText('Chip');
     for (const cls of toneSoftClasses[tone].split(' ')) {
@@ -33,9 +33,9 @@ describe('RuntimeChip', () => {
   });
 
   /**
-   * The two remote states differ by more than colour — §8.1 gives them
-   * different labels, and this asserts the icon differs too, so the "your data
-   * is not reachable" state is not a hue away from "your data is fine".
+   * The two remote states differ by more than colour — gives them different
+   * labels, and this asserts the icon differs too, so the "your data is not
+   * reachable" state is not a hue away from "your data is fine".
    */
   it('gives every state a distinct icon', () => {
     const paths = ROWS.map(({ state }) => {
@@ -56,9 +56,9 @@ describe('RuntimeChip', () => {
   });
 
   /**
-   * §8.1: "accent-soft; click → LAN panel". A clickable chip must be a real
-   * button — keyboard-reachable and announced as actionable — not a span with
-   * an onClick.
+   * "accent-soft; click → LAN panel". A clickable chip must be a real button
+   * — keyboard-reachable and announced as actionable — not a span with an
+   * onClick.
    */
   it('renders a real, keyboard-operable button when clickable', async () => {
     const user = userEvent.setup();

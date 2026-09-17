@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GET /api/v1/bootstrap (09-generated-app.md §2.1): auth gating, resolved
- * prefs, nav-tree derivation from adminium_pages (fixed group order, disabled
- * rows dropped, navOrder sort), and the version/configVersion stamps.
+ * GET /api/v1/bootstrap: auth gating, resolved prefs, nav-tree derivation
+ * from adminium_pages (fixed group order, disabled rows dropped, navOrder
+ * sort), and the version/configVersion stamps.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { newId, settingsRepo, writeBool, type MetaDb } from '@adminium/meta';
@@ -77,7 +77,7 @@ describe('GET /api/v1/bootstrap', () => {
     const { data } = res.json();
     expect(data.user.email).toBe(t.admin.email);
     expect(data.roles).toContain('super-admin');
-    // Fresh install: every axis resolves from the system defaults (§7.2).
+    // Fresh install: every axis resolves from the system defaults.
     expect(data.prefs.theme).toBe('system');
     expect(data.prefs.accent).toBe('indigo');
     expect(data.prefs.source.theme).toBe('system');
@@ -87,7 +87,7 @@ describe('GET /api/v1/bootstrap', () => {
     expect(data.llm).toEqual({ enabled: false });
   });
 
-  it('llm.enabled mirrors the §3.2 provider config (true once llm.provider is set)', async () => {
+  it('llm.enabled mirrors the provider config (true once llm.provider is set)', async () => {
     // The regression this pins: llm.enabled was hard-coded false ("lands in
     // M6") long after M6 shipped, so the wizard's provider card and the
     // palette's Ask AI footer could never enable.

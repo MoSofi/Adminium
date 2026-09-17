@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `composeTemplate` tests — 04-widget-registry.md §10 + acceptance #16:
+ * `composeTemplate` tests — + acceptance #16:
  * "`composeTemplate('page-dashboard', …)` with zero chart candidates fails only
  * on `required` slots (surfacing a Studio warning), omits optional slots
  * cleanly".
@@ -381,7 +381,7 @@ describe('composeTemplate — layout validation', () => {
 });
 
 describe('templateKind', () => {
-  it('maps grid-composed dashboards to kind dashboard, everything else to page (09 §3.2)', () => {
+  it('maps grid-composed dashboards to kind dashboard, everything else to page', () => {
     expect(templateKind('page-dashboard')).toBe('dashboard');
     expect(templateKind('page-hub-home')).toBe('dashboard');
     expect(templateKind('page-crud')).toBe('page');

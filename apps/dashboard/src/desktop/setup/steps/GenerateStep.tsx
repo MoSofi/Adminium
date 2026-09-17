@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 4 — "Generate" (11-electron.md §6): "Introspection + generation,
- * identical to Studio M5."
+ * Step 4 — "Generate": "Introspection + generation, identical to Studio
+ * M5."
  *
  * ─── WHY THE SOURCE IS CREATED HERE ──────────────────────────────────────────
  *
@@ -17,11 +17,10 @@
  * five `enrich*` fields), so {@link toWizardState} adapts this wizard's state
  * onto that shape and hands it over. Re-implementing them would have produced a
  * second BYO round-trip, a second job poller, and a second place for the LLM
- * flow to drift from 06-llm-assist.md — for a screen whose spec is the word
- * "identical".
+ * flow to drift — for a screen whose spec is the word "identical".
  *
- * The BYO-first default §6 asks for is already `EnrichStep`'s behavior on
- * desktop: 11-T10 made it lead with the copy/paste round-trip and label the
+ * The BYO-first default asks for is already `EnrichStep`'s behavior on
+ * desktop: it leads with the copy/paste round-trip and labels the
  * provider-API card "requires internet", driven by `system/info`'s
  * `networkFeaturesAllowed`. Setting it here too would be a second answer to a
  * question that already has one.
@@ -123,7 +122,7 @@ export function GenerateStep(props: GenerateStepProps): ReactNode {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Studio's own step — including §6's BYO-first default and the
+      {/* Studio's own step — including the BYO-first default and the
           "Requires internet & an API key" label on the provider card. */}
       <EnrichStep
         state={wizardState}
@@ -142,7 +141,7 @@ export function GenerateStep(props: GenerateStepProps): ReactNode {
         {...(props.pollIntervalMs === undefined ? {} : { pollIntervalMs: props.pollIntervalMs })}
       />
 
-      {/* §6: "Skipping LLM assist entirely is always allowed; heuristic
+      {/* "Skipping LLM assist entirely is always allowed; heuristic
           classification proceeds." So generation is always reachable from here
           — it is never gated on an enrichment choice. */}
       <StudioGenerateStep

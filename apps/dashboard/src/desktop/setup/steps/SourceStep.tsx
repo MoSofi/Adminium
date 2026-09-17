@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 2 — "Your first database" (11-electron.md §6): the four source cards.
+ * Step 2 — "Your first database": the four source cards.
  *
  * NOTHING HERE CALLS AN ENDPOINT, and that is not an oversight — see
  * `desktopSetupState.ts`'s header. Every create/test route is behind
@@ -331,7 +331,7 @@ export function SourceStep({
           </div>
         ) : null}
 
-        {/* §8.2's rule — never hide, always explain. A build with no seed script
+        {/* The rule — never hide, always explain. A build with no seed script
             (a dev boot without `ADMINIUM_DEMO_SEED_SCRIPT`) has no demo route to
             call, and a card that 404s is worse than a card that says so. */}
         <RadioCard

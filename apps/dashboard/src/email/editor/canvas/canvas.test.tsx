@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The canvas (39-email-templates-and-campaigns.md 39-T12 done-when): every
- * kind's default data draws its family; *Add* above a block opens the picker
- * with the where-line; the device segment narrows the shell; an `ar_EG`
- * variation is `dir="rtl"` inside an LTR page; an image block with a
- * `fileId` and no preview shows the file chip. Rendered through the real
- * router (the editor owns selection, the picker and the mirror flow).
+ * The canvas: every kind's default data draws its family; *Add* above a
+ * block opens the picker with the where-line; the device segment narrows the
+ * shell; an `ar_EG` variation is `dir="rtl"` inside an LTR page; an image
+ * block with a `fileId` and no preview shows the file chip. Rendered through
+ * the real router (the editor owns selection, the picker and the mirror
+ * flow).
  *
  * The axe pass the done-when names runs in the e2e file against the built
  * canvas (`apps/e2e/tests/email-templates.spec.ts`): happy-dom cannot host
@@ -151,7 +151,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('EmailCanvas (39-T12)', () => {
+describe('EmailCanvas', () => {
   it("renders every kind's default data in its family, the chrome, the footer and the variables", async () => {
     await renderCanvas();
     const blocks = screen.getAllByTestId('email-block');

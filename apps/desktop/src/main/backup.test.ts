@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The BackupCoordinator (11-electron.md §9) — dialogs, restore choreography and
- * the auto-backup schedule.
+ * The BackupCoordinator — dialogs, restore choreography and the auto-backup
+ * schedule.
  *
  * What these assert is ORDER and POLICY, the same thing `index.test.ts` asserts
- * about the boot, and for the same reason: §9's restore is a sequence in which
+ * about the boot, and for the same reason: restore is a sequence in which
  * every pair of steps is load-bearing, and getting it wrong loses data silently.
  * "Stop before moving aside" is not visible in any type; it is visible here.
  */
@@ -79,7 +79,7 @@ function harness(
     saveTo?: string | null;
     confirm?: boolean;
     transport?: CreateBackupCoordinatorOptions['transport'];
-    /** Make the read-only reader refuse, as §9's gates do. */
+    /** Make the read-only reader refuse, gates do. */
     validateFails?: BackupArchiveError;
     order?: 'older' | 'same';
     unpackFails?: boolean;
@@ -174,7 +174,7 @@ function harness(
   return { coordinator, calls, dialogs, requests, config };
 }
 
-// ─── backupNow (§9) ──────────────────────────────────────────────────────────
+// ─── backupNow ───────────────────────────────────────────────────────────────
 
 describe('backupNow', () => {
   it('shows the save dialog BEFORE asking the server to do any work', async () => {
@@ -212,12 +212,12 @@ describe('backupNow', () => {
     expect(sent).not.toContain('SENTINEL-COORDINATOR-LEAK');
     expect(sent).not.toContain('secretPlain');
     expect(sent).not.toContain('secretEncrypted');
-    // …and the mode survives, because §13's About screen warns on it.
+    // …and the mode survives, because About screen warns on it.
     expect((h.requests[0]?.config as { secretStorage: string }).secretStorage).toBe('plain');
   });
 
   it('tells the user to sign in when there is no session', async () => {
-    // §5's "Require login on this device" with nobody signed in. Not a crash —
+    // "Require login on this device" with nobody signed in. Not a crash —
     // an archive containing every row in the install needs an account behind it.
     const h = harness({ transport: () => Promise.resolve(null) });
     await h.coordinator.backupNow();
@@ -236,10 +236,10 @@ describe('backupNow', () => {
   });
 });
 
-// ─── restoreFrom (§9) ────────────────────────────────────────────────────────
+// ─── restoreFrom ─────────────────────────────────────────────────────────────
 
 describe('restoreFrom', () => {
-  it('runs §9’s flow in order: validate → confirm → stop → move aside → unpack → start', async () => {
+  it('runs flow in order: validate → confirm → stop → move aside → unpack → start', async () => {
     // ── THE SAFETY PROPERTY. Every pair here is load-bearing:
     //  validate before confirm — do not ask about a backup we will refuse;
     //  confirm before stop     — do not take the app down for a "no";
@@ -262,8 +262,8 @@ describe('restoreFrom', () => {
     ]);
   });
 
-  it('quotes §9’s sentence and names the pre-restore folder in the confirm dialog', async () => {
-    // §9's copy, verbatim: "Replaces current data. Current data will be moved to
+  it('quotes sentence and names the pre-restore folder in the confirm dialog', async () => {
+    // The copy, verbatim: "Replaces current data. Current data will be moved to
     // <dataDir>/pre-restore-<ts>/, not deleted." A promise about where data goes
     // is worth nothing if the user cannot go look, so the path is interpolated.
     const h = harness();
@@ -283,7 +283,7 @@ describe('restoreFrom', () => {
     expect(h.calls).not.toContain('archive.unpack');
   });
 
-  it('refuses a newer-migration backup WITHOUT touching any data (§9)', async () => {
+  it('refuses a newer-migration backup WITHOUT touching any data', async () => {
     const h = harness({
       validateFails: new BackupArchiveError(
         'migration-newer',
@@ -310,7 +310,7 @@ describe('restoreFrom', () => {
   });
 
   it('passes the app’s own migration version to the reader', async () => {
-    // §9's refusal cannot be evaluated without it — and `null` must reach the
+    // The refusal cannot be evaluated without it — and `null` must reach the
     // reader as `null` rather than being silently treated as "fine".
     const h = harness({ metaVersion: null });
     await h.coordinator.restoreFrom(ARCHIVE);
@@ -318,7 +318,7 @@ describe('restoreFrom', () => {
   });
 
   it('fast-forwards an older backup by simply starting the server last', async () => {
-    // §9: "the migration runner fast-forwards an older backup". There is no
+    // "the migration runner fast-forwards an older backup". There is no
     // migration code here — `start()` runs `firstRun` over whatever meta.db it
     // now finds. The ORDER is the implementation.
     const h = harness({ order: 'older' });
@@ -340,7 +340,7 @@ describe('restoreFrom', () => {
     expect(h.calls.filter((c) => c === 'server.start')).toHaveLength(1);
   });
 
-  it('always takes the pre-restore safety copy before unpacking (§9)', async () => {
+  it('always takes the pre-restore safety copy before unpacking', async () => {
     // "Current data will be moved to <dataDir>/pre-restore-<ts>/, not deleted"
     // is a promise the confirm dialog makes on this code's behalf. The copy is
     // unconditional and it happens BEFORE the new data lands, so a failure
@@ -376,10 +376,10 @@ describe('restoreFrom', () => {
   });
 });
 
-// ─── The schedule (§9) ───────────────────────────────────────────────────────
+// ─── The schedule ────────────────────────────────────────────────────────────
 
 describe('startAutoBackup', () => {
-  it('uses §9’s daily 03:00 cron', () => {
+  it('uses daily 03:00 cron', () => {
     // Local time, unlike the server's UTC schedules: the point of the hour is
     // that the user is asleep, and 03:00 UTC is the working day in half the
     // world.
@@ -397,7 +397,7 @@ describe('startAutoBackup', () => {
   });
 });
 
-// ─── The 03:00 tick (§9) ────────────────────────────────────────────────────
+// ─── The 03:00 tick ─────────────────────────────────────────────────────────
 
 /**
  * A coordinator whose cron tick can be fired on demand.
@@ -486,7 +486,7 @@ describe('the 03:00 tick', () => {
   });
 
   it('gives up on a never-idle machine after bounded polls and backs up anyway', async () => {
-    // §9's idle wait is a COURTESY, not a precondition: a machine someone is
+    // The idle wait is a COURTESY, not a precondition: a machine someone is
     // using at 04:00 still deserves a backup.
     //
     // And the clock here is FROZEN. A deadline compared against it — the
@@ -529,7 +529,7 @@ describe('the 03:00 tick', () => {
 // ─── Pure helpers ────────────────────────────────────────────────────────────
 
 describe('defaultBackupName', () => {
-  it('matches §9’s adminium-backup-20260712-1430.zip', () => {
+  it('matches adminium-backup-20260712-1430.zip', () => {
     expect(defaultBackupName(Date.parse('2026-07-12T14:30:00.000Z'))).toBe(
       'adminium-backup-20260712-1430.zip',
     );

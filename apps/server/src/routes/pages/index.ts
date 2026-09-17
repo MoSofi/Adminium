@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Page-document + page-lifecycle routes (08-server-api.md §2.6,
- * 04-widget-registry.md §6.3):
+ * Page-document + page-lifecycle routes:
  *
  *   GET    /api/v1/pages                 → the Studio manager list
  *   POST   /api/v1/pages                 → create a page
@@ -14,10 +13,10 @@
  *   PUT    /api/v1/pages/nav-order       → bulk sidebar reorder
  *
  * The dashboard's PageRenderer fetches the stored envelope by the id it got
- * from the bootstrap nav tree and runs client-side config migrations
- * (09-generated-app.md §2.3/§3). On read the server resolves `config.layout`:
- * a per-user override (an `adminium_views` row, `kind: 'layout'`) wins over the
- * shared `adminium_pages` default; otherwise the envelope is returned verbatim.
+ * from the bootstrap nav tree and runs client-side config migrations. On read
+ * the server resolves `config.layout`: a per-user override (an `adminium_views`
+ * row, `kind: 'layout'`) wins over the shared `adminium_pages` default;
+ * otherwise the envelope is returned verbatim.
  *
  * TWO DIFFERENT GATES, deliberately:
  *
@@ -85,8 +84,8 @@ import {
 export interface PagesRoutesDeps {
   meta: MetaDb;
   /**
-   * A stored page changed — drop anything derived from page config
-   * (38-files-library-and-attachments.md D8).
+   * A stored page changed — drop anything derived from page
+   * config.
    *
    * THE BUG THIS EXISTS FOR. `createColumnBlockReader` caches a table's `file`
    * blocks for 30 seconds and has always exposed `clear()`; nothing outside its
@@ -173,9 +172,9 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
   return async (app) => {
     /**
      * Tell every open client the nav changed. `configVersion` is `max(updatedAt)`
-     * over all pages, which the client uses to drop stale page caches (09 §2.1).
-     * Guarded because the minimal read-only harness mounts these routes without
-     * the realtime plugin.
+     * over all pages, which the client uses to drop stale page caches. Guarded
+     * because the minimal read-only harness mounts these routes without the
+     * realtime plugin.
      */
     async function publishConfigChanged(connectionId: string | null): Promise<void> {
       // Every mutating handler here funnels through this call, which is why the
@@ -226,6 +225,22 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
      * database-level uniqueness at all. Checking here also turns what would be
      * a raw driver error into a typed 409 the UI can attach to the field.
      */
+    /**
+     * A page written in the project folder (`pages/<slug>.tsx`) belongs to that
+     * code: the server rewrites its row at every start, so a change made here
+     * would be silently undone. Refused, with the file named. A sidebar reorder
+     * is the one change allowed, for pages whose code sets no order
+     * (`project/project-pages.ts`).
+     */
+    function refuseProjectPage(page: { id: string; slug: string; origin: string }): void {
+      if (page.origin !== 'project') return;
+      throw new ConflictError(
+        `This page comes from pages/${page.slug}.tsx in the project folder. Change it there.`,
+        'CONFLICT',
+        { pageId: page.id, source: `pages/${page.slug}.tsx` },
+      );
+    }
+
     async function assertSlugFree(slug: string, exceptPageId?: string): Promise<void> {
       const clash = (await pages.listAll()).find(
         (row) => row.slug === slug && row.id !== exceptPageId,
@@ -465,7 +480,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
 
       // The body is replaced, but the ROW stays `origin: 'generated'`, so the
       // only thing standing between this choice and the next generation run
-      // is the H5 edited-page guard (04 §6.3) — and that guard is a MISMATCH
+      // is the H5 edited-page guard — and that guard is a MISMATCH
       // against `config.generatedHash`, not the hash's absence. Carrying the
       // row's original hash onto the new document is what leaves the mismatch
       // behind; it is the same move every other in-place edit makes
@@ -556,7 +571,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           throw new NotFoundError(`page ${request.params.pageId} does not exist`);
         }
 
-        // View gate (09 §2.1): the same `page:<id>:view` grant the bootstrap
+        // View gate: the same `page:<id>:view` grant the bootstrap
         // nav filter applies (super-admins bypass inside `request.can`). The
         // `typeof` guard covers the rbac-less minimal read-only harness.
         //
@@ -578,7 +593,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           );
         }
 
-        // Per-page edit capability (§6.3): the SAME `page:<id>:edit` grant the
+        // Per-page edit capability: the SAME `page:<id>:edit` grant the
         // PATCH is gated on (super-admins bypass). The dashboard builder uses
         // this — never role slugs — to route edits to the shared default vs. a
         // personal override, so it matches the server exactly. Guarded for the
@@ -586,7 +601,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         const canEditLayout =
           typeof request.can === 'function' ? await request.can(`page:${page.id}:edit`) : false;
 
-        // Per-table write capabilities (30-record-pages.md D4 follow-up): the
+        // Per-table write capabilities (follow-up): the
         // SAME `table:<connectionId>:<table>:<action>` permissions the data
         // routes enforce, checked against the envelope's `source` — exactly
         // the connection and table the client's CrudApi will call, so a false
@@ -600,8 +615,8 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
                 canCreate: await request.can(`table:${source.connectionId}:${source.table}:create`),
                 canUpdate: await request.can(`table:${source.connectionId}:${source.table}:update`),
                 canDelete: await request.can(`table:${source.connectionId}:${source.table}:delete`),
-                // 37 D11: the same grant `POST /files` checks. Resolved here
-                // rather than derived from `canUpdate` on the client, because a
+                // The same grant `POST /files` checks. Resolved here rather
+                // than derived from `canUpdate` on the client, because a
                 // sidecar attach ignores the source's `read_only` flag — the
                 // sidecar is Adminium's own data — and a client that inferred
                 // it from `canUpdate` would hide the panel on exactly the
@@ -614,7 +629,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
               }
             : {};
 
-        // Layout resolution (§6.3): a per-user override wins over the shared
+        // Layout resolution: a per-user override wins over the shared
         // default baked into the envelope's `config.layout`. Only applies when
         // the caller is a session user and their override parses as a valid
         // layout document; anything else falls back to the stored default.
@@ -666,6 +681,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         if (page === null || !page.isEnabled) {
           throw new NotFoundError(`page ${pageId} does not exist`);
         }
+        refuseProjectPage(page);
 
         // Shared-default writes need page-EDIT (Admin+); super-admins bypass.
         if (!(await request.can(`page:${pageId}:edit`))) {
@@ -770,7 +786,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         const connectionId = body.connectionId ?? null;
         await assertSlugFree(body.slug);
 
-        // Mint the id first: the envelope embeds its own id (01 §6.1), so the
+        // Mint the id first: the envelope embeds its own id, so the
         // document cannot be built until the row id is known. `newId` gives a
         // `page_<ULID>` rather than the generator's deterministic
         // `page_<hash>_<slug>` on purpose — a user page squatting on a
@@ -904,6 +920,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         // reach in order to re-enable it.
         const page = await pages.findById(pageId);
         if (page === null) throw new NotFoundError(`page ${pageId} does not exist`);
+        refuseProjectPage(page);
 
         if (patch.slug !== undefined && patch.slug !== page.slug) {
           await assertSlugFree(patch.slug, pageId);
@@ -994,7 +1011,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
      * route validates the ASSEMBLED envelope, which catches everything the
      * renderer's own parse would reject, and lets template-specific keys it
      * has no schema for pass through — the documented forward-compat rule
-     * (01 §6.2, unknown fields are preserved on round-trip).
+     * (unknown fields are preserved on round-trip).
      */
     app.patch(
       '/pages/:pageId/config',
@@ -1010,6 +1027,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         const { pageId } = request.params;
         const page = await pages.findById(pageId);
         if (page === null) throw new NotFoundError(`page ${pageId} does not exist`);
+        refuseProjectPage(page);
 
         const envelope =
           typeof page.config === 'object' && page.config !== null
@@ -1064,6 +1082,8 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         const { pageId } = request.params;
         const source = await pages.findById(pageId);
         if (source === null) throw new NotFoundError(`page ${pageId} does not exist`);
+        // A copy would be a user page running the project's code under another address.
+        refuseProjectPage(source);
         await assertSlugFree(request.body.slug);
 
         const id = newId('page');
@@ -1132,6 +1152,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
             { pageId, manifestId: page.manifestId },
           );
         }
+        refuseProjectPage(page);
 
         // Order matters: drop the grants first. `adminium_views` (saved filters
         // AND every user's personal layout override) and

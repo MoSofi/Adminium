@@ -110,7 +110,7 @@ describe('DataGrid', () => {
     expect(onRowOpen).toHaveBeenCalledTimes(1); // checkbox click must not open
   });
 
-  it('row-actions slot (30 §3.3): labeled header, action click never opens the row', async () => {
+  it('row-actions slot: labeled header, action click never opens the row', async () => {
     const user = userEvent.setup();
     const onRowOpen = vi.fn();
     const onAction = vi.fn();

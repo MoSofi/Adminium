@@ -1,0 +1,18 @@
+{
+  "cell": {
+    "notCell": "{id} is a card, not a table cell.",
+    "unknown": "This project has no widget {id}."
+  },
+  "page": {
+    "failed": {
+      "title": "This page’s code did not load"
+    },
+    "missing": {
+      "body": "Its code comes from the project folder. Build the project again, or restart Adminium, to load it.",
+      "title": "This page is not in the running build"
+    }
+  },
+  "table": {
+    "empty": "No records"
+  }
+}

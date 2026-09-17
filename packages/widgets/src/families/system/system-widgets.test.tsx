@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * TRACK FCS — `system` family unit tests (annex §12).
+ * TRACK FCS — `system` family unit tests (annex).
  *
  * The QA harness (qa/*) already proves the generic contracts for every
  * delivered widget: four WidgetFrame states, config-fuzz render safety,
@@ -47,7 +47,7 @@ const noop = () => {};
 
 // ── status-banner-hero: worst-wins ─────────────────────────────────────────
 
-describe('worstServiceState (annex §12)', () => {
+describe('worstServiceState (annex)', () => {
   it('is "up" only when every service is up', () => {
     expect(worstServiceState(['up', 'up', 'up'])).toBe('up');
   });
@@ -111,7 +111,7 @@ describe('StatusBannerHeroWidget', () => {
 
 // ── autosave-indicator: phase precedence ───────────────────────────────────
 
-describe('autosaveStatusOf (annex §12 cycle)', () => {
+describe('autosaveStatusOf (annex cycle)', () => {
   it('reports idle with no state at all', () => {
     expect(autosaveStatusOf({})).toBe('idle');
   });
@@ -174,7 +174,7 @@ describe('AutosaveIndicatorWidget', () => {
 
 // ── progress-log-console ───────────────────────────────────────────────────
 
-describe('logLinesOf / progressPctOf (annex §12)', () => {
+describe('logLinesOf / progressPctOf (annex)', () => {
   const base = cfg(progressLogConsoleConfigSchema);
 
   it('keeps the TAIL when the payload exceeds maxLines (a long run ends interesting)', () => {
@@ -282,7 +282,7 @@ describe('ProgressLogConsoleWidget', () => {
 
 // ── state-hero ─────────────────────────────────────────────────────────────
 
-describe('resolveStateHeroEntry (annex §12 stateMap)', () => {
+describe('resolveStateHeroEntry (annex stateMap)', () => {
   it('returns the built-in entry when config overrides nothing', () => {
     expect(resolveStateHeroEntry('404', undefined).code).toBe('404');
   });
@@ -566,7 +566,7 @@ describe('DiagnosticsReadoutWidget', () => {
   });
 });
 
-// ── payload leniency (04 §3) ───────────────────────────────────────────────
+// ── payload leniency ───────────────────────────────────────────────────────
 
 describe('malformed payloads never throw into the error boundary', () => {
   const cases: [string, unknown][] = [

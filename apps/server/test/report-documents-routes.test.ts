@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The report-documents routes (43-report-builder.md §3.1; 43-T03) — driven
- * through a bare Fastify app with the real rbac plugin and an
- * `x-test-user-id` header, the way `invoices-routes.test.ts` mounts the
- * invoice surface.
+ * The report-documents routes — driven through a bare Fastify app with the
+ * real rbac plugin and an `x-test-user-id` header, the way
+ * `invoices-routes.test.ts` mounts the invoice surface.
  *
  * The assertions that carry the wave: a document minted from a starter
  * carries a summary drawn from its own blocks; the tab badges never respond
@@ -26,7 +25,7 @@ import { buildBareApp, type BareApp } from './jobs-helpers.js';
 type ListReply = { items: ReportSummaryView[]; counts: { template: number; report: number } };
 type ErrorReply = { error: { code: string; details: Record<string, unknown> } };
 
-describe('report document routes (43-T03)', () => {
+describe('report document routes', () => {
   let meta: MetaDb;
   let app: BareApp;
   let manager: User;
@@ -182,9 +181,9 @@ describe('report document routes (43-T03)', () => {
       accent: '#0d9488',
       blockCount: 2,
       kpiCount: 1,
-      // `show: false` DIMS a block; it is still the first chart (43 §0.3 trap 2).
+      // `show: false` DIMS a block; it is still the first chart (trap 2).
       series: [30, 48],
-      // The row's starter is what the card's icon follows, not the title (43 D14).
+      // The row's starter is what the card's icon follows, not the title.
       starterIcon: 'briefcase',
     });
     expect(saved.body.blocks.map((b) => [b.id, b.w, b.show])).toEqual([
@@ -199,7 +198,7 @@ describe('report document routes (43-T03)', () => {
     expect(gone.statusCode).toBe(404);
   });
 
-  it('PUT refuses an image over the cap with a code that names the field (34 O18)', async () => {
+  it('PUT refuses an image over the cap with a code that names the field', async () => {
     const doc = await create({ kind: 'report' });
     const big = `data:image/png;base64,${'A'.repeat(IMAGE_DATA_URL_MAX)}`;
     const res = await app.inject({
@@ -217,7 +216,7 @@ describe('report document routes (43-T03)', () => {
     const res = await app.inject({ method: 'PATCH', url: `/report-documents/${doc.id}`, headers: as(manager), payload: { name: 'Board layout' } });
     expect(res.statusCode, res.body).toBe(200);
     expect((res.json() as ReportSummaryView).name).toBe('Board layout');
-    // Renaming never changes the icon (the comp's `starterIconFor` defect, 43 D14).
+    // Renaming never changes the icon (the comp's `starterIconFor` defect).
     expect((res.json() as ReportSummaryView).summary.starterIcon).toBe('briefcase');
     const empty = await app.inject({ method: 'PATCH', url: `/report-documents/${doc.id}`, headers: as(manager), payload: { name: '   ' } });
     expect(empty.statusCode).toBe(422);
@@ -286,7 +285,7 @@ describe('report document routes (43-T03)', () => {
     ];
     for (const res of await Promise.all(writes)) {
       expect(res.statusCode, res.body).toBe(403);
-      // NOT `system:reports:manage` — that key is Scheduled Reports' (43 D12/O5).
+      // NOT `system:reports:manage` — that key is Scheduled Reports'.
       expect((res.json() as ErrorReply).error.details['permission']).toBe('system:settings:manage');
     }
     expect((await list()).counts).toEqual({ template: 1, report: 0 });

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * RTL + locale end-to-end (10-i18n-theming.md §5, §8.3).
+ * RTL + locale end-to-end.
  *
  * Everything RTL in this product rested on unit tests until this file existed:
  * `ThemeProvider.test.tsx` proves the provider *would* stamp `dir`, and
@@ -14,9 +14,9 @@
  * fail independently:
  *   1. direction is applied at all (`<html dir>`, `lang`);
  *   2. the bundle is actually reaching the screen (real Arabic glyphs);
- *   3. content that must stay LTR did NOT flip (§5.6 fixed-LTR islands) —
- *      the failure mode nobody looks for, because the page looks "more RTL"
- *      when it is wrong.
+ * 3. content that must stay LTR did NOT flip (fixed-LTR islands) — the
+ *   failure mode nobody looks for, because the page looks "more RTL" when
+ *   it is wrong.
  *
  * Runs last in the serial suite and restores en_US in `afterEach`, so a failure
  * mid-spec cannot leave the shared seeded account in Arabic for other specs.
@@ -37,16 +37,16 @@ async function setLocale(page: Page, value: string): Promise<void> {
   await select.selectOption(value);
 
   // `dir` flips the moment the pref resolves, but every non-English bundle is a
-  // lazily-imported chunk (10 §2.3) — so there is a real window where the page
-  // is already RTL and the copy is still English. Waiting only on the attribute
-  // makes any subsequent text assertion a coin flip.
+  // lazily-imported chunk — so there is a real window where the page is already
+  // RTL and the copy is still English. Waiting only on the attribute makes any
+  // subsequent text assertion a coin flip.
   const expected = value === 'ar_EG' ? 'rtl' : 'ltr';
   await expect(page.locator('html')).toHaveAttribute('dir', expected);
 
-  // No reload. Copy follows the switch on its own since 23-T02: `createI18n`
-  // bumps the i18n revision on `languageChanged`, and the router's root
-  // component subscribes to it — so the tree re-renders and the module-level
-  // `t()` call sites re-resolve. (It is a RE-RENDER, not a keyed remount:
+  // No reload. Copy follows the switch on its own since: `createI18n` bumps
+  // the i18n revision on `languageChanged`, and the router's root component
+  // subscribes to it — so the tree re-renders and the module-level `t()`
+  // call sites re-resolve. (It is a RE-RENDER, not a keyed remount:
   // remounting would take ThemeProvider with it and revert the very locale
   // choice being made.)
   const expectedName = value === 'ar_EG' ? ARABIC : /^Primary$/;
@@ -74,7 +74,7 @@ test.describe('ar_EG renders the app right-to-left', () => {
     await expect(html).toHaveAttribute('lang', 'ar-EG');
 
     // Direction must be DERIVED from the locale, never set independently
-    // (02-design-system.md §4.2) — switching back must flip it back.
+    // — switching back must flip it back.
     await setLocale(page, 'en_US');
     await expect(html).toHaveAttribute('dir', 'ltr');
     await expect(html).toHaveAttribute('lang', 'en-US');
@@ -89,9 +89,9 @@ test.describe('ar_EG renders the app right-to-left', () => {
     //
     // Assert on CHROME specifically. The nav also lists generated page names
     // ("Dashboard", "Orders") which come from the meta-store, not the bundles:
-    // schema-derived labels are user content and are never translated (10 §5.7,
-    // §6). An earlier version of this test read the whole nav's innerText and
-    // would have been satisfied — or broken — by that user data.
+    // schema-derived labels are user content and are never translated. An
+    // earlier version of this test read the whole nav's innerText and would
+    // have been satisfied — or broken — by that user data.
     const nav = page.getByRole('navigation', { name: /الأساسية|Primary/ });
     await expect(nav).toBeVisible();
     // The accessible name is ours, and is what a screen reader announces.
@@ -116,7 +116,7 @@ test.describe('ar_EG renders the app right-to-left', () => {
     expect(navBox!.x + navBox!.width / 2).toBeGreaterThan(viewport!.width / 2);
   });
 
-  test('keeps fixed-LTR islands left-to-right inside the RTL page (§5.6)', async ({ page }) => {
+  test('keeps fixed-LTR islands left-to-right inside the RTL page', async ({ page }) => {
     await signIn(page);
     await setLocale(page, 'ar_EG');
     await page.goto(PREFS);
@@ -133,7 +133,7 @@ test.describe('ar_EG renders the app right-to-left', () => {
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   });
 
-  test('labels the locale as an unreviewed community draft (§3.3)', async ({ page }) => {
+  test('labels the locale as an unreviewed community draft', async ({ page }) => {
     await signIn(page);
     await setLocale(page, 'ar_EG');
     await page.goto(PREFS);
@@ -146,16 +146,16 @@ test.describe('ar_EG renders the app right-to-left', () => {
   });
 
   test('switching locale re-renders live, with no reload', async ({ page }) => {
-    // INVERTED from a KNOWN-BUG assertion (23-T24). It used to assert that the
-    // nav stayed English after a switch — a real defect, deliberately pinned:
+    // INVERTED from a KNOWN-BUG assertion. It used to assert that the nav
+    // stayed English after a switch — a real defect, deliberately pinned:
     // `dir` flipped immediately (ThemeProvider owns that axis) while every
     // already-painted string kept the outgoing language, so the user got a
     // mirrored ENGLISH UI until they reloaded.
     //
-    // Fixed by 23-T02: `createI18n` bumps the i18n revision on
-    // `languageChanged` and the router root subscribes to it, so the tree
-    // re-renders and the module-level `t()` sites re-resolve. If this test
-    // starts failing, live re-render has regressed — do not re-add the reload.
+    // Fixed by: `createI18n` bumps the i18n revision on `languageChanged`
+    // and the router root subscribes to it, so the tree re-renders and the
+    // module-level `t()` sites re-resolve. If this test starts failing,
+    // live re-render has regressed — do not re-add the reload.
     await signIn(page);
     await page.goto(PREFS);
     const select = page.getByLabel('Language').or(page.getByLabel('اللغة')).first();

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Campaign runs (39-email-templates-and-campaigns.md D11, D12; 39-T15): the
- * `email.campaign-run` handler through a recorder transport, and the four
- * campaign routes through a bare app with the real rbac plugin.
+ * Campaign runs: the `email.campaign-run` handler through a recorder
+ * transport, and the four campaign routes through a bare app with the real
+ * rbac plugin.
  *
  * The assertions that carry the wave: the audience is resolved LIVE (an opted
  * -out and a suspended account are skipped and counted), a recipient whose
@@ -98,7 +98,7 @@ function recorder(): Recorder {
   return rec;
 }
 
-describe('email.campaign-run (39-T15)', () => {
+describe('email.campaign-run', () => {
   let meta: MetaDb;
   let app: BareApp;
   let manager: User;

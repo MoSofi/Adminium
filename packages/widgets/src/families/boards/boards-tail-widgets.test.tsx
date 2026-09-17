@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * TRACK TABLES-CAL-BOARDS — the `boards` family M7 Wave-4 TAIL (annex §6):
+ * TRACK TABLES-CAL-BOARDS — the `boards` family M7 Wave-4 TAIL (annex):
  * board-card (now registered under its own annex id, no longer only a private
  * sub-component of kanban-board) and inline-compose-card.
  *
@@ -39,7 +39,7 @@ const BOUND = {
 
 // ── board-card ──────────────────────────────────────────────────────────────
 
-describe('board-card projection (annex §6)', () => {
+describe('board-card projection (annex)', () => {
   it('projects the `record` envelope ({ row }) the host’s isEmpty predicate reads', () => {
     const card = boardCardOf(boardCardDemoData(7), parse(boardCardConfigSchema));
     expect(card).not.toBeNull();
@@ -141,7 +141,7 @@ describe('board-card projection (annex §6)', () => {
 
 // ── inline-compose-card ─────────────────────────────────────────────────────
 
-describe('inline-compose-card (annex §6)', () => {
+describe('inline-compose-card (annex)', () => {
   it('starts behind the add affordance, and opens on click', () => {
     render(<InlineComposeCard />);
     expect(document.querySelector('[data-part="compose-open"]')).not.toBeNull();
@@ -321,7 +321,7 @@ describe('inline-compose-card (annex §6)', () => {
 
 // ── binding descriptor ──────────────────────────────────────────────────────
 
-describe('binding source (04 §5.1)', () => {
+describe('binding source', () => {
   it('qualifies the table from binding.source.name (+ schema), not a flat binding.table', () => {
     expect(bindingSourceOf({ connectionId: 'c1', source: { schema: 'public', name: 'tasks' } })).toEqual({
       connectionId: 'c1',
@@ -340,8 +340,8 @@ describe('binding source (04 §5.1)', () => {
 
 // ── definitions ─────────────────────────────────────────────────────────────
 
-describe('boards definitions (annex §6)', () => {
-  it('registers all four §6 ids — the family is complete', () => {
+describe('boards definitions (annex)', () => {
+  it('registers all four ids — the family is complete', () => {
     expect(boardsTrackDefinitions.map((d) => d.id).sort()).toEqual([
       'board-card',
       'inline-compose-card',

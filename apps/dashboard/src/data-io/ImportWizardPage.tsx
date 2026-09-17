@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Import Wizard (M7-T07, 09-generated-app.md §11.1) — the four-step flow on
- * the `page-wizard` template shell: Upload (target picker + `upload-dropzone`)
- * → Map columns (`column-mapping-table`, auto-match, "Don't import") →
- * Validate (`validation-issues-list`, NON-BLOCKING: invalid rows are counted
- * as rows-to-skip, never a wall) → Import & review (job progress via the jobs
- * API polled + a `jobs:<id>` realtime subscription, then the review numbers).
+ * Import Wizard — the four-step flow on the `page-wizard` template shell:
+ * Upload (target picker + `upload-dropzone`) → Map columns
+ * (`column-mapping-table`, auto-match, "Don't import") → Validate
+ * (`validation-issues-list`, NON-BLOCKING: invalid rows are counted as
+ * rows-to-skip, never a wall) → Import & review (job progress via the jobs API
+ * polled + a `jobs:<id>` realtime subscription, then the review numbers).
  *
- * NUMBER CONSISTENCY IS AN INVARIANT (§11.1): imported = created + updated +
- * skipped — asserted here in the component; a mismatch renders the
- * inconsistency warning instead of silently pretty-printing wrong math.
+ * NUMBER CONSISTENCY IS AN INVARIANT: imported = created + updated + skipped
+ * — asserted here in the component; a mismatch renders the inconsistency
+ * warning instead of silently pretty-printing wrong math.
  *
  * Target selection rides the nav tree: picking a table page lazily fetches
  * its envelope (`pageQuery`) and reads `source.connectionId`/`source.table` +
@@ -26,6 +26,7 @@ import {
   UploadDropzone,
   ValidationIssuesListWidget,
   columnMappingTableConfigSchema,
+  mappingRowsOf,
   validationIssuesListConfigSchema,
   type WidgetEvent,
 } from '@adminium/widgets';
@@ -74,7 +75,7 @@ function targetColumnsOf(config: Record<string, unknown>): { key: string; label?
   return out;
 }
 
-/** §11.1 invariant — exported for tests. */
+/** The wizard invariant — exported for tests. */
 export function statsConsistent(stats: {
   total: number;
   inserted?: number;
@@ -172,6 +173,18 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
     };
   }, [preview]);
 
+  // The widget shows its own matches before anyone opens a picker, but tells
+  // us about a mapping only when one changes. Start from what it shows, or a
+  // file whose headers already match would import no columns.
+  useEffect(() => {
+    if (step !== 'map' || mappingConfig === null) return;
+    mappingRef.current = Object.fromEntries(
+      mappingRowsOf(mappingData, mappingConfig)
+        .filter((row) => row.target !== '')
+        .map((row) => [row.column, row.target]),
+    );
+  }, [step, mappingConfig, mappingData]);
+
   const onMappingEvent = useCallback((event: WidgetEvent) => {
     if (event.type !== 'mutate' || event.intent !== 'update') return;
     const mapping = (event.values as { mapping?: Record<string, string> }).mapping;
@@ -242,7 +255,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
   const importPoll = useQuery(importQuery(importRow?.id ?? '', importRow !== null && step === 'run'));
   const finished = importPoll.data ?? importRow;
 
-  // Progress also rides the realtime channel `jobs:<id>` (09 §11.1) — events
+  // Progress also rides the realtime channel `jobs:<id>` — events
   // just poke the polled queries, so WS-less browsers degrade to polling.
   useEffect(() => {
     if (jobId === null) return;

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Publishable keys (28-public-surface.md §3.3, 28-T06) and the D4 prefix
- * narrowing.
+ * Publishable keys and the D4 prefix narrowing.
  *
  * The tests that matter here are the NEGATIVE ones. A publishable key working
  * on the public surface is the easy half; the property the whole off switch
@@ -26,7 +25,7 @@ import {
   tokenHashEquals,
 } from '../src/public-api/keys.js';
 
-describe('the two key namespaces cannot be confused (28 D3)', () => {
+describe('the two key namespaces cannot be confused', () => {
   it('an adm_pub_ token is invisible to the API-key parser', () => {
     // This single assertion is why an `adm_pub_` token is inert on all ~35
     // route groups: `parseBearerApiKey` returning null means the rbac plugin
@@ -69,7 +68,7 @@ describe('D4 — the loose adm_ prefix is gone', () => {
   });
 
   it('the documented-but-nonexistent adm_live_ kind is not accepted by either', () => {
-    // 08-server-api.md §2.16 still says `adm_live_`; no such prefix exists in
+    // The plan still says `adm_live_`; no such prefix exists in
     // code. Pinned so the doc drift cannot become a real acceptance path.
     expect(parseBearerApiKey('Bearer adm_live_0123456789')).toBeNull();
     expect(parseBearerPublishableKey('Bearer adm_live_0123456789')).toBeNull();

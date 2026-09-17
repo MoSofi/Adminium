@@ -2,29 +2,28 @@
 /**
  * Domain-scoped `page-dashboard` candidate assembly — the cross-table widget
  * selection of the Engine's bespoke `generate/dashboard.ts`, relocated behind
- * the leaf boundary (research/widget-registry.md §14 trigger, §15 decision
- * summary: one dashboard per FK-cluster domain).
+ * the leaf boundary (research/widget-registry.md trigger, decision summary:
+ * one dashboard per FK-cluster domain).
  *
- * Widget set per §15: 4 KPI candidates (COUNT(*), money SUM when present,
+ * Widget set: 4 KPI candidates (COUNT(*), money SUM when present,
  * new-this-period on the created-at family, status-group count with a
  * secondary-table fallback), a hero timeseries (`chart-line-area`) bucketing
  * the best timestamp by month, and a `chart-donut` over the top categorical
  * breakdown.
  *
  * Unlike the bespoke builder this module emits `TemplateCandidate[]` and stops:
- * geometry comes from the `page-dashboard` manifest via `composeTemplate`
- * (04 §10), not from hand-stamped x/y/w/h. The manifest's v2 slot areas
- * reproduce the bespoke spans exactly (kpi 3×3 row, hero 8×8, donut 4×8), and
- * each candidate carries the bespoke instance id so regenerated layout items
- * keep their identity. Domain detection itself (FK clustering, hub election,
- * naming) stays in the Engine — this module receives the result as a
- * structural mirror ({@link DashboardDomain}), same contract style as
- * `../registry/candidates.ts`.
+ * geometry comes from the `page-dashboard` manifest via `composeTemplate`, not
+ * from hand-stamped x/y/w/h. The manifest's v2 slot areas reproduce the bespoke
+ * spans exactly (kpi 3×3 row, hero 8×8, donut 4×8), and each candidate carries
+ * the bespoke instance id so regenerated layout items keep their identity.
+ * Domain detection itself (FK clustering, hub election, naming) stays in the
+ * Engine — this module receives the result as a structural mirror ({@link
+ * DashboardDomain}), same contract style as `./registry/candidates.ts`.
  *
  * SEMANTIC SOURCE: column tags and table roles come from `entry.classified` —
  * the classification the Engine adapter supplies (recomputed on the model as
- * generated, with `source: 'llm' | 'override'` column stamps folded in, 05 §7).
- * The bespoke builder read full-model stamped semantics instead; the delta is
+ * generated, with `source: 'llm' | 'override'` column stamps folded in). The
+ * bespoke builder read full-model stamped semantics instead; the delta is
  * deliberate and pinned by `generate-archetypes.test.ts` — on a filtered model
  * a join table whose partner is excluded reclassifies (and may take a fallback
  * KPI), exactly as it earns a `page-crud`.
@@ -123,7 +122,7 @@ function rankDomainColumns(
 
 const TIMESTAMPY = new Set(['date', 'timestamp', 'timestamptz']);
 
-/** Best time axis: created-at first (05 §7.1 rule 9), else event timestamps. */
+/** Best time axis: created-at first, else event timestamps. */
 function bestTimestamp(
   domain: DashboardDomain,
   model: readonly CandidateTableInput[],
@@ -159,7 +158,7 @@ function bestCategorical(
   return null;
 }
 
-/** §8 trigger: a domain can host a dashboard only with ≥ 1 time axis. */
+/** Trigger: a domain can host a dashboard only with ≥ 1 time axis. */
 export function domainHasDashboardSignal(
   domain: DashboardDomain,
   model: readonly CandidateTableInput[],
@@ -168,9 +167,9 @@ export function domainHasDashboardSignal(
   return bestTimestamp(domain, model, relations) !== null;
 }
 
-/** The §15 dashboard candidates all share one score: input order decides. */
+/** The dashboard candidates all share one score: input order decides. */
 const DOMAIN_SCORE = 1;
-/** Bespoke `ACTIVE`-state vocabulary for the status KPI (annex §1/§6). */
+/** Bespoke `ACTIVE`-state vocabulary for the status KPI (annex). */
 const ACTIVE_STATE = /^(open|pending|new|in_progress|active|todo|backlog)$/i;
 
 function kpi(
@@ -189,7 +188,7 @@ function kpi(
 }
 
 /**
- * Build the four §15 KPI candidates for a domain. Always returns exactly 4
+ * Build the four KPI candidates for a domain. Always returns exactly 4
  * when the domain has enough tables (fallbacks: secondary-table counts) so
  * the KPI row is stable; `composeTemplate` tiles them 3×3 along the row.
  */
@@ -305,13 +304,13 @@ function kpiRow(
 }
 
 /**
- * Emit the §15 candidate set for one domain's `page-dashboard`, in slot order:
- * KPI row, hero timeseries, donut breakdown. Feed the result to
+ * Emit the candidate set for one domain's `page-dashboard`, in slot order: KPI
+ * row, hero timeseries, donut breakdown. Feed the result to
  * `composeTemplate('page-dashboard', …)` — the manifest supplies the geometry.
  *
  * Returns `null` when the domain's hub is not in `model` or the domain has no
- * time axis at all (05 §8 trigger requires ≥ 1 timestamp) — the caller records
- * a warning, exactly the bespoke `buildDashboardEnvelope` → `null` idiom.
+ * time axis at all (trigger requires ≥ 1 timestamp) — the caller records a
+ * warning, exactly the bespoke `buildDashboardEnvelope` → `null` idiom.
  */
 export function emitDomainDashboardCandidates(
   domain: DashboardDomain,
@@ -323,12 +322,12 @@ export function emitDomainDashboardCandidates(
   if (hub === undefined) return null;
 
   const ts = bestTimestamp(domain, model, relations);
-  if (ts === null) return null; // §8: dashboard needs ≥1 timestamp in the domain
+  if (ts === null) return null; // a dashboard needs ≥1 timestamp in the domain
 
   const items = kpiRow(domain, model, relations, ctx.connectionId);
 
   // Hero timeseries: money sum when the time-axis table has a money column,
-  // else row count, bucketed by month (§15 chart candidate ranking).
+  // else row count, bucketed by month (chart candidate ranking).
   const heroMoney = ts.entry.table.columns.find((c) => tag(ts.entry, c) === 'money');
   items.push({
     widget: 'chart-line-area',
@@ -355,7 +354,7 @@ export function emitDomainDashboardCandidates(
     },
   });
 
-  // Donut: top categorical/status breakdown (§15), beside the hero.
+  // Donut: top categorical/status breakdown, beside the hero.
   const categorical = bestCategorical(domain, model, relations);
   if (categorical !== null) {
     items.push({

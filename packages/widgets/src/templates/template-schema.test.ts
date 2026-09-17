@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `pageTemplateSchema` unit tests (04-widget-registry.md §10).
+ * `pageTemplateSchema` unit tests.
  *
  * The schema is the published contract marketplace manifests are written
  * against, so these tests pin the *shape* — notably the two defaults, which are
@@ -23,7 +23,7 @@ const MINIMAL = {
 };
 
 describe('pageTemplateSchema', () => {
-  it('applies the §10 defaults: required=false, fallback=omit', () => {
+  it('applies the defaults: required=false, fallback=omit', () => {
     const parsed = parsePageTemplate(MINIMAL);
     expect(parsed.slots[0]?.required).toBe(false);
     expect(parsed.slots[0]?.fallback).toBe('omit');

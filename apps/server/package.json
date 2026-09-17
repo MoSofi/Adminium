@@ -17,16 +17,35 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "default": "./dist/ui/index.js"
     }
   },
   "bin": {
     "adminium": "./dist/cli/index.js"
+  },
+  "//engines": [
+    "The floor is Node-API 10, which better-sqlite3 13's prebuilt binaries need.",
+    "Node has it from 22.14, and on the 23 line from 23.6. An older Node does not",
+    "throw: it segfaults while loading the driver, and better-sqlite3's own",
+    "engines (>=22) lets npm install it without a warning. npm only warns on",
+    "engines, so src/cli/index.ts refuses an old Node before loading anything",
+    "(src/cli/node-support.ts). Keep the two in step; the pin lives in",
+    "test/m10-regressions.test.ts under `packaging`."
+  ],
+  "engines": {
+    "node": "^22.14.0 || >=23.6.0"
   },
   "files": [
     "dist",
     "dashboard",
     "vocabulary",
     "assets",
+    "templates",
+    "samples",
+    "schemas",
     "README.md",
     "LICENSE"
   ],
@@ -38,9 +57,12 @@
     "test": "vitest run --coverage",
     "bundle:dashboard": "node scripts/bundle-dashboard.mjs",
     "bundle:allowlists": "node scripts/bundle-allowlists.mjs",
+    "bundle:samples": "node scripts/bundle-samples.mjs",
     "openapi": "node scripts/openapi.mjs",
     "openapi:check": "node scripts/openapi.mjs --check",
-    "prepack": "node scripts/bundle-dashboard.mjs && node scripts/bundle-allowlists.mjs",
+    "project-schemas": "node scripts/project-schemas.mjs",
+    "project-schemas:check": "node scripts/project-schemas.mjs --check",
+    "prepack": "node scripts/bundle-dashboard.mjs && node scripts/bundle-allowlists.mjs && node scripts/bundle-samples.mjs",
     "demo:m2": "node scripts/demo-m2.mjs"
   },
   "//dependencies": [
@@ -68,6 +90,7 @@
     "@fastify/cookie": "^11.1.2",
     "@fastify/cors": "^11.3.0",
     "@fastify/helmet": "^13.1.0",
+    "@fastify/proxy-addr": "^5.1.1",
     "@fastify/rate-limit": "^11.2.0",
     "@fastify/static": "^10.1.3",
     "@fastify/swagger": "^9.8.0",
@@ -75,7 +98,7 @@
     "argon2": "^0.45.1",
     "better-sqlite3": "^13.0.3",
     "croner": "^10.0.1",
-    "fastify": "^5.12.0",
+    "fastify": "^5.12.5",
     "fastify-plugin": "^6.0.0",
     "fastify-type-provider-zod": "^7.0.0",
     "fflate": "^0.8.3",
@@ -87,7 +110,7 @@
     "zod": "catalog:"
   },
   "//optionalDependencies": [
-    "The META-STORE drivers (07-meta-store.md; 01-architecture.md §4.2).",
+    "The META-STORE drivers.",
     "src/meta/store.ts opens the meta store with a bare `await import('pg')` /",
     "`import('mysql2')`. They are declared HERE, on the server, and not merely",
     "reached through @adminium/adapter-postgres / -mysql, because a bare",
@@ -95,7 +118,7 @@
     "Dockerfile's `pnpm deploy --filter=@adminium/server --prod` produces an",
     "isolated tree where an adapter's own dependency lands under .pnpm and is",
     "unreachable from /app/dist. Without these the published image can run only",
-    "the embedded SQLite fallback that §3.1 tells people not to use in",
+    "the embedded SQLite fallback the docs tell people not to use in",
     "production, while docker-compose.yml documents a postgres meta store — a",
     "crash-loop under `restart: unless-stopped`, with the printed remedy",
     "(`npm install pg`) impossible inside a non-root image.",
@@ -113,6 +136,7 @@
     "@types/node": "22.15.3",
     "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.21.0",
+    "@types/react": "^19.2.18",
     "@types/ws": "^8.18.1",
     "eslint": "catalog:",
     "typescript": "catalog:",

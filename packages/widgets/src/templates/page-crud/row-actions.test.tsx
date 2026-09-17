@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `PageCrudProps.rowActions` (34-invoices-add-on.md §7.8; 34-T16).
+ * `PageCrudProps.rowActions` and `PageCrudProps.bulkActions`.
  *
- * A pass-through, so the only thing this component decides is WHERE the
- * action sits — and that decision is what is pinned: Peek stays rightmost,
- * because it is the row's own affordance and has been in that position since
- * the grid shipped.
+ * Pass-throughs, so the only thing this component decides is WHERE an action
+ * sits — and that decision is what is pinned: Peek stays rightmost, because it
+ * is the row's own affordance and has been in that position since the grid
+ * shipped, and Delete stays last in the bulk bar.
  */
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { gridColumnSpecSchema } from '../../families/tables/column-spec.js';
@@ -100,5 +100,36 @@ describe('row actions', () => {
     expect(
       action.compareDocumentPosition(peeks[0]!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+});
+
+describe('bulk actions', () => {
+  async function selectBoth(): Promise<void> {
+    await screen.findAllByRole('button', { name: 'Peek' });
+    const boxes = screen.getAllByRole('checkbox');
+    // The header box selects every row on the page.
+    fireEvent.click(boxes[0]!);
+  }
+
+  it('adds none when the host passes none', async () => {
+    renderCrud();
+    await selectBoth();
+    const bar = screen.getByRole('toolbar');
+    expect(within(bar).getAllByRole('button').map((button) => button.textContent)).not.toContain('Refund');
+  });
+
+  it('places host actions between Export and Delete, and hands them the selected ids', async () => {
+    const run = vi.fn();
+    renderCrud({ bulkActions: [{ key: 'refund', label: 'Refund', run }] });
+    await selectBoth();
+    const bar = screen.getByRole('toolbar');
+    const labels = within(bar)
+      .getAllByRole('button')
+      .map((button) => button.textContent ?? '');
+    const at = (label: string) => labels.findIndex((text) => text.includes(label));
+    expect(at('Export')).toBeLessThan(at('Refund'));
+    expect(at('Refund')).toBeLessThan(at('Delete'));
+    fireEvent.click(within(bar).getByRole('button', { name: 'Refund' }));
+    expect(run).toHaveBeenCalledWith(['1', '2']);
   });
 });

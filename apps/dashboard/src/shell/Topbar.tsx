@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Sticky translucent topbar (09-generated-app.md §5.1, ia-mapping §5
- * color-mix + blur keeper): the page title over an optional subtitle line, the
- * desktop runtime chip (11-electron.md §8.1), chord-pending indicator ("G…"),
- * the page-actions slot pages publish into, global search affordance (`/`
- * focuses, click opens ⌘K), the notification bell (live unread count + feed
- * over `/me/notifications`, M7 T6 — the WS `notifications:<userId>` channel
- * keeps both fresh via the shared `['notifications']` query prefix), and the
- * avatar menu, which is also where light/dark now lives.
+ * Sticky translucent topbar (ia-mapping color-mix + blur keeper): the page
+ * title over an optional subtitle line, the desktop runtime chip,
+ * chord-pending indicator ("G…"), the page-actions slot pages publish into,
+ * global search affordance (`/` focuses, click opens ⌘K), the notification
+ * bell (live unread count + feed over `/me/notifications`, M7 T6 — the WS
+ * `notifications:<userId>` channel keeps both fresh via the shared
+ * `['notifications']` query prefix), and the avatar menu, which is also where
+ * light/dark now lives.
  *
  * The theme control is a menu item rather than a header button because the
  * header's icon slots are finite and a preference that is toggled once a day
@@ -85,19 +85,19 @@ export interface TopbarProps {
    */
   onOpenPreferences: () => void;
   /**
-   * Studio entry points (09 §8: "a Studio section appears in the user menu").
+   * Studio entry points ("a Studio section appears in the user menu").
    * Rendered only for role ≥ Admin — `StudioGuard` and the server both
    * re-enforce, so this gates discovery, not access.
    */
   onOpenStudio: () => void;
   onOpenStudioSettings: () => void;
   /**
-   * `/help` and `/changelog` (M10-T06). Both shipped with a route, a built page
-   * and NO entry point anywhere — not the rail, not this menu, not the palette.
-   * They are here rather than in the sidebar because the router's own comment
-   * makes the split: these two are for EVERYONE (a viewer hitting a wall needs
-   * the docs more than an admin does), while the rail's platform tail is
-   * workspace administration.
+   * `/help` and `/changelog`. Both shipped with a route, a built page and NO
+   * entry point anywhere — not the rail, not this menu, not the palette. They
+   * are here rather than in the sidebar because the router's own comment makes
+   * the split: these two are for EVERYONE (a viewer hitting a wall needs the
+   * docs more than an admin does), while the rail's platform tail is workspace
+   * administration.
    */
   onOpenHelp: () => void;
   onOpenChangelog: () => void;
@@ -311,7 +311,7 @@ export function Topbar({
         )}
       </div>
 
-      {/* 11-electron.md §8.1: "The topbar … gains a runtime chip next to the
+      {/* "The topbar … gains a runtime chip next to the
           environment area, desktop only." There is no environment chip in the
           shell yet (03's app-shell reserves the slot), so the chip takes the
           slot beside the title — the same position, and the one place a fact

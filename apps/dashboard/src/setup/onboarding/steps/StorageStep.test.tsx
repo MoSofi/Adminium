@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 4 — where Adminium keeps its own data (45-onboarding.md §2, R2).
+ * Step 4 — where Adminium keeps its own data (R2).
  *
  * The gate worth pinning is the one the server also enforces: Adminium's own
  * tables may not go into a database its role cannot write to or run DDL in.
@@ -139,7 +139,7 @@ describe('while it moves', () => {
   });
 });
 
-describe('when that database already runs an Adminium (45-T11)', () => {
+describe('when that database already runs an Adminium', () => {
   const existing = { occupied: ['adminium_users', 'adminium_sessions'], secretMatches: true };
 
   it('blocks the card, and says where the decision is made', () => {

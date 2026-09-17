@@ -24,13 +24,16 @@
  *
  *  - the desktop doors (`/desktop/*`, `POST /auth/desktop-session`) exist only
  *    under `ADMINIUM_RUNTIME=desktop`. They are Electron-shell IPC over HTTP,
- *    not a public API, and 11-electron.md §5 is their contract;
+ * not a public API, is their contract;
  *  - `POST /bridge/handoff` exists only when `ADMINIUM_BRIDGE_ORIGINS` is set;
  *  - `/llm/*` needs the `@adminium/widgets` vocabulary. The allow-lists gate
  *    RUNTIME validation, never a route schema, so a stand-in vocabulary
  *    produces exactly the same spec as the real one;
  *  - `/meta/*` needs a relocation host, which `adminium start` always supplies
- *    (`cli/relocation-host.ts`) — so it IS in the documented surface.
+ *    (`cli/relocation-host.ts`) — so it IS in the documented surface;
+ *  - `/project/*` exists when the server runs a project folder, which every
+ *    project's server does, and `adminium pull --from` calls it from outside —
+ *    so it is documented too.
  *
  * `/public/*` is conditional too, on `ADMINIUM_PUBLIC_API_ORIGINS`, and it IS
  * documented — the opposite call from the bridge, for the opposite reason. The
@@ -49,6 +52,7 @@
  */
 
 import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -103,7 +107,7 @@ const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
 await firstRun(meta);
 
 const env = envSchema.parse({
-  // Long enough for the §1.2 cookie signer and the DSN/LLM key crypto. It signs
+  // Long enough for the cookie signer and the DSN/LLM key crypto. It signs
   // nothing that outlives this process.
   ADMINIUM_SECRET: 'openapi-spec-generation-placeholder-secret',
   // INCLUDED, unlike the other conditional resources — see the topology note
@@ -140,6 +144,8 @@ const composed = await composeServer({
   openapi: true,
   // Documents `/meta/placement` + `/meta/relocate`, which `adminium start` serves.
   onMetaRelocated: () => {},
+  // Documents `/project/*`. A server-mode project never touches the folder on its own.
+  project: { root: tmpdir(), mode: 'server', log: () => {}, warn: () => {} },
 });
 
 await composed.app.ready();

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Intl formatting layer (10-i18n-theming.md §4). All numbers, dates,
- * currencies, relative times, and lists render through here — never through
- * hand-rolled helpers or `toLocaleString('en-US')`.
+ * Intl formatting layer. All numbers, dates, currencies, relative times,
+ * and lists render through here — never through hand-rolled helpers or
+ * `toLocaleString('en-US')`.
  *
- * Numeral policy (§4.2, normative): `ctx: "data"` (the default) forces Latin
+ * Numeral policy (normative): `ctx: "data"` (the default) forces Latin
  * digits (`-u-nu-latn`) and the gregorian calendar (`-ca-gregory`) so mono
  * data cells stay `tabular-nums`-aligned in every locale, including `ar_EG`;
  * `ctx: "prose"` uses the locale's default numbering system, so Arabic prose
@@ -32,7 +32,8 @@ export interface Formatters {
   /** 24500 → "24.5K" / "24 500" per locale. */
   compact(v: number, o?: { ctx?: FmtContext }): string;
   percent(v: Numeric, o?: { fractionDigits?: number; ctx?: FmtContext }): string;
-  /** Currency code comes from column metadata, never from the viewer's locale (§4.4). */
+  /** Currency code comes from column metadata, never from the viewer's locale.
+   * */
   currency(v: Numeric, currency: string, o?: { ctx?: FmtContext }): string;
   /** Intl unit style, "1.2 MB". Data context (mono cells). */
   bytes(v: number): string;
@@ -41,14 +42,15 @@ export interface Formatters {
   dateTime(d: Date | string | number, o?: { ctx?: FmtContext; timeZone?: string }): string;
   /** `formatRange`, collapses shared parts. */
   dateRange(a: Date | string | number, b: Date | string | number): string;
-  /** "3 hours ago" — auto unit, prose context; absolute date past ~26 days (§4.5). */
+  /** "3 hours ago" — auto unit, prose context; absolute date past ~26 days. */
   relative(d: Date | string | number, o?: { now?: number }): string;
   list(items: string[], type?: 'conjunction' | 'disjunction'): string;
   /** Client-side sorts (in-memory widget sorts, ⌘K ordering) — `numeric: true`. */
   collator(): Intl.Collator;
 }
 
-/** Static week-info fallback for the 8 locales (§4.5). ISO-8601 day numbers (1 = Monday … 7 = Sunday). */
+/** Static week-info fallback for the 8 locales. ISO-8601 day numbers (1 =
+ * Monday … 7 = Sunday). */
 export interface WeekInfo {
   firstDay: number;
   weekend: readonly number[];
@@ -80,7 +82,7 @@ export function weekInfo(tag: string): WeekInfo {
   return WEEK_INFO_FALLBACK[tag] ?? { firstDay: 1, weekend: [6, 7] };
 }
 
-/** §4.2/§4.3: latn digits + gregorian calendar pinned for data context. */
+/** Latn digits + gregorian calendar pinned for data context. */
 function tagFor(tag: string, ctx: FmtContext): string {
   // Coalesce empty/invalid tags (see `normalizeTag`) before appending the
   // `-u-...` extension, so `latnDataTag('')` and direct `Intl.*` builds off it
@@ -91,9 +93,10 @@ function tagFor(tag: string, ctx: FmtContext): string {
 }
 
 /**
- * The data-context BCP-47 tag (latn digits + gregorian calendar, §4.2) for
+ * The data-context BCP-47 tag (latn digits + gregorian calendar) for
  * callers that must build an `Intl.*` instance this layer does not expose —
- * e.g. a narrow-style relative-time formatter for a mono grid cell. Keeps the
+ * e.g. a narrow-style relative-time formatter for a mono grid cell. Keeps
+ * the
  * numeral policy in one place instead of hand-rolling the `-u-nu-latn` suffix.
  */
 export function latnDataTag(tag: string): string {
@@ -236,7 +239,7 @@ function buildFormatters(tag: string): Formatters {
       const now = o.now ?? Date.now();
       const delta = toDate(d).getTime() - now;
       const abs = Math.abs(delta);
-      const rtf = relativeFor(tag); // prose context: relative times live in sentences (§4.2)
+      const rtf = relativeFor(tag); // prose context: relative times live in sentences
       if (abs < 45_000) return rtf.format(0, 'second'); // "now" via numeric: 'auto'
       if (abs < 90 * MINUTE) return rtf.format(Math.round(delta / MINUTE), 'minute');
       if (abs < 22 * HOUR) return rtf.format(Math.round(delta / HOUR), 'hour');

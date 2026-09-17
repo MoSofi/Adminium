@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure enrich-step rules (06-llm-assist.md §10.2, §7.5) — section/locale
- * toggles, provider-card gating, request shaping, the BYO merge gate, the §7.5
- * repair message, and prompt filenames. No DOM.
+ * Pure enrich-step rules — section/locale toggles, provider-card gating,
+ * request shaping, the BYO merge gate, the repair message, and prompt
+ * filenames. No DOM.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -39,7 +39,7 @@ describe('sections', () => {
     expect(without).toHaveLength(9);
 
     const back = toggleSection(without, 'enums');
-    // Order is restored to the canonical §4.4 order, not append order.
+    // Order is restored to the canonical order, not append order.
     expect(back).toEqual([...ENRICH_SECTIONS]);
   });
 
@@ -133,7 +133,7 @@ describe('allChunksValid (BYO merge gate)', () => {
   });
 });
 
-describe('formatRepairMessage (§7.5)', () => {
+describe('formatRepairMessage', () => {
   it('renders the verbatim repair turn with code · path · message', () => {
     const message = formatRepairMessage([
       { code: 'LLM_SCHEMA_INVALID', path: 'tables[3].label', message: 'Missing en_US key.' },

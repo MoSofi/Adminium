@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Data-io surfaces (M7-T07): the §11.1 number-consistency invariant, the
- * Import Wizard's upload step (target gate → dropzone), and the Data Exports
- * page rendering artifact rows through `scheduled-jobs-list`.
+ * Data-io surfaces: the number-consistency invariant, the Import Wizard's
+ * upload step (target gate → dropzone), and the Data Exports page
+ * rendering artifact rows through `scheduled-jobs-list`.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -51,7 +52,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('statsConsistent (§11.1 invariant)', () => {
+describe('statsConsistent (invariant)', () => {
   it('holds exactly when total = created + updated + skipped', () => {
     expect(statsConsistent({ total: 2940, inserted: 2612, updated: 288, skipped: 40 })).toBe(true);
     expect(statsConsistent({ total: 4, inserted: 3, skipped: 1 })).toBe(true);
@@ -72,6 +73,62 @@ describe('ImportWizardPage', () => {
     expect(dropzone?.hasAttribute('disabled')).toBe(true);
     // The nav-derived target options are offered.
     expect(screen.getByText('Customers')).toBeTruthy();
+  });
+
+  it('imports the columns it matched by itself, with no picker touched', async () => {
+    const calls: { url: string; body: unknown }[] = [];
+    const reply = (status: number, body: unknown) =>
+      new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: unknown, init?: RequestInit) => {
+        const url = String(input);
+        if (url.startsWith('/api/v1/imports/upload')) {
+          return reply(201, {
+            data: {
+              fileId: 'file_1',
+              filename: 'customers.csv',
+              sizeBytes: 40,
+              sha256: 'x',
+              columns: ['customer_id', 'company_name', 'notes'],
+              sampleRows: [['ALFKI', 'Alfreds', 'x']],
+              totalRows: 1,
+            },
+          });
+        }
+        calls.push({ url, body: typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : null });
+        return reply(422, { error: { code: 'VALIDATION_FAILED', message: 'stop here', requestId: 'req_1' } });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithClient(
+      <ImportWizardPage
+        initialTarget={{
+          connectionId: 'conn_1',
+          table: 'public.customers',
+          columns: [
+            { key: 'customer_id', label: 'Customer Id' },
+            { key: 'company_name', label: 'Company' },
+          ],
+        }}
+      />,
+    );
+    const input = screen.getByTestId('import-upload').querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, new File(['customer_id,company_name,notes\n'], 'customers.csv', { type: 'text/csv' }));
+    await user.click(await screen.findByTestId('wizard-validate'));
+
+    await waitFor(() => {
+      expect(calls).toHaveLength(1);
+    });
+    expect(calls[0]?.body).toMatchObject({
+      mapping: {
+        columns: [
+          { from: 'customer_id', to: 'customer_id' },
+          { from: 'company_name', to: 'company_name' },
+          { from: 'notes', to: null },
+        ],
+      },
+    });
   });
 
   it('starts ready to upload when the binding pre-resolves the target', () => {

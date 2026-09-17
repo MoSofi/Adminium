@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * dependency-cruiser rules enforcing the import matrix of
- * 01-architecture.md §2.3 (task 01-T03 / M0-T03).
+ * (task).
  *
  * Layering: tokens → (i18n, charts, ui) → widgets → apps,
  * and engine → (adapters, schema-import, llm, manifest, meta-consumers) → server.
@@ -10,7 +10,7 @@
  * pnpm workspace symlinks resolve to the real path) and in their raw
  * specifier form (@adminium/<name>[/subpath], which is what dependency-cruiser
  * reports when a workspace package has not been built/resolved yet). Sanctioned
- * subpath entry points (§2.3.1/§2.3.2/§6.1) are carved out via pathNot.
+ * subpath entry points are carved out via pathNot.
  */
 
 /** A workspace package in resolved, symlinked, or unresolved-specifier form. */
@@ -22,19 +22,19 @@ const app = (dir, name = dir) =>
   `^(apps/${dir}|node_modules/@adminium/${name}|@adminium/${name})(/|$)`;
 
 // Sanctioned subpath entry points.
-// Browser-safe pure-Zod engine leaf (§2.3.2): `@adminium/engine/config`.
+// Browser-safe pure-Zod engine leaf: `@adminium/engine/config`.
 const ENGINE_CONFIG_LEAF =
   '^(packages/engine|node_modules/@adminium/engine)/(src|dist)/config(-schema)?(/|\\.)|^@adminium/engine/config$';
-// Adapter interface entry (§2.3.1): `@adminium/engine/adapter`.
+// Adapter interface entry: `@adminium/engine/adapter`.
 const ENGINE_ADAPTER_LEAF =
   '^(packages/engine|node_modules/@adminium/engine)/(src|dist)/adapter(/|\\.)|^@adminium/engine/adapter$';
-// Pure-Zod page-config leaf inside widgets (§6.1): `@adminium/widgets/page-config`.
+// Pure-Zod page-config leaf inside widgets: `@adminium/widgets/page-config`.
 const WIDGETS_PAGE_CONFIG_LEAF =
   '^(packages/widgets|node_modules/@adminium/widgets)/(src|dist)/page-config(/|\\.)|^@adminium/widgets/page-config$';
 // Pure generator leaf inside widgets: `@adminium/widgets/generate`.
 //
-// 04-widget-registry.md §8 splits the auto-instantiation pipeline across the two
-// packages on purpose: the Engine drives hooks H1/H2/H4 ("`composeTemplate(…)` →
+// The auto-instantiation pipeline is split across the two packages on purpose:
+// the Engine drives the composition hooks ("`composeTemplate(…)` →
 // `PageConfig` rows written to `adminium_pages`") while the rules and manifests
 // they run on live in the Registry ("the Registry owns what can be instantiated
 // and why … so the catalog and its trigger logic never drift apart"). That
@@ -54,7 +54,7 @@ module.exports = {
   forbidden: [
     {
       name: 'no-circular',
-      comment: 'Circular dependencies are forbidden everywhere (01 §2.3).',
+      comment: 'Circular dependencies are forbidden everywhere.',
       severity: 'error',
       from: {},
       to: { circular: true },
@@ -68,14 +68,14 @@ module.exports = {
     },
     {
       name: 'i18n-no-ui-server',
-      comment: '@adminium/i18n must never import ui or server (01 §2.3).',
+      comment: '@adminium/i18n must never import ui or server.',
       severity: 'error',
       from: { path: '^packages/i18n/' },
       to: { path: [pkg('ui'), app('server')].join('|') },
     },
     {
       name: 'charts-only-tokens',
-      comment: '@adminium/charts may import only @adminium/tokens from the workspace (01 §2.3).',
+      comment: '@adminium/charts may import only @adminium/tokens from the workspace.',
       severity: 'error',
       from: { path: '^packages/charts/' },
       to: { path: ANY_WORKSPACE, pathNot: ['^packages/charts/', pkg('tokens')] },
@@ -84,7 +84,7 @@ module.exports = {
       name: 'docs-only-tokens',
       comment:
         '@adminium/docs may import only @adminium/tokens from the workspace ' +
-        '(01 §2.3 dependency matrix, 14-docs-site.md §2 / 14-T01). The docs site is ' +
+        'by the dependency matrix. The docs site is ' +
         'static prose + a token remap: it must never import product runtime code, ' +
         'or the published site would ship the app it documents. The two GENERATED ' +
         'JSON contracts below are exempt: they are data, not code — the docs site ' +
@@ -106,7 +106,7 @@ module.exports = {
     },
     {
       name: 'ui-no-charts-widgets-engine',
-      comment: '@adminium/ui must never import charts, widgets, or engine (01 §2.3).',
+      comment: '@adminium/ui must never import charts, widgets, or engine.',
       severity: 'error',
       from: { path: '^packages/ui/' },
       to: { path: [pkg('charts'), pkg('widgets'), pkg('engine')].join('|') },
@@ -114,14 +114,14 @@ module.exports = {
     {
       name: 'widgets-no-full-engine',
       comment:
-        '@adminium/widgets may import only the browser-safe @adminium/engine/config leaf, never the full engine (01 §2.3, §2.3.2).',
+        '@adminium/widgets may import only the browser-safe @adminium/engine/config leaf, never the full engine.',
       severity: 'error',
       from: { path: '^packages/widgets/' },
       to: { path: pkg('engine'), pathNot: [ENGINE_CONFIG_LEAF] },
     },
     {
       name: 'widgets-no-meta-adapters-server',
-      comment: '@adminium/widgets must never import meta, adapters, or server (01 §2.3).',
+      comment: '@adminium/widgets must never import meta, adapters, or server.',
       severity: 'error',
       from: { path: '^packages/widgets/' },
       to: { path: [pkg('meta'), pkg('adapter-[^/]+', 'adapter-[^/]+'), app('server')].join('|') },
@@ -129,7 +129,7 @@ module.exports = {
     {
       name: 'engine-no-meta-adapters',
       comment:
-        '@adminium/engine defines the Adapter interface but never imports adapter packages (registration happens in server, 01 §2.3.1); it must never import meta.',
+        '@adminium/engine defines the Adapter interface but never imports adapter packages (registration happens in the server); it must never import meta.',
       severity: 'error',
       from: { path: '^packages/engine/' },
       to: { path: [pkg('meta'), pkg('adapter-[^/]+', 'adapter-[^/]+')].join('|') },
@@ -137,7 +137,7 @@ module.exports = {
     {
       name: 'engine-no-full-widgets',
       comment:
-        '@adminium/engine may import only the pure @adminium/widgets/page-config (01 §2.3, §6.1) and @adminium/widgets/generate (04 §8) leaves, never widget component code.',
+        '@adminium/engine may import only the pure @adminium/widgets/page-config and @adminium/widgets/generate leaves, never widget component code.',
       severity: 'error',
       from: { path: '^packages/engine/' },
       to: { path: pkg('widgets'), pathNot: [WIDGETS_PAGE_CONFIG_LEAF, WIDGETS_GENERATE_LEAF] },
@@ -145,7 +145,7 @@ module.exports = {
     {
       name: 'adapters-only-engine-adapter',
       comment:
-        'adapter-* packages may import only @adminium/engine/adapter (interface + SchemaModel types) from the workspace (01 §2.3).',
+        'adapter-* packages may import only @adminium/engine/adapter (interface + SchemaModel types) from the workspace.',
       severity: 'error',
       from: { path: '^packages/(adapter-[^/]+)/' },
       to: { path: ANY_WORKSPACE, pathNot: ['^packages/$1/', ENGINE_ADAPTER_LEAF] },
@@ -153,7 +153,7 @@ module.exports = {
     {
       name: 'meta-no-engine-adapters-server',
       comment:
-        '@adminium/meta is standalone (kysely + zod only) — it must never import engine, adapters, or server (01 §2.3).',
+        '@adminium/meta is standalone (kysely + zod only) — it must never import engine, adapters, or server.',
       severity: 'error',
       from: { path: '^packages/meta/' },
       to: {
@@ -162,21 +162,21 @@ module.exports = {
     },
     {
       name: 'manifest-no-server-ui',
-      comment: '@adminium/manifest must never import server or ui (01 §2.3).',
+      comment: '@adminium/manifest must never import server or ui.',
       severity: 'error',
       from: { path: '^packages/manifest/' },
       to: { path: [app('server'), pkg('ui')].join('|') },
     },
     {
       name: 'schema-import-no-adapters-server',
-      comment: '@adminium/schema-import must never import adapters or server (01 §2.3).',
+      comment: '@adminium/schema-import must never import adapters or server.',
       severity: 'error',
       from: { path: '^packages/schema-import/' },
       to: { path: [pkg('adapter-[^/]+', 'adapter-[^/]+'), app('server')].join('|') },
     },
     {
       name: 'llm-no-server-ui',
-      comment: '@adminium/llm must never import server or ui (01 §2.3).',
+      comment: '@adminium/llm must never import server or ui.',
       severity: 'error',
       from: { path: '^packages/llm/' },
       to: { path: [app('server'), pkg('ui')].join('|') },
@@ -184,7 +184,7 @@ module.exports = {
     {
       name: 'server-no-ui-widgets-charts',
       comment:
-        '@adminium/server must never import ui, widgets, charts, or dashboard runtime code (01 §2.3).',
+        '@adminium/server must never import ui, widgets, charts, or dashboard runtime code.',
       severity: 'error',
       from: { path: '^apps/server/' },
       to: { path: [pkg('ui'), pkg('widgets'), pkg('charts'), app('dashboard')].join('|') },
@@ -192,14 +192,14 @@ module.exports = {
     {
       name: 'dashboard-no-full-engine',
       comment:
-        '@adminium/dashboard may import only the browser-safe @adminium/engine/config leaf, never the full (Node-only) engine (01 §2.3, §2.3.2).',
+        '@adminium/dashboard may import only the browser-safe @adminium/engine/config leaf, never the full (Node-only) engine.',
       severity: 'error',
       from: { path: '^apps/dashboard/' },
       to: { path: pkg('engine'), pathNot: [ENGINE_CONFIG_LEAF] },
     },
     {
       name: 'dashboard-no-meta-adapters-llm',
-      comment: '@adminium/dashboard must never import meta, adapters, or llm (01 §2.3).',
+      comment: '@adminium/dashboard must never import meta, adapters, or llm.',
       severity: 'error',
       from: { path: '^apps/dashboard/' },
       to: { path: [pkg('meta'), pkg('adapter-[^/]+', 'adapter-[^/]+'), pkg('llm')].join('|') },
@@ -208,10 +208,10 @@ module.exports = {
       name: 'dashboard-desktop-api-leaf-only',
       comment:
         'The ONE thing @adminium/dashboard may name from the Electron app is the ' +
-        '`@adminium/desktop/api` types leaf (11-electron.md §4: "Typed contract lives in ' +
+        '`@adminium/desktop/api` types leaf: the typed contract lives in ' +
         'apps/desktop/src/preload/api.d.ts and is re-exported to the dashboard as ' +
         '@adminium/desktop/api (types only) so @adminium/dashboard compiles without Electron ' +
-        'installed"). Everything else in apps/desktop is main-process code — Electron, zod, ' +
+        'installed. Everything else in apps/desktop is main-process code — Electron, zod, ' +
         '`node:fs`, better-sqlite3 — and this is a browser bundle.\n' +
         'The rule is about the SPELLING, because that is what can go wrong. The specifier ' +
         'resolves through a tsconfig `paths` mapping (apps/dashboard/tsconfig.json), NOT a ' +
@@ -237,19 +237,37 @@ module.exports = {
       },
     },
     {
+      name: 'dashboard-server-ui-types-only',
+      comment:
+        'The ONE thing @adminium/dashboard may name from the server is `@adminium/server/ui`, ' +
+        'the project UI kit\'s public types: the published ' +
+        '`@adminiumjs/adminium/ui` declares what the dashboard\'s kit (src/project/kit/) must ' +
+        'provide, and the compiler holds the two together. Like the desktop API leaf above, it ' +
+        'resolves through a tsconfig `paths` mapping, not a package edge (the server package ' +
+        'bundles the dashboard\'s build, so a package edge would close a cycle), and every ' +
+        'importer uses `import type`. The rule is about the spelling: a relative reach into ' +
+        'apps/server would be a real app -> app source edge.',
+      severity: 'error',
+      from: { path: '^apps/dashboard/' },
+      to: {
+        path: '^(apps/server|node_modules/@adminium/server|@adminium/server)(/|$)',
+        pathNot: ['^@adminium/server/ui$'],
+      },
+    },
+    {
       name: 'desktop-shell-only',
       comment:
-        '@adminium/desktop may import ONLY @adminium/server from the workspace (01 §2.3: ' +
-        '"`@adminium/server` (spawned), dashboard build output (static files)" | must never ' +
-        'import "packages\' internals"). The Electron shell contains zero business logic ' +
-        '(11-electron.md §1 principle 1) — anything feature-shaped belongs in the server or ' +
+        '@adminium/desktop may import ONLY @adminium/server from the workspace: the ' +
+        'server (spawned) and the dashboard build output (static files), never a ' +
+        'package\'s internals. The Electron shell contains zero business logic ' +
+        '— anything feature-shaped belongs in the server or ' +
         'the dashboard, gated by runtime flag, not reached into from here.\n' +
         'The two absences are the point. @adminium/dashboard is consumed as BUILD OUTPUT: ' +
         'electron.vite.config.ts copies its dist/ and the server serves it, so an IMPORT of ' +
         'it would mean the shell had started rendering product UI itself. @adminium/meta is ' +
-        'banned because §1 principle 2 makes the server the only data owner — the main ' +
+        'banned because the server is the only data owner — the main ' +
         'process never opens the meta-store, it asks the server. @adminium/tokens is absent ' +
-        'too: the boot/crash splash pages (§2.2 step 6) get their CSS COPIED next to them at ' +
+        'too: the boot/crash splash pages get their CSS COPIED next to them at ' +
         'build time, which is a file, not an import edge.',
       severity: 'error',
       from: { path: '^apps/desktop/' },
@@ -260,7 +278,7 @@ module.exports = {
     doNotFollow: { path: 'node_modules' },
     // Tooling config files (eslint/vitest configs, build scripts) import @adminium/config
     // by design — they are dev-time wiring, not part of the runtime import graph the
-    // 01-architecture.md §2.3 matrix governs.
+    // dependency matrix governs.
     // `.storybook/` is the same category and is excluded for the same reason:
     // packages/ui/.storybook/preview.tsx loads `../../charts/src/styles.css` so the
     // chart stories in its glob render with their hand-written `.adm-chart-*` CSS
@@ -268,7 +286,7 @@ module.exports = {
     // packages/ui/package.json still declares only @adminium/tokens, and
     // `ui-no-charts-widgets-engine` still governs everything under packages/ui/src/.
     // `out/` joins `dist/` for the same reason: it is BUILD OUTPUT, not source.
-    // apps/desktop emits there (electron-vite's convention, 11-electron.md §3),
+    // apps/desktop emits there (electron-vite's convention),
     // and it also receives a copy of the dashboard's bundle. Cruising it reports
     // rollup's chunk graph — 47 `no-circular` errors about hashed asset chunks
     // that no human wrote and no rule governs.

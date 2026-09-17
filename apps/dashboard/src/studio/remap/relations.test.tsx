@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Relations tab: declared FKs read-only, inferred relations with confidence
- * and accept/suppress (relation.add / relation.remove ops, 05 §6 accept →
+ * and accept/suppress (relation.add / relation.remove ops, accept →
  * confidence 1.0 override), and the ADD virtual relation form emitting the
- * §3.15 relation.add payload.
+ * relation.add payload.
  */
 import { screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
@@ -79,7 +79,7 @@ describe('accept / suppress', () => {
 });
 
 describe('add virtual relation', () => {
-  it('builds the §3.15 relation.add payload from the form', async () => {
+  it('builds the relation.add payload from the form', async () => {
     const harness = installFetch();
     renderEditor();
     await openRelations(/Order notes/);

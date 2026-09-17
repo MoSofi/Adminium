@@ -278,7 +278,7 @@ describe('domain detection', () => {
   });
 });
 
-describe('intent variants (09 §8.4)', () => {
+describe('intent variants', () => {
   it("'crud' emits no dashboards", () => {
     const result = generatePages(model, { connectionId: CONN, intent: 'crud' });
     expect(result.pages.some((p) => p.template === 'page-dashboard')).toBe(false);

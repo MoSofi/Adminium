@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE RUNNER — one walk of one rule's graph (42-automations-and-workflow-
- * logs.md §3.4, D8, D14, D18, 42-T11).
+ * logs.md).
  *
  * --- The record is re-read at every step ----------------------------------
  *
@@ -19,7 +19,7 @@
  * a restart mid-wait costs nothing — the queue row IS the timer. A rule
  * switched off during a wait ends the run `cancelled` on resume: the operator
  * turned it off, and finishing anyway would be the opposite of what they
- * asked (§8).
+ * asked.
  *
  * --- `resume` is an index PATH, not a node id -----------------------------
  *
@@ -78,6 +78,8 @@ export interface RunnerDeps {
   meta: MetaDb;
   manager: ConnectionManager;
   app?: FastifyInstance | undefined;
+  /** Where a step's writes go, with the project's hooks. */
+  writes?: ActionContext['writes'];
   secret: string;
   now?: (() => number) | undefined;
   text?: TraceText | undefined;
@@ -87,9 +89,9 @@ export interface RunnerDeps {
   createTransport?: ActionContext['createTransport'];
   fetch?: ActionContext['fetch'];
   /**
-   * The document pipeline, for a `document.render` step (34 §7.3, D55).
-   * Absent in a topology composed without file storage — the step then
-   * refuses with a sentence rather than throwing from inside the renderer.
+   * The document pipeline, for a `document.render` step. Absent in a
+   * topology composed without file storage — the step then refuses with
+   * a sentence rather than throwing from inside the renderer.
    */
   documents?: RenderDeps | undefined;
   progress?: ((pct: number, message: string) => void) | undefined;
@@ -181,6 +183,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     meta: deps.meta,
     manager: deps.manager,
     ...(deps.app === undefined ? {} : { app: deps.app }),
+    ...(deps.writes === undefined ? {} : { writes: deps.writes }),
     rule: input.rule,
     runId: input.runId,
     hops: input.event.hops,

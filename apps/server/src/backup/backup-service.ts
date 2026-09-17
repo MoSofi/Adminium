@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The §9 backup writer (11-electron.md §9) — the thing behind
- * `POST /api/v1/desktop/backup`.
+ * The backup writer — the thing behind `POST
+ * /api/v1/desktop/backup`.
  *
- * It runs HERE, in the server, and not in the Electron main process, because §1
- * principle 2 says so and because the reason it says so is load-bearing: this
- * process is the one holding `ADMINIUM_SECRET`, the meta connection and the
- * source-DB pools. A main process that produced the archive itself would have to
- * open every database behind the back of the process writing to them.
+ * It runs HERE, in the server, and not in the Electron main process, because
+ * says so and because the reason it says so is load-bearing: this process is the
+ * one holding `ADMINIUM_SECRET`, the meta connection and the source-DB pools. A
+ * main process that produced the archive itself would have to open every
+ * database behind the back of the process writing to them.
  *
  * ─── Order is the guarantee ──────────────────────────────────────────────────
  *
@@ -22,13 +22,13 @@
  *
  * ─── Redaction ───────────────────────────────────────────────────────────────
  *
- * `config.json` travels with `secretEncrypted`/`secretPlain` stripped (§9). This
+ * `config.json` travels with `secretEncrypted`/`secretPlain` stripped. This
  * module does not do the stripping and must not learn how: the desktop config is
- * the main process's (§2.3), so the REDACTED body arrives as a parameter, and
- * {@link assertNoSecrets} refuses to write it if it carries a secret-shaped key
- * anyway. That is the `export/redaction.ts` rule — fail closed at the boundary,
- * do not trust the caller's promise — applied to the one config this server does
- * not own.
+ * the main process's, so the REDACTED body arrives as a parameter, and {@link
+ * assertNoSecrets} refuses to write it if it carries a secret-shaped key anyway.
+ * That is the `export/redaction.ts` rule — fail closed at the boundary, do not
+ * trust the caller's promise — applied to the one config this server does not
+ * own.
  */
 
 import { randomBytes } from 'node:crypto';
@@ -53,11 +53,11 @@ import {
 } from './format.js';
 import { discoverSources, snapshotSqliteFile } from './snapshot.js';
 
-/** `<dataDir>/backups` — §9's auto-backup home and the staging root. */
+/** `<dataDir>/backups` — auto-backup home and the staging root. */
 export const BACKUPS_DIR = 'backups';
 
 /**
- * §9's rotation depth, default 7.
+ * The rotation depth, default 7.
  *
  * Stated here AND in `apps/desktop/src/main/config.ts`, which is a duplication
  * with a reason: that file is the schema for `config.json`, whose default this
@@ -75,7 +75,7 @@ export const DEFAULT_AUTO_BACKUP_KEEP = 7;
  * Dot-prefixed and inside `backups/` on purpose. Inside, because the move to the
  * user's chosen path is then a same-filesystem `rename` in the common case
  * (both under the data dir's volume) instead of a cross-device copy. Dotted,
- * because `<dataDir>/backups` is a folder §9 reveals to the user, and a
+ * because `<dataDir>/backups` is a folder reveals to the user, and a
  * half-written staging file appearing in it next to their real backups is
  * confusing at best; the rotation sweep also skips it, since
  * `BACKUP_FILE_PATTERN` cannot match a directory name.
@@ -83,7 +83,7 @@ export const DEFAULT_AUTO_BACKUP_KEEP = 7;
 export const BACKUP_STAGING_DIR = '.staging';
 
 /**
- * `secretEncrypted` and `secretPlain` are §9's named pair, but the assertion is
+ * `secretEncrypted` and `secretPlain` are named pair, but the assertion is
  * SHAPE-based rather than a list of two, for the reason `export/redaction.ts`
  * gives at length: a deny-list rots. A future `config.json` field called
  * `apiToken` would be invisible to a two-name check and would ship in every
@@ -94,11 +94,11 @@ const SECRET_KEY_PATTERN = /secret|password|token|apikey|credential/i;
 /**
  * The one key that is secret-SHAPED and is not a secret: `config.secretStorage`.
  *
- * It names WHERE the secret lives — `"safeStorage"` or `"plain"` — and §2.2
- * step 3 / §13 require it to survive, because it is what makes the About screen
- * warn that the master secret is sitting in cleartext. `redactConfig` keeps it
- * on purpose (see its allow-list); a check that dropped it would silence a
- * security warning in the name of security.
+ * It names WHERE the secret lives — `"safeStorage"` or `"plain"` — require it
+ * to survive, because it is what makes the About screen warn that the master
+ * secret is sitting in cleartext. `redactConfig` keeps it on purpose (see its
+ * allow-list); a check that dropped it would silence a security warning in the
+ * name of security.
  *
  * Exempted by EXACT name AND by value: the two enum members are the only strings
  * that can pass, so a future field called `secretStorage` holding anything else
@@ -114,7 +114,7 @@ export class BackupRedactionError extends Error {
   constructor(key: string) {
     super(
       `refusing to write config.json into a backup: it still carries "${key}", which is ` +
-        'secret-shaped. 11-electron.md §9 requires the desktop config to travel with its ' +
+        'secret-shaped. The desktop config has to travel with its ' +
         'secrets stripped — the caller redacts (main/config.ts redactConfig), this asserts. ' +
         'A backup zip is a file users email to support.',
     );
@@ -150,10 +150,10 @@ export interface CreateBackupOptions {
   /** Absolute path of the live meta store file. */
   metaPath: string;
   /**
-   * The desktop `config.json`, ALREADY REDACTED by its owner (§2.3 makes the
-   * main process the only reader of that file). `null` outside the Electron
-   * shell — the archive then simply has no `config.json` member, which is
-   * honest: there is no desktop config to describe.
+   * The desktop `config.json`, ALREADY REDACTED by its owner (makes the main
+   * process the only reader of that file). `null` outside the Electron shell
+   * — the archive then simply has no `config.json` member, which is honest:
+   * there is no desktop config to describe.
    */
   redactedConfig: unknown;
   /** `app.getVersion()` from the shell; `null` when there is no shell. */
@@ -202,7 +202,7 @@ async function readMetaMigrationVersion(meta: MetaDb): Promise<string> {
 }
 
 /**
- * Produce a §9 archive. Returns where it landed and what went in it.
+ * Produce a archive. Returns where it landed and what went in it.
  *
  * `zipSync` + in-memory buffers rather than a streaming writer: a desktop
  * install's databases are the ones a person keeps on a laptop, the snapshots are
@@ -380,15 +380,15 @@ export interface RotateBackupsResult {
 }
 
 /**
- * §9: keep the newest `keep` archives in `<dataDir>/backups/`, delete the rest.
+ * Keep the newest `keep` archives in `<dataDir>/backups/`, delete the rest.
  *
  * ─── The two rules that keep this from being a data-loss bug ─────────────────
  *
  * 1. It only ever considers files matching {@link BACKUP_FILE_PATTERN}. That
- *    directory is `showItemInFolder`-revealed (§9), so users WILL put things in
- *    it — a copy of a backup they renamed, a note. "Delete the oldest files in
- *    the folder" would eat them. This deletes archives this code wrote, and
- *    nothing else.
+ * directory is `showItemInFolder`-revealed, so users WILL put things in it — a
+ *    copy of a backup they renamed, a note. "Delete the oldest files in the
+ *    folder" would eat them. This deletes archives this code wrote, and nothing
+ *    else.
  * 2. It sorts by NAME, not mtime. The names are UTC-stamped and
  *    lexicographically ordered by construction ({@link backupFileName}), whereas
  *    mtime is metadata that a file copy, an rsync, or a restore-from-Time-Machine

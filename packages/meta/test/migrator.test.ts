@@ -25,7 +25,7 @@ for (const dialect of TEST_DIALECTS) {
       await t.destroy();
     });
 
-    it('applies all migrations cleanly and creates every BRIEF §6 table', async () => {
+    it('applies all migrations cleanly and creates every BRIEF table', async () => {
       const { applied } = await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
       expect(applied).toEqual(ALL_MIGRATIONS.map((m) => m.name));
 
@@ -33,7 +33,7 @@ for (const dialect of TEST_DIALECTS) {
       for (const name of META_TABLE_NAMES) {
         expect(tables).toContain(name);
       }
-      // Dashboards are pages rows, never a physical table (§3 catalog note).
+      // Dashboards are pages rows, never a physical table (catalog note).
       expect(tables).not.toContain('adminium_dashboards');
     });
 

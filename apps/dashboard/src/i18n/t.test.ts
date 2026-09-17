@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The app translator keeps the stub's `t(key, fallback)` contract
- * (10-i18n-theming.md M8 assignment): before init it returns the fallback
- * verbatim (unit tests, pre-boot); after `initDashboardI18n` it resolves
- * through the i18next bundles with ICU args, falling back per the chain.
+ * (M8 assignment): before init it returns the fallback verbatim (unit
+ * tests, pre-boot); after `initDashboardI18n` it resolves through the
+ * i18next bundles with ICU args, falling back per the chain.
  *
  * The i18next-backed cases skip until @adminium/i18n's runtime deps are
  * installed (workspace integration step); the fallback contract and the
@@ -66,7 +66,7 @@ describe.skipIf(i18nRuntime === null)('t() backed by the real i18next runtime', 
     expect(t('account.preferences.title', 'x')).toBe('Preferences');
   });
 
-  it('loads real locale bundles through the package lazy loader (M8-T02)', async () => {
+  it('loads real locale bundles through the package lazy loader', async () => {
     const { initDashboardI18n } = await import('./setup.js');
     const i18n = await initDashboardI18n({ locale: 'de_DE' });
     expect(i18n.language).toBe('de-DE');

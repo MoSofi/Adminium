@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `introspectSqlite` driven through a WRAPPED executor — the paths that a
- * healthy database cannot reach on its own (05-introspection-engine.md §4.3):
+ * healthy database cannot reach on its own:
  *
  *   - the total time budget, including the two catalog queries whose failures
  *     are otherwise swallowed (`pragma_table_list`, `sqlite_stat1`) — a
@@ -12,7 +12,7 @@
  *   - the row-count decision table: exact counts below the 100 MB threshold,
  *     `sqlite_stat1` estimates above it, and no counts at all when the file
  *     size is unknown
- *   - the SCHEMA-ONLY invariant (05 §10) over every statement actually issued
+ * - the SCHEMA-ONLY invariant over every statement actually issued
  *
  * The rows are real — a better-sqlite3 in-memory database answers every query
  * — so only the failure/size conditions are synthetic. Time is controlled with
@@ -180,7 +180,7 @@ describe.skipIf(!driverReady)('introspectSqlite through a wrapped executor', () 
     });
   });
 
-  describe('the row-count decision table (§4.3)', () => {
+  describe('the row-count decision table', () => {
     it('counts exactly below the 100 MB threshold', async () => {
       const exec = execOver(plain);
       const model = await introspectSqlite(exec, SMALL_FILE);
@@ -229,7 +229,7 @@ describe.skipIf(!driverReady)('introspectSqlite through a wrapped executor', () 
     });
   });
 
-  it('issues SCHEMA-ONLY statements — catalog reads plus bare COUNT(*) (05 §10)', async () => {
+  it('issues SCHEMA-ONLY statements — catalog reads plus bare COUNT(*)', async () => {
     const exec = execOver(plain);
     await introspectSqlite(exec, SMALL_FILE);
     expect(exec.calls.length).toBeGreaterThan(0);

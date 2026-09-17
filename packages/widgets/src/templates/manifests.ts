@@ -1,46 +1,46 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The shipped page-template manifests (04-widget-registry.md §10).
+ * The shipped page-template manifests.
  *
  * The `page-*.json` files beside this module are the source of truth — this
  * module only imports and parses them, so the JSON stays the artifact the
  * marketplace installer, the docs, and third-party `x-<vendor>-page-*` templates
- * are written against (04 §9/§10). Parsing here (rather than at each call site)
- * is what applies the schema's `required: false` / `fallback: 'omit'` defaults,
- * so every consumer sees a fully-resolved `PageTemplate`.
+ * are written against. Parsing here (rather than at each call site) is what
+ * applies the schema's `required: false` / `fallback: 'omit'` defaults, so every
+ * consumer sees a fully-resolved `PageTemplate`.
  *
  * A malformed manifest throws at module init. That is deliberate: these files
  * are checked in, `manifests.test.ts` is the CI gate (acceptance #16), and a
  * template the runtime cannot parse must never reach page generation.
  *
- * COVERAGE: 14 of the 23 §14 archetypes ship today — the two the M4 generator
- * already emits (`page-crud`, `page-dashboard`, whose components live under
+ * COVERAGE: 14 of the archetypes ship today — the two the M4 generator already
+ * emits (`page-crud`, `page-dashboard`, whose components live under
  * `templates/page-crud/` and `templates/page-dashboard/`; the manifests here
  * *describe* those compositions) plus the nine M7 archetypes, plus the M7 Wave-4
- * `page-builder` (TRACK BUILDER) — the archetype the §13 document vocabulary is
+ * `page-builder` (TRACK BUILDER) — the archetype the document vocabulary is
  * built for, which is why it lands with `document-canvas` rather than waiting on
- * the families its optional rails reference — plus wave 2's `page-wizard`
- * (T5 data-io stepped flows) and `page-settings` (T6 notification preference
+ * the families its optional rails reference — plus wave 2's `page-wizard` (T5
+ * data-io stepped flows) and `page-settings` (T6 notification preference
  * matrix). The remaining nine (`page-status`, `page-billing`, `page-api`,
  * `page-kb-docs`, `page-auth`, `page-system-state`, `page-marketing`,
  * `page-hub-home`, `page-onboarding-checklist`) land with the families they are
  * built from.
  *
- * `page-dashboard` VERSION 2 (04 §10): v2 raises the chart-slot heights
+ * `page-dashboard` VERSION 2: v2 raises the chart-slot heights
  * (`hero-chart`/`breakdown`/`grid-secondary`) from h6 to h8 and re-stacks the
  * rows below, matching the bespoke generator's CHART_HEIGHT=8 so migrating
  * generated dashboards onto `composeTemplate` preserves their shipped
  * geometry. No `migrations/` folder ships with the bump: nothing in the
  * runtime consumes per-template migrations yet (H5 regenerates untouched
- * pages in place, which re-composes against the current manifest), and 04 §10
- * says migrations arrive with their first consumer, not speculatively.
+ * pages in place, which re-composes against the current manifest), says
+ * migrations arrive with their first consumer, not speculatively.
  *
- * `page-crud` IS A TYPED-BODY TEMPLATE (09-generated-app.md §3.3): its stored
- * config carries `columns[]`/`defaultSort`/`form`/`detail` (composed by
- * `../generate/crud-body.ts`), NOT a `config.layout`, and `PageCrud.tsx` never
+ * `page-crud` IS A TYPED-BODY TEMPLATE: its stored config carries
+ * `columns[]`/`defaultSort`/`form`/`detail` (composed by
+ * `./generate/crud-body.ts`), NOT a `config.layout`, and `PageCrud.tsx` never
  * reads slots. The slot list in `page-crud.json` is therefore *descriptive* —
- * it records the §10 composition the hand-built template implements (grid +
- * pagination + detail rails), keeping the manifest inside the published §10
+ * it records the composition the hand-built template implements (grid +
+ * pagination + detail rails), keeping the manifest inside the published
  * schema, which deliberately has no typed-body marker (see the SCHEMA FIDELITY
  * note in `./template-schema.ts`). Do not feed `page-crud` through
  * `composeTemplate` expecting the renderer to honour the result.
@@ -71,11 +71,11 @@ import { parsePageTemplate, type PageTemplate } from './template-schema.js';
 const MANIFEST_JSON: readonly unknown[] = [
   pageCrud,
   // The record detail page every crud body names in `config.detail.template`
-  // (30-record-pages.md D3). A TYPED-BODY template like `page-crud` itself:
-  // the slot list records the §7.1/Customer-360 composition the hand-built
+  // . A TYPED-BODY template like `page-crud` itself:
+  // the slot list records the /Customer-360 composition the hand-built
   // component implements (fields + stats + activity + related grids); do not
   // feed it through `composeTemplate` expecting the renderer to honour the
-  // result. The `stats` slot ships declared-and-empty (30 D4).
+  // result. The `stats` slot ships declared-and-empty.
   pageRecord,
   pageDashboard,
   pageMasterDetail,
@@ -94,7 +94,7 @@ const MANIFEST_JSON: readonly unknown[] = [
 
 export class DuplicatePageTemplateManifestError extends Error {
   constructor(readonly templateId: string) {
-    super(`Duplicate page-template manifest id: '${templateId}' — template ids are unique (04 §10)`);
+    super(`Duplicate page-template manifest id: '${templateId}' — template ids are unique`);
     this.name = 'DuplicatePageTemplateManifestError';
   }
 }

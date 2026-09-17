@@ -1,14 +1,13 @@
 name: docker
 
-# M10-T02 / 01-T11. The release workflow builds the multi-arch image on a tag —
-# by which point a broken Dockerfile is an incident, not a review comment. This
-# workflow is the feedback loop that keeps that from happening:
+# The release workflow builds the multi-arch image on a tag — by which point a
+# broken Dockerfile is an incident, not a review comment. This workflow is the
+# feedback loop that keeps that from happening:
 #
 #   validate    lint the Dockerfile + resolve docker-compose.yml (seconds)
-#   build-smoke build amd64 and assert the M10-T02 exit criterion for real —
-#               "docker run boots to the first-run wizard" — on BOTH meta-store
-#               topologies §4.2 describes: the embedded SQLite fallback and a
-#               separate Postgres (the `with-meta` profile)
+# build-smoke build amd64 and assert the exit criterion for real — "docker run
+# boots to the first-run wizard" — on BOTH meta-store topologies describes: the
+# embedded SQLite fallback and a separate Postgres (the `with-meta` profile)
 #
 # Path-filtered rather than run on every PR: the build does a full workspace
 # install + turbo build inside the image, which is far too slow to tax every
@@ -77,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           # meta-db must NOT appear without the profile — a plain `up` has to
-          # stay a single-service deployment (01-architecture.md §4.2).
+          # stay a single-service deployment.
           if docker compose config --services | grep -qx 'meta-db'; then
             echo "::error::meta-db is active without --profile with-meta"
             exit 1
@@ -146,7 +145,7 @@ jobs:
           set -euo pipefail
           uid="$(docker exec adminium-smoke id -u)"
           if [ "$uid" = "0" ]; then
-            echo "::error::image runs as root (01-architecture.md §4.2 requires non-root)"
+            echo "::error::image runs as root (the image must never run as root)"
             exit 1
           fi
           echo "runs as uid $uid"
@@ -189,9 +188,9 @@ jobs:
         if: always()
         run: docker rm -f adminium-smoke || true
 
-      # §4.2's PRODUCTION shape, which nothing above touches: everything so far
+      # The PRODUCTION shape, which nothing above touches: everything so far
       # runs on the embedded SQLite fallback (only ADMINIUM_SECRET is set), i.e.
-      # the meta store §3.1 explicitly tells self-hosters not to rely on. The
+      # the meta store the docs explicitly tell self-hosters not to rely on. The
       # `validate` job asserts the with-meta profile *resolves*, which reads like
       # coverage but only parses YAML — it never starts anything.
       #
@@ -250,7 +249,7 @@ jobs:
           echo "readyz confirms the meta store"
 
           # Migrations ran against Postgres and the wizard is reachable — the
-          # M10-T02 exit criterion, on the topology §4.2 actually specifies.
+          # The exit criterion, on the topology self-hosting actually specifies.
           curl -fsS http://127.0.0.1:4600/api/v1/setup/state | grep -q '"required":true'
           echo "first-run wizard reachable on a postgres meta store"
 

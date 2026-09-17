@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Meta-store resolution + connection (01-architecture.md §3.1, §7.1, §7.2).
+ * Meta-store resolution + connection.
  *
  * The single place that answers "where does the meta store live, and how do I
  * open it?" — shared by every front door (`adminium start`, `adminium migrate`,
  * the init wizard, and, later, Docker/Electron wrappers), so none of them can
  * disagree about precedence.
  *
- * Precedence (§7.2 "Environment always wins over this file"):
+ * Precedence:
  *   1. `ADMINIUM_META_URL`                       → source `env`
  *   2. `<dataDir>/adminium.json` `metaUrl`       → source `bootstrap`
  *      (AES-256-GCM token, decrypted with the ADMINIUM_SECRET-derived key)
- *   3. embedded SQLite `<dataDir>/meta.db`       → source `embedded`
- *      — the §3.1 OD-1 fallback for a bare non-interactive `adminium start`;
- *      callers surface the documented startup warning.
+ * 3. embedded SQLite `<dataDir>/meta.db` → source `embedded` — the OD-1
+ *   fallback for a bare non-interactive `adminium start`; callers surface
+ *   the documented startup warning.
  *
  * Drivers are imported dynamically and only for the dialect actually in use: a
  * SQLite install must not need `pg` on disk, and a missing driver has to say
@@ -39,7 +39,7 @@ import { decryptSecret, deriveKey, encryptSecret } from '../config/secrets.js';
 /**
  * HKDF purpose scope for the bootstrap `metaUrl` token. Distinct from
  * `adminium:dsn:v1` (source DSNs) and the LLM key salt so the three ciphertexts
- * can never be decrypted with each other's key (01 §7.1 purpose-scoping).
+ * can never be decrypted with each other's key (purpose-scoping).
  */
 export const META_URL_KEY_SALT = 'adminium:meta-url:v1';
 
@@ -57,10 +57,10 @@ export function metaUrlCryptoFromSecret(masterSecret: string): MetaUrlCrypto {
   };
 }
 
-/** Meta dialects the v1 self-host build supports (BRIEF §3). */
+/** Meta dialects the v1 self-host build supports (BRIEF). */
 export type MetaEngine = 'postgres' | 'mysql' | 'sqlite';
 
-/** Which layer supplied the meta DSN — drives the §3.1 OD-1 startup warning. */
+/** Which layer supplied the meta DSN — drives the OD-1 startup warning. */
 export type MetaUrlSource = 'env' | 'bootstrap' | 'embedded';
 
 export interface ResolvedMetaUrl {
@@ -76,7 +76,7 @@ export class MetaUrlError extends Error {
 
 /**
  * `<dataDir>/adminium.json` exists but its `metaUrl` will not decrypt under the
- * current `ADMINIUM_SECRET` (§7.2).
+ * current `ADMINIUM_SECRET`.
  *
  * WHY THIS DESERVES ITS OWN ERROR. The underlying failure is a
  * `SecretIntegrityError` reading "decryption failed — token was tampered with
@@ -147,7 +147,7 @@ function configuredOrigin(source: Exclude<MetaUrlSource, 'embedded'>): string {
   return source === 'env'
     ? 'That path came from ADMINIUM_META_URL.'
     : 'That path came from the metaUrl remembered in adminium.json under ADMINIUM_DATA_DIR.\n' +
-        'ADMINIUM_META_URL overrides it — the environment always wins (§7.2).';
+        'ADMINIUM_META_URL overrides it — the environment always wins.';
 }
 
 /**
@@ -261,8 +261,8 @@ export interface ResolveMetaUrlOptions {
 }
 
 /**
- * Apply the §7.2 precedence and return the DSN to connect with. Never connects
- * and never writes — the wizard decides whether to persist a chosen placement.
+ * Apply the precedence and return the DSN to connect with. Never connects and
+ * never writes — the wizard decides whether to persist a chosen placement.
  */
 export async function resolveMetaUrl(opts: ResolveMetaUrlOptions): Promise<ResolvedMetaUrl> {
   if (opts.metaUrl !== undefined && opts.metaUrl !== '') {
@@ -289,7 +289,7 @@ export async function resolveMetaUrl(opts: ResolveMetaUrlOptions): Promise<Resol
     return { url, engine: metaEngineFromUrl(url), source: 'bootstrap' };
   }
 
-  // §3.1 OD-1: nothing configured → embedded SQLite under the data dir.
+  // Nothing configured → embedded SQLite under the data dir.
   return {
     url: `sqlite:${join(resolve(opts.dataDir), 'meta.db')}`,
     engine: 'sqlite',
@@ -297,7 +297,7 @@ export async function resolveMetaUrl(opts: ResolveMetaUrlOptions): Promise<Resol
   };
 }
 
-/** The §3.1 OD-1 warning callers print when the embedded fallback is in play. */
+/** The OD-1 warning callers print when the embedded fallback is in play. */
 export function embeddedMetaWarning(url: string): string {
   return (
     `Using embedded SQLite meta store at ${sqlitePathFromUrl(url)} — ` +
@@ -317,7 +317,7 @@ export interface MetaStoreHandle {
 
 /**
  * Dynamic driver import. The specifier is computed so the module graph carries
- * no static edge to a driver an install may not have (01 §2.3 keeps `@adminium/meta`
+ * no static edge to a driver an install may not have (keeps `@adminium/meta`
  * driver-free; the composing layer — this one — injects them).
  */
 async function importDriver(pkg: string, engine: MetaEngine): Promise<Record<string, unknown>> {
@@ -385,7 +385,7 @@ function surviveDroppedConnections(pool: PgEmitter): void {
 }
 
 export interface ConnectMetaStoreOptions {
-  /** Postgres/MySQL pool size; the single-process topology stays small (01 §4.1). */
+  /** Postgres/MySQL pool size; the single-process topology stays small. */
   poolSize?: number | undefined;
 }
 

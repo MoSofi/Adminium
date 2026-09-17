@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Subcommand dispatch (M10-T01).
+ * Subcommand dispatch.
  *
  * The governing rule under test is the M10 risk mitigation: "CLI subcommands
  * share the same server services as the Studio routes; one code path, two front
@@ -31,7 +31,7 @@ const ENV = { ADMINIUM_SECRET: TEST_SECRET };
 
 // ── env / flag precedence ────────────────────────────────────────────────────
 
-describe('loadCliEnv — flags override the environment (01 §7.1)', () => {
+describe('loadCliEnv — flags override the environment', () => {
   it('takes PORT from the environment when no flag is given', () => {
     expect(loadCliEnv({ ...ENV, PORT: '9000' }).PORT).toBe(9000);
   });
@@ -46,6 +46,23 @@ describe('loadCliEnv — flags override the environment (01 §7.1)', () => {
       { metaUrl: 'postgres://flag/db' },
     );
     expect(env.ADMINIUM_META_URL).toBe('postgres://flag/db');
+  });
+
+  it('names where a failing variable came from, unless a flag replaced it', () => {
+    const sources = { PORT: '.env', HOST: 'adminium.config.ts (server.host)' };
+    const failure = (run: () => unknown): string => {
+      try {
+        run();
+      } catch (error) {
+        return (error as { hint?: string }).hint ?? '';
+      }
+      throw new Error('expected loadCliEnv to fail');
+    };
+    expect(failure(() => loadCliEnv({ ...ENV, PORT: 'eighty' }, {}, sources))).toContain('PORT came from .env.');
+    // The bad value is the flag's, so .env is not where it came from.
+    const flagged = failure(() => loadCliEnv({ ...ENV, PORT: 'eighty' }, { port: 99999 }, sources));
+    expect(flagged).toContain('PORT');
+    expect(flagged).not.toContain('came from');
   });
 
   it('lets --static-root beat ADMINIUM_STATIC_ROOT', () => {
@@ -133,7 +150,7 @@ describe('adminium start', () => {
     });
   });
 
-  it('warns on stderr when it falls back to the embedded SQLite meta store (§3.1 OD-1)', async () => {
+  it('warns on stderr when it falls back to the embedded SQLite meta store (OD-1)', async () => {
     const io = fakeIo();
     const deps = fakeDeps({ env: ENV });
     await runCli(['start', '--skip-migrate'], { io, deps });
@@ -158,7 +175,7 @@ describe('adminium start', () => {
     expect(deps.openRuntime).not.toHaveBeenCalled();
   });
 
-  // ── the first-boot source seed (28-T31) ──────────────────────────────────
+  // ── the first-boot source seed ───────────────────────────────────────────
   // Behaviour lives in source-seed*.test.ts; what belongs here is the wiring
   // decision — which branch a given environment takes.
 
@@ -236,7 +253,7 @@ describe('adminium introspect', () => {
   });
 });
 
-// ── generate-prompt (06 §10.4) ───────────────────────────────────────────────
+// ── generate-prompt ──────────────────────────────────────────────────────────
 
 describe('chunkFileName — "writes prompt file(s)"', () => {
   it('keeps the given name for a single-chunk run', () => {
@@ -285,7 +302,7 @@ describe('adminium generate-prompt', () => {
     );
   });
 
-  it('prints the runId and token estimate §10.4 requires', async () => {
+  it('prints the runId and token estimate requires', async () => {
     const runtime = fakeRuntime();
     runtime.promptService.createRunForConnection.mockResolvedValue({
       run: { id: 'run_abc', promptVersion: 'PROMPT_V1' },
@@ -371,7 +388,7 @@ describe('adminium generate-prompt', () => {
   });
 });
 
-// ── export-zip (delegated to M10-T03) ────────────────────────────────────────
+// ── export-zip (delegated to) ────────────────────────────────────────────────
 
 describe('formatBytes', () => {
   it.each([
@@ -555,32 +572,42 @@ describe('composeDsn — the wizard fields mode', () => {
   });
 });
 
-describe('adminium init', () => {
+describe('adminium try', () => {
   it('refuses to run without a TTY and points at `start`', async () => {
     const io = fakeIo({ interactive: false });
-    await expect(runCli([], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(1);
+    await expect(runCli(['try'], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(1);
     expect(io.stderr()).toContain('needs an interactive terminal');
     expect(io.stderr()).toContain('adminium start');
   });
 
   it('fails fast on a missing secret before asking a single question', async () => {
     const io = fakeIo({ interactive: true });
-    await expect(runCli([], { io, deps: fakeDeps({ env: {} }) })).resolves.toBe(1);
+    await expect(runCli(['try'], { io, deps: fakeDeps({ env: {} }) })).resolves.toBe(1);
     expect(io.stderr()).toContain('ADMINIUM_SECRET');
     expect(io.questions()).toEqual([]);
   });
 
-  it('bare `adminium` dispatches to the wizard', async () => {
+  it('still answers to its old name, `init`', async () => {
     const io = fakeIo({ interactive: false });
-    await runCli([], { io, deps: fakeDeps({ env: ENV }) });
-    // Reached init (its TTY guard), rather than the unknown-command path.
+    await expect(runCli(['init'], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(1);
+    // Reached the wizard (its TTY guard), rather than the unknown-command path.
     expect(io.stderr()).toContain('setup wizard');
   });
 
   it('rejects --browser and --terminal together', async () => {
     const io = fakeIo();
-    await expect(runCli(['--browser', '--terminal'], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(1);
+    await expect(runCli(['try', '--browser', '--terminal'], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(1);
     expect(io.stderr()).toContain('opposite things');
+  });
+});
+
+describe('bare `adminium`', () => {
+  it('without a terminal, says what to run instead of starting a wizard', async () => {
+    const io = fakeIo({ interactive: false });
+    await expect(runCli([], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(1);
+    expect(io.stderr()).toContain('adminium new <name>');
+    expect(io.stderr()).toContain('adminium try');
+    expect(io.stderr()).not.toContain('setup wizard');
   });
 });
 

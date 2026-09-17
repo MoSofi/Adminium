@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline unit tests for the CRUD list DSL (08-server-api.md §2.7.1): the
- * filter compiler over dynamic Kysely with a dummy driver, SQL-text
- * assertions proving identifiers come from the snapshot and every value
- * binds as a parameter (§7 item 1), structural limits, masked-column
- * rejection (§5.3 rule 2), and the undo store TTL machinery.
+ * Offline unit tests for the CRUD list DSL: the filter compiler over
+ * dynamic Kysely with a dummy driver, SQL-text assertions proving
+ * identifiers come from the snapshot and every value binds as a
+ * parameter, structural limits, masked-column rejection, and the undo
+ * store TTL machinery.
  */
 
 import {
@@ -195,7 +195,7 @@ describe('filter DSL compiler', () => {
     expect(() => compile({ column: 'customer_id', op: 'in', value: 'A' })).toThrow('array');
   });
 
-  it('enforces §2.7.1 structural limits (≤ 16 conditions, ≤ 2 group levels)', () => {
+  it('enforces structural limits (≤ 16 conditions, ≤ 2 group levels)', () => {
     const seventeen: RecordFilter = {
       and: Array.from({ length: 16 }, () => ({ column: 'balance', op: 'gt' as const, value: 1 })),
     };
@@ -334,7 +334,7 @@ describe('quick search (q=)', () => {
     expect(compiled.sql).toContain('"phone" ilike');
   });
 
-  it('compiles to LOWER(...) LIKE on mysql/sqlite (no ILIKE — the M9-T05 500)', () => {
+  it('compiles to LOWER(...) LIKE on mysql/sqlite (no ILIKE — the 500)', () => {
     // Regression: pre-fix this OR-ed `ILIKE`, which is a syntax error on both
     // mysql and sqlite (`near "ilike": syntax error`) → 500 INTERNAL.
     for (const dialect of ['mysql', 'sqlite'] as const) {

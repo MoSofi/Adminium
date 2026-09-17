@@ -92,7 +92,7 @@ describe('generated nav icons', () => {
     ]);
   });
 
-  it('ARCHETYPE_NAV names an icon lucide can resolve for every §14 archetype', () => {
+  it('ARCHETYPE_NAV names an icon lucide can resolve for every archetype', () => {
     const icons = Object.values(ARCHETYPE_NAV).map((nav) => nav.icon);
     expect(icons.length).toBeGreaterThanOrEqual(9);
     expect(unresolvable(icons)).toEqual([]);

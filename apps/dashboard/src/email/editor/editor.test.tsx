@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The editor shell (39-email-templates-and-campaigns.md 39-T11 done-when):
- * explicit save (D1) with its chip and history, the discard guard, and the
- * language menu (D3). Rendered through the real router and shell so the
- * topbar's Back and the blocker are the product's own.
+ * The editor shell: explicit save (D1) with its chip and history, the
+ * discard guard, and the language menu (D3). Rendered through the real
+ * router and shell so the topbar's Back and the blocker are the product's
+ * own.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -144,7 +144,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('Editor shell (39-T11)', () => {
+describe('Editor shell', () => {
   it('typing never issues a request; the chip reads Unsaved changes', async () => {
     const { user, calls } = await renderEditor();
     expect(chip().textContent).toBe('All changes saved');

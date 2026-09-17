@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Anthropic client — mocked-fetch wire tests (06-llm-assist.md §3.1). Locks the
- * exact request shape (URL, x-api-key + anthropic-version headers, Messages body),
- * response parsing, temperature-0 enforcement, error mapping, model-list fallback,
- * and — acceptance §10 — that the API key never reaches an error surface.
+ * Anthropic client — mocked-fetch wire tests. Locks the exact request shape (URL,
+ * x-api-key + anthropic-version headers, Messages body), response parsing,
+ * temperature-0 enforcement, error mapping, model-list fallback, and — acceptance
+ * — that the API key never reaches an error surface.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -157,7 +157,7 @@ describe('createAnthropicClient — sampling parameters by generation', () => {
   });
 });
 
-describe('createAnthropicClient — key is never leaked (acceptance §10)', () => {
+describe('createAnthropicClient — key is never leaked (acceptance)', () => {
   it('scrubs the API key out of an error body that echoes it', async () => {
     stubFetch(jsonResponse({ error: `bad token ${KEY}` }, 403));
     const client = createAnthropicClient({ provider: 'anthropic', apiKey: KEY, model: 'claude-opus-4-8' });

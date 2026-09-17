@@ -1,7 +1,7 @@
 name: desktop-release
 
-# 11-electron.md §10 (CI) + §11 (update-feed discipline), tasks 11-T14 and the CI
-# half of 11-T15.
+# The desktop release: CI signing and notarization, and the update-feed
+# discipline.
 #
 # On a `desktop-v*` tag, build @adminium/desktop on all three OSes, sign +
 # notarize on macOS, package everywhere, and upload EVERY artifact — installers,
@@ -33,8 +33,8 @@ name: desktop-release
 # WHAT DEPENDS ON A SIBLING TRACK: the `electron-builder` invocations read
 # apps/desktop/electron-builder.yml, and packaging (icons, and the historical
 # native-module rebuild via electron-builder `npmRebuild` — now redundant, since
-# better-sqlite3 >= 13 and argon2 >= 0.44 are Node-API) is owned by 11-T13. This
-# workflow is 11-T14/T15: the release pipeline that drives that config.
+# better-sqlite3 >= 13 and argon2 >= 0.44 are Node-API) is owned by that file.
+# This workflow is only the release pipeline that drives it.
 
 on:
   push:
@@ -63,7 +63,7 @@ jobs:
   build:
     name: build (${{ matrix.platform }})
     # macos-14 is Apple silicon; electron-builder cross-builds the x64 dmg/zip on
-    # it. windows-2022 and ubuntu-22.04 are the §10 canonical runners.
+    # it. windows-2022 and ubuntu-22.04 are the canonical runners.
     strategy:
       fail-fast: false
       matrix:
@@ -76,7 +76,7 @@ jobs:
             platform: linux
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
-    # §10: "All signing secrets live only in GitHub Actions environments with
+    # "All signing secrets live only in GitHub Actions environments with
     # required reviewers." Declaring the environment here means the run pauses for
     # a human approval before ANY signing material is exposed to the job, on every
     # OS leg (the linux leg carries no secrets but is gated the same for a single
@@ -155,12 +155,12 @@ jobs:
       # CI checkout has none until this runs. Fetches the six first-party add-on
       # tarballs + `.integrity` sidecars from downloads.adminium.dev, verified
       # against the exact sha512 pins in scripts/release/add-ons-bundle.json
-      # (32-T11). electron-builder's `files: resources/**` carries the directory
-      # into the packaged app, and buildServerEnv points ADMINIUM_BUNDLED_ADD_ONS
-      # at it so the embedded server seeds the bundled set at boot — the Add-ons
-      # page then browses it with zero network, which is the desktop's air-gap
-      # posture. A mismatched or unpinnable package fails THIS step, not a user's
-      # first launch.
+      # . electron-builder's `files: resources/**` carries the directory into the
+      # packaged app, and buildServerEnv points ADMINIUM_BUNDLED_ADD_ONS at it so
+      # the embedded server seeds the bundled set at boot — the Add-ons page then
+      # browses it with zero network, which is the desktop's air-gap posture. A
+      # mismatched or unpinnable package fails THIS step, not a user's first
+      # launch.
       - name: Fetch bundled add-on set
         run: node scripts/release/fetch-add-ons-bundle.mjs apps/desktop/resources/add-ons-bundle
 
@@ -186,7 +186,7 @@ jobs:
       # errors, or worse, truncates the cert). The delimiter form is the only
       # multi-line-safe spelling.
       #
-      # ── macOS: Developer ID signing + notarization (§10, decision 1) ─────────
+      # ── macOS: Developer ID signing + notarization ─────────
       #
       # @electron/notarize (invoked by electron-builder when mac.notarize is true)
       # expects APPLE_API_KEY to be a FILE PATH to the .p8 App Store Connect key,
@@ -411,7 +411,7 @@ jobs:
 
       # ── Step 3.5: PROVE the macOS artifacts are actually shippable ────────────
       #
-      # The §11 feed-file tripwire has a signing counterpart, and this is it. Added
+      # The feed-file tripwire has a signing counterpart, and this is it. Added
       # 2026-07-21 after an unsigned, un-notarized macOS build sailed into the
       # desktop-v0.1.0 draft release with every job green (see the correction on
       # the signing gate above for why nothing failed).
@@ -598,7 +598,7 @@ jobs:
             -exec cp -n {} release/ \;
           echo "Collected:"; ls -1 release
 
-      # §11 tripwire. This job is already gated on a desktop-v* ref, but assert it
+      # Update-feed tripwire. This job is already gated on a desktop-v* ref, but assert it
       # again at the point of upload: the feed files are the sharp edge, and a
       # release WITHOUT them is a desktop release that silently stops advertising
       # updates. Both directions are bugs, so check both.
@@ -619,7 +619,7 @@ jobs:
           done
           [ "$missing" -eq 0 ] || exit 1
 
-      # §10: Windows ships unsigned, so a checksums file is its only integrity
+      # Windows ships unsigned, so a checksums file is its only integrity
       # signal — and Linux gets one too. Cover every user-facing installer (not
       # the feed files, which carry their own hashes inside). Computed on one
       # runner with one tool so the file format is uniform.
@@ -638,17 +638,17 @@ jobs:
           echo "SHA256SUMS.txt:"; cat SHA256SUMS.txt
 
       # Create the draft (or refresh assets on a re-run of the same tag). DRAFT is
-      # non-negotiable: §10 says a human publishes.
+      # non-negotiable: a human publishes.
       #
       # TWO DOCUMENTS, TWO AUDIENCES. Do not merge them back into one string.
       #   * The release BODY is USER-FACING and nothing else. It is what the
       #     Releases page shows the world, and what updates.ts already carries
-      #     into the in-app `available` event for whenever §11's in-app notes
-      #     get wired to a surface (nothing renders it yet — see the honest
-      #     caveat on DesktopRelease.notes; the comment this replaces claimed
-      #     otherwise). So it carries only what a user needs: the version, the
-      #     unsigned-Windows/SmartScreen warning, how to verify a download
-      #     against SHA256SUMS.txt, and the changelog link.
+      # into the in-app `available` event for whenever in-app notes get wired
+      # to a surface (nothing renders it yet — see the honest caveat on
+      # DesktopRelease.notes; the comment this replaces claimed otherwise). So
+      # it carries only what a user needs: the version, the
+      # unsigned-Windows/SmartScreen warning, how to verify a download against
+      # SHA256SUMS.txt, and the changelog link.
       #   * The PUBLISHER CHECKLIST goes to $GITHUB_STEP_SUMMARY — the same place
       #     vrt-baselines.yml puts its publisher instructions — where only the
       #     person looking at the run will ever read it.
@@ -666,9 +666,9 @@ jobs:
       # a human adding "what changed" on top is an improvement, never a
       # prerequisite for the page being right.
       #
-      # MUST FLAG any migration-bearing version (07-meta-store.md forward-only
-      # policy: there is no downgrade path) — that is a checklist item, because
-      # only a human knows whether this version carries one.
+      # MUST FLAG any migration-bearing version (forward-only policy: there is
+      # no downgrade path) — that is a checklist item, because only a human
+      # knows whether this version carries one.
       #
       # GH_REPO IS LOAD-BEARING. This job deliberately has no `actions/checkout` —
       # its only input is the downloaded artifacts — and the gh CLI resolves its
@@ -831,7 +831,7 @@ jobs:
             echo "The release body is already written and is publishable as it stands — version, the unsigned-Windows/SmartScreen warning, how to verify a download, and the changelog link. It is never a placeholder, so an unedited body is a correct page rather than a broken one."
             echo
             echo "- [ ] Add a short summary of **what changed** to the top of the body if this version deserves one — an improvement, not a prerequisite."
-            echo "- [ ] Flag any meta-store migration **in the body**. Migrations are forward-only (07-meta-store.md): once a user updates there is no downgrade path, so they have to be told before they click."
+            echo "- [ ] Flag any meta-store migration **in the body**. Migrations are forward-only (meta-store.md): once a user updates there is no downgrade path, so they have to be told before they click."
             echo "- [ ] \`spctl -a -vv\` the macOS app on a clean machine before publishing."
             echo "$publish_step"
           } >> "$GITHUB_STEP_SUMMARY"

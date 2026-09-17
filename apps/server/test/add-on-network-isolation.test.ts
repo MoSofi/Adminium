@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * D8's load-bearing proof: with the online catalog off, NO add-on code path
- * makes an outbound call (32-add-on-distribution.md D8, §7 acceptance #2) — and
- * with it on, exactly two first-party hosts are reached, at addresses the
- * server builds itself (48-self-hosted-downloads.md D4, D10).
+ * makes an outbound call (#2) — and with it on, exactly two first-party hosts
+ * are reached, at addresses the server builds itself.
  *
  * Mirrors `telemetry-network-isolation.test.ts` deliberately, down to the
  * recording thrower: ALL outbound network (fetch + node net/http/https) is
@@ -242,7 +241,7 @@ describe('add-on catalog: on, it talks to exactly two hostnames', () => {
     ]);
     expect(new URL(calls[0]!.url).hostname).toBe(DOWNLOAD_HOST);
     // Says what it is, rather than looking like an anonymous bot to the host's
-    // bot protection (48 §4).
+    // bot protection.
     expect((calls[0]!.init.headers as Record<string, string>)['user-agent']).toBe(USER_AGENT);
     expect(USER_AGENT).toMatch(/^Adminium\/\d+\.\d+\.\d+/);
   });
@@ -438,7 +437,7 @@ describe('add-on catalog: the transport itself is bounded', () => {
 describe('add-on catalog: the feed schema defers monetization by construction', () => {
   const base = { schemaVersion: 2, generatedAt: '2026-09-15T00:00:00Z' };
 
-  it('refuses a feed carrying a price, tier, or licence-key field (17 §2)', () => {
+  it('refuses a feed carrying a price, tier, or licence-key field', () => {
     for (const extra of [
       { price: 0 },
       { priceMonthly: '9.99' },
@@ -456,7 +455,7 @@ describe('add-on catalog: the feed schema defers monetization by construction', 
     expect(catalogSchema.safeParse({ ...base, addOns: [ENTRY] }).success).toBe(true);
   });
 
-  it('refuses the v1 document, including a row that still names an npm package (48 D7)', () => {
+  it('refuses the v1 document, including a row that still names an npm package', () => {
     // Released servers keep reading v1 at its own address. A v2 server that
     // took a v1 row would be taking an instruction about where to download
     // from — the one thing a v2 row can no longer carry.

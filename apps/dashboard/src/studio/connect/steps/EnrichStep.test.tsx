@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Enrich-with-AI step tests (06-llm-assist.md §10.2) — happy-dom, fetch mocked
- * like the sibling wizard tests: the three-intent state machine (provider / BYO
- * / skip), the direct-vs-BYO branch, the BYO paste → validate → error-render →
- * merge round-trip, the sampling toggle revealing the leaves-this-machine
- * preview, and the inline provider setup (46-enrich-provider-inline.md 46-T02):
- * an unconfigured step configures a provider without leaving the wizard, and the
- * card it enables costs the operator none of the choices they already made.
+ * Enrich-with-AI step tests — happy-dom, fetch mocked like the sibling wizard
+ * tests: the three-intent state machine (provider / BYO / skip), the
+ * direct-vs-BYO branch, the BYO paste → validate → error-render → merge
+ * round-trip, the sampling toggle revealing the leaves-this-machine preview, and
+ * the inline provider setup: an unconfigured step configures a provider without
+ * leaving the wizard, and the card it enables costs the operator none of the
+ * choices they already made.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -69,7 +69,7 @@ function scriptFetch(overrides: Partial<Record<string, (call: Call) => Response>
           ...stored,
           provider: (body.provider as LlmConfig['provider']) ?? null,
           model: body.model ?? null,
-          // Write-only: the reply carries the tail, never the key (§3.2).
+          // Write-only: the reply carries the tail, never the key.
           apiKeySet: body.apiKey !== undefined ? true : stored.apiKeySet,
           apiKeyLast4: body.apiKey !== undefined ? body.apiKey.slice(-4) : stored.apiKeyLast4,
         };
@@ -226,7 +226,7 @@ describe('intent cards', () => {
   });
 });
 
-describe('inline provider setup (46-T02)', () => {
+describe('inline provider setup', () => {
   /** Open the disclosure under the (disabled) provider card. */
   async function openSetup() {
     await userEvent.click(screen.getByRole('button', { name: 'Set up a provider here' }));
@@ -281,7 +281,7 @@ describe('inline provider setup (46-T02)', () => {
     );
     expect(await screen.findByText(/AI provider configured/)).toBeDefined();
 
-    // …and nothing the operator had already set was lost (46 §3.3).
+    // …and nothing the operator had already set was lost.
     expect(screen.getByRole('switch', { name: /Include sample values/ }).getAttribute('data-state')).toBe(
       'checked',
     );
@@ -330,7 +330,7 @@ describe('inline provider setup (46-T02)', () => {
 
     expect(screen.getByRole('radio', { name: /Use my AI provider/ })).toHaveProperty('disabled', true);
     expect(screen.queryByRole('button', { name: 'Set up a provider here' })).toBeNull();
-    // …and the card says why, rather than sending anyone to Settings (§2.3).
+    // …and the card says why, rather than sending anyone to Settings.
     expect(screen.getByText(/no outbound internet access/)).toBeDefined();
     expect(screen.queryByRole('link', { name: /Configure a provider in Settings/ })).toBeNull();
   });

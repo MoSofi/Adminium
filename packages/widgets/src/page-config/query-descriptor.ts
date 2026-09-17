@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { dataShapeSchema } from './data-shapes.js';
 
 /**
- * Declarative query descriptor (04-widget-registry.md §5.1).
+ * Declarative query descriptor.
  *
  * Bindings are descriptors, never SQL strings: the client cannot express
  * arbitrary SQL; the server compiles descriptors against the active schema
@@ -47,7 +47,7 @@ export const queryDescriptorSchema = z.object({
     name: z.string(),
     type: z.enum(['table', 'view']).default('table'),
   }),
-  shape: dataShapeSchema, // requested output shape (§3)
+  shape: dataShapeSchema, // requested output shape
   select: z.array(z.string()).optional(), // column names; record-list/record only
   aggregations: z.array(aggregationSchema).max(8).optional(),
   groupBy: z.array(z.string()).max(2).optional(),

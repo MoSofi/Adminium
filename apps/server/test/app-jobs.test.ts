@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two app acquisition job kinds (48-self-hosted-downloads.md §6b G8-D3/D5).
+ * The two app acquisition job kinds (b G8-D3/D5).
  *
  * The add-on jobs' twin suite (`add-on-jobs.test.ts`), run the same way: the
  * real registry, a real in-memory meta store, a REAL app store on a temp dir,
@@ -66,7 +66,10 @@ function packageTarball(files: Record<string, string>): Uint8Array {
     out.set(member, at);
     at += member.byteLength;
   }
-  return gzipSync(out);
+  // `mtime: 0` leaves the gzip header's timestamp at zero, as `npm pack` does.
+  // fflate's default is the current second, so the same files packed a second
+  // apart would hash differently.
+  return gzipSync(out, { mtime: 0 });
 }
 
 const TARBALL = packageTarball({

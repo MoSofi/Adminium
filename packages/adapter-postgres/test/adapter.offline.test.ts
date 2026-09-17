@@ -4,9 +4,9 @@
  *
  * `adapter.live.test.ts` covers the same class against a real server, but it is
  * probe-gated: on a machine (or a CI job) with no Postgres it skips entirely and
- * every guard below goes unasserted. The guards are a SECURITY boundary — 05 §10
- * says row-touching methods never run on the introspect connection — so they
- * are pinned here too, where no server is required.
+ * every guard below goes unasserted. The guards are a SECURITY boundary — says
+ * row-touching methods never run on the introspect connection — so they are
+ * pinned here too, where no server is required.
  *
  * The pool is faked rather than stubbed per-test so the assertions can be about
  * what the adapter SENT (startup options, pool size, the SET LOCAL prelude),
@@ -112,7 +112,7 @@ describe('connect()', () => {
     await connected('introspect');
     const options = String(pools[0]!.options['options']);
     expect(options).toContain('-c statement_timeout=15000');
-    // The introspect role also bounds lock waits and idle transactions (05 §4.1).
+    // The introspect role also bounds lock waits and idle transactions.
     expect(options).toContain('-c lock_timeout=2s');
     expect(options).toContain('-c idle_in_transaction_session_timeout=10s');
   });
@@ -331,7 +331,7 @@ describe('test() and probeCapabilities()', () => {
   });
 });
 
-describe('role guards — 05 §10', () => {
+describe('role guards', () => {
   it('refuses introspect() on the data-role instance', async () => {
     const adapter = await connected('data');
     const asIntrospect = adapter as unknown as DatabaseAdapter<'introspect'>;

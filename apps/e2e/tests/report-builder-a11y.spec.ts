@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `/report-builder` surfaces under axe (43-report-builder.md 43-T14): the
- * manager in gallery and list, its New and Delete modals; the editor with ALL
- * 25 block kinds on one sheet; the inspector on the header AND on every one
- * of the 25 kinds — not a sample (43-T07's done-when); the palette sheet; the
- * discard modal; and the 390 px drawer — each in light and dark. Zero
- * serious/critical violations is the gate; the lesser counts are annotated
- * per state so a regression in them is visible in the report.
+ * The `/report-builder` surfaces under axe: the manager in gallery and list,
+ * its New and Delete modals; the editor with ALL 25 block kinds on one sheet;
+ * the inspector on the header AND on every one of the 25 kinds — not a sample
+ * (done-when); the palette sheet; the discard modal; and the 390 px drawer —
+ * each in light and dark. Zero serious/critical violations is the gate; the
+ * lesser counts are annotated per state so a regression in them is visible in
+ * the report.
  *
  * Theme is the signed-in user's own pref (`PATCH /api/v1/me/prefs`, applied
  * on reload) and is restored to "inherit" afterwards, because the suite shares
@@ -16,8 +16,8 @@
  * modal `aria-hidden` and traps focus inside it (the APG pattern); axe's
  * `aria-hidden-focus` rule reads the trapped-out background as "hidden but
  * focusable" and fails every overlay of every Radix surface in the product.
- * That is a primitive-versus-rule conflict recorded in 39 §6.1, not masked
- * here: the page-level states still run over the whole document.
+ * That is a primitive-versus-rule conflict recorded, not masked here: the
+ * page-level states still run over the whole document.
  *
  * THE SCRATCH DOCUMENTS ARE MADE AND REMOVED THROUGH THE API, and this file
  * clears the workspace's report documents when it is done —
@@ -149,7 +149,7 @@ async function clearDocuments(page: Page): Promise<void> {
   }
 }
 
-test.describe('the /report-builder surfaces under axe (43-T14)', () => {
+test.describe('the /report-builder surfaces under axe', () => {
   test.describe.configure({ mode: 'serial' });
   let scratch: Scratch | null = null;
 
@@ -218,7 +218,7 @@ test.describe('the /report-builder surfaces under axe (43-T14)', () => {
       await sweep(page, 'editor · inspector header', tally, testInfo, '[data-testid="report-inspector"][data-variant="aside"]');
       await testInfo.attach(`a11y-${theme}-inspector-header`, { body: await page.screenshot(), contentType: 'image/png' });
 
-      // --- EVERY kind's field group, not a sample (43-T07) ---------------------
+      // --- EVERY kind's field group, not a sample ---------------------
       for (const kind of KINDS) {
         // The card, not its centre: a text-shaped block's centre is its inline
         // textarea, whose click the comp stops (316) so typing never re-selects.

@@ -3,7 +3,7 @@
  * The bundle's README. Its whole job is to answer, before anyone opens
  * `config/`, the question this export is most likely to be misread as: "is this
  * my admin panel's source code?" It is not, it never will be, and the first
- * heading says so (BRIEF §3 / 16-milestones M10-T03).
+ * heading says so (BRIEF / 16-milestones).
  *
  * Not user-facing dashboard copy — this is a file written into a downloadable
  * artifact, so it is deliberately plain English and not routed through i18n
@@ -27,8 +27,8 @@ function secretsSection(manifest: BundleManifest): string {
       'LLM provider keys were left out entirely, so the file is safe to store and',
       `hand around like any other config. ${dropped}`,
       '',
-      'After importing, re-enter each connection\'s credentials in Studio (or with',
-      '`adminium init`) before the connection will work.',
+      'After importing, re-enter each connection\'s credentials in Studio before',
+      'the connection will work.',
     ].join('\n');
   }
 

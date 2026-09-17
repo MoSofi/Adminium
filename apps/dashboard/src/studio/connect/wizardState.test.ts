@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure wizard rules (M5-T01/02/03 + M9-T04): DSN validation + engine
- * inference, engine-picker sync (scheme rewrite, default-port swap, SQLite
- * file form), fields→DSN composition, provider-chip filtering, schema-file
- * format vocabulary, inclusion defaults (high-volume unchecked, join/system
+ * Pure wizard rules (/02/03 +): DSN validation + engine inference,
+ * engine-picker sync (scheme rewrite, default-port swap, SQLite file form),
+ * fields→DSN composition, provider-chip filtering, schema-file format
+ * vocabulary, inclusion defaults (high-volume unchecked, join/system
  * pre-hidden) with per-source row-count degradation, meta-placement gating,
  * error-code hints, and sessionStorage persistence.
  */
@@ -70,7 +70,7 @@ describe('DSN validation', () => {
     ).toBe('postgres://localhost/dev');
   });
 
-  it('composes per engine: mysql scheme (no sslmode), sqlite file path (M9-T04)', () => {
+  it('composes per engine: mysql scheme (no sslmode), sqlite file path', () => {
     expect(
       composeDsn({ host: 'db.acme.io', port: '3306', database: 'prod', user: 'ava', password: '', ssl: 'require', file: '' }, 'mysql'),
     ).toBe('mysql://ava@db.acme.io:3306/prod');
@@ -90,7 +90,7 @@ describe('DSN validation', () => {
   });
 });
 
-describe('engine picker rules (M9-T04)', () => {
+describe('engine picker rules', () => {
   it('dsnInputPatch drags the picker along when the scheme is recognized', () => {
     expect(dsnInputPatch('mysql://u@h/db', 'postgres')).toEqual({ dsn: 'mysql://u@h/db', engine: 'mysql' });
     expect(dsnInputPatch('mariadb://u@h/db', 'postgres')).toEqual({ dsn: 'mariadb://u@h/db', engine: 'mysql' });
@@ -157,7 +157,7 @@ describe('engine picker rules (M9-T04)', () => {
   });
 });
 
-describe('schema-file format vocabulary (M9-T04)', () => {
+describe('schema-file format vocabulary', () => {
   it('maps engine ImportFormat names onto the wizard short names', () => {
     expect(fileFormatFromImportFormat('sql-ddl')).toBe('sql');
     expect(fileFormatFromImportFormat('json-ir')).toBe('json');
@@ -166,7 +166,7 @@ describe('schema-file format vocabulary (M9-T04)', () => {
   });
 });
 
-describe('table inclusion defaults (M5-T02)', () => {
+describe('table inclusion defaults', () => {
   const tables = summarizeTables([
     table({
       id: 'public.customers',
@@ -201,10 +201,10 @@ describe('table inclusion defaults (M5-T02)', () => {
     expect(defaultIncludedIds(tables)).toEqual(['public.customers', 'public.exactly_at_threshold']);
   });
 
-  it('formats row estimates mono-style, degrading per source quality (M9-T04)', () => {
+  it('formats row estimates mono-style, degrading per source quality', () => {
     expect(formatRowEstimate(1_234_567)).toBe('1,234,567');
     expect(formatRowEstimate(null)).toBe('—');
-    // MySQL: approximate — never presented as exact (05 §4.2).
+    // MySQL: approximate — never presented as exact.
     expect(formatRowEstimate(1_234_567, 'approximate')).toBe('≈ 1,234,567');
     // Schema files: no live database — an em-dash beats a wrong number.
     expect(formatRowEstimate(1_234_567, 'none')).toBe('—');
@@ -212,7 +212,7 @@ describe('table inclusion defaults (M5-T02)', () => {
   });
 });
 
-describe('meta placement gating (M5-T03, 01 §3.1)', () => {
+describe('meta placement gating', () => {
   const rw = { canReadSchema: true, canRead: true, canWrite: true, canDDL: true };
 
   it('writable + DDL-capable source allows same-DB', () => {
@@ -282,7 +282,7 @@ describe('persistence + step gating', () => {
         fields: { host: 'h', port: '5432', database: 'd', user: 'u', password: '', ssl: 'require', file: '' },
       }),
     ).toBe(true);
-    // SQLite fields mode is a file path, not host/port (05 §4.3).
+    // SQLite fields mode is a file path, not host/port.
     expect(sourceStepValid({ ...base, mode: 'fields', engine: 'sqlite' })).toBe(false);
     expect(
       sourceStepValid({

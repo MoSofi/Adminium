@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The six-step first-run wizard, walked end to end and swept with axe as it
- * goes (45-onboarding.md 45-T09).
+ * goes.
  *
  * WHY IT HAS ITS OWN SERVER. The shared e2e instance seeds a super admin before
  * it listens, and the route guard bounces `/setup` to `/login` the moment
@@ -97,7 +97,7 @@ test.describe('first run', () => {
 
     const tally: Sweep = { states: 0, minor: 0, failures: [] };
 
-    // The setup-only probe (45-T11), on a database Adminium has never touched:
+    // The setup-only probe, on a database Adminium has never touched:
     // open while setup is, honest about finding nothing, and it writes nothing —
     // the walk below relocates into this same database and would fail if the
     // probe had migrated it.
@@ -206,7 +206,7 @@ test.describe('first run', () => {
     await expect(page).toHaveURL(/\/login$/);
   });
 
-  test('the setup-only database routes close with the window (45-T11)', async ({ page }) => {
+  test('the setup-only database routes close with the window', async ({ page }) => {
     // The whole safety argument for asking a database question before there is
     // a session: the window shuts on the first account and never re-opens. An
     // un-bootstrapped instance is briefly usable to ask about a DSN; a running

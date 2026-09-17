@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The SPA's capability status logic (11-electron.md §12).
+ * The SPA's capability status logic.
  *
  * The one contract here that MUST hold on every runtime — "non-desktop runtimes
  * report every capability `unavailable`" — is what lets a manifest page degrade
@@ -25,7 +25,7 @@ describe('capabilityStatuses', () => {
     expect(capabilityStatuses('desktop', STUB_DESCRIPTORS)).toEqual(STUB_DESCRIPTORS);
   });
 
-  it('on self-host, reports EVERY catalogued capability unavailable (§12)', () => {
+  it('on self-host, reports EVERY catalogued capability unavailable', () => {
     const result = capabilityStatuses('selfhost', null);
     expect(result.map((d) => d.id)).toEqual(CAPABILITY_CATALOG.map((c) => c.id));
     expect(result.every((d) => d.status === 'unavailable')).toBe(true);

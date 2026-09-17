@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The twelve starters, the blank document and the envelope
- * (43-report-builder.md Appendix B, Appendix C, Appendix D, §3.3; 43-T03).
+ * The twelve starters, the blank document and the envelope.
  *
- * The assertions with teeth: every seeded string is swept for the 17 §2
- * substrings and for the company's name (seeded copy ships in a real row on
- * first use — 24 D12, and 43 Appendix D names each replacement); every one of
- * the 25 kinds round-trips encode → decode with its own fields; a block of an
- * unknown kind becomes a LABELLED placeholder rather than an empty card; and
- * the two 34 O18 caps refuse with a code that names the field.
+ * The assertions with teeth: every seeded string is swept for the substrings
+ * and for the company's name (seeded copy ships in a real row on first use,
+ * and 43 Appendix D names each replacement); every one of the 25 kinds
+ * round-trips encode → decode with its own fields; a block of an unknown kind
+ * becomes a LABELLED placeholder rather than an empty card; and the two caps
+ * refuse with a code that names the field.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -39,7 +38,7 @@ import {
 } from '../src/report-documents/starters.js';
 import { summaryOf } from '../src/report-documents/summary.js';
 
-/** 17 §2's grep, verbatim: substrings, case-insensitive. */
+/** The grep, verbatim: substrings, case-insensitive. */
 const TRAP_RE = /pricing|plan|tier|billing|upgrade|\/mo|free/i;
 
 const CATEGORIES = ['leadership', 'operations', 'revenue', 'growth', 'finance', 'product', 'success', 'engineering'];
@@ -83,7 +82,7 @@ describe('the twelve starters (Appendix C, Appendix D)', () => {
     expect(isReportStarterKey('quarterly')).toBe(false);
   });
 
-  it('no seeded string trips the 17 §2 sweep or names the company (Appendix D)', () => {
+  it('no seeded string trips the sweep or names the company (Appendix D)', () => {
     const documents = [blankBody(), ...STARTER_KEYS.map((key) => renderStarter(key).body)];
     for (const [index, body] of documents.entries()) {
       const text = JSON.stringify(body);
@@ -194,7 +193,7 @@ describe('the summary (D15/D16)', () => {
   });
 });
 
-describe('the envelope (§3.3)', () => {
+describe('the envelope', () => {
   it('the palette order IS the kind list, and every kind is recognised', () => {
     expect(REPORT_BLOCK_KINDS).toHaveLength(25);
     expect([...REPORT_BLOCK_KINDS].slice(0, 6)).toEqual(['heading', 'text', 'kpi', 'bar', 'line', 'table']);
@@ -251,7 +250,7 @@ describe('the envelope (§3.3)', () => {
     expect(by('line')).toMatchObject({ series: [{ label: 'A', value: 30.5 }] });
   });
 
-  it('a block of an unknown kind becomes a labelled placeholder, never an empty card (34-T47)', () => {
+  it('a block of an unknown kind becomes a labelled placeholder, never an empty card', () => {
     const body = normalizeReportBody({ blocks: [{ id: 'b1', kind: 'gantt', title: 'Timeline', w: 'half', show: false }] });
     expect(body.blocks).toHaveLength(1);
     expect(body.blocks[0]).toEqual({
@@ -293,7 +292,7 @@ describe('the envelope (§3.3)', () => {
     expect(odd.blocks[0]).toMatchObject({ w: 'full', recurFreq: 'Monthly' });
   });
 
-  it('the caps refuse with a code that names the field (34 O18)', () => {
+  it('the caps refuse with a code that names the field', () => {
     const big = `data:image/png;base64,${'A'.repeat(IMAGE_DATA_URL_MAX)}`;
     const withBg = normalizeReportBody({ bgImage: big });
     expect(() => {

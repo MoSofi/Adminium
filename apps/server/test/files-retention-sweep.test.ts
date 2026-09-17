@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The daily files-retention sweep (`compose.ts` FILES_RETENTION_SCHEDULE_NAME,
- * 37-files-and-storage.md D12, 37-T14) — §6 criterion 8's second clause:
- * "delete → 31 days → the object is gone from the driver and the row purged".
+ * The daily files-retention sweep (`compose.ts` FILES_RETENTION_SCHEDULE_NAME)
+ * — the second clause: "delete → 31 days → the object is gone
+ * from the driver and the row purged".
  *
  * WHAT WAS UNTESTED. `files-reconcile.test.ts` covers this window by calling
  * `filesRepo.listDeletedBefore` and asserting what it RETURNS. That is the
@@ -143,7 +143,7 @@ function bytesPath(file: StoredFile): string {
   return join(dataDir, FILES_DIR, file.storageKey);
 }
 
-describe('the trash purge (§6 criterion 8, 37 D12)', () => {
+describe('the trash purge (criterion 8)', () => {
   it('removes the bytes and purges the row past retention.filesTrashDays, and only then', async () => {
     const { meta, server } = await compose();
     const files = filesRepo(meta);
@@ -167,7 +167,7 @@ describe('the trash purge (§6 criterion 8, 37 D12)', () => {
     // array here, and this cannot catch a sweep that passed the id where the
     // key belongs. That bug is only reachable on `s3`/`webdav`, whose keys
     // are dated paths — catching it needs a sweep test against one of those
-    // drivers, which is 27-T49's MinIO leg, not this file.
+    // drivers, which is MinIO leg, not this file.
     expect(removed.keys).toEqual([due.storageKey]);
     expect(existsSync(bytesPath(due))).toBe(false);
     // …and the row with it. A row left behind would be retried forever; bytes
@@ -203,7 +203,7 @@ describe('the trash purge (§6 criterion 8, 37 D12)', () => {
 });
 
 /**
- * The UNATTACHED half of the same sweep, and the one 38 D4 had to be designed
+ * The UNATTACHED half of the same sweep, and the one had to be designed
  * around (`compose.ts`, `filesRepo.listUnattachedBefore`).
  *
  * The sweep asks `attached_at IS NULL`, which reads naturally as "no record
@@ -218,7 +218,7 @@ describe('the trash purge (§6 criterion 8, 37 D12)', () => {
  * Both halves are asserted in ONE sweep run, because the interesting claim is
  * that the same tick treats them differently.
  */
-describe('a library file is not an abandoned upload (38 D4)', () => {
+describe('a library file is not an abandoned upload', () => {
   /** A live upload with real bytes: `claimed` decides whether it is stamped. */
   async function upload(
     meta: MetaDb,

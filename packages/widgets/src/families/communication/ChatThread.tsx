@@ -29,14 +29,14 @@ export { chatThreadConfigSchema, chatThreadDemoData } from './communication-conf
 export type { ChatThreadConfig };
 
 /**
- * `chat-thread` (annex §9) — grouped message bubbles for one conversation:
+ * `chat-thread` (annex) — grouped message bubbles for one conversation:
  * sender-aware styling, an avatar on the first message of each author-run, a
  * mono timestamp on the last, day separators between day groups, attachment
  * chips, and a composer.
  *
- * RTL IS STRUCTURAL, NOT COSMETIC (10 §5.2 / acceptance #9): own messages align
- * to the INLINE-END edge via `justify-end` — flexbox `flex-end` resolves along
- * the writing direction, so the bubbles genuinely swap sides under `dir="rtl"`
+ * RTL IS STRUCTURAL, NOT COSMETIC (/ acceptance #9): own messages align to the
+ * INLINE-END edge via `justify-end` — flexbox `flex-end` resolves along the
+ * writing direction, so the bubbles genuinely swap sides under `dir="rtl"`
  * rather than merely re-labelling. The asymmetric bubble corner uses the LOGICAL
  * corner utilities (`rounded-ee-*` on own, `rounded-es-*` on other), so the
  * "tail" corner tracks the same edge the bubble is docked to in both directions.
@@ -173,7 +173,7 @@ export function ChatThread({
               ))}
             </div>
           ))}
-          {/* annex §9 places `typing-indicator` as a "child of thread", so the
+          {/* annex places `typing-indicator` as a "child of thread", so the
               embedded row IS that widget's component — one implementation, and
               both already live in this family's single lazy chunk. */}
           <TypingIndicator
@@ -350,7 +350,7 @@ export function ChatThreadWidget({ config, data, onEvent }: WidgetProps<ChatThre
       {...(config.format?.referenceTime === undefined ? {} : { now: config.format.referenceTime })}
       {...(config.testId === undefined ? {} : { testId: config.testId })}
       // Sending is a mutation INTENT — the host runs the INSERT through the CRUD
-      // API (with audit + undo); the widget never writes (04 §2.1).
+      // API (with audit + undo); the widget never writes.
       onSend={(body) => {
         onEvent({
           type: 'mutate',

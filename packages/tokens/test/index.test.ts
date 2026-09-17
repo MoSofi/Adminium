@@ -35,7 +35,7 @@ describe('axis constants', () => {
     });
   });
 
-  it('viz palette matches research/design-system.md §1.3', () => {
+  it('viz palette matches research/design-system.md', () => {
     expect(VIZ_PALETTE).toHaveLength(8);
     expect(VIZ_PALETTE[0]).toBe('#4f46e5');
     expect(VIZ_RAMP_ALPHAS).toEqual([0.12, 0.28, 0.45, 0.65, 0.85, 1]);
@@ -66,7 +66,7 @@ describe('CSS files agree with the JS constants', () => {
   it('tokens.css carries the independently authored dark NEUTRAL palette', () => {
     const tokens = css('tokens.css');
     expect(tokens).toContain('[data-theme="dark"]');
-    // spot values from research/design-system.md §1.1
+    // spot values from research/design-system.md
     expect(tokens).toContain('--bg: #f6f6f8'); // light
     expect(tokens).toContain('--bg: #0a0a0d'); // dark
     expect(tokens).toContain('--pos: #0b7d59'); // light success (AA-tuned on --pos-soft)
@@ -89,7 +89,7 @@ describe('CSS files agree with the JS constants', () => {
     }
   });
 
-  it('fonts.css switches the body family per lang, matching the tags ThemeProvider stamps (10-i18n-theming.md §5.1)', () => {
+  it('fonts.css switches the body family per lang, matching the tags ThemeProvider stamps', () => {
     const fonts = css('fonts.css');
     // The three shipped faces plus the locale stacks.
     for (const face of ['Manrope', 'JetBrains Mono', 'IBM Plex Sans Arabic']) {

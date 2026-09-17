@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `/invoices` surfaces under axe (34-invoices-add-on.md 34-T52): the
- * manager in gallery and list, its New and Delete modals; the editor with
- * EVERY optional block on and one of each custom section type; the
- * Add-section modal; the inspector on ten sections; and the 390 px drawer —
- * each in light and dark. Zero serious/critical violations is the gate; the
- * lesser counts are annotated per state so a regression in them is visible
- * in the report.
+ * The `/invoices` surfaces under axe: the manager in gallery and list, its
+ * New and Delete modals; the editor with EVERY optional block on and one of
+ * each custom section type; the Add-section modal; the inspector on ten
+ * sections; and the 390 px drawer — each in light and dark. Zero
+ * serious/critical violations is the gate; the lesser counts are annotated
+ * per state so a regression in them is visible in the report.
  *
  * Theme is the signed-in user's own pref (`PATCH /api/v1/me/prefs`, applied
  * on reload) and is restored to "inherit" afterwards, because the suite
@@ -16,8 +15,8 @@
  * modal `aria-hidden` and traps focus inside it (the APG pattern); axe's
  * `aria-hidden-focus` rule reads the trapped-out background as "hidden but
  * focusable" and fails every overlay of every Radix surface in the product.
- * That is a primitive-versus-rule conflict recorded in 39 §6.1, not masked
- * here: the page-level states still run over the whole document.
+ * That is a primitive-versus-rule conflict recorded, not masked here: the
+ * page-level states still run over the whole document.
  *
  * THE SCRATCH DOCUMENTS ARE MADE AND REMOVED THROUGH THE API, and this file
  * clears the workspace's invoice documents when it is done — `invoices.spec.ts`
@@ -162,7 +161,7 @@ async function clearInvoices(page: Page): Promise<void> {
   }
 }
 
-test.describe('the /invoices surfaces under axe (34-T52)', () => {
+test.describe('the /invoices surfaces under axe', () => {
   test.describe.configure({ mode: 'serial' });
   let scratch: Scratch | null = null;
 
@@ -268,7 +267,7 @@ test.describe('the /invoices surfaces under axe (34-T52)', () => {
       await page.keyboard.press('Escape');
       await expect(page.getByRole('dialog')).toBeHidden();
 
-      // A dirty draft leaving the editor → the discard modal (O22 → 39 D1).
+      // A dirty draft leaving the editor → the discard modal (O22 →).
       const name = page.getByTestId('invoices-editor-name');
       await name.click();
       await name.fill('A11y sweep edited');

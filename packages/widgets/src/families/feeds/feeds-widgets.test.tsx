@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `feeds` family (annex §4): render + interaction tests for the complete 7-id
+ * `feeds` family (annex): render + interaction tests for the complete 7-id
  * slice — the Track-F five (activity-feed, notification-feed, realtime-feed,
  * timeline-vertical, unread-badge) plus the M7 Wave-4 tail
  * (load-older-paginator, toast-stack) — with deterministic demoData and the
@@ -221,7 +221,7 @@ describe('timeline-vertical', () => {
   });
 });
 
-// ── load-older-paginator (annex §4; M7 Wave 4) ─────────────────────────────
+// ── load-older-paginator (annex; M7 Wave 4) ────────────────────────────────
 
 describe('load-older-paginator', () => {
   it('renders the button and the "N of M" count, and loads on click', () => {
@@ -232,7 +232,7 @@ describe('load-older-paginator', () => {
     expect(onLoadOlder).toHaveBeenCalledTimes(1);
   });
 
-  it('relabels and disables on exhaustion (annex §4 "relabels/disappears")', () => {
+  it('relabels and disables on exhaustion ("relabels/disappears")', () => {
     const { container } = render(<LoadOlderPaginator loaded={80} total={80} hasMore={false} onLoadOlder={noop} />);
     expect(container.querySelector('[data-part="load-older-paginator"]')?.getAttribute('data-exhausted')).toBe(
       'true',
@@ -299,7 +299,7 @@ describe('load-older-paginator', () => {
   });
 });
 
-// ── toast-stack (annex §4; cross-listed as undo-toast in §12) ──────────────
+// ── toast-stack (annex; cross-listed as undo-toast) ────────────────────────
 
 describe('toast-stack', () => {
   const toasts = [
@@ -365,7 +365,7 @@ describe('toast-stack', () => {
     expect(onEvent).not.toHaveBeenCalled();
   });
 
-  it('clamps to maxVisible (annex §4: max 4)', () => {
+  it('clamps to maxVisible (annex: max 4)', () => {
     const many = Array.from({ length: 6 }, (_, i) => ({ id: `m${i}`, message: `Toast ${i}` }));
     stack({ maxVisible: 2 }, noop, { toasts: many });
     expect(screen.getByText('Toast 0')).toBeDefined();
@@ -408,7 +408,7 @@ describe('toast-stack', () => {
   });
 
   it('re-exports @adminium/ui’s queue as the annex’s imperative toast API', () => {
-    // annex §4: "Imperative API `toast(msg, icon, onUndo)`" — that IS
+    // annex: "Imperative API `toast(msg, icon, onUndo)`" — that IS
     // useToastQueue().push; the widget wraps the same primitive, it does not
     // fork a second queue implementation.
     expect(typeof useToastQueue).toBe('function');
@@ -428,7 +428,7 @@ describe('feeds definitions + four WidgetFrame states', () => {
   ];
 
   it('exposes the exact annex ids and the feeds family', () => {
-    // M7 Wave 4 closed §4 out; ANNEX_PENDING.feeds is now [].
+    // M7 Wave 4 closed out; ANNEX_PENDING.feeds is now [].
     expect(defs.map((d) => d.id).sort()).toEqual([
       'activity-feed',
       'load-older-paginator',

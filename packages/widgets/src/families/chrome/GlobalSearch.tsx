@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `global-search` (annex §11) — header search box with an anchored dropdown
- * (quick links when empty, grouped results otherwise) plus a full-page results
- * variant with a type filter rail, mixed-entity result cards and a count summary
- * echoing the query. Evidence: Home, Search Results, Knowledge Base.
+ * `global-search` (annex) — header search box with an anchored dropdown (quick
+ * links when empty, grouped results otherwise) plus a full-page results variant
+ * with a type filter rail, mixed-entity result cards and a count summary echoing
+ * the query. Evidence: Home, Search Results, Knowledge Base.
  *
  * Composed from @adminium/ui's `SearchInput`, `Popover`, `IconTile` and `Badge`.
- * Filtering runs CLIENT-SIDE over the bound index (annex §11: "search index
- * across entities") — the payload is the index, not a per-keystroke query, so
- * typing never round-trips.
+ * Filtering runs CLIENT-SIDE over the bound index (annex: "search index across
+ * entities") — the payload is the index, not a per-keystroke query, so typing
+ * never round-trips.
  */
 
 import { Badge, EmptyState, IconTile, Popover, PopoverAnchor, PopoverContent, SearchInput, cn } from '@adminium/ui';
@@ -38,7 +38,7 @@ export interface SearchResult {
   updated?: string | undefined;
 }
 
-/** Project the §3 `record-list` index payload onto results. */
+/** Project the `record-list` index payload onto results. */
 export function searchResultsOf(data: unknown, config: GlobalSearchConfig): SearchResult[] {
   const rows = recordRowsOf(data);
   const out: SearchResult[] = [];
@@ -60,9 +60,9 @@ export function searchResultsOf(data: unknown, config: GlobalSearchConfig): Sear
 }
 
 /**
- * The live filter (annex §11 "live substring filter"). Matches across the
- * label, the snippet and the meta so a query like "shipped" finds a row whose
- * status only appears in its snippet.
+ * The live filter (annex). Matches across the label, the snippet and the meta
+ * so a query like "shipped" finds a row whose status only appears in its
+ * snippet.
  */
 export function filterResults(results: readonly SearchResult[], query: string, type: string | null): SearchResult[] {
   return results.filter((result) => {
@@ -80,7 +80,7 @@ export function facetCounts(results: readonly SearchResult[], query: string): Ma
   return counts;
 }
 
-/** Render a label with its matching span emphasised (annex §11 "match highlighting"). */
+/** Render a label with its matching span emphasised (annex). */
 function Highlighted({ text, query }: { text: string; query: string }) {
   const parts = highlightParts(text, query);
   if (parts === null) return <>{text}</>;
@@ -298,7 +298,7 @@ export function GlobalSearchView({
 
   // ── Header dropdown variant ──────────────────────────────────────────────
   //
-  // The field is a combobox and the panel IS its listbox (annex §11). Rows are
+  // The field is a combobox and the panel IS its listbox (annex). Rows are
   // options addressed by `aria-activedescendant`, so focus stays in the input
   // the whole time: Radix's FocusScope is mounted with `loop: true`, which
   // means any tabbable row inside the panel becomes a Tab trap (Tab from the
@@ -306,7 +306,7 @@ export function GlobalSearchView({
   // rows and the two prevented auto-focus events below.
   const rows: { key: string; href: string | undefined; type: string | undefined; body: ReactNode }[] =
     query === ''
-      ? // Empty query → quick links (annex §11), not an empty state.
+      ? // Empty query → quick links, not an empty state.
         (quickLinks ?? []).map((link) => ({
           key: link.href,
           href: link.href,

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The native-menu localization push (11-electron.md §14).
+ * The native-menu localization push.
  *
  * The full path (SPA locale change → `setMenuLabels` → main-process menu
- * rebuild) is 11-T20's Playwright `_electron` suite; here we cover the SPA half
- * in isolation: every menu key resolves through the app translator, the push
+ * rebuild) is Playwright `_electron` suite; here we cover the SPA half in
+ * isolation: every menu key resolves through the app translator, the push
  * carries a FULL label set (the shell's `strictObject` refuses a partial one),
  * and there is no bridge to reach off the desktop shell.
  */
@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { pushDesktopMenuLabels, resolveMenuLabels } from './menuLabels.js';
 
-/** The §14 key set `DesktopMenuLabels` requires — the shell rejects any subset. */
+/** The key set `DesktopMenuLabels` requires — the shell rejects any subset. */
 const MENU_KEYS = [
   'file',
   'file.newDatabase',
@@ -36,7 +36,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('resolveMenuLabels (§14)', () => {
+describe('resolveMenuLabels', () => {
   it('resolves every menu key through the translator', () => {
     const labels = resolveMenuLabels((key, fallback) => `${key}|${fallback}`);
     expect(Object.keys(labels).sort()).toEqual(MENU_KEYS);
@@ -54,7 +54,7 @@ describe('resolveMenuLabels (§14)', () => {
   });
 });
 
-describe('pushDesktopMenuLabels (§14)', () => {
+describe('pushDesktopMenuLabels', () => {
   it('is a no-op off the desktop shell (no bridge)', () => {
     // window.adminiumDesktop is unset ⇒ getDesktopApi() is null ⇒ nothing pushed.
     expect(() => pushDesktopMenuLabels()).not.toThrow();

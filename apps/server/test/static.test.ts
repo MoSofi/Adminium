@@ -92,4 +92,10 @@ describe('static plugin — dashboard build absent (ships M4)', () => {
     const res = await app.inject({ method: 'GET', url: '/' });
     expect(res.statusCode).toBe(404);
   });
+
+  it('still decorates reply.sendFile, which app surfaces send their files with', async () => {
+    // surfaces-api-only.test.ts is the behaviour; this is the contract.
+    app = await buildServer({ env: makeEnv(), logger: false });
+    expect(app.hasReplyDecorator('sendFile')).toBe(true);
+  });
 });

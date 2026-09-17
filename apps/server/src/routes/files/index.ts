@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * File routes (37-files-and-storage.md Appendix C, §3.3, §3.4, 37-T11),
- * mounted under `/api/v1`.
+ * File routes, mounted under `/api/v1`.
  *
  * THE AUTHORISATION MODEL IS THE THING TO READ FIRST (D11). There is no
  * "can upload" permission, deliberately:
@@ -51,6 +50,7 @@ import { auditExempt, audited } from '../../audit/coverage.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { LOCAL_DESTINATION_ID } from '../../files/destinations.js';
 import { widgetDataChannel } from '../../realtime/hub.js';
+import { linkOrigin } from '../../security/public-origin.js';
 import { FileNotFoundError } from '../../files/drivers/driver.js';
 import { DEFAULT_REF_SHAPE, formatRef, parseRef, type RefShape } from '../../files/refs.js';
 import { SpoolTooLargeError } from '../../files/spool.js';
@@ -205,9 +205,9 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
       createdAt: file.createdAt,
       attachedAt: file.attachedAt,
       deletedAt: file.deletedAt,
-      // Present whether or not a record claims the file (38 D4). `entity`
-      // below repeats it when there IS a record; this is what a library file
-      // and an in-flight create-form upload carry instead.
+      // Present whether or not a record claims the file. `entity` below
+      // repeats it when there IS a record; this is what a library file and
+      // an in-flight create-form upload carry instead.
       connectionId: file.entityConnectionId,
       entity:
         file.entityConnectionId === null || file.entityTable === null || file.entityId === null
@@ -328,9 +328,9 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
 
         /*
          * A file always belongs to a CONNECTION; whether it also belongs to a
-         * table decides which grant authorises it (38 D4).
+         * table decides which grant authorises it.
          *
-         * 37 D11 said "there is no upload that belongs to nothing" and made
+           * "There is no upload that belongs to nothing" was the rule, and it made
          * `table` required with it. The first half still holds — a file with
          * no connection at all cannot be created here — but the second was
          * too strong: the owner's Files page uploads a file that belongs to
@@ -355,7 +355,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           // LIBRARY upload: no record to hang a table grant off, so the page's
           // own grant is the door. Deliberately not a second `files.upload`
           // grant — that would be a role row whose only effect is to reach a
-          // page its holder cannot open (38 D16, O3 ruled no).
+          // page its holder cannot open (ruled no).
           if (!(await request.can(FILES_MANAGE_PERMISSION))) {
             throw new ForbiddenError(
               'You need files.manage to upload a file that is not attached to a record.',
@@ -437,7 +437,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
                 // table this is the create form, and the file stays UNCLAIMED
                 // until the CRUD write attaches it — so an abandoned form is
                 // still collected by the sweep. Without a table nothing is
-                // coming to claim it, so the workspace does (38 D4).
+                // coming to claim it, so the workspace does.
                 { entityConnectionId: connectionId, claimed: table === undefined }
               : {
                   entity: {
@@ -487,7 +487,9 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         const ref = formatRef(
           shape,
           { id: result.file.id, storageKey: result.file.storageKey, publicBaseUrl },
-          originOf(request),
+          // The same origin email links use: a stored `url` outlives this
+          // request and is opened by people who never sent it.
+          await linkOrigin(meta, request),
         );
         return reply.status(201).send({ data: view, ref });
       },
@@ -822,16 +824,4 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
       },
     );
   };
-}
-
-/**
- * The request's own origin. There is no `ADMINIUM_BASE_URL` (`security/csrf.ts`
- * says so), so a `url`-shaped reference names the instance the upload actually
- * went through — which is right, and is why D20's caveat is about PUBLIC
- * destinations rather than about this.
- */
-function originOf(request: FastifyRequest): string {
-  const proto = request.protocol;
-  const host = request.headers.host ?? request.hostname;
-  return `${proto}://${host}`;
 }

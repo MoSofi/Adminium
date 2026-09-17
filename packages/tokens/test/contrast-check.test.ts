@@ -176,7 +176,7 @@ describe('the gate itself', () => {
     expect(result.ignoredRules).toEqual([]);
   });
 
-  it('carries a written reason for every non-gated group (02-T15 exemption list)', () => {
+  it('carries a written reason for every non-gated group (exemption list)', () => {
     for (const [name, g] of Object.entries(GROUPS)) {
       if (!g.gated) expect(g.reason, name).toMatch(/EXEMPT/);
     }

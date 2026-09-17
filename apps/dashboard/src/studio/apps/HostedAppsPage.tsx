@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/apps` — the Studio surface for hosted app surfaces
- * (29-app-surfaces.md §3.1, 29-T17).
+ * `/studio/apps` — the Studio surface for hosted app
+ * surfaces.
  *
  * Three things an operator does here:
  *
  *  1. **See what this instance serves** — every discovered surface, with its
  *     open link. A surface built by an older toolkit says "internal placement
- *     unavailable — rebuild", never an empty section (29 D7's degradation).
- *  2. **Choose each staff surface's placement** (29 D9): blended into the
- *     dashboard sidebar (the default) or external at its own URL. The write
- *     takes effect immediately here; other tabs converge within seconds.
- *  3. **Attach domains** (29 D3): `host → surface`, the whole map edited and
- *     saved together. Adminium answers by `Host`; DNS and the TLS proxy stay
- *     the operator's, and the page says so rather than probing — a mapping is
- *     inert until traffic actually carries that Host.
+ * unavailable — rebuild", never an empty section (degradation).
+ * 2. **Choose each staff surface's placement**: blended into the dashboard
+ *  sidebar (the default) or external at its own URL. The write takes effect
+ *  immediately here; other tabs converge within seconds.
+ * 3. **Attach domains**: `host → surface`, the whole map edited and saved
+ *  together. Adminium answers by `Host`; DNS and the TLS proxy stay the
+ *  operator's, and the page says so rather than probing — a mapping is inert
+ *  until traffic actually carries that Host.
  *
  * The customer-side key binding is DELIBERATELY not minted here: keys live on
  * `/studio/public-api` with their scopes and audit story. This page shows
- * which key a surface would serve (`surface-config.json`, 29 D10) and links
- * across.
+ * which key a surface would serve (`surface-config.json`) and links across.
  */
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
@@ -356,7 +355,7 @@ function SurfacesCard({
                 </FormField>
               )}
               {/*
-                WHICH DATABASE this staff surface reads (29 D9). Shown on staff
+                WHICH DATABASE this staff surface reads. Shown on staff
                 surfaces regardless of `navAvailable` — unlike placement, this
                 matters just as much to a surface opened at its own URL, and a
                 surface too old to emit nav still reads a database.
@@ -402,7 +401,7 @@ function SurfacesCard({
 /* ------------------------------------------------------- the instances */
 
 /**
- * THE SAME APP OVER SEVERAL DATABASES (29 D9).
+ * THE SAME APP OVER SEVERAL DATABASES.
  *
  * Shown only when there is more than one connection, for the same reason the
  * per-surface picker is: with one database an instance is a second name for the
@@ -658,7 +657,7 @@ function DomainsCard({
                   </Select>
                 </FormField>
                 {/*
-                  WHICH INSTANCE this host serves (29 D9). Only where the app
+                  WHICH INSTANCE this host serves. Only where the app
                   has any: on an app with one database the control would offer a
                   single answer, and a host cannot point at an instance that
                   does not exist — the server refuses it by name.

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * AppShell (09-generated-app.md §5.1): sidebar + sticky topbar + routed
- * outlet, plus the app-wide surfaces — ⌘K palette, shortcuts panel, offline
- * banner — and the global keyboard registrations (§5.3): `/`, `?`, `⌘⇧L`,
- * `⌘B`, Esc (display), ⌘K (bound here by useCommandK) and the
- * data-driven G-chords derived from the nav tree.
+ * AppShell: sidebar + sticky topbar + routed outlet, plus the app-wide
+ * surfaces — ⌘K palette, shortcuts panel, offline banner — and the global
+ * keyboard registrations: `/`, `?`, `⌘⇧L`, `⌘B`, Esc (display), ⌘K (bound
+ * here by useCommandK) and the data-driven G-chords derived from the nav
+ * tree.
  *
  * Also owns the realtime subscription: WS `config-changed` invalidates
  * `['bootstrap']` + `['page', *]` so nav edits and regeneration propagate
- * live without reload (§2.1 step 5).
+ * live without reload.
  */
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
@@ -77,7 +77,7 @@ export function AppShell() {
     return t('nav.home', 'Home');
   }, [pathname, bootstrap]);
 
-  // --- ⌘K Recent tracking (09 §5.2): every page navigation / record open ----
+  // --- ⌘K Recent tracking: every page navigation / record open ----
   // lands in localStorage['adminium-recent:<userId>'] (app/palette/recent.ts),
   // so the palette's Recent group reflects real visits, not only palette use.
   useEffect(() => {
@@ -119,12 +119,12 @@ export function AppShell() {
       onEvent: (event) => {
         invalidateForRealtimeEvent(queryClient, event);
         // A translation edit changes no query — it changes what every key
-        // resolves to — so it needs its own reaction (23 §4.4).
+        // resolves to — so it needs its own reaction.
         if (event.type === 'i18n.changed') void resyncOverrides();
       },
       onStatusChange: (connected) => {
         setOffline(!connected);
-        // The at-least-once floor (23 §4.4): the hub is in-process with no
+        // The at-least-once floor: the hub is in-process with no
         // cross-node fan-out, and a socket that dropped during the backoff
         // window silently missed every event published in it. Comparing the
         // version on reconnect is what stops a tab serving stale strings
@@ -164,7 +164,7 @@ export function AppShell() {
     if (paletteOpen) setPaletteMounted(true);
   }, [paletteOpen]);
 
-  // --- global shortcut registrations (§5.3) --------------------------------
+  // --- global shortcut registrations --------------------------------
   useShortcut({
     id: 'palette',
     group: 'General',
@@ -208,8 +208,8 @@ export function AppShell() {
     handler: () => setSidebarOpen((open) => !open),
   });
 
-  // Data-driven G-chords: first ≤8 nav items with unique letters (§5.3), plus
-  // the static `G S` → Studio chord (09 §8: "via G then S"). Registered here
+  // Data-driven G-chords: first ≤8 nav items with unique letters, plus
+  // the static `G S` → Studio chord ("via G then S"). Registered here
   // rather than via `useShortcut` so both stay gated on role — a viewer never
   // sees a Studio entry in the shortcuts panel it would only 403 on — and so
   // `s` is reserved from the nav letters in the same pass.
@@ -305,7 +305,7 @@ export function AppShell() {
           <ShortcutsPanel open onOpenChange={setShortcutsOpen} />
         </Suspense>
       ) : null}
-      {/* §11: the app-global surface for `notify`-mode update availability — a
+      {/* The app-global surface for `notify`-mode update availability — a
           desktop-only, guarded no-op elsewhere. Without a subscriber here the
           main process's broadcast update events fall off the end (green-but-
           broken); with it, a new version is heard app-wide, not only on /about. */}

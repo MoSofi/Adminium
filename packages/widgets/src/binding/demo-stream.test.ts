@@ -12,7 +12,7 @@ import {
 import type { StreamRealtimeEvent } from './stream-types.js';
 
 describe('demoStreamRecords determinism', () => {
-  it('is byte-identical across runs for the same seed (04 §7.7)', () => {
+  it('is byte-identical across runs for the same seed', () => {
     const a = demoStreamRecords(1234, 12);
     const b = demoStreamRecords(1234, 12);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));

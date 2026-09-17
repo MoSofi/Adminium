@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * One-call wiring for jobs + realtime (M2-T07): builds the hub, handler
- * registry (with the demo `noop-progress` handler), polling worker and croner
- * scheduler, registers `@fastify/websocket` + `GET /ws`, the SSE fallback and
- * the `routes/jobs` resource under `/api/v1`, and hooks start/drain into the
+ * One-call wiring for jobs + realtime: builds the hub, handler registry (with
+ * the demo `noop-progress` handler), polling worker and croner scheduler,
+ * registers `@fastify/websocket` + `GET /ws`, the SSE fallback and the
+ * `routes/jobs` resource under `/api/v1`, and hooks start/drain into the
  * Fastify lifecycle.
  *
  * INTEGRATION POINT — `app.ts` (or the auth agent's extension hook) calls
@@ -43,6 +43,7 @@ import type { RenderDeps } from '../documents/render.js';
 import { DOCUMENT_RENDER_KIND, registerDocumentRenderHandler } from './document-render.js';
 import { EXPORT_RUN_KIND, registerExportRunHandler } from './export-run.js';
 import { FILES_MIGRATE_KIND, registerFilesMigrateHandler } from './files-migrate.js';
+import type { RecordWriteService } from '../crud/write-service.js';
 import { IMPORT_RUN_KIND, registerImportRunHandler } from './import-run.js';
 import { LLM_RUN_KIND, registerLlmRunHandler, type ResolveRun } from './llm-run.js';
 import { REPORT_RUN_KIND, registerReportRunHandler } from './report-run.js';
@@ -59,11 +60,11 @@ export interface JobsAndRealtimeOptions {
   /** Custom registry (tests/extensions); default: fresh + `noop-progress`. */
   registry?: JobRegistry | undefined;
   /**
-   * Wire the direct-API LLM enrichment runner (`llm-run` kind, 06-llm-assist.md
-   * §7.5). When supplied, the handler is registered on the registry (unless a
-   * custom registry already carries it). `resolve` turns a run into a live
-   * provider client with the decrypted key — build it with
-   * `createProviderResolver` (`llm/provider-resolver.ts`).
+   * Wire the direct-API LLM enrichment runner (`llm-run` kind). When supplied,
+   * the handler is registered on the registry (unless a custom registry already
+   * carries it). `resolve` turns a run into a live provider client with the
+   * decrypted key — build it with `createProviderResolver`
+   * (`llm/provider-resolver.ts`).
    */
   llm?:
     | {
@@ -84,22 +85,22 @@ export interface JobsAndRealtimeOptions {
         createTransport?: EmailSendHandlerDeps['createTransport'];
         /**
          * The file store attachments and inline images are read through at
-         * delivery (39 D8/D9). Absent keeps the pre-39 shape: a message with
-         * an attachment then fails loudly rather than sending without it.
+         * delivery. Absent keeps the pre-39 shape: a message with an
+         * attachment then fails loudly rather than sending without it.
          */
         storage?: EmailSendHandlerDeps['storage'];
       }
     | undefined;
   /**
-   * Wire the M7-T07 data-io runners (`export-run` / `import-run`). When
-   * supplied, both handlers are registered on the registry (unless a custom
-   * registry already carries them). `manager`/`storage` are the same
-   * instances the exports/imports routes receive in compose.
+   * Wire the data-io runners (`export-run` / `import-run`). When supplied,
+   * both handlers are registered on the registry (unless a custom registry
+   * already carries them). `manager`/`storage` are the same instances the
+   * exports/imports routes receive in compose.
    */
   /**
-   * Wire the `document.render` runner (34 §7.3). Present ⇒ the queued render
-   * path exists: `POST /documents/render`, a public request-shaped intent,
-   * and a retry of either. The TRIGGERED path does not come through here — a
+   * Wire the `document.render` runner. Present ⇒ the queued render path
+   * exists: `POST /documents/render`, a public request-shaped intent, and a
+   * retry of either. The TRIGGERED path does not come through here — a
    * profile's trigger is an automation, and the render is a step inside that
    * rule's own run (D55).
    */
@@ -110,11 +111,13 @@ export interface JobsAndRealtimeOptions {
         storage: FileStore;
         /**
          * Storage-credential closures. Present ⇒ `files.migrate` is registered
-         * too (37 D20) — it moves bytes between destinations and therefore
-         * needs to read their credentials. Absent keeps the pre-37 shape, which
-         * is what every test that predates this wave passes.
+         * too — it moves bytes between destinations and therefore needs to read
+         * their credentials. Absent keeps the pre-37 shape, which is what every
+         * test that predates this wave passes.
          */
         storageCrypto?: DsnCrypto | undefined;
+        /** Where an import's rows go, with the project's hooks. */
+        writes?: RecordWriteService | undefined;
       }
     | undefined;
   /** Worker tuning knobs. */
@@ -140,7 +143,7 @@ export interface JobsAndRealtime {
   registry: JobRegistry;
   worker: JobWorker;
   scheduler: JobScheduler;
-  /** Programmatic enqueue for other plugins (08 §2 `app.jobs.enqueue`). */
+  /** Programmatic enqueue for other plugins (`app.jobs.enqueue`). */
   enqueue(input: EnqueueJobInput): Promise<Job>;
 }
 
@@ -180,7 +183,7 @@ export async function registerJobsAndRealtime(
   }
 
   const hub = new RealtimeHub();
-  // The campaign runner (39 D11) rides the same `email` option: same secret,
+  // The campaign runner rides the same `email` option: same secret,
   // same transport factory, same file store — plus the hub for the creator's
   // notice, which is why it registers after the hub exists.
   if (opts.email !== undefined && !registry.has(EMAIL_CAMPAIGN_RUN_KIND)) {
@@ -201,7 +204,7 @@ export async function registerJobsAndRealtime(
       registerExportRunHandler(registry, { meta, manager, storage });
     }
     if (!registry.has(IMPORT_RUN_KIND)) {
-      registerImportRunHandler(registry, { meta, manager, storage, hub });
+      registerImportRunHandler(registry, { meta, manager, storage, hub, writes: opts.dataIo.writes });
     }
     // report-run rides the SAME option: it drives the export-run handler
     // through this registry (jobs/report-run.ts), so it is only meaningful
@@ -209,7 +212,7 @@ export async function registerJobsAndRealtime(
     if (!registry.has(REPORT_RUN_KIND)) {
       registerReportRunHandler(registry, { meta, registry, hub });
     }
-    // `files.migrate` is INTERNAL (37 D20): only `POST /storage/migrate`
+    // `files.migrate` is INTERNAL: only `POST /storage/migrate`
     // enqueues it, never the generic `POST /jobs`. Its payload names a source
     // and a target destination, and a `jobs.manage` holder hand-crafting one
     // would move an instance's bytes without holding `storage.manage`.
@@ -234,7 +237,7 @@ export async function registerJobsAndRealtime(
     hub,
     resolveUser: opts.resolveUser,
     can: opts.can,
-    // Job owners may follow their own jobs:<id> channel (§3 topics table).
+    // Job owners may follow their own jobs:<id> channel (topics table).
     getJobOwner: async (jobId) => jobOwnerId(await jobs.findById(jobId)),
   };
 
@@ -276,7 +279,7 @@ export async function registerJobsAndRealtime(
     if (opts.startScheduler ?? true) scheduler.start();
   });
 
-  // Graceful shutdown (08 §6.10): stop ticking, drain in-flight jobs, drop
+  // Graceful shutdown: stop ticking, drain in-flight jobs, drop
   // realtime subscriptions (WS sockets are closed by @fastify/websocket).
   app.addHook('onClose', async () => {
     scheduler.stop();

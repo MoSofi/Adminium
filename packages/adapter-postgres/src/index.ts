@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/adapter-postgres — the `pg`-driver implementation of the
- * `DatabaseAdapter` contract (05-introspection-engine.md §3/§4.1, M3-T01).
+ * `DatabaseAdapter` contract.
  *
  * Scope in this milestone: connect/test/probeCapabilities, `introspect()`
  * (schema only — never rows), the Kysely query-engine factory, and the boot
  * registration helper. The data-role methods (`query`/`mutate`/`sample`/
- * `count`) land with 05-T05 and currently reject with a typed `UNSUPPORTED`
- * error after their role guard runs.
+ * `count`) land with and currently reject with a typed `UNSUPPORTED` error
+ * after their role guard runs.
  */
 import pg from 'pg';
 
@@ -89,7 +89,7 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
       throw new AdapterError(
         'PERMISSION',
         `connection config is branded "${config.role}" but this adapter instance is "${this.role}"`,
-        { hint: 'the three logical connections are never interchangeable (01-architecture.md §3)' },
+        { hint: 'the three logical connections are never interchangeable' },
       );
     }
     if (config.dsn === undefined || config.dsn.length === 0) {
@@ -100,7 +100,7 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
     const statementTimeoutMs = Math.floor(
       config.statementTimeoutMs ?? DEFAULT_STATEMENT_TIMEOUT_MS,
     );
-    // Session setup on every new connection — 05 §4.1. Sent in the startup
+    // Session setup on every new connection. Sent in the startup
     // packet (`options`) rather than an on-connect `client.query()`: the pool
     // hands a freshly-connected client to its pending waiter in the same
     // ready-for-query tick as the 'connect' event, so a fire-and-forget setup
@@ -257,13 +257,13 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
     };
   }
 
-  /** SCHEMA ONLY — reads `pg_catalog` exclusively (05 §10). */
+  /** SCHEMA ONLY — reads `pg_catalog` exclusively. */
   async introspect(
     this: DatabaseAdapter<'introspect'>,
     opts?: IntrospectOptions,
   ): Promise<DatabaseModel> {
     const self = this as PostgresAdapter<'introspect'>;
-    // Runtime guard behind the compile-time role brand (05 §3).
+    // Runtime guard behind the compile-time role brand.
     if ((self.role as ConnectionRole) !== 'introspect') {
       throw new AdapterError(
         'PERMISSION',
@@ -283,15 +283,15 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
       throw new AdapterError(
         'PERMISSION',
         `${method}() is only available on the data-role instance`,
-        { hint: 'row-touching methods never run on the introspect connection (05 §10)' },
+        { hint: 'row-touching methods never run on the introspect connection' },
       );
     }
-    throw new AdapterError('UNSUPPORTED', `${method}() lands with 05-T05 (dynamic Kysely CRUD)`, {
+    throw new AdapterError('UNSUPPORTED', `${method}() is not implemented on the adapter itself`, {
       hint: 'use createQueryEngine() for the CRUD query port in the meantime',
     });
   }
 
-  /* eslint-disable @typescript-eslint/no-unused-vars -- 05-T05 stubs: the
+  /* eslint-disable @typescript-eslint/no-unused-vars -- stubs: the
      parameter lists must match the DatabaseAdapter contract exactly. */
   async count(
     this: DatabaseAdapter<'data'>,
@@ -328,7 +328,7 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
   }
   /* eslint-enable @typescript-eslint/no-unused-vars */
 
-  /** Aggregate statistics for LLM enrichment (06 §4.2); sample-free by default. */
+  /** Aggregate statistics for LLM enrichment; sample-free by default. */
   async collectTableStats(
     this: DatabaseAdapter<'data'>,
     table: TableRef,
@@ -339,7 +339,7 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
       throw new AdapterError(
         'PERMISSION',
         'collectTableStats() is only available on the data-role instance',
-        { hint: 'statistics touch user rows and never run on the introspect connection (05 §10)' },
+        { hint: 'statistics touch user rows and never run on the introspect connection' },
       );
     }
     return collectPostgresStats((sql) => self.#query(sql), table, opts);
@@ -355,7 +355,7 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
   }
 }
 
-/** What the server registers at boot (01-architecture.md §2.3.1). */
+/** What the server registers at boot. */
 export const postgresAdapter: AdapterProvider = {
   dialect: 'postgres',
   async create<Role extends ConnectionRole>(

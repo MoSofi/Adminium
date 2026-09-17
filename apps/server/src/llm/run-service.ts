@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LLM run lifecycle service (06-llm-assist.md §7.4, §7.5, §9).
+ * LLM run lifecycle service.
  *
  * The shared layer the direct-path runner (T08), the apply executor (T10b), and
  * the `/api/v1/llm/*` routes (T11) all call. It owns:
  *  - `createRun` — build the prompt (via the browser-safe `@adminium/llm`
  *    `buildPrompt`) against the connection's snapshot IR + collected stats,
  *    persist a `draft` run with its flattened `prompt_text` + `prompt_sha256`,
- *    and (§9) keep `provider`/`model` NULL for BYO runs;
+ * and keep `provider`/`model` NULL for BYO runs;
  *  - `receiveResponse` — the BYO intake: validate a pasted chunk through the
  *    shared `validateResponse` pipeline and advance the run (fatal → stays
  *    `awaiting_response`; clean → `validated`);
- *  - the §7.4 status machine (legal transitions + run immutability after a
- *    terminal state).
+ * - the status machine (legal transitions + run immutability after a
+ *  terminal state).
  *
- * Architecture (01 §2.3): the transactional apply-EXECUTOR that writes overrides
- * /pages lives in T10b, not here — this service persists run rows and validation
+ * Architecture: the transactional apply-EXECUTOR that writes overrides /pages
+ * lives in T10b, not here — this service persists run rows and validation
  * outcomes only. Provider NETWORK calls belong to T08's job runner; this service
  * performs none.
  */
@@ -46,13 +46,13 @@ import type { RunFailureError } from './direct-runner.js';
 /**
  * Joins multiple flattened chunk prompts into the persisted `prompt_text` blob.
  * Exported so the direct-path runner can split `prompt_text` back into the
- * per-chunk `system`/`user` messages it sends (byte-identical to what BYO shows,
- * §1 invariant 1).
+ * per-chunk `system`/`user` messages it sends (byte-identical to what BYO
+ * shows).
  */
 export const CHUNK_SEPARATOR = '\n\n=== NEXT PROMPT ===\n\n';
 
 /**
- * §7.4 legal transitions. A terminal state has no outgoing edges, which is how
+ * The legal transitions. A terminal state has no outgoing edges, which is how
  * run immutability after `applied` is enforced (any transition off it throws).
  */
 export const LEGAL_RUN_TRANSITIONS: Readonly<Record<LlmRunStatus, readonly LlmRunStatus[]>> = {
@@ -79,7 +79,8 @@ export class RunNotFoundError extends Error {
   }
 }
 
-/** A mutating call targeted a run already in a terminal state (§7.4 immutability). */
+/** A mutating call targeted a run already in a terminal state (immutability).
+ * */
 export class RunImmutableError extends Error {
   override name = 'RunImmutableError';
   constructor(readonly runId: string, readonly status: LlmRunStatus) {
@@ -95,8 +96,9 @@ export class InvalidRunTransitionError extends Error {
 }
 
 /**
- * A BYO run was asked to record a provider/model — forbidden by the §9
- * telemetry-free guarantee (BYO `provider`/`model` stay NULL, never recorded).
+ * A BYO run was asked to record a provider/model — forbidden by the
+ * telemetry-free guarantee (BYO `provider`/`model` stay NULL, never
+ * recorded).
  */
 export class ByoTelemetryError extends Error {
   override name = 'ByoTelemetryError';
@@ -109,7 +111,7 @@ export class ByoTelemetryError extends Error {
 
 export interface CreateRunInput {
   connectionId: string;
-  /** The snapshot the run is built and later validated against (§7.4). */
+  /** The snapshot the run is built and later validated against. */
   snapshotId: string;
   /** The classified schema IR (from the snapshot). */
   schemaIr: DatabaseModel;
@@ -117,20 +119,20 @@ export interface CreateRunInput {
   stats: readonly StatsResult[];
   /** Requested output locales; must include `en_US` (enforced by `buildPrompt`). */
   locales: readonly LocaleCode[];
-  /** Requested decision groups (§4.4); empty ⇒ all sections. */
+  /** Requested decision groups; empty ⇒ all sections. */
   sections: readonly RequestedSection[];
-  /** Sampling opt-in (§4.2); `null` = sample-free (default). */
+  /** Sampling opt-in; `null` = sample-free (default). */
   sampling: Sampling;
   /** `provider` = direct API path, `byo` = copy-paste round-trip. */
   mode: 'provider' | 'byo';
-  /** Direct path only. MUST be null/undefined for `byo` (§9). */
+  /** Direct path only. MUST be null/undefined for `byo`. */
   provider?: ProviderId | null;
-  /** Direct path only. MUST be null/undefined for `byo` (§9). */
+  /** Direct path only. MUST be null/undefined for `byo`. */
   model?: string | null;
   /** `LLM_ALLOWED_TEMPLATES` / `LLM_ALLOWED_WIDGETS` from `@adminium/widgets`. */
   allowed: AllowedVocabularies;
   createdBy?: string | null;
-  /** Override the default input-token budget (§4.5). */
+  /** Override the default input-token budget. */
   tokenBudget?: number;
 }
 
@@ -139,7 +141,7 @@ export interface CreateRunResult {
   artifact: PromptArtifact;
 }
 
-/** BYO response intake — everything the shared validation pipeline needs (§7.2). */
+/** BYO response intake — everything the shared validation pipeline needs. */
 export interface ReceiveResponseInput {
   /** Raw pasted/received text (a full JSON object, fences/prose tolerated). */
   text: string;
@@ -155,7 +157,7 @@ export interface ReceiveResponseInput {
   allowedIcons?: ReadonlySet<string> | readonly string[];
   /** Stats enabling pseudo-enum acceptance in referential checks (optional). */
   stats?: readonly StatsResult[];
-  /** Tables present only as chunk context (§4.5). */
+  /** Tables present only as chunk context. */
   stubTables?: readonly string[];
   /**
    * Validate WITHOUT persisting anything: no `recordResponse`, no status
@@ -182,7 +184,8 @@ export interface ReceiveResponseResult {
 }
 
 export interface MarkFailedInput {
-  /** Preserved error list — validation failures and/or a provider transport error (§7.5). */
+  /** Preserved error list — validation failures and/or a provider transport
+   * error. */
   errors?: readonly RunFailureError[];
   /** Token usage consumed before the failure (recorded for observability). */
   tokensIn?: number | null;
@@ -192,7 +195,7 @@ export interface MarkFailedInput {
 
 /** running → validated persistence for the direct path (T08). */
 export interface RecordDirectResultInput {
-  /** The merged (map-reduce) parsed response (§7.4 `parsed_response`). */
+  /** The merged (map-reduce) parsed response (`parsed_response`). */
   response: LlmResponseV1;
   /** Chunks that validated cleanly (== chunksTotal on success). */
   chunksReceived: number;
@@ -253,14 +256,14 @@ export function createRunService(deps: RunServiceDeps) {
 
     /**
      * Build the prompt and persist a `draft` run. For BYO runs `provider`/`model`
-     * are forced NULL (§9); passing either is a {@link ByoTelemetryError}. The run
-     * id equals the runId embedded in the prompt (§7.4).
+     * are forced NULL; passing either is a {@link ByoTelemetryError}. The run
+     * id equals the runId embedded in the prompt.
      */
     async createRun(input: CreateRunInput): Promise<CreateRunResult> {
       if (input.mode === 'byo') {
         if ((input.provider ?? null) !== null || (input.model ?? null) !== null) {
           throw new ByoTelemetryError(
-            'BYO runs must not record a provider or model (06-llm-assist.md §9).',
+            'BYO runs must not record a provider or model.',
           );
         }
       }
@@ -323,7 +326,7 @@ export function createRunService(deps: RunServiceDeps) {
     },
 
     /**
-     * BYO intake (§7.2): validate a pasted chunk against the run's snapshot and
+     * BYO intake: validate a pasted chunk against the run's snapshot and
      * requested locales. A fatal error keeps the run in `awaiting_response` (the
      * user can fix and re-paste); a clean parse advances it to `validated` once
      * every chunk is received.
@@ -352,7 +355,7 @@ export function createRunService(deps: RunServiceDeps) {
       const dryRun = input.dryRun === true;
 
       if (validation.response === undefined) {
-        // Fatal (stage 1–4): stays awaiting_response, errors preserved (§7.2/§7.5).
+        // Fatal (stage 1–4): stays awaiting_response, errors preserved.
         if (dryRun) {
           return {
             run: {
@@ -407,7 +410,7 @@ export function createRunService(deps: RunServiceDeps) {
     },
 
     /**
-     * Persist the accepted/rejected suggestion-id lists (§8.3). Allowed once the
+     * Persist the accepted/rejected suggestion-id lists. Allowed once the
      * run is `validated` and before it terminates; survives reload for re-review.
      */
     async recordReview(runId: string, review: LlmRunReview): Promise<LlmRun> {
@@ -444,7 +447,7 @@ export function createRunService(deps: RunServiceDeps) {
     /**
      * running → validated for the direct path (T08). Records the merged parsed
      * response, token usage and wall-clock duration; `validation_status` is
-     * `partial` when per-item errors survived, else `valid` (§7.4).
+     * `partial` when per-item errors survived, else `valid`.
      */
     async recordDirectResult(
       runId: string,
@@ -470,7 +473,7 @@ export function createRunService(deps: RunServiceDeps) {
     },
 
     /**
-     * Bump `chunks_received` on a still-`running` chunked run (§7.5 map phase
+     * Bump `chunks_received` on a still-`running` chunked run (map phase
      * progress). Best-effort — swallows the terminal/immutable case so a
      * cancellation racing the update never resurrects a discarded run.
      */
@@ -484,7 +487,8 @@ export function createRunService(deps: RunServiceDeps) {
       });
     },
 
-    /** running | awaiting_response → failed (repair exhausted / provider error, §7.5). */
+    /** running | awaiting_response → failed (repair exhausted / provider
+     * error). */
     async markFailed(runId: string, input: MarkFailedInput = {}): Promise<LlmRun> {
       const run = await findOrThrow(runId);
       assertTransition(run, 'failed');

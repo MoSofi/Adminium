@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `media` family (annex §8, TRACK MEDIA): unit tests for the pure lib (file-kind
+ * `media` family (annex, TRACK MEDIA): unit tests for the pure lib (file-kind
  * classification, the cycle-safe self-FK folder walk, Intl-routed size/date
  * formatting), the six widget components (view toggle, folder navigation,
  * selection, upload states, safe-href handling), the config projections, the
@@ -96,7 +96,7 @@ describe('media-lib — file kind classification', () => {
 });
 
 describe('media-lib — record-list envelope reads', () => {
-  it('accepts the §3 { rows } envelope, the { data } shorthand, and a bare array', () => {
+  it('accepts the { rows } envelope, the { data } shorthand, and a bare array', () => {
     expect(fileRowsOf({ rows: [{ id: 'a' }], total: 1 })).toEqual([{ id: 'a' }]);
     expect(fileRowsOf({ data: [{ id: 'b' }] })).toEqual([{ id: 'b' }]);
     expect(fileRowsOf([{ id: 'c' }])).toEqual([{ id: 'c' }]);
@@ -161,7 +161,7 @@ describe('media-lib — Intl-routed formatting', () => {
     expect(formatSize(1_200_000, 'de-DE')).toBe('1,2 MB');
   });
 
-  it('keeps ar-EG sizes in Latin digits (data-context numeral policy §4.2)', () => {
+  it('keeps ar-EG sizes in Latin digits (data-context numeral policy)', () => {
     const arabic = formatSize(1_200_000, 'ar-EG');
     expect(arabic).toBeDefined();
     expect(arabic).toMatch(/1[.,]2/); // latn digits, not ١٫٢
@@ -327,10 +327,10 @@ describe('file-browser', () => {
   });
 
   /**
-   * The annex §8 contract marks `count` OPTIONAL: a real file table (name + size
-   * + parent self-FK) has no materialized count column. Rendering '0 items' for
-   * a folder whose children are right there in the payload is affirmatively
-   * wrong, not graceful degradation.
+   * The annex contract marks `count` OPTIONAL: a real file table (name + size +
+   * parent self-FK) has no materialized count column. Rendering '0 items' for a
+   * folder whose children are right there in the payload is affirmatively wrong,
+   * not graceful degradation.
    */
   it('derives a folder tile count from the hierarchy when no count column is bound', () => {
     render(<FileBrowser nodes={TREE} views="grid" />);
@@ -867,8 +867,8 @@ describe('link-list', () => {
 
 // ── registry metadata + the four WidgetFrame states ────────────────────────
 
-describe('media registry metadata (annex §8)', () => {
-  it('registers exactly the six annex §8 ids in the media family', () => {
+describe('media registry metadata (annex)', () => {
+  it('registers exactly the six annex ids in the media family', () => {
     expect(mediaTrackDefinitions.map((d) => d.id)).toEqual([
       'file-browser',
       'upload-dropzone',
@@ -886,7 +886,7 @@ describe('media registry metadata (annex §8)', () => {
     expect(definition?.sizing).toEqual({ minW: 8, minH: 12, defaultW: 12, defaultH: 18 });
   });
 
-  it('converts the annex row sizes to 40px half-units (04 §6.1: h = round(rows × 2))', () => {
+  it('converts the annex row sizes to 40px half-units (h = round(rows × 2))', () => {
     // upload-dropzone: annex "min 4×2, default 6×2" → minH 4, defaultH 4.
     expect(mediaTrackDefinitions.find((d) => d.id === 'upload-dropzone')?.sizing).toEqual({ minW: 4, minH: 4, defaultW: 6, defaultH: 4 });
     // image-board: annex "min 6×4" → minH 8.
@@ -909,7 +909,7 @@ describe('media registry metadata (annex §8)', () => {
     expect(edits.sort()).toEqual(['attachment-list', 'file-browser', 'image-board', 'link-list']);
   });
 
-  it('every component is a lazy ref (one chunk per family, 04 §2.3)', () => {
+  it('every component is a lazy ref (one chunk per family)', () => {
     const LAZY = Symbol.for('react.lazy');
     for (const definition of mediaTrackDefinitions) {
       expect((definition.component as { $$typeof?: symbol }).$$typeof).toBe(LAZY);
@@ -984,9 +984,9 @@ describe('media — four WidgetFrame states through WidgetHost (acceptance #4)',
   }
 });
 
-// ── determinism (04 §7.7) ──────────────────────────────────────────────────
+// ── determinism ────────────────────────────────────────────────────────────
 
-describe('media demoData determinism (04 §7.7)', () => {
+describe('media demoData determinism', () => {
   const stable = (value: unknown): string => JSON.stringify(value);
 
   it('every generator is byte-identical for a given seed', () => {

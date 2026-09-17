@@ -151,7 +151,7 @@ describe('ThemeProvider — optimistic layer reconciliation', () => {
     act(() => box.current.setPref('accent', 'orange'));
 
     // An unrelated refetch delivers a value that is NOT the user's choice; the
-    // optimistic value must keep winning (§4 behavior 4 — no in-flight clobber).
+    // optimistic value must keep winning (behavior 4 — no in-flight clobber).
     rerenderWith({ userPrefs: { accent: 'teal' } });
     expect(box.current.resolved.accent).toBe('orange');
   });
@@ -294,7 +294,7 @@ describe('ThemeProvider — change hooks', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
-  it('a throwing subscriber does not stop the ones behind it (23 §4.4)', () => {
+  it('a throwing subscriber does not stop the ones behind it', () => {
     // emitTheme runs inside the provider's useLayoutEffect, so an unguarded
     // throw would skip every later listener — the i18n language bridge, the
     // chart-direction bridge, the Electron nativeTheme mirror — and error the
@@ -341,9 +341,9 @@ describe('theme hooks outside the provider', () => {
   });
 });
 
-describe('ThemeProvider — admin-created locales (23 §5)', () => {
+describe('ThemeProvider — admin-created locales', () => {
   it('keeps a well-shaped cached locale this build does not compile in', () => {
-    // The cache read is a SHAPE check, not a membership check (23 §5.2).
+    // The cache read is a SHAPE check, not a membership check.
     // Dropping an uncompiled id would strand its users on en-US every cold
     // load — the locale exists on the server, just not in this bundle.
     window.localStorage.setItem(STORAGE_KEYS.locale, 'he_IL');

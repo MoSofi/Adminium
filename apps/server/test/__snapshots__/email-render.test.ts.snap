@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`renderEmail — password-reset snapshots (10-T18) > renders password-reset for ar_EG 1`] = `
+exports[`renderEmail — password-reset snapshots > renders password-reset for ar_EG 1`] = `
 {
   "html": "<!DOCTYPE html>
 <html lang="ar-EG" dir="rtl">
@@ -43,7 +43,7 @@ If the button doesn’t work, paste this link into your browser: https://admin.e
 }
 `;
 
-exports[`renderEmail — password-reset snapshots (10-T18) > renders password-reset for de_DE 1`] = `
+exports[`renderEmail — password-reset snapshots > renders password-reset for de_DE 1`] = `
 {
   "html": "<!DOCTYPE html>
 <html lang="de-DE" dir="ltr">
@@ -86,7 +86,7 @@ If the button doesn’t work, paste this link into your browser: https://admin.e
 }
 `;
 
-exports[`renderEmail — password-reset snapshots (10-T18) > renders password-reset for en_US 1`] = `
+exports[`renderEmail — password-reset snapshots > renders password-reset for en_US 1`] = `
 {
   "html": "<!DOCTYPE html>
 <html lang="en-US" dir="ltr">

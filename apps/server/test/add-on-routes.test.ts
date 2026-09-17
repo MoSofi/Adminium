@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/api/v1/add-ons` (26-T06) — and 26 acceptance #8, which has never had a test.
+ * `/api/v1/add-ons` — and 26 acceptance #8, which has never had a test.
  *
  * ─── Acceptance #8 is the point of the first block ─────────────────────────
  *
@@ -83,7 +83,10 @@ function packageTarball(files: Record<string, string>): Uint8Array {
     out.set(m, at);
     at += m.byteLength;
   }
-  return gzipSync(out);
+  // `mtime: 0` leaves the gzip header's timestamp at zero, as `npm pack` does.
+  // fflate's default is the current second, so the same files packed a second
+  // apart would hash differently.
+  return gzipSync(out, { mtime: 0 });
 }
 
 /** A valid add-on manifest; `requiredSchema` is the interesting variable. */
@@ -191,6 +194,8 @@ async function stage(
  * separately, below, by reading the registered routes.
  */
 const created: string[] = [];
+/** How many times the routes asked for a runtime rebuild since `buildApp`. */
+let rebuilds = 0;
 /** Flipped by the anonymous sweep, so one app can be driven both ways. */
 let anonymous = false;
 /** The operator's database, as far as these tests are concerned. */
@@ -202,6 +207,7 @@ async function buildApp(
   opts: { schemaTarget?: boolean } = {},
 ) {
   created.length = 0;
+  rebuilds = 0;
   const Fastify = (await import('fastify')).default;
   const { serializerCompiler, validatorCompiler } = await import('fastify-type-provider-zod');
   const app = Fastify();
@@ -227,7 +233,7 @@ async function buildApp(
       }
     }) as never,
   );
-  // The real §1.4 envelope, so `details` reaches the assertions below the way
+  // The real envelope, so `details` reaches the assertions below the way
   // it reaches a client. Without it an `AppError`'s details are dropped and a
   // test could only see the status code.
   app.setErrorHandler((error, _request, reply) => {
@@ -250,6 +256,9 @@ async function buildApp(
       meta,
       store,
       credentialCrypto: crypto,
+      rebuildRuntime: async () => {
+        rebuilds += 1;
+      },
       ...(opts.schemaTarget === false
         ? {}
         : {
@@ -310,7 +319,7 @@ describe('26 acceptance #8: every add-on route is reachable through compose.ts',
     expect(printed).toMatch(/GET.*HEAD.*POST|POST/);
     expect(printed).toContain(':key');
     expect(printed).toContain('plan');
-    // Every verb §5.1 specifies is actually served.
+    // Every verb specifies is actually served.
     for (const verb of ['GET', 'POST', 'PATCH', 'DELETE']) {
       expect(printed, `${verb} is not served`).toContain(verb);
     }
@@ -319,7 +328,7 @@ describe('26 acceptance #8: every add-on route is reachable through compose.ts',
 
   it('EVERY add-on route declares a guard — none is guarded by prose alone', async () => {
     /*
-     * THE DEFECT THIS EXISTS FOR (found by the 26-T15 round trip, 2026-08-31).
+     * THE DEFECT THIS EXISTS FOR (found by the round trip, 2026-08-31).
      *
      * `GET /add-ons` and `GET /add-ons/:key/bundle/*` both carried a docblock
      * saying "authenticated" and NO `preHandler`. This server has no ambient
@@ -412,9 +421,9 @@ describe('GET /add-ons', () => {
      * took the entire list down — for every add-on and every user, and for
      * every reply that goes through `toDto`: install, upgrade, connect, patch.
      *
-     * "Somebody edited a package on the data volume" is the signal §5.4 exists
-     * to raise. It has to arrive as a missing integrity on ONE bundle, not as
-     * an internal fault on all of them.
+     * "Somebody edited a package on the data volume" is the signal exists to
+     * raise. It has to arrive as a missing integrity on ONE bundle, not as an
+     * internal fault on all of them.
      */
     await stage('holiday-calendars');
     const app = await buildApp();
@@ -455,7 +464,7 @@ describe('GET /add-ons', () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/add-ons' });
     const body = res.json() as { addOns: Array<{ connected: boolean }> };
     expect(body.addOns[0]?.connected).toBe(true);
-    // 24 D15: the secret must appear nowhere in a browser-facing reply.
+    // The secret must appear nowhere in a browser-facing reply.
     expect(res.payload).not.toContain('hunter2');
     expect(res.payload).not.toContain('enc:');
     await app.close();
@@ -481,7 +490,7 @@ describe('POST /add-ons — install', () => {
 
   it('installs when the host already has every table the add-on needs', async () => {
     // The intended shape for an add-on attaching to a host's existing data —
-    // no DDL, so it needs nothing 26-T02 has not built yet.
+    // no DDL, so it needs nothing has not built yet.
     await stage('shipping-dhl', {
       tables: [
         {
@@ -506,7 +515,7 @@ describe('POST /add-ons — install', () => {
     await app.close();
   });
 
-  it('creates the tables it needs BEFORE the manifest row exists (26-T02)', async () => {
+  it('creates the tables it needs BEFORE the manifest row exists', async () => {
     // The ordering is the point. MySQL has no transactional DDL, so DDL failing
     // after the row was written would leave an add-on registered against tables
     // that are not there — which is worse than not installing at all.
@@ -669,7 +678,7 @@ describe('PATCH /add-ons/:key — enable and disable per host', () => {
   });
 });
 
-describe('DELETE /add-ons/:key — uninstall (24 D16 / 26 D5)', () => {
+describe('DELETE /add-ons/:key — uninstall', () => {
   it('removes the add-on and its package, and says the tables were kept', async () => {
     await stage('holiday-calendars');
     const app = await buildApp();
@@ -724,7 +733,7 @@ describe('DELETE /add-ons/:key — uninstall (24 D16 / 26 D5)', () => {
   });
 });
 
-describe('26-T11: bundle serving with SRI (§5.4)', () => {
+describe('bundle serving with SRI', () => {
   /** Installs `holiday-calendars` and returns its listed bundle. */
   async function installAndList(app: Awaited<ReturnType<typeof buildApp>>) {
     await app.inject({
@@ -770,8 +779,8 @@ describe('26-T11: bundle serving with SRI (§5.4)', () => {
   });
 
   it('REFUSES a bundle edited on disk after install — "checked on read"', async () => {
-    // The whole point of §5.4. Without it, anything with write access to the
-    // data volume could swap the JavaScript a host page executes, and the
+    // The whole point of checking on read. Without it, anything with write
+    // access to the data volume could swap the JavaScript a host page executes, and the
     // integrity value the host was given earlier would simply be wrong.
     await stage('holiday-calendars');
     const app = await buildApp();
@@ -830,7 +839,7 @@ describe('26-T11: bundle serving with SRI (§5.4)', () => {
   });
 });
 
-describe('26-T07: connect and disconnect (§5.1, D2, D5)', () => {
+describe('connect and disconnect', () => {
   /** The DHL shape: two secret settings and two ordinary ones. */
   const DHL_SETTINGS = [
     { key: 'api_key', type: 'string', secret: true, label: { key: 'a', fallback: 'API key' } },
@@ -859,7 +868,7 @@ describe('26-T07: connect and disconnect (§5.1, D2, D5)', () => {
     expect(res.statusCode).toBe(200);
     expect((res.json() as { addOn: { connected: boolean } }).addOn.connected).toBe(true);
 
-    // 24 D15, asserted on the actual reply bytes rather than on a field name.
+    // Asserted on the actual reply bytes rather than on a field name.
     expect(res.payload).not.toContain('hunter2');
     expect(res.payload).not.toContain('4711');
 
@@ -938,7 +947,7 @@ describe('26-T07: connect and disconnect (§5.1, D2, D5)', () => {
   });
 
   it('points an OAuth add-on at the OAuth flow rather than refusing vaguely', async () => {
-    // An oauth2 connect must declare where it authorizes (§5.6) — the
+    // An oauth2 connect must declare where it authorizes — the
     // validator refuses one that does not, which is why this fixture carries
     // both URLs rather than only the kind.
     await stage('import-canva', undefined, undefined, {
@@ -1022,7 +1031,7 @@ describe('26-T07: connect and disconnect (§5.1, D2, D5)', () => {
       });
       expect(done.statusCode).toBe(200);
       expect((done.json() as { addOn: { connected: boolean } }).addOn.connected).toBe(true);
-      // 24 D15 + acceptance #2, on the actual bytes.
+      // The consent rule, on the actual bytes.
       expect(done.payload).not.toContain('shhh-secret');
       expect(done.payload).not.toContain('rt-1');
       expect(done.payload).not.toContain('at-1');
@@ -1127,7 +1136,7 @@ describe('26-T07: connect and disconnect (§5.1, D2, D5)', () => {
     });
 
     // The add-on is still installed, still attached, and now disconnected —
-    // which is the whole of 24 D16 in one assertion.
+    // which is the whole of in one assertion.
     const still = await manifestsRepo(meta, crypto).findByKey('shipping-dhl');
     expect(still).not.toBeNull();
     expect(still!.attachments).toHaveLength(1);
@@ -1173,7 +1182,7 @@ describe('26-T07: connect and disconnect (§5.1, D2, D5)', () => {
   });
 });
 
-describe('32-T09: acquisition routes (§4.3)', () => {
+describe('acquisition routes', () => {
   /** A tarball built the way the sideload route expects to receive one. */
   function tarballFor(key: string) {
     return packageTarball({
@@ -1279,7 +1288,7 @@ describe('32-T09: acquisition routes (§4.3)', () => {
       await app.close();
     });
 
-    it('treats a cached catalog in the earlier v1 format as no catalog (48 D7)', async () => {
+    it('treats a cached catalog in the earlier v1 format as no catalog', async () => {
       // A server upgraded from 0.2.8 or earlier still holds the last v1 feed it
       // fetched. Offering its rows would offer downloads this version cannot
       // resolve, and showing its fetch time would hide why the list is short:
@@ -1320,7 +1329,7 @@ describe('32-T09: acquisition routes (§4.3)', () => {
     });
 
     /*
-     * 40 D2 / D-BUG-1. The fixture above uses `en_US` keys, and that is exactly
+     * The fixture above uses `en_US` keys, and that is exactly
      * how the defect survived every other test in this file: the route read
      * `entry.name['en_US']` and the fixture obligingly supplied one. The LIVE
      * feed keys rows `en`/`de`/`zh-cn`, so on a real deployment the lookup
@@ -1328,7 +1337,7 @@ describe('32-T09: acquisition routes (§4.3)', () => {
      *
      * This fixture therefore uses the real key space, verified against
      * adminium.dev/marketplace/catalog.json on 2026-09-06 — the key space v2
-     * keeps (48 D7 drops only `npmPackage`).
+     * keeps (drops only `npmPackage`).
      */
     it('names a catalog row from the feed key space, not from its slug', async () => {
       const app = await buildApp();
@@ -1375,7 +1384,7 @@ describe('32-T09: acquisition routes (§4.3)', () => {
 
     it('carries a staged row its own manifest facts, with no catalog at all', async () => {
       // The air-gapped case: nothing cached, so every field has to come off
-      // disk or be honestly absent (40 D3).
+      // disk or be honestly absent.
       await stage('holiday-calendars');
       const app = await buildApp();
       const body = (await app.inject({ method: 'GET', url: '/api/v1/add-ons/catalog' })).json() as {
@@ -1542,6 +1551,56 @@ describe('32-T09: acquisition routes (§4.3)', () => {
       await app.close();
     });
 
+    it('puts back an installed add-on whose files are gone, and rebuilds the runtime for it', async () => {
+      // What a redeploy on a host with no persistent disk leaves behind: the
+      // install row, and no files. Uploading the same package is the way back,
+      // and a server half only loads again on a rebuild.
+      const app = await buildApp();
+      const tarball = tarballFor('holiday-calendars');
+      expect((await sideload(app, tarball)).statusCode).toBe(200);
+      expect(rebuilds, 'staged but not installed: there is nothing to load').toBe(0);
+      const installed = await app.inject({
+        method: 'POST',
+        url: '/api/v1/add-ons',
+        payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing'] },
+      });
+      expect(installed.statusCode, installed.body).toBe(200);
+      const afterInstall = rebuilds;
+
+      await rm(join(dataDir, 'add-ons'), { recursive: true, force: true });
+      const bundle = '/api/v1/add-ons/holiday-calendars/bundle/dist/client.js';
+      expect((await app.inject({ method: 'GET', url: bundle })).statusCode).not.toBe(200);
+
+      const again = await sideload(app, tarball);
+      expect(again.statusCode, again.body).toBe(200);
+      expect(rebuilds).toBe(afterInstall + 1);
+      expect((await app.inject({ method: 'GET', url: bundle })).statusCode).toBe(200);
+      await app.close();
+    });
+
+    it('does not rebuild for an upload of a version that is not the installed one', async () => {
+      const app = await buildApp();
+      expect((await sideload(app, tarballFor('holiday-calendars'))).statusCode).toBe(200);
+      const installed = await app.inject({
+        method: 'POST',
+        url: '/api/v1/add-ons',
+        payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing'] },
+      });
+      expect(installed.statusCode, installed.body).toBe(200);
+      const afterInstall = rebuilds;
+
+      const newer = packageTarball({
+        'manifest.json': JSON.stringify({ ...manifestFor('holiday-calendars'), version: '1.1.0' }),
+        'package.json': JSON.stringify({ name: '@adminiumjs/add-on-holiday-calendars' }),
+        'dist/client.js': 'export const register = () => {};',
+      });
+      const staged = await sideload(app, newer);
+      expect(staged.statusCode, staged.body).toBe(200);
+      expect(staged.json()).toMatchObject({ key: 'holiday-calendars', version: '1.1.0' });
+      expect(rebuilds, 'a staged upgrade loads nothing until it is applied').toBe(afterInstall);
+      await app.close();
+    });
+
     it('checks a key or version the caller asserts, and stages nothing when it is wrong', async () => {
       const app = await buildApp();
       const tarball = tarballFor('holiday-calendars');
@@ -1690,7 +1749,7 @@ describe('32-T09: acquisition routes (§4.3)', () => {
     });
   });
 
-  describe('PUT /add-ons/catalog — the online switch (32 §4.4, D8, O1)', () => {
+  describe('PUT /add-ons/catalog — the online switch', () => {
     it('turns browsing on and says what the effective state is', async () => {
       const app = await buildApp([], {});
       const res = await app.inject({
@@ -1794,7 +1853,7 @@ describe('32-T09: acquisition routes (§4.3)', () => {
     });
   });
 
-  describe('POST /add-ons/:key/upgrade (26-T17)', () => {
+  describe('POST /add-ons/:key/upgrade', () => {
     /** Stages a second, newer version of an already-installed add-on. */
     async function stageNewer(key: string, version: string, attaches = ['printing']) {
       const tarball = packageTarball({
@@ -1842,6 +1901,37 @@ describe('32-T09: acquisition routes (§4.3)', () => {
       expect(await repo.getCredential(after.row.id)).not.toBeNull();
       // D11: the old directory goes only AFTER the upgrade verified.
       expect(await store.versions('holiday-calendars')).toEqual(['1.1.0']);
+      await app.close();
+    });
+
+    it('upgrades an add-on whose installed files are gone', async () => {
+      // A newer image on a host with no persistent disk: the data directory is
+      // empty, and the boot stages only the version the new image bundles. The
+      // Add-ons page offers Upgrade, and the docs send the operator there, so it
+      // must not need the old version's files.
+      await stage('holiday-calendars');
+      const app = await buildApp();
+      const installed = await app.inject({
+        method: 'POST',
+        url: '/api/v1/add-ons',
+        payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing'] },
+      });
+      expect(installed.statusCode, installed.body).toBe(200);
+      await rm(join(dataDir, 'add-ons'), { recursive: true, force: true });
+      await stageNewer('holiday-calendars', '1.1.0');
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/add-ons/holiday-calendars/upgrade',
+      });
+      expect(res.statusCode, res.body).toBe(200);
+      expect(res.json()).toMatchObject({ from: '1.0.0', to: '1.1.0' });
+      const bundle = await app.inject({
+        method: 'GET',
+        url: '/api/v1/add-ons/holiday-calendars/bundle/dist/client.js',
+      });
+      expect(bundle.statusCode).toBe(200);
+      expect(bundle.body).toContain('v2');
       await app.close();
     });
 

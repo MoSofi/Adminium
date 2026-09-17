@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What every action is handed, and what it hands back (42-automations-and-
- * workflow-logs.md §3.4).
+ * workflow-logs.md).
  *
  * Two entry points per action, `run` and `dryRun`, and the split is the whole
  * design of the Test button (D14): a dry run resolves the template, the
@@ -20,6 +20,7 @@ import type { Automation, MetaDb, RecordRef } from '@adminium/meta';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
+import type { RecordWriteService } from '../../crud/write-service.js';
 import type { EmailTransport, SmtpConfig } from '../../email/types.js';
 import type { RenderDeps } from '../../documents/render.js';
 import type { FileStore } from '../../files/store.js';
@@ -36,7 +37,7 @@ export interface ActionSource {
   /** The trigger or for-each table this run is about. */
   table: ResolvedTable;
   record: RecordRef;
-  /** The record, RE-READ at this step and unmasked (§0.3). */
+  /** The record, RE-READ at this step and unmasked. */
   row: Row;
 }
 
@@ -45,6 +46,8 @@ export interface ActionContext {
   manager: ConnectionManager;
   /** For `afterRecordWrite`'s fan-out; absent in unit tests of one action. */
   app?: FastifyInstance | undefined;
+  /** Where a step's writes go, with the project's hooks. */
+  writes?: RecordWriteService | undefined;
   rule: Automation;
   runId: string;
   /** Automation hops so far — a write this run makes carries `hops + 1`. */
@@ -63,10 +66,10 @@ export interface ActionContext {
   /** Outbound HTTP; tests inject a stub. */
   fetch?: typeof globalThis.fetch | undefined;
   /**
-   * The document pipeline (34 §7.3, D55) — what a `document.render` step
-   * calls. Optional for the same reason `storage` is: a topology composed
-   * without file storage has no way to write a document, and the step says so
-   * rather than throwing from inside the renderer.
+   * The document pipeline — what a `document.render` step calls. Optional for
+   * the same reason `storage` is: a topology composed without file storage
+   * has no way to write a document, and the step says so rather than throwing
+   * from inside the renderer.
    */
   documents?: RenderDeps | undefined;
 }

@@ -15,7 +15,7 @@ import {
 } from './dashboard-domain.js';
 
 /**
- * Domain dashboard assembly tests — the §15 widget set ported from the
+ * Domain dashboard assembly tests — the widget set ported from the
  * Engine's bespoke `generate/dashboard.ts`, proven against the leaf's own
  * structural contract (candidates.test.ts idiom) and against
  * `composeTemplate('page-dashboard', …)`, which now owns the geometry.
@@ -97,7 +97,7 @@ const ordersRelations: CandidateRelation[] = [
   },
 ];
 
-describe('emitDomainDashboardCandidates — the §15 widget set', () => {
+describe('emitDomainDashboardCandidates — the widget set', () => {
   const candidates = emitDomainDashboardCandidates(
     ordersDomain,
     [orders, customers],
@@ -121,7 +121,7 @@ describe('emitDomainDashboardCandidates — the §15 widget set', () => {
     ]);
   });
 
-  it('binds the money and status KPIs to compilable descriptors (04 §5.1)', () => {
+  it('binds the money and status KPIs to compilable descriptors', () => {
     const money = candidates?.find((c) => c.instanceId === 'kpi-sum-orders-total_amount');
     expect(money?.config).toMatchObject({
       format: 'currency',
@@ -232,7 +232,7 @@ describe('emitDomainDashboardCandidates — fallbacks and triggers', () => {
     expect(donut?.instanceId).toBe('donut-shipments-ship_country');
   });
 
-  it('returns null without a time axis (05 §8 trigger) or a resolvable hub', () => {
+  it('returns null without a time axis (trigger) or a resolvable hub', () => {
     const static1 = build('public.lookup', [{ name: 'code', logicalType: 'varchar', semantic: 'pk-id' }]);
     const domain: DashboardDomain = {
       key: 'lookup',

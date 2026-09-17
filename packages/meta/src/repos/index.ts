@@ -41,3 +41,4 @@ export * from './document-sequences.js';
 export * from './document-profiles.js';
 export * from './documents.js';
 export * from './add-on-settings.js';
+export * from './project-files.js';

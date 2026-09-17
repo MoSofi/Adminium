@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The lifted prompt service (M10-T01, 06 §10.4 + §10.5).
+ * The lifted prompt service.
  *
  * This orchestration was inline in `POST /api/v1/llm/runs` until the CLI needed
  * it too. The M10 risk register names the failure mode it now prevents —
@@ -93,7 +93,7 @@ describe('createRunForConnection', () => {
     expect(result.snapshotId).toBe('snap_1');
   });
 
-  it('records neither provider nor model on a BYO run (§9 telemetry-free)', async () => {
+  it('records neither provider nor model on a BYO run (telemetry-free)', async () => {
     const runService = fakeRunService();
     state.settings = { 'llm.provider': 'anthropic', 'llm.model': 'claude-sonnet-4' };
     await service(runService).createRunForConnection({ connectionId: 'conn_1', path: 'byo' });
@@ -146,7 +146,7 @@ describe('createRunForConnection', () => {
     });
   });
 
-  it('passes the injected stats collector its §4.2 inputs', async () => {
+  it('passes the injected stats collector its inputs', async () => {
     const collectStats = vi.fn(async () => Promise.resolve([]));
     const promptService = createPromptService({
       meta: {} as never,

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Third-party notices generator — 11-electron.md §13 (11-T18):
+ * Third-party notices generator:
  *
  * > in-app viewer for `resources/THIRD-PARTY-NOTICES.txt`, generated at build by
  * > `scripts/generate-notices.mjs` (walks the production dependency graph incl.
@@ -21,12 +21,12 @@
  * not a gate — see the repo's "green but broken" lesson):
  *   - `apps/desktop`'s `build` script runs it immediately after `electron-vite
  *     build`, before the offline-assets scan, so the notices land in
- *     `resources/` where §10's `files: [resources/**]` ships them;
+ * `resources/` where `files: [resources/**]` ships them;
  *   - root `package.json` exposes `pnpm run generate-notices`, which
  *     `.github/workflows/ci.yml` calls as a named step after the turbo build —
  *     matching how `check-deps` and `check-offline-assets` are wired.
  *
- * It also stages the bundled LICENSE the §13 About panel's in-app viewer reads
+ * It also stages the bundled LICENSE the About panel's in-app viewer reads
  * (`resources/LICENSE`), copied from the repo root so there is one source of
  * truth. Both outputs are build artifacts (`apps/desktop/.gitignore`).
  *
@@ -65,8 +65,8 @@ const DEFAULT_LICENSE_SRC = resolve(repoRoot, 'LICENSE');
 /**
  * The runtime itself. Electron is a devDependency of `@adminium/desktop` — it is
  * the shell, not something the shell imports — but the packaged app IS Electron
- * (Chromium + Node), so §13's "incl. Electron + Chromium notices" makes it a
- * mandatory attribution. Named explicitly for that reason.
+ * (Chromium + Node), so "incl. Electron + Chromium notices" makes it a mandatory
+ * attribution. Named explicitly for that reason.
  */
 const RUNTIME_PACKAGES = ['electron'];
 
@@ -143,7 +143,7 @@ function readCapped(file) {
 
 /**
  * The notice for one package directory, or a `missing` marker when it carries
- * NEITHER a licence field NOR a licence file — the exact condition §13 says the
+ * NEITHER a licence field NOR a licence file — the exact condition says the
  * build must fail on.
  */
 export function readPackageNotice(dir) {
@@ -283,7 +283,7 @@ export function collectFromDirs(dirs) {
 const RULE = '='.repeat(80);
 const SUBRULE = '-'.repeat(80);
 
-/** The Chromium block — §13's "incl. … Chromium notices". */
+/** The Chromium block — "incl. … Chromium notices". */
 function chromiumNotice() {
   return [
     RULE,
@@ -351,7 +351,7 @@ function main() {
   const { notices, missing } = explicit ? collectFromDirs(opts.packages) : collectDesktopGraph();
 
   if (missing.length > 0) {
-    console.error(`\n[notices] ${missing.length} bundled package(s) ship no licence — 11-electron.md §13\n`);
+    console.error(`\n[notices] ${missing.length} bundled package(s) ship no licence\n`);
     for (const entry of missing) {
       console.error(`  ✗ ${entry.name ?? entry.dir}`);
       console.error(`    ${entry.reason}`);
@@ -375,7 +375,7 @@ function main() {
   mkdirSync(dirname(opts.out), { recursive: true });
   writeFileSync(opts.out, body, 'utf8');
 
-  // Stage the bundled LICENSE the §13 in-app viewer reads. One source of truth
+  // Stage the bundled LICENSE the in-app viewer reads. One source of truth
   // (the repo LICENSE); the copy is a build artifact.
   let licenseCopied = false;
   if (existsSync(opts.licenseSrc)) {

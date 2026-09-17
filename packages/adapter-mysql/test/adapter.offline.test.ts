@@ -5,8 +5,8 @@
  * `adapter.live.test.ts` covers this class against a real server, but it is
  * gated on `TEST_MYSQL_URL` — which CI sets and a laptop does not. Without it
  * that suite skips and `src/index.ts` was executed by NOTHING: 252 statements
- * at 0%. The guards it contains are a security boundary (05 §10: row-touching
- * methods never run on the introspect connection) and the version check is the
+ * at 0%. The guards it contains are a security boundary (row-touching methods
+ * never run on the introspect connection) and the version check is the
  * difference between a clear "upgrade your server" and a confusing SQL error,
  * so both are pinned here where no server is required.
  *
@@ -150,7 +150,7 @@ describe('connect()', () => {
   });
 });
 
-describe('connect() — per-connection statement timeout (05 §4.2)', () => {
+describe('connect() — per-connection statement timeout', () => {
   it('sets the MySQL variable on every new connection', async () => {
     await connected('introspect');
     pools[0]!.openConnection();
@@ -452,7 +452,7 @@ describe('introspect()', () => {
   });
 });
 
-describe('role guards — 05 §10', () => {
+describe('role guards', () => {
   it('refuses every row-touching method on the introspect-role instance', async () => {
     const adapter = (await connected('introspect')) as unknown as DatabaseAdapter<'data'>;
     const table = { schema: null, name: 'orders' };

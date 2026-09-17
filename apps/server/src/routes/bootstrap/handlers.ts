@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `GET /api/v1/bootstrap` handler (09-generated-app.md §2.1) — deliberately
- * thin: one query per concern, no fan-out beyond what the shell needs on a
- * cold load.
+ * `GET /api/v1/bootstrap` handler — deliberately thin: one query per
+ * concern, no fan-out beyond what the shell needs on a cold load.
  *
  * - session user + role slugs via the existing auth plumbing;
- * - preference axes resolved server-side (`userPrefsRepo.resolve`, §7.2);
+ * - preference axes resolved server-side (`userPrefsRepo.resolve`);
  * - nav tree from enabled `adminium_pages` rows bucketed into the five fixed
  *   groups (rows land in M4 Wave B generation — an empty tree is valid);
  * - `version` (server build) + `configVersion` (max page `updatedAt`) so the
  *   client can drop stale caches on WS `config-changed`.
- * - nav rows are permission-filtered server-side (09 §2.1): non-super-admins
- *   only see pages their roles hold a `page:<id>:view` grant for — the same
- *   grant `GET /pages/:pageId` enforces, so the nav never links to a 403.
- * - `llm.enabled` mirrors the §3.2 provider config (06-llm-assist.md): true
- *   once an admin has set `llm.provider` in Settings → AI, the same check
- *   `resolveProviderClient` makes before a direct run.
+ * - nav rows are permission-filtered server-side: non-super-admins only see
+ * pages their roles hold a `page:<id>:view` grant for — the same grant `GET
+ * /pages/:pageId` enforces, so the nav never links to a 403.
+ * - `llm.enabled` mirrors the provider config: true once an admin has set
+ * `llm.provider` in Settings → AI, the same check `resolveProviderClient`
+ * makes before a direct run.
  */
 import type { FastifyRequest } from 'fastify';
 import {
@@ -54,7 +53,7 @@ function principal(request: FastifyRequest): User {
 }
 
 /**
- * The §7-item-4 token for this request's session. `requireAuth` guarantees a
+ * The -item-4 token for this request's session. `requireAuth` guarantees a
  * session here — an API-key principal never reaches this handler — so there is
  * no null case to model on the wire. The key is derived per call rather than
  * cached on `AuthContext`: HKDF is microseconds and this runs once per cold
@@ -70,15 +69,14 @@ function csrfTokenFor(ctx: AuthContext, request: FastifyRequest): string {
  * Buckets page rows into the five fixed groups; empty groups are omitted.
  * `connections` (id → name + currency) annotates every item with its owning
  * connection so multi-connection sidebars can label generated groups
- * unambiguously (M5-T05) and money cells format in the connection's own
- * currency (36-derived-columns.md 36-T15); with zero/one connection clients
- * render flat.
+ * unambiguously and money cells format in the connection's own currency;
+ * with zero/one connection clients render flat.
  *
- * `hidden` carries the enabled rows with NO group (30-record-pages.md
- * follow-up): Studio's "Hide from sidebar" and the generated cascade-child
- * default both project to a null `nav_group`, and the client still needs
- * these pages — for `/p/<slug>` URLs, palette landings, and record-page
- * related-tab specs and cross-links. Disabled rows appear in neither list.
+ * `hidden` carries the enabled rows with NO group (follow-up): Studio's
+ * "Hide from sidebar" and the generated cascade-child default both project
+ * to a null `nav_group`, and the client still needs these pages — for
+ * `/p/<slug>` URLs, palette landings, and record-page related-tab specs
+ * and cross-links. Disabled rows appear in neither list.
  *
  * `paused` is the THIRD bucket (meta wave 0019): every page of a connection an
  * operator paused, whatever its group. It is separate from `hidden` rather
@@ -169,7 +167,7 @@ export function buildNavTree(
 }
 
 /**
- * The sidebar sections a blended app contributes (29-app-surfaces.md D7).
+ * The sidebar sections a blended app contributes.
  *
  * Three filters, each of which drops a surface for a different reason worth
  * distinguishing when something does not appear:
@@ -209,7 +207,7 @@ export function buildHostedApps(
     const label = resolveLabel(manifest.appLabels, locale);
     out.push({ appKey: surface.appKey, label, items });
     /*
-     * ONE SECTION PER INSTANCE (29 D9) — the shape the dashboard's own pages
+     * ONE SECTION PER INSTANCE — the shape the dashboard's own pages
      * have always had, where two connections simply make two sets. The nav
      * ITEMS are identical because it is the same app; only the database behind
      * them differs, so the slug is what the heading has to carry.
@@ -240,27 +238,32 @@ export async function bootstrapHandler(
    */
   const hasSurfaces = request.server.hasDecorator('surfaces');
   const surfaceSettings = hasSurfaces ? request.server.surfaceSettings : null;
+  // The project folder, when the server runs one. Same request-time read, for
+  // the same reason: this route is registered before it exists.
+  const projectClient = request.server.hasDecorator('projectClient') ? request.server.projectClient : null;
 
-  const [roles, prefs, pageRows, connectionRows, llmProvider, placements] = await Promise.all([
+  const [roles, prefs, pageRows, connectionRows, llmProvider, placements, project] = await Promise.all([
     rolesRepo(ctx.meta).rolesForUser(user.id),
     userPrefsRepo(ctx.meta).resolve(user.id),
-    // Shared query path with the generator wave (07 §3.16 pagesRepo).
+    // Shared query path with the generator wave (pagesRepo).
     pagesRepo(ctx.meta).navRows(),
     // Display names, the pause flag and the display currency — no DSN material
-    // (07 §3.13), so no crypto needed. `disabledAt` decides whether this
+    // , so no crypto needed. `disabledAt` decides whether this
     // connection's pages reach the sidebar at all (meta wave 0019);
-    // `currency` is what money cells format with (10 §4.4).
+    // `currency` is what money cells format with.
     ctx.meta.db
       .selectFrom('adminium_connections')
       .select(['id', 'name', 'disabledAt', 'currency'])
       .execute(),
-    // `llm.enabled` = a provider is configured (06 §3.2) — the same
-    // `llm.provider` row `resolveProviderClient` gates direct runs on.
+    // `llm.enabled` = a provider is configured — the same
+    // `llm.provider` row `resolveProviderClient` gates direct runs
+    // on.
     settingsRepo(ctx.meta).get('llm.provider'),
     surfaceSettings?.read() ?? Promise.resolve({ apps: {}, domains: {} } as SurfaceSettings),
+    projectClient?.bootstrap() ?? Promise.resolve(null),
   ]);
 
-  // Permission filter (09 §2.1): drop rows the caller may not view. The
+  // Permission filter: drop rows the caller may not view. The
   // per-request `request.can` cache resolves the permission set once;
   // super-admins bypass inside it. The `typeof` guard mirrors routes/pages —
   // minimal harnesses mount this route without the rbac plugin.
@@ -303,6 +306,7 @@ export async function bootstrapHandler(
         : [],
       hiddenPages: hidden,
       pausedPages: paused,
+      ...(project === null ? {} : { project }),
     },
   };
 }

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Column semantic classification — 05-introspection-engine.md §7.
+ * Column semantic classification.
  *
  * Deterministic ordered rule pipeline: each column receives exactly ONE
- * primary semantic (first matching rule wins, in the §7.1 precedence order)
- * plus independent flags (`secret`, `pii`, `maskedByDefault`) from the §7.2
- * layer (./pii.ts). Rule ids (`r01-secret` … `r30-plain`) mirror the §7.1
- * row numbers — later docs and the LLM prompt reference them.
+ * primary semantic (first matching rule wins, in the precedence order) plus
+ * independent flags (`secret`, `pii`, `maskedByDefault`) from the layer
+ * (./pii.ts). Rule ids (`r01-secret` … `r30-plain`) mirror the row numbers
+ * — later docs and the LLM prompt reference them.
  *
  * The pipeline is pure and heuristic-only (`source: 'heuristic'`); LLM
- * enrichment (06-llm-assist.md) and Studio overrides land on top with
- * `source: 'llm' | 'override'` and always win downstream.
+ * enrichment and Studio overrides land on top with `source: 'llm' |
+ * 'override'` and always win downstream.
  */
 import type {
   ColumnModel,
@@ -31,7 +31,7 @@ import { detectPii } from './pii.js';
 export interface ClassifiedColumn {
   tableId: string;
   column: string;
-  /** §7.1 row id that decided `semantics.primary`, e.g. 'r04-money'. */
+  /** The rule-row id that decided `semantics.primary`, e.g. 'r04-money'. */
   ruleId: string;
   /** Human-readable evidence for the Studio remap editor / golden tests. */
   reasons: string[];
@@ -54,14 +54,14 @@ export interface ColumnClassifyContext {
   enumsById: ReadonlyMap<string, EnumDef>;
   /** Columns resolved as FKs: declared mirror or accepted (≥ 0.8) relation. */
   fkColumns: ReadonlySet<string>;
-  /** People-shaped table (§8 directory trigger) — gates rule 16 + PII. */
+  /** People-shaped table (directory trigger) — gates rule 16 + PII. */
   peopleish: boolean;
-  /** Start/end and lat/lng pair assignments (§7.1 rows 11 and 14). */
+  /** Start/end and lat/lng pair assignments (rows 11 and 14). */
   pairs: ReadonlyMap<string, PairAssignment>;
 }
 
 // ---------------------------------------------------------------------------
-// Shared vocab (verbatim from §7.1 unless commented)
+// Shared vocab (verbatim unless commented)
 // ---------------------------------------------------------------------------
 
 const TEXTISH = new Set(['text', 'varchar']);
@@ -74,7 +74,7 @@ const MONEY_RE =
   /(^|_)(amount|price|cost|total|subtotal|balance|fee|mrr|arr|revenue|budget|salary|payout|refund|paid|owed)(_|$)/;
 const PERCENT_RE = /(^|_)(percent|pct|rate|ratio|progress|completion|discount|utilization)(_|$)/;
 const SCORE_RE = /(^|_)(score|rating|stars|nps|health)(_|$)/;
-/** §7.1 row 7 — workflow value vocabulary (verbs/states → kanban trigger). */
+/** Workflow value vocabulary (verbs/states → kanban trigger). */
 export const WORKFLOW_VALUE_RE =
   /^(todo|to_do|backlog|open|new|pending|draft|queued|in_progress|inprogress|doing|review|in_review|approved|rejected|blocked|on_hold|done|completed?|closed|cancell?ed|archived|active|paused|failed|error|shipped|delivered|paid|overdue|refunded|trial|churned|q[1-4])$/i;
 const CREATED_AT_RE = /^(created_at|created_on|created|creation_date|date_created|inserted_at)$/;
@@ -83,7 +83,7 @@ const START_RE = /(^|_)(start|begin|from|opens?)(_date|_at|_time)?$/;
 const END_RE = /(^|_)(end|finish|until|to|due|closes?)(_date|_at|_time)?$/;
 const EVENT_TS_RE = /(_at|_date|_on|_time|_ts)$/;
 /**
- * §7.1 row 13 lists `_seconds|_secs|_ms|_minutes|_mins|_hours` inside the
+ * Row 13 lists `_seconds|_secs|_ms|_minutes|_mins|_hours` inside the
  * `(^|_)…(_|$)` envelope, which would require a double underscore; we read
  * the intent as suffix alternatives and split the regex accordingly.
  */
@@ -100,18 +100,18 @@ const IMAGE_RE =
 /**
  * Columns that name a stored file.
  *
- * `pdf` JOINED THE VOCABULARY IN 38 (D12, O2 ruled 2026-09-05, closing 27-T56).
- * The originating ask for the whole files feature was "attach a PDF while
- * creating an invoice", and the obvious column names for it — `pdf`,
- * `pdf_url`, `invoice_pdf`, `receipt_pdf_url` — matched none of the four words
- * here, while `document_url` and `contract_file` did. So the one shape the
- * feature was built for was the one that never seeded a `file` block, and an
- * operator had to add it by hand.
+ * `pdf` JOINED THE VOCABULARY IN 38 (D12, O2 ruled 2026-09-05, closing). The
+ * originating ask for the whole files feature was "attach a PDF while creating
+ * an invoice", and the obvious column names for it — `pdf`, `pdf_url`,
+ * `invoice_pdf`, `receipt_pdf_url` — matched none of the four words here, while
+ * `document_url` and `contract_file` did. So the one shape the feature was
+ * built for was the one that never seeded a `file` block, and an operator had
+ * to add it by hand.
  *
  * Widening this re-records the generation baseline, which is why it is a ruled
- * decision rather than a drive-by (the same hazard 27-T37 carries for
- * `PERCENT_RE`). It stays a NAME vocabulary: a `pdf_pages` integer is not a
- * file, and the `TEXTISH` guard at the call site is what keeps it that way.
+ * decision rather than a drive-by (the same hazard carries for `PERCENT_RE`).
+ * It stays a NAME vocabulary: a `pdf_pages` integer is not a file, and the
+ * `TEXTISH` guard at the call site is what keeps it that way.
  */
 const FILE_RE = /(^|_)(file|attachment|document|upload|pdf)(_url|_path|_key|_name)?(_|$)/;
 const URL_RE = /(^|_)(url|link|website|href|homepage)(_|$)/;
@@ -126,7 +126,7 @@ const EXTERNAL_ID_RE = /_(id|uuid|ref|number|no)$/;
 const CENTS_RE = /_cents$/;
 const CURRENCY_SIBLING_RE = /(^|_)(currency|curr(ency)?_code)(_|$)/;
 
-/** §8 directory trigger vocabulary for "people-ish" tables (see tables.ts). */
+/** Directory-trigger vocabulary for "people-ish" tables (see tables.ts). */
 export const PEOPLE_TABLE_RE =
   /(^|_)(users?|people|persons?|employees?|staff|members?|contacts?|customers?|profiles?|teachers?|students?|drivers?|agents?|authors?|patients?)(_|$)/;
 
@@ -164,7 +164,7 @@ function escapeRe(text: string): string {
 // Context builder (pair detection, FK set, people-ish flag)
 // ---------------------------------------------------------------------------
 
-/** Accepted-relation threshold (§6): ≥ 0.8 behaves like a declared FK. */
+/** Accepted-relation threshold: ≥ 0.8 behaves like a declared FK. */
 const ACCEPTED_RELATION_CONFIDENCE = 0.8;
 
 export function buildColumnClassifyContext(
@@ -200,7 +200,7 @@ export function buildColumnClassifyContext(
   };
 }
 
-/** §7.1 rows 11 (start/end) and 14 (lat/lng) are table-scoped pair rules. */
+/** Rows 11 (start/end) and 14 (lat/lng) are table-scoped pair rules. */
 function detectPairs(table: TableModel): Map<string, PairAssignment> {
   const pairs = new Map<string, PairAssignment>();
 
@@ -287,7 +287,7 @@ function enumValues(column: ColumnModel, ctx: ColumnClassifyContext): string[] |
   return ctx.enumsById.get(column.enumRef)?.values ?? null;
 }
 
-/** Ordered §7.1 pipeline; array index+1 = doc row number. */
+/** Ordered pipeline; array index+1 = doc row number. */
 const RULES: { id: string; rule: Rule }[] = [
   {
     id: 'r01-secret',
@@ -579,7 +579,7 @@ const RULES: { id: string; rule: Rule }[] = [
     rule: (c, name) => {
       const typeOk = TEXTISH.has(c.logicalType) || NUMERIC.has(c.logicalType) || c.logicalType === 'uuid';
       if (!typeOk || !EXTERNAL_ID_RE.test(name)) return null;
-      return hit('external-id', 0.6, 'mono', ['id-suffixed name unresolved by relation inference (§6)']);
+      return hit('external-id', 0.6, 'mono', ['id-suffixed name unresolved by relation inference']);
     },
   },
   {
@@ -596,11 +596,11 @@ const RULES: { id: string; rule: Rule }[] = [
   },
   {
     id: 'r30-plain',
-    rule: () => hit('plain', 0.5, null, ['no §7.1 rule matched — type-default rendering']),
+    rule: () => hit('plain', 0.5, null, ['no rendering rule matched — type-default rendering']),
   },
 ];
 
-/** Every §7.1 rule id, in precedence order (exported for tests/docs). */
+/** Every rule id, in precedence order (exported for tests/docs). */
 export const COLUMN_RULE_IDS: readonly string[] = RULES.map((r) => r.id);
 
 // ---------------------------------------------------------------------------

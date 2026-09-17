@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * TRACK TABLES-CAL-BOARDS — the `tables` family M7 Wave-4 TAIL (annex §3):
+ * TRACK TABLES-CAL-BOARDS — the `tables` family M7 Wave-4 TAIL (annex):
  * sparkline-table, top-movers-list, ranked-entity-list, accordion-list,
  * comparison-matrix, chip-cloud.
  *
@@ -42,7 +42,7 @@ const parse = <T,>(schema: { parse: (value: unknown) => T }, overrides: Record<s
 
 // ── tables-tail-lib: the delta polarity every metric widget shares ──────────
 
-describe('delta polarity (annex §3 "good/bad aware")', () => {
+describe('delta polarity ("good/bad aware")', () => {
   it('defaults to up-is-good, and lets the row override it', () => {
     expect(goodDirectionFor('Sessions', undefined, undefined)).toBe('up');
     expect(goodDirectionFor('Error rate', 'down', undefined)).toBe('down');
@@ -80,7 +80,7 @@ describe('delta polarity (annex §3 "good/bad aware")', () => {
 
 // ── sparkline-table ─────────────────────────────────────────────────────────
 
-describe('sparkline-table (annex §3)', () => {
+describe('sparkline-table (annex)', () => {
   it('renders a row per metric with its value and delta pill, capped at `rows`', () => {
     render(<SparklineTable rows={sparkRowsOf(sparklineTableDemoData(7))} limit={4} />);
     expect(document.querySelectorAll('[data-part="spark-row"]')).toHaveLength(4);
@@ -131,7 +131,7 @@ describe('sparkline-table (annex §3)', () => {
 
 // ── top-movers-list ─────────────────────────────────────────────────────────
 
-describe('top-movers-list (annex §3)', () => {
+describe('top-movers-list (annex)', () => {
   it('re-ranks by |delta| defensively, so an unsorted binding still shows movers', () => {
     render(
       <TopMoversList
@@ -242,7 +242,7 @@ describe('top-movers-list (annex §3)', () => {
 
 // ── ranked-entity-list ──────────────────────────────────────────────────────
 
-describe('ranked-entity-list (annex §3)', () => {
+describe('ranked-entity-list (annex)', () => {
   it('scales the bars against the slice leader, not the grand total', () => {
     const ranked = rankRows(
       [
@@ -325,7 +325,7 @@ describe('ranked-entity-list (annex §3)', () => {
 
 // ── accordion-list ──────────────────────────────────────────────────────────
 
-describe('accordion-list open-state (annex §3 "single- or multi-open")', () => {
+describe('accordion-list open-state ("single- or multi-open")', () => {
   it('multi-open accumulates and removes independently', () => {
     let open: ReadonlySet<string> = new Set<string>();
     open = toggleOpen(open, 'a', false);
@@ -344,7 +344,7 @@ describe('accordion-list open-state (annex §3 "single- or multi-open")', () => 
   });
 });
 
-describe('accordion-list (annex §3)', () => {
+describe('accordion-list (annex)', () => {
   it('unmounts a collapsed panel, so it is not tabbable or findable', () => {
     render(<AccordionList rows={accordionRowsOf(accordionListDemoData(2))} />);
     expect(document.querySelectorAll('[data-part="accordion-panel"]')).toHaveLength(0);
@@ -394,7 +394,7 @@ describe('accordion-list (annex §3)', () => {
 
 // ── comparison-matrix ───────────────────────────────────────────────────────
 
-describe('comparison-matrix (annex §3)', () => {
+describe('comparison-matrix (annex)', () => {
   const config = parse(comparisonMatrixConfigSchema, { promotedColumn: 'team' });
 
   it('renders the check / em-dash / mono-text cell vocabulary', () => {
@@ -461,7 +461,7 @@ describe('comparison-matrix (annex §3)', () => {
 
 // ── chip-cloud ──────────────────────────────────────────────────────────────
 
-describe('chip-cloud (annex §3)', () => {
+describe('chip-cloud (annex)', () => {
   it('projects the canonical categorical envelope', () => {
     expect(cloudChipsOf(chipCloudDemoData(9)).length).toBeGreaterThan(0);
   });
@@ -533,8 +533,8 @@ describe('chip-cloud (annex §3)', () => {
 
 // ── definitions ─────────────────────────────────────────────────────────────
 
-describe('tables tail definitions (annex §3)', () => {
-  it('registers exactly the six remaining §3 ids', () => {
+describe('tables tail definitions (annex)', () => {
+  it('registers exactly the six remaining ids', () => {
     expect(tablesTailDefinitions.map((d) => d.id).sort()).toEqual([
       'accordion-list',
       'chip-cloud',

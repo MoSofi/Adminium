@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The money law against the shared fixture (34-invoices-add-on.md 34-T54),
- * on the SERVER's copy of `money.ts`: the same JSON table the dashboard's
- * `money.test.ts` asserts. The fixture is held byte-equal across trees by
+ * The money law against the shared fixture, on the SERVER's copy of
+ * `money.ts`: the same JSON table the dashboard's `money.test.ts` asserts.
+ * The fixture is held byte-equal across trees by
  * `scripts/check-invoice-money-fixture.mjs`, so a law that drifts in one
  * tree goes red in CI, not on a customer's invoice.
  */
@@ -22,7 +22,7 @@ interface Fixture {
 
 const fixture = JSON.parse(readFileSync(join(process.cwd(), 'src', 'invoices', 'money-fixture.json'), 'utf8')) as Fixture;
 
-describe('the money law (34 D20 / O25) — the server copy', () => {
+describe('the money law — the server copy', () => {
   for (const c of fixture.cases) {
     it(c.name, () => {
       const totals = totalsOf({ items: c.items.map((item, i) => ({ id: String(i), desc: '', ...item })), discountRate: c.discountRate, taxRate: c.taxRate });

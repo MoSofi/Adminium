@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `adminium migrate` + meta-store resolution (M10-T01, 01 §3.1/§7.2).
+ * `adminium migrate` + meta-store resolution.
  *
  * Unlike the dispatch suites, these run against a REAL temp SQLite meta store —
  * `migrate`'s whole contract is "idempotent", and a mocked migrator could not
@@ -153,7 +153,7 @@ describe('sqlitePathFromUrl', () => {
   });
 });
 
-describe('resolveMetaUrl — the §7.2 precedence', () => {
+describe('resolveMetaUrl — the precedence', () => {
   it('1. ADMINIUM_META_URL wins outright', async () => {
     await expect(
       resolveMetaUrl({ metaUrl: 'postgres://u@h/db', dataDir: dir, secret: TEST_SECRET }),
@@ -175,7 +175,7 @@ describe('resolveMetaUrl — the §7.2 precedence', () => {
     });
   });
 
-  it('env beats the bootstrap file — "environment always wins" (§7.2)', async () => {
+  it('env beats the bootstrap file — "environment always wins"', async () => {
     await writeBootstrap(dir, {
       v: 1,
       metaUrl: metaUrlCryptoFromSecret(TEST_SECRET).encrypt('postgres://u@bootstrap/db'),
@@ -244,7 +244,7 @@ describe('resolveMetaUrl — the §7.2 precedence', () => {
     });
   });
 
-  it('3. falls back to embedded SQLite under the data dir (§3.1 OD-1)', async () => {
+  it('3. falls back to embedded SQLite under the data dir (OD-1)', async () => {
     const resolved = await resolveMetaUrl({ dataDir: dir, secret: TEST_SECRET });
     expect(resolved.engine).toBe('sqlite');
     expect(resolved.source).toBe('embedded');
@@ -294,7 +294,7 @@ describe.skipIf(!CAN_DROP_WRITE)('connectMetaStore — an unwritable data dir', 
     promise.then(() => null).catch((error: unknown) => error as Error);
 
   it('the embedded fallback names the meta store, the knob, and both placements', async () => {
-    // The §3.1 OD-1 fallback on a read-only filesystem — a read-only container
+    // The OD-1 fallback on a read-only filesystem — a read-only container
     // mount, Vercel/Lambda, a volume the process user cannot write. What used
     // to reach the operator was the whole of:
     //     EACCES: permission denied, mkdir '/var/task/data'

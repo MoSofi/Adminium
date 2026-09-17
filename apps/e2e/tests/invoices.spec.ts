@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `/invoices` surface against the BUILT stack (34-invoices-add-on.md
- * §3.9, 34-T51): the manager, the New modal's twelve starters, the editor's
- * canvas + inspector, the Add-section modal, the language family, the
- * invoice-from-template path and the list layout.
+ * The `/invoices` surface against the BUILT stack: the manager, the New
+ * modal's twelve starters, the editor's canvas + inspector, the Add-section
+ * modal, the language family, the invoice-from-template path and the list
+ * layout.
  *
  * The dashboard suite mounts these through the real router with a fetch stub;
  * the server suite covers the routes in process. What ONLY this file sees:
@@ -116,7 +116,7 @@ function idFromUrl(page: Page): string {
   return id;
 }
 
-test.describe('the /invoices surface (34-T51)', () => {
+test.describe('the /invoices surface', () => {
   test.describe.configure({ mode: 'serial' });
 
   /** The Standard-invoice template every later test edits; set by the second test. */
@@ -226,7 +226,7 @@ test.describe('the /invoices surface (34-T51)', () => {
     await page.getByTestId('invoices-save').click();
     await expect(chip).toHaveText('All changes saved');
     page.off('request', count);
-    expect(puts, 'the explicit save is exactly one PUT (O22 → 39 D1)').toBe(1);
+    expect(puts, 'the explicit save is exactly one PUT').toBe(1);
 
     await page.reload();
     await expect(page.getByRole('textbox', { name: 'Customer name' })).toHaveValue('Northwind Traders GmbH');
@@ -285,7 +285,7 @@ test.describe('the /invoices surface (34-T51)', () => {
     await expect(page.getByTestId('invoices-total')).toHaveText('€4,104');
 
     await aside.locator('[data-testid="invoices-option"][data-value="paid"]').click();
-    // The sheet's pill is three plain elements read from the draft (§0.4.6 item 2).
+    // The sheet's pill is three plain elements read from the draft.
     await expect(page.getByTestId('invoices-status')).toHaveText('Paid');
     await testInfo.attach('canvas-theme-applied', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
   });

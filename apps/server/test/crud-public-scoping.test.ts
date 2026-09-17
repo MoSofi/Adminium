@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `runList`'s public-surface options: the mandatory predicate (28-T04) and the
- * column-reach fixes (28-T05 / 28 D5).
+ * `runList`'s public-surface options: the mandatory predicate and the
+ * column-reach fixes.
  *
  * These assert on the COMPILED SQL rather than on returned rows, because the
  * property under test is "no combination of query parameters can remove this
@@ -85,7 +85,7 @@ beforeEach(() => {
 
 const AVAILABLE_ONLY = { column: 'available', op: 'eq' as const, value: true };
 
-describe('mandatory predicate (28-T04)', () => {
+describe('mandatory predicate', () => {
   it('is applied when the caller sends nothing at all', async () => {
     await runList({
       db,
@@ -151,7 +151,7 @@ describe('mandatory predicate (28-T04)', () => {
   });
 });
 
-describe('count is never exact under a mandatory predicate (28 D5 d)', () => {
+describe('count is never exact under a mandatory predicate (d)', () => {
   it('returns a null total instead of running COUNT(*)', async () => {
     const res = await runList({
       db,
@@ -190,7 +190,7 @@ describe('count is never exact under a mandatory predicate (28 D5 d)', () => {
   });
 });
 
-describe('exposeColumns replaces the select list (28 D5 a)', () => {
+describe('exposeColumns replaces the select list (a)', () => {
   it('returns exactly the exposed set when the caller omits select', async () => {
     // The trap: a validator on `params.select` is bypassed by not sending one,
     // because the default is every non-secret column.
@@ -277,7 +277,7 @@ describe('exposeColumns replaces the select list (28 D5 a)', () => {
   });
 });
 
-describe('searchColumns bounds quick search (28 D5 b)', () => {
+describe('searchColumns bounds quick search (b)', () => {
   it('searches only the allowed column, not every text-ish column', async () => {
     await runList({
       db,

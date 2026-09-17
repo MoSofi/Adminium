@@ -1204,6 +1204,7 @@
       "generated": "自动生成",
       "llm": "助手",
       "manifest": "插件",
+      "project": "项目代码",
       "system": "系统",
       "user": "自定义"
     },
@@ -1218,6 +1219,34 @@
     "preview": {
       "note": "这是版式示意图，不是你的数据。保存后真实页面才会填充内容。",
       "untitled": "未命名页面"
+    },
+    "project": {
+      "badge": {
+        "changed": "已在服务器上更改",
+        "conflict": "冲突",
+        "outside": "不在项目中"
+      },
+      "changed": {
+        "body": "请将这些更改拉取到项目中并部署，否则它们只保留在此服务器上：",
+        "title": "{count, plural, other {此服务器上有 # 个页面已更改}}"
+      },
+      "conflicts": {
+        "body": "在你做出选择之前，此服务器会保留自己的版本。",
+        "title": "{count, plural, other {有 # 个页面在此处和项目中都已更改}}"
+      },
+      "fromCode": "此页面来自 {source}。请在那里修改。",
+      "invalid": {
+        "body": "请修复这些文件。在此之前，将继续使用最后一个有效版本。",
+        "title": "{count, plural, other {有 # 个项目文件未被应用}}"
+      },
+      "keepServer": "保留服务器版本",
+      "notConfigured": "其中一些属于项目未列出的数据库。将其添加到 adminium.config.ts，即可将其页面保留在项目中。",
+      "outside": {
+        "body": "它们只存在于此服务器上。将它们拉取到项目中即可保留：",
+        "title": "{count, plural, other {有 # 个页面不在项目中}}"
+      },
+      "resolveFailed": "无法完成此更改。",
+      "useProject": "使用项目版本"
     },
     "row": {
       "menu": "{title} 的操作"
@@ -1254,6 +1283,84 @@
       "narrow": "窄（720px）",
       "page": "页面（1080px）",
       "wide": "宽（1800px）"
+    }
+  },
+  "project": {
+    "actions": {
+      "bulk": "一条或多条记录",
+      "empty": "没有操作。actions/ 中的文件会为记录添加按钮。",
+      "needs": "需要：{permission}",
+      "single": "一条记录",
+      "title": "操作"
+    },
+    "changes": {
+      "empty": "所有页面和架构文件都与此服务器一致。",
+      "open": "在“页面”中处理",
+      "title": "在此服务器上已更改"
+    },
+    "code": {
+      "disabled": "未加载：桌面应用从不运行项目代码",
+      "label": "项目代码",
+      "loaded": "已加载（{when}）",
+      "none": "未加载任何内容"
+    },
+    "failures": {
+      "empty": "服务器启动以来没有钩子失败。",
+      "title": "钩子错误"
+    },
+    "files": {
+      "count": "{count, plural, other {# 个文件}}",
+      "pages": "页面文件",
+      "schema": "架构文件",
+      "title": "文件"
+    },
+    "folder": "文件夹",
+    "hooks": {
+      "empty": "没有钩子。hooks/ 中的文件会在记录变化时运行代码。",
+      "onImport": "也用于 CSV 导入",
+      "title": "钩子"
+    },
+    "loadFailed": "无法加载项目",
+    "mode": {
+      "dev": "开发：文件夹与 Studio 保持同步",
+      "label": "运行方式",
+      "server": "服务器：文件夹只随部署而改变"
+    },
+    "none": {
+      "body": "项目是用 `npx @adminiumjs/adminium new` 创建的文件夹。服务器运行项目时，其页面、钩子和操作会显示在这里。",
+      "title": "此服务器未运行任何项目"
+    },
+    "pages": {
+      "empty": "没有页面。pages/ 中的 .tsx 文件会添加你自己的页面。",
+      "hidden": "不在侧边栏中",
+      "title": "页面"
+    },
+    "permission": {
+      "create": "添加",
+      "delete": "删除",
+      "read": "查看",
+      "update": "编辑"
+    },
+    "problems": {
+      "body": "请修复这些文件。其余项目代码正在运行。",
+      "title": "{count, plural, other {# 个文件未能加载}}"
+    },
+    "status": {
+      "changed": "在此服务器上已更改",
+      "conflict": "冲突",
+      "invalid": "无效",
+      "outside": "不在项目中",
+      "pending": "尚未应用"
+    },
+    "subtitle": "此服务器运行的项目文件夹，以及它加载的代码。",
+    "superAdminOnly": "只有超级管理员可以查看此服务器运行的项目。",
+    "title": "项目",
+    "version": "Adminium",
+    "widgets": {
+      "card": "仪表盘卡片",
+      "cell": "表格单元格",
+      "empty": "没有小组件。widgets/ 中的文件会添加表格单元格或仪表盘卡片。",
+      "title": "小组件"
     }
   },
   "publicApi": {
@@ -1439,11 +1546,11 @@
       "searchPlaceholder": "搜索表…",
       "unsaved": "未保存的更改"
     },
-    "unavailableBody": "此版本尚未包含重映射编辑器（09-T12）。等它上线后重新运行生成，即可重映射标签、类型和关系。",
+    "unavailableBody": "此版本尚未包含重映射编辑器。等它上线后重新运行生成，即可重映射标签、类型和关系。",
     "unavailableTitle": "架构重映射编辑器不可用"
   },
   "review": {
-    "unavailableBody": "此版本尚未包含增强审阅界面（06-T14）。它将随差异与应用流程一起推出。",
+    "unavailableBody": "此版本尚未包含增强审阅界面。它将随差异与应用流程一起推出。",
     "unavailableTitle": "审阅界面不可用"
   },
   "settings": {
@@ -1590,6 +1697,11 @@
         "error": "只能填写主机名或 IP 地址 — 不含协议、端口或凭据。",
         "label": "SMTP 主机"
       },
+      "linkOrigin": {
+        "error": "请输入类似 https://admin.example.com 的地址，不要包含路径。",
+        "helper": "密码重置和邀请链接会打开此地址。如果留空，Adminium 会从下一位登录或保存更改的管理员处自动填写，但使用 localhost 时除外。",
+        "label": "邮件链接中的地址"
+      },
       "pass": {
         "error": "该用户名需要密码。",
         "helper": "加密存储且不再显示。留空则保留当前密码。",
@@ -1654,6 +1766,11 @@
       "body": "添加、编辑和删除页面，更改每个页面的内容，并重新排列侧边栏。",
       "cta": "管理页面",
       "heading": "页面"
+    },
+    "projectCard": {
+      "body": "此服务器运行的项目文件夹：其钩子、操作和页面文件。",
+      "cta": "打开项目",
+      "heading": "项目"
     },
     "publicApiCard": {
       "body": "让你自己的面向客户或员工的页面通过你定义的作用域读取这个数据库。",

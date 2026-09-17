@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `@adminiumjs/public-client` (28-T12).
+ * `@adminiumjs/public-client`.
  *
  * The tests worth having here are the ones about behaviour a caller depends on
  * and cannot see: that a demo build gets `null` rather than an exception, that
@@ -316,7 +316,7 @@ describe('time is the tenant’s, not the reader’s', () => {
   });
 });
 
-describe('documents (34 §7.6, 34-T21)', () => {
+describe('documents', () => {
   const DOC = {
     id: 'doc_1',
     kind: 'invoice',

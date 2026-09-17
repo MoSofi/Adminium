@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `LlmResponseV1` contract + version negotiation (06-llm-assist.md §6.1, §6.3,
- * §4.3). Locks: the §6.3 golden response validates with zero errors; malformed
- * responses are rejected; `L10n` accepts a locale SUBSET (Zod-4 partialRecord
- * adaptation); version negotiation is fatal on unknown, ok on supported/older.
+ * `LlmResponseV1` contract + version negotiation. Locks: the golden
+ * response validates with zero errors; malformed responses are rejected;
+ * `L10n` accepts a locale SUBSET (Zod-4 partialRecord adaptation); version
+ * negotiation is fatal on unknown, ok on supported/older.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -18,7 +18,7 @@ import {
   VERSION_MISMATCH_HINT,
 } from './schema.js';
 
-/** The §6.3 golden fixture (`responses/valid-demo.json`), reproduced in full. */
+/** The golden fixture (`responses/valid-demo.json`), reproduced in full. */
 const validDemo = {
   schema_version: 'adminium.llm/v1',
   run_id: '01J9ZK3W8E2Q4R6T8V0X2Y4Z6A',
@@ -306,7 +306,7 @@ const validDemo = {
   ],
 } as const;
 
-describe('LlmResponseV1 — golden fixture (§6.3)', () => {
+describe('LlmResponseV1 — golden fixture', () => {
   it('validates the valid-demo response with zero errors', () => {
     const result = LlmResponseV1.safeParse(validDemo);
     expect(result.success).toBe(true);
@@ -472,7 +472,7 @@ describe('LlmResponseV1 — rejects malformed responses', () => {
   });
 });
 
-describe('version negotiation (§4.3)', () => {
+describe('version negotiation', () => {
   it('exposes v1 as the only supported version today', () => {
     expect(SUPPORTED_SCHEMA_VERSIONS).toEqual(['adminium.llm/v1']);
   });

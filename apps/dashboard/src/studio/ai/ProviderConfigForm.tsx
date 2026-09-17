@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The AI-provider configuration form (06-llm-assist.md §3.2, §10.1) — provider
- * choice, base URL, model, the write-only API key, Save and Test connection.
+ * The AI-provider configuration form — provider choice, base URL, model, the
+ * write-only API key, Save and Test connection.
  *
- * ONE FORM, TWO HOSTS (46-enrich-provider-inline.md R3). Settings → AI
- * (`StudioAiPage`) has always rendered it; the connect wizard's "Enrich with AI"
- * step renders the same component inline, so an operator who lands there with no
- * provider configured can set one up without leaving the wizard and losing the
- * section toggles, locales and sampling opt-in they have already chosen. It is
- * extracted rather than copied for the obvious reason: a fix to the key contract,
- * the model list or the test button has to reach both places, and a second copy
- * is a second thing to forget.
+ * ONE FORM, TWO HOSTS (R3). Settings → AI (`StudioAiPage`) has always rendered
+ * it; the connect wizard's "Enrich with AI" step renders the same component
+ * inline, so an operator who lands there with no provider configured can set one
+ * up without leaving the wizard and losing the section toggles, locales and
+ * sampling opt-in they have already chosen. It is extracted rather than copied
+ * for the obvious reason: a fix to the key contract, the model list or the test
+ * button has to reach both places, and a second copy is a second thing to forget.
  *
  * The API key is WRITE-ONLY end to end: `getConfig` only ever returns
- * `apiKeySet` + `apiKeyLast4`, `putConfig` sends a key but no reply echoes it
- * (§3.2), so the raw key never lives in this component's state after a save.
+ * `apiKeySet` + `apiKeyLast4`, `putConfig` sends a key but no reply echoes
+ * it, so the raw key never lives in this component's state after a save.
  *
- * Seed patterns (§10): `API Keys.dc.html` (write-only key entry → masked
+ * Seed patterns: `API Keys.dc.html` (write-only key entry → masked
  * `sk-…last4` + Replace) and `Integrations.dc.html` (provider connect cards).
  * RBAC is enforced by the hosts' route guards and again by every
  * `/api/v1/llm/*` route — Editors/Viewers never reach either surface.
@@ -173,7 +172,7 @@ export function ProviderConfigForm({
   const hasStoredKey = savedForSelected && config.apiKeySet;
 
   // Live model list only reflects the *saved* provider (the API has no provider
-  // param), so gate the fetch on the selection matching what is persisted (§10.1).
+  // param), so gate the fetch on the selection matching what is persisted.
   const modelsQuery = useQuery({
     queryKey: ['llm', 'models', config.provider] as const,
     queryFn: () => aiApi.listModels(),
@@ -200,9 +199,9 @@ export function ProviderConfigForm({
       // it is what the ⌘K "Ask AI" affordance and the wizard's provider card
       // gate on. Held at `staleTime: Infinity`, so nothing refetches it on its
       // own: without this line the card the operator just enabled stays grey
-      // until a reload — which is the whole point of the inline host (46 §2.2).
+      // until a reload — which is the whole point of the inline host.
       void queryClient.invalidateQueries({ queryKey: bootstrapQuery().queryKey });
-      // Drop the raw key from local state the instant it is stored (§3.2).
+      // Drop the raw key from local state the instant it is stored.
       setDraft((prev) => (prev === null ? prev : { ...prev, keyDraft: '', replacingKey: false }));
       toasts.push({ variant: 'success', title: t('studio:settingsAi.saved', 'AI provider saved') });
     },
@@ -254,8 +253,8 @@ export function ProviderConfigForm({
           <SectionHeading className="text-section text-fg">
             {t('studio:settingsAi.provider.heading', 'AI provider')}
           </SectionHeading>
-          {/* 11-electron.md §8.2, LLM row: provider-API mode is "Available,
-              LABELED". §6 step 4 gives the label its words. It rides beside the
+          {/* LLM row: provider-API mode is "Available,
+              LABELED". The wizard gives the label its words. It rides beside the
               heading in every runtime, not just desktop — the direct path needs
               the internet on a self-host too, and a self-host admin choosing
               between the two paths deserves the same fact. */}
@@ -494,7 +493,7 @@ function KeyField({
   onChange: (keyDraft: string) => void;
 }): ReactNode {
   // A key is already stored for this provider and the user has not chosen to
-  // replace it: show the masked tail, never a value we could leak (§3.2).
+  // replace it: show the masked tail, never a value we could leak.
   if (hasStoredKey && !draft.replacingKey) {
     return (
       <FormField

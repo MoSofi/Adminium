@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * TRACK BUILDER unit tests (annex §13) — `document-canvas` + the 22 `block-*`
+ * TRACK BUILDER unit tests (annex) — `document-canvas` + the 22 `block-*`
  * document-vocabulary widgets.
  *
  * SCOPE. The central QA harness already runs the four-state, determinism,
@@ -12,15 +12,15 @@
  *   - the pure algebra behind the canvas (`moveBlock`, `blockOrderOf`,
  *     `blockDataOf`) — the show-flags, the unknown-id drop, and the derived
  *     money projection, all golden-testable without mounting;
- *   - LIVE-RECOMPUTING TOTALS (annex §13): the invariant that totals, tax and QR
- *     can never disagree about the same invoice, plus the untrusted-row coercion
- *     that keeps a corrupt qty from poisoning the arithmetic with NaN. Asserted
- *     BOTH on blocks mounted standalone with their own schema-built config (the
- *     `cfg()` helper) and THROUGH THE CANVAS — a canvas test that only counts
- *     `block-instance` elements passes happily while every block inside it
- *     renders blank, so the canvas suite reads real rendered money too;
- *   - NEVER WRITES (04 §2.1): edits emit `mutate` intents through `onEvent` and
- *     an UNBOUND block emits nothing (no table to address);
+ * - LIVE-RECOMPUTING TOTALS (annex): the invariant that totals, tax and QR can
+ *   never disagree about the same invoice, plus the untrusted-row coercion that
+ *   keeps a corrupt qty from poisoning the arithmetic with NaN. Asserted BOTH on
+ *   blocks mounted standalone with their own schema-built config (the `cfg()`
+ *   helper) and THROUGH THE CANVAS — a canvas test that only counts
+ *   `block-instance` elements passes happily while every block inside it renders
+ *   blank, so the canvas suite reads real rendered money too;
+ * - NEVER WRITES: edits emit `mutate` intents through `onEvent` and an UNBOUND
+ *   block emits nothing (no table to address);
  *   - the security-shaped bits: `maskMethod` never renders a full PAN, and the
  *     canvas never resolves an unknown block id to an arbitrary widget;
  *   - RTL/direction and the block-axis reorder semantics (up is up in every
@@ -347,7 +347,7 @@ describe('block-line-items', () => {
     expect(screen.getByText('No line items')).toBeTruthy();
   });
 
-  /** 04 §2.1 — the block emits an intent; the host does the write. */
+  /** The block emits an intent; the host does the write. */
   it('emits a mutate intent addressing binding.source.name on a qty edit', () => {
     const onEvent = vi.fn();
     render(
@@ -434,13 +434,13 @@ describe('block-totals-summary', () => {
   });
 
   /**
-   * The 04 §5 field-naming contract, which this block DECLARES (`itemsField` /
+   * The field-naming contract, which this block DECLARES (`itemsField` /
    * `ratesField`). Hardcoding `payload.items` makes the mismatch invisible in
    * the worst way: `rowOf` returns a non-null payload so the empty guard is
    * skipped, `payload.items ?? []` yields `[]`, and the block prints Subtotal
    * $0.00 / Total due $0.00 — a silently WRONG invoice, not a visible failure.
    */
-  it('reads items and rates through the configured field names (04 §5)', () => {
+  it('reads items and rates through the configured field names', () => {
     render(
       <BlockTotalsSummaryWidget
         config={cfg(blockTotalsSummaryConfigSchema, {
@@ -487,7 +487,7 @@ describe('block-payment-history', () => {
 });
 
 describe('block-terms-checkbox', () => {
-  /** `form-state` (04 §3): the payload IS the control state — never "empty". */
+  /** `form-state`: the payload IS the control state — never "empty". */
   it('renders the toggle with the payload label and never an empty card', () => {
     render(
       <BlockTermsCheckboxWidget

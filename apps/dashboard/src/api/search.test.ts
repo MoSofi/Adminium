@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Command-palette search client (08-server-api.md §2.9). The query string is
- * the whole contract here: the palette sends `types`/`limit`/`connectionId`
- * only when it means them, because the server's defaults are different from
- * "empty" — an empty `types=` would ask for no result types at all, and a
- * missing `limit` is what lets the server pick its own.
+ * Command-palette search client. The query string is the whole contract
+ * here: the palette sends `types`/`limit`/`connectionId` only when it means
+ * them, because the server's defaults are different from "empty" — an empty
+ * `types=` would ask for no result types at all, and a missing `limit` is
+ * what lets the server pick its own.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -54,7 +54,7 @@ describe('search', () => {
     expect(queryOf(fetchMock).has('types')).toBe(false);
   });
 
-  it('unwraps the groups out of the §1.4 envelope', async () => {
+  it('unwraps the groups out of the envelope', async () => {
     const groups: SearchGroup[] = [{ type: 'page', hits: [{ pageId: 'page_orders' }] } as SearchGroup];
     stubSearch(groups);
     expect(await search('orders')).toEqual(groups);

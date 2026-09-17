@@ -35,11 +35,10 @@ import {
 import type { GridRow, GridTone, LayoutItem } from '../../page-config/index.js';
 
 /**
- * `page-master-detail` — the split-view archetype (09-generated-app.md §7.3;
- * annex §14 "Ticket Queue, Workflow Logs, AB Experiments, Audience Segments"):
- * a `master` rail whose selection drives the sticky `detail` pane, a status
- * filter-chip bar with live facet counts, `J`/`K` selection movement, and a
- * derived micro-KPI subtitle ("3 open · 2 pending").
+ * `page-master-detail` — the split-view archetype (annex): a `master` rail
+ * whose selection drives the sticky `detail` pane, a status filter-chip bar
+ * with live facet counts, `J`/`K` selection movement, and a derived micro-KPI
+ * subtitle ("3 open · 2 pending").
  *
  * Detail pane composition follows the manifest: `detail-key-value` renders the
  * selected record's fields client-side (the record is already in the master
@@ -48,10 +47,10 @@ import type { GridRow, GridTone, LayoutItem } from '../../page-config/index.js';
  * binding, with generator `*Column` keys bridged onto the widget's `*Field`
  * schema. The optional `detail-activity` slot mounts below the pane.
  *
- * M7-T04 comp fixes carried here: every enum pill tint comes from the stored
+ * Comp fixes carried here: every enum pill tint comes from the stored
  * `enumTones` map flowing through config — never a hardcoded tone — and the
  * filtered zero-match state is `no-matches` + "Clear filters", distinct from
- * the first-use `no-data` state (research/ia-mapping.md §5, Ticket Queue).
+ * the first-use `no-data` state (Ticket Queue).
  */
 
 export const PAGE_MASTER_DETAIL_TEMPLATE_ID = 'page-master-detail';
@@ -84,7 +83,7 @@ export interface PageMasterDetailProps {
   adapter?: DashboardDataAdapter | undefined;
   params?: Record<string, unknown> | undefined;
   states?: DashboardDataStates | undefined;
-  /** Route-controlled selection (deep links restore it — 09 §7.3). */
+  /** Route-controlled selection (deep links restore it). */
   selectedId?: string | null | undefined;
   onSelectedChange?: ((recordId: string | null) => void) | undefined;
   onEvent?: ((instanceId: string, event: WidgetEvent) => void | Promise<unknown>) | undefined;
@@ -127,7 +126,7 @@ function rowIdText(row: GridRow, index: number): string {
   return typeof id === 'string' || typeof id === 'number' ? String(id) : String(index);
 }
 
-/** "3 open · 2 pending" — the §7.3 derived micro-KPI subtitle. */
+/** "3 open · 2 pending" — the derived micro-KPI subtitle. */
 export function deriveStatusSubtitle(rows: readonly GridRow[], statusField: string | undefined): string | null {
   if (statusField === undefined || rows.length === 0) return null;
   const counts = new Map<string, number>();
@@ -243,7 +242,7 @@ export function PageMasterDetail({
     [masterItem, onEvent],
   );
 
-  // J/K move selection (09 §7.3) — list navigation, not a global hotkey.
+  // J/K move selection — list navigation, not a global hotkey.
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key !== 'j' && event.key !== 'k') return;
@@ -312,7 +311,7 @@ export function PageMasterDetail({
       className="flex h-full min-h-0 flex-col"
       onKeyDown={onKeyDown}
     >
-      {/* Filter chip bar with live facet counts (§7.3). */}
+      {/* Filter chip bar with live facet counts. */}
       {facets.length > 0 && (
         <div
           role="group"
@@ -380,7 +379,7 @@ export function PageMasterDetail({
               body={labels?.emptyBody ?? t('ui:templates.masterDetail.emptyBody', 'Records appear here as rows land in the table.')}
             />
           ) : visibleRows.length === 0 ? (
-            // Filtered empty — distinct from first-use (M7-T04 / ia-mapping §5).
+            // Filtered empty — distinct from first-use (/ ia-mapping).
             <EmptyState
               compact
               preset="no-matches"
@@ -432,7 +431,7 @@ export function PageMasterDetail({
                         <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-fg">{title}</span>
                         {priority !== undefined && (
                           // Priority tint flows from the stored enumTones map —
-                          // never hardcoded (M7-T04, Ticket Queue defect).
+                          // never hardcoded (Ticket Queue defect).
                           <StatusPill
                             status={priority}
                             {...(priorityTone === undefined ? {} : { tone: priorityTone })}

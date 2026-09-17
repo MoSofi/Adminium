@@ -25,14 +25,14 @@ import { widgetMissingDefinition } from './widget-missing.js';
 import type { WidgetDefinition, WidgetFamily } from './types.js';
 
 /**
- * Typed widget registry (04-widget-registry.md §2.2). `registry/index.ts`
- * imports only the per-family `definitions.ts` metadata modules — component code loads
- * through the definitions' lazy refs, one Vite chunk per family (04 §2.3).
+ * Typed widget registry. `registry/index.ts` imports only the per-family
+ * `definitions.ts` metadata modules — component code loads through the definitions'
+ * lazy refs, one Vite chunk per family.
  */
 
 export class DuplicateWidgetIdError extends Error {
   constructor(readonly widgetId: string) {
-    super(`Duplicate widget registry id: '${widgetId}' — registry ids are globally unique (04 §2.1)`);
+    super(`Duplicate widget registry id: '${widgetId}' — registry ids are globally unique`);
     this.name = 'DuplicateWidgetIdError';
   }
 }
@@ -44,7 +44,7 @@ export class WidgetNotFoundError extends Error {
   }
 }
 
-/** Build a registry map; duplicate id registration throws at module init (04 §2.2). */
+/** Build a registry map; duplicate id registration throws at module init. */
 export function buildRegistry(
   definitions: readonly WidgetDefinition[],
 ): ReadonlyMap<string, WidgetDefinition> {
@@ -60,14 +60,14 @@ export const widgetRegistry: ReadonlyMap<string, WidgetDefinition> = buildRegist
   widgetMissingDefinition,
   // kpi
   ...kpiWidgetDefinitions,
-  // charts (M4 slice + M7 Wave-1 04-T09 tracks)
+  // charts (M4 slice + M7 Wave-1 tracks)
   ...chartsWidgetDefinitions,
   ...barsRankingChartDefinitions,
   ...distributionCorrelationChartDefinitions,
   ...partWholeChartDefinitions,
   ...matrixGeoChartDefinitions,
   ...timeFlowChartDefinitions,
-  // tables (M4 slice + Track F + the M7 Wave-4 tail that completes annex §3)
+  // tables (M4 slice + Track F + the M7 Wave-4 tail that completes annex)
   ...tablesWidgetDefinitions,
   ...tablesTrackFDefinitions,
   ...tablesTailDefinitions,
@@ -78,29 +78,29 @@ export const widgetRegistry: ReadonlyMap<string, WidgetDefinition> = buildRegist
   // boards (Track BOARDS — M7 Wave 2; dnd-kit stays behind the lazy
   // boards-track-components chunk — the definitions import metadata only)
   ...boardsTrackDefinitions,
-  // geo (TRACK COMM-GEO — M7 Wave 4; annex §7, the last family to open. The
+  // geo (TRACK COMM-GEO — M7 Wave 4; annex, the last family to open. The
   // definitions are metadata only and MapBubble imports Leaflet dynamically
   // inside its mount effect, so neither this map nor the shared bundle pulls
   // Leaflet until a bubble map is actually placed — acceptance #3.)
   ...geoTrackDefinitions,
-  // media (Track MEDIA — M7 Wave 3; annex §8, the file-browser exit criterion)
+  // media (Track MEDIA — M7 Wave 3; annex, the file-browser exit criterion)
   ...mediaTrackDefinitions,
-  // communication (Track COMM — M7 Wave 3; annex §9, the chat exit criterion)
+  // communication (Track COMM — M7 Wave 3; annex, the chat exit criterion)
   ...communicationTrackDefinitions,
-  // domain (Track DOMAIN — M7 Wave 3; annex §13, the org-chart/gantt exit criteria)
+  // domain (Track DOMAIN — M7 Wave 3; annex, the org-chart/gantt exit criteria)
   ...domainTrackDefinitions,
-  // domain (TRACK BUILDER — M7 Wave 4; annex §13's document half: document-canvas
+  // domain (TRACK BUILDER — M7 Wave 4; annex document half: document-canvas
   // plus its 22 block-* widgets, behind the blocks-track-components lazy barrel)
   ...blocksTrackDefinitions,
-  // domain (TRACK OPS — M7 Wave 4; annex §13's ops/billing/API/marketing tail —
+  // domain (TRACK OPS — M7 Wave 4; annex ops/billing/API/marketing tail
   // the eighteen ids that CLOSE the annex catalog at 176/176. Metadata only:
   // the cards load through domain-ops-track-components behind a dynamic import.)
   ...domainOpsTrackDefinitions,
-  // system (Track FCS — M7 Wave 3; annex §12)
+  // system (Track FCS — M7 Wave 3; annex)
   ...systemTrackDefinitions,
-  // chrome (Track FCS — M7 Wave 3; annex §11)
+  // chrome (Track FCS — M7 Wave 3; annex)
   ...chromeTrackDefinitions,
-  // forms (Track FCS — M7 Wave 3; annex §10)
+  // forms (Track FCS — M7 Wave 3; annex)
   ...formsTrackDefinitions,
 ]);
 
@@ -119,7 +119,7 @@ export function widgetsByFamily(family: WidgetFamily): WidgetDefinition[] {
   return [...widgetRegistry.values()].filter((d) => d.family === family);
 }
 
-/** Structured, loggable config-validation warning (04 §2.2). */
+/** Structured, loggable config-validation warning. */
 export interface ConfigWarning {
   widgetId: string;
   path: string;
@@ -144,7 +144,7 @@ function asRecord(value: unknown): Record<string, unknown> {
  * the shared core of `validateInstanceConfig`, also used by WidgetHost (which
  * may resolve from an overridden registry). Invalid config falls back to
  * schema defaults per field and returns structured warnings — it NEVER throws
- * at render time (04 §2.2).
+ * at render time.
  */
 export function validateConfigAgainst(definition: WidgetDefinition, config: unknown): ParsedConfig {
   const warnings: ConfigWarning[] = [];
@@ -195,7 +195,7 @@ export function validateConfigAgainst(definition: WidgetDefinition, config: unkn
 /**
  * Validate a stored instance config by registry id. Runs on every page load;
  * unknown widget ids validate against the `widget-missing` schema with an
- * `unknown-widget` warning (04 §2.2).
+ * `unknown-widget` warning.
  */
 export function validateInstanceConfig(id: string, config: unknown): ParsedConfig {
   const definition = widgetRegistry.get(id);
@@ -215,7 +215,7 @@ export function validateInstanceConfig(id: string, config: unknown): ParsedConfi
   };
 }
 
-/** Log config warnings in one structured line (04 §2.2 "logs a structured warning"). */
+/** Log config warnings in one structured line. */
 export function logConfigWarnings(instanceId: string, parsed: ParsedConfig): void {
   if (parsed.warnings.length === 0) return;
   console.warn('[widgets] invalid instance config', { instanceId, warnings: parsed.warnings });

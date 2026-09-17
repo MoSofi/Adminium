@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Email renderer + built-in template seed (10-T18).
+ * Email renderer + built-in template seed.
  *
- * WHY THE SNAPSHOTS RUN THROUGH A STUB TRANSLATOR. 10-T18 asks for
+ * WHY THE SNAPSHOTS RUN THROUGH A STUB TRANSLATOR. The snapshots need
  * `password-reset` snapshotted in `en_US`, `de_DE` and `ar_EG`, and what those
  * three pin is LAYOUT: the `lang`/`dir` attributes, the alignment flip, and
  * the block structure the built-in actually declares. Feeding them the live
@@ -82,7 +82,7 @@ async function makeMeta(): Promise<MetaDb> {
   return meta;
 }
 
-describe('renderEmail — password-reset snapshots (10-T18)', () => {
+describe('renderEmail — password-reset snapshots', () => {
   it.each([
     ['en_US', 'ltr'],
     ['de_DE', 'ltr'],

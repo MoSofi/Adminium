@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The capability consent surface (11-electron.md §12) — the OAuth-scope card.
+ * The capability consent surface — the OAuth-scope card.
  *
- * What matters: it presents §12's "THIS WILL ALLOW <app> TO…" with the app name
- * and every scope, and it reports the user's choice without deciding anything —
- * Allow calls back, and every other way of closing (Not now, Escape, the X)
- * is a decline, because access is never granted by dismissal.
+ * What matters: it presents "THIS WILL ALLOW <app> TO…" with the app name and
+ * every scope, and it reports the user's choice without deciding anything —
+ * Allow calls back, and every other way of closing (Not now, Escape, the X) is
+ * a decline, because access is never granted by dismissal.
  */
 import { Printer } from 'lucide-react';
 import { render, screen } from '@testing-library/react';
@@ -47,7 +47,7 @@ function renderCard(overrides: {
 }
 
 describe('CapabilityConsentCard', () => {
-  it('names the app and lists each requested scope (§12 copy)', () => {
+  it('names the app and lists each requested scope (copy)', () => {
     renderCard({});
     // "THIS WILL ALLOW <app> TO:" with the app interpolated.
     expect(screen.getByText(/this will allow adminium pos to/i)).toBeDefined();

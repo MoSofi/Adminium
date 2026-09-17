@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Studio page-manager API client (08-server-api.md §2.6).
+ * Studio page-manager API client.
  *
  * Shapes mirror the server Zod reply schemas in
  * `apps/server/src/routes/pages/schema.ts` — the copied-mirror convention from
@@ -18,7 +18,7 @@ import type { PagePaddingConfig, PageWidthConfig } from '@adminium/engine/config
 
 import { api } from '../../app/api.js';
 
-/** The five fixed sidebar buckets (09 §2.2). Mirrors `NAV_GROUP_KEYS`. */
+/** The five fixed sidebar buckets. Mirrors `NAV_GROUP_KEYS`. */
 export const NAV_GROUPS = ['workspace', 'library', 'planning', 'people', 'account'] as const;
 export type NavGroup = (typeof NAV_GROUPS)[number];
 
@@ -36,8 +36,10 @@ export function isNavGroup(value: string | null): value is NavGroup {
  * - `manifest` — an add-on owns it; the server refuses to delete it.
  * - `user` — created here.
  * - `llm` / `system` — seeded by the assistant or the first-run bootstrap.
+ * - `project` — a page written in the project folder (`pages/<slug>.tsx`); the
+ *   code owns it, so the server refuses every change made here.
  */
-export type PageOrigin = 'generated' | 'user' | 'manifest' | 'system' | 'llm';
+export type PageOrigin = 'generated' | 'user' | 'manifest' | 'system' | 'llm' | 'project';
 
 export interface PageSummaryDto {
   id: string;
@@ -99,7 +101,7 @@ export interface UpdatePageInput {
   padding?: PagePaddingConfig | null;
   /** Content column, on the same "null clears" contract as `padding`. */
   width?: PageWidthConfig | null;
-  /** 08 §2.6 optimistic concurrency — the revision this client last read. */
+  /** Optimistic concurrency — the revision this client last read. */
   expectedRevision?: number;
 }
 
@@ -179,7 +181,7 @@ export async function invalidatePages(client: QueryClient): Promise<void> {
 }
 
 /**
- * The route prefix every page slug lives under (`/p/$slug`, 09 §2.3).
+ * The route prefix every page slug lives under (`/p/$slug`).
  *
  * Exported so the forms can SHOW it rather than describe it: the field takes
  * the slug alone, and without the prefix on screen "URL" reads like it wants a

@@ -291,6 +291,13 @@
     "done": "Změna vrácena zpět",
     "failed": "Tuto změnu se nepodařilo vrátit zpět"
   },
+  "projectAction": {
+    "done": "{label}: hotovo",
+    "failed": "Akci {label} se nepodařilo dokončit",
+    "menu": "Akce",
+    "run": "Spustit",
+    "selected": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}"
+  },
   "prefs": {
     "theme": {
       "label": "Motiv",
@@ -1003,7 +1010,7 @@
     "article": {
       "install": {
         "title": "Instalace Adminia",
-        "excerpt": "Spusťte ze zdrojového checkoutu nebo přes docker run a během minuty jste u průvodce prvním spuštěním."
+        "excerpt": "Vytvořte projekt jediným příkazem, nebo Adminium spusťte přes docker run či ze zdrojového checkoutu."
       },
       "firstAdmin": {
         "title": "Vytvoření prvního supersprávce",
@@ -1612,6 +1619,7 @@
       "jobsRead": "Vidět všechny úlohy na pozadí",
       "llmRun": "Spustit asistenta AI",
       "pagesManage": "Vytvářet a uspořádat stránky",
+      "projectRead": "Číst změny stránek a schématu pro stažení do projektu",
       "reportsManage": "Spravovat naplánované sestavy",
       "rolesManage": "Spravovat role a oprávnění",
       "schemaRemap": "Upravovat popisky a úpravy schématu",

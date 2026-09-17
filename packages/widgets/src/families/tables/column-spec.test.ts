@@ -28,10 +28,10 @@ describe('gridColumnSpecSchema', () => {
   });
 
   /**
-   * 36-derived-columns.md 36-T04. Both new blocks are opt-in, and the claim
-   * that opt-in "changes nothing" is only worth making if something asserts
-   * it: a stored column carrying neither must parse to the same keys, in the
-   * same order, with the same values as it did before they existed.
+   * Both new blocks are opt-in, and the claim that opt-in "changes nothing"
+   * is only worth making if something asserts it: a stored column carrying
+   * neither must parse to the same keys, in the same order, with the same
+   * values as it did before they existed.
    */
   it('parses a column carrying neither new block exactly as it did before', () => {
     const parsed = spec({
@@ -64,7 +64,7 @@ describe('gridColumnSpecSchema', () => {
   });
 });
 
-describe('the derived + display blocks (36 D8/D9)', () => {
+describe('the derived + display blocks', () => {
   it('reads a derived column pointing at a page-level definition', () => {
     const column = spec({
       name: 'total',
@@ -111,7 +111,7 @@ describe('the derived + display blocks (36 D8/D9)', () => {
   });
 });
 
-describe('compareCellValues — the string-mrr numeric sort fix (ia-mapping §5)', () => {
+describe('compareCellValues — the string-mrr numeric sort fix (ia-mapping)', () => {
   const mrr = spec({ name: 'mrr', label: 'MRR', logicalType: 'decimal', semantic: 'money' });
 
   it('sorts numerically when pg serializes decimals as strings', () => {
@@ -147,7 +147,7 @@ describe('compareCellValues — the string-mrr numeric sort fix (ia-mapping §5)
   });
 });
 
-describe('formatMoney with an explicit decimals (36-T14)', () => {
+describe('formatMoney with an explicit decimals', () => {
   it('renders a whole and a fractional value at the SAME width', () => {
     // The defect: `maximumFractionDigits: Number.isInteger(x) ? 0 : 2` makes
     // one money column render `$1,234` directly above `$1,234.50`.

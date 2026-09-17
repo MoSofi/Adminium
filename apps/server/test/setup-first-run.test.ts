@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * First-run super-admin bootstrap (M10-T04) — the whole attack surface of a
- * self-hosted first boot, so this suite is written against the ATTACK, not just
- * the happy path:
+ * First-run super-admin bootstrap — the whole attack surface of a self-hosted
+ * first boot, so this suite is written against the ATTACK, not just the happy
+ * path:
  *
  *  - a fresh install reports `required: true` and accepts exactly one super admin;
  *  - a SECOND call is 409 forever — never a second super admin;
@@ -45,7 +45,7 @@ async function buildHarness(): Promise<Harness> {
 
 const GOOD = { email: 'ada@adminium.test', password: 'correct-horse-battery', name: 'Ada' };
 
-describe('first-run super-admin bootstrap (M10-T04)', () => {
+describe('first-run super-admin bootstrap', () => {
   let t: Harness;
   beforeEach(async () => {
     t = await buildHarness();
@@ -145,7 +145,7 @@ describe('first-run super-admin bootstrap (M10-T04)', () => {
   });
 
   it('an N-way concurrent storm still yields exactly one super admin', async () => {
-    // Each racer from its own address: `/setup/super-admin` sits in the §6
+    // Each racer from its own address: `/setup/super-admin` sits in the
     // `auth-login` bucket (5/min per ip), and 8 racers from one ip would 429
     // before the claim race this test exists for even runs.
     const attempts = await Promise.all(

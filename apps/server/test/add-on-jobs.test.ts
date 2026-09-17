@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two acquisition job kinds (32-add-on-distribution.md D10, 32-T08).
+ * The two acquisition job kinds.
  *
  * These run the handlers through the real registry (so the payload schema, the
  * `internal` flag and the progress contract are all exercised as the worker
@@ -66,7 +66,10 @@ function packageTarball(files: Record<string, string>): Uint8Array {
     out.set(member, at);
     at += member.byteLength;
   }
-  return gzipSync(out);
+  // `mtime: 0` leaves the gzip header's timestamp at zero, as `npm pack` does.
+  // fflate's default is the current second, so the same files packed a second
+  // apart would hash differently.
+  return gzipSync(out, { mtime: 0 });
 }
 
 const TARBALL = packageTarball({
@@ -222,7 +225,7 @@ describe('add-on-download', () => {
     // The tree pin was recorded, so 26's install can re-verify it.
     await expect(store.verifyTree('design-studio', '1.0.0')).resolves.toBeDefined();
 
-    // No pin step (48 D3): the catalog row's integrity is the whole trust
+    // No pin step: the catalog row's integrity is the whole trust
     // chain, and it goes to the store untouched.
     expect(ctx.steps.map((s) => s.step)).toEqual(['catalog', 'download', 'verify', 'staged']);
     expect(ctx.steps.at(-1)?.pct).toBe(100);

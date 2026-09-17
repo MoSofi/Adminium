@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Lazy loaders for every locale/namespace pair that is not bundled
- * (10-i18n-theming.md §2.3). Each entry is a LITERAL dynamic import so
- * bundlers (Vite, Electron packaging) split one chunk per bundle and a de_DE
- * user downloads only German strings. Pass {@link loadLocaleBundle} as
- * `createI18n`'s `loadBundle`.
+ * Lazy loaders for every locale/namespace pair that is not bundled. Each
+ * entry is a LITERAL dynamic import so bundlers (Vite, Electron packaging)
+ * split one chunk per bundle and a de_DE user downloads only German strings.
+ * Pass {@link loadLocaleBundle} as `createI18n`'s `loadBundle`.
  *
  * Two things are lazy here, for two different reasons:
  *
  * - **the 7 non-English locales, every namespace.** en-US's eager namespaces
  *   (./eager.ts) ship in the main bundle because they are the fallback text
  *   and must never be async; nobody else's do.
- * - **`studio`, en-US INCLUDED** (10-T06). The deferred namespace is loaded
- *   on demand by the surface that owns it, so the English console text is a
- *   chunk the console's own visitors fetch rather than ~36 KiB every user
- *   carries. See `DEFERRED_NAMESPACES` in ./namespaces.ts for the contract
- *   that makes this safe.
+ * - **`studio`, en-US INCLUDED**. The deferred namespace is loaded on
+ * demand by the surface that owns it, so the English console text is a
+ * chunk the console's own visitors fetch rather than ~36 KiB every user
+ * carries. See `DEFERRED_NAMESPACES` in./namespaces.ts for the contract
+ * that makes this safe.
  */
 import type { Namespace, ResourceBundle } from './namespaces.js';
 
@@ -31,6 +30,7 @@ const LOADERS: Readonly<Record<string, () => Promise<BundleModule>>> = {
   'en-US/files': () => import('./en-us/files.js'),
   'en-US/reportBuilder': () => import('./en-us/reportBuilder.js'),
   'en-US/onboarding': () => import('./en-us/onboarding.js'),
+  'en-US/project': () => import('./en-us/project.js'),
   'de-DE/common': () => import('./de-de/common.js'),
   'de-DE/ui': () => import('./de-de/ui.js'),
   'de-DE/studio': () => import('./de-de/studio.js'),
@@ -43,6 +43,7 @@ const LOADERS: Readonly<Record<string, () => Promise<BundleModule>>> = {
   'de-DE/files': () => import('./de-de/files.js'),
   'de-DE/reportBuilder': () => import('./de-de/reportBuilder.js'),
   'de-DE/onboarding': () => import('./de-de/onboarding.js'),
+  'de-DE/project': () => import('./de-de/project.js'),
   'fr-FR/common': () => import('./fr-fr/common.js'),
   'fr-FR/ui': () => import('./fr-fr/ui.js'),
   'fr-FR/studio': () => import('./fr-fr/studio.js'),
@@ -55,6 +56,7 @@ const LOADERS: Readonly<Record<string, () => Promise<BundleModule>>> = {
   'fr-FR/files': () => import('./fr-fr/files.js'),
   'fr-FR/reportBuilder': () => import('./fr-fr/reportBuilder.js'),
   'fr-FR/onboarding': () => import('./fr-fr/onboarding.js'),
+  'fr-FR/project': () => import('./fr-fr/project.js'),
   'cs-CZ/common': () => import('./cs-cz/common.js'),
   'cs-CZ/ui': () => import('./cs-cz/ui.js'),
   'cs-CZ/studio': () => import('./cs-cz/studio.js'),
@@ -67,6 +69,7 @@ const LOADERS: Readonly<Record<string, () => Promise<BundleModule>>> = {
   'cs-CZ/files': () => import('./cs-cz/files.js'),
   'cs-CZ/reportBuilder': () => import('./cs-cz/reportBuilder.js'),
   'cs-CZ/onboarding': () => import('./cs-cz/onboarding.js'),
+  'cs-CZ/project': () => import('./cs-cz/project.js'),
   'da-DK/common': () => import('./da-dk/common.js'),
   'da-DK/ui': () => import('./da-dk/ui.js'),
   'da-DK/studio': () => import('./da-dk/studio.js'),
@@ -79,6 +82,7 @@ const LOADERS: Readonly<Record<string, () => Promise<BundleModule>>> = {
   'da-DK/files': () => import('./da-dk/files.js'),
   'da-DK/reportBuilder': () => import('./da-dk/reportBuilder.js'),
   'da-DK/onboarding': () => import('./da-dk/onboarding.js'),
+  'da-DK/project': () => import('./da-dk/project.js'),
   'zh-CN/common': () => import('./zh-cn/common.js'),
   'zh-CN/ui': () => import('./zh-cn/ui.js'),
   'zh-CN/studio': () => import('./zh-cn/studio.js'),
@@ -91,6 +95,7 @@ const LOADERS: Readonly<Record<string, () => Promise<BundleModule>>> = {
   'zh-CN/files': () => import('./zh-cn/files.js'),
   'zh-CN/reportBuilder': () => import('./zh-cn/reportBuilder.js'),
   'zh-CN/onboarding': () => import('./zh-cn/onboarding.js'),
+  'zh-CN/project': () => import('./zh-cn/project.js'),
   'zh-TW/common': () => import('./zh-tw/common.js'),
   'zh-TW/ui': () => import('./zh-tw/ui.js'),
   'zh-TW/studio': () => import('./zh-tw/studio.js'),
@@ -103,6 +108,7 @@ const LOADERS: Readonly<Record<string, () => Promise<BundleModule>>> = {
   'zh-TW/files': () => import('./zh-tw/files.js'),
   'zh-TW/reportBuilder': () => import('./zh-tw/reportBuilder.js'),
   'zh-TW/onboarding': () => import('./zh-tw/onboarding.js'),
+  'zh-TW/project': () => import('./zh-tw/project.js'),
   'ar-EG/common': () => import('./ar-eg/common.js'),
   'ar-EG/ui': () => import('./ar-eg/ui.js'),
   'ar-EG/studio': () => import('./ar-eg/studio.js'),
@@ -115,6 +121,7 @@ const LOADERS: Readonly<Record<string, () => Promise<BundleModule>>> = {
   'ar-EG/files': () => import('./ar-eg/files.js'),
   'ar-EG/reportBuilder': () => import('./ar-eg/reportBuilder.js'),
   'ar-EG/onboarding': () => import('./ar-eg/onboarding.js'),
+  'ar-EG/project': () => import('./ar-eg/project.js'),
 };
 
 /**

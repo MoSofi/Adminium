@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the public namespace (28-public-surface.md §3.1).
+ * Zod schemas for the public namespace.
  *
  * Every `/api/` route must declare a schema or `buildServer` throws at boot
  * (`app.ts`), so these are load-bearing rather than documentation.
  *
- * ── THE WIRE CARRIES CODES, NOT PROSE (§3.6) ───────────────────────────────
- * The error envelope here is `{ code, params }` with a developer-facing
- * `message` that is explicitly NOT for display. The frontend renders from its
- * own catalogue keyed by the code. That is what makes the localization
- * constraint free on this surface instead of deferred — there is no English on
- * the wire to translate later — and it avoids serving translation bundles to
- * anonymous callers, which `routes/i18n/index.ts` refuses in writing.
+ * ── THE WIRE CARRIES CODES, NOT PROSE ─────────────────────────────── The
+ * error envelope here is `{ code, params }` with a developer-facing `message`
+ * that is explicitly NOT for display. The frontend renders from its own
+ * catalogue keyed by the code. That is what makes the localization constraint
+ * free on this surface instead of deferred — there is no English on the wire
+ * to translate later — and it avoids serving translation bundles to anonymous
+ * callers, which `routes/i18n/index.ts` refuses in writing.
  */
 import { publicDocumentRequestSchema } from '@adminium/add-on-contracts';
 import { z } from 'zod';
@@ -96,9 +96,9 @@ export const publicRecordReply = z.object({
  * The error envelope. `code` is the contract and never translates.
  *
  * Kept structurally identical for every failure so that a 404 for an unknown
- * ref and a 404 for a forbidden one are byte-identical (§3.2's enumeration
- * rule) — the dashboard's envelope carries `details` and a `requestId`, both of
- * which would distinguish them.
+ * ref and a 404 for a forbidden one are byte-identical (enumeration rule) — the
+ * dashboard's envelope carries `details` and a `requestId`, both of which would
+ * distinguish them.
  */
 export const publicErrorReply = z.object({
   error: z.object({
@@ -111,7 +111,7 @@ export const publicErrorReply = z.object({
 
 export type PublicErrorReply = z.infer<typeof publicErrorReply>;
 
-/** `POST /public/records/:ref` and `PATCH …/:id` — writes (28-T18). */
+/** `POST /public/records/:ref` and `PATCH …/:id` — writes. */
 export const publicWriteBody = z.object({
   /**
    * Column → value. Allow-listed against the scope's `writable` set, and any
@@ -122,7 +122,7 @@ export const publicWriteBody = z.object({
   values: z.record(z.string(), z.unknown()),
 });
 
-/** `POST /public/claim` — the end-customer identity check (28-T19). */
+/** `POST /public/claim` — the end-customer identity check. */
 export const publicClaimBody = z.object({
   /**
    * Exactly the columns the scope's `claim.match` declares, no more and no
@@ -151,11 +151,16 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_CLAIM_NO_MATCH',
   'PUBLIC_CLAIM_UNAVAILABLE',
   'PUBLIC_WRITE_REFUSED',
+  /**
+   * A project hook refused the write. The one code whose `message` is meant
+   * for people: it is the project's own text, passed through unchanged.
+   */
+  'PUBLIC_WRITE_REJECTED',
   'PUBLIC_UPSTREAM_UNAVAILABLE',
 ] as const;
 export type PublicErrorCode = (typeof PUBLIC_ERROR_CODES)[number];
 
-// --- documents (34-invoices-add-on.md §7.6; 34-T20) --------------------------
+// --- documents --------------------------
 
 /**
  * `POST /public/documents/render`.

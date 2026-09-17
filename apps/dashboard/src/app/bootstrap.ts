@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Bootstrap query + types (09-generated-app.md §2.1–§2.2): the one round trip
- * that primes the shell — session user, resolved preference axes, the nav
- * tree, and version/configVersion stamps. Held under `['bootstrap']` with
- * `staleTime: Infinity`; WS `config-changed` invalidates it (app/ws.ts).
+ * Bootstrap query + types: the one round trip that primes the shell — session
+ * user, resolved preference axes, the nav tree, and version/configVersion
+ * stamps. Held under `['bootstrap']` with `staleTime: Infinity`; WS
+ * `config-changed` invalidates it (app/ws.ts).
  *
  * SYNC NOTE: these shapes mirror the Zod reply schema in
  * `apps/server/src/routes/bootstrap/schema.ts` (the dashboard imports server
- * types type-only-or-copied per the 01-architecture.md §2.3 matrix — until an
+ * types type-only-or-copied per the matrix — until an
  * `@adminium/server/api-types` subpath ships, this is the copied mirror).
  * Change both together.
  */
@@ -28,7 +28,7 @@ export interface SessionUser {
   updatedAt: number;
 }
 
-/** The five fixed sidebar groups, in order (research/ia-mapping.md §2A). */
+/** The five fixed sidebar groups, in order. */
 export const NAV_GROUP_KEYS = ['workspace', 'library', 'planning', 'people', 'account'] as const;
 export type NavGroupKey = (typeof NAV_GROUP_KEYS)[number];
 
@@ -42,22 +42,22 @@ export interface NavItem {
   badge?: 'unread-count' | 'pending-count';
   order: number;
   /**
-   * Owning connection (M5-T05): with 2+ connections the sidebar sub-labels
-   * items by connection display name. Optional — older fixtures omit it.
+   * Owning connection: with 2+ connections the sidebar sub-labels items by
+   * connection display name. Optional — older fixtures omit it.
    */
   connectionId?: string | null;
   connectionName?: string | null;
   /**
-   * The owning connection's ISO-4217 currency (10-i18n.md §4.4). Optional for
-   * fixtures predating it; the server always sends it (null when unset, which
-   * is what keeps the money cells on their historical `USD` fallback).
+   * The owning connection's ISO-4217 currency. Optional for fixtures
+   * predating it; the server always sends it (null when unset, which is what
+   * keeps the money cells on their historical `USD` fallback).
    */
   currency?: string | null;
   /**
-   * The page envelope's `source.table` (30-record-pages.md D5) — feeds
-   * {@link slugForTable} so record pages can cross-link related rows to the
-   * page that shows their table. Optional for fixtures predating it; the
-   * server always sends it (null for source-less pages).
+   * The page envelope's `source.table` — feeds {@link slugForTable} so
+   * record pages can cross-link related rows to the page that shows their
+   * table. Optional for fixtures predating it; the server always sends it
+   * (null for source-less pages).
    */
   sourceTable?: string | null;
 }
@@ -68,7 +68,7 @@ export interface NavTree {
 
 type PrefSource = 'system' | 'global' | 'user';
 
-/** §7.2 server-resolved axes + per-axis provenance. */
+/** server-resolved axes + per-axis provenance. */
 export interface ResolvedPrefs {
   theme: ThemePref;
   accent: Accent;
@@ -79,7 +79,7 @@ export interface ResolvedPrefs {
 }
 
 /**
- * One row of a blended app's sidebar section (29-app-surfaces.md D7).
+ * One row of a blended app's sidebar section.
  *
  * `label` arrives already resolved to this session's locale — the build emits
  * all eight into `surface.json` and the server picks one, so nothing here has
@@ -92,17 +92,55 @@ export interface HostedNavItem {
   label: string;
   /** lucide icon name; absent means the sidebar's neutral glyph. */
   icon?: string;
-  /** A lens within the surface — its own row, not a permission (28-T44). */
+  /** A lens within the surface — its own row, not a permission. */
   persona?: string;
 }
 
-/** A hosted app blended into this dashboard's sidebar (29-app-surfaces.md D9). */
+/** A hosted app blended into this dashboard's sidebar. */
 export interface HostedApp {
   appKey: string;
-  /** Instance slug when this section is an extra tenant (29 D9); absent on the app's own. */
+  /** Instance slug when this section is an extra tenant; absent on the app's
+   * own. */
   instance?: string;
   label: string;
   items: HostedNavItem[];
+}
+
+/** One built project file. */
+export interface ProjectClientFile {
+  url: string;
+  /** Subresource-integrity value, `sha384-…`. */
+  integrity: string;
+}
+
+export interface ProjectClientEntry {
+  module: ProjectClientFile;
+  /** Every chunk the module imports, directly or not. */
+  imports: ProjectClientFile[];
+  styles: ProjectClientFile[];
+}
+
+export interface ProjectClientPage extends ProjectClientEntry {
+  slug: string;
+}
+
+export interface ProjectClientWidget extends ProjectClientEntry {
+  /** `project.<file name>`. */
+  id: string;
+  kind: 'cell' | 'card';
+  title: string | null;
+}
+
+export interface BootstrapProject {
+  /** Database key from `adminium.config.ts` → connection id. */
+  databases: Record<string, string>;
+  /** Null where project code never loads (the desktop app). */
+  client: {
+    /** Changes with every build of the pages and widgets. */
+    digest: string;
+    pages: ProjectClientPage[];
+    widgets: ProjectClientWidget[];
+  } | null;
 }
 
 export interface BootstrapData {
@@ -114,14 +152,14 @@ export interface BootstrapData {
   configVersion: number;
   llm: { enabled: boolean };
   /**
-   * §7 item 4 — the session-bound CSRF token every mutating call echoes in
+   * The session-bound CSRF token every mutating call echoes in
    * `x-adminium-csrf`. Optional here only so fixtures predating it keep
    * typechecking; the server always sends it (the field is required in the
    * Zod reply schema).
    */
   csrfToken?: string;
   /**
-   * Hosted apps blended into the sidebar (29-app-surfaces.md D7).
+   * Hosted apps blended into the sidebar.
    *
    * Optional here only so fixtures predating the field keep typechecking; the
    * server always sends it, as `[]` on the overwhelming majority of instances.
@@ -130,15 +168,14 @@ export interface BootstrapData {
    */
   hostedApps?: HostedApp[];
   /**
-   * Pages hidden from the sidebar but alive (30-record-pages.md follow-up):
-   * Studio's "Hide from sidebar" and the generated cascade-child default both
-   * land pages here. Same shape as nav items, no group. Everything that
-   * RESOLVES pages — the `/p/$slug` loader, topbar titles, record-page
-   * related tabs — reads {@link findPageBySlug} / {@link slugForTable}, which
-   * consult this list too; everything that LISTS pages (sidebar, palette
-   * Navigate, G-chords) stays on the nav tree, which is the entire point of
-   * hiding. Optional only so fixtures predating it keep typechecking; the
-   * server always sends it.
+   * Pages hidden from the sidebar but alive (follow-up): Studio's "Hide from
+   * sidebar" and the generated cascade-child default both land pages here.
+   * Same shape as nav items, no group. Everything that RESOLVES pages — the
+   * `/p/$slug` loader, topbar titles, record-page related tabs — reads {@link
+   * findPageBySlug} / {@link slugForTable}, which consult this list too;
+   * everything that LISTS pages (sidebar, palette Navigate, G-chords) stays
+   * on the nav tree, which is the entire point of hiding. Optional only so
+   * fixtures predating it keep typechecking; the server always sends it.
    */
   hiddenPages?: NavItem[];
   /**
@@ -157,6 +194,11 @@ export interface BootstrapData {
    * consult it.
    */
   pausedPages?: NavItem[];
+  /**
+   * The project folder this server runs, absent on every other server. Read
+   * through `project/client.ts`.
+   */
+  project?: BootstrapProject;
 }
 
 /** The blended apps, never undefined — see the field's note. */
@@ -260,13 +302,13 @@ export function findPageBySlug(bootstrap: BootstrapData, slug: string): NavItem 
 }
 
 /**
- * The slug of the page showing `table` on `connectionId`, or null
- * (30-record-pages.md D5): record pages link related-tab rows to the page
- * that shows their table; a table with no page renders un-linked (honest
- * degradation, no dead affordance). Hidden pages count — a cascade-owned
- * child's page IS its rows' record-page home even though the sidebar does not
- * list it. First match wins on the (rare) duplicate — nav order is the
- * user-facing precedence, and nav beats hidden.
+ * The slug of the page showing `table` on `connectionId`, or null: record
+ * pages link related-tab rows to the page that shows their table; a table
+ * with no page renders un-linked (honest degradation, no dead affordance).
+ * Hidden pages count — a cascade-owned child's page IS its rows' record-page
+ * home even though the sidebar does not list it. First match wins on the
+ * (rare) duplicate — nav order is the user-facing precedence, and nav beats
+ * hidden.
  */
 export function slugForTable(
   bootstrap: BootstrapData,
@@ -276,7 +318,7 @@ export function slugForTable(
   // A linear scan, deliberately: the nav holds tens of items, callers fire on
   // clicks and tab activations, and this module is in the ENTRY set — map
   // machinery and a WeakMap cache cost real ratcheted bytes to save nothing
-  // measurable (check-entry-budget, 30 D8).
+  // measurable (check-entry-budget).
   for (const item of [...flattenNav(bootstrap.nav), ...hiddenPagesOf(bootstrap)]) {
     if ((item.sourceTable ?? null) === table && (item.connectionId ?? null) === connectionId) {
       return item.slug;
@@ -286,8 +328,8 @@ export function slugForTable(
 }
 
 /**
- * `/` redirect target (09 §2.3): the first Workspace nav item, else the first
- * item anywhere; `null` when the nav is empty (zero connections → the
+ * `/` redirect target: the first Workspace nav item, else the first item
+ * anywhere; `null` when the nav is empty (zero connections → the
  * `empty-no-sources` home state until `/welcome` lands in Wave B).
  */
 export function defaultPageSlug(nav: NavTree): string | null {

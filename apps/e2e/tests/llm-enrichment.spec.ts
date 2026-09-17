@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * T15 golden e2e (06-llm-assist.md, acceptance #1/#3/#9): the FULL BYO
- * round-trip through the real UI against the seeded sqlite Northwind app.
+ * T15 golden e2e (acceptance #1/#3/#9): the FULL BYO round-trip
+ * through the real UI against the seeded sqlite Northwind app.
  *
  * Connect wizard → "Enrich with AI" → BYO (copy-paste) path → read the
  * generated prompt → paste the seeded-schema golden response
  * (`fixtures/northwind-enrichment.json`) → validate in-process → review-diff →
  * accept the ≥ 0.8 set → apply. Then assert the write set really landed:
  * `adminium_llm_runs` shows the run `applied` with provider/model NULL (BYO is
- * telemetry-free, §9), the accepted overrides/pages committed, and the generated
- * app reflects them once the connection is (re)generated against those overrides.
+ * telemetry-free), the accepted overrides/pages committed, and the generated app
+ * reflects them once the connection is (re)generated against those overrides.
  *
  * sqlite-only: the golden response is qualified for the sqlite snapshot's
  * `main.*` table ids (verified referentially clean against a live introspection
@@ -24,15 +24,15 @@
  * (employees, composes — the `reports_to` self-FK earns `org-chart`), and
  * `page-board` (orders, deliberately CANNOT compose on Northwind: the kanban
  * candidate needs a status-workflow enum column and the seeded schema declares
- * none). The board leg pins the honest §8.3 outcome — the accepted suggestion
+ * none). The board leg pins the honest outcome — the accepted suggestion
  * applies (page row written), the materialization pass parks it (disabled,
  * warned, retried every regeneration) and it never reaches the nav. The
  * fixture keeps orders/employees OUT of the accepted navGroups so the two
  * composable pages keep their archetype's fixed sidebar group (workspace /
- * people) instead of an §8.3 llm-group stamp the five-group tree cannot show.
+ * people) instead of an llm-group stamp the five-group tree cannot show.
  *
- * The third describe is 46-T04: the same step, configuring its own provider
- * inline instead of sending the operator to Settings. It has its own header.
+ * The third describe is: the same step, configuring its own provider inline
+ * instead of sending the operator to Settings. It has its own header.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -49,9 +49,9 @@ const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 const BLOCKING = new Set(['critical', 'serious']);
 
 /**
- * Zero critical/serious on the state as it stands (46 §3.4). Lesser impacts are
- * annotated rather than thrown, exactly as `report-builder-a11y.spec.ts` does:
- * a regression in them stays visible in the report without failing a run on a
+ * Zero critical/serious on the state as it stands. Lesser impacts are annotated
+ * rather than thrown, exactly as `report-builder-a11y.spec.ts` does: a
+ * regression in them stays visible in the report without failing a run on a
  * rule the product has not adopted as blocking.
  */
 async function expectNoBlockingViolations(page: Page, label: string, testInfo: TestInfo): Promise<void> {
@@ -140,8 +140,8 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
     await expect(page.getByRole('button', { name: 'Copy prompt' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Download .md' })).toBeVisible();
 
-    // Paste the seeded-schema golden response and validate it in-process (§9:
-    // this POST runs entirely on the server — no outbound network).
+    // Paste the seeded-schema golden response and validate it in-process
+    // (this POST runs entirely on the server — no outbound network).
     await page.getByLabel('Paste the JSON response').fill(GOLDEN_RESPONSE);
     await page.getByRole('button', { name: 'Validate' }).click();
     // "Response validated" renders twice by design in the single-chunk flow
@@ -184,7 +184,7 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
     };
     expect(['applied', 'partially_applied']).toContain(run.status);
     expect(run.mode).toBe('byo');
-    // §9 telemetry-free: a BYO run never records a provider/model (no metering).
+    // Telemetry-free: a BYO run never records a provider/model (no metering).
     expect(run.provider).toBeNull();
     expect(run.model).toBeNull();
     expect((run.review?.accepted ?? []).length).toBeGreaterThan(0);
@@ -318,8 +318,7 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
 });
 
 /**
- * 46-T04 — the enrich step configures its own provider
- * (46-enrich-provider-inline.md R3).
+ * The enrich step configures its own provider (R3).
  *
  * The wizard's "Use my AI provider" card used to be a dead end on a fresh
  * install: disabled, with a sentence pointing at Settings → AI and no way to
@@ -342,7 +341,7 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
  * `/api/v1/llm/config`, which no dialect touches — so it runs once, on the
  * default matrix leg, rather than three times.
  */
-test.describe('the enrich step configures its own provider (46-T04)', () => {
+test.describe('the enrich step configures its own provider', () => {
   test.skip(ENGINE !== 'sqlite', 'engine-independent (dashboard + /llm/config); runs once, on the default leg');
 
   test.afterEach(async ({ page }) => {

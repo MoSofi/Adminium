@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The runner (42-automations-and-workflow-logs.md 42-T08 … 42-T11), walked
- * over the OWNER'S FIRST EXAMPLE (Appendix C.1) with the waits shortened to
- * seconds: welcome → wait → offer → wait → did they claim it? → the
- * beneficiary row or the final reminder.
+ * The runner (…), walked over the OWNER'S FIRST EXAMPLE (Appendix C.1) with
+ * the waits shortened to seconds: welcome → wait → offer → wait → did they
+ * claim it? → the beneficiary row or the final reminder.
  *
- * §0.4's standing rule is that if a change makes either of the owner's
+ * The standing rule is that if a change makes either of the owner's
  * examples inexpressible, the change is wrong. This is where that gets
  * noticed for the first one.
  */
@@ -23,6 +22,7 @@ import {
 } from '@adminium/meta';
 
 import { walkRule, type RunOutcome } from '../src/automations/runner.js';
+import { HookRejectedError, createWriteService, type RecordHooks } from '../src/crud/write-service.js';
 import { encryptSecret } from '../src/config/secrets.js';
 import { emailSecretKey } from '../src/email/config.js';
 import type { EmailTransport, OutboundEmail } from '../src/email/types.js';
@@ -291,7 +291,7 @@ describe('42 — the runner walks the owner’s first example', () => {
     expect(outcome.trace.steps.some((step) => step.log?.startsWith('created '))).toBe(true);
   });
 
-  it('a record deleted mid-wait ends the run skipped, not failed (§0.3)', async () => {
+  it('a record deleted mid-wait ends the run skipped, not failed', async () => {
     const rule = await makeRule();
     const first = await walk(rule, null);
     expect(first.kind).toBe('waiting');
@@ -359,6 +359,64 @@ describe('42 — the runner walks the owner’s first example', () => {
     expect(sqlite.prepare('SELECT status FROM users WHERE id = 7').get()).toMatchObject({
       status: 'welcomed',
     });
+  });
+
+  it("a project hook's refusal fails the step with the hook's message, and its context says who wrote", async () => {
+    const seen: unknown[] = [];
+    const hooks: RecordHooks = {
+      wants: (timing) => Promise.resolve(timing === 'before'),
+      before: async (write) => {
+        seen.push({ action: write.action, origin: write.context.origin, hops: write.context.hops, actor: write.context.actor });
+        throw new HookRejectedError(`No ${write.action} from a rule.`, 'hooks/users.ts');
+      },
+      after: () => Promise.resolve(),
+    };
+    const rule = await automationsRepo(t.meta).create(
+      {
+        connectionId,
+        name: 'Refused',
+        enabled: true,
+        trigger: { kind: 'record', event: 'created', connectionId, table: 'main.users', watch: false },
+        graph: {
+          version: 1,
+          nodes: [
+            { id: 'n1', kind: 'trigger', title: 'Trigger' },
+            {
+              id: 'n2',
+              kind: 'action',
+              title: 'Mark them',
+              onError: true,
+              action: { kind: 'record.update', values: { status: 'welcomed' } },
+            },
+            {
+              id: 'n3',
+              kind: 'action',
+              title: 'Record the beneficiary',
+              onError: false,
+              action: {
+                kind: 'record.create',
+                table: 'main.special_offer_beneficiaries',
+                values: { user_id: '{{record.id}}', claimed_at: { now: true } },
+              },
+            },
+          ],
+        },
+      },
+      now,
+    );
+    const outcome = await walkRule(
+      { ...deps(), writes: createWriteService({ hooks: () => hooks }) },
+      { rule, runId: 'arun_hooked', event: event() },
+    );
+    if (outcome.kind !== 'finished') throw new Error('expected a finished run');
+    expect(outcome.status).toBe('failed');
+    expect(outcome.trace.steps[1]).toMatchObject({ status: 'fail', log: 'No update from a rule.' });
+    expect(outcome.trace.steps[2]).toMatchObject({ status: 'fail', log: 'No create from a rule.' });
+    expect(sqlite.prepare('SELECT status FROM users WHERE id = 7').get()).toMatchObject({ status: 'new' });
+    expect(seen).toEqual([
+      { action: 'update', origin: 'automation', hops: 1, actor: { kind: 'automation', id: rule.id, label: 'Refused' } },
+      { action: 'create', origin: 'automation', hops: 1, actor: { kind: 'automation', id: rule.id, label: 'Refused' } },
+    ]);
   });
 
   it('a filter that does not match ends the run succeeded with the rest skipped (D18)', async () => {

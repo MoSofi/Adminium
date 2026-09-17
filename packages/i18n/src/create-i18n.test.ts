@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Runtime factory tests (10-i18n-theming.md §2.3, §2.5): ICU plurals/args,
- * the missing-key fallback chain (locale → en-US → defaultValue), lazy bundle
- * loading, and the preloaded live locale switch.
+ * Runtime factory tests: ICU plurals/args, the missing-key fallback chain
+ * (locale → en-US → defaultValue), lazy bundle loading, and the preloaded
+ * live locale switch.
  */
 import { describe, expect, it, vi } from 'vitest';
 
@@ -51,7 +51,7 @@ describe('createI18n', () => {
     );
   });
 
-  it('falls back locale → en-US → defaultValue (§6.2 chain semantics)', async () => {
+  it('falls back locale → en-US → defaultValue (chain semantics)', async () => {
     const i18n = await createI18n({
       locale: 'de_DE',
       resources: { 'de-DE': { common: DE_COMMON } },
@@ -138,7 +138,7 @@ describe('real locale bundles through loadLocaleBundle', () => {
     expect(i18n.t('settings.defaults.adoption', { following: 10, total: 15 })).toContain('مستخدمًا');
   });
 
-  // 23-T18 / 23 §4.5. ICU must format under the locale's INTL tag, not
+  // ICU must format under the locale's INTL tag, not
   // i18next's active language. Without the hook, a custom locale's plural
   // branches are dead code: ICU has no data for `tlh-KL`, resolves every
   // count to `other`, throws nothing and logs nothing.
@@ -179,7 +179,7 @@ describe('real locale bundles through loadLocaleBundle', () => {
     }
   });
 
-  // 23-T01 / 23 §4.3. The runtime-override layer merges DB rows into the
+  // The runtime-override layer merges DB rows into the
   // i18next resource store; i18next stores bundles by reference and its
   // `deepExtend` writes straight into the target object. If the store aliased
   // the compiled ES modules, that merge would rewrite `EN_US_RESOURCES` (a
@@ -215,7 +215,7 @@ describe('real locale bundles through loadLocaleBundle', () => {
 });
 
 // The `studio` namespace is in neither the bundled en-US set nor the initial
-// `ns` list (./resources/namespaces.ts, 10-T06). These assert the whole shape
+// `ns` list (./resources/namespaces.ts). These assert the whole shape
 // of that trade: what a caller gets before it asks, what asking gives it, and
 // the one non-obvious consequence — that a namespace pulled in on demand has
 // to survive a later locale switch, or the Studio would keep rendering the

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Studio page-manager client (08-server-api.md §2.6).
+ * Studio page-manager client.
  *
  * Two contracts are pinned here and neither is visible from the manager screen.
  *
@@ -80,7 +80,7 @@ describe('isNavGroup', () => {
 });
 
 describe('the reads', () => {
-  it('unwraps the page list out of the §1.4 envelope', async () => {
+  it('unwraps the page list out of the envelope', async () => {
     stubJson({ data: [PAGE] });
     const query = studioPagesQuery();
     expect(query.queryKey).toEqual(PAGES_QUERY_KEY);

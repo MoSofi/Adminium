@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chunker.ts` — token-budget map-phase chunking for huge schemas
- * (06-llm-assist.md §4.5, acceptance criterion 7).
+ * (acceptance criterion 7).
  *
  * When the assembled prompt for a whole schema would exceed the per-prompt token
  * budget, the schema is split **by domain**: a connected-component clustering
@@ -42,7 +42,7 @@ import type {
   RequestedSection,
 } from './types.js';
 
-/** Per-chunk token ceiling (§4.5: "chunks of ≤ 45,000 tokens"). */
+/** Per-chunk token ceiling ("chunks of ≤ 45,000 tokens"). */
 export const DEFAULT_CHUNK_TOKEN_BUDGET = 45_000;
 
 /**
@@ -65,11 +65,12 @@ const SAFETY_TOKENS = 512;
 const SPLIT_STUB_RESERVE_RATIO = 0.2;
 
 export interface ChunkPromptOptions extends BuildPromptOptions {
-  /** Per-chunk estimated-token ceiling (§4.5). Default {@link DEFAULT_CHUNK_TOKEN_BUDGET}. */
+  /** Per-chunk estimated-token ceiling. Default {@link
+   * DEFAULT_CHUNK_TOKEN_BUDGET}. */
   chunkTokenBudget?: number;
 }
 
-/** One planned chunk: which tables it owns in full and which it stubs (§4.5). */
+/** One planned chunk: which tables it owns in full and which it stubs. */
 export interface SchemaChunk {
   /** 1-based position. */
   index: number;
@@ -93,7 +94,7 @@ export interface ChunkedPromptArtifact {
   sections: readonly RequestedSection[];
 }
 
-// ─── FK-connectivity clustering (§4.5 "split by domain") ─────────────────────
+// ─── FK-connectivity clustering ──────────────────────────────────────────────
 
 function ensureSet(map: Map<string, Set<string>>, id: string): Set<string> {
   let set = map.get(id);
@@ -195,7 +196,7 @@ export function computeTableWeights(input: PromptInput): Map<string, number> {
   return weights;
 }
 
-/** Estimated token cost of rendering a table as a names-only stub (§4.5). */
+/** Estimated token cost of rendering a table as a names-only stub. */
 export function computeStubWeights(model: DatabaseModel): Map<string, number> {
   const weights = new Map<string, number>();
   for (const table of model.tables) {
@@ -256,7 +257,7 @@ export function computeStubsForChunk(model: DatabaseModel, fullTables: ReadonlyS
   return stubs;
 }
 
-// ─── Planning: cluster → chunk partition (§4.5) ──────────────────────────────
+// ─── Planning: cluster → chunk partition ─────────────────────────────────────
 
 /**
  * Partition a schema into map-phase chunks. FFD-packs whole FK clusters into
@@ -271,7 +272,7 @@ export function planSchemaChunks(input: PromptInput, options: ChunkPromptOptions
   const tableCapacity = budget - overhead - SAFETY_TOKENS;
   if (tableCapacity <= 0) {
     throw new Error(
-      `chunker: token budget ${budget} too small for the fixed prompt overhead ${overhead} (06-llm-assist.md §4.5).`,
+      `chunker: token budget ${budget} too small for the fixed prompt overhead ${overhead}.`,
     );
   }
   const splitCapacity = Math.max(1, Math.floor(tableCapacity * (1 - SPLIT_STUB_RESERVE_RATIO)));
@@ -316,7 +317,7 @@ export function planSchemaChunks(input: PromptInput, options: ChunkPromptOptions
     }
   }
 
-  // Split each oversized cluster by row-count descending (last resort, §4.5).
+  // Split each oversized cluster by row-count descending (last resort).
   const splitBins: string[][] = [];
   oversized.sort((a, b) => (a[0] ?? '').localeCompare(b[0] ?? ''));
   for (const cluster of oversized) {
@@ -416,12 +417,11 @@ function statsForChunk(
 
 /**
  * Build the map-phase prompt(s) for a schema. Split ONLY when the assembled user
- * section exceeds the per-prompt `tokenBudget` (default 60,000 — §4.5); a schema
- * that fits in one prompt is returned unchunked (no stubs, no chunk-info
- * sentence) even when it is larger than the 45,000-token per-chunk packing
- * ceiling. When it does not fit, it is chunked per {@link planSchemaChunks}, each
- * chunk a self-contained prompt with correct FK stubs and each within
- * `chunkTokenBudget`.
+ * section exceeds the per-prompt `tokenBudget` (default 60,000); a schema that
+ * fits in one prompt is returned unchunked (no stubs, no chunk-info sentence)
+ * even when it is larger than the 45,000-token per-chunk packing ceiling. When it
+ * does not fit, it is chunked per {@link planSchemaChunks}, each chunk a
+ * self-contained prompt with correct FK stubs and each within `chunkTokenBudget`.
  */
 export function buildChunkedPrompts(
   input: PromptInput,
@@ -430,10 +430,10 @@ export function buildChunkedPrompts(
   const model = input.schemaIr;
   const sections = normalizeSections(input.sections);
 
-  // Split decision: the 60k tokenBudget (§4.5), NOT the 45k per-chunk ceiling.
+  // Split decision: the 60k tokenBudget, NOT the 45k per-chunk ceiling.
   // `buildPrompt.overBudget` measures the assembled user section against
   // `options.tokenBudget` (default DEFAULT_TOKEN_BUDGET = 60k) — exactly the
-  // "assembled user section exceeds budget" test §4.5 specifies.
+  // "assembled user section exceeds budget" test specifies.
   const whole = buildPrompt(input, options);
   if (!whole.overBudget) {
     return {

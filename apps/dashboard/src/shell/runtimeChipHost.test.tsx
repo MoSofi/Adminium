@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The runtime chip AS THE PRODUCT RENDERS IT (11-electron.md §8.1).
+ * The runtime chip AS THE PRODUCT RENDERS IT.
  *
  * WHY THIS SUITE EXISTS, given `runtimeChipState.test.ts` already covers the
  * decision: that suite calls the function with its own arguments, so it would
  * stay green if `RuntimeChipHost` fetched nothing, or if the chip were never
  * mounted in the topbar at all. This one renders the REAL `Topbar` against a
  * stubbed `fetch` and asserts on the two things the pure suite structurally
- * cannot see — that the component asks the two feeds §8.1 names, and that the
- * chip is actually in the topbar.
+ * cannot see — that the component asks the two feeds names, and that the chip
+ * is actually in the topbar.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -22,7 +22,7 @@ import { ShortcutsProvider } from './ShortcutsProvider.js';
 import { Topbar } from './Topbar.js';
 
 // Resolves the REAL en-US bundles, so the chip labels asserted below are the
-// shipped copy rather than this file's fallbacks — and the §8.1 detail string's
+// shipped copy rather than this file's fallbacks — and the detail string's
 // `{names}` argument actually interpolates.
 const restoreI18n = installTestI18n();
 afterAll(restoreI18n);
@@ -108,7 +108,7 @@ describe('the runtime chip in the real Topbar', () => {
     expect(chip.closest('[data-part="topbar"]')).not.toBeNull();
   });
 
-  it('reads the two §8.1 feeds — /system/info and the connection-health poll', async () => {
+  it('reads the two feeds — /system/info and the connection-health poll', async () => {
     const fetchMock = stubFetch({ runtime: 'desktop' });
     renderTopbar();
     await screen.findByText('Local');

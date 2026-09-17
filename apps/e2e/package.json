@@ -4,7 +4,7 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
-  "description": "Playwright e2e matrix (M9-T05): built server + built dashboard on sqlite / postgres / mysql, seeded Northwind demo data",
+  "description": "Playwright e2e matrix: built server + built dashboard on sqlite / postgres / mysql, seeded Northwind demo data",
   "scripts": {
     "e2e": "playwright test",
     "e2e:server": "node scripts/e2e-server.mjs",
@@ -26,6 +26,7 @@
     "@types/node": "22.15.3",
     "better-sqlite3": "^13.0.3",
     "electron": "^43.4.0",
+    "esbuild": "^0.28.0",
     "eslint": "catalog:",
     "mailparser": "^3.9.22",
     "mysql2": "^3.23.3",

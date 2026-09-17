@@ -50,7 +50,7 @@ describe('parseCrudLabels', () => {
     expect(parseCrudLabels({ labels: { newRow: `${at}x` } })).toBeNull();
   });
 
-  it('ignores keys it has no schema for (forward compat, 01 §6.2)', () => {
+  it('ignores keys it has no schema for (forward compat)', () => {
     expect(parseCrudLabels({ labels: { newRow: 'Add invoice', fromANewerBuild: 'x' } })).toEqual({
       newRow: 'Add invoice',
     });

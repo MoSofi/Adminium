@@ -10,7 +10,7 @@ import type { GridColumnSpecInput } from './column-spec.js';
 
 const spec = (input: GridColumnSpecInput) => gridColumnSpecSchema.parse(input);
 
-describe('CellValue — type-aware cell renderers (09 §7.1)', () => {
+describe('CellValue — type-aware cell renderers', () => {
   it('money → mono Intl currency', () => {
     render(
       <CellValue

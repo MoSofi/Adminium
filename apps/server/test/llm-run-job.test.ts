@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `llm-run` job handler end-to-end (06-llm-assist.md §7.5, §10.2, §9,
- * acceptance #6 + §10 "key never logged").
+ * `llm-run` job handler end-to-end (acceptance #6 +).
  *
  * Drives the real jobs worker over an in-memory SQLite meta store with a
  * SCRIPTED FAKE provider (injected via `createProviderResolver`'s `createClient`
@@ -9,7 +8,7 @@
  * is repaired; a truncated reply escalates maxTokens before a repair; three
  * failures fail the run with errors preserved; a cancel discards the run;
  * temperature 0 is sent; the API key never appears in job logs or realtime
- * events; and a BYO run is rejected (direct-only, §9).
+ * events; and a BYO run is rejected (direct-only).
  */
 import BetterSqlite3 from 'better-sqlite3';
 import {
@@ -213,7 +212,7 @@ describe('llm-run job — happy path', () => {
   });
 });
 
-describe('llm-run job — repair loop (§7.5)', () => {
+describe('llm-run job — repair loop', () => {
   it('repairs a malformed first reply and validates', async () => {
     const fixture = await createFixture();
     const { run, events, scripted } = await driveJob(fixture, [
@@ -248,7 +247,7 @@ describe('llm-run job — repair loop (§7.5)', () => {
   });
 });
 
-describe('llm-run job — LLM_TRUNCATED escalation (§7.5)', () => {
+describe('llm-run job — LLM_TRUNCATED escalation', () => {
   it('raises maxTokens to the ceiling before counting a repair', async () => {
     const fixture = await createFixture();
     const { run, events, scripted } = await driveJob(fixture, [
@@ -282,7 +281,7 @@ describe('llm-run job — provider failure', () => {
   });
 });
 
-describe('llm-run job — cancellation (§10.2)', () => {
+describe('llm-run job — cancellation', () => {
   it('discards the run and cancels the job when aborted mid-flight', async () => {
     const fixture = await createFixture();
     let release: () => void = () => {};
@@ -329,7 +328,7 @@ describe('llm-run job — cancellation (§10.2)', () => {
   });
 });
 
-describe('llm-run job — telemetry-free guarantees (§9, §10)', () => {
+describe('llm-run job — telemetry-free guarantees', () => {
   it('sends temperature 0 and never leaks the API key to logs or events', async () => {
     const fixture = await createFixture();
     const { events, logs, scripted, capturedKeys } = await driveJob(fixture, [

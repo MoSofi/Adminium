@@ -23,37 +23,37 @@ import type { GanttGroup, GanttModel, GanttTask } from './domain-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `gantt-chart` (annex §13) — percent-positioned task bars over a week-column
- * grid: phase group summary bars, per-task progress fill with a plated % label,
- * a today line, 45°-diamond milestones, owner initials, and a legend footer.
+ * `gantt-chart` (annex) — percent-positioned task bars over a week-column grid:
+ * phase group summary bars, per-task progress fill with a plated % label, a
+ * today line, 45°-diamond milestones, owner initials, and a legend footer.
  * Built from start/end date columns + a progress column + a phase FK — which is
- * also the auto-instantiation trigger (annex §13:
- * "start+end dates + phase FK → `gantt-chart`").
+ * also the auto-instantiation trigger (annex: "start+end dates + phase FK →
+ * `gantt-chart`").
  *
- * DIRECTION — THE LTR ISLAND (10-i18n-theming.md §5.5, verbatim): "The timeline
- * canvas (date header + bars + today line) is a **fixed-LTR island** — time
- * flows left→right, consistent with the chart rule; the label column stays
- * physically left of the canvas so labels align with the time origin. Everything
- * around it (toolbar, filters, zoom control, page chrome) mirrors."
+ * DIRECTION — THE LTR ISLAND (verbatim): "The timeline canvas (date header +
+ * bars + today line) is a **fixed-LTR island** — time flows left→right,
+ * consistent with the chart rule; the label column stays physically left of the
+ * canvas so labels align with the time origin. Everything around it (toolbar,
+ * filters, zoom control, page chrome) mirrors."
  *
  * So this component does NOT mirror its time axis. The scroll region carries
  * `dir="ltr"`, which pins the label gutter + the axis origin to the physical
  * left inside an RTL page while the widget header/legend (outside the island)
  * mirror normally. This matches `@adminium/charts` — geometry/timelineLanes.ts
- * already states "The time axis is an LTR island (04 §7.4 — time axes never
- * mirror), so event x-positions are LTR here" — and it is why the LTR-canonical
- * geometry in domain-lib.ts is used verbatim under both directions.
+ * already states "The time axis is an LTR island (time axes never mirror), so
+ * event x-positions are LTR here" — and it is why the LTR-canonical geometry in
+ * domain-lib.ts is used verbatim under both directions.
  *
  * NOTE: this deliberately contradicts a "the gantt time axis mirrors in RTL"
- * reading of 04 §7.4's blanket "all horizontal scales mirror". 10-i18n-theming
- * §5.5 + its Open decisions #1 narrow that to CATEGORICAL scales; time axes stay
- * LTR. The narrower rule is the one implemented across the charts package, so it
- * is the one implemented here.
+ * reading of blanket "all horizontal scales mirror". 10-i18n-theming + its Open
+ * decisions #1 narrow that to CATEGORICAL scales; time axes stay LTR. The
+ * narrower rule is the one implemented across the charts package, so it is the
+ * one implemented here.
  *
  * Digits/dates route through the @adminium/i18n Intl layer; axis dates are
  * DATA-context strings → `latnDataTag` (Latin digits, gregorian) so the header
  * stays `tabular-nums`-aligned in every locale including `ar_EG`
- * (10-i18n-theming.md §4.2: "gantt date headers … are data context").
+ * ("gantt date headers … are data context").
  */
 
 export { ganttChartConfigSchema, ganttChartDemoData };
@@ -154,7 +154,7 @@ export function GanttChart({
   return (
     <div data-widget="gantt-chart" data-testid={testId} className="flex h-full flex-col">
       {/*
-        THE LTR ISLAND (§5.5). `dir="ltr"` pins the label gutter physically left
+        THE LTR ISLAND. `dir="ltr"` pins the label gutter physically left
         of the canvas and makes time flow left→right even inside an RTL page.
         Logical utilities INSIDE this subtree therefore resolve to their physical
         LTR meaning — which is the intent, not an accident.
@@ -191,7 +191,7 @@ export function GanttChart({
       </div>
 
       {/*
-        Chrome — OUTSIDE the island, so it mirrors normally under RTL (§5.5
+        Chrome — OUTSIDE the island, so it mirrors normally under RTL
         "Everything around it … mirrors").
       */}
       {showLegend && model.groups.length > 0 && (
@@ -223,7 +223,7 @@ function GanttGroupRows({ group, model, todayPct, formatPercent }: GanttGroupRow
 
   return (
     <div data-testid={`gantt-group-${group.key}`}>
-      {/* Phase summary row — the group bar at 40% alpha (annex §13). */}
+      {/* Phase summary row — the group bar at 40% alpha (annex). */}
       <div className="flex items-center border-b border-border bg-surface-2">
         <div className={`${GUTTER} shrink-0 truncate px-3 py-1.5 text-caption font-bold text-fg`}>
           {group.name}
@@ -307,7 +307,7 @@ function GanttTaskRow({ task, tone, model, todayPct, formatPercent }: GanttTaskR
               style={{ '--fill-w': `${task.pct}%` }}
             />
             {/*
-              THE % LABEL CARRIES ITS OWN PLATE (annex §13's "contrast-switching
+              THE % LABEL CARRIES ITS OWN PLATE (the "contrast-switching
               label", implemented as a plate rather than a switch).
 
               The switch this replaces was `task.pct > 55 ? 'text-accent-fg' :
@@ -355,7 +355,7 @@ function GanttTaskRow({ task, tone, model, todayPct, formatPercent }: GanttTaskR
   );
 }
 
-/** The today marker — a full-height rule at the axis position (annex §13). */
+/** The today marker — a full-height rule at the axis position (annex). */
 function TodayLine({ pct }: { pct: number | null }) {
   if (pct === null) return null;
   return (
@@ -392,7 +392,7 @@ export function GanttChartWidget({ config, data }: WidgetProps<GanttChartConfig>
       fields={fields}
       {...(config.totalDays === undefined ? {} : { totalDays: config.totalDays })}
       todayLine={config.todayLine}
-      // `format.referenceTime` pins "now" for demo/VRT determinism (04 §2.1);
+      // `format.referenceTime` pins "now" for demo/VRT determinism;
       // absent → the component falls back to the wall clock.
       {...(config.format?.referenceTime === undefined ? {} : { todayMs: config.format.referenceTime })}
       weekLabels={config.weekLabels}

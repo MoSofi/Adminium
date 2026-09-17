@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GENERATED MIRROR of ../../../locales/de-DE/studio.json — do not edit by hand.
- * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
  * without JSON import attributes (browser + NodeNext safe).
@@ -1214,6 +1214,7 @@ export default {
       "generated": "Erzeugt",
       "llm": "Assistent",
       "manifest": "Add-on",
+      "project": "Projektcode",
       "system": "System",
       "user": "Eigene"
     },
@@ -1228,6 +1229,34 @@ export default {
     "preview": {
       "note": "Eine Darstellung des Layouts, nicht Ihrer Daten. Die echte Seite füllt sich nach dem Speichern.",
       "untitled": "Unbenannte Seite"
+    },
+    "project": {
+      "badge": {
+        "changed": "Auf dem Server geändert",
+        "conflict": "Konflikt",
+        "outside": "Nicht im Projekt"
+      },
+      "changed": {
+        "body": "Übernehmen Sie die Änderungen in Ihr Projekt und stellen Sie es bereit, sonst bleiben sie nur auf diesem Server:",
+        "title": "{count, plural, one {# Seite wurde auf diesem Server geändert} other {# Seiten wurden auf diesem Server geändert}}"
+      },
+      "conflicts": {
+        "body": "Dieser Server behält seine eigene Fassung, bis Sie eine auswählen.",
+        "title": "{count, plural, one {# Seite wurde hier und im Projekt geändert} other {# Seiten wurden hier und im Projekt geändert}}"
+      },
+      "fromCode": "Diese Seite stammt aus {source}. Ändern Sie sie dort.",
+      "invalid": {
+        "body": "Korrigieren Sie diese Dateien. Bis dahin bleibt die letzte gültige Fassung in Gebrauch.",
+        "title": "{count, plural, one {# Projektdatei wurde nicht übernommen} other {# Projektdateien wurden nicht übernommen}}"
+      },
+      "keepServer": "Server-Fassung behalten",
+      "notConfigured": "Einige davon gehören zu einer Datenbank, die das Projekt nicht aufführt. Tragen Sie sie in adminium.config.ts ein, damit ihre Seiten im Projekt bleiben.",
+      "outside": {
+        "body": "Sie existieren nur auf diesem Server. Übernehmen Sie sie ins Projekt, um sie zu behalten:",
+        "title": "{count, plural, one {# Seite ist nicht im Projekt} other {# Seiten sind nicht im Projekt}}"
+      },
+      "resolveFailed": "Das konnte nicht geändert werden.",
+      "useProject": "Projekt-Fassung verwenden"
     },
     "row": {
       "menu": "Aktionen für {title}"
@@ -1264,6 +1293,84 @@ export default {
       "narrow": "Schmal (720 px)",
       "page": "Seite (1080 px)",
       "wide": "Breit (1800 px)"
+    }
+  },
+  "project": {
+    "actions": {
+      "bulk": "Ein oder mehrere Datensätze",
+      "empty": "Keine Aktionen. Eine Datei in actions/ fügt Datensätzen eine Schaltfläche hinzu.",
+      "needs": "Erfordert: {permission}",
+      "single": "Ein Datensatz",
+      "title": "Aktionen"
+    },
+    "changes": {
+      "empty": "Alle Seiten- und Schemadateien stimmen mit diesem Server überein.",
+      "open": "Unter Seiten klären",
+      "title": "Auf diesem Server geändert"
+    },
+    "code": {
+      "disabled": "Nicht geladen: Die Desktop-App führt nie Projektcode aus",
+      "label": "Projektcode",
+      "loaded": "Geladen {when}",
+      "none": "Nichts geladen"
+    },
+    "failures": {
+      "empty": "Seit dem Serverstart ist kein Hook fehlgeschlagen.",
+      "title": "Hook-Fehler"
+    },
+    "files": {
+      "count": "{count, plural, one {# Datei} other {# Dateien}}",
+      "pages": "Seitendateien",
+      "schema": "Schemadateien",
+      "title": "Dateien"
+    },
+    "folder": "Ordner",
+    "hooks": {
+      "empty": "Keine Hooks. Eine Datei in hooks/ führt Code aus, wenn sich Datensätze ändern.",
+      "onImport": "Auch für CSV-Importe",
+      "title": "Hooks"
+    },
+    "loadFailed": "Das Projekt konnte nicht geladen werden",
+    "mode": {
+      "dev": "Entwicklung: Ordner und Studio bleiben im Gleichschritt",
+      "label": "Läuft als",
+      "server": "Server: Der Ordner ändert sich nur mit einem Deployment"
+    },
+    "none": {
+      "body": "Ein Projekt ist ein Ordner, der mit `npx @adminiumjs/adminium new` erstellt wurde. Seine Seiten, Hooks und Aktionen erscheinen hier, wenn der Server es ausführt.",
+      "title": "Dieser Server führt kein Projekt aus"
+    },
+    "pages": {
+      "empty": "Keine Seiten. Eine .tsx-Datei in pages/ fügt eine eigene Seite hinzu.",
+      "hidden": "Nicht in der Seitenleiste",
+      "title": "Seiten"
+    },
+    "permission": {
+      "create": "Hinzufügen",
+      "delete": "Löschen",
+      "read": "Ansehen",
+      "update": "Bearbeiten"
+    },
+    "problems": {
+      "body": "Korrigieren Sie diese Dateien. Der übrige Projektcode läuft.",
+      "title": "{count, plural, one {# Datei wurde nicht geladen} other {# Dateien wurden nicht geladen}}"
+    },
+    "status": {
+      "changed": "Auf diesem Server geändert",
+      "conflict": "Konflikt",
+      "invalid": "Ungültig",
+      "outside": "Nicht im Projekt",
+      "pending": "Noch nicht übernommen"
+    },
+    "subtitle": "Der Projektordner, den dieser Server ausführt, und der Code, den er geladen hat.",
+    "superAdminOnly": "Nur ein Super-Admin kann das Projekt sehen, das dieser Server ausführt.",
+    "title": "Projekt",
+    "version": "Adminium",
+    "widgets": {
+      "card": "Dashboard-Karte",
+      "cell": "Tabellenzelle",
+      "empty": "Keine Widgets. Eine Datei in widgets/ fügt eine Tabellenzelle oder eine Dashboard-Karte hinzu.",
+      "title": "Widgets"
     }
   },
   "publicApi": {
@@ -1449,11 +1556,11 @@ export default {
       "searchPlaceholder": "Tabellen durchsuchen…",
       "unsaved": "Ungespeicherte Änderung"
     },
-    "unavailableBody": "Dieser Build enthält den Editor zum Neuzuordnen noch nicht (09-T12). Führen Sie die Generierung erneut aus, sobald er da ist, um Bezeichnungen, Typen und Beziehungen neu zuzuordnen.",
+    "unavailableBody": "Dieser Build enthält den Editor zum Neuzuordnen noch nicht. Führen Sie die Generierung erneut aus, sobald er da ist, um Bezeichnungen, Typen und Beziehungen neu zuzuordnen.",
     "unavailableTitle": "Editor zum Neuzuordnen des Schemas nicht verfügbar"
   },
   "review": {
-    "unavailableBody": "Dieser Build enthält die Anreicherungs-Prüfungsansicht noch nicht (06-T14). Sie kommt mit dem Diff-und-Übernehmen-Ablauf.",
+    "unavailableBody": "Dieser Build enthält die Anreicherungs-Prüfungsansicht noch nicht. Sie kommt mit dem Diff-und-Übernehmen-Ablauf.",
     "unavailableTitle": "Prüfungsansicht nicht verfügbar"
   },
   "settings": {
@@ -1600,6 +1707,11 @@ export default {
         "error": "Nur ein Hostname oder eine IP-Adresse — ohne Schema, Port oder Zugangsdaten.",
         "label": "SMTP-Host"
       },
+      "linkOrigin": {
+        "error": "Geben Sie eine Adresse wie https://admin.example.com ohne Pfad ein.",
+        "helper": "Links zum Zurücksetzen des Passworts und aus Einladungen öffnen diese Adresse. Ist sie leer, übernimmt Adminium sie vom nächsten Admin, der sich anmeldet oder eine Änderung speichert, außer er arbeitet über localhost.",
+        "label": "Adresse in E-Mail-Links"
+      },
       "pass": {
         "error": "Zu diesem Benutzernamen gehört ein Passwort.",
         "helper": "Verschlüsselt gespeichert und nie wieder angezeigt. Leer lassen, um das aktuelle zu behalten.",
@@ -1664,6 +1776,11 @@ export default {
       "body": "Seiten hinzufügen, bearbeiten und löschen, ihre Inhalte ändern und die Seitenleiste neu ordnen.",
       "cta": "Seiten verwalten",
       "heading": "Seiten"
+    },
+    "projectCard": {
+      "body": "Der Projektordner, den dieser Server ausführt: seine Hooks, Aktionen und Seitendateien.",
+      "cta": "Projekt öffnen",
+      "heading": "Projekt"
     },
     "publicApiCard": {
       "body": "Lassen Sie Ihre eigenen kunden- oder mitarbeiterseitigen Seiten diese Datenbank über einen von Ihnen definierten Scope lesen.",

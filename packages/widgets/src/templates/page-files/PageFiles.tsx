@@ -27,8 +27,7 @@ import {
 } from '../page-dashboard/data-adapter.js';
 
 /**
- * `page-files` template renderer (09-generated-app.md §7.9; annex §14 — comp:
- * File Manager).
+ * `page-files` template renderer (annex — comp: File Manager).
  *
  * Renders the stored `config.layout` of a files archetype page: the required
  * `browser` slot as a directly-composed `file-browser` (families/media) over
@@ -42,10 +41,10 @@ import {
  * `onPreviewNodeChange`, the `page-crud` detail idiom.
  *
  * UPLOADS: the dropzone renders per the manifest, but there is NO server
- * upload surface yet (08 §2.11 — no files routes). Without an `onUpload`
- * handler it renders disabled with an honest hint; the host enables it the
- * moment a transport exists and feeds `uploadJobs` back into the progress
- * list. Star toggles emit `mutate` intents only when the payload actually
+ * upload surface yet (no files routes). Without an `onUpload` handler it
+ * renders disabled with an honest hint; the host enables it the moment a
+ * transport exists and feeds `uploadJobs` back into the progress list.
+ * Star toggles emit `mutate` intents only when the payload actually
  * carries a starred-ish column — the widget never writes.
  */
 
@@ -72,7 +71,7 @@ export interface PageFilesLabels {
 export interface PageFilesProps {
   /** The page's `config.layout` document (raw — validated here). */
   layout: unknown;
-  /** Transport for bound widgets; absent → demo mode (04 §5.3). */
+  /** Transport for bound widgets; absent → demo mode. */
   adapter?: DashboardDataAdapter | undefined;
   params?: Record<string, unknown> | undefined;
   /** Host/test override — wins over adapter/demo resolution per instance. */
@@ -296,7 +295,7 @@ export function PageFiles({
         )}
       </div>
 
-      {/* Upload band — manifest `upload` slot (09 §7.9). */}
+      {/* Upload band — manifest `upload` slot. */}
       <div data-part="files-upload" className="grid shrink-0 gap-4 md:grid-cols-2">
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <UploadDropzone

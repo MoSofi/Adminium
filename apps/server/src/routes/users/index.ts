@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * User-directory routes (08-server-api.md §2.15, 07-meta-store.md §3.3):
+ * User-directory routes:
  *
  * - `GET /users` — keyset page on `(created_at, id)` descending, the same
  *   anchor `/audit` uses, with `q` / `status` / `roleId` filters
@@ -17,7 +17,7 @@
  * user's roles can mint itself any privilege (it holds the activation token).
  *
  * `DELETE` suspends by default. Every mutation writes an `rbac`-category audit
- * entry (dotted verb — 07 §3.11 anatomy).
+ * entry (dotted verb — anatomy).
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';
@@ -30,11 +30,12 @@ import {
   type User,
 } from '@adminium/meta';
 
-import { USER_INVITE_TEMPLATE_KEY, enqueueEmail, requestOrigin } from '../../email/send.js';
+import { USER_INVITE_TEMPLATE_KEY, enqueueEmail } from '../../email/send.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { recipientLocale, translatorFor } from '../../i18n/server-i18n.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
+import { linkOrigin } from '../../security/public-origin.js';
 import { toUserView } from '../auth/handlers.js';
 import { INVITE_TOKEN_TTL_MS, mintInvite, type MintedInvite } from './invite.js';
 import {
@@ -148,7 +149,9 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
             name: user.name,
             email: user.email,
             inviterName: await inviterNameFor(request, user.id),
-            activationUrl: `${requestOrigin(request)}${invite.activationPath}`,
+            // Not the caller's `Origin`: an API key can send any it likes, and
+            // the activation token would go to that host (security/public-origin.ts).
+            activationUrl: `${await linkOrigin(meta, request)}${invite.activationPath}`,
             expiresInDays: String(Math.round(INVITE_TOKEN_TTL_MS / 86_400_000)),
           },
         },
@@ -197,9 +200,9 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
   }
 
   /**
-   * `toUserView` is the audited safe projection (§7 item 6) — the repo row,
-   * with its `passwordHash` / `totpSecretEncrypted` / `recoveryCodes`, is
-   * never spread into a DTO.
+   * `toUserView` is the audited safe projection — the repo row, with its
+   * `passwordHash` / `totpSecretEncrypted` / `recoveryCodes`, is never
+   * spread into a DTO.
    */
   function toDto(user: User, userRoles: readonly UserRoleRef[]): UserDto {
     return { ...toUserView(user), roles: [...userRoles] };
@@ -337,7 +340,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
 
       const now = app.rbac.now();
       // NULL passwordHash + status 'invited': there is no credential to set
-      // until the invitee sets one, and login refuses both (§2.1).
+      // until the invitee sets one, and login refuses both.
       const user = await users.create({ email, name, passwordHash: null, status: 'invited' }, now);
       for (const role of granted) {
         await roles.assignToUser(user.id, role.id, actingUserId(request), now);
@@ -403,7 +406,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         await assertNotLastSuperAdmin(user);
       }
       // Reinstating an account that never had a credential would produce an
-      // active user who cannot log in (login requires a hash, §2.1).
+      // active user who cannot log in (login requires a hash).
       if (status === 'active' && user.passwordHash === null) {
         throw new ConflictError(
           'This account has never set a password — resend the invite instead.',
@@ -416,7 +419,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       if (Object.keys(patch).length > 0) await users.updateProfile(user.id, patch, now);
       if (status !== null) {
         await users.updateStatus(user.id, status, now);
-        // A suspended user must stop being logged in immediately (§7 item 7).
+        // A suspended user must stop being logged in immediately.
         if (status === 'suspended') await sessions.revokeAllForUser(user.id, now);
       }
 

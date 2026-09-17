@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Runtime-translations routes (23-runtime-translations.md §6), mounted under
- * `/api/v1/i18n`.
+ * Runtime-translations routes, mounted under `/api/v1/i18n`.
  *
  *   GET    /i18n/manifest              — version stamp + the locale registry
  *   GET    /i18n/bundle/:locale/:ns    — this locale's OVERRIDES (not the bundle)
@@ -22,7 +21,7 @@
  * NOTHING here is anonymous. `GET /bootstrap` is session-bound, so an
  * unauthenticated i18n route would be the first unauthenticated DB-backed
  * admin-authored-content route in the API — on public marketplace demo
- * instances that is an unbounded anonymous read (23 §6.1).
+ * instances that is an unbounded anonymous read.
  *
  * Key SEARCH runs in-process over the compiled en-US index; the database is
  * only ever asked for an `(namespace, key) IN (…)` slice. A portable
@@ -95,25 +94,28 @@ import {
 export const I18N_CHANGED = 'i18n.changed';
 
 /**
- * Namespaces a browser downloads overrides for — what the budget in §6.4 is
+ * Namespaces a browser downloads overrides for — what the budget is
  * measured over.
  *
- * `studio` joined the list in 10-T06 without changing what the number means.
- * Its 975 messages used to live under `common.studio.*` and were counted
- * here; they are their own namespace now, fetched when the Studio opens
- * rather than at boot. LATER is not FREE — the bytes still cross the wire to
- * the same browser — so dropping them out of the cap would have quietly
- * doubled what one locale can be made to carry.
+ * `studio` joined the list without changing what the number means. Its 975
+ * messages used to live under `common.studio.*` and were counted here; they
+ * are their own namespace now, fetched when the Studio opens rather than at
+ * boot. LATER is not FREE — the bytes still cross the wire to the same
+ * browser — so dropping them out of the cap would have quietly doubled what
+ * one locale can be made to carry.
  *
- * `email` joined the same way (39-email-templates-and-campaigns.md §6.1): the
- * Email templates surface's messages, fetched when its routes open. `invoices`
- * likewise (34-invoices-add-on.md 34-T51), for the Invoices surface.
+ * `email` joined the same way: the Email templates surface's messages, fetched
+ * when its routes open. `invoices` likewise, for the Invoices surface.
  *
  * `dataio` and `files` joined on the way out of `common`, where their bytes had
  * always counted toward this cap. Leaving them off would have quietly RAISED
  * an operator's effective budget rather than kept it — the cap is per locale
  * across everything overridable, so a namespace missing here is invisible to
  * it.
+ *
+ * `project` joined the same way: what the dashboard says about a
+ * project's own code, moved out of `common` so it loads with the first
+ * project page.
  *
  * `generated` is still out, and correctly: nothing fetches overrides for it.
  */
@@ -127,6 +129,7 @@ const BUDGETED_NAMESPACES: readonly Namespace[] = [
   'automations',
   'dataio',
   'files',
+  'project',
 ];
 
 /**
@@ -171,7 +174,7 @@ function toManifest(rows: readonly LocaleRow[], counts: ReadonlyMap<string, numb
       pluralCategories: [...new Intl.PluralRules(compiled.tag).resolvedOptions().pluralCategories],
       builtin: true,
       // A built-in row may only carry these two — everything else above comes
-      // from the compiled registry (23 §3.1 field lock).
+      // from the compiled registry (field lock).
       enabled: row?.enabled ?? true,
       sortOrder: row?.sortOrder ?? 0,
       overrideCount: counts.get(compiled.id) ?? 0,
@@ -245,7 +248,7 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
     }
   }
 
-  /** Shared write validation (23 §6.3). Returns an error message or null. */
+  /** Shared write validation. Returns an error message or null. */
   async function rejectReason(input: {
     locale: string;
     namespace: Namespace;
@@ -258,7 +261,7 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
     if (input.value === '' && isA11yCriticalKey(input.namespace, input.key)) {
       // No CI gate in this repo can observe a blanked accessible name — the
       // axe ratchet only sees @adminium/ui stories, never a t() key, let alone
-      // a database row (23 §3.3).
+      // a database row.
       return 'This string is an accessible name and cannot be left blank. Translate it instead.';
     }
 
@@ -455,7 +458,7 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
         const { locale, namespace, key } = request.query;
         const at = Date.now();
         // A hard DELETE — this is "reset to built-in", which is a different
-        // operation from writing '' ("render nothing", 23 §3.3).
+        // operation from writing '' ("render nothing").
         const removed = await translations.remove({ locale, namespace, key }, { at });
         if (!removed) throw new NotFoundError('No override for that key.');
         await app.rbac.audit(request, {
@@ -504,7 +507,7 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
-    // --- transfer (23 §3.6) ---------------------------------------------------
+    // --- transfer ---------------------------------------------------
 
     app.get(
       '/i18n/export/:locale',
@@ -599,8 +602,8 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
         if ((await locales.get(body.locale)) !== null) {
           throw new AppError(409, 'ERR_I18N_LOCALE_EXISTS', `${body.locale} already exists.`);
         }
-        // The borrow tag must be real: it is what ICU formats plurals, numbers
-        // and dates under (23 §5.6).
+        // The borrow tag must be real: it is the tag ICU formats plurals,
+        // numbers and dates with.
         let pluralCategories: string[];
         try {
           Intl.getCanonicalLocales(body.intlTag);
@@ -672,8 +675,8 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
         const at = Date.now();
 
         if (isBuiltinLocaleId(locale)) {
-          // Field lock (23 §3.1): a built-in carries `enabled`/`sortOrder`
-          // only. Direction, names and fonts come from the compiled registry,
+          // Field lock: a built-in carries `enabled`/`sortOrder` only.
+          // Direction, names and fonts come from the compiled registry,
           // so an admin cannot flip ar_EG to ltr and corrupt its rendering.
           const forbidden = (['english', 'native', 'dir', 'fontHint', 'intlTag'] as const).filter(
             (field) => body[field] !== undefined,
@@ -759,8 +762,8 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
         }
 
         const at = Date.now();
-        // Every store that holds a locale id (23 §5.7) — missing one leaves an
-        // orphan that renders as a raw identifier or collides on a unique index.
+        // Every store that holds a locale id — missing one leaves an orphan
+        // that renders as a raw identifier or collides on a unique index.
         const affectedUsers = await meta.db
           .selectFrom('adminium_user_prefs')
           .select(['userId'])

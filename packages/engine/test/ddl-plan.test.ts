@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The planner — 35-schema-authoring.md 35-T04.
+ * The planner.
  *
- * 35-T04's done-when, asserted directly:
+ * The done-when, asserted directly:
  *   • golden plans ×3 dialects ×2 server versions from ONE fixture set
  *   • `text→integer` classifies `rewrite`+`lossy` on all three
  *   • `add-column NOT NULL DEFAULT` is `safe` on pg 16 and `rewrite` on pg 10
@@ -24,7 +24,7 @@ import {
 } from '../src/index.js';
 
 // ---------------------------------------------------------------------------
-// One fixture set, three dialects (§3.2)
+// One fixture set, three dialects
 // ---------------------------------------------------------------------------
 
 const col = (over: Partial<ColumnModel> & { name: string }): ColumnModel => ({
@@ -105,7 +105,7 @@ describe('atLeastVersion — tolerant of what real servers return', () => {
   });
 });
 
-describe('one fixture set, three dialects (§3.2)', () => {
+describe('one fixture set, three dialects', () => {
   const before = model([tbl({ name: 'articles' })]);
   const after = [
     tbl({
@@ -131,7 +131,7 @@ describe('one fixture set, three dialects (§3.2)', () => {
   });
 });
 
-describe('35-T04: text → integer is rewrite+lossy on all three', () => {
+describe('Text → integer is rewrite+lossy on all three', () => {
   const before = model([
     tbl({ name: 't', columns: [col({ name: 'n', logicalType: 'text' })], primaryKey: [] }),
   ]);
@@ -171,7 +171,7 @@ describe('35-T04: text → integer is rewrite+lossy on all three', () => {
   });
 });
 
-describe('35-T04: the same statement, two postgres versions', () => {
+describe('The same statement, two postgres versions', () => {
   const before = model([tbl({ name: 't' })]);
   const after = [
     tbl({
@@ -209,7 +209,7 @@ describe('35-T04: the same statement, two postgres versions', () => {
   });
 });
 
-describe('35-T04: refusals', () => {
+describe('Refusals', () => {
   it('refuses a NOT NULL column with no default on a table that has rows', () => {
     const before = model([tbl({ name: 't' })]);
     const after = [
@@ -395,7 +395,7 @@ describe('ordering', () => {
   });
 });
 
-describe('SQLite collapses every rebuild-needing change into ONE rebuild (§7)', () => {
+describe('SQLite collapses every rebuild-needing change into ONE rebuild', () => {
   const before = model([
     tbl({
       name: 't',
@@ -426,7 +426,7 @@ describe('SQLite collapses every rebuild-needing change into ONE rebuild (§7)',
     expect(plan.warnings[0]?.message).toContain('rebuilt rather than altered');
   });
 
-  it('…while postgres emits one ALTER per column, one subcommand each (§5)', () => {
+  it('…while postgres emits one ALTER per column, one subcommand each', () => {
     const plan = planDdl({ ...base, actual: before, desired: after });
     expect(kinds(plan.steps)).toEqual(['alter-column-type', 'alter-column-type']);
   });

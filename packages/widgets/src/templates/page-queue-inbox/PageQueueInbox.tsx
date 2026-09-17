@@ -53,18 +53,17 @@ import {
 import type { GridRow, GridTone, LayoutItem } from '../../page-config/index.js';
 
 /**
- * `page-queue-inbox` — the approvals/inbox archetype (09-generated-app.md
- * §7.4; annex §14 "Approvals Queue, Activity Inbox, Notifications Center"):
- * a KPI row, `segmented-control` status tabs with live counts, the queue list
- * with bulk approve/reject, a reject-with-reason modal, a `detail-key-value`
- * side pane, and a `load-older-paginator` footer.
+ * `page-queue-inbox` — the approvals/inbox archetype (annex): a KPI row,
+ * `segmented-control` status tabs with live counts, the queue list with bulk
+ * approve/reject, a reject-with-reason modal, a `detail-key-value` side pane,
+ * and a `load-older-paginator` footer.
  *
- * UNDO-FIRST bulk semantics (§4.1): a decision applies optimistically to the
- * exact selected id set, the `QueueApi.bulkUpdate` reply's single-use token
- * rides a success toast whose Undo restores that exact set server-side
- * (the token captured prior values), and a failure rolls the optimistic
- * patch back with an error toast. Enum pill tints flow from the stored
- * `enumTones` map — never hardcoded (M7-T04 class fix).
+ * UNDO-FIRST bulk semantics: a decision applies optimistically to the exact
+ * selected id set, the `QueueApi.bulkUpdate` reply's single-use token rides
+ * a success toast whose Undo restores that exact set server-side (the token
+ * captured prior values), and a failure rolls the optimistic patch back with
+ * an error toast. Enum pill tints flow from the stored `enumTones` map —
+ * never hardcoded (class fix).
  *
  * The `notification-feed` queue flavor mounts through WidgetHost instead —
  * the feed owns its tabs/mark-all-read and emits `mutate` intents the host
@@ -80,7 +79,7 @@ const STATUS_FIELD_CANDIDATES = ['status', 'state', 'approval_status', 'decision
 const DURATION_FIELD_CANDIDATES = ['days', 'duration_days', 'nights', 'duration'] as const;
 const REASON_FIELD_CANDIDATES = ['rejection_reason', 'decision_note', 'reason', 'note'] as const;
 
-/** Client-side reveal batch for the load-older footer (§7.4). */
+/** Client-side reveal batch for the load-older footer. */
 export const QUEUE_PAGE_SIZE = 25;
 
 export interface PageQueueInboxLabels {
@@ -226,7 +225,7 @@ export function PageQueueInbox({
   );
   const formatters = useMemo(() => getFormatters(locale ?? 'en-US'), [locale]);
 
-  // --- optimistic overlay (undo-first bulk decisions, §4.1) --------------------
+  // --- optimistic overlay (undo-first bulk decisions) --------------------
   const [patches, setPatches] = useState<Record<string, Record<string, unknown>>>({});
   const rawRows = useMemo(() => recordRowsOf(queueState.data), [queueState.data]);
 
@@ -274,7 +273,7 @@ export function PageQueueInbox({
 
   // --- segments ----------------------------------------------------------------
   const [chosenSegment, setChosenSegment] = useState<string | null>(null);
-  // Display default: the pending-ish tab when the enum has one (§7.4 comp).
+  // Display default: the pending-ish tab when the enum has one (comp).
   const segment = chosenSegment ?? decisions.pending ?? '__all__';
   const segmentOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -322,7 +321,7 @@ export function PageQueueInbox({
     [fields.enumTones],
   );
 
-  // --- polymorphic amount cell ($4,120 / 5 days / —, §7.4) ----------------------
+  // --- polymorphic amount cell ($4,120 / 5 days /) ----------------------
   const amountTextOf = useCallback(
     (row: GridRow): string => {
       const amount = fields.amountField === undefined ? undefined : row[fields.amountField];
@@ -348,7 +347,7 @@ export function PageQueueInbox({
   // --- undo-first decisions ------------------------------------------------------
   const applyDecision = useCallback(
     (ids: readonly string[], values: Record<string, unknown>, toastTitle: string) => {
-      // Capture the EXACT set (bulk keeper, 09 §4.1) before anything async.
+      // Capture the EXACT set (bulk keeper) before anything async.
       const exactIds = [...ids];
       const priorPatches = patches;
       setPatches((current) => {
@@ -510,7 +509,8 @@ export function PageQueueInbox({
                 <BulkActionToolbar
                   selectedIds={checkedIds}
                   actions={[
-                    // Stored per-type accept labels (§7.4) beat the generic catalog copy.
+                    // Stored per-type accept labels beat the generic catalog
+                    // copy.
                     {
                       key: 'approve',
                       label:
@@ -692,7 +692,7 @@ export function PageQueueInbox({
         </div>
       )}
 
-      {/* Reject with reason — "the requester will be notified" (§7.4). */}
+      {/* Reject with reason — "the requester will be notified". */}
       <Modal open={rejectIds !== null} onOpenChange={(open) => !open && setRejectIds(null)} size="sm">
         <ModalHeader
           title={labels?.rejectTitle ?? t('ui:templates.queue.rejectTitle', 'Reject requests')}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SQLite introspection — 05-introspection-engine.md §4.3.
+ * SQLite introspection.
  *
  * Reads pragma table-valued functions joined against `sqlite_master`, so the
  * statement set stays FIXED regardless of table count (the per-table pragma
@@ -10,10 +10,10 @@
  * `better-sqlite3` driver; `src/index.ts` wires it to the database handle.
  * Mirrors the postgres reference adapter file for file.
  *
- * THE "SCHEMA ONLY" INVARIANT (05 §10): every statement here references
+ * THE "SCHEMA ONLY" INVARIANT: every statement here references
  * `sqlite_master` / `pragma_*` / `sqlite_stat1` exclusively — with the one
- * documented exception of §4.3: exact `COUNT(*)` per table on files
- * < 100 MB, which touches no column values.
+ * documented exception of: exact `COUNT(*)` per table on files < 100 MB,
+ * which touches no column values.
  */
 import {
   AdapterError,
@@ -51,29 +51,29 @@ export interface IntrospectContext {
 }
 
 /**
- * Static dialect capabilities — 05 §2.1/§4.3 (probe refines per-connection).
- * Canonical values live in the engine's capability matrix (M9-T04) so the
- * wizard's degradation copy and the adapter never disagree.
+ * Static dialect capabilities — (probe refines per-connection). Canonical
+ * values live in the engine's capability matrix so the wizard's degradation
+ * copy and the adapter never disagree.
  */
 export const SQLITE_CAPABILITIES: AdapterCapabilities = {
   ...ENGINE_CAPABILITY_MATRIX.sqlite,
 };
 
-/** §4.3: exact per-table `COUNT(*)` only when the file is under 100 MB. */
+/** Exact per-table `COUNT(*)` only when the file is under 100 MB. */
 export const EXACT_COUNT_MAX_FILE_BYTES = 100 * 1024 * 1024;
 
-/** Migration/meta tables hidden behind "show system tables" — 05 §8.2. */
+/** Migration/meta tables hidden behind "show system tables". */
 const SYSTEM_TABLE_PATTERN =
   /^(adminium_|knex_migrations)|^(_prisma_migrations|schema_migrations|ar_internal_metadata|django_migrations|sqlite_sequence)$/;
 
-/** Enum values are capped at 256 with a warning — 05 §10. */
+/** Enum values are capped at 256 with a warning. */
 const ENUM_VALUE_CAP = 256;
 
 // ---------------------------------------------------------------------------
 // Catalog SQL (fixed set)
 // ---------------------------------------------------------------------------
 
-/** SQLite ≥ 3.37 — guarded with a sqlite_master fallback (05 §4.3). */
+/** SQLite ≥ 3.37 — guarded with a sqlite_master fallback. */
 export const TABLE_LIST_SQL = `
 SELECT name, type, wr, strict
 FROM pragma_table_list
@@ -87,7 +87,7 @@ FROM sqlite_master
 WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
 ORDER BY name`;
 
-/** table_xinfo includes hidden/generated columns (05 §4.3). */
+/** table_xinfo includes hidden/generated columns. */
 export const COLUMNS_SQL = `
 SELECT m.name AS table_name,
        ti.cid AS ordinal,
@@ -138,7 +138,7 @@ JOIN pragma_index_info(il.name) ii
 WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite_%'
 ORDER BY m.name, il.name, ii.seqno`;
 
-/** Guarded: only present after ANALYZE has run (05 §4.3). */
+/** Guarded: only present after ANALYZE has run. */
 export const STAT1_SQL = `
 SELECT tbl AS table_name, idx AS index_name, stat AS stat
 FROM sqlite_stat1`;
@@ -148,7 +148,7 @@ function quoteLiteral(value: string): string {
 }
 
 /**
- * One UNION ALL statement counting every included table — the §4.3 small-file
+ * One UNION ALL statement counting every included table — the small-file
  * exception. COUNT(*) touches no column values; `rowCountExact: true`.
  */
 export function exactCountsSql(tableNames: readonly string[]): string {
@@ -178,7 +178,7 @@ function str(value: unknown): string | null {
 // DDL scanning: CHECK constraints, AUTOINCREMENT, WITHOUT ROWID / STRICT.
 // CHECK expressions and enum synthesis reuse the same `col IN (...)` parsing
 // approach as the postgres adapter — duplicated by design (adapters never
-// import each other, 05 §4.3 note).
+// import each other, note).
 // ---------------------------------------------------------------------------
 
 /** Skip a quoted region starting at `i`; returns the index AFTER it. */
@@ -282,13 +282,12 @@ export function scanCheckConstraints(
  * starts; `'_'.repeat(n)` did the same through the unbounded `[\w$]*`.
  *
  * 127 is the package's own identifier ceiling — `SQLITE_MAX_IDENTIFIER_LENGTH`
- * is 128 (05 §2.1 "unlimited-ish sqlite (use 128)") and the query engine
- * enforces it, so a name this pattern would now decline is a name the adapter
- * could not address anyway.
+ * is 128 and the query engine enforces it, so a name this pattern would now
+ * decline is a name the adapter could not address anyway.
  */
 const CHECK_IN_HEAD = /["'`[]?([a-zA-Z_][\w$]{0,127})["'`\]]?\s+in\s*\(/gi;
 
-/** Parse a `col IN ('a','b')` check shape into a synthesized enum (05 §4.3). */
+/** Parse a `col IN ('a','b')` check shape into a synthesized enum. */
 export function parseCheckEnum(
   expression: string,
 ): { column: string; values: string[] } | null {
@@ -352,7 +351,7 @@ function compareBy<T>(key: (item: T) => string): (a: T, b: T) => number {
 
 /**
  * Run the fixed catalog query set through `exec` and assemble the
- * `DatabaseModel`. Schema only — never touches user rows (except the §4.3
+ * `DatabaseModel`. Schema only — never touches user rows (except the
  * small-file COUNT exception, which reads no column values).
  */
 export async function introspectSqlite(
@@ -502,7 +501,7 @@ export async function introspectSqlite(
     });
   }
 
-  // -- primary keys + rowid/AUTOINCREMENT defaults (05 §4.3) -------------------
+  // -- primary keys + rowid/AUTOINCREMENT defaults -------------------
   for (const [tableName, list] of pkOrdinals) {
     const table = tables.get(tableName);
     if (table === undefined) continue;
@@ -608,7 +607,7 @@ export async function introspectSqlite(
     if (unique && origin === 'u') {
       table.uniques.push({ name: indexName, columns });
     }
-    // Covered by a single-column unique constraint/index (05 §2.1) — the PK
+    // Covered by a single-column unique constraint/index — the PK
     // autoindex counts, mirroring the pg reference adapter. (INTEGER PRIMARY
     // KEY rowid aliases have no autoindex; isPrimaryKey already covers them.)
     if (unique && !partial && columns.length === 1) {
@@ -676,8 +675,8 @@ export async function introspectSqlite(
       confidence: 1,
       // `PRAGMA foreign_key_list` exposes no constraint name — SQLite does not
       // keep one addressably. Null is the honest answer, and it is also why
-      // SQLite drops a foreign key through the §7 rebuild rather than by name
-      // (35-schema-authoring.md 35-T33).
+      // SQLite drops a foreign key through the rebuild rather than by name
+      // .
       constraintName: null,
     });
     columns.forEach((columnName, position) => {
@@ -704,7 +703,7 @@ export async function introspectSqlite(
     }
   }
 
-  // -- row counts: stat1 estimates, else small-file exact counts (05 §4.3) ----
+  // -- row counts: stat1 estimates, else small-file exact counts ----
   if (collectRowEstimates) {
     const uncounted: string[] = [];
     for (const table of tables.values()) {
@@ -726,7 +725,7 @@ export async function introspectSqlite(
         const count = num(row['n']);
         if (table !== undefined && count !== null) {
           table.rowCountEstimate = count;
-          table.rowCountExact = true; // 05 §2.1: true only for SQLite exact counts
+          table.rowCountExact = true; // true only for SQLite exact counts
         }
       }
     } else if (

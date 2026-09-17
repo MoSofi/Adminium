@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * RBAC enforcement integration tests (08-server-api.md §5, M2-T05): the
- * permission matrix over real routes, denied-audit rows, role lifecycle,
- * hard-locked built-ins, immediate grant/revoke effect, and the
- * last-super-admin guard.
+ * RBAC enforcement integration tests: the permission matrix over real
+ * routes, denied-audit rows, role lifecycle, hard-locked built-ins,
+ * immediate grant/revoke effect, and the last-super-admin guard.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { auditRepo, destroyMetaDb } from '@adminium/meta';
@@ -266,7 +265,7 @@ describe('roles routes', () => {
     expect((ok.json() as { roleIds: string[] }).roleIds).not.toContain(ctx.roles.superAdmin.id);
   });
 
-  it('audits role mutations with dotted verbs (07 §3.11 anatomy)', async () => {
+  it('audits role mutations with dotted verbs (anatomy)', async () => {
     const superAdmin = asUser(ctx.users.superAdmin);
     await ctx.app.inject({
       method: 'POST',

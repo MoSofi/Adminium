@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The heuristic-baseline diff engine (06-llm-assist.md §8.2) and the
- * "Accept all ≥ 0.8" bulk semantics (acceptance criterion 12).
+ * The heuristic-baseline diff engine and the "Accept all ≥ 0.8" bulk
+ * semantics (acceptance criterion 12).
  *
- * Golden diff: the validated demo response (§6.3) against the demo heuristic
- * baseline (§6.2) yields a stable set of `agree` / `conflict` / `llm-new` /
- * `heuristic-only` rows. Focused tests then pin the two statuses the golden
- * demo does not naturally exercise — `rejects-heuristic` (an explicit `pii:
- * null` over a heuristic flag) and `user-locked` (an existing `source: 'user'`
- * override) — and prove neither can ever enter a confidence-gated bulk set.
+ * Golden diff: the validated demo response against the demo heuristic baseline
+ * yields a stable set of `agree` / `conflict` / `llm-new` / `heuristic-only`
+ * rows. Focused tests then pin the two statuses the golden demo does not
+ * naturally exercise — `rejects-heuristic` (an explicit `pii: null` over a
+ * heuristic flag) and `user-locked` (an existing `source: 'user'` override) —
+ * and prove neither can ever enter a confidence-gated bulk set.
  */
 import { readFileSync } from 'node:fs';
 
@@ -112,7 +112,7 @@ describe('golden diff: valid-demo vs heuristic baseline', () => {
     expect(byId(copyId('public.orders'))?.status).toBe('llm-new');
   });
 
-  it('tags each row with its §8.1 category and a confidence', () => {
+  it('tags each row with its category and a confidence', () => {
     expect(byId(ORDERS_STATUS_ENUM)?.category).toBe('enum');
     expect(byId(ORDERS_STATUS_ENUM)?.confidence).toBe(0.97);
     expect(byId(PRODUCT_RELATION)?.category).toBe('relation');

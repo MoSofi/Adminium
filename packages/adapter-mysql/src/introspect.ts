@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * MySQL/MariaDB introspection — 05-introspection-engine.md §4.2.
+ * MySQL/MariaDB introspection.
  *
  * Reads `information_schema` scoped `WHERE TABLE_SCHEMA = <db>`: a FIXED set
- * of set-based queries regardless of table count (≤ 10 statements — 05 §10),
- * joined in memory. This module is executor-agnostic — `introspectMysql`
- * takes a `CatalogExecutor` (any `sql → rows` function) so the assembly
- * logic is testable without the `mysql2` driver; `src/index.ts` wires it to
- * the pool. Mirrors the postgres reference adapter file for file.
+ * of set-based queries regardless of table count (≤ 10 statements), joined
+ * in memory. This module is executor-agnostic — `introspectMysql` takes a
+ * `CatalogExecutor` (any `sql → rows` function) so the assembly logic is
+ * testable without the `mysql2` driver; `src/index.ts` wires it to the pool.
+ * Mirrors the postgres reference adapter file for file.
  *
- * THE "SCHEMA ONLY" INVARIANT (05 §10): every statement here references
+ * THE "SCHEMA ONLY" INVARIANT: every statement here references
  * `information_schema.*` exclusively — no user table is ever touched during
  * setup (asserted offline by test/introspect.offline.test.ts).
  */
@@ -46,9 +46,9 @@ export interface IntrospectContext {
 }
 
 /**
- * Static dialect capabilities — 05 §2.1 (probe refines per-connection).
- * Canonical values live in the engine's capability matrix (M9-T04) so the
- * wizard's degradation copy and the adapter never disagree.
+ * Static dialect capabilities — (probe refines per-connection). Canonical
+ * values live in the engine's capability matrix so the wizard's
+ * degradation copy and the adapter never disagree.
  */
 export const MYSQL_CAPABILITIES: AdapterCapabilities = {
   ...ENGINE_CAPABILITY_MATRIX.mysql,
@@ -60,7 +60,7 @@ export const MYSQL_CAPABILITIES: AdapterCapabilities = {
 
 /**
  * Session probe. `@@read_only` covers replica/`--read-only` servers; the
- * grants probe (`SHOW GRANTS`) refines per-user write access — 05 §4.2.
+ * grants probe (`SHOW GRANTS`) refines per-user write access.
  */
 export const PROBE_SQL = `
 SELECT VERSION() AS server_version,
@@ -78,7 +78,7 @@ export interface ServerFlavor {
   flavor: 'mysql' | 'mariadb';
   major: number;
   minor: number;
-  /** MySQL ≥ 8.0, MariaDB ≥ 10.5 (05 §4.2); older → UNSUPPORTED. */
+  /** MySQL ≥ 8.0, MariaDB ≥ 10.5; older → UNSUPPORTED. */
   supported: boolean;
 }
 
@@ -148,11 +148,11 @@ export function interpretGrants(rows: CatalogRow[], databaseName: string): Grant
   return result;
 }
 
-/** Migration/meta tables hidden behind "show system tables" — 05 §8.2. */
+/** Migration/meta tables hidden behind "show system tables". */
 const SYSTEM_TABLE_PATTERN =
   /^(adminium_|knex_migrations)|^(_prisma_migrations|schema_migrations|ar_internal_metadata|django_migrations|sqlite_sequence)$/;
 
-/** Enum values are capped at 256 with a warning — 05 §10. */
+/** Enum values are capped at 256 with a warning. */
 const ENUM_VALUE_CAP = 256;
 
 // ---------------------------------------------------------------------------
@@ -249,7 +249,7 @@ WHERE CONSTRAINT_SCHEMA = ${quoteLiteral(schema)}
 ORDER BY CONSTRAINT_NAME`;
 }
 
-/** The fixed introspection statement set (6 + the probe = 7 — 05 §4.2). */
+/** The fixed introspection statement set (6 + the probe = 7). */
 export function introspectionStatements(schema: string): string[] {
   return [
     tablesSql(schema),
@@ -384,7 +384,7 @@ function compareBy<T>(key: (item: T) => string): (a: T, b: T) => number {
   };
 }
 
-/** char(36)/varchar(36) columns named like a uuid — heuristic flag (05 §2.2). */
+/** char(36)/varchar(36) columns named like a uuid — heuristic flag. */
 const UUID_NAME_PATTERN = /(^|_)(uuid|guid)(_|$)/i;
 
 /**
@@ -506,14 +506,14 @@ export async function introspectMysql(
       mapped.maxLength === 36 &&
       UUID_NAME_PATTERN.test(columnName)
     ) {
-      // char(36) + name heuristic — 05 §2.2 (values are never probed at setup).
+      // char(36) + name heuristic — (values are never probed at setup).
       logicalType = 'uuid';
     }
 
     if (mapped.warning === 'set-as-text') {
       warnings.push({
         code: 'set-as-text',
-        message: `column "${table.name}.${columnName}" is a set(...) — mapped to text (05 §4.2)`,
+        message: `column "${table.name}.${columnName}" is a set(...) — mapped to text`,
         tableId: table.id,
       });
     } else if (mapped.warning === 'year-as-integer') {
@@ -600,7 +600,7 @@ export async function introspectMysql(
     } else if (acc.unique) {
       acc.table.uniques.push({ name: indexName, columns });
     }
-    // Covered by a single-column unique constraint/index (05 §2.1) — the PK
+    // Covered by a single-column unique constraint/index — the PK
     // index counts, mirroring the pg reference adapter.
     if (acc.unique && columns.length === 1) {
       const column = acc.table.columns.find((c) => c.name === columns[0]);
@@ -648,7 +648,7 @@ export async function introspectMysql(
     const columns = ordered.map((c) => c.from);
     const refColumns = ordered.map((c) => c.to);
     const toTableId = `${acc.refSchema}.${acc.refTable}`;
-    // Cross-database FKs are out of scope v1 (05 §4.2); filtered targets warn.
+    // Cross-database FKs are out of scope v1; filtered targets warn.
     if (acc.refSchema !== schema || !tables.has(acc.refTable)) {
       warnings.push({
         code: 'fk-target-excluded',
@@ -669,10 +669,10 @@ export async function introspectMysql(
       selfReferential: acc.table.id === toTableId,
       confidence: 1,
       // The accumulator key already carries CONSTRAINT_NAME; keeping it is what
-      // makes DROP FOREIGN KEY addressable (35-schema-authoring.md 35-T33).
+      // makes DROP FOREIGN KEY addressable.
       constraintName: constraintName === '' ? null : constraintName,
     });
-    // Convenience per-column mirror of the declared FK (05 §2.1).
+    // Convenience per-column mirror of the declared FK.
     columns.forEach((columnName, position) => {
       const column = acc.table.columns.find((c) => c.name === columnName);
       const refColumn = refColumns[position];

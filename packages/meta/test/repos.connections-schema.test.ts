@@ -57,7 +57,7 @@ for (const dialect of TEST_DIALECTS) {
         });
       });
 
-      it('falls back dataDsn → introspectDsn for single-role setups (§3.13)', async () => {
+      it('falls back dataDsn → introspectDsn for single-role setups', async () => {
         const repo = connectionsRepo(t.meta, testCrypto);
         const created = await repo.create({
           name: 'dev',
@@ -126,7 +126,7 @@ for (const dialect of TEST_DIALECTS) {
         expect(await repo.delete(a.id)).toBe(false);
       });
 
-      it('rejects every §3.13 discriminator it does not recognise, before writing', async () => {
+      it('rejects every discriminator it does not recognise, before writing', async () => {
         const repo = connectionsRepo(t.meta, testCrypto);
         const base = { name: 'x', engine: 'postgres', introspectDsn: 'postgres://a@b/c' } as const;
 
@@ -351,7 +351,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     describe('overridesRepo', () => {
-      it('validates op payloads via the §3.15 vocabulary and stores one row per op', async () => {
+      it('validates op payloads via the vocabulary and stores one row per op', async () => {
         const connections = connectionsRepo(t.meta, testCrypto);
         const overrides = overridesRepo(t.meta);
         const conn = await connections.create({

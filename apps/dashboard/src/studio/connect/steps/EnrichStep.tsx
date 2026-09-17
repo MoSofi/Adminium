@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step — "Enrich with AI" (06-llm-assist.md §10.2). Three option cards
- * ("Use my AI provider" / "Copy a prompt to my own AI tool" / "Skip — use
- * heuristics only"), a shared options row (ten section toggles, instance-locale
- * multi-select with en_US locked on, sampling opt-in with an inline preview of
- * exactly what leaves the machine — §9), then either the direct-path progress
- * screen or the BYO round-trip panel. Both AI paths land on the review screen;
- * skipping advances to generation, never penalized.
+ * Step — "Enrich with AI". Three option cards ("Use my AI provider" / "Copy a
+ * prompt to my own AI tool" / "Skip — use heuristics only"), a shared options
+ * row (ten section toggles, instance-locale multi-select with en_US locked on,
+ * sampling opt-in with an inline preview of exactly what leaves the machine),
+ * then either the direct-path progress screen or the BYO round-trip panel. Both
+ * AI paths land on the review screen; skipping advances to generation, never
+ * penalized.
  *
  * When no provider is configured the step no longer just points at Settings: it
  * renders the SAME `ProviderConfigForm` that page does, inline, and the provider
- * card re-enables the moment a config saves (46-enrich-provider-inline.md R3).
+ * card re-enables the moment a config saves (R3).
  *
  * RBAC: the whole connect wizard is Admin+ (StudioGuard), so this step inherits
  * the acceptance-#13 gate — Editor/Viewer never see it, and `/api/v1/llm/config`
@@ -51,8 +51,7 @@ import type { WizardState } from '../wizardState.js';
  * The air-gapped case is called out separately from the unconfigured case
  * because the advice differs completely: "configure a provider first" is a fix
  * for the second and a wild goose chase for the first, where no key will ever
- * help (11-electron.md §8.2's LLM row, `Empty States.dc.html`'s
- * never-hide-always-explain).
+ * help (LLM row, `Empty States.dc.html`'s never-hide-always-explain).
  */
 function providerDescription(input: { providerAvailable: boolean; networkAllowed: boolean }): string {
   if (input.providerAvailable) {
@@ -81,9 +80,9 @@ const PROVIDER_CONFIG_PANEL_ID = 'enrich-provider-config';
  *
  * `useQuery`, NOT `useSuspenseQuery` as Settings uses: suspending here would
  * unmount the step while the config loads and take the operator's section
- * toggles, locales and sampling opt-in with it (46 §3.3). The cost is this
- * component owning its own pending and error states, which it should anyway —
- * it is one panel on a live screen, not a whole route.
+ * toggles, locales and sampling opt-in with it. The cost is this component
+ * owning its own pending and error states, which it should anyway — it is one
+ * panel on a live screen, not a whole route.
  *
  * Mounted only while the panel is open, so a wizard that never needs a provider
  * never asks for one.
@@ -137,9 +136,9 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
   const sourceIsFile = state.mode === 'file';
   const connectionId = state.connectionId;
 
-  // 11-electron.md §6 step 4 / §8.2's LLM row: on desktop the BYO round-trip is
-  // the DEFAULT, and the direct path is "available but labeled". This is the
-  // wizard half of the decision `studio/ai/StudioAiPage.tsx` makes for Settings.
+  // The LLM row: on desktop the BYO round-trip is the DEFAULT, and the direct
+  // path is "available but labeled". This is the wizard half of the decision
+  // `studio/ai/StudioAiPage.tsx` makes for Settings.
   //
   // Non-suspending, unlike that page: this step is one panel inside a live
   // wizard, and suspending would throw away the user's in-progress choices on
@@ -159,8 +158,7 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
    * panel unmounts when it closes, and state that unmounts with the thing it
    * describes cannot remember that it was open. Nothing else in the wizard is
    * touched by opening it, which is the point — `onPatch` is never called, so
-   * the section toggles, locales and sampling opt-in survive a provider save
-   * (46 §3.3).
+   * the section toggles, locales and sampling opt-in survive a provider save.
    */
   const [configOpen, setConfigOpen] = useState(false);
 
@@ -205,7 +203,7 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
     // a wizard resumed with `enrichIntent: 'provider'`, or one where the user
     // chose it before `/system/info` answered, arrives here with the card grey
     // and the intent intact. Without this line an install that declares itself
-    // air-gapped would still POST a provider run and make the outbound call §7
+    // air-gapped would still POST a provider run and make the outbound call
     // promises it never makes.
     if (path === 'provider' && !providerAvailable) return;
     setCreating(true);
@@ -314,7 +312,7 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
         onValueChange={(value) => chooseIntent(value as EnrichIntent)}
         className="grid gap-2.5"
       >
-        {/* §8.2's LLM row: "BYO round-trip is the DEFAULT and is highlighted
+        {/* The LLM row: "BYO round-trip is the DEFAULT and is highlighted
             first in desktop". In a wizard, first IS the default — it is the card
             the eye lands on and the one a hurried admin picks. `skip` stays last
             in both orders: it is the escape hatch, never the lead. */}
@@ -469,7 +467,7 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
   );
 }
 
-// --- shared options row (§10.2 step 2) ---------------------------------------
+// --- shared options row ---------------------------------------
 
 interface SharedOptionsProps {
   sections: readonly (typeof ENRICH_SECTIONS)[number][];

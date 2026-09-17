@@ -42,7 +42,7 @@
           "column": "category_name",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -164,7 +164,7 @@
       "shape": {
         "kind": "generic",
         "reasons": [
-          "no §8 trigger matched"
+          "no archetype trigger matched"
         ]
       },
       "semantics": {
@@ -222,7 +222,7 @@
       "shape": {
         "kind": "generic",
         "reasons": [
-          "no §8 trigger matched"
+          "no archetype trigger matched"
         ]
       },
       "semantics": {
@@ -258,7 +258,7 @@
           "column": "company_name",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -278,7 +278,7 @@
           "column": "contact_name",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -298,7 +298,7 @@
           "column": "contact_title",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -318,8 +318,8 @@
           "column": "address",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -339,8 +339,8 @@
           "column": "city",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -380,8 +380,8 @@
           "column": "postal_code",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -422,7 +422,7 @@
           "ruleId": "r18-phone",
           "reasons": [
             "name matches phone/fax pattern",
-            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+            "pii:phone — primary semantic is phone"
           ],
           "semantics": {
             "primary": "phone",
@@ -443,7 +443,7 @@
           "ruleId": "r18-phone",
           "reasons": [
             "name matches phone/fax pattern",
-            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+            "pii:phone — primary semantic is phone"
           ],
           "semantics": {
             "primary": "phone",
@@ -526,8 +526,8 @@
       "shape": {
         "kind": "people",
         "reasons": [
-          "people shape: person-name/email columns on a people-ish table (§8 directory trigger)",
-          "self-FK hierarchy via \"reports_to\" (§6 rule 3)"
+          "people shape: person-name/email columns on a people-ish table",
+          "self-FK hierarchy via \"reports_to\""
         ]
       },
       "semantics": {
@@ -566,7 +566,7 @@
           "ruleId": "r16-person-name",
           "reasons": [
             "name column on a people-shaped table",
-            "pii:person-name — first/last/full name on a people-shaped table (§7.2)"
+            "pii:person-name — first/last/full name on a people-shaped table"
           ],
           "semantics": {
             "primary": "person-name",
@@ -587,7 +587,7 @@
           "ruleId": "r16-person-name",
           "reasons": [
             "name column on a people-shaped table",
-            "pii:person-name — first/last/full name on a people-shaped table (§7.2)"
+            "pii:person-name — first/last/full name on a people-shaped table"
           ],
           "semantics": {
             "primary": "person-name",
@@ -607,7 +607,7 @@
           "column": "title",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -627,7 +627,7 @@
           "column": "title_of_courtesy",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -648,7 +648,7 @@
           "ruleId": "r12-event-timestamp",
           "reasons": [
             "timestamp-suffixed name outside created/updated/range",
-            "pii:dob — name matches date-of-birth pattern (§7.2)"
+            "pii:dob — name matches date-of-birth pattern"
           ],
           "semantics": {
             "primary": "event-timestamp",
@@ -688,8 +688,8 @@
           "column": "address",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -709,8 +709,8 @@
           "column": "city",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -750,8 +750,8 @@
           "column": "postal_code",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -792,7 +792,7 @@
           "ruleId": "r18-phone",
           "reasons": [
             "name matches phone/fax pattern",
-            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+            "pii:phone — primary semantic is phone"
           ],
           "semantics": {
             "primary": "phone",
@@ -812,7 +812,7 @@
           "column": "extension",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -914,8 +914,8 @@
       "shape": {
         "kind": "generic",
         "reasons": [
-          "no §8 trigger matched",
-          "line-items role: child of 2 FKs with qty × rate numerics (§8 invoice trigger)"
+          "no archetype trigger matched",
+          "line-items role: child of 2 FKs with qty × rate numerics"
         ]
       },
       "semantics": {
@@ -991,7 +991,7 @@
           "column": "quantity",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1034,7 +1034,7 @@
       "shape": {
         "kind": "generic",
         "reasons": [
-          "no §8 trigger matched"
+          "no archetype trigger matched"
         ]
       },
       "semantics": {
@@ -1190,7 +1190,7 @@
           "column": "freight",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1210,7 +1210,7 @@
           "column": "ship_name",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1230,8 +1230,8 @@
           "column": "ship_address",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -1251,8 +1251,8 @@
           "column": "ship_city",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -1292,8 +1292,8 @@
           "column": "ship_postal_code",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -1336,7 +1336,7 @@
         "kind": "catalog",
         "reasons": [
           "display column plus money/category/image columns — catalog shape",
-          "line-items role: child of 2 FKs with qty × rate numerics (§8 invoice trigger)"
+          "line-items role: child of 2 FKs with qty × rate numerics"
         ]
       },
       "semantics": {
@@ -1372,7 +1372,7 @@
           "column": "product_name",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1432,7 +1432,7 @@
           "column": "quantity_per_unit",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1472,7 +1472,7 @@
           "column": "units_in_stock",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1492,7 +1492,7 @@
           "column": "units_on_order",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1512,7 +1512,7 @@
           "column": "reorder_level",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1532,7 +1532,7 @@
           "column": "discontinued",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1554,7 +1554,7 @@
       "shape": {
         "kind": "generic",
         "reasons": [
-          "no §8 trigger matched"
+          "no archetype trigger matched"
         ]
       },
       "semantics": {
@@ -1612,7 +1612,7 @@
       "shape": {
         "kind": "generic",
         "reasons": [
-          "no §8 trigger matched"
+          "no archetype trigger matched"
         ]
       },
       "semantics": {
@@ -1648,7 +1648,7 @@
           "column": "company_name",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1669,7 +1669,7 @@
           "ruleId": "r18-phone",
           "reasons": [
             "name matches phone/fax pattern",
-            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+            "pii:phone — primary semantic is phone"
           ],
           "semantics": {
             "primary": "phone",
@@ -1691,7 +1691,7 @@
       "shape": {
         "kind": "generic",
         "reasons": [
-          "no §8 trigger matched"
+          "no archetype trigger matched"
         ]
       },
       "semantics": {
@@ -1727,7 +1727,7 @@
           "column": "company_name",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1747,7 +1747,7 @@
           "column": "contact_name",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1767,7 +1767,7 @@
           "column": "contact_title",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -1787,8 +1787,8 @@
           "column": "address",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -1808,8 +1808,8 @@
           "column": "city",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -1849,8 +1849,8 @@
           "column": "postal_code",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering",
-            "pii:address — name matches address pattern (§7.2)"
+            "no rendering rule matched — type-default rendering",
+            "pii:address — name matches address pattern"
           ],
           "semantics": {
             "primary": "plain",
@@ -1891,7 +1891,7 @@
           "ruleId": "r18-phone",
           "reasons": [
             "name matches phone/fax pattern",
-            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+            "pii:phone — primary semantic is phone"
           ],
           "semantics": {
             "primary": "phone",
@@ -1912,7 +1912,7 @@
           "ruleId": "r18-phone",
           "reasons": [
             "name matches phone/fax pattern",
-            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+            "pii:phone — primary semantic is phone"
           ],
           "semantics": {
             "primary": "phone",
@@ -1954,7 +1954,7 @@
       "shape": {
         "kind": "generic",
         "reasons": [
-          "no §8 trigger matched"
+          "no archetype trigger matched"
         ]
       },
       "semantics": {
@@ -1990,7 +1990,7 @@
           "column": "territory_description",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",
@@ -2032,7 +2032,7 @@
       "shape": {
         "kind": "geo",
         "reasons": [
-          "2/3 data columns are geographic (§7.1 rules 14–15)"
+          "2/3 data columns are geographic"
         ]
       },
       "semantics": {
@@ -2068,7 +2068,7 @@
           "column": "state_name",
           "ruleId": "r30-plain",
           "reasons": [
-            "no §7.1 rule matched — type-default rendering"
+            "no rendering rule matched — type-default rendering"
           ],
           "semantics": {
             "primary": "plain",

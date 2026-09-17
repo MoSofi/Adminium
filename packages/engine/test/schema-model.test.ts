@@ -117,7 +117,7 @@ describe('northwind fixture (shared contract test vector)', () => {
 });
 
 describe('databaseModelSchema', () => {
-  it('accepts the minimal IR and fills defaults (05 §2.3)', () => {
+  it('accepts the minimal IR and fills defaults', () => {
     const model = parseDatabaseModel({
       irVersion: 1,
       dialect: 'generic',

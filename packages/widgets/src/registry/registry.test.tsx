@@ -16,7 +16,7 @@ import { isEmptyData } from './data-empty.js';
 import { WIDGET_MISSING_ID, widgetMissingDefinition } from './widget-missing.js';
 
 describe('buildRegistry', () => {
-  it('throws DuplicateWidgetIdError at init on duplicate ids (04 §2.2)', () => {
+  it('throws DuplicateWidgetIdError at init on duplicate ids', () => {
     const a = makeTestDefinition({ id: 'dup-widget' });
     const b = makeTestDefinition({ id: 'dup-widget', family: 'system' });
     expect(() => buildRegistry([a, b])).toThrowError(DuplicateWidgetIdError);
@@ -46,7 +46,7 @@ describe('widgetRegistry (global)', () => {
   it('widgetsByFamily filters by family', () => {
     expect(widgetsByFamily('system').map((d) => d.id)).toContain(WIDGET_MISSING_ID);
     // `geo` was this assertion's empty-family case until M7 Wave 4 opened the
-    // family (annex §7). It is no longer empty, so the case it stood for — a
+    // family (annex). It is no longer empty, so the case it stood for — a
     // filter that returns only its own family and nothing else — is asserted
     // directly instead of via emptiness, which would now just be wrong.
     expect(widgetsByFamily('geo').map((d) => d.id)).toEqual(['map-bubble', 'map-choropleth-grid']);
@@ -65,7 +65,7 @@ describe('validateInstanceConfig', () => {
     expect(parsed.config.missingId).toBe('x-gone');
   });
 
-  it('drops invalid fields per-field with structured warnings, never throws (04 §2.2)', () => {
+  it('drops invalid fields per-field with structured warnings, never throws', () => {
     const parsed = validateInstanceConfig(WIDGET_MISSING_ID, {
       title: 'Kept',
       refreshInterval: 2, // below min(5) → dropped
@@ -113,7 +113,7 @@ describe('isEmptyData', () => {
     expect(isEmptyData(undefined, ['record-list', 'record'])).toBe(true);
   });
 
-  it('record-list empty ⇔ total === 0 && no cursor (04 §3)', () => {
+  it('record-list empty ⇔ total === 0 && no cursor', () => {
     expect(isEmptyData({ rows: [], columns: [], total: 0 }, 'record-list')).toBe(true);
     expect(isEmptyData({ rows: [], columns: [], total: 0, cursor: 'abc' }, 'record-list')).toBe(false);
     expect(isEmptyData({ rows: [{ id: 1 }], columns: [], total: 1 }, 'record-list')).toBe(false);

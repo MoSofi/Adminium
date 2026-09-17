@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The in-app Knowledge Base index (M10-T06).
+ * The in-app Knowledge Base index.
  *
  * WHAT THIS IS — AND DELIBERATELY IS NOT. This is an INDEX, not a copy of the
  * documentation. Each entry is a title, a one-line excerpt, a category and a
- * deep link to docs.adminium.dev (Track DOCS, M10-T05), which is the single
- * source of truth for the prose. Duplicating the docs here would create two
- * copies of every answer with no mechanism to keep them in step — and the
- * in-app copy would be the stale one, because it ships on the app's release
- * cadence rather than the docs'. `ia-mapping.md` §2F is explicit that the KB
- * comp is the *pattern* for the docs site; the docs site owns the content.
+ * deep link to docs.adminium.dev (Track DOCS), which is the single source of
+ * truth for the prose. Duplicating the docs here would create two copies of
+ * every answer with no mechanism to keep them in step — and the in-app copy
+ * would be the stale one, because it ships on the app's release cadence
+ * rather than the docs'. The mapping is explicit that the KB comp is
+ * the *pattern* for the docs site; the docs site owns the content.
  *
- * The comp's sample articles ARE the draft docs IA (`ia-mapping.md` §4: "KB
- * content = draft real docs"), so the categories and titles below follow it,
- * re-pointed from the sample SaaS domain onto Adminium's actual v0.5 surface:
- * the comp's "Connecting your first database" and "Authenticating with API
- * keys" are real pages; its "Setting up SSO with Okta" and "Slack & Teams
+ * The comp's sample articles ARE the draft docs IA ("KB content = draft real
+ * docs"), so the categories and titles below follow it, re-pointed from the
+ * sample SaaS domain onto Adminium's actual v0.5 surface: the comp's
+ * "Connecting your first database" and "Authenticating with API keys" are
+ * real pages; its "Setting up SSO with Okta" and "Slack & Teams
  * notifications" describe features that do not exist and are dropped rather
  * than linked into a 404.
  *
@@ -54,7 +54,7 @@ const RAW: unknown = [
     titleKey: 'kb.article.install.title',
     titleFallback: 'Install Adminium',
     excerptKey: 'kb.article.install.excerpt',
-    excerptFallback: 'Run from a source checkout or with docker run, and reach the first-run wizard in a minute.',
+    excerptFallback: 'Create a project with one command, or run Adminium from Docker or a source checkout.',
     docsPath: 'getting-started/quickstart',
   },
   {
@@ -64,7 +64,7 @@ const RAW: unknown = [
     titleFallback: 'Create your first super admin',
     excerptKey: 'kb.article.firstAdmin.excerpt',
     excerptFallback: 'What the first-run wizard asks for, and why it can only run once.',
-    docsPath: 'getting-started/quickstart#3-run-the-wizard',
+    docsPath: 'getting-started/quickstart#2-run-it',
   },
   {
     id: 'connect-db',

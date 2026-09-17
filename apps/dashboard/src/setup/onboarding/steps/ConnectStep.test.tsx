@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 2 — connect (45-onboarding.md §2, R1, DEP-7, DEP-17).
+ * Step 2 — connect (R1, DEP-7, DEP-17).
  *
  * The two properties worth pinning are both about what does NOT happen: no
  * request is made from this step (there is no session to make one with), and a
@@ -135,7 +135,7 @@ describe('a hand-off from adminium.dev', () => {
   });
 });
 
-describe('a database that already runs an Adminium (45-T11)', () => {
+describe('a database that already runs an Adminium', () => {
   const existing = { occupied: ['adminium_users', 'adminium_sessions'], secretMatches: true };
 
   it('names what is in there and offers both ways out', () => {

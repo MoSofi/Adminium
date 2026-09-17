@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `calendar` family (annex §5, TRACK CAL): render + i18n + determinism tests for
+ * `calendar` family (annex, TRACK CAL): render + i18n + determinism tests for
  * calendar-month, day-agenda, schedule-matrix, and capacity-board, plus the
  * locale-aware week start (via the @adminium/i18n `weekInfo` layer), RTL column
  * mirroring, and the four WidgetFrame states through WidgetHost.
@@ -249,7 +249,7 @@ describe('capacity-board', () => {
   });
 });
 
-describe('demoData determinism (04 §7.7)', () => {
+describe('demoData determinism', () => {
   const generators = [
     ['calendar-month', calendarMonthDemoData],
     ['day-agenda', dayAgendaDemoData],

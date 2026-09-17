@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * ONE PLACE A RECORD WRITE IS ANNOUNCED (42-automations-and-workflow-logs.md
- * §3.3, 42-T04; the shared helper 34-invoices-add-on.md §7.1 designed and did
+ * ONE PLACE A RECORD WRITE IS ANNOUNCED (the shared helper designed and did
  * not build).
  *
  * ─── The problem this exists to fix ────────────────────────────────────────
@@ -35,15 +34,16 @@
  * A rule's Update-field step writes a record, which is a `record.updated`
  * event, which can match the same rule. Every event therefore carries where
  * it came from and how many automation hops deep it already is; the matcher
- * skips an event a rule itself caused and refuses one past the ceiling
- * (§3.3). That is a property of the EVENT, not of the matcher, which is why
- * it is stamped here at the source.
+ * skips an event a rule itself caused and refuses one past the ceiling.
+ * That is a property of the EVENT, not of the matcher, which is why it is
+ * stamped here at the source.
  */
 
 import type { FastifyRequest } from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import {
   auditRepo,
+  type ActorKind,
   type AuditCategory,
   type AutomationOrigin,
   type MetaDb,
@@ -101,11 +101,11 @@ export interface AfterRecordWriteInput extends RecordWriteEvent {
    * request, and {@link AfterRecordWriteInput.actor} names who it was instead.
    */
   request?: FastifyRequest | null | undefined;
-  /** Required when `request` is null. */
-  actor?: { id: string | null; label: string } | undefined;
+  /** Required when `request` is null. `kind` defaults to `automation`. */
+  actor?: { id: string | null; label: string; kind?: ActorKind | undefined } | undefined;
   /** Audit category for the `record.<action>` entry. Default `data`. */
   auditCategory?: AuditCategory | undefined;
-  /** Column-bound file reconciliation (37 §3.7). Absent ⇒ no file behaviour. */
+  /** Column-bound file reconciliation. Absent ⇒ no file behaviour. */
   files?: FileReconciler | undefined;
   /** The store the audit row goes to when there is no request. */
   meta?: MetaDb | undefined;
@@ -115,10 +115,10 @@ export interface AfterRecordWriteInput extends RecordWriteEvent {
  * Hand one record event to the rule engine, and nothing else. Used by write
  * paths that already audit and publish their own way (bulk, public).
  *
- * Awaited before the route replies, deliberately (34 D7): a run row that
- * exists before the response is what makes "the rule fired for that sign-up"
- * true from the caller's point of view, and the work itself is a job the
- * queue picks up afterwards.
+ * Awaited before the route replies, deliberately: a run row that exists
+ * before the response is what makes "the rule fired for that sign-up" true
+ * from the caller's point of view, and the work itself is a job the queue
+ * picks up afterwards.
  */
 export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEvent): Promise<void> {
   if (!app.hasDecorator('automations')) return;
@@ -138,7 +138,7 @@ export async function afterRecordWrite(
   const { connectionId, table, action, entity, before, after } = input;
 
   const changes = {
-    // Before/after images are PII-redacted in the audit trail (§5.3).
+    // Before/after images are PII-redacted in the audit trail.
     before: before === null ? null : maskRow(before, table, false),
     after: after === null ? null : maskRow(after, table, false),
   };
@@ -153,31 +153,31 @@ export async function afterRecordWrite(
     await app.rbac.audit(input.request, entry);
   } else {
     // The runner's own writes. `actorKind: 'automation'` is the fourth kind
-    // the audit vocabulary has always carried (§3.11) and the reason a rule's
-    // writes are not undoable by spec (08 §2.7.3 item 6): nobody holds a token
+    // the audit vocabulary has always carried and the reason a rule's
+    // writes are not undoable by spec: nobody holds a token
     // for them.
     const meta = input.meta ?? app.rbac.meta;
     await auditRepo(meta).append({
       ...entry,
-      actorKind: 'automation',
+      actorKind: input.actor?.kind ?? 'automation',
       actorId: input.actor?.id ?? null,
       actorLabel: input.actor?.label ?? 'Automation',
     });
   }
 
   // Column-bound files: attach what appeared, trash what was replaced
-  // (37 §3.7). AFTER the audit row, for the reason above.
+  // . AFTER the audit row, for the reason above.
   const reconciled =
     input.files === undefined
       ? null
       : await input.files.reconcile({ connectionId, table: table.id, entity, before, after });
 
   if (app.hasDecorator('realtime')) {
-    // Cache-invalidation fan-out (09 §4.1) — carries only the pk.
+    // Cache-invalidation fan-out — carries only the pk.
     app.realtime.publish(`table:${connectionId}:${table.id}`, `record.${action}`, { pk: entity.pk });
-    // 37 D27: an open record page refetches its Attachments panel. No new
-    // channel — it rides the same table's WIDGET-DATA channel, not the
-    // `table:` one above, because `table:*` is publish-only: `parseChannel`
+    // An open record page refetches its Attachments panel. No new channel —
+    // it rides the same table's WIDGET-DATA channel, not the `table:` one
+    // above, because `table:*` is publish-only: `parseChannel`
     // (realtime/hub.ts) has no case for it, so `authorizeChannel` denies
     // every subscription to it (realtime-hub.test.ts pins that as the
     // deny-by-default example) and an event published there reaches no
@@ -195,7 +195,7 @@ export async function afterRecordWrite(
         row: null,
       });
     }
-    // Live-stream fan-out (04 §5.3) — carries the PII-masked row so the
+    // Live-stream fan-out — carries the PII-masked row so the
     // realtime-feed / live log-table tail can prepend it without a refetch.
     publishWidgetDataStream(app.realtime, {
       connectionId,

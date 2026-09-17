@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The §6 rate limiter + §7-item-5 security headers (08-server-api.md), both
- * registered by `plugins/core.ts`:
+ * The rate limiter + -item-5 security headers, both registered by
+ * `plugins/core.ts`:
  *
  *  - bucket enforcement per route marker (`config.rateLimitBucket`): the 6th
- *    login in a minute and the 4th forgot in an hour 429 with the §1.4
- *    envelope (`RATE_LIMITED`, `details: { bucket, limit, resetAt }`) and a
+ * login in a minute and the 4th forgot in an hour 429 with the envelope
+ *    (`RATE_LIMITED`, `details: { bucket, limit, resetAt }`) and a
  *    `Retry-After` header;
  *  - buckets are shared ACROSS routes (login + 2fa/verify draw down one
  *    budget) and keyed per ip (a flooding LAN peer cannot lock loopback out);
@@ -60,7 +60,7 @@ function badLogin(app: AuthTestApp['app'], remoteAddress?: string) {
   });
 }
 
-describe('rate limiting — bucket enforcement (08 §6)', () => {
+describe('rate limiting — bucket enforcement', () => {
   it('429s the 6th login/min with the RATE_LIMITED envelope and Retry-After', async () => {
     fixture = await buildAuthApp();
 
@@ -118,10 +118,12 @@ describe('rate limiting — bucket enforcement (08 §6)', () => {
     // THE BYPASS THIS PINS. `trustProxy: true` (a bare boolean) trusts every
     // hop, so request.ip became the LEFT-most, fully client-supplied XFF
     // entry — rotating the header handed an attacker a fresh login bucket per
-    // request, voiding §6/§7-item-7 brute-force protection in exactly the
-    // documented production mode. With hop count 1, request.ip is the
-    // RIGHT-most entry — the one the proxy itself appends — which the client
-    // cannot move.
+    // request, voiding -item-7 brute-force protection in exactly the
+    // documented production mode. Trusting only the connecting proxy
+    // (security/trust-proxy.ts), request.ip is the RIGHT-most entry — the one
+    // the proxy itself appends — which the client cannot move. This case alone
+    // cannot tell that apart from trusting NOBODY (every request then keys on
+    // the proxy, and that bucket fills too); trust-proxy.test.ts covers that.
     fixture = await buildAuthApp({ env: makeEnv({ ADMINIUM_TRUST_PROXY: 'on' }) });
 
     const spoofed = (i: number) =>
@@ -169,7 +171,7 @@ describe('rate limiting — bucket enforcement (08 §6)', () => {
     expect((await badLogin(fixture.app)).statusCode).toBe(401);
   });
 
-  it('429s the 6th reset-token CONSUME/min (§7 item 7 guess-rate cap)', async () => {
+  it('429s the 6th reset-token CONSUME/min (guess-rate cap)', async () => {
     fixture = await buildAuthApp();
 
     for (let attempt = 1; attempt <= 5; attempt += 1) {
@@ -201,7 +203,7 @@ describe('rate limiting — bucket enforcement (08 §6)', () => {
   });
 });
 
-describe('security headers (08 §7 item 5)', () => {
+describe('security headers', () => {
   it('serves helmet headers on API replies, without HSTS off-proxy', async () => {
     fixture = await buildAuthApp();
     const res = await fixture.app.inject({ method: 'GET', url: '/api/v1/healthz' });
@@ -210,8 +212,8 @@ describe('security headers (08 §7 item 5)', () => {
     const csp = String(res.headers['content-security-policy']);
     expect(csp).toContain("default-src 'self'");
     /*
-     * 'self', not 'none' (29-T09). The dashboard frames its own hosted staff
-     * surfaces to blend them into the shell; cross-origin framing — the whole
+     * 'self', not 'none'. The dashboard frames its own hosted staff surfaces
+     * to blend them into the shell; cross-origin framing — the whole
      * clickjacking threat — is still refused. Pinned in both spellings below
      * because a browser honouring `X-Frame-Options: DENY` ignores this
      * directive outright, so the two must never drift apart.
@@ -224,7 +226,7 @@ describe('security headers (08 §7 item 5)', () => {
     // scheme source would let an XSS foothold open a socket to any origin.
     expect(csp).toContain("connect-src 'self' ws://localhost:80 wss://localhost:80");
     expect(csp).not.toMatch(/connect-src[^;]*(?:^|\s)wss?:(?:\s|;|$)/);
-    // http:// loopback and §8.3 LAN origins must keep working.
+    // http:// loopback LAN origins must keep working.
     expect(csp).not.toContain('upgrade-insecure-requests');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
     expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
@@ -298,7 +300,7 @@ describe('security headers (08 §7 item 5)', () => {
   });
 });
 
-// ─── Desktop: the boot-token exchange under the limiter (11-electron.md §5) ───
+// ─── Desktop: the boot-token exchange under the limiter ───────────────────────
 
 const BOOT_TOKEN = 'a'.repeat(64);
 

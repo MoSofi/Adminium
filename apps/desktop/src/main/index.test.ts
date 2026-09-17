@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The boot sequence (11-electron.md §2.2), driven through `createDesktopApp`'s
- * injected ports. No Electron here — see the module header of index.ts and the
- * `electron` alias in vitest.config.ts for why that is possible at all.
+ * The boot sequence, driven through `createDesktopApp`'s injected ports. No
+ * Electron here — see the module header of index.ts and the `electron` alias
+ * in vitest.config.ts for why that is possible at all.
  *
- * What these assert is ORDER and POLICY, because that is what §2.2 actually
+ * What these assert is ORDER and POLICY, because that is what actually
  * specifies and what a reader of the code cannot otherwise check: the lock
  * before the data directory, the splash before the handshake, the token only
  * when `singleUser`, loopback always. The Electron-facing halves (a real
- * BrowserWindow, a real utilityProcess) are 11-T20's Playwright `_electron`
- * suite.
+ * BrowserWindow, a real utilityProcess) are Playwright `_electron` suite.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -65,20 +64,20 @@ interface Harness {
   managerOptions: () => CreateServerManagerOptions[];
   stopped: () => number;
   restarted: () => number;
-  /** Every `restart()` argument, in order — §8.3's rebind is only this. */
+  /** Every `restart()` argument, in order — rebind is only this. */
   restarts: () => { host?: string; port?: number }[];
-  /** §9's coordinator wiring, or null if the boot never built one. */
+  /** The coordinator wiring, or null if the boot never built one. */
   backupWiring: () => BackupWiring | null;
-  /** §14's File/Help handlers, or null if the menu was never installed. */
+  /** The File/Help handlers, or null if the menu was never installed. */
   menuHandlers: () => MenuHandlers | null;
-  /** §14: the translator the last `installMenu` was given (`null` if never). */
+  /** The translator the last `installMenu` was given (`null` if never). */
   menuTranslate: () => MenuTranslate | null;
-  /** §14: how many times the menu was (re)installed — one per locale rebuild. */
+  /** How many times the menu was (re)installed — one per locale rebuild. */
   installMenuCount: () => number;
   autoBackupRunning: () => boolean;
-  /** §11: every `createUpdateManager` input, in order (11-T16). */
+  /** Every `createUpdateManager` input, in order. */
   updateManagerInputs: () => { mode: UpdateMode }[];
-  /** §11: how many times the boot `dispose()`d the updater (quit teardown). */
+  /** How many times the boot `dispose()`d the updater (quit teardown). */
   updateDisposed: () => number;
 }
 
@@ -98,27 +97,27 @@ function harness(
     lock?: boolean;
     platform?: NodeJS.Platform;
     start?: () => Promise<ServerReadyInfo>;
-    /** Make boot step 2 or 3 throw — the config.ts error classes (§2.2). */
+    /** Make boot step 2 or 3 throw — the config.ts error classes. */
     load?: () => Promise<{ config: DesktopConfig; firstRun: boolean }>;
     resolveSecret?: () => Promise<{ secret: string; secretStorage: 'safeStorage' | 'plain' }>;
-    /** §6 step 1's writability probe. Defaults to a usable directory. */
+    /** The writability probe. Defaults to a usable directory. */
     ensureDataDir?: (dir: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
     restart?: (changes?: { host?: string; port?: number }) => Promise<ServerReadyInfo>;
     staticRoot?: string;
-    /** §8.3's collision pre-flight verdict. Defaults to a free port. */
+    /** The collision pre-flight verdict. Defaults to a free port. */
     probe?: ProbeResult;
     /** What File → "Restore from backup…"'s dialog returns. */
     pickedBackup?: string;
     managerState?: ServerState;
-    /** §2.2 step 1's launch argv. */
+    /** The launch argv. */
     argv?: readonly string[];
     /**
-     * §11: what `deps.createUpdateManager` returns (11-T16). `null` models the
+     * What `deps.createUpdateManager` returns. `null` models the
      * `disabled`/air-gapped port contract; `undefined` (the default) gives the
      * recording fake below.
      */
     updates?: UpdateManager | null;
-    /** §11: the env kill-switch fact carried into the runtime snapshot. */
+    /** The env kill-switch fact carried into the runtime snapshot. */
     updatesDisabledByEnv?: boolean;
   } = {},
 ): Harness {
@@ -135,7 +134,7 @@ function harness(
 
   let backupWiring: BackupWiring | null = null;
   let menuHandlers: MenuHandlers | null = null;
-  /** §14: the translator the last `installMenu` used, and how many rebuilds ran. */
+  /** The translator the last `installMenu` used, and how many rebuilds ran. */
   let menuTranslate: MenuTranslate | null = null;
   let installMenuCount = 0;
 
@@ -244,15 +243,15 @@ function harness(
     },
   };
 
-  // §9's coordinator, as a recorder. The boot sequence's job is to BUILD one,
+  // The coordinator, as a recorder. The boot sequence's job is to BUILD one,
   // wire the menu to it, start its schedule and route a `.zip` argument into it
   // — four wiring facts, each of which was previously absent and none of which a
   // test inside `backup.ts` could ever have noticed.
   let autoBackupRunning = false;
-  // §11's updater (11-T16), as a recorder. The wiring facts this pins: the boot
-  // must BUILD one at step 5 (with the config mode), and `dispose()` it on quit —
-  // and the `disabled` port returns `null`, which the boot must tolerate (menu
-  // item left off, nothing to dispose).
+  // The updater, as a recorder. The wiring facts this pins: the boot must BUILD
+  // one at step 5 (with the config mode), and `dispose()` it on quit — and the
+  // `disabled` port returns `null`, which the boot must tolerate (menu item left
+  // off, nothing to dispose).
   const updateManagerInputs: { mode: UpdateMode }[] = [];
   let updateDisposed = 0;
   const fakeUpdateManager: UpdateManager = {
@@ -286,7 +285,7 @@ function harness(
     },
   };
 
-  // §5's token, as the REAL manager produces it: minted from the factory the
+  // The token, as the REAL manager produces it: minted from the factory the
   // shell injects, once per fork — so `start` and `restart` each mint, and
   // `bootToken` reports the live child's.
   //
@@ -329,7 +328,7 @@ function harness(
       // The REAL manager emits `ready` on a successful restart, and the
       // subscriber that listens is what navigates the window — so a fake that
       // only resolved would make every "did the window come back?" assertion
-      // vacuously pass. §8.3's toggle IS that navigation.
+      // vacuously pass. The LAN toggle IS that navigation.
       //
       // A restart is a FORK, so it mints too — before `ready` fires, because
       // the subscriber reads `manager.bootToken` to build the URL.
@@ -441,7 +440,7 @@ function harness(
   };
 }
 
-// ─── extractFileArgument (§2.2 step 1, §9) ───────────────────────────────────
+// ─── extractFileArgument ─────────────────────────────────────────────────────
 
 describe('extractFileArgument', () => {
   it('finds a backup zip and a SQLite file among real launch arguments', () => {
@@ -477,29 +476,29 @@ describe('extractFileArgument', () => {
   });
 });
 
-// ─── appUrl (§2.2 step 8, §5, §2.4) ──────────────────────────────────────────
+// ─── appUrl ──────────────────────────────────────────────────────────────────
 
 describe('appUrl', () => {
-  it('carries the boot token for the single-user auto-login (§5)', () => {
+  it('carries the boot token for the single-user auto-login', () => {
     expect(appUrl({ host: '127.0.0.1', port: 51234, firstRun: false, bootToken: 'abc' })).toBe(
       'http://127.0.0.1:51234/?bootToken=abc',
     );
   });
 
-  it('omits the token when there is none — the SPA then shows the login (§5)', () => {
+  it('omits the token when there is none — the SPA then shows the login', () => {
     expect(appUrl({ host: '127.0.0.1', port: 51234, firstRun: false })).toBe(
       'http://127.0.0.1:51234/',
     );
   });
 
-  it('lands on the wizard on first run, with no token: there is no user to log in as (§6)', () => {
+  it('lands on the wizard on first run, with no token: there is no user to log in as', () => {
     expect(appUrl({ host: '127.0.0.1', port: 4600, firstRun: true, bootToken: 'abc' })).toBe(
       'http://127.0.0.1:4600/desktop/setup',
     );
   });
 
-  it('stays on loopback even when the server bound 0.0.0.0 for LAN share (§2.4/§8.3)', () => {
-    // §5's boot-token route rejects non-loopback peers unconditionally, so a
+  it('stays on loopback even when the server bound 0.0.0.0 for LAN share', () => {
+    // The boot-token route rejects non-loopback peers unconditionally, so a
     // window addressing itself over the LAN interface would be refused by our
     // own auth route — and would drop a session cookie on a shared origin.
     expect(appUrl({ host: '0.0.0.0', port: 4600, firstRun: false, bootToken: 'abc' })).toBe(
@@ -515,10 +514,10 @@ describe('appUrl', () => {
   });
 });
 
-// ─── The sequence (§2.2) ─────────────────────────────────────────────────────
+// ─── The sequence ────────────────────────────────────────────────────────────
 
 describe('createDesktopApp boot sequence', () => {
-  it('runs §2.2 steps 1-8 in the documented order', async () => {
+  it('runs steps 1-8 in the documented order', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
 
@@ -529,19 +528,18 @@ describe('createDesktopApp boot sequence', () => {
     expect(h.calls).toEqual([
       'lock',
       'whenReady',
-      // §4's bridge, before ANY window exists — see the next test.
+      // The bridge, before ANY window exists — see the next test.
       'registerBridge',
       // And the crash-page handler before the config steps, because those can
       // fail and the screen they open has a Quit button on it.
       'setCrashActionHandler',
       'config.load',
       'config.resolveSecret',
-      // §9's coordinator, §11's updater and §14's menu, between the config and
-      // the fork: all need the dataDir (step 2) and the manager (step 5), the
-      // menu needs the coordinator, and its "Check for updates…" item needs the
-      // updater — so the updater is built before the menu. Before `showBoot`, so
-      // the File menu is real from the first frame rather than appearing once the
-      // server answers.
+      // The coordinator, updater menu, between the config and the fork: all need
+      // the dataDir (step 2) and the manager (step 5), the menu needs the
+      // coordinator, and its "Check for updates…" item needs the updater — so the
+      // updater is built before the menu. Before `showBoot`, so the File menu is
+      // real from the first frame rather than appearing once the server answers.
       'createBackup',
       'createUpdateManager:notify',
       'installMenu',
@@ -552,20 +550,20 @@ describe('createDesktopApp boot sequence', () => {
     ]);
   });
 
-  it('registers the §4 bridge before the first window is ever created', async () => {
+  it('registers the bridge before the first window is ever created', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
 
-    // THE ordering assertion of this file. The preload reads §4's
+    // THE ordering assertion of this file. The preload reads
     // platform/versions with a blocking `sendSync` at load time and THROWS when
     // no handler answers — Electron then reports "Unable to load preload
     // script", `contextBridge.exposeInMainWorld` never runs, and
     // `window.adminiumDesktop` is undefined for the life of that window. Every
-    // §4 affordance dies with it (openFile, chooseDirectory, getRuntimeInfo,
-    // setConfig, updates, capabilities, relaunch, showLogs), and §5's "Require
-    // login on this device" toggle becomes unreachable. Nothing else in the
-    // suite can catch this: the handlers are fully unit-tested in isolation, and
-    // it is the WIRING that was absent.
+    // affordance dies with it (openFile, chooseDirectory, getRuntimeInfo,
+    // setConfig, updates, capabilities, relaunch, showLogs), "Require login on
+    // this device" toggle becomes unreachable. Nothing else in the suite can
+    // catch this: the handlers are fully unit-tested in isolation, and it is the
+    // WIRING that was absent.
     const bridgeAt = h.calls.indexOf('registerBridge');
     expect(bridgeAt).toBeGreaterThanOrEqual(0);
     for (const windowCall of ['showBoot', 'showCrash', 'loadApp', 'reopen'] as const) {
@@ -581,7 +579,7 @@ describe('createDesktopApp boot sequence', () => {
     expect(h.calls.indexOf('registerBridge')).toBeLessThan(h.calls.indexOf('showCrash'));
   });
 
-  it('paints the splash WITHOUT waiting for the handshake (§2.2 steps 5-6)', async () => {
+  it('paints the splash WITHOUT waiting for the handshake (steps 5-6)', async () => {
     let release: (info: ServerReadyInfo) => void = () => undefined;
     const h = harness({ start: () => new Promise<ServerReadyInfo>((r) => (release = r)) });
 
@@ -598,7 +596,7 @@ describe('createDesktopApp boot sequence', () => {
     expect(h.calls).toContain('loadApp');
   });
 
-  it('quits without booting a server when the lock is held (§2.2 step 1)', async () => {
+  it('quits without booting a server when the lock is held', async () => {
     const h = harness({ lock: false });
     await createDesktopApp(h.deps).start();
 
@@ -609,31 +607,31 @@ describe('createDesktopApp boot sequence', () => {
     expect(h.calls).not.toContain('server.start');
   });
 
-  it('focuses the window and forwards a file argument on a second launch (§2.2 step 1)', async () => {
+  it('focuses the window and forwards a file argument on a second launch', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
 
-    // A `.sqlite` — §6 step 2's "Open an existing SQLite file", which is the
-    // SPA's. (A `.zip` goes to §9's restore instead; see the wiring suite.)
+    // A `.sqlite` — the wizard's "Open an existing SQLite file", which is the
+    // SPA's. (A `.zip` goes to restore instead; see the wiring suite.)
     h.fireSecondInstance(['/path/Adminium', '/Users/ava/app.sqlite']);
     expect(h.calls).toContain('focus');
     expect(h.calls).toContain('handleFileArgument:/Users/ava/app.sqlite');
   });
 
-  it('sends the window to the wizard on first run (§6)', async () => {
+  it('sends the window to the wizard on first run', async () => {
     const h = harness({ firstRun: true });
     await createDesktopApp(h.deps).start();
     expect(h.loaded).toEqual(['http://127.0.0.1:51234/desktop/setup']);
   });
 
-  it('withholds the token when "Require login on this device" is on (§5)', async () => {
+  it('withholds the token when "Require login on this device" is on', async () => {
     const h = harness({ config: { singleUser: false } });
     await createDesktopApp(h.deps).start();
     // No token: the route is not even registered, so waving one would 403.
     expect(h.loaded).toEqual(['http://127.0.0.1:51234/']);
   });
 
-  it('exposes the secret-storage mode and resolved port for the About screen (§13)', async () => {
+  it('exposes the secret-storage mode and resolved port for the About screen', async () => {
     const h = harness();
     const app = createDesktopApp(h.deps);
     await app.start();
@@ -645,7 +643,7 @@ describe('createDesktopApp boot sequence', () => {
     });
   });
 
-  it('binds loopback with an ephemeral port unless LAN share is on (§2.4/§8.3)', async () => {
+  it('binds loopback with an ephemeral port unless LAN share is on', async () => {
     const seen: Array<{ host?: string | undefined; port?: number | undefined }> = [];
     const h = harness();
     const spied: DesktopBootDeps = {
@@ -671,8 +669,8 @@ describe('createDesktopApp boot sequence', () => {
     expect(seen[1]).toEqual({ host: '0.0.0.0', port: 4600 });
   });
 
-  it('tells the server what §5 answer the user chose (§2.3 singleUser)', async () => {
-    // The seam §5 died on: the shell puts `?bootToken=` in the URL below because
+  it('tells the server what answer the user chose (singleUser)', async () => {
+    // The seam died on: the shell puts `?bootToken=` in the URL below because
     // singleUser is true, but if the child is never told, `compose.ts`'s mirror
     // does not run, `adminium_settings.desktop.singleUser` keeps the registry
     // default `false`, and the route 403s the token this same boot minted.
@@ -686,7 +684,7 @@ describe('createDesktopApp boot sequence', () => {
     expect(off.managerOptions()[0]?.singleUser).toBe(false);
   });
 
-  it('points the server at the dashboard build, or a packaged app serves no SPA (§3)', async () => {
+  it('points the server at the dashboard build, or a packaged app serves no SPA', async () => {
     const h = harness({ staticRoot: '/app/out/dashboard' });
     await createDesktopApp(h.deps).start();
     // Without this the window navigates to a booted, healthy server that 404s
@@ -697,7 +695,7 @@ describe('createDesktopApp boot sequence', () => {
   });
 });
 
-// ─── The §4 bridge context (§2.3, §4) ────────────────────────────────────────
+// ─── The bridge context ───────────────────────────────────────────
 
 describe('the bridge context handed to registerBridge', () => {
   it('answers getRuntimeInfo with the live port and secret-storage mode', async () => {
@@ -712,7 +710,7 @@ describe('the bridge context handed to registerBridge', () => {
     });
   });
 
-  it('carries the env update kill-switch into the runtime snapshot (§11)', async () => {
+  it('carries the env update kill-switch into the runtime snapshot', async () => {
     const h = harness({ updatesDisabledByEnv: true });
     await createDesktopApp(h.deps).start();
     expect(h.bridge()?.runtime()).toMatchObject({ updatesDisabledByEnv: true });
@@ -726,7 +724,7 @@ describe('the bridge context handed to registerBridge', () => {
     expect(h.bridge()).toBeNull();
   });
 
-  it('merges and persists a setConfig patch (§2.3, §4)', async () => {
+  it('merges and persists a setConfig patch', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
 
@@ -741,9 +739,9 @@ describe('the bridge context handed to registerBridge', () => {
   });
 });
 
-// ─── §8.3's LAN toggle, end to end through the real boot sequence ────────────
+// ─── LAN toggle, end to end through the real boot sequence ───────────────────
 
-describe('the LAN share toggle (§8.3)', () => {
+describe('the LAN share toggle', () => {
   it('REBINDS the child to 0.0.0.0:4600 when the toggle goes on', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
@@ -770,7 +768,7 @@ describe('the LAN share toggle (§8.3)', () => {
     expect(h.saved.at(-1)?.lanShare.enabled).toBe(false);
   });
 
-  it('persists the share state across launches (§8.3)', async () => {
+  it('persists the share state across launches', async () => {
     // The next boot forks from `config.json` — no toggle, no restart, just the
     // bind the file already asked for. This is the whole of "the share state
     // persists across launches"; `binds loopback … unless LAN share is on`
@@ -790,7 +788,7 @@ describe('the LAN share toggle (§8.3)', () => {
       h.bridge()?.writeConfig({ lanShare: { enabled: true, port: 4600 } }),
     ).rejects.toThrow(/LAN_PORT_IN_USE: Port 4600 is already in use by another program\. Try 4601\./);
 
-    // "Changing nothing" is the requirement, not a nicety: §8.3 asks for an
+    // "Changing nothing" is the requirement, not a nicety: the toggle needs an
     // INLINE error, and only a failure with no side effects can be rendered by a
     // window that was never navigated away from.
     expect(h.saved).toHaveLength(0);
@@ -817,8 +815,9 @@ describe('the LAN share toggle (§8.3)', () => {
   });
 
   it('leaves the server alone for a patch that does not touch lanShare', async () => {
-    // §5's login toggle, §11's update mode and §9's backup schedule all write
-    // this same file, and none of them has any business restarting the server.
+    // The login toggle, update mode backup schedule all write
+    // this same file, and none of them has any business
+    // restarting the server.
     const h = harness();
     await createDesktopApp(h.deps).start();
 
@@ -842,7 +841,7 @@ describe('the LAN share toggle (§8.3)', () => {
 
   it('reverts the file AND the bind when the rebind itself fails', async () => {
     // Otherwise a settings toggle bricks the app: no server now, and a config
-    // that will fail the same way at every future launch (§2.2 step 5).
+    // that will fail the same way at every future launch.
     let calls = 0;
     const h = harness({
       restart: () => {
@@ -869,7 +868,7 @@ describe('the LAN share toggle (§8.3)', () => {
 describe('applyConfigPatch', () => {
   const base = createDefaultConfig('/data');
 
-  it("applies exactly §4's five keys", () => {
+  it('applies exactly the five bridge keys', () => {
     const next = applyConfigPatch(base, {
       singleUser: false,
       lanShare: { enabled: true, port: 4601 },
@@ -884,7 +883,7 @@ describe('applyConfigPatch', () => {
     expect(next.autoBackup).toEqual({ enabled: false, keep: 3 });
   });
 
-  it('leaves the secret, dataDir and version untouched — they are not §4 keys', () => {
+  it('leaves the secret, dataDir and version untouched — they are not keys', () => {
     const withSecret: DesktopConfig = { ...base, secretPlain: 'shhh', secretStorage: 'plain' };
     const next = applyConfigPatch(withSecret, { telemetryOptIn: true });
     expect(next.secretPlain).toBe('shhh');
@@ -902,7 +901,7 @@ describe('applyConfigPatch', () => {
   });
 });
 
-// ─── Failure + restart rendering (§2.2 steps 7 and 9) ────────────────────────
+// ─── Failure + restart rendering (steps 7 and 9) ─────────────────────────────
 
 describe('createDesktopApp failure handling', () => {
   it('shows the crash screen with the log excerpt when the handshake never lands', async () => {
@@ -924,7 +923,7 @@ describe('createDesktopApp failure handling', () => {
     expect(h.calls).not.toContain('loadApp');
   });
 
-  it('stays silent while the manager is restarting, showing the splash (§2.2 step 9)', async () => {
+  it('stays silent while the manager is restarting, showing the splash', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
     h.calls.length = 0;
@@ -934,7 +933,7 @@ describe('createDesktopApp failure handling', () => {
     expect(h.crashes).toHaveLength(0);
   });
 
-  it('offers a restart on a crash, but not once the 3-in-60s cap trips (§2.2 step 9)', async () => {
+  it('offers a restart on a crash, but not once the 3-in-60s cap trips', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
 
@@ -977,7 +976,7 @@ describe('createDesktopApp failure handling', () => {
     expect(h.calls).not.toContain('server.start');
   });
 
-  it('shows the crash screen when the secret cannot be resolved (§2.2 step 3)', async () => {
+  it('shows the crash screen when the secret cannot be resolved', async () => {
     // The Linux autostart race: gnome-keyring has not started, safeStorage
     // reports no backend, and config.json holds an ENCRYPTED secret. config.ts
     // refuses to mint a replacement (it would orphan every encrypted DSN), so
@@ -991,7 +990,7 @@ describe('createDesktopApp failure handling', () => {
   });
 });
 
-// ─── The crash page's buttons (§2.2 step 9) ──────────────────────────────────
+// ─── The crash page's buttons ────────────────────────────────────────────────
 
 describe('crash-page actions', () => {
   it('installs a handler at all — without one all three buttons are inert', async () => {
@@ -1026,7 +1025,7 @@ describe('crash-page actions', () => {
     expect(() => h.fireCrashAction('retry')).not.toThrow();
   });
 
-  it("points Show logs at §9's log folder", async () => {
+  it('points Show logs at the log folder', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
     h.fireCrashAction('logs');
@@ -1072,10 +1071,10 @@ describe('crash-page actions', () => {
   });
 });
 
-// ─── Graceful shutdown (§9) ──────────────────────────────────────────────────
+// ─── Graceful shutdown ───────────────────────────────────────────────────────
 
 describe('the quit path', () => {
-  it('stops the server before letting the app close (§9 WAL checkpoint)', async () => {
+  it('stops the server before letting the app close (WAL checkpoint)', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
 
@@ -1103,7 +1102,7 @@ describe('the quit path', () => {
     expect(h.stopped()).toBe(1);
   });
 
-  it('stops the server when the last window closes off macOS (§14 → §9)', async () => {
+  it('stops the server when the last window closes off macOS', async () => {
     const h = harness({ platform: 'win32' });
     await createDesktopApp(h.deps).start();
 
@@ -1112,7 +1111,7 @@ describe('the quit path', () => {
   });
 });
 
-// ─── Lifecycle conventions (§14) ─────────────────────────────────────────────
+// ─── Lifecycle conventions ───────────────────────────────────────────────────
 
 describe('window lifecycle conventions', () => {
   it('quits with the last window off macOS, and never on it', async () => {
@@ -1142,7 +1141,7 @@ describe('window lifecycle conventions', () => {
 });
 
 /**
- * §9's backup/restore, seen from the boot sequence — i.e. the WIRING.
+ * The backup/restore, seen from the boot sequence — i.e. the WIRING.
  *
  * These exist because `backup.ts` and `menu.ts` both compiled, unit-tested green
  * and were called by NOTHING: `createBackupCoordinator` threw a scaffold error
@@ -1152,7 +1151,7 @@ describe('window lifecycle conventions', () => {
  * it injects its own deps and never exercises the production path. What can
  * catch it is asserting, from the entry point, that the ports were CALLED.
  */
-describe('§9 backup/restore wiring (11-T12)', () => {
+describe('backup/restore wiring', () => {
   it('builds the coordinator, installs the menu, and starts the auto-backup schedule', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
@@ -1166,7 +1165,7 @@ describe('§9 backup/restore wiring (11-T12)', () => {
   });
 
   it('gives the coordinator a LIVE config view, not the boot snapshot', async () => {
-    // §9's scheduler re-reads on every tick precisely so "Automatic backups:
+    // The scheduler re-reads on every tick precisely so "Automatic backups:
     // off" takes effect tonight rather than next launch. Wiring it to the
     // step-2 snapshot — which is what the rest of the boot uses — would make
     // that toggle, and `keep`, silently inert: the settings panel would write
@@ -1188,8 +1187,9 @@ describe('§9 backup/restore wiring (11-T12)', () => {
     expect(wiring).not.toBeNull();
     expect(wiring?.dataDir).toBe('/data/adminium');
     expect(wiring?.readConfig().autoBackup.keep).toBe(7);
-    // §9's refusal rule needs THIS app's migration version, and the §2.2 step 7
-    // handshake is its only source. `null` here would make every restore refuse.
+    // The refusal rule needs THIS app's migration version, and the
+    // handshake is its only source. `null` here would make every
+    // restore refuse.
     expect(wiring?.server.metaVersion()).toBe('0009_views_kind');
     expect(wiring?.serverOrigin()).toBe('http://127.0.0.1:51234');
   });
@@ -1208,7 +1208,7 @@ describe('§9 backup/restore wiring (11-T12)', () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
 
-    // §14 renders an unwired command DISABLED. A handler that is `undefined`
+    // An unwired command renders DISABLED. A handler that is `undefined`
     // here is a greyed-out menu item, which is exactly what shipped.
     expect(h.menuHandlers()?.backupNow).toBeTypeOf('function');
     h.menuHandlers()?.backupNow?.();
@@ -1227,20 +1227,20 @@ describe('§9 backup/restore wiring (11-T12)', () => {
     });
   });
 
-  it('rebuilds the native menu with localized labels on a locale push (§14)', async () => {
+  it('rebuilds the native menu with localized labels on a locale push', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
 
     // Step 5 installs the menu once, in the en-US boot default — no labels have
-    // been pushed yet (§2.2 step 6 has no SPA to resolve them).
+    // been pushed yet (has no SPA to resolve them).
     const initialInstalls = h.installMenuCount();
     expect(initialInstalls).toBeGreaterThan(0);
     expect(h.menuTranslate()?.('file')).toBe('File');
     expect(h.menuTranslate()?.('help.about')).toBe('About Adminium');
 
-    // The SPA resolved its i18n and pushed a locale (§4 `setMenuLabels` →
+    // The SPA resolved its i18n and pushed a locale (`setMenuLabels` →
     // `ipc.ts` → this bridge port). The menu rebuilds with the same handlers and
-    // the pushed labels — this is §14's "menu rebuilds on locale change".
+    // the pushed labels — this is "menu rebuilds on locale change".
     h.bridge()?.setMenuLabels({
       file: 'Datei',
       'file.newDatabase': 'Neue lokale Datenbank…',
@@ -1277,8 +1277,8 @@ describe('§9 backup/restore wiring (11-T12)', () => {
     expect(h.calls.some((call) => call.startsWith('backup.restoreFrom'))).toBe(false);
   });
 
-  it('routes a .zip launch argument straight into the restore flow (§2.2 step 1)', async () => {
-    // §9: "also handles a backup zip passed as a launch argument". It never
+  it('routes a.zip launch argument straight into the restore flow', async () => {
+    // "also handles a backup zip passed as a launch argument". It never
     // reaches the SPA — the whole restore runs in main — which is why
     // `window.ts`'s `pendingFileArgument` note does not block this half.
     const h = harness({ argv: ['/Applications/Adminium.app', '/Users/ava/backup.zip'] });
@@ -1290,7 +1290,7 @@ describe('§9 backup/restore wiring (11-T12)', () => {
   });
 
   it('still hands a .sqlite launch argument to the SPA, not the restore flow', async () => {
-    // §6 step 2's "Open an existing SQLite file" IS the wizard's (11-T07), and
+    // "Open an existing SQLite file" IS the wizard's, and
     // routing it into a restore would try to unzip a database.
     const h = harness({ argv: ['/Applications/Adminium.app', '/Users/ava/app.sqlite'] });
     await createDesktopApp(h.deps).start();
@@ -1322,9 +1322,9 @@ describe('§9 backup/restore wiring (11-T12)', () => {
   });
 });
 
-// ─── §11's updater wiring (11-T16) ───────────────────────────────────────────
+// ─── updater wiring ─────────────────────────────────────────────────
 
-describe('the updater is built at step 5 and wired to the menu + quit (§11)', () => {
+describe('the updater is built at step 5 and wired to the menu + quit', () => {
   it('builds the updater with the config mode, once, after the config load', async () => {
     const h = harness({ config: { updates: { mode: 'notify' } } });
     await createDesktopApp(h.deps).start();

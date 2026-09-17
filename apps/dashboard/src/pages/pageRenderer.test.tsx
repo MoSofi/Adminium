@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * PageRenderer integration (09-generated-app.md §3–§4): mounts the real
- * router at /p/customers with a mocked page-crud envelope and a registered
- * test template, exercising the full glue end-to-end — envelope fetch +
- * validation → template registry → CrudApi list → rows; mutate WidgetEvent →
- * CRUD call → undo toast → undo POST; record-open → hrefForRecord navigation.
- * Plus the never-crash cards: unknown template, config too new, and the
- * page-scoped forbidden state.
+ * PageRenderer integration: mounts the real router at /p/customers with a
+ * mocked page-crud envelope and a registered test template, exercising the
+ * full glue end-to-end — envelope fetch + validation → template registry →
+ * CrudApi list → rows; mutate WidgetEvent → CRUD call → undo toast → undo
+ * POST; record-open → hrefForRecord navigation. Plus the never-crash cards:
+ * unknown template, config too new, and the page-scoped forbidden state.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
@@ -34,7 +33,7 @@ class FakeWebSocket {
 /**
  * Minimal stand-in for the page-crud template: lists rows through the CrudApi
  * adapter, emits a mutate WidgetEvent from its New button and a record-open
- * event on row click — exactly the host-facing surface 04 §2.1 defines.
+ * event on row click — exactly the host-facing surface defines.
  */
 function TestCrudTemplate({ page, adapters, recordId }: PageTemplateProps) {
   const crud = adapters.crud;
@@ -80,7 +79,7 @@ interface Fixture {
   batchReply?: () => Response;
   /** Rows the stubbed CrudApi list returns (default: one Northwind row). */
   rows?: Record<string, unknown>[];
-  /** The `customers` nav item's owning-connection currency (36-T15). */
+  /** The `customers` nav item's owning-connection currency. */
   currency?: string | null;
 }
 
@@ -184,7 +183,7 @@ describe('PageRenderer end-to-end (/p/customers, page-crud)', () => {
 
     await user.click(screen.getByRole('button', { name: 'New row' }));
 
-    // Undo-first mutation (09 §4.1): success toast with an Undo action.
+    // Undo-first mutation: success toast with an Undo action.
     expect(await screen.findByText('Record created')).toBeDefined();
     await user.click(screen.getByRole('button', { name: 'Undo' }));
 
@@ -197,7 +196,7 @@ describe('PageRenderer end-to-end (/p/customers, page-crud)', () => {
     expect(await screen.findByText('Change undone')).toBeDefined();
   });
 
-  it('record-open WidgetEvent navigates to hrefForRecord (09 §2.3)', async () => {
+  it('record-open WidgetEvent navigates to hrefForRecord', async () => {
     unregisterFns.push(registerPageTemplate('page-crud', TestCrudTemplate));
     const user = userEvent.setup();
     const { router } = await renderAt('/p/customers');
@@ -207,7 +206,7 @@ describe('PageRenderer end-to-end (/p/customers, page-crud)', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/p/customers/r/1');
     });
-    // The record child route re-mounts the template with recordId (09 §7.1).
+    // The record child route re-mounts the template with recordId.
     expect(await screen.findByText('Record detail 1')).toBeDefined();
   });
 });
@@ -217,7 +216,7 @@ describe('built-in page-crud binding (real template, no registration)', () => {
     await renderAt('/p/customers');
     // The real template's data-grid renders the fixture row via api.list.
     expect(await screen.findByText('Northwind')).toBeDefined();
-    // Header CTA uses DB framing (09 §7.1) — proves the real PageCrud mounted.
+    // Header CTA uses DB framing — proves the real PageCrud mounted.
     expect(screen.getByRole('button', { name: /New row/ })).toBeDefined();
   });
 
@@ -240,11 +239,11 @@ describe('built-in page-crud binding (real template, no registration)', () => {
   });
 
   /**
-   * 36-derived-columns.md 36-T15. Every money cell in the product has rendered
-   * USD since the feature shipped — `formatMoney` falls back to it, the column
-   * spec's own `currency` is populated by nothing, and the `currency` prop
-   * `PageCrud` already accepted had no caller. The connection's own currency
-   * now rides the bootstrap nav item and `PageRenderer` hands it down.
+   * Every money cell in the product has rendered USD since the feature shipped
+   * — `formatMoney` falls back to it, the column spec's own `currency` is
+   * populated by nothing, and the `currency` prop `PageCrud` already accepted
+   * had no caller. The connection's own currency now rides the bootstrap nav
+   * item and `PageRenderer` hands it down.
    */
   const moneyEnvelope = () =>
     makeCrudEnvelope({
@@ -302,7 +301,7 @@ describe('built-in page-dashboard binding (real template, no registration)', () 
     const batchCalls = fetchMock.mock.calls.filter((call) => String(call[0]) === '/api/v1/widget-data/batch');
     expect(batchCalls).toHaveLength(1);
     const body = JSON.parse(String((batchCalls[0]?.[1] as RequestInit).body)) as { requests: unknown[] };
-    expect(body.requests).toHaveLength(1); // deduped (04 §5.3)
+    expect(body.requests).toHaveLength(1); // deduped
   });
 
   it('maps a whole-batch failure to per-widget error cards — page and shell stay up', async () => {
@@ -312,7 +311,7 @@ describe('built-in page-dashboard binding (real template, no registration)', () 
         jsonResponse(400, { error: { code: 'INVALID_DESCRIPTOR', message: 'boom', requestId: 'req_b' } }),
     });
 
-    // Per-widget error states with Retry, never a page crash (09 §4.1).
+    // Per-widget error states with Retry, never a page crash.
     const retries = await screen.findAllByRole('button', { name: /Retry/ });
     expect(retries.length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeDefined();
@@ -320,10 +319,10 @@ describe('built-in page-dashboard binding (real template, no registration)', () 
 });
 
 /**
- * The page gutter (02 §1.8). PageRenderer wraps every template in ONE
- * `PageSurface` built from `surfaceDefaults`, so the padding of `/p/<slug>` is
- * decided in one table rather than by whichever binding was edited last. Before
- * this, `page-crud` carried the gutter and ten other templates carried none.
+ * The page gutter. PageRenderer wraps every template in ONE `PageSurface` built
+ * from `surfaceDefaults`, so the padding of `/p/<slug>` is decided in one table
+ * rather than by whichever binding was edited last. Before this, `page-crud`
+ * carried the gutter and ten other templates carried none.
  */
 describe('page gutter', () => {
   async function surfaceAt(path: string, fixture: Fixture = {}) {
@@ -362,7 +361,7 @@ describe('page gutter', () => {
   });
 });
 
-describe('never-crash cards (09 §3.1)', () => {
+describe('never-crash cards', () => {
   it('renders the unknown-template card for unrecognized template ids', async () => {
     await renderAt('/p/customers', {
       pageReply: () =>
@@ -394,7 +393,7 @@ describe('never-crash cards (09 §3.1)', () => {
         }),
     });
     expect(await screen.findByText('You don’t have access')).toBeDefined();
-    // Shell + nav stay usable (page-scoped state, §6.1).
+    // Shell + nav stay usable (page-scoped state).
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeDefined();
   });
 });

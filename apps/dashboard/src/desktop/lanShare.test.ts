@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `desktop/lanShare.ts` — the pure half of §8.3's panel.
+ * `desktop/lanShare.ts` — the pure half of panel.
  *
  * `lanShareView` is here because its interesting states are the ones where the
  * config and the socket DISAGREE, and those are unreachable from a component
@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { lanPortSuggestion, lanShareView } from './lanShare.js';
 
-describe('lanPortSuggestion (§8.3 "Try 4601")', () => {
+describe('lanPortSuggestion ("Try 4601")', () => {
   /**
    * THE OTHER SIDE OF THE CONTRACT, copied verbatim.
    *
@@ -46,7 +46,7 @@ describe('lanPortSuggestion (§8.3 "Try 4601")', () => {
   });
 });
 
-describe('lanShareView (§8.3)', () => {
+describe('lanShareView', () => {
   it('off: not sharing, not trying to', () => {
     expect(lanShareView({ configEnabled: false, active: false })).toBe('off');
   });

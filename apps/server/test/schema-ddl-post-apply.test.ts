@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * D11's post-apply sequence, over HTTP — 35-schema-authoring.md D11, 35-T11.
+ * D11's post-apply sequence, over HTTP.
  *
  * ─── The gap this file closes ──────────────────────────────────────────────
  *
@@ -198,7 +198,7 @@ describe('apply re-reads the schema it just changed (D11, beat one)', () => {
   });
 });
 
-describe('a created table is USABLE — it has a primary key (§10 criterion 1)', () => {
+describe('a created table is USABLE — it has a primary key (criterion 1)', () => {
   /*
    * The clause of the acceptance criterion nothing tested: "a row inserted from
    * that page comes back with its generated key".
@@ -290,7 +290,7 @@ describe('a created table is invisible until it is adopted (D11, beat three)', (
   });
 });
 
-describe('renaming a table keeps the app whole (D33, §10 criterion 13)', () => {
+describe('renaming a table keeps the app whole (D33, criterion 13)', () => {
   /*
    * Two bugs, one of them silent, both found by running the criterion rather
    * than by any test.

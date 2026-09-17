@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The main-process half of the §4 bridge, driven through a fake `ipcMain`.
+ * The main-process half of the bridge, driven through a fake `ipcMain`.
  *
  * These tests exist because of one asymmetry: everything the handlers do
  * correctly is visible the first time a feature is used, and everything they
  * fail to REFUSE is invisible until someone refuses it for us. So the weight is
  * on the refusals — a payload zod should have rejected, a key that must not be
  * settable, a sender that must not be served, an updater that must not exist —
- * and on the shape of a failure, since §12's typed codes are the SPA's control
- * flow and not decoration.
+ * and on the shape of a failure, since typed codes are the SPA's control flow
+ * and not decoration.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -45,7 +45,7 @@ const BOOTSTRAP: BridgeBootstrap = {
 
 const DATA_DIR = '/home/ava/.local/share/Adminium/data';
 
-/** A frame at the loopback origin — what the SPA always is (§2.2 step 8). */
+/** A frame at the loopback origin — what the SPA always is. */
 const APP_FRAME: IpcInvokeEventLike = { senderFrame: { url: 'http://127.0.0.1:51234/studio' } };
 
 class FakeIpcMain implements IpcMainLike {
@@ -138,10 +138,10 @@ interface Harness {
 }
 
 /**
- * `updates` is the RESOLVED manager (or null), not the getter §11 wires — the
- * boot creates the manager after config load and `ipc.ts` reads it through a
- * `() => UpdateManager | null` port. The harness takes the value for readability
- * and wraps it in the getter below, so the disabled case is `{ updates: null }`.
+ * `updates` is the RESOLVED manager (or null), not the getter wires — the boot
+ * creates the manager after config load and `ipc.ts` reads it through a `() =>
+ * UpdateManager | null` port. The harness takes the value for readability and
+ * wraps it in the getter below, so the disabled case is `{ updates: null }`.
  */
 function harness(
   overrides: Partial<Omit<RegisterIpcHandlersOptions, 'updates'>> & {
@@ -177,9 +177,9 @@ function harness(
     showLogs,
     relaunch,
     ...overrides,
-    // §11: the resolved manager wrapped as the getter `ipc.ts` reads. Placed
-    // AFTER the spread so it wins over `overrides.updates` (which carries the
-    // VALUE the harness took for readability, not the getter the port wants).
+    // The resolved manager wrapped as the getter `ipc.ts` reads. Placed AFTER
+    // the spread so it wins over `overrides.updates` (which carries the VALUE
+    // the harness took for readability, not the getter the port wants).
     updates: () => updates,
   });
 
@@ -211,15 +211,15 @@ const expectFail = (result: IpcResult<unknown>): { code: string; message: string
 // ─── Registration ────────────────────────────────────────────────────────────
 
 describe('registration', () => {
-  it('answers every §4 channel and nothing else', () => {
+  it('answers every channel and nothing else', () => {
     const { ipc } = harness();
     // The registered `invoke` handlers are EXACTLY `INVOKE_CHANNELS` — the same
     // list `dispose()` tears down, so this pins the two together: a channel added
     // to `INVOKE_CHANNELS` without a `register()` call fails here, and one
     // registered but left off the list leaks a handler `dispose()` never removes.
     // Asserting against that source of truth (rather than a second hand-kept copy)
-    // is also what lets parallel tracks add channels — §11 updates, §12
-    // capabilities, §13 diagnostics, §14 `setMenuLabels` — without this test going
+    // is also what lets parallel tracks add channels — updates,
+    // capabilities, diagnostics, `setMenuLabels` — without this test going
     // stale the moment a sibling lands.
     expect([...ipc.handlers.keys()].sort()).toEqual([...INVOKE_CHANNELS].sort());
     expect([...ipc.syncListeners.keys()]).toEqual([IPC_CHANNELS.bootstrap]);
@@ -232,7 +232,7 @@ describe('registration', () => {
     expect(ipc.syncListeners.size).toBe(0);
   });
 
-  it('answers the bootstrap synchronously with §4 platform + versions', () => {
+  it('answers the bootstrap synchronously with platform + versions', () => {
     const { ipc } = harness();
     const event: IpcSyncEventLike = { ...APP_FRAME, returnValue: undefined };
     expect(ipc.sendSync(IPC_CHANNELS.bootstrap, event)).toEqual({ ok: true, value: BOOTSTRAP });
@@ -275,11 +275,11 @@ describe('an invalid payload is rejected by zod, not passed through', () => {
   });
 
   /**
-   * §2.3's own words: `config.json` "is the source of truth for values the
-   * server cannot own because they affect how the server itself is launched".
-   * A renderer that could write `dataDir` would repoint the app's storage; one
+   * The own words: `config.json` "is the source of truth for values the server
+   * cannot own because they affect how the server itself is launched". A
+   * renderer that could write `dataDir` would repoint the app's storage; one
    * that could write `secretEncrypted` would own every encrypted DSN in the
-   * meta-store. §4 lists five settable keys, and `strictObject` is what makes
+   * meta-store. Five keys are settable, and `strictObject` is what makes
    * that list true rather than aspirational.
    */
   it.each([
@@ -295,7 +295,7 @@ describe('an invalid payload is rejected by zod, not passed through', () => {
     expect(writeConfig).not.toHaveBeenCalled();
   });
 
-  it('accepts the five §4 keys', async () => {
+  it('accepts the five keys', async () => {
     const { ipc, writeConfig } = harness();
     const patch = {
       singleUser: false,
@@ -315,20 +315,20 @@ describe('an invalid payload is rejected by zod, not passed through', () => {
   });
 });
 
-// ─── Sender policy (§2.4) ────────────────────────────────────────────────────
+// ─── Sender policy ───────────────────────────────────────────────────────────
 
 describe('sender policy', () => {
   it.each([
     ['the loopback server on its random port', 'http://127.0.0.1:51234/', true],
-    ['another loopback port (a restart, §2.2 step 9)', 'http://127.0.0.1:60001/studio', true],
-    ['the §3 dev loop’s vite server', 'http://localhost:5173/', true],
+    ['another loopback port (a restart)', 'http://127.0.0.1:60001/studio', true],
+    ['the dev loop’s vite server', 'http://localhost:5173/', true],
     ['IPv6 loopback', 'http://[::1]:51234/', true],
     ['a 127.x.x.x address', 'http://127.1.2.3:80/', true],
-    ['the bundled boot/crash pages (§2.2 steps 6 + 9)', 'file:///opt/app/out/renderer/crash.html', true],
+    ['the bundled boot/crash pages', 'file:///opt/app/out/renderer/crash.html', true],
     ['a remote origin', 'https://evil.example/', false],
     ['a lookalike host', 'http://127.0.0.1.evil.example/', false],
     ['a host merely containing localhost', 'http://localhost.evil.example/', false],
-    ['a LAN address (§8.3 peers authenticate normally, they do not get the bridge)', 'http://192.168.1.9:4600/', false],
+    ['a LAN address (peers authenticate normally, they do not get the bridge)', 'http://192.168.1.9:4600/', false],
     ['a data: URL', 'data:text/html,<script>x</script>', false],
     ['garbage', 'not a url', false],
   ])('%s', (_name, url, allowed) => {
@@ -385,10 +385,10 @@ describe('sender policy', () => {
   });
 });
 
-// ─── getRuntimeInfo (§4) ─────────────────────────────────────────────────────
+// ─── getRuntimeInfo ──────────────────────────────────────────────────────────
 
 describe('getRuntimeInfo', () => {
-  it('reports the §4 shape from the runtime and the config', async () => {
+  it('reports the shape from the runtime and the config', async () => {
     const { ipc } = harness();
     expect(expectOk(await ipc.invoke(IPC_CHANNELS.getRuntimeInfo))).toEqual({
       dataDir: DATA_DIR,
@@ -400,7 +400,7 @@ describe('getRuntimeInfo', () => {
     });
   });
 
-  it('reports `disabled` when the env kill-switch forced it, even if config says notify (§11)', async () => {
+  it('reports `disabled` when the env kill-switch forced it, even if config says notify', async () => {
     // The fleet-admin case: `ADMINIUM_DISABLE_UPDATES=1` set, but `config.json`
     // kept the default `notify`. `main/index.ts` resolves the override into the
     // runtime snapshot, so the About panel shows the air-gapped state instead of
@@ -413,7 +413,7 @@ describe('getRuntimeInfo', () => {
     });
   });
 
-  it('lists LAN URLs only while sharing is on (§8.3)', async () => {
+  it('lists LAN URLs only while sharing is on', async () => {
     const lanShareUrls = vi.fn(() => ['http://192.168.1.9:4600']);
     const { ipc, config } = harness({ lanShareUrls });
 
@@ -436,10 +436,10 @@ describe('getRuntimeInfo', () => {
   });
 });
 
-// ─── Updates (§11) ───────────────────────────────────────────────────────────
+// ─── Updates ─────────────────────────────────────────────────────────────────
 
 describe('updates', () => {
-  it('routes the three §4 methods to the manager', async () => {
+  it('routes the three methods to the manager', async () => {
     const updates = stubUpdates();
     const { ipc } = harness({ updates });
 
@@ -455,7 +455,7 @@ describe('updates', () => {
   });
 
   /**
-   * §11's `disabled` mode means the updater is never INITIALIZED — "not
+   * `disabled` mode means the updater is never INITIALIZED — "not
    * initialized-then-not-asked" — which is why the port is nullable. The
    * acceptance criterion is zero non-loopback traffic; a manager that exists is
    * a manager that can check.
@@ -468,7 +468,7 @@ describe('updates', () => {
     },
   );
 
-  it('pushes §4 onUpdateEvent payloads on the update channel', () => {
+  it('pushes onUpdateEvent payloads on the update channel', () => {
     const { handlers, broadcast } = harness();
     handlers.emitUpdateEvent({ type: 'progress', percent: 42 });
     expect(broadcast).toHaveBeenCalledWith(IPC_CHANNELS.updateEvent, {
@@ -478,7 +478,7 @@ describe('updates', () => {
   });
 });
 
-// ─── Capabilities (§12) ──────────────────────────────────────────────────────
+// ─── Capabilities ────────────────────────────────────────────────────────────
 
 describe('capabilities', () => {
   it('lists descriptors', async () => {
@@ -504,7 +504,7 @@ describe('capabilities', () => {
     });
   });
 
-  it('allows an absent payload — §12 lets a method take none', async () => {
+  it('allows an absent payload — lets a method take none', async () => {
     const capabilities = stubCapabilities();
     const { ipc } = harness({ capabilities });
     expectOk(
@@ -517,10 +517,10 @@ describe('capabilities', () => {
   });
 
   /**
-   * §12's rejections are a contract the SPA branches on ("ungranted invokes
-   * reject with CAPABILITY_NOT_GRANTED ... stub invokes reject with
-   * CAPABILITY_STUB" is an acceptance criterion). They arrive as a code inside a
-   * message; they must leave as a code.
+   * The rejections are a contract the SPA branches on ("ungranted invokes reject
+   * with CAPABILITY_NOT_GRANTED... stub invokes reject with CAPABILITY_STUB" is
+   * an acceptance criterion). They arrive as a code inside a message; they must
+   * leave as a code.
    */
   it.each([CAPABILITY_NOT_GRANTED, CAPABILITY_STUB])('keeps %s a code, not prose', async (code) => {
     const capabilities = stubCapabilities();
@@ -619,7 +619,7 @@ describe('dialogs and lifecycle route to their ports', () => {
     expect(dialogs.showItemInFolder).toHaveBeenCalledWith(`${DATA_DIR}/meta.db`);
   });
 
-  it('reveals a log path outside dataDir — §9/§13 have three legitimate trees', async () => {
+  it('reveals a log path outside dataDir — have three legitimate trees', async () => {
     const { ipc, dialogs } = harness();
     expectOk(await ipc.invoke(IPC_CHANNELS.showItemInFolder, '/home/ava/.config/Adminium/logs'));
     expect(dialogs.showItemInFolder).toHaveBeenCalled();

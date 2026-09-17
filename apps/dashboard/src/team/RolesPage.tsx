@@ -111,6 +111,8 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
       return t('roles.permission.auditRead', 'Read the audit log');
     case 'system:pages:manage':
       return t('roles.permission.pagesManage', 'Create and organize pages');
+    case 'system:project:read':
+      return t('roles.permission.projectRead', 'Read pages and schema changes for a project pull');
     case 'system:connections:manage':
       return t('roles.permission.connectionsManage', 'Manage database connections');
     case 'system:schema:remap':

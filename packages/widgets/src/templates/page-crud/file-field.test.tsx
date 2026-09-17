@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * The `file` field kind, the grid chip, and the generation seeding
- * (37-files-and-storage.md D14, 37-T16/T17/T18).
+ * The `file` field kind, the grid chip, and the generation
+ * seeding.
  *
  * THE ASSERTION THAT CARRIES THE MOST WEIGHT is the one about ABSENCE: a
  * column without a `file` block, and a page without a `files` adapter, must
@@ -154,7 +154,7 @@ describe('FileField', () => {
     );
     await user.click(screen.getByRole('button', { name: /remove file/i }));
     // `null`, not '': the reconcile hook reads a cleared value as "trash the
-    // file this column used to name" (37 §3.7).
+    // file this column used to name".
     expect(onChange).toHaveBeenCalledWith(null);
   });
 
@@ -174,7 +174,7 @@ describe('FileField', () => {
   });
 });
 
-describe('the grid chip (37-T18)', () => {
+describe('the grid chip', () => {
   const row = { pdf_url: 'https://admin.example.com/api/v1/files/file_X/content' };
 
   it('renders today’s plain link when nothing resolved', () => {
@@ -249,7 +249,7 @@ describe('the grid chip (37-T18)', () => {
 });
 
 /**
- * The `multiple` column (38-files-library-and-attachments.md D1/D19/D20).
+ * The `multiple` column.
  *
  * The owner's ask was "upload the files", plural, so a column holds a JSON
  * array of references and the field edits the list. Two things are easy to get
@@ -408,7 +408,7 @@ describe('a multiple file column', () => {
   });
 });
 
-describe('the grid chip for a list column (38 D20)', () => {
+describe('the grid chip for a list column', () => {
   const A = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD';
   const B = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCE';
   const C = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCF';

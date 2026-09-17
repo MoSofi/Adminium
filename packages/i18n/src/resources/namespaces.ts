@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The namespace axis, and which side of the bundle split each one is on
- * (10-i18n-theming.md §2.3).
+ * The namespace axis, and which side of the bundle split each one is
+ * on.
  *
  * DATA-FREE ON PURPOSE. `create-i18n.ts` needs the namespace list, and it is
  * on the dashboard's boot path — so if these constants lived beside
@@ -26,6 +26,7 @@ export const NAMESPACES = [
   'files',
   'reportBuilder',
   'onboarding',
+  'project',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -38,8 +39,8 @@ export const EAGER_NAMESPACES = ['common', 'ui', 'generated', 'errors'] as const
 export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
 
 /**
- * Loaded on demand, en-US included (10-T06 — the split this file's header in
- * ./index.ts promised from the first wave).
+ * Loaded on demand, en-US included (the split this file's header
+ * in./index.ts promised from the first wave).
  *
  * `studio` is the whole admin console: 975 messages, ~36 KiB of the en-US
  * catalogue, behind a role gate that most users never pass and route bodies
@@ -51,36 +52,36 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * campaigns.md): a few hundred messages behind two lazy routes that most
  * sessions never open, and a surface that keeps growing — every string it
  * gained while it lived under `common` landed in the entry chunk of every
- * route (39 §6.1).
+ * route.
  *
- * `invoices` is the Invoices manager and editor (34-invoices-add-on.md
- * 34-T51): the same shape as `email` — two lazy routes, a few hundred
- * messages, a surface most sessions never open — and the same bargain.
+ * `invoices` is the Invoices manager and editor: the same shape as
+ * `email` — two lazy routes, a few hundred messages, a surface most
+ * sessions never open — and the same bargain.
  *
  * `automations` is Automation rules and Workflow logs (42-automations-and-
- * workflow-logs.md 42-T25): two lazy admin routes behind a permission most
- * users never hold, carrying the flow builder's whole vocabulary — every node
- * kind, operator, unit, status and picker tile — which is a lot of text for a
- * page the majority of sessions never open.
+ * workflow-logs.md): two lazy admin routes behind a permission most users
+ * never hold, carrying the flow builder's whole vocabulary — every node kind,
+ * operator, unit, status and picker tile — which is a lot of text for a page
+ * the majority of sessions never open.
  *
  * `reportBuilder` is the report builder — the Reports manager and its block
- * editor (43-report-builder.md 43-T08): two lazy routes carrying a 25-kind
- * block vocabulary, its inspector's field labels and twelve starter cards,
- * for a surface most sessions never open. NOT `reports`, which is the
- * `common:` block Scheduled Reports reads (43 D24).
+ * editor: two lazy routes carrying a 25-kind block vocabulary, its
+ * inspector's field labels and twelve starter cards, for a surface most
+ * sessions never open. NOT `reports`, which is the `common:` block
+ * Scheduled Reports reads.
  *
- * `dataio` is the import wizard, the exports manager and the export builder
- * (41-export-builder.md), and `files` is the Files library and its upload
- * dialog (38-files-library.md) — three lazy route bodies and one dialog. Both
- * lived under `common` until 2026-09-08, which meant every route downloaded
- * them; the entry-chunk ratchet is what noticed. Two keys did NOT come along:
- * `dataio.import.title`/`dataio.exports.title` were read by the statically
- * imported `data-io/routes.tsx` and are byte-identical to `common:nav.imports`
- * /`nav.exports`, so that module reads the `common:` twins instead — the same
- * Topbar problem the `studio` split hit. `files.uploadsUnavailable` went the
- * same way: its reader is the page-files TEMPLATE, which renders inside a
- * user-built page and would never await this namespace, and the widget already
- * falls back to a byte-identical `ui:templates.files.uploadsUnavailable`.
+ * `dataio` is the import wizard, the exports manager and the export builder,
+ * and `files` is the Files library and its upload dialog — three lazy route
+ * bodies and one dialog. Both lived under `common` until 2026-09-08, which
+ * meant every route downloaded them; the entry-chunk ratchet is what noticed.
+ * Two keys did NOT come along: `dataio.import.title`/`dataio.exports.title`
+ * were read by the statically imported `data-io/routes.tsx` and are
+ * byte-identical to `common:nav.imports` /`nav.exports`, so that module reads
+ * the `common:` twins instead — the same Topbar problem the `studio` split
+ * hit. `files.uploadsUnavailable` went the same way: its reader is the
+ * page-files TEMPLATE, which renders inside a user-built page and would never
+ * await this namespace, and the widget already falls back to a byte-identical
+ * `ui:templates.files.uploadsUnavailable`.
  *
  * `email` gained 143 keys in the same change, and they are the reason the
  * SERVER loads the whole deferred set (packages/i18n/src/server.ts): every one
@@ -88,17 +89,23 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * had been sitting in `common` since before `email.json` existed — shipping
  * server-only text in every dashboard user's boot chunk.
  *
- * `onboarding` is the six-step first-run wizard (45-onboarding.md 45-T08): 107
- * messages for the ONE screen an instance shows once in its life. Measured at
- * 2.5 KiB gzipped — four times the entry ratchet's remaining headroom — for a
- * surface no session ever returns to, which is the same bargain every namespace
- * above it took. It is the only deferred namespace whose surface renders BEFORE
- * anyone signs in, so `setup/onboarding/onboardingMessages.ts` awaits it under
- * the Suspense boundary that already waits on `setup.state`. Two blocks did NOT
- * come along: `common:setup.account.*` and `common:setup.consent.*` are read by
+ * `onboarding` is the six-step first-run wizard: 107 messages for the ONE
+ * screen an instance shows once in its life. Measured at 2.5 KiB gzipped — four
+ * times the entry ratchet's remaining headroom — for a surface no session ever
+ * returns to, which is the same bargain every namespace above it took. It is
+ * the only deferred namespace whose surface renders BEFORE anyone signs in, so
+ * `setup/onboarding/onboardingMessages.ts` awaits it under the Suspense
+ * boundary that already waits on `setup.state`. Two blocks did NOT come along:
+ * `common:setup.account.*` and `common:setup.consent.*` are read by
  * `setup/accountValidation.ts` and `setup/TelemetryConsent.tsx`, which the
  * DESKTOP setup host renders too — a surface that would never await this
  * namespace.
+ *
+ * `project` is what the dashboard says about a project's own browser code:
+ * a page or widget that did not load, a cell that could not be drawn, the
+ * UI kit's empty table. A handful of messages, for the few servers that run
+ * a project folder at all; its readers are the lazily loaded project
+ * modules, which await it before they render.
  *
  * The contract a deferred namespace owes: nothing outside its own surface may
  * read a key from it, and that surface must await {@link Namespace} loading
@@ -107,8 +114,9 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * `apps/dashboard/src/invoices/invoicesMessages.ts` and
  * `apps/dashboard/src/automations/automationsMessages.ts`,
  * `apps/dashboard/src/data-io/dataIoMessages.ts`,
- * `apps/dashboard/src/files/filesMessages.ts` and
- * `apps/dashboard/src/report-builder/reportBuilderMessages.ts`.
+ * `apps/dashboard/src/files/filesMessages.ts`,
+ * `apps/dashboard/src/report-builder/reportBuilderMessages.ts` and
+ * `apps/dashboard/src/project/projectMessages.ts`.
  */
 export const DEFERRED_NAMESPACES = [
   'studio',
@@ -119,6 +127,7 @@ export const DEFERRED_NAMESPACES = [
   'files',
   'reportBuilder',
   'onboarding',
+  'project',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

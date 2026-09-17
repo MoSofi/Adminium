@@ -42,8 +42,7 @@ import {
 import type { GridRow, LayoutItem } from '../../page-config/index.js';
 
 /**
- * `page-directory` — the people archetype (09-generated-app.md §7.7; annex
- * §14 "Team Directory, Org Chart (tree variant)"): an optional
+ * `page-directory` — the people archetype (annex): an optional
  * `micro-kpi-subtitle` summary strip, a search/filter toolbar, and the
  * `directory` slot rendered either as a `card-gallery(person)` grid or — when
  * the generator matched a self-FK people table — the cycle-safe `org-chart`
@@ -52,7 +51,7 @@ import type { GridRow, LayoutItem } from '../../page-config/index.js';
  * `page-crud`'s detail panel.
  *
  * Data flows through the same per-instance resolution as `page-dashboard`:
- * `states` override → adapter batch → deterministic demo data (04 §5.3).
+ * `states` override → adapter batch → deterministic demo data.
  */
 
 export const PAGE_DIRECTORY_TEMPLATE_ID = 'page-directory';
@@ -60,7 +59,7 @@ export const PAGE_DIRECTORY_TEMPLATE_ID = 'page-directory';
 /** Directory-slot widgets the manifest accepts (templates/page-directory.json). */
 const DIRECTORY_WIDGETS = ['card-gallery', 'org-chart'] as const;
 
-/** Dept-ish columns whose distinct values seed the filter chip bar (§7.7). */
+/** Dept-ish columns whose distinct values seed the filter chip bar. */
 const FILTER_FIELD_CANDIDATES = ['dept', 'department', 'team', 'division', 'category', 'role'] as const;
 
 export interface PageDirectoryLabels {
@@ -85,12 +84,12 @@ export interface PageDirectoryLabels {
 export interface PageDirectoryProps {
   /** The stored page config body (`{ layout, toolbar, overlays, … }`). */
   config: unknown;
-  /** Transport for bound widgets; absent → demo mode (04 §5.3). */
+  /** Transport for bound widgets; absent → demo mode. */
   adapter?: DashboardDataAdapter | undefined;
   params?: Record<string, unknown> | undefined;
   /** Per-instance override — wins over adapter/demo resolution. */
   states?: DashboardDataStates | undefined;
-  /** Route-controlled drawer record (`/p/$slug/r/$recordId`, 09 §2.3). */
+  /** Route-controlled drawer record (`/p/$slug/r/$recordId`). */
   detailRecordId?: string | null | undefined;
   onDetailRecordChange?: ((recordId: string | null) => void) | undefined;
   onEvent?: ((instanceId: string, event: WidgetEvent) => void | Promise<unknown>) | undefined;
@@ -286,7 +285,7 @@ export function PageDirectory({
         </div>
       )}
 
-      {/* Toolbar — search + dept filter chips (§7.7). */}
+      {/* Toolbar — search + dept filter chips. */}
       <div className="flex min-h-12 flex-wrap items-center gap-2 pb-3">
         {!isOrgChart && (
           <SearchInput
@@ -370,7 +369,7 @@ export function PageDirectory({
             testId="page-directory-org-chart"
           />
         ) : visibleRows.length === 0 ? (
-          // Filtered empty state — MUST be distinct from first-use (09 §6.2).
+          // Filtered empty state — MUST be distinct from first-use.
           <EmptyState
             preset="no-matches"
             title={labels?.noMatchesTitle ?? t('ui:templates.directory.noMatchesTitle', 'No matching people')}
@@ -400,7 +399,7 @@ export function PageDirectory({
         )}
       </div>
 
-      {/* Person drawer — detail-key-value over the selected row (§7.7). */}
+      {/* Person drawer — detail-key-value over the selected row. */}
       <Drawer open={detailId !== null} onOpenChange={(open) => !open && setDetailId(null)} size="md">
         <DrawerHeader
           title={detailRow === undefined ? detailTitle : (cellText(detailRow[titleField]) ?? detailTitle)}

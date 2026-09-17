@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The app catalog routes and the update route (48-self-hosted-downloads.md §6b
- * G8-D2, D3, D5, D6).
+ * The app catalog routes and the update route (b G8-D2, D3, D5, D6).
  *
  * Run against the real `appRoutes`, a real in-memory meta store, a REAL app
  * store on a temp dir, real `applyInstall` DDL against an in-memory source
@@ -83,7 +82,10 @@ function packageTarball(files: Record<string, string>): Uint8Array {
     flat.set(member, offset);
     offset += member.length;
   }
-  return gzipSync(flat);
+  // `mtime: 0` leaves the gzip header's timestamp at zero, as `npm pack` does.
+  // fflate's default is the current second, so the same files packed a second
+  // apart would hash differently.
+  return gzipSync(flat, { mtime: 0 });
 }
 
 type Table = { ref: string; columns: Array<{ ref: string; type: string; role?: string }> };

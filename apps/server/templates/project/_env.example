@@ -1,0 +1,9 @@
+# Copy this file to .env and fill it in. Keep .env out of git.
+
+# Encrypts every stored connection string and API key. Generate it once
+# (openssl rand -hex 32), keep a copy somewhere safe, and never change it.
+ADMINIUM_SECRET=
+
+# The database the admin is built from, for example
+# postgres://user:password@localhost:5432/shop
+DATABASE_URL=

@@ -24,14 +24,14 @@ export { upcomingEventsListConfigSchema, upcomingEventsListDemoData };
 export type { UpcomingEventsListConfig, UpcomingEvent };
 
 /**
- * `upcoming-events-list` (annex §5) — the next-N feed, date-ascending: a date
+ * `upcoming-events-list` (annex) — the next-N feed, date-ascending: a date
  * block, a mono version/ref, a category pill, an owner avatar, a status pill,
  * and a colour-coded leading border (Release Calendar).
  *
  * The annex calls that border "colored left border"; it is implemented as
  * `border-s-4` — the LOGICAL inline-start side — so it sits on the right under
  * RTL, where the row actually starts. A physical `border-l` would strand the
- * accent on the wrong edge in `ar-EG` (10-i18n-theming.md §5.2).
+ * accent on the wrong edge in `ar-EG`.
  *
  * The "date ≥ today" cutoff resolves against an explicit reference day when one
  * is given (`fromDate`, else the shared `format.referenceTime`), so a story or
@@ -101,7 +101,7 @@ export function UpcomingEventsList({
         const content = (
           <>
             {/* Date block: month name localizes, the day number stays latn +
-                tabular so the blocks align in every locale (§4.2). */}
+                tabular so the blocks align in every locale. */}
             <div data-part="date-block" className="flex w-11 shrink-0 flex-col items-center rounded-md bg-surface-2 px-1 py-1.5">
               <span className="text-[10px] font-bold uppercase leading-none text-fg-muted">
                 {fmtMonthShort(tag, day)}
@@ -167,7 +167,7 @@ export function UpcomingEventsList({
 /**
  * Project an untrusted `calendar-events` payload onto `UpcomingEvent`s — the
  * `calendar-month` contract plus the Release Calendar's ref/owner/status slots
- * (annex §5 `rowMapping`).
+ * (annex `rowMapping`).
  */
 export function upcomingEventsOf(data: unknown): UpcomingEvent[] {
   const raw = Array.isArray(data)
@@ -196,9 +196,9 @@ export function upcomingEventsOf(data: unknown): UpcomingEvent[] {
 
 /**
  * The cutoff day: an explicit `fromDate` wins, then the shared
- * `format.referenceTime` clock (04 §2.1 — what makes demo/VRT captures stable),
- * else the caller's wall clock. `ANCHOR_TODAY` is NOT used as a fallback: a live
- * page with no pinned clock must follow the real date, not the demo epoch.
+ * `format.referenceTime` clock (what makes demo/VRT captures stable), else the
+ * caller's wall clock. `ANCHOR_TODAY` is NOT used as a fallback: a live page
+ * with no pinned clock must follow the real date, not the demo epoch.
  */
 export function cutoffDayOf(config: UpcomingEventsListConfig): string | undefined {
   if (config.fromDate !== undefined) return config.fromDate;

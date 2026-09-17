@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The inspector (34-invoices-add-on.md 34-T50; Appendix E §I1–I8), rendered
- * on its own over a full draft and a mocked `DocumentEdits`: every one of the
- * twenty-nine panels shows its header and its key controls under their
- * accessible names; every textbox, slider, switch and button is named; the
- * *Remove section* footer flips the flag and falls back to the items panel
- * (comp `hideSec`, 1361); each discrete choice reaches its `hist…` setter
- * with the right value; the Images panel's dashed row opens the Add-section
- * modal; the delivery status button walks Pending → In progress → Done; and
- * the custom panel's Remove drops the section.
+ * The inspector, rendered on its own over a full draft and a mocked
+ * `DocumentEdits`: every one of the twenty-nine panels shows its header and
+ * its key controls under their accessible names; every textbox, slider,
+ * switch and button is named; the *Remove section* footer flips the flag and
+ * falls back to the items panel (comp `hideSec`, 1361); each discrete choice
+ * reaches its `hist…` setter with the right value; the Images panel's dashed
+ * row opens the Add-section modal; the delivery status button walks Pending →
+ * In progress → Done; and the custom panel's Remove drops the section.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
@@ -241,7 +240,7 @@ afterAll(() => {
   restoreI18n();
 });
 
-describe('Inspector (34-T50) — every fixed section', () => {
+describe('Inspector — every fixed section', () => {
   it.each(FIXED_SECTION_KEYS)('%s: header, key controls, accessible names, Remove section', async (section) => {
     const { header, panel, edits, onSelect, user } = renderInspector(section);
     const expected = EXPECTED[section];
@@ -280,7 +279,7 @@ describe('Inspector (34-T50) — every fixed section', () => {
   });
 });
 
-describe('Inspector (34-T50) — the custom sections', () => {
+describe('Inspector — the custom sections', () => {
   it.each(CUSTOM)('$type: the section title heads the panel and Remove drops it', async (custom) => {
     const section: SectionKey = `cus:${custom.id}`;
     const { header, panel, edits, onSelect, user } = renderInspector(section);
@@ -339,7 +338,7 @@ describe('Inspector (34-T50) — the custom sections', () => {
   });
 });
 
-describe('Inspector (34-T50) — the discrete choices reach their hist… setter', () => {
+describe('Inspector — the discrete choices reach their hist… setter', () => {
   it('Title & theme: swatch, currency, decimals, status, topic, language, background', async () => {
     const { panel, edits, user } = renderInspector('theme');
     const swatches = within(panel).getAllByTestId('invoices-swatch');
@@ -437,7 +436,7 @@ describe('Inspector (34-T50) — the discrete choices reach their hist… setter
   });
 });
 
-describe('Inspector (34-T50) — the Images panel', () => {
+describe('Inspector — the Images panel', () => {
   it('draws the five slots, Replace/Remove on a filled one, Upload on an empty one, and opens the Add-section modal', async () => {
     const { panel, edits, onOpenAdd, user } = renderInspector('images');
     expect(within(panel).getByText('Fixed images that travel with the invoice. Upload once and every document built from this template keeps them.')).toBeDefined();
@@ -487,7 +486,7 @@ describe('Inspector (34-T50) — the Images panel', () => {
   });
 });
 
-describe('Inspector (34-T50) — fields, lines, rows and totals', () => {
+describe('Inspector — fields, lines, rows and totals', () => {
   it('a keystroke begins an edit on focus and sets the field without a step', async () => {
     const { panel, edits, user } = renderInspector('meta');
     const number = within(panel).getByLabelText('Invoice number') as HTMLInputElement;

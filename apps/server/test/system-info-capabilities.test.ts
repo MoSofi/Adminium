@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `GET /api/v1/system/info` — the 11-electron.md §8.2 capability flags the SPA
- * gates local-mode UX on (§8.1 runtime chip, SMTP-gated email actions,
- * network-dependent features).
+ * `GET /api/v1/system/info` — the capability flags the SPA gates local-mode UX
+ * on (runtime chip, SMTP-gated email actions, network-dependent features).
  *
  * The point of this suite is that NONE of the three flags is a constant: each
  * one is asserted to move when the fact underneath it moves. `app.test.ts`
@@ -63,7 +62,7 @@ const SMTP = {
   secure: true,
 };
 
-describe('GET /api/v1/system/info — §8.2 capability flags', () => {
+describe('GET /api/v1/system/info — capability flags', () => {
   it('reports smtpConfigured:false while `email.smtp` is unset (the registry default)', async () => {
     const { server } = await build();
     expect((await read(server)).smtpConfigured).toBe(false);

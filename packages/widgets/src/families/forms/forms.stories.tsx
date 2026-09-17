@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK FCS `forms` family stories (annex §10): each widget's loaded variant,
- * the four WidgetFrame states through WidgetHost (acceptance #4), and
- * light/dark × LTR/RTL matrices with REAL geometry mirroring (acceptance #9 —
- * the RTL frames set `dir="rtl"` so the stepper's connectors run the other way,
- * the chip bar's `ms-auto` meta swaps edge, the toggle rows' switch knobs travel
- * mirrored, and the issue rows' icon-then-copy order flips; a bare attribute
- * would prove nothing). Widgets resolve through a LOCAL registry override so the
- * stories work before the green loop merges the definitions into the global map.
+ * TRACK FCS `forms` family stories (annex): each widget's loaded variant, the
+ * four WidgetFrame states through WidgetHost (acceptance #4), and light/dark ×
+ * LTR/RTL matrices with REAL geometry mirroring (acceptance #9 — the RTL frames
+ * set `dir="rtl"` so the stepper's connectors run the other way, the chip bar's
+ * `ms-auto` meta swaps edge, the toggle rows' switch knobs travel mirrored, and
+ * the issue rows' icon-then-copy order flips; a bare attribute would prove
+ * nothing). Widgets resolve through a LOCAL registry override so the stories
+ * work before the green loop merges the definitions into the global map.
  * Payloads are the same seeded generators `demoData` uses.
  */
 import type { ReactNode } from 'react';
@@ -331,7 +331,7 @@ export const IssuesStates = {
  */
 function matrixCells(key: string) {
   // Instance ids derive from the cell key, never randomised — VRT captures must
-  // be byte-identical across runs (04 §7.7).
+  // be byte-identical across runs.
   return (
     <div className="grid gap-4">
       {host('stepper', `m-stepper-${key}`, {}, stepperDemoData(5), 'success', 'h-32')}
@@ -382,7 +382,7 @@ export const ExportStates = {
       <div className="grid grid-cols-2 gap-4">
         {host('export-builder', 'ex-loaded', { title: 'Export' }, exportBuilderDemoData(1), 'success', 'h-96')}
         {host('export-builder', 'ex-skeleton', { title: 'Export' }, undefined, 'loading', 'h-96')}
-        {/* `form-state` is never empty by §3 — the frame's empty state only shows
+        {/* `form-state` is never empty — the frame's empty state only shows
             when the payload itself is absent, which is what this cell proves. */}
         {host('export-builder', 'ex-empty', { title: 'Export', emptyState: { titleKey: 'No export configured' } }, undefined, 'success', 'h-96')}
         {host('export-builder', 'ex-error', { title: 'Export' }, undefined, 'error', 'h-96')}
