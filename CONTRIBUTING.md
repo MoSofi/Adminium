@@ -1,20 +1,27 @@
 # Contributing to Adminium
 
-Thanks for contributing. This guide covers the day-to-day mechanics; the design and architecture decisions are recorded in the header comments of the modules they govern — read the headers in the area you touch before writing code.
+Thanks for contributing. This guide covers the day-to-day mechanics. The decisions that are load-bearing across the whole codebase are public, one short page each, at [docs.adminium.dev/anatomy/decisions](https://docs.adminium.dev/anatomy/decisions/) — read the one for the area you are touching before you change how it works. Everything narrower than that is in the header comment of the module it governs.
 
-## Prerequisites
-
-- Node.js >= 22 (LTS)
-- pnpm 10 (`corepack enable` picks up the version pinned in `package.json`)
-
-## Setup
+## Start in three commands
 
 ```sh
 git clone https://github.com/MoSofi/Adminium.git
 cd Adminium
+corepack enable
 pnpm install
-pnpm build        # turbo run build across the workspace
+pnpm dev
 ```
+
+The admin panel comes up at **http://localhost:5173** (the dashboard's Vite server, which proxies the API on 4600). The first `pnpm dev` also does the two things that used to be a manual checklist, and says which it did:
+
+- **writes `.env` with an `ADMINIUM_SECRET`.** It derives the key that encrypts every stored DSN and API key, so it is generated once and never regenerated — a value that changed per run would silently make everything already stored undecryptable.
+- **builds `.dev/sample.db`** from the desktop app's demo company and points `ADMINIUM_SOURCE_URL` at it, so the first boot connects a database and generates pages instead of handing you an empty panel. Your own `ADMINIUM_SOURCE_URL`, in `.env` or in the shell, is never overridden.
+
+Then create the first account in the setup wizard. The database is already connected, so **skip step 2**.
+
+Requires **Node.js 22.14 or newer** (on Node.js 23, 23.6 or newer). `corepack enable` picks up the pnpm version pinned in `package.json`. `scripts/dev-setup.mjs --print` says what the setup step would do without doing it, and `.env.example` documents every variable including the ones it does not write.
+
+There is no separate build step: `turbo run dev` depends on `^build`, so a fresh clone compiles what it needs first.
 
 Everyday scripts (all fan out through Turborepo and are cached):
 
@@ -26,6 +33,9 @@ Everyday scripts (all fan out through Turborepo and are cached):
 | `pnpm test` | Vitest per package |
 | `pnpm check-deps` | dependency-cruiser boundary check (`.dependency-cruiser.cjs`) |
 | `pnpm check-spdx` | every tracked source file opens with `// SPDX-License-Identifier: AGPL-3.0-only`; `--fix` inserts the missing ones |
+| `pnpm dev-setup` | the first-run step `pnpm dev` runs for you; `--print` to see it without doing it |
+| `pnpm check-private-citations` | no comment points at a document a reader cannot open |
+| `pnpm preflight` | every gate CI runs that can run locally, in CI's order (`--quick` for the fast ones) |
 | `pnpm changeset` | record a changeset for your change |
 
 New source file? Run `pnpm check-spdx --fix` — it inserts the header (after a
@@ -50,14 +60,38 @@ The allowed import graph is enforced by `.dependency-cruiser.cjs`, where each bo
 | `packages/meta` | `adminium_*` migrations + Kysely models |
 | `packages/i18n` | 8 locale bundles, ICU messages, RTL utils |
 | `packages/manifest` | Manifest schema, validator, installer |
-| `packages/config` | Shared tsconfig / ESLint / Prettier (dev-only) |
+| `packages/add-on-contracts` | The typed contracts an add-on fills, and the slot ids it fills them at |
+| `packages/public-client` | The browser client for the scoped public API, published for other repos to install |
+| `packages/config` | Shared tsconfig / ESLint / Prettier / Vitest policy (dev-only) |
 | `apps/server` | Fastify API + boot sequence, serves the dashboard |
 | `apps/dashboard` | React SPA (Studio + Generated App) |
 | `apps/desktop` | Electron shell |
 | `apps/docs` | Astro Starlight docs site |
 | `apps/e2e` | Playwright end-to-end suites (web + desktop) |
 
+That is **sixteen packages and five apps, twenty-one workspaces**, and they all move on one
+version number — see [one version for every package](https://docs.adminium.dev/anatomy/decisions/one-version/).
+Four of them are published; the rest ship inside the flagship tarball
+([one npm package](https://docs.adminium.dev/anatomy/decisions/one-npm-package/)).
+
 Imports between packages are enforced by dependency-cruiser; a violating import fails `pnpm check-deps` (and CI).
+
+## Comments, and where the reasoning lives
+
+**Say what the code does and why it does it that way. Leave the history to git.**
+
+The decisions that many files depend on are public, one short page each, under
+[/anatomy/decisions/](https://docs.adminium.dev/anatomy/decisions/): pages are settings rather
+than generated code, one process with no Redis, the three connections, the add-on trust model,
+one version for every package, tokens only, the i18n rules, the LLM never writing on its own,
+project code being trusted, and one npm package. A comment that rests on one of those links it
+rather than re-explaining it.
+
+A comment that needs three paragraphs of backstory is pointing at a decision that belongs on one
+of those pages. And a comment may never cite a document a reader cannot open — the work plan this
+repository was built from lives outside it, so a bare document name, section, decision or task id
+is a dead end for everyone but the author. `pnpm check-private-citations` holds every file that
+has been swept at zero, so new code cannot add one.
 
 ## Styling: tokens only, no `style` props
 
@@ -111,7 +145,9 @@ Never copy comp markup verbatim (comps use inline styles, which are banned). Fol
 
 ## CI & branch protection
 
-`ci.yml` runs on every PR and push to `main`: the `verify` job (lint, typecheck, build, test via Turborepo) and the `dep-graph` job (dependency-cruiser). Both are required checks — see `.github/REPO_SETUP.md` for the branch-protection settings. A nightly workflow re-runs everything with caching disabled.
+`ci.yml` runs on every PR and push to `main`: the `verify` job (lint, typecheck, build and test via Turborepo, plus every standalone gate) and the `dep-graph` job (dependency-cruiser). Both are required checks — see `.github/REPO_SETUP.md` for the branch-protection settings. A nightly workflow re-runs everything with caching disabled.
+
+Run `pnpm preflight` before you push: it is the same list in the same order, minus the legs that structurally cannot run on a laptop, and it prints what it did **not** check so a green run is not mistaken for a green CI.
 
 ## Code of conduct
 

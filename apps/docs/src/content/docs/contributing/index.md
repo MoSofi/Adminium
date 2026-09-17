@@ -6,35 +6,54 @@ description: Monorepo setup, the checks CI runs, and the conventions that are en
 Adminium is AGPL-3.0 and developed in the open at
 [github.com/MoSofi/Adminium](https://github.com/MoSofi/Adminium).
 
-## Setup
+## Start in three commands
 
 ```bash
 git clone https://github.com/MoSofi/Adminium.git
 cd Adminium
+corepack enable
 pnpm install
-pnpm build
+pnpm dev
 ```
 
-Requires **Node 22+** and **pnpm** (pinned via `packageManager` — `corepack
-enable` gets you the right version).
+The admin panel comes up at `http://localhost:5173`. The first `pnpm dev` writes
+a `.env` with an `ADMINIUM_SECRET` — generated once and never regenerated,
+because it derives the key that encrypts every stored DSN — and builds
+`.dev/sample.db` from the desktop app's demo company so the first boot connects
+a database and generates pages instead of handing you an empty panel. Create the
+first account in the setup wizard; the database is already connected, so skip
+step 2.
+
+Requires **Node 22.14 or newer** and **pnpm** (pinned via `packageManager` —
+`corepack enable` gets you the right version). There is no separate build step:
+`turbo run dev` depends on `^build`.
 
 ```bash
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm preflight     # every gate CI runs that can run here, in CI's order
 ```
 
-It is a pnpm + Turborepo monorepo: `apps/*` (server, dashboard, docs, desktop)
-and `packages/*` (tokens, ui, widgets, charts, i18n, engine, adapters,
-schema-import, llm, meta, manifest, config).
+It is a pnpm + Turborepo monorepo of twenty-one workspaces: `apps/*` (server,
+dashboard, docs, desktop, e2e) and `packages/*` (tokens, ui, widgets, charts,
+i18n, engine, the three adapters, schema-import, llm, meta, manifest,
+add-on-contracts, public-client, config).
+[The packages, one by one](/anatomy/packages/) is the long version.
 
-## Running it
+## Why it is built this way
 
-```bash
-export ADMINIUM_SECRET=$(openssl rand -hex 32)
-pnpm --filter @adminium/server build
-node apps/server/dist/cli/index.js
-```
+The decisions many files rest on are written down, one short page each, under
+[Decisions](/anatomy/decisions/). Read the one for the area you are touching
+before you change how it works.
+
+Two of them come up in almost every pull request:
+[tokens only, no `style` props](/anatomy/decisions/tokens-only/) and
+[the i18n rules](/anatomy/decisions/i18n-rules/).
+
+**Comments say what the code does and why, and leave the history to git.** A
+comment that needs three paragraphs of backstory is pointing at a decision that
+belongs on one of those pages.
 
 ## Conventions that are enforced
 
