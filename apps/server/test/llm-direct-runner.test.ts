@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Direct-path runner mechanics (06-llm-assist.md §7.5, acceptance #6 + #7).
+ * Direct-path runner mechanics (acceptance #6 + #7).
  *
  * Pure — no meta store, no jobs runtime, a scripted fake provider. Covers the
  * repair loop, the `LLM_TRUNCATED` maxTokens escalation (no repair consumed), the
@@ -69,7 +69,7 @@ describe('runDirectPath — happy path', () => {
     expect(outcome.errors).toEqual([]);
     expect(outcome.response.tables).toHaveLength(1);
 
-    // Temperature is pinned to 0 (§3.1 determinism mandate).
+    // Temperature is pinned to 0 (determinism mandate).
     expect(scripted.calls).toHaveLength(1);
     expect(scripted.calls[0]?.temperature).toBe(0);
 
@@ -81,7 +81,7 @@ describe('runDirectPath — happy path', () => {
   });
 });
 
-describe('runDirectPath — repair loop (§7.5)', () => {
+describe('runDirectPath — repair loop', () => {
   it('repairs a malformed first reply within one repair turn', async () => {
     const { scripted, events, promise } = run([
       { text: MALFORMED_REPLY },
@@ -92,7 +92,7 @@ describe('runDirectPath — repair loop (§7.5)', () => {
     expect(outcome.status).toBe('validated');
     expect(scripted.calls).toHaveLength(2);
 
-    // The repair turn carries the model's bad output + the §7.5 user message.
+    // The repair turn carries the model's bad output + the user message.
     const repairMessages = scripted.calls[1]?.messages ?? [];
     expect(repairMessages).toHaveLength(3);
     expect(repairMessages[0]).toEqual({ role: 'user', content: 'USER' });
@@ -127,7 +127,7 @@ describe('runDirectPath — repair loop (§7.5)', () => {
   });
 });
 
-describe('runDirectPath — LLM_TRUNCATED escalation (§7.5)', () => {
+describe('runDirectPath — LLM_TRUNCATED escalation', () => {
   it('raises maxTokens to the ceiling and retries without consuming a repair', async () => {
     const { scripted, events, promise } = run([
       { text: TRUNCATED_REPLY },
@@ -178,7 +178,7 @@ describe('runDirectPath — provider transport failure', () => {
   });
 });
 
-describe('runDirectPath — chunked map-reduce (§4.5, acceptance #7)', () => {
+describe('runDirectPath — chunked map-reduce (acceptance #7)', () => {
   it('runs each chunk, updates chunks_received, and merges order-independently', async () => {
     const chunks: RunnerChunk[] = [
       { index: 1, total: 2, system: 'SYS', user: 'USER-A' },
@@ -259,7 +259,7 @@ describe('runDirectPath — cancellation', () => {
 });
 
 describe('runDirectPath helpers', () => {
-  it('buildRepairMessage renders the §7.5 message verbatim with the error list', () => {
+  it('buildRepairMessage renders the message verbatim with the error list', () => {
     const message = buildRepairMessage([
       { code: 'LLM_SCHEMA_INVALID', severity: 'fatal', path: 'tables[0].confidence', message: 'Expected number' },
     ]);

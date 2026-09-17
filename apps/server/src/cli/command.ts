@@ -27,6 +27,10 @@ export interface Command {
   /** Prose under the usage line: what it does and any contract worth stating. */
   describe?: string;
   flags: FlagSpecs;
+  /** Other names that run this command (`init` for `try`). Not listed in help. */
+  aliases?: readonly string[];
+  /** Left out of the root help list. */
+  hidden?: boolean;
   /** Returns the process exit code. Throwing `CliError` is equivalent. */
   run(ctx: CommandContext): Promise<ExitCode>;
 }
@@ -62,8 +66,9 @@ export function renderCommandHelp(command: Command): string {
 }
 
 export function renderRootHelp(commands: readonly Command[], version: string): string {
-  const width = Math.max(...commands.map((command) => command.name.length));
-  const list = commands
+  const listed = commands.filter((command) => command.hidden !== true);
+  const width = Math.max(...listed.map((command) => command.name.length));
+  const list = listed
     .map((command) => `${INDENT}${command.name.padEnd(width)}  ${command.summary}`)
     .join('\n');
 
@@ -72,7 +77,8 @@ export function renderRootHelp(commands: readonly Command[], version: string): s
     '',
     'Usage: adminium [command] [options]',
     '',
-    'Run with no command to start the interactive setup wizard.',
+    'Run with no command to create a project (inside one, it lists the',
+    "project's commands). `adminium try` runs the setup wizard without a project.",
     '',
     'Commands:',
     list,

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `/report-builder` surface against the BUILT stack (43-report-builder.md
- * 43-T13): the manager, the New modal's twelve starters, the editor's canvas
- * + inspector, the block palette, the reorder paths, the report-from-template
- * flow and the list layout.
+ * The `/report-builder` surface against the BUILT stack: the manager, the New
+ * modal's twelve starters, the editor's canvas + inspector, the block
+ * palette, the reorder paths, the report-from-template flow and the list
+ * layout.
  *
  * The dashboard suite mounts these through the real router with a fetch stub;
  * the server suite covers the routes in process. What ONLY this file sees:
@@ -20,12 +20,12 @@
  * TWO INSPECTORS ARE MOUNTED AT ONCE (Editor.tsx: the `lg:hidden` drawer
  * under the canvas and the `hidden lg:flex` aside). Every panel test id
  * therefore matches twice — `inspector()` scopes to the aside, `drawer()` to
- * the other, and no bare `getByTestId` may address a panel (43 §0.3 trap 9).
+ * the other, and no bare `getByTestId` may address a panel (trap 9).
  *
  * DRAG IS NOT DRIVEN HERE. The comp's reorder is HTML5 `draggable` (306, 626)
  * and Playwright's `dragTo` drives it unreliably in CI; the KEYBOARD path
- * (D17) is exercised instead, and the mouse path is walked by hand in 43-T19
- * (43 §8, the same split 34 took).
+ * (D17) is exercised instead, and the mouse path is walked by hand (the same
+ * split 34 took).
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
@@ -113,7 +113,7 @@ function idFromUrl(page: Page): string {
   return id;
 }
 
-test.describe('the /report-builder surface (43-T13)', () => {
+test.describe('the /report-builder surface', () => {
   test.describe.configure({ mode: 'serial' });
 
   /** The Executive-summary template every later test edits; set by the second test. */
@@ -256,9 +256,9 @@ test.describe('the /report-builder surface (43-T13)', () => {
 
     await inspector(page).getByTestId('report-show-toggle').click();
     await expect(inspector(page).getByTestId('report-show-toggle')).toHaveAttribute('aria-checked', 'false');
-    // Dimmed, and STILL FIRST — `show: false` never removes or re-orders (§0.3
-    // trap 2). Four blocks, because the previous test's delete was never saved:
-    // that is the point — nothing writes the row until the primary does (D4).
+    // Dimmed, and STILL FIRST — `show: false` never removes or re-orders (trap
+    // 2). Four blocks, because the previous test's delete was never saved: that
+    // is the point — nothing writes the row until the primary does (D4).
     await expect(blocks(page).nth(0)).toHaveAttribute('data-hidden', '');
     await expect(blocks(page).nth(0)).toHaveAttribute('data-kind', 'text');
     await expect(blocks(page)).toHaveCount(4);
@@ -399,8 +399,8 @@ test.describe('the /report-builder surface (43-T13)', () => {
      * hidden` and could not be clicked. Below `sm` the two middle columns
      * collapse away.
      */
-    // 27-T74: `signIn` waits for the primary nav, which the shell collapses on
-    // a phone — sign in wide, then narrow.
+    // `signIn` waits for the primary nav, which the shell collapses on a phone
+    // — sign in wide, then narrow.
     await signIn(page);
     const made = await page.request.post('/api/v1/report-documents', { data: { kind: 'template', starter: 'exec', name: 'Width probe' } });
     expect(made.status(), await made.text()).toBe(201);

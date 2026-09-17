@@ -46,20 +46,20 @@ describe('LLM_ALLOWED_PAGE_TEMPLATES', () => {
     expect([...LLM_ALLOWED_PAGE_TEMPLATES].sort()).toEqual(recommendable.sort());
   });
 
-  it('never lists a non-recommendable template (06 §5 decision 6 + the tool surfaces)', () => {
+  it('never lists a non-recommendable template (+ the tool surfaces)', () => {
     for (const id of ['page-crud', 'page-builder', 'page-wizard', 'page-settings']) {
       expect(pageTemplateRegistry.has(id), `${id} must stay renderable`).toBe(true);
       expect(LLM_ALLOWED_PAGE_TEMPLATES).not.toContain(id);
     }
   });
 
-  it('admits every template a §14 archetype rule can emit (emitter ⊆ vocabulary)', () => {
+  it('admits every template a archetype rule can emit (emitter ⊆ vocabulary)', () => {
     for (const id of ARCHETYPE_TEMPLATE_IDS) {
       expect(LLM_ALLOWED_PAGE_TEMPLATES).toContain(id);
     }
   });
 
-  it('LLM_ALLOWED_TEMPLATES aliases the same list (06 §5 builder-note spelling)', () => {
+  it('LLM_ALLOWED_TEMPLATES aliases the same list (builder-note spelling)', () => {
     expect(LLM_ALLOWED_TEMPLATES).toEqual(LLM_ALLOWED_PAGE_TEMPLATES);
   });
 
@@ -75,12 +75,12 @@ describe('LLM_ALLOWED_WIDGETS', () => {
     }
   });
 
-  it('is the curated dashboard subset shipping today (06 §5 builder notes)', () => {
+  it('is the curated dashboard subset shipping today (builder notes)', () => {
     // Derived, not hand-maintained: whole kpi/charts/feeds families (minus the
     // data-editing notification-feed and toast-stack) plus the read-only
     // record-list table tiles.
     // Grows as M7 registers widgets — see the ratchet at `includes every widget…`.
-    // M7 Wave 4 completed kpi (§1) and feeds (§4): the eight new kpi ids and
+    // M7 Wave 4 completed kpi and feeds: the eight new kpi ids and
     // load-older-paginator qualify; `toast-stack` does not — its Undo emits a
     // mutate intent (`editsData`), and a generated dashboard is read-only
     // analytics.
@@ -199,7 +199,7 @@ describe('LLM_ALLOWED_WIDGETS', () => {
   it('offers only widgets some query descriptor can actually satisfy', () => {
     // The regression this encodes: charts were suggestable while the compiler
     // could produce none of their shapes, so the model could place a tile
-    // GUARANTEED to render "Unexpected data shape" or 422 (04 §5.2).
+    // GUARANTEED to render "Unexpected data shape" or 422.
     for (const id of LLM_ALLOWED_WIDGETS) {
       const contract = widgetRegistry.get(id)?.dataContract;
       const shapes = Array.isArray(contract) ? contract : [contract];
@@ -209,7 +209,7 @@ describe('LLM_ALLOWED_WIDGETS', () => {
     // auditable rather than implied. Both are now `static` and `form-state`,
     // and NEITHER is a compiler gap to close later: `static` is config-only
     // with no server round trip, and `form-state` is fed by the CRUD form path
-    // (04 §3). This list reaching zero would mean the boundary moved somewhere
+    // . This list reaching zero would mean the boundary moved somewhere
     // it cannot go.
     for (const shape of ['static', 'form-state'] as const) {
       expect(isCompilableShape(shape), `${shape} became compilable — revisit this guard`).toBe(false);
@@ -258,7 +258,7 @@ describe('LLM_ALLOWED_WIDGETS', () => {
 describe('LLM_ALLOWED_SEMANTICS', () => {
   const runtimeTones = widgetSharedConfigSchema.shape.tone.unwrap().options;
 
-  it('is the enum-tone vocabulary of the response contract (06 §5 decision 3 / §6 Tone)', () => {
+  it('is the enum-tone vocabulary of the response contract (Tone)', () => {
     expect([...LLM_ALLOWED_SEMANTICS].sort()).toEqual(['accent', 'danger', 'muted', 'pos', 'warn']);
   });
 

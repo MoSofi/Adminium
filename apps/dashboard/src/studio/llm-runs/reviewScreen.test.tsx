@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Review-diff screen tests (06-llm-assist.md §10.3, acceptance 11/12/14):
- * category grouping + header counts, the §8.2 default check state, the bulk
- * "Accept all" never selecting rejects-heuristic/user-locked rows, the
- * apply → confirm → success-toast → undo flow, draft persistence across a
- * remount, and the read-only rendering of an applied run. Fetch is mocked like
- * the sibling remap/hub suites (no msw).
+ * Review-diff screen tests (acceptance 11/12/14): category grouping + header
+ * counts, the default check state, the bulk "Accept all" never selecting
+ * rejects-heuristic/user-locked rows, the apply → confirm → success-toast →
+ * undo flow, draft persistence across a remount, and the read-only rendering
+ * of an applied run. Fetch is mocked like the sibling remap/hub suites (no
+ * msw).
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within, type RenderResult } from '@testing-library/react';
@@ -226,7 +226,7 @@ const isDisabled = (el: HTMLElement): boolean =>
   el.hasAttribute('disabled') || el.getAttribute('data-disabled') !== null;
 
 describe('ReviewScreen — grouping & counts', () => {
-  it('renders §10.3 category sections and the header status counts', async () => {
+  it('renders category sections and the header status counts', async () => {
     installFetch();
     renderScreen();
 
@@ -249,7 +249,7 @@ describe('ReviewScreen — grouping & counts', () => {
   });
 });
 
-describe('ReviewScreen — default check state (§8.2)', () => {
+describe('ReviewScreen — default check state', () => {
   it('pre-checks confident rows, leaves rejects-heuristic and user-locked out', async () => {
     installFetch();
     renderScreen();

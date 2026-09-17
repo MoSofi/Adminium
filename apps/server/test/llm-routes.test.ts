@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/api/v1/llm/*` route tests (06-llm-assist.md §10.5, §3.2, acceptance #10/#13).
+ * `/api/v1/llm/*` route tests (acceptance #10/#13).
  *
  * Runs on an in-memory SQLite meta store with the stub session-auth hook
  * (`x-test-user-id` → `request.user`) + the real rbac plugin — no live source
@@ -291,7 +291,7 @@ describe('llm routes — RBAC (acceptance #13)', () => {
   });
 });
 
-describe('llm routes — config (§3.2, acceptance #10)', () => {
+describe('llm routes — config (acceptance #10)', () => {
   let t: Harness;
   beforeEach(async () => {
     t = await buildHarness();
@@ -519,7 +519,7 @@ describe('llm routes — runs', () => {
     await t.meta.db.destroy();
   });
 
-  it('POST /runs (byo) returns an awaiting run + prompt, with provider/model NULL (§9)', async () => {
+  it('POST /runs (byo) returns an awaiting run + prompt, with provider/model NULL', async () => {
     const res = await t.app.inject({
       method: 'POST',
       url: '/api/v1/llm/runs',
@@ -752,7 +752,7 @@ describe('llm routes — runs', () => {
     const entries = await auditRepo(t.meta).list({ category: 'llm' });
     expect(entries.some((e) => e.action === 'llm.run.apply')).toBe(true);
 
-    // Re-applying the terminal run is a 409 (immutable, §7.4).
+    // Re-applying the terminal run is a 409 (immutable).
     const again = await t.app.inject({
       method: 'POST',
       url: `/api/v1/llm/runs/${id}/apply`,
@@ -762,7 +762,7 @@ describe('llm routes — runs', () => {
     expect(again.statusCode).toBe(409);
   });
 
-  it('POST /runs/:id/apply returns a working undo token that reverts the apply (§10.3)', async () => {
+  it('POST /runs/:id/apply returns a working undo token that reverts the apply', async () => {
     const id = await validatedRun(t);
     const diff = await t.app.inject({ method: 'GET', url: `/api/v1/llm/runs/${id}/diff`, headers: asUser(t.users.admin) });
     const accepted = (diff.json().diff as { id: string; status: string }[])
@@ -873,7 +873,7 @@ describe('llm routes — the run lifecycle leaves a trail (audit coverage)', () 
       (e) => e.action === 'llm.run.response',
     ).length;
 
-    // The run is already `validated`; a second paste is a 409 (§7.4 immutable).
+    // The run is already `validated`; a second paste is a 409 (immutable).
     const again = await t.app.inject({
       method: 'POST',
       url: `/api/v1/llm/runs/${id}/response`,

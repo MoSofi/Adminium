@@ -1,27 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * pagesRepo — adminium_pages (07-meta-store.md §3.16).
+ * pagesRepo — adminium_pages.
  *
  * Every navigable page of the Generated App, dashboards included. The
  * `config` column is the opaque, already-validated envelope JSON
- * (01-architecture.md §6.1) — `@adminium/meta` never imports the engine
- * schemas; the server is the single write-time validator.
+ * — `@adminium/meta` never imports the engine schemas; the server is
+ * the single write-time validator.
  *
- * Generator contract (M4-T08): `upsertGenerated` is idempotent — stable
- * `page_<slug>` ids, unchanged documents are not rewritten, changed ones
- * bump `revision`, rows the generator no longer emits are pruned (unless
- * human-edited — see below), and rows whose `origin` is not `generated`
- * (user/manifest/system pages) are never touched or pruned. The M5
- * regeneration safety net keys on the `config.generatedHash` the engine
- * embeds in each generated envelope (04-widget-registry.md §6.3 note: user
- * delta wins): when the caller supplies the hash function, a stored document
- * whose embedded hash no longer matches (a human edited it — `setLayout`
- * deliberately leaves the hash stale) is skipped, not overwritten, and
- * reported in `skippedEdited` — the full diff proposal UI is 04-T15. The
- * same guard extends to deletion: an edited row missing from the new set is
- * kept, not pruned, and reported in `keptEdited`; only unedited orphans
- * (byte-identically regenerable) are deleted. Without `hashEnvelope` the
- * legacy full prune applies.
+ * Generator contract: `upsertGenerated` is idempotent — stable `page_<slug>`
+ * ids, unchanged documents are not rewritten, changed ones bump `revision`,
+ * rows the generator no longer emits are pruned (unless human-edited — see
+ * below), and rows whose `origin` is not `generated` (user/manifest/system
+ * pages) are never touched or pruned. The M5 regeneration safety net keys on
+ * the `config.generatedHash` the engine embeds in each generated envelope
+ * (note: user delta wins): when the caller supplies the hash function, a
+ * stored document whose embedded hash no longer matches (a human edited it —
+ * `setLayout` deliberately leaves the hash stale) is skipped, not
+ * overwritten, and reported in `skippedEdited` — the full diff proposal UI
+ * is. The same guard extends to deletion: an edited row missing from the new
+ * set is kept, not pruned, and reported in `keptEdited`; only unedited
+ * orphans (byte-identically regenerable) are deleted. Without `hashEnvelope`
+ * the legacy full prune applies.
  */
 
 import type { Selectable } from 'kysely';
@@ -39,7 +38,8 @@ import {
   writeBool,
 } from './util.js';
 
-export const PAGE_ORIGINS = ['generated', 'user', 'manifest', 'system', 'llm'] as const;
+/** `project`: a hand-written page of the project folder the server runs. */
+export const PAGE_ORIGINS = ['generated', 'user', 'manifest', 'system', 'llm', 'project'] as const;
 export type PageOrigin = (typeof PAGE_ORIGINS)[number];
 
 export interface Page {
@@ -52,7 +52,7 @@ export interface Page {
   icon: string | null;
   navGroup: string | null;
   navOrder: number;
-  /** Opaque validated envelope (§3.17). */
+  /** Opaque validated envelope. */
   config: unknown;
   origin: string;
   manifestId: string | null;
@@ -64,7 +64,7 @@ export interface Page {
   updatedAt: number;
 }
 
-/** The projection the bootstrap nav tree builds from (09 §2.2). */
+/** The projection the bootstrap nav tree builds from. */
 export interface PageNavRow {
   id: string;
   /** Owning connection — lets the nav disambiguate multi-connection setups. */
@@ -77,10 +77,10 @@ export interface PageNavRow {
   isEnabled: boolean | 0 | 1;
   updatedAt: number;
   /**
-   * The envelope's `source.table` (30-record-pages.md D5): lets clients build
-   * the (connectionId, table) → slug map that record pages cross-link
-   * through. Null for source-less pages and for envelopes this reader cannot
-   * parse — absence degrades a link, never the nav.
+   * The envelope's `source.table`: lets clients build the (connectionId,
+   * table) → slug map that record pages cross-link through. Null for
+   * source-less pages and for envelopes this reader cannot parse — absence
+   * degrades a link, never the nav.
    */
   sourceTable: string | null;
 }
@@ -146,6 +146,22 @@ export interface PageMetaPatch {
   envelope?: Record<string, unknown> | undefined;
 }
 
+/** A page as a project file describes it: every column the file decides. */
+export interface ProjectPageInput {
+  id: string;
+  connectionId: string | null;
+  slug: string;
+  type: string;
+  title: string;
+  icon: string | null;
+  navGroup: string | null;
+  navOrder: number;
+  /** The validated envelope. */
+  config: unknown;
+  origin: PageOrigin;
+  isEnabled: boolean;
+}
+
 /** One generated page as the server glue hands it over (engine-validated). */
 export interface GeneratedPageInput {
   /** Stable `page_<slug>` id from the generator. */
@@ -172,11 +188,10 @@ export interface UpsertGeneratedOptions {
    * excluded), injected because `@adminium/meta` never imports the engine.
    * When present, a changed generated-origin row is re-hashed first: a
    * mismatch with its embedded `config.generatedHash` means a human edited the
-   * stored document, so the overwrite is skipped (user delta wins, 04 §6.3)
-   * and the id lands in `skippedEdited`. The prune pass applies the same
-   * test: an edited orphan is kept (`keptEdited`) instead of deleted.
-   * Omitted ⇒ the pre-M5 overwrite-and-full-prune behavior (unit tests,
-   * seeds).
+   * stored document, so the overwrite is skipped (user delta wins) and the id
+   * lands in `skippedEdited`. The prune pass applies the same test: an edited
+   * orphan is kept (`keptEdited`) instead of deleted. Omitted ⇒ the pre-M5
+   * overwrite-and-full-prune behavior (unit tests, seeds).
    */
   hashEnvelope?: (envelope: Record<string, unknown>) => string;
 }
@@ -205,10 +220,10 @@ export interface UpsertGeneratedResult {
   blockedSlugs: { id: string; slug: string }[];
   /**
    * Human-edited generated-origin ids the new set no longer contains — kept,
-   * not pruned (user delta wins extends to deletion, 04 §6.3). The row is
-   * untouched: it keeps `origin: 'generated'`, stays enabled, and keeps its
-   * snapshot lineage. Unedited orphans are byte-identically regenerable and
-   * still delete; without `hashEnvelope` this is always empty (legacy full
+   * not pruned (user delta wins extends to deletion). The row is untouched:
+   * it keeps `origin: 'generated'`, stays enabled, and keeps its snapshot
+   * lineage. Unedited orphans are byte-identically regenerable and still
+   * delete; without `hashEnvelope` this is always empty (legacy full
    * prune).
    */
   keptEdited: string[];
@@ -239,8 +254,8 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 /**
- * Mirror a row's nav/identity fields into the stored envelope (01 §6.1
- * `title` / `nav` blocks), preserving every other key.
+ * Mirror a row's nav/identity fields into the stored envelope (`title`
+ * / `nav` blocks), preserving every other key.
  *
  * Two rules make this safe on documents this repo is not allowed to
  * understand:
@@ -248,7 +263,7 @@ function asRecord(value: unknown): Record<string, unknown> {
  * - `config.generatedHash` is left exactly as found. Re-stamping it is what
  *   would make the edit invisible to `isEditedEnvelope` and therefore
  *   revertible by the next generation run; leaving it stale is the designed
- *   "a human touched this" signal (04 §6.3).
+ * "a human touched this" signal.
  * - Blocks that are absent or the wrong shape are not invented. A document
  *   with no `nav` object gets none — hand-authored and llm-seed rows are not
  *   full envelopes yet, and fabricating a partial `nav` block would fail
@@ -284,10 +299,10 @@ function mergeEnvelopeMeta(
      * A null row group means HIDDEN, and the document expresses that as
      * `hidden: true` while KEEPING its `group` — the remembered placement
      * "Show in sidebar" restores, and the same vocabulary generation's
-     * cascade-child default writes (30-record-pages.md follow-up). This used
-     * to DELETE `group`, which left every hidden page's document failing the
-     * client's envelope validation — the record page's related tabs silently
-     * degraded to derived columns because of it.
+     * cascade-child default writes (follow-up). This used to DELETE `group`,
+     * which left every hidden page's document failing the client's envelope
+     * validation — the record page's related tabs silently degraded to
+     * derived columns because of it.
      */
     if (next.navGroup === null) {
       navOut['hidden'] = true;
@@ -397,8 +412,8 @@ export function pagesRepo(meta: MetaDb) {
               opts.hashEnvelope !== undefined &&
               isEditedEnvelope(readJson(row.config), opts.hashEnvelope)
             ) {
-              // User delta wins extends to deletion (04 §6.3): the generator
-              // dropped this page (table removed/hidden between runs), but a
+              // User delta wins extends to deletion: the generator dropped
+              // this page (table removed/hidden between runs), but a
               // human customized the stored document, so pruning would
               // destroy work that cannot be regenerated. Keep the row exactly
               // as-is — origin stays 'generated', it stays enabled, and its
@@ -466,7 +481,7 @@ export function pagesRepo(meta: MetaDb) {
           }
           if (row.origin !== 'generated') {
             // A user/manifest page claimed this id — regeneration never
-            // overwrites it (user delta wins, 04 §6.3).
+            // overwrites it (user delta wins).
             result.preserved.push(row.id);
             continue;
           }
@@ -489,7 +504,7 @@ export function pagesRepo(meta: MetaDb) {
             opts.hashEnvelope !== undefined &&
             isEditedEnvelope(readJson(row.config), opts.hashEnvelope)
           ) {
-            // User delta wins (04 §6.3): the stored document was edited after
+            // User delta wins: the stored document was edited after
             // generation, so this run must not clobber it. The row keeps its
             // snapshot lineage too — it no longer descends from this run.
             result.skippedEdited.push(row.id);
@@ -523,9 +538,9 @@ export function pagesRepo(meta: MetaDb) {
      *
      * `id` is optional and defaults to a fresh `page_<ULID>`. Callers that
      * must know the id before they build the document — the envelope embeds
-     * its own id (01 §6.1) — mint one with `newId('page')` and pass it here.
-     * Do NOT hand it a deterministic `page_<slug>`-shaped id: those belong to
-     * the generator's `pageIdFor` allocator, and a user page squatting on one
+     * its own id — mint one with `newId('page')` and pass it here. Do NOT
+     * hand it a deterministic `page_<slug>`-shaped id: those belong to the
+     * generator's `pageIdFor` allocator, and a user page squatting on one
      * lands in `upsertGenerated`'s `preserved` list forever, silently
      * preventing that generated page from ever materializing.
      */
@@ -572,6 +587,59 @@ export function pagesRepo(meta: MetaDb) {
       return decode(row as never);
     },
 
+    /**
+     * Write a page exactly as a project file describes it: insert it, or
+     * replace every column the file decides on the row with this id. Grants,
+     * views, the creator and the snapshot lineage stay as they are, and
+     * `revision` moves on as it does for any other write. The server validates
+     * the document first.
+     */
+    async putFromProject(input: ProjectPageInput, at: number = Date.now()): Promise<Page> {
+      if (!PAGE_ORIGINS.includes(input.origin)) {
+        throw new MetaValidationError(`invalid page origin ${JSON.stringify(input.origin)}`);
+      }
+      if (input.id.length > 36) {
+        throw new MetaValidationError(`page id exceeds char(36): ${input.id}`);
+      }
+      const columns = {
+        connectionId: input.connectionId,
+        slug: input.slug,
+        type: input.type,
+        title: input.title,
+        icon: input.icon,
+        navGroup: input.navGroup,
+        navOrder: input.navOrder,
+        config: packJson(input.config),
+        origin: input.origin,
+        isEnabled: writeBool(meta, input.isEnabled),
+        updatedAt: at,
+      };
+      const existing = await this.findById(input.id);
+      if (existing === null) {
+        await db
+          .insertInto('adminium_pages')
+          .values({
+            id: input.id,
+            ...columns,
+            manifestId: null,
+            generatedFromSnapshotId: null,
+            revision: 1,
+            createdBy: null,
+            createdAt: at,
+          })
+          .execute();
+      } else {
+        await db
+          .updateTable('adminium_pages')
+          .set({ ...columns, revision: existing.revision + 1 })
+          .where('id', '=', input.id)
+          .execute();
+      }
+      const page = await this.findById(input.id);
+      if (page === null) throw new MetaValidationError(`page ${input.id} vanished while it was written`);
+      return page;
+    },
+
     async findById(id: string): Promise<Page | null> {
       const row = await db
         .selectFrom('adminium_pages')
@@ -583,11 +651,11 @@ export function pagesRepo(meta: MetaDb) {
 
     /**
      * Every page, all connections, nav-ordered — the Studio page manager's
-     * list (09 §8.1). Returns the row projection plus `origin`/`type`, which
-     * the manager needs to explain why a page behaves the way it does (a
-     * `generated` row warns about regeneration, a `manifest` row is
-     * undeletable). Deliberately excludes `config`: the list renders ~100 rows
-     * and the envelopes are the largest column in the table.
+     * list. Returns the row projection plus `origin`/`type`, which the manager
+     * needs to explain why a page behaves the way it does (a `generated` row
+     * warns about regeneration, a `manifest` row is undeletable). Deliberately
+     * excludes `config`: the list renders ~100 rows and the envelopes are the
+     * largest column in the table.
      */
     async listAll(): Promise<PageSummary[]> {
       const rows = await db
@@ -615,7 +683,7 @@ export function pagesRepo(meta: MetaDb) {
 
     /**
      * Write the row's nav projection AND the matching envelope fields
-     * (04 §6.3 "user delta wins"), in one transaction.
+     * , in one transaction.
      *
      * Writing both halves is the whole point. The row columns are what the
      * bootstrap nav tree reads, so a column-only write is what makes the edit
@@ -630,9 +698,9 @@ export function pagesRepo(meta: MetaDb) {
      * admin's edit survives, while the page keeps `origin: 'generated'` and
      * stays in the connection's page count.
      *
-     * `expectedRevision`, when given, is the 08 §2.6 `If-Match` check: a
-     * mismatch returns `'conflict'` rather than clobbering a concurrent write.
-     * Returns `'not-found'` for an unknown id, otherwise the reloaded page.
+     * `expectedRevision`, when given, is the `If-Match` check: a mismatch
+     * returns `'conflict'` rather than clobbering a concurrent write. Returns
+     * `'not-found'` for an unknown id, otherwise the reloaded page.
      */
     async updateMeta(
       pageId: string,
@@ -790,12 +858,12 @@ export function pagesRepo(meta: MetaDb) {
 
     /**
      * Write the shared default dashboard layout into the envelope's
-     * `config.layout` slot (04-widget-registry.md §6.3; the renderer and engine
-     * envelope validator both read `envelope.config.layout`). Merges over the
-     * stored envelope so the rest of the document (title/source/nav and the
-     * other template config keys) is untouched, and bumps `updatedAt` so the
-     * bootstrap `configVersion` advances and clients re-fetch. `revision`
-     * bumps too — the counter tracks every changed document, human or machine
+     * `config.layout` slot (the renderer and engine envelope validator both
+     * read `envelope.config.layout`). Merges over the stored envelope so the
+     * rest of the document (title/source/nav and the other template config
+     * keys) is untouched, and bumps `updatedAt` so the bootstrap
+     * `configVersion` advances and clients re-fetch. `revision` bumps too — the
+     * counter tracks every changed document, human or machine
      * (override-staleness and future H5 diff/telemetry read it) — while the
      * embedded `config.generatedHash` deliberately stays stale: that mismatch
      * IS the edited-page signal `upsertGenerated` keys on. The `layout` value
@@ -823,17 +891,17 @@ export function pagesRepo(meta: MetaDb) {
     },
 
     /**
-     * Replace a page's whole config document — the 06-llm-assist.md §8.3
-     * materialization write: the apply executor seeds `origin: 'llm'` rows with
-     * a minimal `{source, llmRunId}` config and the regeneration hook expands
-     * it into the full validated envelope from the active snapshot. Bumps
-     * `revision` + `updatedAt` (configVersion advances → clients re-fetch);
-     * `icon` is back-filled only when the row has none. `title`/`navGroup`,
-     * when provided, sync the row's nav projection from the envelope — the
-     * bootstrap tree reads the ROW columns, so without this an expanded llm
-     * page would stay outside the nav (and `/p/$slug` resolves from the nav
-     * tree, leaving the page unreachable). Returns the reloaded page, or null
-     * if the id does not exist.
+     * Replace a page's whole config document — the materialization write: the
+     * apply executor seeds `origin: 'llm'` rows with a minimal `{source,
+     * llmRunId}` config and the regeneration hook expands it into the full
+     * validated envelope from the active snapshot. Bumps `revision` +
+     * `updatedAt` (configVersion advances → clients re-fetch); `icon` is
+     * back-filled only when the row has none. `title`/`navGroup`, when
+     * provided, sync the row's nav projection from the envelope — the bootstrap
+     * tree reads the ROW columns, so without this an expanded llm page would
+     * stay outside the nav (and `/p/$slug` resolves from the nav tree, leaving
+     * the page unreachable). Returns the reloaded page, or null if the id does
+     * not exist.
      */
     async replaceConfig(
       pageId: string,
@@ -862,8 +930,9 @@ export function pagesRepo(meta: MetaDb) {
     /**
      * Toggle a page's visibility (nav + GET both key on `isEnabled`). Bumps
      * `updatedAt` only — the document itself is unchanged, so `revision`
-     * stays. Used by the §8.3 materialization pass to park an llm seed whose
-     * template cannot compose yet, instead of serving an invalid-config card.
+     * stays. Used by the materialization pass to park an llm seed whose
+     * template cannot compose yet, instead of serving an invalid-config
+     * card.
      */
     async setEnabled(pageId: string, isEnabled: boolean, at: number = Date.now()): Promise<void> {
       await db
@@ -884,6 +953,17 @@ export function pagesRepo(meta: MetaDb) {
       return row === undefined ? null : decode(row);
     },
 
+    /** Every page with its document, all connections, by slug then id. */
+    async listDocuments(): Promise<Page[]> {
+      const rows = await db
+        .selectFrom('adminium_pages')
+        .selectAll()
+        .orderBy('slug', 'asc')
+        .orderBy('id', 'asc')
+        .execute();
+      return rows.map(decode);
+    },
+
     async listForConnection(connectionId: string): Promise<Page[]> {
       const rows = await db
         .selectFrom('adminium_pages')
@@ -897,11 +977,11 @@ export function pagesRepo(meta: MetaDb) {
 
     /**
      * The bootstrap nav projection — every page row, nav fields only
-     * (09-generated-app.md §2.2; the route buckets these into the five fixed
-     * groups and derives `configVersion` from max updatedAt).
+     * (the route buckets these into the five fixed groups and derives
+     * `configVersion` from max updatedAt).
      */
     async navRows(): Promise<PageNavRow[]> {
-      // `config` rides along ONLY to extract `source.table` (30 D5) — the nav
+      // `config` rides along ONLY to extract `source.table` — the nav
       // projection stays a projection: the raw envelope never leaves this
       // function, and the parse tolerates anything (null on failure).
       const rows = await db
@@ -911,7 +991,7 @@ export function pagesRepo(meta: MetaDb) {
       return rows.map(({ config, ...row }) => ({ ...row, sourceTable: sourceTableOf(config) }));
     },
 
-    /** Generated-page counts per connection (connections-hub cards, 09 §8.1). */
+    /** Generated-page counts per connection (connections-hub cards). */
     async countGeneratedByConnection(): Promise<Record<string, number>> {
       const rows = await db
         .selectFrom('adminium_pages')

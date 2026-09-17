@@ -1,4 +1,4 @@
-/* @adminium/tokens — motion vocabulary. See 02-design-system.md §5.
+/* @adminium/tokens — motion vocabulary.
    Keyframe names keep the comps' nb- prefix for 1:1 traceability when porting.
    Conventions: micro-transitions .1–.16s ease; entrances use cubic-bezier(.2,.7,.3,1). */
 
@@ -198,7 +198,7 @@
 }
 
 /* A bottom sheet rising into place — the Export Builder comp's phone-width
-   column browser (41-export-builder.md D13). */
+ column browser. */
 @keyframes nb-sheetup {
   from { transform: translateY(100%); }
   to { transform: none; }

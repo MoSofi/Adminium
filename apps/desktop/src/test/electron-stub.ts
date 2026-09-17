@@ -16,7 +16,7 @@ const unavailable = (member: string): never => {
   throw new Error(
     `electron.${member} was called in a unit test. The desktop suites run in plain Node — ` +
       'inject a fake through createDesktopApp(deps) instead of reaching for the real module ' +
-      '(end-to-end shell coverage is 11-T20 Playwright `_electron`).',
+      '(end-to-end shell coverage is the Playwright `_electron` suite).',
   );
 };
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * §8.1's four chip states and the precedence between them
+ * The four chip states and the precedence between them
  * (`shell/runtimeChipState.ts`).
  */
 import { describe, expect, it } from 'vitest';
@@ -25,8 +25,8 @@ describe('runtimeChipState — the desktop-only rule', () => {
 /**
  * REGRESSION. `GET /api/v1/connections` needs the Admin-only
  * `system:connections:manage`, and the topbar renders for every signed-in user —
- * so for an Editor, a Viewer, or any §8.3 LAN user the poll is a permanent 403
- * and `connections` is null forever. An earlier cut defaulted that to `[]` and
+ * so for an Editor, a Viewer, or any LAN user the poll is a permanent 403 and
+ * `connections` is null forever. An earlier cut defaulted that to `[]` and
  * printed a confident `Local` over an unreachable remote Postgres.
  */
 describe('runtimeChipState — unknown health is not empty health', () => {
@@ -43,7 +43,7 @@ describe('runtimeChipState — unknown health is not empty health', () => {
   });
 });
 
-describe('runtimeChipState — §8.1 rows', () => {
+describe('runtimeChipState — rows', () => {
   it('local: SQLite only, no sharing', () => {
     expect(runtimeChipState({ runtime: 'desktop', connections: [local], lanShare: false })).toBe('local');
   });
@@ -65,7 +65,7 @@ describe('runtimeChipState — §8.1 rows', () => {
 
 describe('runtimeChipState — what counts as remote', () => {
   /**
-   * §2.1: local SQLite files under `<dataDir>`. A SQLite source can be many
+   * Local SQLite files under `<dataDir>`. A SQLite source can be many
    * things, but never a machine that went away.
    */
   it('never calls SQLite remote, whatever its status', () => {

@@ -18,7 +18,7 @@ import type {
 import { PAGE_TEMPLATE_IDS } from '../templates/manifests.js';
 
 /**
- * §14 Auto-trigger tests — the per-table half of the M7 exit criteria.
+ * Auto-trigger tests — the per-table half of the M7 exit criteria.
  *
  * These prove *selection*: given a classified table, which archetype wins. That
  * the winner then composes into a real page (slots filled, envelope persisted)
@@ -90,9 +90,9 @@ function pick(input: CandidateTableInput): string | null {
   return selectArchetype(input.table, input.classified, ctx)?.template ?? null;
 }
 
-/* ------------------------------------------------------------- §14 triggers */
+/* ------------------------------------------------------------- triggers */
 
-describe('§14 auto-triggers — one archetype per table', () => {
+describe('auto-triggers — one archetype per table', () => {
   it('status enum classified as workflow → page-board', () => {
     const tasks = build(
       'public.tasks',
@@ -194,7 +194,7 @@ describe('§14 auto-triggers — one archetype per table', () => {
     );
     const selection = selectArchetype(employees.table, employees.classified, ctx);
     expect(selection?.template).toBe('page-directory');
-    // The self-FK is what makes it the org-chart tree variant (§14).
+    // The self-FK is what makes it the org-chart tree variant.
     expect(selection?.reasons.join(' ')).toContain('org-chart tree variant');
   });
 
@@ -283,7 +283,7 @@ describe('§14 auto-triggers — one archetype per table', () => {
   });
 
   it('attachments table with a file ref but NO size column → page-files', () => {
-    // §14 triggers on "File/attachment-shaped tables **or storage integration**".
+    // The trigger is "File/attachment-shaped tables **or storage integration**".
     // A storage-integration attachments table has a URL, not a byte count — the
     // documented "name + explicit file reference" branch used to be unreachable
     // (it redundantly required a size column), so this table earned no page.
@@ -304,7 +304,7 @@ describe('§14 auto-triggers — one archetype per table', () => {
     // page-directory's required `directory` slot only accepts card-gallery
     // (needs image-url) or org-chart (needs a self-FK). Firing without either
     // selected the archetype and then composed to null — and archetypePages
-    // drops rather than falling back, so the table lost its §14 page silently.
+    // drops rather than falling back, so the table lost its page silently.
     // A people table with no avatar column is the COMMON case.
     const employees = build(
       'public.employees',
@@ -425,7 +425,7 @@ describe('§14 auto-triggers — one archetype per table', () => {
     expect(selection?.template).toBe('page-master-detail');
     expect(selection?.reasons.join(' ')).toContain('gantt-chart detail pane');
     // A start/end range is scheduling data, so the calendar trigger is damped
-    // (annex §5) and must not beat it.
+    // (annex) and must not beat it.
     const ranked = scoreArchetypes(projectTasks.table, projectTasks.classified, ctx);
     const calendar = ranked.find((a) => a.template === 'page-calendar');
     expect(calendar?.score).toBeLessThan(selection?.score as number);
@@ -460,7 +460,7 @@ describe('§14 auto-triggers — one archetype per table', () => {
 
 /* -------------------------------------------------------- non-selection */
 
-describe('§14 selection — ties and no-match emit nothing', () => {
+describe('selection — ties and no-match emit nothing', () => {
   it('a plain lookup table earns no archetype', () => {
     const regions = build(
       'public.regions',
@@ -472,11 +472,11 @@ describe('§14 selection — ties and no-match emit nothing', () => {
   });
 
   it('a log table with a kanban-shaped status enum stays page-log-viewer', () => {
-    // §14 routes "Audit/event/webhook/log tables" to page-log-viewer, and the
+    // "Audit/event/webhook/log tables" route to page-log-viewer, and the
     // classifier's log shape/role is definitive — page-board's enum-vocabulary
     // match is only a heuristic, so it must not compete here. Previously both
     // scored 0.88, the tie made selectArchetype return null, and the table
-    // silently lost its §14 page entirely.
+    // silently lost its page entirely.
     const syncLog = build(
       'public.sync_log',
       [
@@ -528,8 +528,8 @@ describe('§14 selection — ties and no-match emit nothing', () => {
   it('a tie between the top two archetypes still selects the deterministic winner', () => {
     // scoreArchetypes orders by score desc THEN template id — a total order that
     // does not depend on rule declaration order — so ranked[0] is stable across
-    // runs and satisfies 04 §8 H5. Dropping the page on a tie would violate H2's
-    // "highest-scoring §14 trigger" and be invisible to the Engine, which cannot
+    // runs and satisfies H5. Dropping the page on a tie would violate H2's
+    // "highest-scoring trigger" and be invisible to the Engine, which cannot
     // tell "nothing triggered" from "two triggers tied".
     const ranked = [
       { template: 'page-board', score: 0.88, reasons: [] },
@@ -560,7 +560,7 @@ describe('§14 selection — ties and no-match emit nothing', () => {
     expect(pick(tied)).not.toBeNull();
   });
 
-  it('system and join tables earn nothing (05 §8.2)', () => {
+  it('system and join tables earn nothing', () => {
     const join = build('public.order_tags', [
       { name: 'order_id', logicalType: 'integer', semantic: 'fk' },
       { name: 'tag_id', logicalType: 'integer', semantic: 'fk' },
@@ -572,7 +572,7 @@ describe('§14 selection — ties and no-match emit nothing', () => {
 
 /* --------------------------------------------------------------- contract */
 
-describe('§14 archetype contract', () => {
+describe('the archetype contract', () => {
   it('every trigger names a shipped manifest', () => {
     for (const id of ARCHETYPE_TEMPLATE_IDS) {
       expect(PAGE_TEMPLATE_IDS).toContain(id);

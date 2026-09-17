@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The 11-electron.md §8.2 gating matrix, row by row (`app/capabilities.ts`).
+ * The gating matrix, row by row (`app/capabilities.ts`).
  *
  * These are the decisions the pages defer to, so they are asserted here once
  * rather than re-derived in every page suite. The negative assertions matter as
@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import { emailSendGate, isHostedPlanSurface, llmAffordances } from './capabilities.js';
 
-describe('emailSendGate — §8.2 email row', () => {
+describe('emailSendGate — email row', () => {
   it('enables sends only when SMTP is configured', () => {
     expect(emailSendGate({ smtpConfigured: true, networkFeaturesAllowed: true })).toEqual({
       enabled: true,
@@ -25,7 +25,7 @@ describe('emailSendGate — §8.2 email row', () => {
 
   /**
    * The deployment this protects: an air-gapped install with an SMTP relay on
-   * its own LAN. §7's email row asks for "user-configured SMTP" and says nothing
+   * its own LAN. The email row asks for "user-configured SMTP" and says nothing
    * about the internet, so folding the flags together would break a setup that
    * works.
    */
@@ -39,7 +39,7 @@ describe('emailSendGate — §8.2 email row', () => {
   });
 });
 
-describe('llmAffordances — §8.2 LLM row', () => {
+describe('llmAffordances — LLM row', () => {
   it('leads with BYO on desktop, and keeps the provider API available', () => {
     const { providerApi, byoFirst } = llmAffordances({ runtime: 'desktop', networkFeaturesAllowed: true });
     expect(byoFirst).toBe(true);
@@ -59,8 +59,8 @@ describe('llmAffordances — §8.2 LLM row', () => {
   });
 
   /**
-   * BYO makes zero network calls (06-llm-assist.md, §7's LLM row), so no flag
-   * may ever turn it off. `byoFirst` is presentation; it is not a gate.
+   * BYO makes zero network calls (LLM row), so no flag may ever turn it off.
+   * `byoFirst` is presentation; it is not a gate.
    */
   it('never gates BYO itself in any combination', () => {
     for (const runtime of ['self-host', 'desktop'] as const) {
@@ -73,7 +73,7 @@ describe('llmAffordances — §8.2 LLM row', () => {
   });
 });
 
-describe('isHostedPlanSurface — §8.2 hosted-plan row', () => {
+describe('isHostedPlanSurface — hosted-plan row', () => {
   it('treats the billing "suspended" state as a Cloud-only surface', () => {
     expect(isHostedPlanSurface('suspended')).toBe(true);
   });

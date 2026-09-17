@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-crud` binding (09-generated-app.md §4.1, §7.1): projects the page
- * envelope onto the real `PageCrud` template from `@adminium/widgets` —
- * `config.columns[]` → validated `GridColumnSpec[]` (invalid entries are
- * dropped with a console warning, never a crash), the bound `CrudApi`
- * adapter, and the host WidgetEvent sink. Row click emits `record-open` and
- * the host navigates to the record PAGE (30-record-pages.md D1) — this
- * binding no longer routes a detail id in or out.
+ * `page-crud` binding: projects the page envelope onto the real `PageCrud`
+ * template from `@adminium/widgets` — `config.columns[]` → validated
+ * `GridColumnSpec[]` (invalid entries are dropped with a console warning,
+ * never a crash), the bound `CrudApi` adapter, and the host WidgetEvent
+ * sink. Row click emits `record-open` and the host navigates to the record
+ * PAGE — this binding no longer routes a detail id in or out.
  *
- * It also owns saved views (M5-T06): the views query/mutations for this page,
+ * It also owns saved views: the views query/mutations for this page,
  * auto-applying a default view on load, and applying a selected view by
  * remounting PageCrud with the view's grid state as initial props — so a view
  * round-trips exactly (search / sort / filters / page size).
  *
  * Write affordances ride the per-caller `canCreate`/`canUpdate`/`canDelete`
  * capabilities the page reply resolved from the caller's table grants
- * (30-record-pages.md D4) — a read-only grantee sees no New row, and the peek
- * carries no Edit/Delete, instead of buttons that 403.
+ * — a read-only grantee sees no New row, and the peek carries no Edit/Delete,
+ * instead of buttons that 403.
  *
  * Chrome copy rides `config.labels`: the stored per-page overrides the Studio
  * editor writes, projected straight onto the template's `labels` prop. Absent
@@ -24,13 +23,14 @@
  * from the locale bundles as before.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PageCrud, type PageCrudFiles, type PageCrudGridState } from '@adminium/widgets';
+import { PageCrud, rowIdOf, type PageCrudFiles, type PageCrudGridState } from '@adminium/widgets';
 import { parseCrudLabels } from '@adminium/engine/config';
 
 import { resolveFiles, uploadFile } from '../files/api.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { parseColumns, projectionParamsOf, withFkDisplay, withLookups } from './columnSpecs.js';
+import { ProjectActionMenu, useProjectActions } from './projectActions.js';
 import { useAppToasts } from './toasts.js';
 import type { PageTemplateProps } from './template-types.js';
 import { ViewSwitcher } from './views/ViewSwitcher.js';
@@ -41,13 +41,13 @@ import type { SavedView } from './views/viewsApi.js';
 const BASE_GRID_STATE: PageCrudGridState = { search: '', sort: null, filters: [], pageSize: 50 };
 
 /**
- * Last grid state per page for THIS session (30-record-pages.md T12): row
- * click now navigates to the record page, which unmounts the list — without
- * this, back/forward walked the user's search, sort and filters away. Module
- * scope (not URL, not storage): a navigation memory, same lifetime as the
- * SPA, exactly like the drawer era where the list never unmounted at all.
- * Pagination cursor is deliberately not captured — a return restores a query,
- * not a scroll position (the M5-T06 saved-view rule).
+ * Last grid state per page for THIS session: row click now navigates to the
+ * record page, which unmounts the list — without this, back/forward walked
+ * the user's search, sort and filters away. Module scope (not URL, not
+ * storage): a navigation memory, same lifetime as the SPA, exactly like the
+ * drawer era where the list never unmounted at all. Pagination cursor is
+ * deliberately not captured — a return restores a query, not a scroll
+ * position (the saved-view rule).
  */
 const lastGridState = new Map<string, PageCrudGridState>();
 
@@ -88,7 +88,7 @@ export function PageCrudBinding({
   const { views, createView, updateView, deleteView } = useSavedViews(page.id);
 
   // Applied view + a remount token: bumping the token re-mounts PageCrud so its
-  // initial props (the view's grid state) take effect (M5-T06).
+  // initial props (the view's grid state) take effect.
   const [appliedView, setAppliedView] = useState<SavedView | null>(null);
   const [appliedToken, setAppliedToken] = useState(0);
   const gridStateRef = useRef<PageCrudGridState>(BASE_GRID_STATE);
@@ -178,6 +178,32 @@ export function PageCrudBinding({
     [deleteView, appliedView, applyView, toasts],
   );
 
+  // The project's own actions for this table: a row menu and, for `bulk`
+  // ones, the bulk bar. None unless the server runs a project that has them.
+  // PageCrud keeps its rows itself and reads them again when its `api` object
+  // changes, so an action that changed data hands it a new one (as the record
+  // page does).
+  const [actionRuns, setActionRuns] = useState(0);
+  const projectActions = useProjectActions(
+    page.source.connectionId,
+    page.source.table ?? crud?.table,
+    useCallback(() => setActionRuns((n) => n + 1), []),
+  );
+  const gridApi = useMemo(
+    () => (actionRuns === 0 || crud === null ? crud : (Object.create(crud) as typeof crud)),
+    [crud, actionRuns],
+  );
+  const bulkActions = useMemo(
+    () =>
+      projectActions.bulk.map((action) => ({
+        key: action.id,
+        label: action.label,
+        disabled: projectActions.busy,
+        run: (ids: readonly string[]) => projectActions.start(action, ids),
+      })),
+    [projectActions],
+  );
+
   if (crud === null) {
     // Bad generation output (page-crud without a source) — caught by the
     // PageRenderer error boundary and rendered as the page error card.
@@ -192,7 +218,7 @@ export function PageCrudBinding({
   const sourceTable = page.source.table ?? crud.table;
 
   /**
-   * The file transport for this page (37 §3.5, §3.9).
+   * The file transport for this page.
    *
    * Handed down ONLY when a column actually carries a `file` block: a table
    * with none must not gain an adapter it would never call, and the widget's
@@ -246,21 +272,21 @@ export function PageCrudBinding({
           carries the `h-full` that lets PageCrud's own chain resolve. */}
       <PageCrud
         key={appliedToken}
-        api={crud}
+        api={gridApi ?? crud}
         columns={columns}
         source={{ connectionId: page.source.connectionId, table: sourceTable }}
         onEvent={adapters.onEvent}
         // Spread, not `labels={labels ?? undefined}`: `exactOptionalPropertyTypes`
         // distinguishes an absent prop from one explicitly set to undefined.
         {...(labels === null ? {} : { labels })}
-        // Grants-driven affordances (30 D4): false hides New row / Edit /
+        // Grants-driven affordances: false hides New row / Edit /
         // Delete (toolbar, empty state, bulk bar, peek) so a read-only grant
         // never renders a button that 403s; undefined keeps the widget's
         // permissive default.
         canCreate={canCreate}
         canUpdate={canUpdate}
         canDelete={canDelete}
-        // The file transport (37 §3.5, §3.9). Passed only when the page has at
+        // The file transport. Passed only when the page has at
         // least one `file` column: a table with none must not gain an adapter
         // it would never call, and the widget's own rule is that an absent
         // adapter renders exactly what it rendered before the feature existed.
@@ -268,7 +294,7 @@ export function PageCrudBinding({
         // PII cells reveal only for callers the server actually sent the
         // values to in clear (pageReply.canUnmask; default stays masked).
         canUnmask={canUnmask}
-        // The connection's own currency for money cells (10 §4.4). Spread so
+        // The connection's own currency for money cells. Spread so
         // an unset one leaves the prop absent and the historical USD fallback
         // in place.
         {...(currency === undefined ? {} : { currency })}
@@ -295,7 +321,16 @@ export function PageCrudBinding({
             }}
           />
         }
+        {...(projectActions.record.length === 0
+          ? {}
+          : {
+              rowActions: (row: Record<string, unknown>) => (
+                <ProjectActionMenu actions={projectActions} id={rowIdOf(columns, row)} />
+              ),
+            })}
+        {...(bulkActions.length === 0 ? {} : { bulkActions })}
       />
+      {projectActions.dialog}
     </>
   );
 }

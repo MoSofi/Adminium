@@ -17,14 +17,14 @@ import {
 import { validateConfigAgainst, widgetRegistry } from './index.js';
 
 /**
- * H1/H2 rule tests (04-widget-registry.md §8; research/widget-registry.md
- * §1–§13 auto-instantiation triggers).
+ * H1/H2 rule tests (research/widget-registry.md auto-instantiation
+ * triggers).
  *
  * The fixtures are hand-written `CandidateTable` / `ClassifiedTableInput`
  * literals rather than engine output on purpose: this package cannot import
- * `@adminium/engine` (01 §2.3), and the rules must be provable against their own
- * declared contract. That the Engine's real classifier produces these shapes is
- * proven on the other side of the boundary, by
+ * `@adminium/engine`, and the rules must be provable against their own declared
+ * contract. That the Engine's real classifier produces these shapes is proven on
+ * the other side of the boundary, by
  * `packages/engine/test/generate-archetypes.test.ts`.
  */
 
@@ -87,7 +87,7 @@ function build(
   return { table, classified };
 }
 
-/** The §15 archetypal table: timestamps + money + a status enum. */
+/** The archetypal table: timestamps + money + a status enum. */
 const orders = build(
   'public.orders',
   [
@@ -119,10 +119,10 @@ function widgets(candidates: WidgetCandidate[]): string[] {
   return candidates.map((c) => c.widget);
 }
 
-describe('emitCandidates — §15 step 3 on a timestamped money table', () => {
+describe('emitCandidates — on a timestamped money table', () => {
   const result = emitCandidates(orders.table, orders.classified, ctx);
 
-  it('opens the dashboard with a 4-card KPI row (annex §1, H2 cap)', () => {
+  it('opens the dashboard with a 4-card KPI row (annex, H2 cap)', () => {
     const kpis = byFamily(result, 'kpi');
     expect(kpis).toHaveLength(4);
     expect(kpis.every((c) => c.widget === 'kpi-stat-card')).toBe(true);
@@ -134,7 +134,7 @@ describe('emitCandidates — §15 step 3 on a timestamped money table', () => {
     ]);
   });
 
-  it('binds each KPI to a descriptor the server can compile (04 §5.1)', () => {
+  it('binds each KPI to a descriptor the server can compile', () => {
     const total = result.find((c) => c.rule === 'kpi.count-total') as WidgetCandidate;
     expect(total.binding).toEqual({
       kind: 'table-query',
@@ -236,7 +236,7 @@ describe('emitCandidates — H2 caps and pruning', () => {
     }
   });
 
-  it('drops candidates the live registry does not know (04 §10)', () => {
+  it('drops candidates the live registry does not know', () => {
     const withoutHero: CandidateContext = {
       connectionId: CONN,
       isRegistered: (id) => id !== 'chart-line-area',
@@ -246,7 +246,7 @@ describe('emitCandidates — H2 caps and pruning', () => {
     expect(widgets(result)).toContain('chart-donut');
   });
 
-  it('emits nothing for system and join tables (05 §8.2)', () => {
+  it('emits nothing for system and join tables', () => {
     const join = build('public.order_tags', [
       { name: 'order_id', logicalType: 'integer', semantic: 'fk' },
       { name: 'tag_id', logicalType: 'integer', semantic: 'fk' },
@@ -336,7 +336,7 @@ describe('emitCandidates — slot-fit ordering invariants', () => {
         ],
         { displayColumn: 'subject' },
       ),
-      // §13 domain-card split view (gantt in the detail pane)
+      // The domain-card split view (gantt in the detail pane)
       build(
         'public.project_tasks',
         [
@@ -371,7 +371,7 @@ describe('emitCandidates — slot-fit ordering invariants', () => {
   });
 });
 
-describe('emitModelCandidates — cross-table rules (annex §9)', () => {
+describe('emitModelCandidates — cross-table rules (annex)', () => {
   const conversations = build(
     'public.conversations',
     [

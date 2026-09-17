@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-engine capability matrix — 05-introspection-engine.md §2.1/§4,
- * research/gap-analysis.md §2.1 (M9-T04).
+ * Per-engine capability matrix, research/gap-analysis.md.
  *
  * The canonical static dialect-level `AdapterCapabilities` per source engine.
  * Adapter packages re-export their slice (`POSTGRES_CAPABILITIES` etc. are
@@ -30,7 +29,7 @@ export type CapabilitySource =
   | { kind: 'live'; engine: SourceEngine }
   | { kind: 'import' };
 
-/** Static dialect capabilities — 05 §4.1 (probe refines per-connection). */
+/** Static dialect capabilities — (probe refines per-connection). */
 const POSTGRES: AdapterCapabilities = {
   hasEnums: true,
   hasFKs: true,
@@ -45,9 +44,9 @@ const POSTGRES: AdapterCapabilities = {
   maxIdentifierLength: 63,
 };
 
-/** 05 §4.2 — MySQL 8 / MariaDB 10.5+. */
+/** MySQL 8 / MariaDB 10.5+. */
 const MYSQL: AdapterCapabilities = {
-  hasEnums: true, // column enums: enum('a','b') — 05 §2.1
+  hasEnums: true, // column enums: enum('a','b')
   hasFKs: true, // false per-table for MyISAM (warning emitted)
   hasSchemas: false,
   hasComments: true,
@@ -60,9 +59,9 @@ const MYSQL: AdapterCapabilities = {
   maxIdentifierLength: 64,
 };
 
-/** 05 §4.3 — SQLite ≥ 3.35 (file-path connections; the Electron engine). */
+/** SQLite ≥ 3.35 (file-path connections; the Electron engine). */
 const SQLITE: AdapterCapabilities = {
-  hasEnums: false, // CHECK synthesis only — 05 §4.3
+  hasEnums: false, // CHECK synthesis only
   hasFKs: true,
   hasSchemas: false,
   hasComments: false, // no comment syntax — Studio remap is the labeling path
@@ -71,14 +70,14 @@ const SQLITE: AdapterCapabilities = {
   hasMaterializedViews: false,
   hasRowEstimates: true, // sqlite_stat1 / small-file exact counts
   supportsStatementTimeout: false, // worker termination is the timeout story
-  supportsReturning: true, // SQLite ≥ 3.35 (minimum supported — 05 §4.3)
+  supportsReturning: true, // SQLite ≥ 3.35 (minimum supported.3)
   maxIdentifierLength: 128,
 };
 
 /**
- * Baseline for schema-file imports — 05 §5.2: parsers refine per-format
- * (e.g. Prisma `///` comments), but no import ever has live row estimates,
- * RLS, or health/drift signals.
+ * Baseline for schema-file imports: parsers refine per-format (e.g. Prisma
+ * `///` comments), but no import ever has live row estimates, RLS, or
+ * health/drift signals.
  */
 const IMPORT: AdapterCapabilities = {
   hasEnums: true,
@@ -94,7 +93,7 @@ const IMPORT: AdapterCapabilities = {
   maxIdentifierLength: 128,
 };
 
-/** The matrix (gap-analysis §2.1): one column per live engine. */
+/** The matrix (gap-analysis): one column per live engine. */
 export const ENGINE_CAPABILITY_MATRIX: Readonly<Record<SourceEngine, AdapterCapabilities>> = {
   postgres: POSTGRES,
   mysql: MYSQL,
@@ -118,15 +117,16 @@ export function capabilitiesForSource(source: CapabilitySource): AdapterCapabili
  * anything not listed for a source needs no caveat there.
  */
 export const CAPABILITY_NOTE_CODES = [
-  /** TABLE_ROWS drifts up to ±40% on InnoDB — always display with ≈ (05 §4.2). */
+  /** TABLE_ROWS drifts up to ±40% on InnoDB — always display with ≈. */
   'mysql-approximate-row-estimates',
-  /** MyISAM tables carry no FKs; enums are column-typed; CHECKs need 8.0.16+/10.2+ (05 §4.2). */
+  /** MyISAM tables carry no FKs; enums are column-typed; CHECKs need
+   * 8.0.16+/10.2+. */
   'mysql-weaker-fk-enum-metadata',
-  /** No native enum type — enums are synthesized from CHECK (col IN (…)) (05 §4.3). */
+  /** No native enum type — enums are synthesized from CHECK (col IN (…)). */
   'sqlite-check-enum-synthesis',
-  /** No comment syntax — the remap editor is the labeling path (05 §4.3). */
+  /** No comment syntax — the remap editor is the labeling path. */
   'sqlite-no-comments',
-  /** Imports carry no row counts — placeholder seeding happens downstream (05 §5.2). */
+  /** Imports carry no row counts — placeholder seeding happens downstream. */
   'import-no-row-counts',
   /** No live connection: health checks, drift detection and probes unavailable. */
   'import-no-live-health',

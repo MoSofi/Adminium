@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * v0.1 exit script (16-milestones.md §3.1 — "under 2 minutes, zero
- * manual config"):
+ * v0.1 exit script ("under 2 minutes, zero manual config"):
  *
  *   cd apps/server && node scripts/demo-v01.mjs [--no-wait] [--port 4600]
  *
@@ -137,7 +136,7 @@ async function timed(label, fn) {
   return value;
 }
 
-console.log('v0.1 internal demo — connection → generated admin app (M4 §3.1)');
+console.log('v0.1 internal demo — connection → generated admin app');
 console.log('=================================================================');
 const wallStart = performance.now();
 

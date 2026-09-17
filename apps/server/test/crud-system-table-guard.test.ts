@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `SnapshotView` refuses system and excluded tables — 35-schema-authoring.md
- * §6.1, 35-T28.
+ * `SnapshotView` refuses system and excluded tables.
  *
  * ─── What this is actually guarding ────────────────────────────────────────
  *
@@ -64,7 +63,7 @@ const sameDatabaseModel = (): DatabaseModel =>
 const viewFor = (overrides: Parameters<typeof applyOverrides>[1] = []) =>
   new SnapshotView('conn_1', applyOverrides(sameDatabaseModel(), overrides));
 
-describe('system tables are not addressable through /data (35-T28)', () => {
+describe('system tables are not addressable through /data', () => {
   it('refuses adminium_users with UNKNOWN_IDENTIFIER, not a 403', () => {
     const view = viewFor();
     expect(() => view.table('adminium_users')).toThrow(UnknownIdentifierError);
@@ -97,7 +96,7 @@ describe('system tables are not addressable through /data (35-T28)', () => {
   });
 });
 
-describe('excluded tables are not addressable either (35-T28)', () => {
+describe('excluded tables are not addressable either', () => {
   it('refuses a table the operator excluded in Studio', () => {
     const view = viewFor([
       {

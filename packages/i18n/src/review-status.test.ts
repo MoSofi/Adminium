@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Gate on the translation review-status data (10-i18n-theming.md §3.1/§3.3).
+ * Gate on the translation review-status data.
  *
  * The parity test next door proves every locale has every KEY. This one proves
  * we know what those translations are WORTH: that each is tracked, that its
@@ -30,13 +30,14 @@ const NAMESPACES = [
   'files',
   'reportBuilder',
   /*
-   * `onboarding` (45-T08). This list is the LAST hand-kept one: `meta.mjs` and
+   * `onboarding`. This list is the LAST hand-kept one: `meta.mjs` and
    * `gen-resources.mjs` both read the directory, and `src/resources/
    * namespaces.ts` was updated with the namespace — so a shipped bundle the
    * tracker DID track looked orphaned to this gate alone, which is the failure
    * `meta.mjs`'s own header warns about from the other direction.
    */
   'onboarding',
+  'project',
 ] as const;
 const TARGETS = LOCALES.filter((l) => l.id !== 'en_US');
 
@@ -84,12 +85,12 @@ describe('translation review status', () => {
 
   it.each(TARGETS.map((l) => l.tag))('%s stores only real statuses and hashes', (tag) => {
     for (const [key, entry] of Object.entries(meta(tag))) {
-      // `src` joined the vocabulary with 28-T14: the target value is
+      // `src` joined the vocabulary with: the target value is
       // byte-identical to en-US, i.e. English standing in for a translation
-      // nobody has made. It is NOT a quality tier — the §3.3 gate counts it
+      // nobody has made. It is NOT a quality tier — the gate counts it
       // exactly like `mt` — it just makes that debt countable instead of
       // hiding inside the machine-translation bucket.
-      // `deferred` joined with 28-T32: the key is ABSENT from this locale's
+      // `deferred` joined with: the key is ABSENT from this locale's
       // bundle and i18next falls back to en-US. `src` is the neighbouring
       // state where the key is present and its value equals English. Both are
       // untranslated; only one of them can be told apart from a translation

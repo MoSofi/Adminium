@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The invoice-documents routes (34-invoices-add-on.md §3.9, Appendix G;
- * 34-T46) — driven through a bare Fastify app with the real rbac plugin and
- * an `x-test-user-id` header, the way `email-templates-routes.test.ts`
- * mounts the email surface.
+ * The invoice-documents routes — driven through a bare Fastify app with the
+ * real rbac plugin and an `x-test-user-id` header, the way
+ * `email-templates-routes.test.ts` mounts the email surface.
  *
  * The assertions that carry the wave: a document minted from a starter
  * carries a summary whose total is the money law's; the tab badges never
@@ -26,7 +25,7 @@ import { buildBareApp, type BareApp } from './jobs-helpers.js';
 type ListReply = { items: InvoiceSummaryView[]; counts: { template: number; invoice: number } };
 type ErrorReply = { error: { code: string; details: Record<string, unknown> } };
 
-describe('invoice document routes (34-T46)', () => {
+describe('invoice document routes', () => {
   let meta: MetaDb;
   let app: BareApp;
   let manager: User;
@@ -216,7 +215,7 @@ describe('invoice document routes (34-T46)', () => {
     expect(badStatus.statusCode).toBe(422);
   });
 
-  it('PUT refuses an oversized inline image and names the field (34 O18)', async () => {
+  it('PUT refuses an oversized inline image and names the field', async () => {
     const doc = await create({ kind: 'template', starter: 'standard' });
     const over = await app.inject({
       method: 'PUT',
@@ -334,7 +333,7 @@ describe('invoice document routes (34-T46)', () => {
     expect(fromInvoice.statusCode).toBe(422);
     expect((fromInvoice.json() as ErrorReply).error.details).toEqual({ kind: 'invoice' });
 
-    // Deleting the template never unmakes the invoice (34 O20).
+    // Deleting the template never unmakes the invoice.
     expect((await app.inject({ method: 'DELETE', url: `/invoices/${tpl.id}`, headers: as(manager) })).statusCode).toBe(204);
     expect((await detail(invoice.id)).originId).toBe(tpl.id);
     expect((await list()).counts).toEqual({ template: 0, invoice: 3 });

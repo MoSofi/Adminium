@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The provider registry and the module loader (26-T09, §5.2, D4).
+ * The provider registry and the module loader.
  *
  * This is the module that runs other people's code, so the tests that matter
  * are the ones about WHAT gets loaded and WHEN loading is refused — not the
@@ -60,7 +60,10 @@ function packageTarball(files: Record<string, string>): Uint8Array {
     out.set(m, at);
     at += m.byteLength;
   }
-  return gzipSync(out);
+  // `mtime: 0` leaves the gzip header's timestamp at zero, as `npm pack` does.
+  // fflate's default is the current second, so the same files packed a second
+  // apart would hash differently.
+  return gzipSync(out, { mtime: 0 });
 }
 
 /** A valid add-on manifest with the slots/provides these tests vary. */
@@ -134,7 +137,7 @@ function stubImport(seen: string[]) {
   };
 }
 
-describe('26-T09: loading a server half (D4)', () => {
+describe('Loading a server half (D4)', () => {
   it('loads only from the installed package on local disk', async () => {
     await stage('shipping-dhl');
     const seen: string[] = [];
@@ -273,7 +276,7 @@ describe('26-T09: loading a server half (D4)', () => {
   });
 });
 
-describe('26-T09: the provider registry (§5.2)', () => {
+describe('The provider registry', () => {
   it('allows two add-ons to implement one contract, and picks deterministically', async () => {
     // `artwork-source@1` already has two implementations in the shipped set, so
     // this is the normal case rather than a conflict.
@@ -327,7 +330,7 @@ describe('26-T09: the provider registry (§5.2)', () => {
   });
 });
 
-describe('26-T09: slot fills and SLOT_CONFLICT', () => {
+describe('Slot fills and SLOT_CONFLICT', () => {
   it('renders every fill of a multi slot, ordered stably', async () => {
     await stage('a-thing');
     await stage('b-thing');

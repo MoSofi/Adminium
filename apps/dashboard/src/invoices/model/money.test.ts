@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The money law against the shared fixture (34-invoices-add-on.md 34-T54):
- * the same JSON table the server's summary and, later, the add-on's renderer
- * assert. A number that changes here must change in the fixture, and the
- * fixture is held byte-equal across trees by `scripts/check-invoice-money-
- * fixture.mjs` — so a law that drifts in one tree goes red in CI, not in a
- * customer's inbox.
+ * The money law against the shared fixture: the same JSON table the server's
+ * summary and, later, the add-on's renderer assert. A number that changes
+ * here must change in the fixture, and the fixture is held byte-equal across
+ * trees by `scripts/check-invoice-money- fixture.mjs` — so a law that drifts
+ * in one tree goes red in CI, not in a customer's inbox.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -23,7 +22,7 @@ interface Fixture {
 
 const fixture = JSON.parse(readFileSync(join(process.cwd(), 'src/invoices/model/money-fixture.json'), 'utf8')) as Fixture;
 
-describe('the money law (34 D20 / O25)', () => {
+describe('the money law', () => {
   for (const c of fixture.cases) {
     it(c.name, () => {
       const totals = totalsOf({ items: c.items.map((item, i) => ({ id: String(i), desc: '', ...item })), discountRate: c.discountRate, taxRate: c.taxRate });

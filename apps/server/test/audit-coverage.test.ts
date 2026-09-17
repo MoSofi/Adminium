@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * §7-item-9 audit coverage: every state-changing route either writes an audit
+ * Audit coverage: every state-changing route either writes an audit
  * row or says, in the source, why it does not.
  *
  * The ledger itself is a claim, so this suite does three separate things:
@@ -78,8 +78,9 @@ function memoryStore(meta: MetaDb): MetaStoreHandle {
 }
 
 /**
- * The WIDEST topology: desktop runtime, a bridge origin, a relocation host and
- * an LLM vocabulary, so every conditionally-registered resource is present.
+ * The WIDEST topology: desktop runtime, a bridge origin, a relocation host, a
+ * project folder and an LLM vocabulary, so every conditionally-registered
+ * resource is present.
  * A narrower compose would let a route slip past the ratchet by simply not
  * being registered in the suite.
  */
@@ -105,6 +106,8 @@ async function composeEverything(meta: MetaDb): Promise<ComposedServer> {
     onMetaRelocated: () => {
       /* the coverage sweep never relocates */
     },
+    // A project folder registers `/project`; the sweep never syncs it.
+    project: { root: tmpdir(), mode: 'server', log: () => undefined, warn: () => undefined },
   });
   await composed.app.ready();
   return composed;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Restarting the server against a meta store that has just moved
- * (`meta/relocate.ts`; 01-architecture.md §3.1).
+ * (`meta/relocate.ts`).
  *
  * ── WHY A RESTART AT ALL ────────────────────────────────────────────────────
  * `compose.ts` captures the meta handle ONCE (`const meta = opts.metaStore.meta`)
@@ -29,6 +29,7 @@
 
 import { retireSqliteStore, type MetaRelocation, type OnMetaRelocated } from '../meta/relocate.js';
 import type { Env } from '../config/env.js';
+import type { ProjectServerOptions } from '../project/service.js';
 import { setShutdownTarget, type CliDeps, type CliRuntime, type StartedServer } from './runtime.js';
 
 export type { MetaRelocation, OnMetaRelocated };
@@ -38,8 +39,8 @@ export interface RelocationHost {
    * Boot, and keep booting into whatever store the bootstrap file names.
    *
    * `existing` adopts a runtime the caller has already opened — both CLI front
-   * doors open one before this point, to run `firstRun` and to emit the §3.1
-   * OD-1 embedded-store warning. Opening a second one here would leave two live
+   * doors open one before this point, to run `firstRun` and to emit the OD-1
+   * embedded-store warning. Opening a second one here would leave two live
    * handles on the same store, only one of which anything would ever close.
    */
   start(existing?: CliRuntime): Promise<StartedServer>;
@@ -54,6 +55,8 @@ export interface CreateRelocationHostOptions {
   deps: CliDeps;
   /** Lifecycle narration — the wizard's `io.note`, or `console.error`. */
   log: (message: string) => void;
+  /** The project folder the server runs, passed to every boot. */
+  project?: ProjectServerOptions | undefined;
   /** Test seam: defaults to `process.exit`. */
   exit?: (code: number) => void;
   /** Test seam: defaults to running the task on the next tick. */
@@ -80,7 +83,10 @@ export function createRelocationHost(opts: CreateRelocationHostOptions): Relocat
     // file the relocation just wrote — which is what makes it land on the new
     // store without anyone threading the DSN through.
     runtime = existing ?? (await deps.openRuntime(env));
-    server = await deps.startServer(runtime, { onMetaRelocated });
+    server = await deps.startServer(runtime, {
+      onMetaRelocated,
+      ...(opts.project === undefined ? {} : { project: opts.project }),
+    });
     setShutdownTarget(server.app);
     return server;
   };

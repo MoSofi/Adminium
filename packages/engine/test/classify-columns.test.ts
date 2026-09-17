@@ -10,11 +10,10 @@ import {
 } from '../src/index.js';
 
 /**
- * Targeted unit tests per §7.1 heuristic family (05-introspection-engine.md),
- * including the adversarial cases: a free-text 'status' column must NOT
- * become status-workflow, a money-named string column must NOT become money,
- * and `company_name` must NOT be flagged as payment PII despite containing
- * the substring "pan".
+ * Targeted unit tests heuristic family, including the adversarial cases: a
+ * free-text 'status' column must NOT become status-workflow, a money-named
+ * string column must NOT become money, and `company_name` must NOT be
+ * flagged as payment PII despite containing the substring "pan".
  */
 
 const saas: DatabaseModel = parseDatabaseModel({
@@ -211,7 +210,7 @@ const notes = classify('notes');
 const invoices = classify('invoices');
 
 describe('rule pipeline shape', () => {
-  it('exposes all 30 §7.1 rule ids in precedence order', () => {
+  it('exposes all rule ids in precedence order', () => {
     expect(COLUMN_RULE_IDS).toHaveLength(30);
     expect(COLUMN_RULE_IDS[0]).toBe('r01-secret');
     expect(COLUMN_RULE_IDS[29]).toBe('r30-plain');
@@ -432,7 +431,7 @@ describe('r19–r27 media, urls, flags, misc', () => {
   });
 });
 
-describe('§7.2 PII layer (independent of primary)', () => {
+describe('the PII layer (independent of primary)', () => {
   it('ssn → gov-id, fully masked', () => {
     expect(users.get('ssn')!.semantics.flags.pii).toBe('gov-id');
     expect(users.get('ssn')!.semantics.flags.maskedByDefault).toBe(true);
@@ -498,7 +497,7 @@ describe('§7.2 PII layer (independent of primary)', () => {
 
 /**
  * The file/attachment vocabulary, and the word 38 added to it
- * (38-files-library-and-attachments.md D12, O2 ruled 2026-09-05; 27-T56).
+ * (ruled 2026-09-05).
  *
  * WHY THIS TEST EXISTS AT ALL. `pdf` was added to `FILE_RE` and every one of
  * the engine's 536 tests still passed — because no fixture anywhere had a

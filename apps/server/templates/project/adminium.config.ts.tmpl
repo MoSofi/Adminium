@@ -1,0 +1,9 @@
+import { defineConfig, env } from '@adminiumjs/adminium';
+
+export default defineConfig({
+  // The databases the admin is built from. Keep passwords out of this file:
+  // `env()` reads them from .env, or from the host's environment.
+  databases: {
+    main: { url: env('DATABASE_URL') },
+  },
+});

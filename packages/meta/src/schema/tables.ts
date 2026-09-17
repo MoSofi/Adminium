@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Kysely `MetaDB` interface — one table interface per adminium_* table
- * (BRIEF §6 / 07-meta-store.md §3: 32 names, 31 physical tables +
- * the `adminium_migrations` ledger; `adminium_dashboards` is NOT a physical
- * table — dashboards are `adminium_pages` rows with `type='page-dashboard'`).
+ * (BRIEF: 32 names, 31 physical tables + the `adminium_migrations` ledger;
+ * `adminium_dashboards` is NOT a physical table — dashboards are
+ * `adminium_pages` rows with `type='page-dashboard'`).
  *
  * The meta Kysely instance runs with `CamelCasePlugin`, so properties here are
  * camelCase while physical columns are snake_case.
  *
- * Column-type conventions (07-meta-store.md §2.1):
+ * Column-type conventions:
  * - ids: type-prefixed ULIDs in char(36) → `string`
  * - ts:  epoch milliseconds UTC → `number`
  * - json: stored serialized; repos write strings and parse reads → {@link JsonColumn}
@@ -37,7 +37,7 @@ export type BoolColumn = ColumnType<boolean | 0 | 1, boolean | 0 | 1, boolean | 
 // wave 0001 — core auth
 // ---------------------------------------------------------------------------
 
-/** §3.1 migration ledger — owned exclusively by the runner. */
+/** migration ledger — owned exclusively by the runner. */
 export interface AdminiumMigrationsTable {
   /** PK; migration basename, e.g. `0001_core_auth`. */
   name: string;
@@ -48,7 +48,7 @@ export interface AdminiumMigrationsTable {
   adminiumVersion: string;
 }
 
-/** §3.2 global defaults — explicit super-admin overrides only. */
+/** global defaults — explicit super-admin overrides only. */
 export interface AdminiumSettingsTable {
   /** PK; namespaced key, e.g. `appearance.accent`. */
   key: string;
@@ -57,7 +57,7 @@ export interface AdminiumSettingsTable {
   updatedBy: Id | null;
 }
 
-/** §3.3 */
+/** One row per person who can sign in. */
 export interface AdminiumUsersTable {
   id: Id;
   /** Lowercased; unique. */
@@ -78,7 +78,7 @@ export interface AdminiumUsersTable {
   updatedAt: Ts;
 }
 
-/** §3.4 one row per user; NULL axis = inherit. */
+/** one row per user; NULL axis = inherit. */
 export interface AdminiumUserPrefsTable {
   /** PK; FK → adminium_users CASCADE. */
   userId: Id;
@@ -92,7 +92,7 @@ export interface AdminiumUserPrefsTable {
   updatedAt: Ts;
 }
 
-/** §3.5 opaque session tokens — only the SHA-256 of the cookie value is stored. */
+/** opaque session tokens — only the SHA-256 of the cookie value is stored. */
 export interface AdminiumSessionsTable {
   id: Id;
   tokenHash: string;
@@ -105,7 +105,7 @@ export interface AdminiumSessionsTable {
   revokedAt: Ts | null;
 }
 
-/** §3.6 password-reset + invite-activation tokens. */
+/** password-reset + invite-activation tokens. */
 export interface AdminiumPasswordResetsTable {
   id: Id;
   userId: Id;
@@ -121,7 +121,7 @@ export interface AdminiumPasswordResetsTable {
 // wave 0002 — rbac
 // ---------------------------------------------------------------------------
 
-/** §3.8 */
+/** Named permission bundles; the built-ins ship with the store. */
 export interface AdminiumRolesTable {
   id: Id;
   /** unique; built-ins: super-admin, admin, editor, viewer. */
@@ -133,7 +133,7 @@ export interface AdminiumRolesTable {
   updatedAt: Ts;
 }
 
-/** §3.9 per-table / per-page / system permission matrix. */
+/** per-table / per-page / system permission matrix. */
 export interface AdminiumRolePermissionsTable {
   id: Id;
   roleId: Id;
@@ -144,7 +144,7 @@ export interface AdminiumRolePermissionsTable {
   actions: JsonColumn;
 }
 
-/** §3.10 composite PK (user_id, role_id). */
+/** composite PK (user_id, role_id). */
 export interface AdminiumUserRolesTable {
   userId: Id;
   roleId: Id;
@@ -152,7 +152,7 @@ export interface AdminiumUserRolesTable {
   createdAt: Ts;
 }
 
-/** §3.7 Stripe-style keys; secret shown once, only hash stored. */
+/** Stripe-style keys; secret shown once, only hash stored. */
 export interface AdminiumApiKeysTable {
   id: Id;
   name: string;
@@ -172,13 +172,13 @@ export interface AdminiumApiKeysTable {
 // wave 0003 — connections & schema
 // ---------------------------------------------------------------------------
 
-/** §3.27 metadata for binaries Adminium itself stores. */
+/** metadata for binaries Adminium itself stores. */
 export interface AdminiumFilesTable {
   id: Id;
   /**
    * The driver that wrote the bytes, informational since 0024 —
-   * `destination_id` is the authority (37 §3.2). `'local'` on every pre-0024
-   * row and on every row that still lives on this server's disk.
+   * `destination_id` is the authority. `'local'` on every pre-0024 row and
+   * on every row that still lives on this server's disk.
    */
   storage: string;
   storageKey: string;
@@ -193,10 +193,10 @@ export interface AdminiumFilesTable {
   uploadedBy: Id | null;
   createdAt: Ts;
   deletedAt: Ts | null;
-  // ── wave 0024 (37-files-and-storage.md §3.2) ──────────────────────────────
-  /** NULL = this server's disk, the implicit destination (37 D3). */
+  // ── wave 0024 ─────────────────────────────────────────────────────────────
+  /** NULL = this server's disk, the implicit destination. */
   destinationId: Id | null;
-  /** NULL = an upload no record claims yet; the sweep collects it (37 D12). */
+  /** NULL = an upload no record claims yet; the sweep collects it. */
   attachedAt: Ts | null;
   /** Sidecar linkage, 0016's denormalised `keysOf` shape plus the connection. */
   entityConnectionId: Id | null;
@@ -204,7 +204,7 @@ export interface AdminiumFilesTable {
   entityId: string | null;
 }
 
-/** 37-files-and-storage.md §3.2 — where bytes may be written. */
+/** Where bytes may be written. */
 export interface AdminiumStorageDestinationsTable {
   id: Id;
   name: string;
@@ -226,7 +226,7 @@ export interface AdminiumStorageDestinationsTable {
   updatedAt: Ts;
 }
 
-/** §3.13 one row per configured source database. */
+/** one row per configured source database. */
 export interface AdminiumConnectionsTable {
   id: Id;
   name: string;
@@ -245,12 +245,12 @@ export interface AdminiumConnectionsTable {
   lastTestedAt: Ts | null;
   lastLatencyMs: number | null;
   lastError: string | null;
-  /** Adapter remediation hint for {@link lastError} (05 §3) — never a secret. */
+  /** Adapter remediation hint for {@link lastError} — never a secret. */
   lastErrorHint: string | null;
   /**
-   * The BUSINESS's IANA zone (28-T34, D20) — never the READER's. A
-   * `timestamptz` rendered through the reader's zone puts a 15:00 booking at
-   * 16:00 with no error anywhere, so a browser zone is never written here.
+   * The BUSINESS's IANA zone — never the READER's. A `timestamptz` rendered
+   * through the reader's zone puts a 15:00 booking at 16:00 with no error
+   * anywhere, so a browser zone is never written here.
    *
    * `null` means "not configured". New rows rarely carry it: `create` seeds the
    * server's own zone so a hosted surface has something to render (0018), and
@@ -279,33 +279,38 @@ export interface AdminiumConnectionsTable {
    *
    * A **UI hint**, not a guard: the Studio hides schema authoring without a
    * round trip. Whether a given step may run is decided per target at plan
-   * time (35 D17), because a role can own one table and not another and one
-   * boolean cannot say so.
+   * time, because a role can own one table and not another and one boolean
+   * cannot say so.
    */
   canDdl: BoolColumn | null;
   /**
-   * Manual ER-diagram node positions (35 D21, M18). Per connection rather than
-   * per user — the diagram is a shared map — and its own column rather than a
-   * key in {@link settings}, which is written whole under `connections.manage`.
+   * Manual ER-diagram node positions (M18). Per connection rather than per
+   * user — the diagram is a shared map — and its own column rather than a key
+   * in {@link settings}, which is written whole under `connections.manage`.
    */
   diagramLayout: JsonColumn | null;
+  /**
+   * The key a project's `adminium.config.ts` names this database by (wave
+   * 0033), e.g. `main`. Null when the connection belongs to no project.
+   */
+  projectKey: string | null;
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
 }
 
 /**
- * §3.5 of 35-schema-authoring.md — one applied (or attempted) DDL plan.
+ * One applied (or attempted) DDL plan.
  *
- * The row is written `running` BEFORE the first statement (D3/35-T36): an
- * apply is re-runnable rather than transactional, because MySQL commits every
- * DDL statement implicitly, so a crash halfway must leave evidence rather than
- * a status that claims a state the database is not in.
+ * The row is written `running` BEFORE the first statement (D3/): an apply is
+ * re-runnable rather than transactional, because MySQL commits every DDL
+ * statement implicitly, so a crash halfway must leave evidence rather than a
+ * status that claims a state the database is not in.
  */
 export interface AdminiumSchemaChangesTable {
   id: Id;
   connectionId: Id;
-  /** The plan checksum the apply was authorised against (35 D2). */
+  /** The plan checksum the apply was authorised against. */
   planChecksum: string;
   /** running | applied | partial | failed */
   status: string;
@@ -330,7 +335,7 @@ export interface AdminiumSchemaChangesTable {
   finishedAt: Ts | null;
 }
 
-/** §3.14 immutable record of one introspection / schema-import run. */
+/** immutable record of one introspection / schema-import run. */
 export interface AdminiumSchemaSnapshotsTable {
   id: Id;
   connectionId: Id;
@@ -338,7 +343,7 @@ export interface AdminiumSchemaSnapshotsTable {
   source: string;
   importFormat: string | null;
   engineVersion: string | null;
-  /** Normalized schema model (05-introspection-engine.md) — opaque here. */
+  /** Normalized schema model — opaque here. */
   schema: JsonColumn;
   stats: JsonColumn | null;
   checksum: string;
@@ -348,7 +353,7 @@ export interface AdminiumSchemaSnapshotsTable {
   createdAt: Ts;
 }
 
-/** §3.15 one row = one correction op layered over the active snapshot. */
+/** one row = one correction op layered over the active snapshot. */
 export interface AdminiumSchemaOverridesTable {
   id: Id;
   connectionId: Id;
@@ -363,8 +368,8 @@ export interface AdminiumSchemaOverridesTable {
   /** active | disabled */
   status: string;
   /**
-   * Per-suggestion model confidence for `origin: 'llm'` rows (0008, §8.3); NULL
-   * for user-remap rows. Insert-optional so `overridesRepo` need not set it.
+   * Per-suggestion model confidence for `origin: 'llm'` rows (0008); NULL for
+   * user-remap rows. Insert-optional so `overridesRepo` need not set it.
    */
   confidence: ColumnType<number | null, number | null | undefined, number | null>;
   createdBy: Id | null;
@@ -376,7 +381,7 @@ export interface AdminiumSchemaOverridesTable {
 // wave 0004 — pages & views
 // ---------------------------------------------------------------------------
 
-/** §3.16 every navigable page of the Generated App, dashboards included. */
+/** every navigable page of the Generated App, dashboards included. */
 export interface AdminiumPagesTable {
   id: Id;
   /** NULL for connection-independent pages. */
@@ -388,7 +393,7 @@ export interface AdminiumPagesTable {
   icon: string | null;
   navGroup: string | null;
   navOrder: number;
-  /** Opaque validated envelope (§3.17) — validation lives at the server route layer. */
+  /** Opaque validated envelope — validation lives at the server route layer. */
   config: JsonColumn;
   /** generated | user | manifest | system */
   origin: string;
@@ -403,7 +408,7 @@ export interface AdminiumPagesTable {
   updatedAt: Ts;
 }
 
-/** §3.18 saved filters/layouts. NULL user_id = shared workspace view. */
+/** saved filters/layouts. NULL user_id = shared workspace view. */
 export interface AdminiumViewsTable {
   id: Id;
   pageId: Id;
@@ -421,7 +426,7 @@ export interface AdminiumViewsTable {
 // wave 0005 — ops (jobs / audit / notifications)
 // ---------------------------------------------------------------------------
 
-/** §3.12 table-backed job queue (no Redis). */
+/** table-backed job queue (no Redis). */
 export interface AdminiumJobsTable {
   id: Id;
   kind: string;
@@ -444,7 +449,7 @@ export interface AdminiumJobsTable {
   finishedAt: Ts | null;
 }
 
-/** §3.11 append-only audit trail; actor label denormalized. */
+/** append-only audit trail; actor label denormalized. */
 export interface AdminiumAuditLogTable {
   id: Id;
   createdAt: Ts;
@@ -460,10 +465,10 @@ export interface AdminiumAuditLogTable {
   /** RecordRef. */
   entity: JsonColumn | null;
   /**
-   * Denormalized from `entity` at write time (30-record-pages.md WS-A) so the
-   * per-record activity feed is an indexed lookup, not a JSON scan: the ref's
-   * qualified table and its canonical record-id string (`pkLabel` form), both
-   * clamped by `auditEntityKeyPart`. Null when the entry has no record entity.
+   * Denormalized from `entity` at write time (WS-A) so the per-record
+   * activity feed is an indexed lookup, not a JSON scan: the ref's qualified
+   * table and its canonical record-id string (`pkLabel` form), both clamped
+   * by `auditEntityKeyPart`. Null when the entry has no record entity.
    */
   entityTable: string | null;
   entityId: string | null;
@@ -474,7 +479,7 @@ export interface AdminiumAuditLogTable {
   requestId: string | null;
 }
 
-/** §3.20 */
+/** One in-app notification, per user. */
 export interface AdminiumNotificationsTable {
   id: Id;
   userId: Id;
@@ -488,7 +493,7 @@ export interface AdminiumNotificationsTable {
   createdAt: Ts;
 }
 
-/** §3.21 composite PK (user_id, event_key). */
+/** composite PK (user_id, event_key). */
 export interface AdminiumNotificationPrefsTable {
   userId: Id;
   eventKey: string;
@@ -501,32 +506,33 @@ export interface AdminiumNotificationPrefsTable {
 // ---------------------------------------------------------------------------
 
 /**
- * §3.19 / 06-llm-assist.md §7.4 — one enrichment attempt (provider API or BYO
- * paste). Columns through `duration_ms` ship in 0006; 0007_llm_runs adds the
- * §7.4 run-lifecycle machine (`status`), the builder inputs (`sections`,
- * `locales`, `sampling`), chunk progress, the flattened `prompt_text`, and the
- * `review` id-lists. `mode` ('provider' | 'byo') is the path discriminator the
- * doc calls `path`; `validation_status` is kept as a secondary validation-outcome
- * signal (see json-payloads.ts).
+ * One enrichment attempt (provider API or BYO paste). Columns through
+ * `duration_ms` ship in 0006; 0007_llm_runs adds the run-lifecycle machine
+ * (`status`), the builder inputs (`sections`, `locales`, `sampling`), chunk
+ * progress, the flattened `prompt_text`, and the `review` id-lists. `mode`
+ * ('provider' | 'byo') is the path discriminator the doc calls `path`;
+ * `validation_status` is kept as a secondary validation-outcome signal (see
+ * json-payloads.ts).
  */
 export interface AdminiumLlmRunsTable {
   id: Id;
   connectionId: Id;
   snapshotId: Id;
-  /** provider | byo — the §7.4 `path` discriminator. */
+  /** provider | byo — the `path` discriminator. */
   mode: string;
-  /** NULL for BYO runs — never recorded (§9 telemetry-free guarantee). */
+  /** NULL for BYO runs — never recorded (telemetry-free guarantee). */
   provider: string | null;
   model: string | null;
   promptVersion: string;
   promptHash: string;
   /** Full flattened prompt(s); enables re-download of BYO prompts (0007). */
   promptText: string | null;
-  /** Requested decision groups (§4.4) — json string array (0007). */
+  /** Requested decision groups — json string array (0007). */
   sections: JsonColumn | null;
-  /** Requested output locales (§4.1) — json string array (0007). */
+  /** Requested output locales — json string array (0007). */
   locales: JsonColumn | null;
-  /** Sampling opt-in (§4.2): null = sample-free; else `{ maxValuesPerColumn }` (0007). */
+  /** Sampling opt-in: null = sample-free; else `{ maxValuesPerColumn }` (0007).
+   * */
   sampling: JsonColumn | null;
   /** 1/1 when unchunked (0007). */
   chunksTotal: number;
@@ -535,13 +541,14 @@ export interface AdminiumLlmRunsTable {
   responseJson: JsonColumn | null;
   /**
    * draft | running | awaiting_response | validated | applied |
-   * partially_applied | failed | discarded — the §7.4 machine (0007).
+   * partially_applied | failed | discarded — the machine
+   * (0007).
    */
   status: string;
   /** pending | valid | partial | invalid — last-validation outcome (0006). */
   validationStatus: string;
   validationErrors: JsonColumn | null;
-  /** Accepted/rejected suggestion-id lists (§8.3) — json (0007). */
+  /** Accepted/rejected suggestion-id lists — json (0007). */
   review: JsonColumn | null;
   appliedAt: Ts | null;
   appliedBy: Id | null;
@@ -552,7 +559,7 @@ export interface AdminiumLlmRunsTable {
   createdAt: Ts;
 }
 
-/** §3.22 trigger→condition→action rules. */
+/** trigger→condition→action rules. */
 export interface AdminiumAutomationsTable {
   id: Id;
   /** NULL = meta-level automation. */
@@ -574,20 +581,20 @@ export interface AdminiumAutomationsTable {
   updatedAt: Ts;
 }
 
-/** §3.23 */
+/** One run of one automation, with its outcome. */
 export interface AdminiumAutomationRunsTable {
   id: Id;
   automationId: Id;
   /** Soft ref — job rows are GC'd sooner. */
   jobId: string | null;
-  /** pending | running | waiting | succeeded | failed | skipped | cancelled (42 D9). */
+  /** pending | running | waiting | succeeded | failed | skipped | cancelled. */
   status: string;
   triggerEvent: JsonColumn;
   trace: JsonColumn | null;
   error: string | null;
-  /** UNIQUE occurrence identity; NULL = nothing to collapse on (0028, 42 D6). */
+  /** UNIQUE occurrence identity; NULL = nothing to collapse on (0028). */
   dedupeKey: string | null;
-  /** When a pending/waiting run resumes (0028, 42 D7/D8). */
+  /** When a pending/waiting run resumes (0028). */
   wakeAt: Ts | null;
   /** Sum of step durations, waits excluded (0028). */
   durationMs: number | null;
@@ -597,7 +604,7 @@ export interface AdminiumAutomationRunsTable {
   finishedAt: Ts | null;
 }
 
-/** §3.24 */
+/** A page, on a schedule, delivered as a file. */
 export interface AdminiumScheduledReportsTable {
   id: Id;
   pageId: Id;
@@ -614,7 +621,7 @@ export interface AdminiumScheduledReportsTable {
   updatedAt: Ts;
 }
 
-/** §3.25 */
+/** One export job and the artifact it produced. */
 export interface AdminiumExportsTable {
   id: Id;
   connectionId: Id | null;
@@ -632,7 +639,7 @@ export interface AdminiumExportsTable {
   expiresAt: Ts | null;
 }
 
-/** §3.26 import wizard state. */
+/** import wizard state. */
 export interface AdminiumImportsTable {
   id: Id;
   connectionId: Id;
@@ -651,10 +658,9 @@ export interface AdminiumImportsTable {
 }
 
 /**
- * §3.28 email documents — templates AND campaigns (39-email-templates-and-
- * campaigns.md §3.2, D2); unique (key, locale). Wave 0026 added everything
- * after `updatedBy`. Status is derived, never stored: a template's Draft/Live
- * is `enabled`, a campaign's is its latest `adminium_email_runs` row.
+ * Email documents — templates AND campaigns; unique (key, locale). Wave 0026 added everything after
+ * `updatedBy`. Status is derived, never stored: a template's Draft/Live is
+ * `enabled`, a campaign's is its latest `adminium_email_runs` row.
  */
 export interface AdminiumEmailTemplatesTable {
   id: Id;
@@ -675,7 +681,7 @@ export interface AdminiumEmailTemplatesTable {
   /** Which starter minted the family; NULL for blank and built-in documents. */
   starter: string | null;
   needsTranslation: BoolColumn;
-  /** Delete is archive (39 D4). */
+  /** Delete is archive. */
   archivedAt: Ts | null;
   preheader: string;
   /** NULL reads as '' (MySQL forbids a DEFAULT on text). */
@@ -687,7 +693,7 @@ export interface AdminiumEmailTemplatesTable {
   createdBy: Id | null;
 }
 
-/** 39 §3.2 — saved reusable email blocks, workspace-wide. */
+/** Saved reusable email blocks, workspace-wide. */
 export interface AdminiumEmailBlocksTable {
   id: Id;
   name: string;
@@ -698,7 +704,7 @@ export interface AdminiumEmailBlocksTable {
   updatedAt: Ts;
 }
 
-/** 39 §3.2 / D11 — one row per campaign send; counts, never per-recipient rows. */
+/** One row per campaign send; counts, never per-recipient rows. */
 export interface AdminiumEmailRunsTable {
   id: Id;
   templateId: Id;
@@ -722,15 +728,15 @@ export interface AdminiumEmailRunsTable {
 }
 
 /**
- * 34-invoices-add-on.md §3.9 — the AUTHORED invoice source behind `/invoices`
- * (wave 0027): one row per template or invoice, the same envelope in `body`.
- * Not the render register (`adminium_documents`, 34 §3.3 — a later wave).
- * `(topic, lang)` names one member of a language family; `position` is the
- * manager's sort key; `origin_id` is a soft ref with no FK (34 O20).
+ * The AUTHORED invoice source behind `/invoices` (wave 0027): one row per
+ * template or invoice, the same envelope in `body`. Not the render register
+ * (`adminium_documents`, — a later wave). `(topic, lang)` names one member of
+ * a language family; `position` is the manager's sort key; `origin_id` is a
+ * soft ref with no FK.
  */
 /**
  * The operator's answer to "which columns of which table make one of these
- * documents" (34 §3.3). Generated in Studio from the provider's own
+ * documents". Generated in Studio from the provider's own
  * `describe(kind)`, so the slot ids inside `mapping` are the PROVIDER's
  * vocabulary and this table never has an opinion about them.
  */
@@ -759,7 +765,7 @@ export interface AdminiumDocumentProfilesTable {
 }
 
 /**
- * THE REGISTER: what was ISSUED, frozen (34 §3.3, 25 D12).
+ * THE REGISTER: what was ISSUED, frozen.
  *
  * Not `adminium_invoice_documents`, which holds what a person typed and can
  * edit again. A row here carries the whole `subject` it was rendered from, so
@@ -773,14 +779,14 @@ export interface AdminiumDocumentsTable {
   addOnKey: string;
   kind: string;
   connectionId: Id | null;
-  /** The full `RecordRef`; NULL for a request-shaped intent (34 D15). */
+  /** The full `RecordRef`; NULL for a request-shaped intent. */
   entity: JsonColumn | null;
   /** Denormalised from `entity` for the index (the 0016 pattern). */
   entityTable: string | null;
   entityId: string | null;
   /** The frozen `DocumentSubject`. */
   subject: JsonColumn;
-  /** NULL until a render succeeds and the CAS claims one (34 D11). */
+  /** NULL until a render succeeds and the CAS claims one. */
   number: string | null;
   fileId: Id | null;
   htmlFileId: Id | null;
@@ -806,8 +812,8 @@ export interface AdminiumDocumentsTable {
 }
 
 /**
- * The number source, claimed by compare-and-set (34 D11). `key` is a profile
- * id, or `<addOnKey>:<kind>:<connectionId>` for a profile-less intent.
+ * The number source, claimed by compare-and-set. `key` is a profile id, or
+ * `<addOnKey>:<kind>:<connectionId>` for a profile-less intent.
  */
 export interface AdminiumDocumentSequencesTable {
   key: string;
@@ -857,7 +863,7 @@ export interface AdminiumInvoiceDocumentsTable {
   updatedAt: Ts;
 }
 
-/** 43-report-builder.md §3.2 — the authored report source behind `/report-builder`. */
+/** The authored report source behind `/report-builder`. */
 export interface AdminiumReportDocumentsTable {
   id: Id;
   /** template | report */
@@ -880,8 +886,8 @@ export interface AdminiumReportDocumentsTable {
 }
 
 /**
- * 23 §3.1 — runtime locale registry. SPARSE: a built-in locale has a row only
- * when an admin deviates from the compiled defaults, and on such a row only
+ * Runtime locale registry. SPARSE: a built-in locale has a row only when an
+ * admin deviates from the compiled defaults, and on such a row only
  * `enabled`/`sortOrder` are writable (the rest are read from the compiled
  * registry). Custom locales carry the full record.
  */
@@ -897,7 +903,7 @@ export interface AdminiumLocalesTable {
   dir: string | null;
   /** latin | arabic | cjk — custom locales only. */
   fontHint: string | null;
-  /** Real BCP-47 tag a custom locale borrows Intl behaviour from (23 §5.6). */
+  /** Real BCP-47 tag a custom locale borrows Intl behaviour from. */
   intlTag: string | null;
   pluralCategories: JsonColumn | null;
   updatedBy: Id | null;
@@ -906,9 +912,9 @@ export interface AdminiumLocalesTable {
 }
 
 /**
- * 23 §3.2 — sparse UI-string override overlay; unique
- * (scope, locale, namespace, key). No row = built-in; row with text =
- * override; row with '' = deliberately blank (23 §3.3).
+ * Sparse UI-string override overlay; unique (scope, locale,
+ * namespace, key). No row = built-in; row with text = override; row
+ * with '' = deliberately blank.
  */
 export interface AdminiumTranslationsTable {
   id: Id;
@@ -925,7 +931,7 @@ export interface AdminiumTranslationsTable {
   updatedAt: Ts;
 }
 
-/** §3.29 */
+/** An outbound webhook subscription. */
 export interface AdminiumWebhooksTable {
   id: Id;
   name: string;
@@ -938,7 +944,7 @@ export interface AdminiumWebhooksTable {
   updatedAt: Ts;
 }
 
-/** §3.30 */
+/** One delivery attempt of one webhook, with its response. */
 export interface AdminiumWebhookDeliveriesTable {
   id: Id;
   webhookId: Id;
@@ -952,7 +958,7 @@ export interface AdminiumWebhookDeliveriesTable {
   createdAt: Ts;
 }
 
-/** §3.31 */
+/** Feature flags, evaluated per workspace. */
 export interface AdminiumFeatureFlagsTable {
   id: Id;
   key: string;
@@ -964,7 +970,7 @@ export interface AdminiumFeatureFlagsTable {
   updatedAt: Ts;
 }
 
-/** §3.32 installed micro-SaaS modules. */
+/** installed micro-SaaS modules. */
 export interface AdminiumManifestsTable {
   id: Id;
   manifestKey: string;
@@ -990,7 +996,7 @@ export interface AdminiumManifestsTable {
 
 /**
  * Which host apps an installed add-on is attached to, and whether it is on for
- * each (26 §4 as amended, O3 resolved to a join table — see `0020`'s header).
+ * each (as amended, O3 resolved to a join table — see `0020`'s header).
  *
  * `attached_to` holds the HOST's `manifest_key` by value rather than by FK: a
  * generated app is not necessarily a row in `adminium_manifests` (only an
@@ -999,7 +1005,7 @@ export interface AdminiumManifestsTable {
 export interface AdminiumManifestAttachmentsTable {
   id: Id;
   manifestId: Id;
-  /** The host app's `manifest_key` (24 §5.7). */
+  /** The host app's `manifest_key`. */
   attachedTo: string;
   /** NULL = enabled on this host; epoch ms when it was switched off. */
   disabledAt: Ts | null;
@@ -1008,12 +1014,12 @@ export interface AdminiumManifestAttachmentsTable {
 
 /**
  * The secret a connected add-on was given — one row per connected add-on, never
- * per attachment (26 D2/D5; see `0021`'s header).
+ * per attachment (see `0021`'s header).
  *
  * `payload` is AES-256-GCM ciphertext over the whole envelope; `expiresAt` and
  * `scopes` sit outside it because deciding whether to refresh must not require
  * decrypting a token. Deleted on disconnect, which keeps every table the add-on
- * brought (24 D16).
+ * brought.
  */
 export interface AdminiumAddOnCredentialsTable {
   id: Id;
@@ -1028,7 +1034,7 @@ export interface AdminiumAddOnCredentialsTable {
   updatedAt: Ts;
 }
 
-/** §3.33 drives the sidebar "what's new" badge. PK user_id. */
+/** drives the sidebar "what's new" badge. PK user_id. */
 export interface AdminiumChangelogSeenTable {
   userId: Id;
   version: string;
@@ -1036,7 +1042,7 @@ export interface AdminiumChangelogSeenTable {
 }
 
 /**
- * 28-public-surface.md §3.2 — the scope document.
+ * The scope document.
  *
  * One row per (connection, side) the operator publishes. `document` holds the
  * resources, their logical refs, the `expose` allow-list and the mandatory
@@ -1046,12 +1052,12 @@ export interface AdminiumChangelogSeenTable {
 export interface AdminiumPublicScopesTable {
   id: Id;
   connectionId: Id;
-  /** `staff` | `customer` — the `frontends[]` side this scope serves (§4). */
+  /** `staff` | `customer` — the `frontends[]` side this scope serves. */
   side: string;
   name: string;
   /**
    * IANA zone. A COLUMN rather than a `document` field because the serializer
-   * needs it without parsing the whole document first (28 D20).
+   * needs it without parsing the whole document first.
    */
   timezone: string;
   document: string;
@@ -1063,12 +1069,12 @@ export interface AdminiumPublicScopesTable {
 }
 
 /**
- * 28-public-surface.md §3.3 — the publishable key.
+ * The publishable key.
  *
  * Separate from `adminium_api_keys` on two load-bearing properties: the secret
  * is re-readable (it lives in a public bundle and must survive a rebuild), and
- * a token from this table is never an `RbacPrincipal` (28 D3), which is what
- * makes it inert on every other route by construction.
+ * a token from this table is never an `RbacPrincipal`, which is what makes it
+ * inert on every other route by construction.
  */
 export interface AdminiumPublicKeysTable {
   id: Id;
@@ -1083,8 +1089,8 @@ export interface AdminiumPublicKeysTable {
   /**
    * Manifest key of the hosted app surface this key is bound to, or null for a
    * key that serves no hosted surface (standalone builds, integrations). Read
-   * by the `surface-config.json` route (29-app-surfaces.md D10) to pick the
-   * newest live customer key for an app; never a principal, like the key itself.
+   * by the `surface-config.json` route to pick the newest live customer key
+   * for an app; never a principal, like the key itself.
    */
   appKey: string | null;
   /** JSON string array narrowing `ADMINIUM_PUBLIC_API_ORIGINS`; `[]` = no narrowing. */
@@ -1098,7 +1104,7 @@ export interface AdminiumPublicKeysTable {
 }
 
 /**
- * 28-public-surface.md §3.4 — the end-customer session.
+ * The end-customer session.
  *
  * There is deliberately no `userId`: an end customer is not an
  * `adminium_users` row, and this table is the whole of what a claimed customer
@@ -1115,7 +1121,7 @@ export interface AdminiumPublicSessionsTable {
   lastSeenAt: Ts | null;
 }
 
-/** 28-public-surface.md §3.4 — one-time challenge for the `email-code` tier. */
+/** One-time challenge for the `email-code` tier. */
 export interface AdminiumPublicChallengesTable {
   id: Id;
   keyId: Id;
@@ -1132,7 +1138,27 @@ export interface AdminiumPublicChallengesTable {
 
 // ---------------------------------------------------------------------------
 
-/** The full meta-store database — every adminium_* table (BRIEF §6). */
+// ---------------------------------------------------------------------------
+// wave 0034 — project files
+// ---------------------------------------------------------------------------
+
+/**
+ * What this instance last applied from a project folder, one row per file
+ * (`pages/<slug>.json`, `schema/<database>.json`). See migration 0034.
+ */
+export interface AdminiumProjectFilesTable {
+  /** The file path inside the project, with `/`. */
+  path: string;
+  /** Hash of the version last applied or written; `''` when none was agreed on. */
+  hash: string;
+  appliedAt: Ts;
+  /** When this server first noticed its copy differs from `hash`; NULL while they agree. */
+  serverEditedAt: Ts | null;
+  /** Hash of this server's copy at that time, or `deleted`; NULL while they agree. */
+  serverHash: string | null;
+}
+
+/** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
   adminium_settings: AdminiumSettingsTable;
@@ -1184,6 +1210,7 @@ export interface MetaDB {
   adminium_public_keys: AdminiumPublicKeysTable;
   adminium_public_sessions: AdminiumPublicSessionsTable;
   adminium_public_challenges: AdminiumPublicChallengesTable;
+  adminium_project_files: AdminiumProjectFilesTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1238,4 +1265,5 @@ export const META_TABLE_NAMES = [
   'adminium_public_keys',
   'adminium_public_sessions',
   'adminium_public_challenges',
+  'adminium_project_files',
 ] as const satisfies readonly (keyof MetaDB)[];

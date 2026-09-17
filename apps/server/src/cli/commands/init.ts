@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `adminium` (no args) — the interactive setup wizard.
+ * `adminium try` (and the hidden alias `adminium init`) — the interactive setup
+ * wizard. Up to 0.2.9 it was what `adminium` ran with no arguments; that now
+ * creates a project (`cli/commands/home.ts`).
  *
  * Mirrors the Studio connect flow (`apps/dashboard/src/studio/connect/wizardState.ts`
  * `WIZARD_STEP_IDS`: intent → source → test → tables → meta → enrich → generate)
@@ -23,8 +25,8 @@
  * is about *where the store should live going forward*. The CLI has no such
  * luxury. Nothing can be persisted (not the connection row, not the snapshot the
  * tables step lists) until a meta store is open, so the wizard resolves meta
- * placement FIRST when nothing is configured. The §3.1 rule the meta step exists
- * to enforce — same-database placement against a read-only or DDL-less role is
+ * placement FIRST when nothing is configured. The rule the meta step exists to
+ * enforce — same-database placement against a read-only or DDL-less role is
  * refused (`META_PLACEMENT_INVALID`) — still runs at exactly the right moment:
  * `manager.enforceMetaPlacement`, right after the data-role probe, which is the
  * first instant both facts are known. The rule is honored; only the question's
@@ -33,8 +35,8 @@
  * a sentence naming the two databases it is distinguishing between.
  *
  * The `enrich` step is deliberately not prompted here: `generate-prompt` /
- * `apply-llm-response` are the CLI's LLM surface (06 §10.4) and the wizard points
- * at them rather than growing a copy-paste loop inside a readline prompt.
+ * `apply-llm-response` are the CLI's LLM surface and the wizard points at them
+ * rather than growing a copy-paste loop inside a readline prompt.
  */
 
 import { GENERATE_INTENTS, isPreHiddenTable, type GenerateIntent } from '@adminium/engine';
@@ -46,6 +48,7 @@ import { runGeneration } from '../../generate/run.js';
 import type { ConnectionTestSummary } from '../../connections/manager.js';
 import { maskDsn, MetaPlacementError } from '../../connections/dsn.js';
 import { embeddedMetaWarning, metaEngineFromUrl, metaUrlCryptoFromSecret } from '../../meta/store.js';
+import { findProject } from '../../project/locate.js';
 import { boolFlag, numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
 import { tildify } from '../data-dir.js';
@@ -59,7 +62,7 @@ import type { CliDeps, StartedServer } from '../runtime.js';
 /**
  * Engines the connect flow offers — the same three as the Studio picker's
  * `SOURCE_ENGINES` (`wizardState.ts`), and the same three the v1 build ships
- * adapters for (BRIEF §3).
+ * adapters for (BRIEF).
  */
 type SourceEngine = 'postgres' | 'mysql' | 'sqlite';
 
@@ -160,7 +163,7 @@ function describeProbe(summary: ConnectionTestSummary): string {
 interface MetaChoice {
   /** `null` = keep the embedded SQLite fallback. */
   url: string | null;
-  /** Persist the choice to `<dataDir>/adminium.json` (§7.2). */
+  /** Persist the choice to `<dataDir>/adminium.json`. */
   persist: boolean;
 }
 
@@ -317,12 +320,15 @@ async function chooseSurface(
 }
 
 export const initCommand: Command = {
-  name: 'init',
-  summary: 'Interactive setup: connect a database and generate the app',
-  usage: 'adminium [init] [--browser|--terminal] [--port <n>] [--host <addr>]',
+  name: 'try',
+  aliases: ['init'],
+  summary: 'Try Adminium without a project: the interactive setup wizard',
+  usage: 'adminium try [--browser|--terminal] [--port <n>] [--host <addr>]',
   describe:
     'Walks through connecting a database and generating an admin app, then\n' +
-    'starts the server. This is what `adminium` runs with no arguments.\n' +
+    'starts the server, with nothing to create first. Its data goes to ./data\n' +
+    'beside a project of another kind, or ~/.adminium. `adminium init` is the\n' +
+    'same command.\n' +
     '\n' +
     'Asks first whether to continue in your browser (a UI, recommended) or\n' +
     'here in the terminal; --browser / --terminal skip that question.',
@@ -359,6 +365,14 @@ export const initCommand: Command = {
     if (!io.isInteractive) {
       throw new CliError('The setup wizard needs an interactive terminal.', {
         hint: 'Non-interactive? Configure via environment and run `adminium start`.',
+      });
+    }
+
+    // Inside a project, its config decides the databases and the data folder;
+    // a wizard run here would configure a second, unrelated instance.
+    if (findProject(deps.cwd, deps.env) !== null) {
+      throw new CliError('This folder is part of an Adminium project, and `adminium try` runs without one.', {
+        hint: 'Run the project with its dev script instead, e.g.  npm run dev',
       });
     }
 
@@ -446,7 +460,7 @@ export const initCommand: Command = {
         if (choice.url !== null) {
           env = loadCliEnv(deps.env, overrides(choice.url));
           if (choice.persist) {
-            // §7.2: the meta DSN cannot live in the meta store itself, so it is
+            // The meta DSN cannot live in the meta store itself, so it is
             // persisted here, AES-256-GCM-encrypted under ADMINIUM_SECRET.
             await writeBootstrap(env.ADMINIUM_DATA_DIR, {
               v: 1,
@@ -520,7 +534,7 @@ export const initCommand: Command = {
       // ── Step 2 — source ───────────────────────────────────────────────────
       const dsn = await askForDsn(io, metaDsnEntered);
 
-      // ── Step 3 — test (+ the §3.1 meta-placement rule) ────────────────────
+      // ── Step 3 — test (+ the meta-placement rule) ─────────────────────────
       const engine = engineOfDsn(dsn);
       io.note('Testing the connection…');
       const summary = await runtime.manager.testDsn(engine, dsn);
@@ -531,8 +545,8 @@ export const initCommand: Command = {
       }
       io.step(`Connected — ${describeProbe(summary)}`);
 
-      // 01 §3.1: same-database meta placement against a read-only or DDL-less
-      // role is refused here, in the manager, not merely in a wizard UI.
+      // Same-database meta placement against a read-only or DDL-less role is
+      // refused here, in the manager, not merely in a wizard UI.
       try {
         runtime.manager.enforceMetaPlacement(dsn, summary);
       } catch (error) {
@@ -657,7 +671,7 @@ async function askForDsn(io: CliIo, metaUrl: string | null): Promise<string> {
   // for both is a perfectly ordinary local setup, and without this the wizard
   // asked for the same string twice in two minutes with nothing to say they
   // COULD be the same — so the honest reading was that they must differ.
-  // §3.1 still adjudicates: `enforceMetaPlacement` refuses the pairing below if
+  // Placement still adjudicates: `enforceMetaPlacement` refuses the pairing below if
   // the role cannot write and run DDL, with a message saying so.
   const reuse: SelectChoice[] =
     metaUrl === null

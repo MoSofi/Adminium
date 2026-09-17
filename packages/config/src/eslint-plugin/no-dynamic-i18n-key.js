@@ -16,11 +16,11 @@
  *
  * Why this matters more than it looks: a key that only exists at runtime cannot
  * be checked against the bundles, cannot be found by the extractor, and cannot
- * be counted by the review-status tracker (10-i18n-theming.md §3.1). When it
- * misses, i18next returns the key itself — so the user sees a raw dotted string
- * like `widgets.forms.ruleBuilder.op.between` sitting in the middle of the UI.
- * Every such site is invisible until someone opens that exact screen in that
- * exact locale.
+ * be counted by the review-status tracker. When it misses, i18next returns the
+ * key itself — so the user sees a raw dotted string like
+ * `widgets.forms.ruleBuilder.op.between` sitting in the middle of the UI. Every
+ * such site is invisible until someone opens that exact screen in that exact
+ * locale.
  *
  * The fix is an exhaustive map from the runtime value to literal keys:
  *
@@ -32,9 +32,9 @@
  * Template literals with NO expressions are fine — they are just literals.
  *
  * Escape hatch: `// i18n-dynamic-key: <reason>` on the line above, audited by
- * grep during the §8.3 audits. Every exemption needs a stated reason.
+ * grep during the audits. Every exemption needs a stated reason.
  *
- * Spec: 10-i18n-theming.md §2.5.
+ * See: https://docs.adminium.dev/anatomy/decisions/i18n-rules/
  */
 
 /** Call targets treated as translators. */
@@ -63,7 +63,7 @@ export default {
       dynamicKey:
         'Translation key passed to `{{callee}}()` is assembled from parts, so it cannot be verified ' +
         'against the 8 bundles and renders as a raw dotted key when it misses ' +
-        '(10-i18n-theming.md §2.5). Use an exhaustive map of literal keys and index into it — ' +
+        '. Use an exhaustive map of literal keys and index into it — ' +
         "`t(KEYS[value])` — so the type checker proves the key exists. If it is genuinely " +
         'unavoidable, add `// i18n-dynamic-key: <reason>` above the line.',
     },

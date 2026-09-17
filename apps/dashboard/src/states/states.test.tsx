@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * System states (09-generated-app.md §6.1): the map covers all 12 ids with
- * the comp copy, and StateHero renders code/glyph/copy/CTAs/diagnostics.
+ * System states: the map covers all 12 ids with the comp copy, and
+ * StateHero renders code/glyph/copy/CTAs/diagnostics.
  */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
@@ -54,11 +54,11 @@ describe('SYSTEM_STATES map', () => {
     expect(SYSTEM_STATES.error.body.en).toMatch(/server log/i);
   });
 
-  it('adds the new suspended state per §6.1 (402, data-preserved copy)', () => {
+  it('adds the new suspended state (402, data-preserved copy)', () => {
     expect(SYSTEM_STATES.suspended.code).toBe('402');
     expect(SYSTEM_STATES.suspended.body.en).toContain('data is preserved');
     expect(SYSTEM_STATES.suspended.primary?.label.en).toBe('Contact owner');
-    // Free-launch pivot (17-deferred-monetization.md): suspension is an
+    // Free-launch pivot: suspension is an
     // administrative state, never a billing state — no payment language anywhere.
     expect(JSON.stringify(SYSTEM_STATES.suspended)).not.toMatch(/billing|payment|past due/i);
   });
@@ -170,7 +170,7 @@ describe('StateHero', () => {
   });
 });
 
-describe('stateIdForError mapping (§2.3 errorComponent)', () => {
+describe('stateIdForError mapping (errorComponent)', () => {
   const err = (status: number, code: string) => new ApiError(status, code, 'boom', 'req_x');
 
   it('maps canonical statuses to their states', () => {

@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The §14 page-archetype step — hooks **H1/H2/H4** of the auto-instantiation
- * pipeline as the Engine drives them (04-widget-registry.md §8):
+ * The page-archetype step — hooks **H1/H2/H4** of the auto-instantiation
+ * pipeline as the Engine drives them:
  *
- *   H1/H2  `emitCandidates` + `selectArchetype`  (`@adminium/widgets/generate`)
- *   H4     `composeTemplate(templateId, candidates, ctx)` → the in-memory
- *          intermediate, which THIS module wraps into the 01-architecture.md
- *          §6.1 page envelope that `generatePages()` persists.
+ * H1/H2 `emitCandidates` + `selectArchetype` (`@adminium/widgets/generate`) H4
+ *   `composeTemplate(templateId, candidates, ctx)` → the in-memory
+ *   intermediate, which THIS module wraps into the page envelope that
+ *   `generatePages()` persists.
  *
- * research/widget-registry.md §15 step 3 in full: "Per table emit: `page-crud`
- * always; **plus the highest-scoring archetype from §14 triggers**; plus KPI
- * candidates and 2–4 chart candidates". `./crud.ts` + `./dashboard.ts` deliver
- * the first and last clauses through the same leaf (`composeCrudBody`,
+ * research/widget-registry.md in full: "Per table emit: `page-crud` always;
+ * **plus the highest-scoring archetype triggers**; plus KPI candidates and 2–4
+ * chart candidates". `./crud.ts` + `./dashboard.ts` deliver the first and last
+ * clauses through the same leaf (`composeCrudBody`,
  * `emitDomainDashboardCandidates`), fed by this module's adapter; this module
  * adds the middle clause. Archetype pages are **purely additive** — a table
  * that earns one keeps its `page-crud` unchanged, and a table that earns none
  * loses nothing.
  *
- * WHERE THE RULES LIVE: in `@adminium/widgets`, not here — 04 §8 assigns the
+ * WHERE THE RULES LIVE: in `@adminium/widgets`, not here — assigns the
  * catalog and its triggers to the Registry ("so the catalog and its trigger
  * logic never drift apart") and only the pipeline to the Engine. That package
- * cannot see `TableModel`/`ClassifiedTable` (01 §2.3 forbids widgets → engine
- * beyond the config leaf), so it declares the fields its rules read as its own
+ * cannot see `TableModel`/`ClassifiedTable` (forbids widgets → engine beyond
+ * the config leaf), so it declares the fields its rules read as its own
  * structural contract and this module is the **adapter**: `toCandidateModel`
  * below is the single place the two vocabularies meet, and it is compile-time
  * checked against both.
@@ -46,9 +46,9 @@ import type { ColumnSemantics, DatabaseModel, TableModel } from '../schema-model
 import { ID_SLUG_BUDGET, humanize, pageIdFor } from './util.js';
 
 /**
- * Nav placement per §14 archetype (09-generated-app.md §2.2: the five groups are
- * fixed; `icon` is a lucide name). `slugSuffix` keeps the archetype page's slug
- * distinct from its table's `page-crud` slug — the two are siblings in the nav.
+ * Nav placement archetype (the five groups are fixed; `icon` is a lucide name).
+ * `slugSuffix` keeps the archetype page's slug distinct from its table's
+ * `page-crud` slug — the two are siblings in the nav.
  */
 export interface ArchetypeNav {
   group: 'workspace' | 'library' | 'planning' | 'people' | 'account';
@@ -104,7 +104,7 @@ function enumValuesFor(model: DatabaseModel, column: { enumRef: string | null })
 }
 
 /**
- * `TableModel` → the rules' structural table contract. Beyond what the §14
+ * `TableModel` → the rules' structural table contract. Beyond what the
  * triggers read, the mirror carries the crud-body facts (`ordinal`,
  * `defaultKind`, `isGenerated`, `maxLength`, `primaryKey`) — `composeCrudBody`
  * reproduces the bespoke builder byte-for-byte only when these map exactly
@@ -141,15 +141,14 @@ function toCandidateTable(model: DatabaseModel, table: TableModel): CandidateTab
 /**
  * `ClassifiedTable` → the rules' structural classification contract.
  *
- * SEMANTIC SOURCE (05 §7 "overrides always win"): recomputed heuristics are
- * authoritative for the model *as generated* — post `includedTables` filtering,
- * a join table whose partner is excluded genuinely stops being a join table,
- * and its columns reclassify on the filtered model (deliberate change from the
- * bespoke dashboard builder, which read full-model stamps). But a column
- * stamped `source: 'llm' | 'override'` is an explicit enrichment, not a
- * heuristic, so it beats the recomputed tag — the same rule
- * `applyClassification` uses when stamping the model. Table semantics carry no
- * `source`, so roles stay recomputed-only.
+ * SEMANTIC SOURCE: recomputed heuristics are authoritative for the model *as
+ * generated* — post `includedTables` filtering, a join table whose partner is
+ * excluded genuinely stops being a join table, and its columns reclassify on
+ * the filtered model (deliberate change from the bespoke dashboard builder,
+ * which read full-model stamps). But a column stamped `source: 'llm' |
+ * 'override'` is an explicit enrichment, not a heuristic, so it beats the
+ * recomputed tag — the same rule `applyClassification` uses when stamping the
+ * model. Table semantics carry no `source`, so roles stay recomputed-only.
  */
 function toClassifiedInput(table: TableModel, classified: ClassifiedTable): ClassifiedTableInput {
   const stampedByName = new Map(table.columns.map((c) => [c.name, c.semantics]));
@@ -184,7 +183,7 @@ function toClassifiedInput(table: TableModel, classified: ClassifiedTable): Clas
 /**
  * Adapt a classified model into the rules' input. `tables` is the *included*
  * set (`settings.includedTables` has already been applied upstream, and system
- * / join tables have already been split out) — the cross-table §14 triggers only
+ * / join tables have already been split out) — the cross-table triggers only
  * ever pair tables that will actually get pages.
  */
 export function toCandidateModel(
@@ -206,8 +205,8 @@ export function toCandidateModel(
 
 /**
  * A candidate as `composeTemplate` takes it: the binding moves inside `config`,
- * which is where the stored layout item carries it (01 §6.1 / 04 §5.1 — exactly
- * as `buildDashboardEnvelope` writes it today).
+ * which is where the stored layout item carries it (exactly as
+ * `buildDashboardEnvelope` writes it today).
  */
 function toTemplateCandidate(candidate: WidgetCandidate): TemplateCandidate {
   return {
@@ -225,12 +224,12 @@ export interface ArchetypeBuildContext {
   /** Unique, already-claimed slug for this page. */
   slug: string;
   /**
-   * Explicit page id — the 06 §8.3 materialization path targets an existing
+   * Explicit page id — the materialization path targets an existing
    * `page_<sha30>` row. Defaults to `pageIdFor(connectionId, slug)`.
    */
   id?: string | undefined;
   navOrder: number;
-  /** Live registry membership test, threaded to H1 and H4 (04 §10). */
+  /** Live registry membership test, threaded to H1 and H4. */
   isRegistered?: ((widgetId: string) => boolean) | undefined;
 }
 
@@ -245,7 +244,7 @@ export interface ArchetypeBuildResult {
   warnings: readonly ComposeWarning[];
 }
 
-/** Compose one archetype page for a table and wrap it into the §6.1 envelope. */
+/** Compose one archetype page for a table and wrap it into the envelope. */
 export function buildArchetypeEnvelope(
   table: TableModel,
   selection: ArchetypeSelection,
@@ -295,14 +294,14 @@ export function buildArchetypeEnvelope(
 }
 
 /**
- * Compose one REQUESTED §14 archetype page — the 06-llm-assist.md §8.3
- * materialization path: an accepted LLM template suggestion seeds a page row
- * carrying only `{type, table, source: 'llm'}`, and the regeneration hook
- * expands it here from the active snapshot. Nothing is scored — the template
- * id was chosen upstream — but the candidates, the manifest and the
- * required-slot failure mode are exactly the §15 pass's. Returns a null
- * envelope when the table is missing/system/join or composition fails; the
- * caller records a warning and the seed row stays as it was.
+ * Compose one REQUESTED archetype page — the materialization path: an
+ * accepted LLM template suggestion seeds a page row carrying only `{type,
+ * table, source: 'llm'}`, and the regeneration hook expands it here from the
+ * active snapshot. Nothing is scored — the template id was chosen upstream —
+ * but the candidates, the manifest and the required-slot failure mode are
+ * exactly the pass's. Returns a null envelope when the table is
+ * missing/system/join or composition fails; the caller records a warning and
+ * the seed row stays as it was.
  */
 export function composeRequestedArchetype(
   model: DatabaseModel,
@@ -312,7 +311,7 @@ export function composeRequestedArchetype(
 ): ArchetypeBuildResult {
   const classified = new Map(classifyModel(model).tables.map((t) => [t.tableId, t]));
   // The same include rule as generatePages' splitTables: system and join
-  // tables never earn a page (05 §8.2).
+  // tables never earn a page.
   const tables = [...model.tables]
     .filter((table) => {
       const role = classified.get(table.id)?.semantics.role ?? table.semantics?.role ?? 'entity';
@@ -331,7 +330,7 @@ export function composeRequestedArchetype(
   const candidates = emitCandidates(entry.table, entry.classified, candidateCtx);
   return buildArchetypeEnvelope(
     table,
-    { template, score: 0, reasons: ['accepted LLM suggestion (06 §8.3)'] },
+    { template, score: 0, reasons: ['accepted LLM suggestion'] },
     candidates,
     { ...ctx, isRegistered },
   );

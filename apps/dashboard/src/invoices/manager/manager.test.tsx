@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The invoice manager (34-invoices-add-on.md 34-T48 done-when; Appendix E
- * §M1–M16), rendered through the real router and shell so the topbar's
- * published actions, the toasts and the navigation are the product's own.
- * The API is a fetch stub keyed on the routes the manager calls; the
- * fixtures are the comp's seed (1138-1170): ten templates with de/fr/es/ja
- * variations and seven invoices.
+ * The invoice manager, rendered through the real router and
+ * shell so the topbar's published actions, the toasts and the navigation
+ * are the product's own. The API is a fetch stub keyed on the routes the
+ * manager calls; the fixtures are the comp's seed (1138-1170): ten
+ * templates with de/fr/es/ja variations and seven invoices.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -214,7 +213,7 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe('InvoiceManager — shell (§M1–M8, §M16)', () => {
+describe('InvoiceManager — shell', () => {
   it('publishes the title, the subtitle and ONE primary that follows the tab; no actions menu', async () => {
     const { user } = await renderPage({ templates: seedTemplates(), invoices: seedInvoices() });
     expect(screen.getByRole('heading', { level: 1, name: 'Invoices' })).toBeDefined();
@@ -334,7 +333,7 @@ describe('InvoiceManager — shell (§M1–M8, §M16)', () => {
     });
   });
 
-  it('on the invoices tab the New modal adds Your templates (34 O20)', async () => {
+  it('on the invoices tab the New modal adds Your templates', async () => {
     const { user } = await renderPage({ templates: seedTemplates(), invoices: seedInvoices() }, '/invoices?kind=invoice');
     expect(screen.getByRole('tab', { name: /Invoices/ }).getAttribute('data-state')).toBe('active');
     await user.click(screen.getByRole('button', { name: 'New invoice' }));
@@ -345,7 +344,7 @@ describe('InvoiceManager — shell (§M1–M8, §M16)', () => {
   });
 });
 
-describe('InvoiceManager — gallery, list and groups (§M9–M15)', () => {
+describe('InvoiceManager — gallery, list and groups', () => {
   it('a card reads name + meta — the customer alone for a template, number · customer for an invoice — with the lang chip and the status pill', async () => {
     const { user } = await renderPage({ templates: seedTemplates(), invoices: seedInvoices() });
     const first = screen.getAllByTestId('invoices-card')[0] as HTMLElement;

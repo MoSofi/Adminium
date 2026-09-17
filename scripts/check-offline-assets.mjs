@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline asset gate — 11-electron.md §7, deliverable 1 of 11-T09:
+ * Offline asset gate, deliverable 1 of:
  *
  * > `scripts/check-offline-assets.mjs` — scans the packaged app's renderer +
  * > dashboard build for `https?://` string literals outside an allowlist (docs
  * > deep-links, `shell.openExternal` targets). Runs in CI on every desktop build.
  *
- * §7's promise is that "the desktop build must be fully functional with the
- * network cable unplugged, forever". The offline smoke test (11-T18) proves that
- * for the paths it walks; this gate covers what a smoke test structurally cannot —
- * a remote asset on a page nobody clicked during the run. A `<link>` to Google
- * Fonts on the login screen, a CDN `<script>` in a rarely-hit route, a tile server
- * behind a widget the test never places: all green in a smoke test, all broken at
- * 30,000 feet. So this reads the BUILT BYTES and enumerates every URL in them.
+ * The promise is that "the desktop build must be fully functional with the network
+ * cable unplugged, forever". The offline smoke test proves that for the paths it
+ * walks; this gate covers what a smoke test structurally cannot — a remote asset
+ * on a page nobody clicked during the run. A `<link>` to Google Fonts on the login
+ * screen, a CDN `<script>` in a rarely-hit route, a tile server behind a widget
+ * the test never places: all green in a smoke test, all broken at 30,000 feet. So
+ * this reads the BUILT BYTES and enumerates every URL in them.
  *
  * WHY IT REPORTS UNKNOWN HOSTS RATHER THAN JUST THE KNOWN-BAD ONES. A deny-list
  * only catches the CDNs someone thought of in July 2026. The failure this gate
@@ -29,7 +29,7 @@
  * WIRED (a gate nobody runs is not a gate — see the repo's "green but broken"
  * lesson):
  *   - `apps/desktop`'s `build` script runs it immediately after `electron-vite
- *     build`, so §7's "runs on every desktop build" is literal, locally and in CI;
+ * build`, so "runs on every desktop build" is literal, locally and in CI;
  *   - root `package.json` exposes `pnpm run check-offline-assets`, which
  *     `.github/workflows/ci.yml` calls as a named step after the turbo build —
  *     matching how `check-deps` is wired.
@@ -55,7 +55,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_ROOTS = [
   {
     path: 'apps/desktop/out/renderer',
-    why: 'the shell\'s pre-server splash + crash pages (§2.2 step 6) — these render BEFORE any server exists, so a remote asset here is a blank window, not a slow one',
+    why: 'the shell\'s pre-server splash + crash pages — these render BEFORE any server exists, so a remote asset here is a blank window, not a slow one',
     build: 'pnpm --filter @adminium/desktop build',
   },
   {
@@ -69,7 +69,7 @@ const DEFAULT_ROOTS = [
     build: 'pnpm --filter @adminium/dashboard build',
   },
   {
-    // Added 2026-08-29 (32-add-on-distribution.md §4.5). The three roots above
+    // Added 2026-08-29. The three roots above
     // are all RENDERER output: everything this gate has ever looked at runs in
     // Chromium. The MAIN process was never scanned, so `updates.mode:
     // 'disabled'` ⇒ "zero non-loopback requests" — the desktop's headline
@@ -83,7 +83,7 @@ const DEFAULT_ROOTS = [
 ];
 
 /**
- * WHAT THIS GATE DELIBERATELY DOES NOT SCAN, AND WHY (32 §4.5, amended).
+ * WHAT THIS GATE DELIBERATELY DOES NOT SCAN, AND WHY (amended).
  *
  * Plan 32 asked for "the main-process/server bundle". The main process is now
  * covered above. **The server is not, and should not be** — two reasons, both
@@ -106,9 +106,9 @@ const DEFAULT_ROOTS = [
  * zero calls", not "this string is inert" — and it is proved where such a claim
  * can actually be proved: `telemetry-network-isolation.test.ts` and
  * `add-on-network-isolation.test.ts`, which replace fetch/net/http/https with
- * recording throwers and assert the recorder stays empty. Plan 32 §4.5 says as
- * much itself ("the primary isolation proof remains the extended
- * network-isolation test either way").
+ * recording throwers and assert the recorder stays empty. Plan says as much
+ * itself ("the primary isolation proof remains the extended network-isolation
+ * test either way").
  */
 
 /**
@@ -155,7 +155,7 @@ const URL_PATTERN = /\bhttps?:(?:\\?\/){2}[^\s"'`<>()\\]+/gi;
  * comment in every bundle. So a hit requires BOTH:
  *
  *  1. a preceding `"`, `'`, `` ` `` or `(` — a URL is a string or a `url(…)`
- *     argument; a comment is neither. This is what excludes `// see §7 above`.
+ *     argument; a comment is neither. This is what excludes `// see the note above`.
  *  2. a DOTTED host immediately after the slashes — `//fonts.googleapis.com`,
  *     never `//` or `//#sourceMappingURL` or `// eslint-disable`.
  *
@@ -169,27 +169,27 @@ const PROTOCOL_RELATIVE_PATTERN =
  * Hosts that fail even if a future edit adds them to the allowlist below.
  *
  * This list is redundant with the allowlist — an unknown host already fails — and
- * that redundancy is the point: it guards the guard. These are the four §7 names
- * an allowlist entry must never be able to cover, so the day someone is fighting a
+ * that redundancy is the point: it guards the guard. These are the four names an
+ * allowlist entry must never be able to cover, so the day someone is fighting a
  * red build at 6pm and reaches for the allowlist, the four that would silently
  * void the offline guarantee reject the shortcut and say why.
  */
 const BLOCKED_HOSTS = [
   {
     test: /(^|\.)fonts\.googleapis\.com$/,
-    why: '§7 fonts row: Manrope/JetBrains Mono/IBM Plex Sans Arabic are self-hosted woff2 in @adminium/tokens. A Google Fonts stylesheet means unstyled text offline',
+    why: 'the offline contract\'s fonts row: Manrope/JetBrains Mono/IBM Plex Sans Arabic are self-hosted woff2 in @adminium/tokens. A Google Fonts stylesheet means unstyled text offline',
   },
   {
     test: /(^|\.)fonts\.gstatic\.com$/,
-    why: '§7 fonts row: where Google Fonts serves the actual woff2. Same failure, one hop later',
+    why: 'the offline contract\'s fonts row: where Google Fonts serves the actual woff2. Same failure, one hop later',
   },
   {
     test: /(^|\.)tile\.openstreetmap\.org$/,
-    why: "§7 maps row: Leaflet's default tile server. Its presence means a map is reaching for tiles — the desktop app resolves map-* to the tilegram precisely so nothing does",
+    why: "the offline contract\'s maps row: Leaflet's default tile server. Its presence means a map is reaching for tiles — the desktop app resolves map-* to the tilegram precisely so nothing does",
   },
   {
     test: /(^|\.)(unpkg\.com|cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|esm\.sh|code\.jquery\.com)$/,
-    why: '§7 icons row: "no CDN <script>/<link> allowed". Everything the app runs is bundled; a package CDN means it is not',
+    why: 'the offline contract\'s icons row: "no CDN <script>/<link> allowed". Everything the app runs is bundled; a package CDN means it is not',
   },
 ];
 
@@ -200,7 +200,7 @@ const BLOCKED_HOSTS = [
  *
  * **INERT (the original kind, and still the default).** The string is NEVER
  * FETCHED BY THE APP — an identifier, an error message, a placeholder, or a
- * link a human clicks that opens in the system browser (§2.4). Adding one means
+ * link a human clicks that opens in the system browser. Adding one means
  * claiming exactly that, in the `why`.
  *
  * **OPT-IN OUTBOUND (added 2026-08-29 with the main-process root).** The string
@@ -231,11 +231,11 @@ const ALLOWED_HOSTS = [
   },
   {
     test: /^docs\.adminium\.dev$/,
-    why: 'the docs site (14-docs-site.md). §2.4: docs links open the SYSTEM BROWSER via shell.openExternal — the app never embeds remote content',
+    why: 'the docs site. Docs links open the SYSTEM BROWSER via shell.openExternal — the app never embeds remote content',
   },
   {
     test: /^github\.com$/,
-    why: 'the AGPL-3.0 source link and the releases page on the About screen (§13). shell.openExternal, same as the docs',
+    why: 'the AGPL-3.0 source link and the releases page on the About screen. shell.openExternal, same as the docs',
   },
   {
     test: /^(react\.dev|www\.i18next\.com|locize\.com|leafletjs\.com)$/,
@@ -246,7 +246,7 @@ const ALLOWED_HOSTS = [
     why:
       'the React Flow attribution badge in the schema diagram (@xyflow/react, studio/remap/diagram/DiagramMode.tsx). Same kind as the leafletjs.com entry above and, in the desktop build, the same kind as docs/github: ' +
       'the library renders `<a href="https://reactflow.dev?utm_source=attribution" target="_blank" rel="noopener noreferrer">React Flow</a>` in a corner Panel, plus the identical string in a `data-message` attribute. ' +
-      'An anchor is not a fetch, and §2.4\'s navigation lockdown means a click cannot navigate the window either: `setWindowOpenHandler` allows only `http://127.0.0.1:<port>` and hands everything else to `shell.openExternal`, i.e. the system browser. ' +
+      'An anchor is not a fetch, and the navigation lockdown means a click cannot navigate the window either: `setWindowOpenHandler` allows only `http://127.0.0.1:<port>` and hands everything else to `shell.openExternal`, i.e. the system browser. ' +
       'Offline the badge still renders and a click simply fails in the browser, so nothing about the diagram degrades. NOTE the attribution is shown DELIBERATELY — DiagramMode sets `proOptions={{ hideAttribution: false }}`, and xyflow asks that it only be hidden under a React Flow Pro subscription. ' +
       'Hiding it would remove this entry\'s subject; that is a licensing decision, not a way to quiet this gate',
   },
@@ -266,7 +266,7 @@ const ALLOWED_HOSTS = [
   {
     test: /^(nyc3\.digitaloceanspaces\.com|fly\.storage\.tigris\.dev|s3\.us-west-004\.backblazeb2\.com|s3\.eu-central-1\.wasabisys\.com)$/,
     why:
-      'the four non-AWS S3 presets in the storage-destination editor (studio/storage/storageApi.ts S3_PRESETS, 38-files-library.md). The same kind as api.groq.com below: text in a settings form. ' +
+      'the four non-AWS S3 presets in the storage-destination editor (studio/storage/storageApi.ts S3_PRESETS). The same kind as api.groq.com below: text in a settings form. ' +
       'Three are `endpointHint` only — placeholder attributes on an input whose value is the empty string — and Tigris is the one preset that also carries a default `endpoint`, i.e. a value that is written into the DRAFT when an admin picks that provider. ' +
       'The dashboard never dials any of them: every request this surface makes goes to loopback `/api/v1/storage/...`, INCLUDING the "test connection" probe (`POST /api/v1/storage/destinations/test`), which is deliberately server-side so credentials never leave the server. ' +
       'An admin who selects a preset, types their keys and saves has configured their OWN bucket, and it is the server — not scanned here, by this file\'s own design — that talks to it. That is configuration, not a remote asset the product ships. ' +
@@ -274,26 +274,26 @@ const ALLOWED_HOSTS = [
   },
   {
     test: /^api\.groq\.com$/,
-    why: '06-llm-assist.md provider catalog base URL. §7 LLM row: provider-API mode is opt-in and labeled "requires internet"; unconfigured, this is a placeholder in a settings form',
+    why: 'a provider catalog base URL. The offline contract\'s LLM row: provider-API mode is opt-in and labeled "requires internet"; unconfigured, this is a placeholder in a settings form',
   },
   {
     test: /^api\.adminium\.app$/,
-    why: 'the example request in the API-keys quick-start snippet (M10-T06) — sample text in a <pre>, addressed to the user\'s own instance',
+    why: 'the example request in the API-keys quick-start snippet — sample text in a <pre>, addressed to the user\'s own instance',
   },
   {
     test: /^\{s\}\.basemaps\.cartocdn\.com$/,
     why:
       'map-bubble\'s basemap tiles (families/geo/geo-lib.ts CARTO_TILES) — the ONE entry here that is a real remote asset, so it gets the long reason. ' +
       'It cannot be removed: a bubble map on self-host is a bubble map, and it needs tiles. It is safe in the OFFLINE build because nothing ever reads it there — ' +
-      '§7\'s registry fallback (registry/offline.ts) resolves every map-* id to map-choropleth-grid before the lazy ref is touched, so MapBubble never mounts, ' +
+      'The registry fallback (registry/offline.ts) resolves every map-* id to map-choropleth-grid before the lazy ref is touched, so MapBubble never mounts, ' +
       'never imports Leaflet, and never constructs a tileLayer from this template. The string rides along in the bundle as dead weight; the guarantee is that no ' +
-      'code path reaches it, and 11-T18\'s offline smoke test asserts the runtime half (zero tile requests). Note the {s} — this matches Leaflet\'s subdomain ' +
+      'code path reaches it, and the offline smoke test asserts the runtime half (zero tile requests). Note the {s} — this matches Leaflet\'s subdomain ' +
       'template EXACTLY, so a plain cartocdn.com URL added by hand would not be covered by this entry and would fail the gate',
   },
   // ── Loopback: not remote at all ──────────────────────────────────────────
   {
     test: /^127\.0\.0\.1(:.*)?$/,
-    why: 'the embedded server on loopback — the address the shell dials to reach its OWN utilityProcess (§2.1). Never leaves the machine, and the offline build depends on it working',
+    why: 'the embedded server on loopback — the address the shell dials to reach its OWN utilityProcess. Never leaves the machine, and the offline build depends on it working',
   },
   {
     // Scoped to the four placeholders that actually exist rather than a blanket
@@ -302,7 +302,7 @@ const ALLOWED_HOSTS = [
     test: /^\$\{(hostname|entry\.address|message\.host|host)\}(:.*)?$/,
     why:
       'URL templates whose host is filled in at runtime from an address this machine already owns, so the literal in the bundle has no origin at all. ' +
-      'All four are accounted for: `${hostname}` and `${entry.address}` build the LAN-share URL from a local network interface (main/lan.ts:96, §5); ' +
+      'All four are accounted for: `${hostname}` and `${entry.address}` build the LAN-share URL from a local network interface (main/lan.ts:96); ' +
       '`${message.host}` is the address the embedded server reports it BOUND to, echoed back over IPC (main/server-manager.ts:604); `${host}` is the same in the server\'s own boot log. ' +
       'None can resolve to a remote origin — a change that made one able to would show up here as a new, unmatched literal',
   },
@@ -319,19 +319,19 @@ const ALLOWED_HOSTS = [
     test: /^adminium\.dev$/,
     optIn: true,
     why:
-      'the add-on catalog feed (32-add-on-distribution.md D8, 48-self-hosted-downloads.md D7; apps/server/src/add-ons/catalog.ts). Listed for the day the server is scanned or a main-process surface links it — it is fetched ONLY when the default-off ' +
+      'the add-on catalog feed (apps/server/src/add-ons/catalog.ts). Listed for the day the server is scanned or a main-process surface links it — it is fetched ONLY when the default-off ' +
       '`addOns.catalogEnabled` setting is on AND `ADMINIUM_NETWORK_FEATURES` is on, either veto being sufficient. `add-on-network-isolation.test.ts` records connection attempts and asserts the recorder stays empty under either',
   },
   {
     test: /^downloads\.adminium\.dev$/,
     optIn: true,
     why:
-      'the add-on files, the other half of the add-on catalog (48-self-hosted-downloads.md D1/D4). Same two vetoes and the same recording-thrower proof as adminium.dev above. ' +
+      'the add-on files, the other half of the add-on catalog. Same two vetoes and the same recording-thrower proof as adminium.dev above. ' +
       'An INSTALL-TIME dependency only — nothing reaches it at boot or at serve time, so a deployment that never downloads an add-on never contacts it',
   },
   {
     test: /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/,
-    why: 'loopback. §1 principle 3: the desktop renderer loads http://127.0.0.1:<port>. Ollama\'s :11434 default in the LLM provider catalog is the same shape — a local process, not a network',
+    why: 'loopback. The desktop renderer loads http://127.0.0.1:<port>. Ollama\'s :11434 default in the LLM provider catalog is the same shape — a local process, not a network',
   },
   {
     test: /^\[\$\{/,
@@ -350,7 +350,7 @@ const ALLOWED_HOSTS = [
 /**
  * Absolute URLs in ASSET-LOADING POSITIONS. Unlike everything above, these fail
  * regardless of host: the allowlist certifies that a string is never fetched, and
- * a `<script src>` is the compiled proof that it is. §7 icons row, "no CDN
+ * a `<script src>` is the compiled proof that it is. the offline contract\'s icons row, "no CDN
  * `<script>`/`<link>` allowed by CSP" — asserted at build time rather than trusted
  * to a CSP header the packaged app would have to get right at runtime.
  *
@@ -463,7 +463,7 @@ function checkFile(file) {
         file: where,
         url,
         rule: 'unallowlisted-host',
-        why: `'${host}' is not in the allowlist. If this URL is never fetched by the app (an identifier, an error string, a placeholder, or a shell.openExternal target), add it to ALLOWED_HOSTS in scripts/check-offline-assets.mjs with the reason. If it IS fetched, it cannot ship — §7`,
+        why: `'${host}' is not in the allowlist. If this URL is never fetched by the app (an identifier, an error string, a placeholder, or a shell.openExternal target), add it to ALLOWED_HOSTS in scripts/check-offline-assets.mjs with the reason. If it IS fetched, it cannot ship: the desktop build has to work offline, forever`,
       });
     }
   }
@@ -514,7 +514,7 @@ function main() {
       byUrl.set(key, group);
     }
 
-    console.error(`\n[offline-assets] ${byUrl.size} violation(s) — 11-electron.md §7\n`);
+    console.error(`\n[offline-assets] ${byUrl.size} violation(s) — the offline contract\n`);
     for (const group of byUrl.values()) {
       console.error(`  ✗ ${group.url}`);
       console.error(`    rule: ${group.rule}`);
@@ -524,7 +524,7 @@ function main() {
       if (shown.length > 5) console.error(`    in:   …and ${shown.length - 5} more file(s)`);
       console.error('');
     }
-    console.error('The desktop build must work with the network cable unplugged, forever (§7).\n');
+    console.error('The desktop build must work with the network cable unplugged, forever.\n');
     process.exit(1);
   }
 

@@ -44,11 +44,11 @@ describe('pageTemplateRegistry', () => {
     );
   });
 
-  it('page-crud is renderable but never recommendable (06 §5 decision 6)', () => {
+  it('page-crud is renderable but never recommendable', () => {
     expect(getPageTemplate(PAGE_CRUD_TEMPLATE_ID)?.recommendable).toBe(false);
   });
 
-  it('page-record is neither recommendable nor standalone (30 D3)', () => {
+  it('page-record is neither recommendable nor standalone', () => {
     // The record page is the crud page's child route; the LLM must not place
     // it per table and the Studio picker must not offer dead-end shells.
     const record = getPageTemplate(PAGE_RECORD_TEMPLATE_ID);
@@ -78,9 +78,9 @@ describe('pageTemplateRegistry', () => {
     }
   });
 
-  it('every template a §14 archetype rule can emit is recommendable (emitter ⊆ vocabulary)', () => {
+  it('every template a archetype rule can emit is recommendable (emitter ⊆ vocabulary)', () => {
     // An auto-trigger that emits a non-recommendable (or unregistered) template
-    // would produce pages the LLM path cannot round-trip (06 §8.3).
+    // would produce pages the LLM path cannot round-trip.
     for (const id of ARCHETYPE_TEMPLATE_IDS) {
       expect(getPageTemplate(id)?.recommendable, id).toBe(true);
     }

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The generated CRUD API (`routes/data/`, 08-server-api.md §2.7, M3-T05):
- * list (filter DSL + `q` + keyset/offset), get (+ inbound counts), the
- * cascade preflight, create/update/delete, bulk, and undo.
+ * The generated CRUD API (`routes/data/`): list (filter DSL + `q` +
+ * keyset/offset), get (+ inbound counts), the cascade preflight,
+ * create/update/delete, bulk, and undo.
  *
- * Invariants (§7 item 1, §5.2/§5.3): every table/column string that reaches
- * SQL is the schema snapshot's own; RBAC (`table:<conn>:<schema.table>:<action>`)
- * runs after identifier resolution; PII columns mask for callers without the
- * unmask grant; every mutation is audited with a RecordRef and fans out on
+ * Invariants: every table/column string that reaches SQL is the schema snapshot's
+ * own; RBAC (`table:<conn>:<schema.table>:<action>`) runs after identifier
+ * resolution; PII columns mask for callers without the unmask grant; every
+ * mutation is audited with a RecordRef and fans out on
  * `table:<connectionId>:<schema.table>` when the realtime hub is wired.
  */
 
@@ -15,7 +15,7 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { overridesRepo, snapshotsRepo, type MetaDb, type RecordRef } from '@adminium/meta';
 import type { DatabaseModel, Dialect } from '@adminium/engine';
-import type { Kysely, Transaction } from 'kysely';
+import type { Kysely } from 'kysely';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
@@ -47,6 +47,19 @@ import {
 import type { FileReconciler } from '../../files/reconcile.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
 import {
+  createWriteService,
+  deleteRows,
+  insertRows,
+  requestWriteContext,
+  updateRows,
+  type PreparedRow,
+  type RecordWriteService,
+  type WriteAction,
+  type WriteContext,
+  type WriteTarget,
+  type WrittenRow,
+} from '../../crud/write-service.js';
+import {
   dataRecordParams,
   dataTableParams,
   recordBulkBody,
@@ -67,6 +80,19 @@ import {
 
 type TableAction = 'read' | 'create' | 'update' | 'delete';
 
+/** What an undo does to the rows: a deleted row comes back, a created one goes. */
+const UNDO_WRITE: Record<UndoAction, WriteAction> = { create: 'delete', update: 'update', delete: 'create' };
+
+/**
+ * The columns a bulk update changed. Hooks may add columns to some rows, and
+ * the undo must put every one of them back.
+ */
+function changedColumns(values: Row, prepared: readonly PreparedRow[]): string[] {
+  const columns = new Set(Object.keys(values));
+  for (const row of prepared) for (const key of Object.keys(row.values)) columns.add(key);
+  return [...columns];
+}
+
 export interface DataRoutesDeps {
   manager: ConnectionManager;
   meta: MetaDb;
@@ -74,11 +100,13 @@ export interface DataRoutesDeps {
   undoStore?: UndoStore | undefined;
   /**
    * Keeps `adminium_files` in step with what the customer's own file columns
-   * say (37-files-and-storage.md §3.7). ABSENT ⇒ no file behaviour at all,
-   * which is what every test that predates 37 gets and is why they are
-   * unchanged: a store with no file columns configured reconciles nothing.
+   * say. ABSENT ⇒ no file behaviour at all, which is what every test that
+   * predates 37 gets and is why they are unchanged: a store with no file
+   * columns configured reconciles nothing.
    */
   files?: FileReconciler | undefined;
+  /** Where every write goes, with the project's hooks. A service with no hooks otherwise. */
+  writes?: RecordWriteService | undefined;
 }
 
 interface DataContext {
@@ -88,9 +116,11 @@ interface DataContext {
   db: Kysely<SourceDatabase>;
   dialect: Dialect;
   unmasked: boolean;
+  target: WriteTarget;
 }
 
-/** PG SQLSTATE / MySQL errno symbol / SQLite message → §1.4 envelope codes for inline form errors (§2.7.2). */
+/** PG SQLSTATE / MySQL errno symbol / SQLite message → envelope codes for
+ * inline form errors. */
 export function mapDbError(error: unknown): never {
   const dbError = error as { code?: string; detail?: string; constraint?: string; message?: string };
   const message = typeof dbError.message === 'string' ? dbError.message : '';
@@ -120,65 +150,13 @@ export function mapDbError(error: unknown): never {
   throw error as Error;
 }
 
-/**
- * INSERT one row and return the STORED row (defaults resolved), per dialect.
- *
- * Postgres and SQLite do it in one round trip with `RETURNING *`. MySQL has
- * no RETURNING — kysely's MysqlQueryCompiler still compiles the clause, so
- * `.returningAll()` dies with ER_PARSE_ERROR 1064 ("near 'returning *'"),
- * which 500'd every generated-app create on mysql (e2e c5). Instead, insert
- * bare and re-select by key (05 §4.2, mirrored by the adapter-mysql live
- * suite): prefer the CLIENT-PROVIDED PK values whenever the payload carries
- * them — provided keys cover char/uuid PKs (northwind customers, char(5))
- * and composite PKs (order_details) where `LAST_INSERT_ID()` is 0 — and fall
- * back to the driver's `insertId` only for a single missing auto-increment
- * column. A NULL PK value counts as "not provided": that is mysql's own
- * "generate it" spelling. If the new row is unaddressable (multi-column
- * DB-generated key, non-auto default), echo the payload rather than guess.
- */
-export async function insertRow(
-  db: Kysely<SourceDatabase>,
-  dialect: Dialect,
-  table: ResolvedTable,
-  values: Row,
-): Promise<Row> {
-  if (dialect !== 'mysql') {
-    return (await db
-      .insertInto(table.id)
-      .values(values as never)
-      .returningAll()
-      .executeTakeFirstOrThrow()) as Row;
-  }
-  const result = await db
-    .insertInto(table.id)
-    .values(values as never)
-    .executeTakeFirstOrThrow();
-  const pk: Row = {};
-  const missing: string[] = [];
-  for (const name of table.primaryKey) {
-    const provided = values[name];
-    if (provided === undefined || provided === null) missing.push(name);
-    else pk[name] = provided;
-  }
-  if (missing.length > 0) {
-    // kysely's mysql driver leaves insertId undefined when the packet
-    // reports 0 (i.e. no auto-increment column took part in this insert).
-    const insertId = result.insertId;
-    if (missing.length > 1 || insertId === undefined || insertId <= 0n) {
-      return { ...values };
-    }
-    // Bind as a plain number while it is exactly representable (the driver
-    // returns bigint); past 2^53 fall back to the decimal string — mysql
-    // still resolves the PK lookup over an implicit conversion.
-    pk[missing[0] as string] =
-      insertId <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(insertId) : insertId.toString();
-  }
-  return (await fetchByPk(db, table, pk)) ?? { ...values };
-}
+/** The row primitive now lives with every other source write. */
+export { insertRow } from '../../crud/write-service.js';
 
 export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
   const { manager, meta } = deps;
   const undoStore = deps.undoStore ?? new UndoStore();
+  const writes = deps.writes ?? createWriteService();
   const snapshots = snapshotsRepo(meta);
   const overrides = overridesRepo(meta);
   const viewCache = new Map<string, { stamp: string; view: SnapshotView }>();
@@ -211,7 +189,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       };
       const connection = await manager.mustFind(connectionId);
       const view = await viewFor(connectionId);
-      // Identifier resolution FIRST, then RBAC on the resolved name (§5.2).
+      // Identifier resolution FIRST, then RBAC on the resolved name.
       const table = view.table(tableParam);
       const permission = `table:${connectionId}:${table.id}:${action}`;
       if (!(await request.can(permission))) {
@@ -244,13 +222,21 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       // The row is already in hand from `mustFind` above — passing it spares
       // this path a second primary-key read on every CRUD request.
       const { db, dialect } = await manager.data(connection);
-      return { connectionId, view, table, db, dialect, unmasked: await canReadPii(request) };
+      return {
+        connectionId,
+        view,
+        table,
+        db,
+        dialect,
+        unmasked: await canReadPii(request),
+        target: { connectionId, view, table, db, dialect },
+      };
     }
 
     /**
      * Refuse a write whose file columns do not hold what they are configured
-     * to hold (38 D5) — a `multiple` column handed a non-array, or a list past
-     * the column's `maxCount`.
+     * to hold — a `multiple` column handed a non-array, or a list past the
+     * column's `maxCount`.
      *
      * PRE-COMMIT, and it is the only file check that can be: the reconcile
      * hook runs after the row is written and is forbidden from throwing, so a
@@ -323,8 +309,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     /**
      * Every single-row write ends here, and here is now a thin call into
      * `crud/after-record-write.ts` — the body moved out so the bulk route,
-     * the public surface and the automation runner reach the same downstream
-     * (42 §3.3). What stays is the origin: a write made through this route is
+     * the public surface and the automation runner reach the same downstream.
+     * What stays is the origin: a write made through this route is
      * `dashboard`, which is the origin whose rules wait out the undo window.
      */
     async function afterMutation(
@@ -355,7 +341,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       before: Row[],
       after: Row[],
       changedColumns: string[] = [],
-      /** Files trashed alongside this write; the undo restores them (37 D12). */
+      /** Files trashed alongside this write; the undo restores them. */
       fileIds: string[] = [],
     ): string | null {
       const userId = principalId(request);
@@ -394,10 +380,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
 
     /**
      * Resolve `lookup=`, `agg=` and `compute=` for one request through the
-     * shared resolver (crud/projections.ts, 41-export-builder.md D2) and audit
-     * every refused projection (D16). The export preview and the export job
-     * call the same resolver, so the per-reached-table permission decision is
-     * made in one place for every reader of a row.
+     * shared resolver (crud/projections.ts) and audit every refused projection
+     * (D16). The export preview and the export job call the same resolver, so
+     * the per-reached-table permission decision is made in one place for every
+     * reader of a row.
      */
     async function projectionsFor(
       request: FastifyRequest,
@@ -505,9 +491,15 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         const view = await viewFor(entry.connectionId);
         const table = view.table(entry.tableId);
-        const { db } = await manager.data(entry.connectionId);
-        const restoredIds = await executeUndo(db, table, entry);
-        // The record is back; so are its files (37 D12). Before the audit row,
+        const { db, dialect } = await manager.data(entry.connectionId);
+        const target: WriteTarget = { connectionId: entry.connectionId, view, table, db, dialect };
+        const context = requestWriteContext(request, 'undo');
+        const hookAction = UNDO_WRITE[entry.action];
+        // Before hooks judge the restore like any other write, before the
+        // transaction opens (see crud/write-service.ts).
+        const prepared = await writes.beforeEach(hookAction, target, context, undoRows(entry));
+        const { restored: restoredIds, written } = await executeUndo(target, entry, prepared, context);
+        // The record is back; so are its files. Before the audit row,
         // so a partial restore is visible in the same entry that claims it.
         if (entry.fileIds.length > 0 && deps.files !== undefined) {
           await deps.files.restoreAll(entry.fileIds);
@@ -542,70 +534,98 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             })),
           );
         }
+        await writes.afterEach(hookAction, target, context, written);
         return { restoredIds };
       },
     );
 
+    /**
+     * The rows an undo writes, in the order `executeUndo` writes them: the
+     * deleted rows go back, an update's changed columns go back, and created
+     * rows go away.
+     */
+    function undoRows(entry: UndoEntry): { match?: Row; values: Row }[] {
+      const pkOf = (row: Row): Row => Object.fromEntries(entry.pkColumns.map((c) => [c, row[c]]));
+      if (entry.action === 'delete') return entry.before.map((before) => ({ values: before }));
+      if (entry.action === 'update') {
+        const columns = undoColumns(entry);
+        return entry.before.map((before) => ({
+          match: pkOf(before),
+          values: Object.fromEntries(columns.map((c) => [c, before[c]])),
+        }));
+      }
+      return entry.after.map((after) => ({ match: pkOf(after), values: {} }));
+    }
+
+    function undoColumns(entry: UndoEntry): string[] {
+      return entry.changedColumns.length > 0 ? entry.changedColumns : Object.keys(entry.after[0] ?? {});
+    }
+
     async function executeUndo(
-      db: Kysely<SourceDatabase>,
-      table: ResolvedTable,
+      target: WriteTarget,
       entry: UndoEntry,
-    ): Promise<unknown[]> {
+      prepared: PreparedRow[],
+      context: WriteContext,
+    ): Promise<{ restored: unknown[]; written: WrittenRow[] }> {
+      const { table } = target;
       const pkOf = (row: Row): Row => Object.fromEntries(entry.pkColumns.map((c) => [c, row[c]]));
       const conflict = (): never => {
         throw new ConflictError('Rows changed since the mutation — undo aborted.', 'CONFLICT', {
           code: 'UNDO_CONFLICT',
         });
       };
-      return db.transaction().execute(async (trx: Transaction<SourceDatabase>) => {
+      const outcome = await target.db.transaction().execute(async (trx) => {
+        const tdb = trx as unknown as Kysely<SourceDatabase>;
         const restored: unknown[] = [];
+        const written: { pk: Row; before: Row | null; record: Row | null }[] = [];
         if (entry.action === 'delete') {
-          // Restore rows with their ORIGINAL PKs (§2.7.3 step 4).
-          for (const before of entry.before) {
-            const existing = await fetchByPk(trx as unknown as Kysely<SourceDatabase>, table, pkOf(before));
+          // Restore rows with their ORIGINAL PKs.
+          for (const [i, before] of entry.before.entries()) {
+            const existing = await fetchByPk(tdb, table, pkOf(before));
             if (existing !== undefined) conflict();
-            await trx
-              .insertInto(table.id)
-              .values(before as never)
-              .execute();
+            await insertRows(tdb, table, [prepared[i]?.values ?? before]);
             restored.push(pkLabel(table, pkOf(before)));
+            written.push({ pk: pkOf(before), before: null, record: null });
           }
-          return restored;
+          return { restored, written };
         }
         if (entry.action === 'update') {
-          const compareColumns =
-            entry.changedColumns.length > 0 ? entry.changedColumns : Object.keys(entry.after[0] ?? {});
+          const compareColumns = undoColumns(entry);
           for (let i = 0; i < entry.before.length; i += 1) {
             const before = entry.before[i] as Row;
             const after = entry.after[i] as Row;
             const pk = pkOf(before);
-            const current = await fetchByPk(trx as unknown as Kysely<SourceDatabase>, table, pk);
+            const current = await fetchByPk(tdb, table, pk);
             if (current === undefined || !rowsEqual(current, after, compareColumns)) conflict();
-            const restoreValues = Object.fromEntries(compareColumns.map((c) => [c, before[c]]));
-            let qb = trx.updateTable(table.id).set(restoreValues as never);
-            for (const [column, value] of Object.entries(pk)) {
-              qb = qb.where((eb) => eb(trx.dynamic.ref(column), '=', value));
-            }
-            await qb.execute();
+            const restoreValues =
+              prepared[i]?.values ?? Object.fromEntries(compareColumns.map((c) => [c, before[c]]));
+            await updateRows(tdb, table, restoreValues, pk);
             restored.push(pkLabel(table, pk));
+            written.push({ pk, before: current ?? null, record: null });
           }
-          return restored;
+          return { restored, written };
         }
         // create undo: delete the inserted rows if untouched.
         for (const after of entry.after) {
           const pk = pkOf(after);
-          const current = await fetchByPk(trx as unknown as Kysely<SourceDatabase>, table, pk);
+          const current = await fetchByPk(tdb, table, pk);
           if (current === undefined) continue; // already gone
           if (!rowsEqual(current, after, Object.keys(after))) conflict();
-          let qb = trx.deleteFrom(table.id);
-          for (const [column, value] of Object.entries(pk)) {
-            qb = qb.where((eb) => eb(trx.dynamic.ref(column), '=', value));
-          }
-          await qb.execute();
+          await deleteRows(tdb, table, pk);
           restored.push(pkLabel(table, pk));
+          written.push({ pk, before: null, record: current });
         }
-        return restored;
+        return { restored, written };
       });
+      // The rows as they stand now, for after hooks — read only when one runs.
+      const written: WrittenRow[] = [];
+      if (outcome.written.length > 0 && (await writes.wants('after', UNDO_WRITE[entry.action], target, context))) {
+        for (const row of outcome.written) {
+          const record = row.record ?? (await fetchByPk(target.db, table, row.pk));
+          if (record !== undefined) written.push({ record, before: row.before });
+        }
+      }
+      return { restored: outcome.restored, written };
     }
 
     // --- bulk (static segment) --------------------------------------------------
@@ -617,6 +637,15 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const action = request.body.action;
         const ctx = await contextFor(request, action);
         const values = action === 'update' ? allowlistValues(ctx, request.body.values ?? {}) : null;
+        const context = requestWriteContext(request, 'bulk');
+        const pks = request.body.ids.map((id) => pkFromLoose(ctx.table, id));
+        // Before hooks for every row, before the transaction opens.
+        const prepared = await writes.beforeEach(
+          action,
+          ctx.target,
+          context,
+          pks.map((pk) => ({ match: pk, values: values ?? {} })),
+        );
         const results: { id: unknown; ok: boolean; error?: string }[] = [];
         const beforeImages: Row[] = [];
         const afterImages: Row[] = [];
@@ -630,8 +659,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
 
         await ctx.db.transaction().execute(async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
-          for (const id of request.body.ids) {
-            const pk = pkFromLoose(ctx.table, id);
+          for (const [i, id] of request.body.ids.entries()) {
+            const pk = pks[i] as Row;
             const before = await fetchByPk(tdb, ctx.table, pk);
             if (before === undefined) {
               results.push({ id, ok: false, error: 'NOT_FOUND' });
@@ -639,19 +668,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             }
             try {
               if (action === 'delete') {
-                let qb = trx.deleteFrom(ctx.table.id);
-                for (const [column, value] of Object.entries(pk)) {
-                  qb = qb.where((eb) => eb(trx.dynamic.ref(column), '=', value));
-                }
-                await qb.execute();
+                await deleteRows(tdb, ctx.table, pk);
                 beforeImages.push(before);
                 events.push({ pk, before, after: null });
               } else {
-                let qb = trx.updateTable(ctx.table.id).set(values as never);
-                for (const [column, value] of Object.entries(pk)) {
-                  qb = qb.where((eb) => eb(trx.dynamic.ref(column), '=', value));
-                }
-                await qb.execute();
+                await updateRows(tdb, ctx.table, prepared[i]?.values ?? (values as Row), pk);
                 const after = await fetchByPk(tdb, ctx.table, pk);
                 beforeImages.push(before);
                 if (after !== undefined) afterImages.push(after);
@@ -674,7 +695,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 action,
                 beforeImages,
                 afterImages,
-                action === 'update' && values !== null ? Object.keys(values) : [],
+                action === 'update' && values !== null ? changedColumns(values, prepared) : [],
               );
         await app.rbac.audit(request, {
           category: 'data',
@@ -702,6 +723,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             origin: 'bulk',
           });
         }
+        await writes.afterEach(
+          action,
+          ctx.target,
+          context,
+          events.map((event) =>
+            action === 'delete'
+              ? { record: event.before, before: null }
+              : { record: event.after ?? event.before, before: event.before },
+          ),
+        );
         return { results, undoToken };
       },
     );
@@ -760,15 +791,19 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const ctx = await contextFor(request, 'create');
         const values = allowlistValues(ctx, request.body.values);
         await assertFileColumns(ctx, values);
-        let inserted: Row;
-        try {
-          inserted = await insertRow(ctx.db, ctx.dialect, ctx.table, values);
-        } catch (error) {
-          mapDbError(error);
-        }
-        const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
-        const undoToken = issueUndo(request, ctx, 'create', [], [inserted]);
-        await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, inserted);
+        let undoToken: string | null = null;
+        const inserted = await writes.create({
+          target: ctx.target,
+          values,
+          context: requestWriteContext(request, 'dashboard'),
+          recheck: (final) => assertFileColumns(ctx, final),
+          mapError: mapDbError,
+          announce: async (row) => {
+            const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
+            undoToken = issueUndo(request, ctx, 'create', [], [row]);
+            await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, row);
+          },
+        });
         return reply.status(201).send({ data: maskRow(inserted, ctx.table, ctx.unmasked), undoToken });
       },
     );
@@ -785,20 +820,23 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         await assertFileColumns(ctx, values);
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
-        try {
-          let qb = ctx.db.updateTable(ctx.table.id).set(values as never);
-          for (const [column, value] of Object.entries(pk)) {
-            qb = qb.where((eb) => eb(ctx.db.dynamic.ref(column), '=', value));
-          }
-          await qb.execute();
-        } catch (error) {
-          mapDbError(error);
-        }
-        const after = (await fetchByPk(ctx.db, ctx.table, pk)) ?? before;
-        const undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(values));
-        await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
-        // Masked columns may be written but are never echoed back (§2.7.2).
-        return { data: maskRow(after, ctx.table, ctx.unmasked), undoToken };
+        let undoToken: string | null = null;
+        const outcome = await writes.update({
+          target: ctx.target,
+          pk,
+          values,
+          before,
+          context: requestWriteContext(request, 'dashboard'),
+          recheck: (final) => assertFileColumns(ctx, final),
+          mapError: mapDbError,
+          announce: async (result) => {
+            const after = result.after ?? before;
+            undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values));
+            await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
+          },
+        });
+        // Masked columns may be written but are never echoed back.
+        return { data: maskRow(outcome.after ?? before, ctx.table, ctx.unmasked), undoToken };
       },
     );
 
@@ -819,7 +857,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const references: ReferenceCount[] = await referenceCounts(ctx.db, ctx.view, ctx.table, pk);
         const inbound = references.reduce((sum, r) => sum + r.count, 0);
         if (request.query.dryRun === true) {
-          // No write happens — cascade-modal payload (§2.7.2).
+          // No write happens — cascade-modal payload.
           return { references, requiresConfirm: inbound > 0 };
         }
         if (inbound > 0 && request.query.confirm !== true) {
@@ -829,23 +867,24 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             { references },
           );
         }
-        try {
-          let qb = ctx.db.deleteFrom(ctx.table.id);
-          for (const [column, value] of Object.entries(pk)) {
-            qb = qb.where((eb) => eb(ctx.db.dynamic.ref(column), '=', value));
-          }
-          await qb.execute();
-        } catch (error) {
-          mapDbError(error);
-        }
-        const entity = recordRef(ctx, pk);
-        // The record is gone; its files go with it (37 D12) — sidecar
-        // attachments AND anything its file columns named. Trashed, not
-        // deleted, so the 60 s undo below can put them back and the retention
-        // sweep owns the bytes.
-        const trashedFileIds = await trashRecordFiles(ctx, entity, before);
-        const undoToken = issueUndo(request, ctx, 'delete', [before], [], [], trashedFileIds);
-        await afterMutation(request, ctx, 'delete', entity, before, null);
+        let undoToken: string | null = null;
+        await writes.delete({
+          target: ctx.target,
+          pk,
+          before,
+          context: requestWriteContext(request, 'dashboard'),
+          mapError: mapDbError,
+          announce: async () => {
+            const entity = recordRef(ctx, pk);
+            // The record is gone; its files go with it — sidecar
+            // attachments AND anything its file columns named. Trashed, not
+            // deleted, so the 60 s undo below can put them back and the
+            // retention sweep owns the bytes.
+            const trashedFileIds = await trashRecordFiles(ctx, entity, before);
+            undoToken = issueUndo(request, ctx, 'delete', [before], [], [], trashedFileIds);
+            await afterMutation(request, ctx, 'delete', entity, before, null);
+          },
+        });
         return { data: maskRow(before, ctx.table, ctx.unmasked), undoToken };
       },
     );

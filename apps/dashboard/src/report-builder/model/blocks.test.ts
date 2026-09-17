@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The block vocabulary and the pure edits (43-report-builder.md 43-T04,
- * Appendix B; D13, D17).
+ * The block vocabulary and the pure edits.
  *
  * The assertions that carry the wave:
  *
@@ -167,7 +166,7 @@ describe('the stack (D17 — two reorder algorithms)', () => {
     expect(ids(reorderBlock(body, 0, 4))).toEqual(['b1', 'b2', 'b3', 'b0']);
   });
 
-  it('show: false never removes or re-orders — the stack is the whole array (§0.3 trap 2)', () => {
+  it('show: false never removes or re-orders — the stack is the whole array (trap 2)', () => {
     const body = bodyOf('text', 'kpi', 'bar');
     const dimmed = patchBlock(body, 'b1', { show: false });
     expect(ids(dimmed)).toEqual(['b0', 'b1', 'b2']);

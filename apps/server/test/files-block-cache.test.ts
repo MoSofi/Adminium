@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The block cache and the page write that has to drop it
- * (38-files-library-and-attachments.md D8, 38-T03).
+ * The block cache and the page write that has to drop it.
  *
  * ─── The defect this file exists for, live since 37c ───────────────────────
  *
@@ -78,7 +77,7 @@ interface Harness {
   pageId: string;
 }
 
-describe('a page save is visible to the very next upload (38 D8)', () => {
+describe('a page save is visible to the very next upload', () => {
   let t: Harness;
   let dataDir: string;
 

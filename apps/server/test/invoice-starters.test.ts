@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The seeded document, the twelve starters and the envelope
- * (34-invoices-add-on.md Appendix G, Appendix D.2, §3.9; 34-T46).
+ * (.2).
  *
- * The assertions with teeth: every seeded string is swept for the 17 §2
+ * The assertions with teeth: every seeded string is swept for the
  * substrings and for the vendor's name (seeded copy ships in a real row on
  * first use, and Appendix D.2's standing rule says no starter names
  * Adminium, a real company, or a subscription/seat/credit line item); the
  * standard starter's total is the fixture's first case, so the seed and the
- * law agree; and the two 34 O18 caps refuse with a code that names the
- * field.
+ * law agree; and the two caps refuse with a code that names the field.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -33,7 +32,7 @@ import { TEMPLATE_NUMBER, nextInvoiceNumber } from '../src/invoices/numbering.js
 import { STARTER_KEYS, baseBody, blankBody, isInvoiceStarterKey, renderStarter, starterCards, type StarterContext } from '../src/invoices/starters.js';
 import { summaryOf } from '../src/invoices/summary.js';
 
-/** 17 §2's grep, verbatim: substrings, case-insensitive. */
+/** The grep, verbatim: substrings, case-insensitive. */
 const TRAP_RE = /pricing|plan|tier|billing|upgrade|\/mo|free/i;
 
 const NOW = Date.UTC(2026, 6, 12, 9, 30); // Jul 12, 2026
@@ -58,7 +57,7 @@ describe('the seeded document and the twelve starters (Appendix G, D.2)', () => 
     expect(isInvoiceStarterKey('late-reminder')).toBe(false);
   });
 
-  it('no seeded string trips the 17 §2 sweep or names the vendor (Appendix D.2’s standing rule)', () => {
+  it('no seeded string trips the sweep or names the vendor (Appendix D.2’s standing rule)', () => {
     const documents = [baseBody(CTX), blankBody(CTX), ...STARTER_KEYS.map((key) => renderStarter(key, CTX).body)];
     for (const [index, body] of documents.entries()) {
       const text = JSON.stringify(body);

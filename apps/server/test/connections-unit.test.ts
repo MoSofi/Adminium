@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline unit tests for the connections layer: DSN parsing/masking, the §7
- * item-2 SSRF guard, same-database detection, the two 01 §3.1 meta-store
- * refusals (placement + prefix collision), adapter-module provider discovery,
- * and the DSN crypto closures.
+ * Offline unit tests for the connections layer: DSN parsing/masking, the
+ * item-2 SSRF guard, same-database detection, the two meta-store refusals
+ * (placement + prefix collision), adapter-module provider discovery, and the
+ * DSN crypto closures.
  */
 
 import BetterSqlite3 from 'better-sqlite3';
@@ -44,7 +44,7 @@ describe('parseDsn / maskDsn', () => {
     expect(maskDsn('sqlite:/data/app.db')).toBe('sqlite:/data/app.db');
   });
 
-  it('rejects schemes outside the allowlist (§7 item 2)', () => {
+  it('rejects schemes outside the allowlist', () => {
     for (const dsn of ['http://x/y', 'gopher://x', 'mongodb://h/db']) {
       expect(() => parseDsn(dsn)).toThrow('Unsupported DSN scheme');
     }
@@ -123,7 +123,7 @@ function summary(privileges: { canWrite: boolean; canDDL: boolean }): Connection
   };
 }
 
-describe('meta-placement enforcement (01 §3.1)', () => {
+describe('meta-placement enforcement', () => {
   const crypto = dsnCryptoFromSecret('unit-test-secret');
   const fakeMeta = { db: null, dialect: 'sqlite' } as never;
   const dataDsn = 'postgres://app@db.local:5432/prod';
@@ -169,7 +169,7 @@ describe('meta-placement enforcement (01 §3.1)', () => {
   });
 });
 
-describe('meta prefix-collision pre-flight (01 §3.1)', () => {
+describe('meta prefix-collision pre-flight', () => {
   const crypto = dsnCryptoFromSecret('unit-test-secret');
   const META_DSN = 'postgres://meta@db.local:5432/shared';
 
@@ -249,7 +249,7 @@ describe('meta prefix-collision pre-flight (01 §3.1)', () => {
 
   it('ignores tables outside the adminium_ namespace', async () => {
     // Pointing the meta store at a database that also holds the user's own
-    // tables is legitimate — that is the §3.1 same-db placement the wizard
+    // tables is legitimate — that is the same-db placement the wizard
     // offers. Only the `adminium_` namespace is Adminium's to claim.
     const meta = emptyStore();
     for (const table of ['customers', 'orders', 'admin_users']) {

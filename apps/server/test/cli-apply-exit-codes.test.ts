@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `apply-llm-response` exit codes — 06-llm-assist.md §10.4:
+ * `apply-llm-response` exit codes:
  *
  *   "`--dry-run` prints the same per-path validation errors and diff rows the UI
  *    shows. Exit codes: `0` applied, `2` validation failed, `3` nothing accepted."
@@ -153,7 +153,7 @@ describe('exit 2 — validation failed', () => {
     expect(runtime.applyService.applyRun).not.toHaveBeenCalled();
   });
 
-  it('prints the per-path errors the UI shows (§10.4)', async () => {
+  it('prints the per-path errors the UI shows', async () => {
     const runtime = fakeRuntime();
     runtime.runService.getRun.mockResolvedValue(awaitingRun);
     runtime.promptService.loadLatestModel.mockResolvedValue({ snapshotId: 'snap_1', model: {} });
@@ -245,7 +245,7 @@ describe('--dry-run applies nothing', () => {
     expect(io.stdout()).toContain('would apply 1');
   });
 
-  it('prints the same diff rows a real apply would (§10.4)', async () => {
+  it('prints the same diff rows a real apply would', async () => {
     const rows = [diffRow({ id: 'a', confidence: 0.9 })];
     const dryIo = fakeIo();
     await runCli(argv('--dry-run'), {
@@ -270,7 +270,7 @@ describe('--dry-run applies nothing', () => {
 
 // ── the shared selector the threshold rides on ───────────────────────────────
 
-describe('selectAcceptedByConfidence — shared with the review screen (§8.2/§10.3)', () => {
+describe('selectAcceptedByConfidence — shared with the review screen', () => {
   it('accepts actionable rows at or above the threshold (inclusive)', () => {
     const diff = [
       diffRow({ id: 'exact', confidence: 0.8 }),

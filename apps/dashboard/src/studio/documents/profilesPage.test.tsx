@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `/studio/documents` — §3.7 step 4 (a value typed here) and step 8 (draw one
- * from a row), plus the way back into a saved mapping that both of them need
- * (34-invoices-add-on.md §3.7; 34-T14).
+ * `/studio/documents` — (a value typed here) and step 8 (draw one from a
+ * row), plus the way back into a saved mapping that both of them need.
  *
  * ─── WHAT ONLY A RENDERED TEST CAN SEE ─────────────────────────────────────
  *
@@ -42,7 +41,7 @@ vi.mock('./api.js', async (importOriginal) => ({
 const sources = vi.hoisted(() => vi.fn());
 vi.mock('../../automations/api.js', () => ({ automationsApi: { sources: () => sources() } }));
 
-/* §3.7 step 6 asks the deployment whether it can send anything at all. */
+/* Step 6 asks the deployment whether it can send anything at all. */
 const capabilities = vi.hoisted(() => ({ smtpConfigured: true }));
 vi.mock('../../app/capabilities.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../app/capabilities.js')>()),
@@ -122,7 +121,7 @@ const SOURCES = {
            * Two children, and the UNTAGGED one is listed second rather than
            * dropped: the engine's `line-items` rule needs two foreign keys plus
            * qty × rate numerics, so a one-FK child like `invoice_items` never
-           * carries the tag and still has to be pickable (§3.7).
+           * carries the tag and still has to be pickable.
            */
           children: [
             { table: 'public.invoice_items', column: 'invoice_id', lineItems: false },
@@ -189,7 +188,7 @@ beforeEach(() => {
   updateProfile.mockResolvedValue(PROFILE);
 });
 
-describe('a value typed into the mapping (§3.7 step 4)', () => {
+describe('a value typed into the mapping', () => {
   it('offers "a value I type" on an optional slot and sends what was typed', async () => {
     const user = userEvent.setup();
     mount();
@@ -245,7 +244,7 @@ describe('a value typed into the mapping (§3.7 step 4)', () => {
   });
 });
 
-describe('emailing the document (§3.7 step 6)', () => {
+describe('emailing the document', () => {
   async function openEditor() {
     const user = userEvent.setup();
     mount();
@@ -300,7 +299,7 @@ describe('emailing the document (§3.7 step 6)', () => {
   });
 });
 
-describe('the child-table picker for a collection (§3.7 step 3)', () => {
+describe('the child-table picker for a collection', () => {
   async function openEditorOnOrders() {
     const user = userEvent.setup();
     mount();
@@ -316,7 +315,7 @@ describe('the child-table picker for a collection (§3.7 step 3)', () => {
 
     // "No lines", then the tagged child, then the untagged one. If the tag
     // filtered instead of sorted, `invoice_items` would not be here at all —
-    // and that is the one §3.7 names by name.
+    // and that is the one names by name.
     expect(options[0]).toContain('No lines');
     expect(options[1]).toContain('Order lines');
     expect(options[1]).toContain('looks like lines');
@@ -441,7 +440,7 @@ describe('a saved mapping can be opened again', () => {
   });
 });
 
-describe('drawing one from a row (§3.7 step 8)', () => {
+describe('drawing one from a row', () => {
   it('hands the picker the SAVED mapping when there is one', async () => {
     fetchProfiles.mockResolvedValue([PROFILE]);
     const user = userEvent.setup();

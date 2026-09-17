@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/api/v1/documents` (34-invoices-add-on.md §7.5; 34-T12).
+ * `/api/v1/documents`.
  *
  * ─── The question this file exists to ask ──────────────────────────────────
  *
@@ -160,7 +160,7 @@ describe('every documents route declares a guard', () => {
     await probe.close();
   });
 
-  it('serves every route §7.5 specifies', async () => {
+  it('serves every route specifies', async () => {
     const meta = await freshMeta();
     const Fastify = (await import('fastify')).default;
     const zod = await import('fastify-type-provider-zod');
@@ -202,7 +202,7 @@ describe('every documents route declares a guard', () => {
 
 describe('saving a mapping with a trigger writes its rule', () => {
   /*
-   * §3.7's last line, under D55. The module's own lifecycle is covered in
+   * The last line, under D55. The module's own lifecycle is covered in
    * `documents/trigger-sync.test.ts`; what is asked HERE is whether the route
    * calls it and puts the id back — the join that makes a mapping saved in
    * Studio actually fire.

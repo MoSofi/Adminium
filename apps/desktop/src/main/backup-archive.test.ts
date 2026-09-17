@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Reading and unpacking a §9 archive (11-electron.md §9), from the main process.
+ * Reading and unpacking a archive, from the main process.
  *
  * The suite is written against the ATTACK and the ACCIDENT, not the happy path,
  * because this module is the one place in the shell that opens a file a user
- * double-clicked — §2.2 step 1 forwards a launch argument straight here, and
- * that file may have come from an email.
+ * double-clicked — forwards a launch argument straight here, and that file may
+ * have come from an email.
  *
- * The three claims §9 makes, each pinned independently:
+ * The three claims makes, each pinned independently:
  *   1. checksums are verified BEFORE any data moves;
  *   2. a backup newer than the app is REFUSED ("Update Adminium first"), and an
  *      older one is accepted so the migration runner can fast-forward it;
@@ -47,7 +47,7 @@ interface BuildOptions {
   omitManifest?: boolean;
 }
 
-/** A real §9 archive, byte-for-byte the shape `createBackup` writes. */
+/** A real archive, byte-for-byte the shape `createBackup` writes. */
 function buildArchive(opts: BuildOptions = {}): Uint8Array {
   const metaBytes = opts.metaBytes ?? strToU8('SQLite format 3\x00 pretend meta store');
   const databases = opts.databases ?? [{ slug: 'orders', bytes: strToU8('pretend orders db') }];
@@ -137,7 +137,7 @@ function memoryFs(): FsDeps & { writes: Map<string, Uint8Array>; renames: [strin
   };
 }
 
-// ─── Validation (§9) ─────────────────────────────────────────────────────────
+// ─── Validation ──────────────────────────────────────────────────────────────
 
 describe('validateArchive', () => {
   it('accepts a well-formed archive from the same version', async () => {
@@ -148,9 +148,9 @@ describe('validateArchive', () => {
   });
 
   it('accepts an OLDER backup so the migration runner can fast-forward it', async () => {
-    // §9: "the migration runner fast-forwards an older backup". This is the
-    // normal case — restoring last month's backup into this month's build — and
-    // it needs no code beyond `start()` running after the unpack.
+    // "the migration runner fast-forwards an older backup". This is the normal
+    // case — restoring last month's backup into this month's build — and it
+    // needs no code beyond `start()` running after the unpack.
     const archive = await validate(
       buildArchive({
         manifest: (base) => ({ ...base, metaMigrationVersion: '0007_llm_runs' }),
@@ -160,7 +160,7 @@ describe('validateArchive', () => {
   });
 
   it('REFUSES a backup whose metaMigrationVersion is newer, with actionable copy', async () => {
-    // §9's hard rule. Restoring it would run an incomplete migration set over a
+    // The hard rule. Restoring it would run an incomplete migration set over a
     // schema this build has never seen.
     const promise = validate(
       buildArchive({
@@ -227,7 +227,7 @@ describe('validateArchive', () => {
   });
 
   it('detects a corrupted meta.db', async () => {
-    // §9's example manifest has no checksum for meta.db. This is why it needs
+    // The example manifest has no checksum for meta.db. This is why it needs
     // one: an archive whose source DBs verify and whose meta.db is damaged would
     // pass validation and then destroy the install.
     const promise = validate(
@@ -325,7 +325,7 @@ describe('validateArchive — the restore must be able to land correctly', () =>
   it('REFUSES a database that was opened in place, rather than silently restoring the wrong one', async () => {
     // ── THE SILENT-CORRUPTION GUARD.
     //
-    // §6 step 2 card 2 registers a file where it lies: `sqlite:/Users/me/
+    // The wizard registers a file where it lies: `sqlite:/Users/me/
     // archive/data.sqlite`. The backup writes it to `databases/data.sqlite`
     // (the slug comes from the BASENAME), and the restore writes that member to
     // `<dataDir>/databases/data.sqlite` — because `unpackArchive` will not
@@ -353,7 +353,7 @@ describe('validateArchive — the restore must be able to land correctly', () =>
     // every restored DSN pointed at a directory that does not exist here.
     const promise = validate(buildArchive(), APP_META_VERSION, '/Users/ava/Library/Adminium/data');
     await expect(promise).rejects.toThrow(/cannot be restored onto this copy/);
-    // The remedy must be one that EXISTS. §9 claims `adminium import-zip`
+    // The remedy must be one that EXISTS. The plan claimed `adminium import-zip`
     // accepts this archive; it does not (see `server/src/backup/format.ts`'s
     // header — the CLI reads a different format that also calls itself
     // formatVersion 1), so pointing the user at it would be a dead end dressed
@@ -363,7 +363,7 @@ describe('validateArchive — the restore must be able to land correctly', () =>
   });
 
   it('accepts the ordinary case: the databases are already where this install keeps them', async () => {
-    // The restore §9's acceptance criterion names ("restore round-trips on the
+    // The restore acceptance criterion names ("restore round-trips on the
     // same version"). The guard must not cost this anything.
     const result = await validate(buildArchive());
     expect(result.databases.map((d) => d.slug)).toEqual(['orders']);
@@ -395,7 +395,7 @@ describe('compareMetaMigrationVersion', () => {
   });
 });
 
-// ─── Pre-restore safety copy (§9) ────────────────────────────────────────────
+// ─── Pre-restore safety copy ─────────────────────────────────────────────────
 
 describe('moveDataAside', () => {
   /** "There is no such file" — which for a sidecar is the ordinary case. */
@@ -422,7 +422,7 @@ describe('moveDataAside', () => {
     ]);
   });
 
-  it('never deletes anything — §9: "not deleted"', async () => {
+  it('never deletes anything: "not deleted"', async () => {
     // The module has no delete. This asserts the ABSENCE, which is the whole
     // promise the confirm dialog makes.
     const fs = memoryFs();
@@ -475,7 +475,7 @@ describe('moveDataAside', () => {
     // ordering had already moved meta.db too — and the caller then said
     // "Nothing has been changed" and restarted the server against a dataDir
     // with NO meta.db, so `firstRun` built an empty meta store and dropped the
-    // user into §6's first-run wizard with zero users and zero connections.
+    // user into first-run wizard with zero users and zero connections.
     //
     // Every rename this made must be undone before it throws, or the message
     // below is a lie.
@@ -533,7 +533,7 @@ describe('moveDataAside', () => {
   });
 });
 
-// ─── Unpack (§9) ─────────────────────────────────────────────────────────────
+// ─── Unpack ──────────────────────────────────────────────────────────────────
 
 describe('unpackArchive', () => {
   it('writes meta.db and every local database into the data dir', async () => {
@@ -547,7 +547,7 @@ describe('unpackArchive', () => {
 
   it('NEVER restores config.json — it would wipe ADMINIUM_SECRET', async () => {
     // THE most important assertion in this file. The archive's config.json is
-    // redacted (§9), so writing it back over <userData>/config.json would
+    // redacted, so writing it back over <userData>/config.json would
     // replace the master secret with `null` and make every encrypted DSN, LLM
     // key and TOTP secret in the meta.db we just restored permanently
     // unreadable. The redaction that makes the archive safe to share is exactly

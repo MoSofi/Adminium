@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 11-T12 — the §9 desktop backup, from the server side (11-electron.md §9).
+ * The desktop backup, from the server side.
  *
- * The suite is built around the claims §9 makes about an archive:
- *   1. it matches the §9 layout, and `formatVersion: 1` is FROZEN;
+ * The suite is built around the claims makes about an archive:
+ * 1. it matches the layout, and `formatVersion: 1` is FROZEN;
  *   2. every local SQLite DB is snapshotted with the ONLINE backup API — so a
  *      row committed to the WAL and never checkpointed is in the archive;
  *   3. remote PG/MySQL are listed as "external" and never dumped;
@@ -16,7 +16,7 @@
  * Claim 2 is the one worth the setup cost. A `copyFile` implementation passes
  * every OTHER assertion here — the zip has the right members, the checksums
  * match the bytes, the manifest is well-formed — and silently loses the last
- * commits. It is the exact failure §9 wrote "WAL-safe, no locking of live
+ * commits. It is the exact failure wrote "WAL-safe, no locking of live
  * writers" to prevent, and `wal-safe` below is the only thing standing between
  * that sentence and a backup nobody notices is short.
  */
@@ -125,7 +125,7 @@ async function addLocalDatabase(
   await mkdir(join(f.dir, 'databases'), { recursive: true });
 
   const db = new BetterSqlite3(path);
-  // §9's pragma block. WAL is not incidental here — it is the condition under
+  // The pragma block. WAL is not incidental here — it is the condition under
   // which a naive copy loses data.
   db.pragma('journal_mode = WAL');
   seed(db);
@@ -168,14 +168,14 @@ function redactedConfig(): Record<string, unknown> {
   };
 }
 
-// ─── The format (§9) ─────────────────────────────────────────────────────────
+// ─── The format ──────────────────────────────────────────────────────────────
 
-describe('§9 backup format', () => {
+describe('backup format', () => {
   it('freezes formatVersion at 1', () => {
-    // §9: "format frozen here as `formatVersion: 1`". The M10 CLI's import reads
+    // "format frozen here as `formatVersion: 1`". The M10 CLI's import reads
     // this number to decide whether it understands the archive at all, so
-    // bumping it is a compatibility event, not an edit. If this test fails,
-    // that is the conversation it is asking for.
+    // bumping it is a compatibility event, not an edit. If this test fails, that
+    // is the conversation it is asking for.
     expect(BACKUP_FORMAT_VERSION).toBe(1);
   });
 
@@ -264,9 +264,9 @@ describe('§9 backup format', () => {
   });
 });
 
-// ─── Redaction (§9) ──────────────────────────────────────────────────────────
+// ─── Redaction ───────────────────────────────────────────────────────────────
 
-describe('§9 secret redaction', () => {
+describe('secret redaction', () => {
   it('accepts a properly redacted config', () => {
     expect(() => {
       assertNoSecrets(redactedConfig());
@@ -287,16 +287,16 @@ describe('§9 secret redaction', () => {
 
   it('refuses a secret-shaped key nested inside the config', () => {
     // The reason the check is recursive and shape-based rather than a list of
-    // §9's two names: a future field would be invisible to a two-name check.
+    // The two names: a future field would be invisible to a two-name check.
     expect(() => {
       assertNoSecrets({ ...redactedConfig(), updates: { mode: 'notify', apiKey: 'x' } });
     }).toThrow(BackupRedactionError);
   });
 
   it('lets `secretStorage` through — it is a mode, not a secret', () => {
-    // §2.2 step 3 / §13: this field is what makes the About screen warn that
-    // ADMINIUM_SECRET is in cleartext. Dropping it would silence a security
-    // warning in the name of security.
+    // This field is what makes the About screen warn that ADMINIUM_SECRET is
+    // in cleartext. Dropping it would silence a security warning in the name
+    // of security.
     for (const mode of ['safeStorage', 'plain']) {
       expect(() => {
         assertNoSecrets({ ...redactedConfig(), secretStorage: mode });
@@ -314,9 +314,9 @@ describe('§9 secret redaction', () => {
   });
 });
 
-// ─── Rotation (§9) ───────────────────────────────────────────────────────────
+// ─── Rotation ────────────────────────────────────────────────────────────────
 
-describe('§9 rotation', () => {
+describe('rotation', () => {
   const names = (count: number): string[] =>
     Array.from({ length: count }, (_, i) =>
       backupFileName(Date.parse(`2026-07-${String(i + 1).padStart(2, '0')}T03:00:00.000Z`)),
@@ -339,7 +339,7 @@ describe('§9 rotation', () => {
   });
 
   it('never touches a file it did not write', async () => {
-    // `<dataDir>/backups` is showItemInFolder-revealed (§9), so users put things
+    // `<dataDir>/backups` is showItemInFolder-revealed, so users put things
     // in it. "Delete the oldest files" would eat them.
     const removed: string[] = [];
     const result = await rotateBackups('/data', 1, {
@@ -392,9 +392,9 @@ describe('§9 rotation', () => {
   });
 });
 
-// ─── createBackup (§9) ───────────────────────────────────────────────────────
+// ─── createBackup ────────────────────────────────────────────────────────────
 
-describe('§9 createBackup', () => {
+describe('createBackup', () => {
   let f: Fixture;
 
   beforeEach(async () => {
@@ -405,7 +405,7 @@ describe('§9 createBackup', () => {
     await f.destroy();
   });
 
-  it('writes the §9 layout: manifest, meta.db, config.json, databases/<slug>.sqlite', async () => {
+  it('writes the layout: manifest, meta.db, config.json, databases/<slug>.sqlite', async () => {
     await addLocalDatabase(f, 'orders', (db) => {
       db.exec('CREATE TABLE orders (id INTEGER PRIMARY KEY, total REAL)');
       db.exec('INSERT INTO orders (total) VALUES (42.5)');
@@ -424,7 +424,7 @@ describe('§9 createBackup', () => {
     const { members, manifest } = readArchive(await readFile(result.path));
 
     // Files only: fflate emits a `databases/` directory entry alongside the
-    // members, which is ordinary zip structure and not part of §9's layout.
+    // members, which is ordinary zip structure and not part of layout.
     expect(
       Object.keys(members)
         .filter((name) => !name.endsWith('/'))
@@ -454,7 +454,7 @@ describe('§9 createBackup', () => {
     });
     const { members, manifest } = readArchive(await readFile(result.path));
 
-    // meta.db carries its own digest — §9's example omits it, and an archive
+    // meta.db carries its own digest — the example omits it, and an archive
     // whose source DBs verify while its meta.db is truncated would pass
     // validation and then destroy the install.
     const metaBytes = members[BACKUP_META_PATH] as Uint8Array;
@@ -471,7 +471,7 @@ describe('§9 createBackup', () => {
   });
 
   it('snapshots WAL-committed rows that a file copy would miss', async () => {
-    // ── THE CLAIM §9 MAKES: "the better-sqlite3 online backup() API (WAL-safe,
+    // ── THE CLAIM MAKES: "the better-sqlite3 online backup() API (WAL-safe,
     // no locking of live writers)". A copyFile passes every other test in this
     // file and silently loses these rows.
     const { path, db } = await addLocalDatabase(f, 'orders', (source) => {
@@ -535,7 +535,7 @@ describe('§9 createBackup', () => {
     }
   });
 
-  it('lists remote Postgres as external and never dumps it (§9)', async () => {
+  it('lists remote Postgres as external and never dumps it', async () => {
     await connectionsRepo(f.meta, f.crypto).create({
       name: 'Northwind',
       engine: 'postgres',
@@ -615,7 +615,7 @@ describe('§9 createBackup', () => {
       new TextDecoder().decode(members[BACKUP_CONFIG_PATH] as Uint8Array),
     ) as Record<string, unknown>;
 
-    // §9: "secrets redacted: secretEncrypted/secretPlain stripped". Removed, not
+    // "secrets redacted: secretEncrypted/secretPlain stripped". Removed, not
     // nulled — a null still tells a reader the field exists to look for.
     expect('secretEncrypted' in config).toBe(false);
     expect('secretPlain' in config).toBe(false);

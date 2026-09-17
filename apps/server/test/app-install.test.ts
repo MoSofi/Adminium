@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Installing a micro-SaaS app (47-app-installation.md §1 step 1).
+ * Installing a micro-SaaS app.
  *
  * The claim under test is the one the whole step rests on: bytes uploaded over
  * the API are SERVED, at the app's own mount, on the next request and without a
@@ -80,7 +80,10 @@ function packageTarball(files: Record<string, string>): Uint8Array {
     flat.set(member, offset);
     offset += member.length;
   }
-  return gzipSync(flat);
+  // `mtime: 0` leaves the gzip header's timestamp at zero, as `npm pack` does.
+  // fflate's default is the current second, so the same files packed a second
+  // apart would hash differently.
+  return gzipSync(flat, { mtime: 0 });
 }
 
 /**
@@ -587,11 +590,12 @@ describe('an installed app is served without a restart', () => {
     await mkdir(staff, { recursive: true });
     await writeFile(join(staff, 'index.html'), '<!doctype html><html><body id="from-disk"></body></html>', 'utf8');
 
+    const tarball = packageTarball(bundleFor('sample-desk'));
     await store.stage({
       key: 'sample-desk',
       version: '1.0.0',
-      tarball: packageTarball(bundleFor('sample-desk')),
-      expectedIntegrity: sha512Integrity(packageTarball(bundleFor('sample-desk'))),
+      tarball,
+      expectedIntegrity: sha512Integrity(tarball),
     });
     await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).install({
       manifestKey: 'sample-desk',
@@ -634,7 +638,7 @@ describe('surfacesOfInstalled', () => {
   });
 });
 
-describe('the install plan (47 O2)', () => {
+describe('the install plan', () => {
   const FK_TABLES = [
     {
       ref: 'clinicians',

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shipped-manifest CI gate — 04-widget-registry.md acceptance #16, second half:
- * "all shipped template manifests validate against `pageTemplateSchema` in CI".
+ * Shipped-manifest CI gate — #16, second half: "all shipped template manifests
+ * validate against `pageTemplateSchema` in CI".
  *
  * The gate reads the `page-*.json` files off disk rather than trusting
  * `manifests.ts` to have imported them all: a manifest that exists but was never
@@ -28,12 +28,12 @@ const manifestFiles = readdirSync(TEMPLATES_DIR)
 /**
  * The nine M7 archetypes + the two the M4 generator already emits (deliverables
  * 3 & 4) + the M7 Wave-4 `page-builder` (TRACK BUILDER), which ships with the
- * §13 document vocabulary it composes, + wave 2's `page-wizard` (T5 data-io)
- * and `page-settings` (T6 notification prefs).
+ * document vocabulary it composes, + wave 2's `page-wizard` (T5 data-io) and
+ * `page-settings` (T6 notification prefs).
  */
 const EXPECTED_IDS = [
   'page-crud',
-  // The crud detail page (30-record-pages.md D3) — the id every generated
+  // The crud detail page — the id every generated
   // crud body stores in `config.detail.template`.
   'page-record',
   'page-dashboard',
@@ -121,7 +121,7 @@ describe('shipped page-template manifests', () => {
     expect(area('insights')).toEqual({ x: 6, y: 25, w: 6, h: 4 });
   });
 
-  it('maps only page-dashboard to the dashboard envelope kind (09 §3.2)', () => {
+  it('maps only page-dashboard to the dashboard envelope kind', () => {
     const kinds = Object.fromEntries([...PAGE_TEMPLATE_IDS].map((id) => [id, templateKind(id)]));
     expect(kinds['page-dashboard']).toBe('dashboard');
     for (const id of PAGE_TEMPLATE_IDS) {
@@ -129,7 +129,7 @@ describe('shipped page-template manifests', () => {
     }
   });
 
-  it('reproduces the §10 page-dashboard example verbatim', () => {
+  it('reproduces the page-dashboard example verbatim', () => {
     const dashboard = pageTemplateManifests.get('page-dashboard');
     expect(dashboard?.titleKey).toBe('templates.dashboard.title');
     expect(dashboard?.slots.map((s) => s.slot)).toEqual([

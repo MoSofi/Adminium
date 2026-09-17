@@ -8,16 +8,16 @@
  * (chart geometry, progress %, stagger index) that cannot be a class.
  *
  * With the `allowVars` option set, the escape hatch is further restricted to
- * exactly the listed custom-property names (02-design-system.md §8 allowlist).
+ * exactly the listed custom-property names (allowlist).
  *
  * Spread elements and computed keys are always reported. No autofix: the fix
- * is a design decision (map the literal to a token utility per §7).
+ * is a design decision (map the literal to a token utility).
  *
  * Known limitation: the `style` key inside `React.createElement(...)` calls is
  * out of scope — this is a JSX-only rule. `style` keys in plain (non-JSX)
  * objects are untouched.
  *
- * Spec: 02-design-system.md §7–§8.
+ * See: https://docs.adminium.dev/anatomy/decisions/tokens-only/
  */
 
 /** @type {import('eslint').Rule.RuleModule} */
@@ -46,11 +46,11 @@ export default {
       // NB: no "{{ }}" in this text — ESLint parses double braces in messages as placeholders.
       noStyleProp:
         'The JSX `style` prop is banned — use Tailwind utilities backed by @adminium/tokens ' +
-        '(02-design-system.md §7). It is allowed only as an inline object whose every key is a ' +
+        '(see https://docs.adminium.dev/anatomy/decisions/tokens-only/). It is allowed only as an inline object whose every key is a ' +
         "string-literal CSS custom property (a key starting with '--', e.g. '--adm-progress').",
       varNotAllowlisted:
         "CSS custom property '{{name}}' is not on the @adminium/config allowVars allowlist " +
-        '(02-design-system.md §8). Extending the allowlist is a reviewed change to @adminium/config.',
+        '. Extending the allowlist is a reviewed change to @adminium/config.',
     },
   },
 

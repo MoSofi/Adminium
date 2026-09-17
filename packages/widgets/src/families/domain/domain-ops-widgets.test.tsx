@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * TRACK OPS unit tests (annex §13) — the eighteen ops / billing / API /
+ * TRACK OPS unit tests (annex) — the eighteen ops / billing / API /
  * marketing cards that close the annex catalog.
  *
  * SCOPE. The central QA harness already runs the four-state, determinism,
@@ -19,8 +19,8 @@
  *     annex sizing in half-units, and the declared contracts — including the
  *     `['<shape>', 'static']` pairs, whose whole purpose is to stop the frame
  *     emptying a legitimate config-only instance.
- *   - NEVER WRITES (04 §2.1): every affordance emits an intent through
- *     `onEvent`, and an UNBOUND widget offers no write affordance at all.
+ * - NEVER WRITES: every affordance emits an intent through `onEvent`,
+ *   and an UNBOUND widget offers no write affordance at all.
  *   - `minSeconds` (annex): a too-short run is DISCARDED but still resets the
  *     stopwatch — the case where "discard" and "reset" are easy to conflate.
  *   - the security-shaped bits: the panel never renders a plaintext secret for a
@@ -136,7 +136,7 @@ describe('timerSeconds', () => {
 });
 
 // ============================================================================
-// live-timer — the clock contract (04 §7.7 / the determinism gate)
+// live-timer — the clock contract (/ the determinism gate)
 // ============================================================================
 
 describe('live-timer clock contract', () => {
@@ -822,7 +822,7 @@ describe('projections', () => {
 describe('domainOpsTrackDefinitions', () => {
   const byId = new Map(domainOpsTrackDefinitions.map((d) => [d.id, d]));
 
-  it('registers exactly the eighteen annex §13 ops ids', () => {
+  it('registers exactly the eighteen annex ops ids', () => {
     expect([...byId.keys()].sort()).toEqual(
       [
         'api-keys-panel',
@@ -867,7 +867,7 @@ describe('domainOpsTrackDefinitions', () => {
     expect(byId.get('policy-list')?.sizing).toMatchObject({ minW: 4, minH: 4 });
   });
 
-  it('declares the §3 contracts the annex data notes imply', () => {
+  it('declares the contracts the annex data notes imply', () => {
     expect(byId.get('slo-monitor-card')?.dataContract).toBe('record');
     expect(byId.get('uptime-segment-bar')?.dataContract).toBe('record-list');
     expect(byId.get('credit-card-tile')?.dataContract).toBe('record');
@@ -917,7 +917,7 @@ describe('domainOpsTrackDefinitions', () => {
 
   /**
    * The same seed is byte-identical, forever — the property the whole no-wall-
-   * clock discipline in this slice exists to protect (04 §7.7).
+   * clock discipline in this slice exists to protect.
    *
    * SEED-SENSITIVITY is deliberately NOT asserted here as "seed A ≠ seed B". Some
    * of these generators vary a small discrete field (`plan-pricing-cards` varies

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * TRACK TABLES-CAL-BOARDS — the `calendar` family M7 Wave-4 TAIL (annex §5):
+ * TRACK TABLES-CAL-BOARDS — the `calendar` family M7 Wave-4 TAIL (annex):
  * calendar-legend-filter, upcoming-events-list, date-range-picker,
  * scheduled-jobs-list.
  *
@@ -48,7 +48,7 @@ const parse = <T,>(schema: { parse: (value: unknown) => T }, overrides: Record<s
 
 // ── calendar-legend-filter ──────────────────────────────────────────────────
 
-describe('category aggregation (annex §5 "categories aggregated from events")', () => {
+describe('category aggregation ("categories aggregated from events")', () => {
   it('counts per category in first-seen order, so the legend is render-stable', () => {
     const categories = aggregateCategories([
       { category: 'release' },
@@ -124,7 +124,7 @@ describe('category aggregation (annex §5 "categories aggregated from events")',
 
 // ── upcoming-events-list ────────────────────────────────────────────────────
 
-describe('upcoming cutoff (annex §5 "events WHERE date ≥ today ORDER BY date LIMIT n")', () => {
+describe('upcoming cutoff ("events WHERE date ≥ today ORDER BY date LIMIT n")', () => {
   const events = [
     { date: '2026-07-20', title: 'Later' },
     { date: '2026-07-10', title: 'Past' },
@@ -174,7 +174,7 @@ describe('upcoming-events-list cutoff resolution', () => {
   });
 });
 
-describe('upcoming-events-list (annex §5)', () => {
+describe('upcoming-events-list (annex)', () => {
   it('renders a row per upcoming event with its date block', () => {
     render(<UpcomingEventsList events={upcomingEventsOf(upcomingEventsListDemoData(5))} fromDate={ANCHOR_TODAY} n={4} />);
     expect(document.querySelectorAll('[data-part="upcoming-row"]')).toHaveLength(4);
@@ -208,7 +208,7 @@ describe('upcoming-events-list (annex §5)', () => {
 
 // ── date-range-picker ───────────────────────────────────────────────────────
 
-describe('date-range endpoint machine (annex §5)', () => {
+describe('date-range endpoint machine (annex)', () => {
   it('first click opens a range, second closes it', () => {
     const opened = nextRange({ start: null, end: null }, '2026-07-10');
     expect(opened).toEqual({ start: '2026-07-10', end: null });
@@ -237,7 +237,7 @@ describe('date-range endpoint machine (annex §5)', () => {
   });
 });
 
-describe('date-range presets (annex §5 "7d/30d/QTD…")', () => {
+describe('date-range presets ("7d/30d/QTD…")', () => {
   it('counts "last 7 days" inclusively — today back 6, not back 7', () => {
     // An off-by-one here silently shifts every query the picker feeds.
     const { start, end } = resolvePreset({ days: 7 }, '2026-07-15');
@@ -270,7 +270,7 @@ describe('date-range presets (annex §5 "7d/30d/QTD…")', () => {
   });
 });
 
-describe('date-range-picker (annex §5)', () => {
+describe('date-range-picker (annex)', () => {
   it('starts the grid on the locale week start, not a hardcoded day', () => {
     // en-US → Sunday (0), de-DE → Monday (1), ar-EG → Saturday (6).
     expect(firstJsWeekday('en-US')).toBe(0);
@@ -327,7 +327,7 @@ describe('date-range-picker (annex §5)', () => {
 
 // ── scheduled-jobs-list ─────────────────────────────────────────────────────
 
-describe('scheduled-jobs-list (annex §5)', () => {
+describe('scheduled-jobs-list (annex)', () => {
   it('renders a row per job with its switch', () => {
     render(<ScheduledJobsList jobs={scheduledJobsOf(scheduledJobsListDemoData(4), parse(scheduledJobsListConfigSchema))} />);
     const rows = document.querySelectorAll('[data-part="job-row"]');
@@ -424,7 +424,7 @@ describe('scheduled-jobs-list (annex §5)', () => {
 
 // ── binding descriptor ──────────────────────────────────────────────────────
 
-describe('binding source (04 §5.1)', () => {
+describe('binding source', () => {
   it('qualifies the table from binding.source.name (+ schema), not a flat binding.table', () => {
     expect(bindingSourceOf({ connectionId: 'c1', source: { schema: 'public', name: 'jobs' } })).toEqual({
       connectionId: 'c1',
@@ -443,8 +443,8 @@ describe('binding source (04 §5.1)', () => {
 
 // ── definitions ─────────────────────────────────────────────────────────────
 
-describe('calendar definitions (annex §5)', () => {
-  it('registers all eight §5 ids — the family is complete', () => {
+describe('calendar definitions (annex)', () => {
+  it('registers all eight ids — the family is complete', () => {
     expect(calendarTrackDefinitions.map((d) => d.id).sort()).toEqual([
       'calendar-legend-filter',
       'calendar-month',

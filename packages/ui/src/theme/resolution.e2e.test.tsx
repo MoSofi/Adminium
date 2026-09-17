@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * M8-T06 — preference-resolution end-to-end contract, provider half
- * (10-i18n-theming.md §7.1/§7.5, 02-design-system.md §4).
+ * Preference-resolution end-to-end contract, provider half.
  *
  * Drives the full chain the app boots through, at the ThemeProvider boundary:
  * localStorage pre-paint cache (stamped by `preHydrationScript` before React)
@@ -80,7 +79,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('resolution order per axis (§7.1: baseline ← cache ← globalDefaults ← userPrefs ← setPref)', () => {
+describe('resolution order per axis (baseline ← cache ← globalDefaults ← userPrefs ← setPref)', () => {
   /** Walk one axis through every layer, re-seeding the cache before each mount
    * (each commit writes the cache back, which would destroy the seed). */
   function expectAxisChain<K extends keyof ThemePrefs>(

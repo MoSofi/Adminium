@@ -1,9 +1,8 @@
 name: release
 
-# Phase 1 (01-architecture.md §11, tasks 01-T12 / M10-T02): on a `v*` tag, build
-# and push the multi-arch image to ghcr. The remaining release jobs land with
-# their milestones: npm publish with provenance (01-T12), docs deploy (01-T14),
-# and the Electron matrix with signing (01-T15, M11).
+# Phase 1 (tasks): on a `v*` tag, build and push the multi-arch image to ghcr.
+# The remaining release jobs land with their milestones: npm publish with
+# provenance, docs deploy, and the Electron matrix with signing (M11).
 
 on:
   push:
@@ -201,7 +200,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          # §4.2: multi-arch. The native modules (better-sqlite3, argon2) are
+          # Multi-arch. The native modules (better-sqlite3, argon2) are
           # compiled per-platform inside the build stage — arm64 goes through
           # QEMU, hence the generous timeout above.
           platforms: linux/amd64,linux/arm64
@@ -213,11 +212,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # The exit criterion for M10-T02 is "docker run boots to the first-run
-      # wizard" — assert it against the built image rather than trusting a green
-      # build. Boots with no meta store configured (embedded SQLite fallback),
-      # which is exactly the clean-machine first-run path. This leg is amd64
-      # (the runner's native architecture); arm64 gets its own leg below.
+      # The exit criterion for is "docker run boots to the first-run wizard" —
+      # assert it against the built image rather than trusting a green build.
+      # Boots with no meta store configured (embedded SQLite fallback), which is
+      # exactly the clean-machine first-run path. This leg is amd64 (the
+      # runner's native architecture); arm64 gets its own leg below.
       #
       # This runs against the DIGEST, before any release tag points at it.
       - name: Smoke-test the staged image
@@ -247,7 +246,7 @@ jobs:
           # rather than 404ing (the bundle-dashboard step in the Dockerfile).
           curl -fsS http://127.0.0.1:4600/ | grep -qi '<!doctype html'
 
-          # Non-root (§4.2).
+          # Non-root.
           uid="$(docker exec adminium-smoke id -u)"
           if [ "$uid" = "0" ]; then
             echo "::error::image runs as root"
@@ -343,9 +342,9 @@ jobs:
         if: always()
         run: docker rm -f adminium-smoke-arm64 || true
 
-      # §4.2's production shape: a SEPARATE Postgres meta store. Never exercised
+      # The production shape: a SEPARATE Postgres meta store. Never exercised
       # by CI before — every smoke test set only ADMINIUM_SECRET, i.e. the
-      # embedded SQLite fallback §3.1 tells self-hosters not to rely on. So the
+      # embedded SQLite fallback the docs tell self-hosters not to rely on. So the
       # one meta store the docs tell people to use was the one nobody proved
       # boots, and a missing `pg` in the image would have shipped behind two
       # green smoke tests.
@@ -590,7 +589,8 @@ jobs:
           # unverified package. Deriving the list from the workspace with the
           # same rule publish-npm.mjs uses (non-private `@adminium/*` under
           # packages/ and apps/, with server -> adminium) means the next new
-          # package cannot fall out of this gate.
+          # package cannot fall out of this gate. Private packages are not
+          # published: the CLI carries the ones it needs inside its tarball.
           PKGS="$(node -e '
             const { readdirSync, readFileSync, existsSync } = require("fs");
             const { join } = require("path");
@@ -646,25 +646,33 @@ jobs:
           npm install -g --prefer-online "@adminiumjs/adminium@$VERSION"
           "$NPM_CONFIG_PREFIX/bin/adminium" --version
 
-          # The install is only meaningful if the aliases resolved and the SPA
-          # actually shipped — a CLI that boots without its dashboard is the
-          # hollow-package failure this pipeline exists to catch.
+          # The install is only meaningful if the SPA and the bundled internal
+          # packages actually shipped — a CLI that boots without them is the
+          # hollow-package failure this pipeline exists to catch. The CLI carries
+          # its internal packages inside its tarball (publish-npm.mjs), so they
+          # sit under its own node_modules; the dashboard-only libraries some of
+          # them declare must not have been installed at all.
           PKG="$NPM_CONFIG_PREFIX/lib/node_modules/@adminiumjs/adminium"
           test -f "$PKG/dashboard/index.html" || {
             echo "::error::published CLI has no bundled dashboard"; exit 1; }
           for dep in engine meta widgets llm; do
             test -d "$PKG/node_modules/@adminium/$dep" || {
-              echo "::error::alias @adminium/$dep did not resolve"; exit 1; }
+              echo "::error::bundled @adminium/$dep is missing from the published CLI"; exit 1; }
           done
-          echo "dashboard + aliased dependencies verified in the published package"
+          for lib in react react-dom lucide-react leaflet @radix-ui @dnd-kit @tanstack; do
+            if [ -e "$PKG/node_modules/$lib" ]; then
+              echo "::error::the published CLI installed $lib, a dashboard-only library"; exit 1
+            fi
+          done
+          echo "dashboard + bundled packages verified in the published package, no dashboard-only libraries"
 
-          # The CLI's dependency closure does NOT include @adminium/manifest
-          # (it pulls engine, i18n, llm, meta, schema-import and the adapters),
-          # so the check above can never exercise manifest's own alias — and
-          # manifest is the only consumer of @adminium/add-on-contracts. That
-          # left the newest package in the release, and the newest alias edge,
-          # verified by nothing at all. Install manifest on its own and prove
-          # the edge resolves the way a consumer would meet it.
+          # The CLI carries its own copies of @adminium/manifest and
+          # @adminium/add-on-contracts, so the check above says nothing about
+          # the PUBLISHED manifest package and its alias edge to
+          # add-on-contracts — the edge other repos (the add-ons host) install.
+          # An unexercised edge is how the newest package in a release once
+          # went verified by nothing at all. Install manifest on its own and
+          # prove the edge resolves the way a consumer would meet it.
           MANIFEST_DIR="$RUNNER_TEMP/manifest-probe"
           rm -rf "$MANIFEST_DIR" && mkdir -p "$MANIFEST_DIR"
           ( cd "$MANIFEST_DIR" \

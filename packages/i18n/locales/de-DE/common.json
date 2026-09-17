@@ -291,6 +291,13 @@
     "done": "Änderung rückgängig gemacht",
     "failed": "Diese Änderung konnte nicht rückgängig gemacht werden"
   },
+  "projectAction": {
+    "done": "{label}: erledigt",
+    "failed": "{label} wurde nicht abgeschlossen",
+    "menu": "Aktionen",
+    "run": "Ausführen",
+    "selected": "{count, plural, one {# Datensatz} other {# Datensätze}}"
+  },
   "prefs": {
     "theme": {
       "label": "Design",
@@ -1003,7 +1010,7 @@
     "article": {
       "install": {
         "title": "Adminium installieren",
-        "excerpt": "Aus einem Quell-Checkout oder per docker run starten und in einer Minute beim Ersteinrichtungs-Assistenten sein."
+        "excerpt": "Mit einem Befehl ein Projekt anlegen – oder Adminium per docker run oder aus einem Quell-Checkout starten."
       },
       "firstAdmin": {
         "title": "Ersten Super-Admin anlegen",
@@ -1612,6 +1619,7 @@
       "jobsRead": "Alle Hintergrundjobs sehen",
       "llmRun": "KI-Assistenz ausführen",
       "pagesManage": "Seiten erstellen und ordnen",
+      "projectRead": "Seiten- und Schemaänderungen für einen Projekt-Pull lesen",
       "reportsManage": "Geplante Berichte verwalten",
       "rolesManage": "Rollen und Berechtigungen verwalten",
       "schemaRemap": "Schema-Bezeichnungen und -Überschreibungen bearbeiten",

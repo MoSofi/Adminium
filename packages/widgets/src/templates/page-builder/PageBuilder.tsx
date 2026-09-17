@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-builder` template renderer (04-widget-registry.md §10 manifest
- * `page-builder.json`, 09-generated-app.md §7.11, M7-T06).
+ * `page-builder` template renderer (manifest `page-builder.json`).
  *
  * Fills the manifest's three slots from the stored envelope config body:
  *
- *   palette   — a block rail (document flavors only; `question-builder` and
- *               `flow-builder` ship their own palettes, so those flavors omit
- *               it exactly like the manifest slot's `fallback: 'omit'`);
- *   canvas    — the docType's canvas widget via WidgetHost (`document-canvas`
- *               for invoice/report/email, `question-builder` for survey,
- *               `flow-builder` for automation), fed by the stored slot config
- *               plus the current doc payload;
- *   inspector — doc fields + block visibility (document flavors), the LIVE
- *               publish summary (survey — the ia-mapping §5 static-counts
- *               fix), or run stats + step counts (automation).
+ * palette — a block rail (document flavors only; `question-builder` and
+ *   `flow-builder` ship their own palettes, so those flavors omit it exactly
+ *   like the manifest slot's `fallback: 'omit'`); canvas — the docType's
+ *   canvas widget via WidgetHost (`document-canvas` for invoice/report/email,
+ *   `question-builder` for survey, `flow-builder` for automation), fed by the
+ *   stored slot config plus the current doc payload; inspector — doc fields +
+ *   block visibility (document flavors), the LIVE publish summary (survey —
+ *   the ia-mapping static-counts fix), or run stats + step counts
+ *   (automation).
  *
  * Chrome: `autosave-indicator` renders as the @adminium/ui pill fed by the
  * host's save choreography; `starter-template-picker` mounts as an overlay and
@@ -132,14 +130,14 @@ export interface PageBuilderProps {
   /**
    * Current canvas payload (host persistence re-entry): a `record` `{ row }`
    * doc for document flavors, a `form-state` envelope for survey/automation.
-   * Absent → the flavor's deterministic demo payload (04 §5.3).
+   * Absent → the flavor's deterministic demo payload.
    */
   data?: unknown;
   /** Every canvas mutate intent bubbles here with the canvas instance id. */
   onEvent?: ((instanceId: string, event: WidgetEvent) => void | Promise<unknown>) | undefined;
   /** The working document after any palette/inspector/canvas change. */
   onDocChange?: ((doc: DocRecord) => void) | undefined;
-  /** Autosave choreography (09 §7.10/§7.11) — host-owned; renders the pill. */
+  /** Autosave choreography — host-owned; renders the pill. */
   autosave?: AutosaveStatus | undefined;
   /** Epoch-ms of the last successful save (the pill's "· HH:MM" stamp). */
   savedAt?: number | undefined;
@@ -327,8 +325,8 @@ export function PageBuilder({
     } else if (event.type === 'mutate' && docType === 'survey') {
       setMirror(event.values ?? null);
     } else if (event.type === 'mutate' && docType === 'automation') {
-      // Trigger is non-removable (09 §7.11): patch both the live mirror and
-      // the forwarded intent, so hosts never persist a trigger-less flow. When
+      // Trigger is non-removable: patch both the live mirror and the
+      // forwarded intent, so hosts never persist a trigger-less flow. When
       // the guard actually corrected the list, remount the canvas so its local
       // state re-seeds from the guarded mirror and the trigger reappears.
       const emitted = flowNodesFromValues(event.values);
@@ -680,7 +678,7 @@ export function PageBuilder({
         </ModalBody>
       </Modal>
 
-      {/* Survey publish — LIVE counts (ia-mapping §5 fix), then the done pane. */}
+      {/* Survey publish — LIVE counts (ia-mapping fix), then the done pane. */}
       <Modal open={publishStep !== 'closed'} onOpenChange={(open) => !open && setPublishStep('closed')} size="sm">
         {publishStep === 'done' ? (
           <>

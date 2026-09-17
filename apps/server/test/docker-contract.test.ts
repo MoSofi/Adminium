@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Docker distribution contract (01-architecture.md §4.2, M10-T02).
+ * The Docker distribution contract.
  *
  * The image and the compose file are the deployment surface: nothing else in the
  * suite fails if `docker-compose.yml` loses its data volume or the Dockerfile
  * starts running as root, and CI cannot build an image on every PR. This pins
- * the §4.2 spec as executable assertions so it cannot drift silently.
+ * the spec as executable assertions so it cannot drift silently.
  *
  * The healthcheck assertions are the reason this file lives in apps/server
  * rather than next to the YAML: they resolve the probe's path against the
@@ -89,11 +89,11 @@ afterEach(async () => {
   app = undefined;
 });
 
-describe('docker-compose.yml — 01-architecture.md §4.2', () => {
+describe('docker-compose.yml', () => {
   it('defines exactly the adminium service and the optional meta-db', () => {
-    // The user's source database is ALWAYS external to the compose file (§4.2).
-    // A "convenience" source DB appearing here would teach every reader the
-    // wrong deployment model.
+    // The user's source database is ALWAYS external to the compose file. A
+    // "convenience" source DB appearing here would teach every reader the wrong
+    // deployment model.
     expect(Object.keys(compose.services).sort()).toEqual(['adminium', 'meta-db']);
   });
 
@@ -117,7 +117,7 @@ describe('docker-compose.yml — 01-architecture.md §4.2', () => {
   });
 
   it('forwards the first-boot source seed, and still not under its old name', () => {
-    // 28-T31. The variable the quickstart tells you to set has to arrive in the
+    // The variable the quickstart tells you to set has to arrive in the
     // container, and it is the one thing here whose predecessor was forwarded
     // for a whole release while nothing read it — hence both halves.
     const env = compose.services.adminium!.environment!;
@@ -166,7 +166,7 @@ describe('docker-compose.yml — 01-architecture.md §4.2', () => {
   });
 });
 
-describe('Dockerfile — 01-architecture.md §4.2', () => {
+describe('Dockerfile', () => {
   it('is multi-stage and lands on the node:22-slim runtime', () => {
     const froms = dockerfileInstructions.filter((line) => /^FROM /i.test(line));
     expect(froms.length).toBeGreaterThanOrEqual(2);
@@ -208,8 +208,8 @@ describe('Dockerfile — 01-architecture.md §4.2', () => {
   });
 
   it('bakes no secret into the image', () => {
-    // §4.2: ADMINIUM_SECRET arrives via env at run time. An ENV/ARG default here
-    // would ship a key that every copy of the image shares.
+    // ADMINIUM_SECRET arrives via env at run time. An ENV/ARG default here would
+    // ship a key that every copy of the image shares.
     for (const line of dockerfileInstructions) {
       if (/^(ENV|ARG)\b/i.test(line)) expect(line).not.toMatch(/ADMINIUM_SECRET/);
     }
@@ -251,7 +251,7 @@ describe('the healthcheck probes a route that actually exists', () => {
   it('targets the API health route in both the image and compose', () => {
     const fromDockerfile = healthPathFrom(dockerfile, 'Dockerfile');
     const fromCompose = healthPathFrom(read('docker-compose.yml'), 'docker-compose.yml');
-    // Resolved from the server's own prefix: re-prefixing the API (§8 allows a
+    // Resolved from the server's own prefix: re-prefixing the API (allows a
     // /api/v2) must fail this test rather than silently leave the image probing
     // a dead path.
     expect(fromDockerfile).toBe(`${API_PREFIX}/healthz`);
@@ -431,11 +431,11 @@ describe('the release workflow cannot publish an untested image', () => {
 
   it('exercises the with-meta Postgres topology, not just the SQLite fallback', () => {
     // THE BUG THIS PINS. Every smoke test booted with ADMINIUM_SECRET alone —
-    // the embedded SQLite fallback §3.1 tells self-hosters NOT to use in
-    // production. The `with-meta` configuration §4.2 specifies was never
-    // started; `validate` only ran `compose config`, which parses YAML. So the
-    // one meta store the docs recommend was the one nobody proved boots, and a
-    // missing `pg` driver in the image shipped behind two green smoke tests.
+    // the embedded SQLite fallback tells self-hosters NOT to use in
+    // production. The `with-meta` configuration specifies was never started;
+    // `validate` only ran `compose config`, which parses YAML. So the one meta
+    // store the docs recommend was the one nobody proved boots, and a missing
+    // `pg` driver in the image shipped behind two green smoke tests.
     for (const [name, workflow] of [
       ['release.yml', release],
       ['docker.yml', docker],

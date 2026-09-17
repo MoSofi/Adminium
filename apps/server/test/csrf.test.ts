@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CSRF — the active legs (08-server-api.md §7 item 4, `security/csrf.ts` +
- * the `preValidation` hook in `plugins/core.ts`).
+ * CSRF — the active legs (`security/csrf.ts` + the `preValidation` hook in
+ * `plugins/core.ts`).
  *
  * What this pins, in the order the module reasons about it:
  *
@@ -79,7 +79,7 @@ async function browserSession(): Promise<{ cookie: string; token: string }> {
 /** The dashboard's own origin under `app.inject` (Host defaults to localhost:80). */
 const SAME_ORIGIN = 'http://localhost';
 
-describe('CSRF — the Origin leg (08 §7 item 4)', () => {
+describe('CSRF — the Origin leg', () => {
   it('refuses the text/plain form POST that SameSite=Lax is the only guard against', async () => {
     const { cookie } = await browserSession();
 

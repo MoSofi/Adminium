@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Generation pipeline glue (M4-T08): latest classified snapshot (introspect
- * first when none) → `generatePages()` (@adminium/engine) → validate every
+ * Generation pipeline glue: latest classified snapshot (introspect first
+ * when none) → `generatePages()` (@adminium/engine) → validate every
  * envelope against the frozen config contract (the server is the single
- * write-time validator, 01-architecture.md §6.1) → persist idempotently via
+ * write-time validator) → persist idempotently via
  * `pagesRepo.upsertGenerated`.
  *
  * Pure orchestration — no Fastify types here so the demo script and tests
@@ -38,7 +38,7 @@ export interface RunGenerationOptions {
   meta: MetaDb;
   connectionId: string;
   createdBy?: string | null | undefined;
-  /** Overrides the connection's stored intent for this run (09 §8.4). */
+  /** Overrides the connection's stored intent for this run. */
   intent?: GenerateIntent | undefined;
 }
 
@@ -51,13 +51,13 @@ export interface GenerationRunResult {
   navGroups: string[];
   warnings: string[];
   persistence: UpsertGeneratedResult;
-  /** `origin: 'llm'` seed rows expanded into envelopes this run (06 §8.3). */
+  /** `origin: 'llm'` seed rows expanded into envelopes this run. */
   llmPagesMaterialized: number;
   durationMs: number;
 }
 
 /**
- * M5-T02 table inclusion: when the wizard persisted
+ * Table inclusion: when the wizard persisted
  * `settings.includedTables` (PATCH /connections/:id), restrict the model to
  * that set before generation. Join/system tables stay in the graph (they
  * power M2M detection and are never paged anyway); relations and FK mirrors
@@ -95,7 +95,7 @@ export function filterModelToIncludedTables(
 
 /**
  * Overlay the accepted `relation.add` / `relation.remove` overrides onto the
- * snapshot's model so they reach `generatePages` (05 §6: an accepted relation
+ * snapshot's model so they reach `generatePages` (an accepted relation
  * re-enters future regenerations at confidence 1.0, `kind: 'override'`).
  *
  * The loop was open at exactly one end. `effective-schema.ts` folded these ops
@@ -161,9 +161,9 @@ function coordinateKey(table: string, template: string): string {
 
 /**
  * `(table, template)` pairs already covered by an `origin: 'llm'` page of this
- * connection — the accepted §8.3 template pages (06-llm-assist.md), seeds and
- * materialized envelopes alike (both carry `config.source.table`). Dashboards
- * bind to no table and never claim a pair.
+ * connection — the accepted template pages, seeds and materialized envelopes
+ * alike (both carry `config.source.table`). Dashboards bind to no table and
+ * never claim a pair.
  */
 async function llmCoveredTemplates(meta: MetaDb, connectionId: string): Promise<Set<string>> {
   const covered = new Set<string>();
@@ -218,7 +218,7 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   const overrides = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
   const overrideWarnings: string[] = [];
 
-  // Snapshots store the classified model — declared FKs plus the §6 relations
+  // Snapshots store the classified model — declared FKs plus the relations
   // `applyInference` derived at introspection time (connections/introspect.ts).
   //
   // Accepted relations are folded in BEFORE the table filter, so an override
@@ -230,7 +230,7 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   const model = filterModelToIncludedTables(accepted.model, connection.settings.includedTables);
 
   // Overlay effective table labels (user `table.label` > accepted `llm.label`,
-  // provenance 06 §8.3) onto the parsed model BEFORE generation, so every
+  // provenance) onto the parsed model BEFORE generation, so every
   // renamed table's page titles — and through `adminium_pages`, the sidebar
   // nav — carry the rename. The stored snapshot stays label-free; this is a
   // per-run, in-memory attachment. L10n bundles resolve to the connection's
@@ -243,8 +243,8 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
     }
   }
 
-  // NOTE (06 §8.3 nav groups): an accepted `group` suggestion is NOT fed in
-  // here, so a generated page keeps its heuristic 09 §2.2 group and the apply's
+  // NOTE (nav groups): an accepted `group` suggestion is NOT fed in
+  // here, so a generated page keeps its heuristic group and the apply's
   // `nav_group` stamping is rewritten on the next run. That is deliberate until
   // the rail can render domain groups: `buildNavTree` (routes/bootstrap) drops
   // any row whose group is not one of the five fixed keys, so making the
@@ -266,13 +266,13 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   // (or a schema change only now makes the table earn that archetype), the
   // generated twin is dropped from the run instead of appearing beside it. Any
   // twin persisted by an earlier run is then pruned below as an orphan, unless
-  // it was hand-edited, which keeps it under "user delta wins" (04 §6.3).
+  // it was hand-edited, which keeps it under "user delta wins".
   const covered = await llmCoveredTemplates(meta, connectionId);
   const emitted = validated.filter((page) => {
     const table = page.source.table;
     if (table === null || !covered.has(coordinateKey(table, page.template))) return true;
     warnings.push(
-      `${page.template} for ${table} skipped — an accepted LLM page already covers this table+template (06 §8.3)`,
+      `${page.template} for ${table} skipped — an accepted LLM page already covers this table+template`,
     );
     return false;
   });
@@ -280,17 +280,17 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   const persistence = await pagesRepo(meta).upsertGenerated(
     connectionId,
     emitted.map(toGeneratedPageInput),
-    // `hashEnvelope` arms the H5 edited-page guard (04 §6.3 "user delta wins"):
+    // `hashEnvelope` arms the H5 edited-page guard:
     // stored documents whose embedded generatedHash went stale were edited by a
     // human and are skipped, not overwritten.
     { snapshotId: snapshot.id, createdBy: opts.createdBy ?? null, hashEnvelope },
   );
   for (const id of persistence.skippedEdited) {
-    warnings.push(`page ${id} was edited after generation — kept as-is (user delta wins, 04 §6.3)`);
+    warnings.push(`page ${id} was edited after generation — kept as-is (user delta wins)`);
   }
   for (const id of persistence.keptEdited) {
     warnings.push(
-      `page ${id} is no longer generated but was edited by hand — kept instead of pruned (user delta wins, 04 §6.3)`,
+      `page ${id} is no longer generated but was edited by hand — kept instead of pruned (user delta wins)`,
     );
   }
   for (const blocked of persistence.blockedSlugs) {
@@ -303,7 +303,7 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
     );
   }
 
-  // §8.3 step 3 tail: expand `origin: 'llm'` seed rows into real envelopes.
+  // The apply tail: expand `origin: 'llm'` seed rows into real envelopes.
   const llm = await materializeLlmPages({ meta, model, connectionId });
   warnings.push(...llm.warnings);
 

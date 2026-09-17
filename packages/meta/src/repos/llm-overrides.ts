@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * llmOverridesRepo — the LLM-sourced slice of `adminium_schema_overrides`
- * (06-llm-assist.md §8.3).
+ * llmOverridesRepo — the LLM-sourced slice of
+ * `adminium_schema_overrides`.
  *
  * The user remap editor writes single-locale correction ops (`table.label`,
  * `column.pii`, …) through {@link overridesRepo}; an LLM apply writes a
@@ -21,7 +21,7 @@
  * — keyed on `(connection, op, table, column)` it updates the existing `llm` row
  * in place rather than inserting a duplicate, which is what makes re-applying the
  * same run a no-op and re-applying a NEWER run supersede (new `llm_run_id`) the
- * prior one (§8.3 idempotency + provenance).
+ * prior one (idempotency + provenance).
  */
 
 import type { Selectable } from 'kysely';
@@ -32,7 +32,7 @@ import type { AdminiumSchemaOverridesTable } from '../schema/tables.js';
 import { MetaValidationError, packJson, readJson } from './util.js';
 
 /**
- * §8.3 apply-target fields the LLM path writes to `adminium_schema_overrides`.
+ * The apply-target fields the LLM path writes to `adminium_schema_overrides`.
  * Mirrors `@adminium/llm` `OverrideField` (the pure planner's descriptor field);
  * kept as a local literal so `@adminium/meta` takes no dependency on the llm pkg.
  */
@@ -79,7 +79,7 @@ export interface LlmOverride {
   columnName: string | null;
   /** Localized/structured value, or `null` for an explicit clear (a PII rejection). */
   value: Record<string, unknown> | null;
-  /** Per-suggestion model confidence 0..1 (§8.3). */
+  /** Per-suggestion model confidence 0.1. */
   confidence: number | null;
   llmRunId: string | null;
   status: 'active' | 'disabled';
@@ -95,7 +95,7 @@ export interface UpsertLlmOverrideInput {
   columnName?: string | null;
   /** Object value (localized maps where applicable) or `null` for a clear. */
   value: Record<string, unknown> | null;
-  /** Per-suggestion model confidence 0..1 (§8.3). */
+  /** Per-suggestion model confidence 0.1. */
   confidence?: number | null;
   llmRunId?: string | null;
   createdBy?: string | null;
@@ -147,6 +147,17 @@ function assertColumnShape(field: LlmOverrideField, columnName: string | null): 
   }
 }
 
+/**
+ * Check one LLM row read from somewhere other than an apply (a project's
+ * `schema/<database>.json`) against the rules `upsert` enforces.
+ */
+export function validateLlmOverride(op: string, columnName: string | null, value: unknown): void {
+  const field = llmOverrideField(op);
+  if (field === null) throw new MetaValidationError(`unknown llm override op ${JSON.stringify(op)}`);
+  assertColumnShape(field, columnName);
+  assertValue(field, value);
+}
+
 export function llmOverridesRepo(meta: MetaDb) {
   const { db } = meta;
 
@@ -169,10 +180,10 @@ export function llmOverridesRepo(meta: MetaDb) {
 
   return {
     /**
-     * Idempotent upsert of one §8.3 LLM override, keyed on
-     * `(connection, op, table, column)`. Inserts a fresh `origin: 'llm'` row or
-     * updates the existing one in place (value + superseding `llm_run_id`),
-     * returning the prior state for undo. Never touches `origin: 'user'` rows.
+     * Idempotent upsert of one LLM override, keyed on `(connection, op, table,
+     * column)`. Inserts a fresh `origin: 'llm'` row or updates the existing one
+     * in place (value + superseding `llm_run_id`), returning the prior state
+     * for undo. Never touches `origin: 'user'` rows.
      */
     async upsert(input: UpsertLlmOverrideInput, at: number = Date.now()): Promise<UpsertLlmOverrideResult> {
       if (!FIELD_SET.has(input.field)) {

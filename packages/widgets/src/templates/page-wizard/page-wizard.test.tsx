@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `page-wizard` template (M7-T07): step-state derivation, rail affordances
- * (done steps clickable, todo steps not), the error override, and the
- * manifest passing the §10 schema.
+ * `page-wizard` template: step-state derivation, rail affordances (done
+ * steps clickable, todo steps not), the error override, and the manifest
+ * passing the schema.
  */
 import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
@@ -93,7 +93,7 @@ describe('PageWizard', () => {
 });
 
 describe('page-wizard.json manifest', () => {
-  it('passes the §10 template schema with the §11.1 composition', () => {
+  it('passes the template schema with the composition', () => {
     const manifest = parsePageTemplate(pageWizardManifest);
     expect(manifest.id).toBe('page-wizard');
     const slots = manifest.slots.map((slot) => slot.slot);

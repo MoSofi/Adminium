@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the JSON payloads stored in adminium_* json columns
- * (07-meta-store.md §3). Repos validate every JSON write against these —
- * an invalid payload never reaches the database (acceptance #7).
+ * Zod schemas for the JSON payloads stored in adminium_* json columns.
+ * Repos validate every JSON write against these — an invalid payload
+ * never reaches the database (acceptance #7).
  *
  * Page config (`adminium_pages.config`) is deliberately opaque here: the
  * envelope schema is owned by `@adminium/engine/config` and validated at the
- * server route layer (§3.17); `pagesRepo` persists already-validated JSON.
+ * server route layer; `pagesRepo` persists already-validated JSON.
  */
 
 import { z } from 'zod';
 
 // --- shared -----------------------------------------------------------------
 
-/** §5.3 soft reference to a source record — never a cross-boundary FK. */
+/** A soft reference to a source record — never a cross-boundary FK. */
 export const recordRefSchema = z.object({
   connectionId: z.string(),
   /** Qualified source name, e.g. `public.orders`. */
@@ -27,8 +27,8 @@ export type RecordRef = z.infer<typeof recordRefSchema>;
 
 /**
  * Width of the denormalized `adminium_audit_log.entity_table` / `entity_id`
- * columns (30-record-pages.md WS-A). 200 chars keeps the composite index
- * inside MySQL's 3072-byte InnoDB cap under utf8mb4 (2 × 200 × 4 + 8).
+ * columns (WS-A). 200 chars keeps the composite index inside MySQL's
+ * 3072-byte InnoDB cap under utf8mb4 (2 × 200 × 4 + 8).
  */
 export const AUDIT_ENTITY_KEY_MAX = 200;
 
@@ -67,9 +67,9 @@ export type BuiltinLocale = z.infer<typeof builtinLocaleSchema>;
 export const LOCALE_ID_RE = /^[a-z]{2,3}(_[A-Za-z0-9]{2,8}){0,2}$/;
 
 /**
- * A locale id (23-runtime-translations.md §5.3). SHAPE only: once admins can
- * create locales, a stored id is not drawn from a closed set and an enum here
- * would reject every custom locale at the persistence boundary.
+ * A locale id. SHAPE only: once admins can create locales, a stored id is not
+ * drawn from a closed set and an enum here would reject every custom locale
+ * at the persistence boundary.
  *
  * Widening this removes the only existence check that used to be free, so
  * EXISTENCE is now a contextual check the callers must make — and they must
@@ -86,7 +86,7 @@ export const accentSchema = z.enum(['indigo', 'blue', 'teal', 'violet', 'rose', 
 export const densitySchema = z.enum(['comfortable', 'compact']);
 export const dirSchema = z.enum(['ltr', 'rtl']);
 
-// --- users / prefs (§3.3, §3.4) ----------------------------------------------
+// --- users / prefs ----------------------------------------------
 
 export const userStatusSchema = z.enum(['active', 'invited', 'suspended']);
 export type UserStatus = z.infer<typeof userStatusSchema>;
@@ -97,7 +97,7 @@ export const recoveryCodesSchema = z.array(z.string());
 /** Non-theming client state: sidebar collapse, last-visited page, dismissed hints. */
 export const uiStateSchema = z.record(z.string(), z.unknown());
 
-// --- rbac (§3.9) --------------------------------------------------------------
+// --- rbac --------------------------------------------------------------
 
 export const resourceKindSchema = z.enum(['table', 'page', 'system']);
 export type ResourceKind = z.infer<typeof resourceKindSchema>;
@@ -126,7 +126,7 @@ export type SystemActions = z.infer<typeof systemActionsSchema>;
 
 export type PermissionActions = TableActions | PageActions | SystemActions;
 
-/** v1 closed set of system action keys (§3.9), extended per milestone. */
+/** v1 closed set of system action keys, extended per milestone. */
 export const SYSTEM_ACTION_KEYS = [
   'users.manage',
   'roles.manage',
@@ -134,10 +134,10 @@ export const SYSTEM_ACTION_KEYS = [
   'connections.manage',
   'schema.remap',
   'llm.run',
-  'automations.manage', // rules + runs (42 D1) — gates BOTH pages, every rule write and every run read
+  'automations.manage', // rules + runs — gates BOTH pages, every rule write and every run read
   'webhooks.manage', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
   'api-keys.manage',
-  'manifests.manage', // add-on + micro-SaaS install/connect/uninstall (26 D3)
+  'manifests.manage', // add-on + micro-SaaS install/connect/uninstall
   'audit.read',
   'sql.run', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
   // M7 wave 2 — data-io (T5) + scheduled reports (T6). `exports.manage` /
@@ -145,31 +145,31 @@ export const SYSTEM_ACTION_KEYS = [
   // mine-only without them); `reports.manage` gates the scheduled-reports
   // admin verbs. Email templates deliberately add NO key: PUT rides the
   // existing `settings.manage` (T6 supersedes the builders track's assumption)
-  // — and campaigns ride it too (39 D19).
+  // — and campaigns ride it too.
   'exports.manage',
   'imports.manage',
   'reports.manage',
-  // Jobs visibility/management (08 §2.17): `jobs.read` gates GET /jobs and
+  // Jobs visibility/management: `jobs.read` gates GET /jobs and
   // reading/subscribing to OTHER users' jobs (owners always see their own via
   // the payload.userId convention); `jobs.manage` gates POST /jobs and
   // cancelling other users' jobs. Enforced by routes/jobs and the realtime
   // hub's jobs:<id> channel authorizer.
   'jobs.read',
   'jobs.manage',
-  // Page lifecycle (08 §2.6): create/rename/retemplate/duplicate/delete a page
+  // Page lifecycle: create/rename/retemplate/duplicate/delete a page
   // and reorder the sidebar, via Studio → Pages. Distinct from the per-page
   // `page:<id>:edit` grant, which authorizes editing ONE page's stored layout
   // and is what `canEditLayout` reports; this one authorizes changing which
   // pages exist at all, so it is workspace-scoped rather than page-scoped.
   'pages.manage',
-  // Schema authoring (35-schema-authoring.md D6): create, alter, rename and
+  // Schema authoring: create, alter, rename and
   // drop tables, columns and foreign keys on a connected database. Deliberately
   // NOT `schema.remap`, which changes only what Adminium displays and is undone
   // by deleting a row; this one changes the customer's database and is not.
-  // Destructive steps additionally require Super Admin (35 D7), the same
+  // Destructive steps additionally require Super Admin, the same
   // asymmetry the PII-unmask guard already enforces.
   'schema.ddl',
-  // Files & storage (37-files-and-storage.md D10/D37). TWO keys, not one, and
+  // Files & storage. TWO keys, not one, and
   // neither is `settings.manage`:
   //
   //   `files.manage` is about OTHER PEOPLE'S FILES — seeing them, downloading
@@ -186,29 +186,33 @@ export const SYSTEM_ACTION_KEYS = [
   //   instance's storage at a bucket they control.
   'files.manage',
   'storage.manage',
+  // Project folders: reading what a server changed so a developer can pull it
+  // into the project (`GET /project/export`, the `pull --from` source). Read
+  // only, but it reads every page and schema customization at once, which is
+  // why it is a key of its own rather than riding `pages.manage`.
+  'project.read',
 ] as const;
 export type SystemActionKey = (typeof SYSTEM_ACTION_KEYS)[number];
 export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);
 
 /**
  * Reserved keys — deferred features (automations, webhooks, manifest
- * administration, raw-SQL console; deferred per the v1-free pivot,
- * 17-deferred-monetization.md) with ZERO enforcement points in v1:
- * no route or realtime authorizer checks them. They stay in
- * {@link SYSTEM_ACTION_KEYS} because the grammar is a closed set that stored
- * grants round-trip through (removing a key would orphan persisted
+ * administration, raw-SQL console; deferred per the v1-free pivot) with ZERO
+ * enforcement points in v1: no route or realtime authorizer checks them. They
+ * stay in {@link SYSTEM_ACTION_KEYS} because the grammar is a closed set that
+ * stored grants round-trip through (removing a key would orphan persisted
  * `adminium_role_permissions` rows and break forward-compat), but no
  * permissions UI may OFFER them — letting an admin grant a key nothing checks
- * is misleading security UI. Author grantable lists from
- * {@link GRANTABLE_SYSTEM_ACTION_KEYS}; move a key out of here in the same
- * change that lands its first enforcement point.
+ * is misleading security UI. Author grantable lists from {@link
+ * GRANTABLE_SYSTEM_ACTION_KEYS}; move a key out of here in the same change
+ * that lands its first enforcement point.
  */
 export const RESERVED_SYSTEM_ACTION_KEYS = [
   'webhooks.manage',
-  // `manifests.manage` UN-RESERVED 2026-08-29 (26-add-on-runtime.md D3, 26-T05)
+  // `manifests.manage` UN-RESERVED 2026-08-29
   // in the same change that landed its first enforcement point — the
   // `/api/v1/add-ons` routes. `automations.manage` UN-RESERVED 2026-09-08
-  // (42-automations-and-workflow-logs.md D1, 42-T13) in the same change that
+  // in the same change that
   // landed ITS first enforcement point — the `/api/v1/automations` and
   // `/api/v1/automation-runs` routes. That is the rule this list documents,
   // honoured rather than quoted: a key becomes grantable when something checks
@@ -243,7 +247,7 @@ export function permissionActionsSchemaFor(kind: ResourceKind): z.ZodType<Permis
   }
 }
 
-// --- audit (§3.11) -------------------------------------------------------------
+// --- audit -------------------------------------------------------------
 
 export const actorKindSchema = z.enum(['user', 'api-key', 'system', 'automation']);
 export type ActorKind = z.infer<typeof actorKindSchema>;
@@ -259,15 +263,15 @@ export const auditCategorySchema = z.enum([
   'automation',
   'export',
   'system',
-  // Add-on acquisition and lifecycle (32-add-on-distribution.md §4.3): catalog
+  // Add-on acquisition and lifecycle: catalog
   // refresh, download, verify- and unpack-refusals, upload, staged, deleted,
   // upgraded. Its own category rather than a `system` action because an add-on
-  // ships a server half that runs in-process (24 D13) — "what code arrived on
+  // ships a server half that runs in-process — "what code arrived on
   // this deployment, from where, and did anything refuse it" is the question an
   // operator asks on its own, and it should not have to be sieved out of the
   // system log.
   'add-on',
-  // Installing a micro-SaaS app (47-app-installation.md D5): staged, installed,
+  // Installing a micro-SaaS app: staged, installed,
   // uninstalled, and the two refusals. Its own category on the same argument
   // the add-on one is made on — an app surface is served at the dashboard's own
   // origin, inside the session boundary, so "what code arrived on this
@@ -284,10 +288,10 @@ export const auditChangesSchema = z.object({
 });
 export type AuditChanges = z.infer<typeof auditChangesSchema>;
 
-/** Serialized-size cap for `adminium_audit_log.changes` (§3.11). */
+/** Serialized-size cap for `adminium_audit_log.changes`. */
 export const AUDIT_CHANGES_MAX_BYTES = 16 * 1024;
 
-// --- jobs (§3.12) ---------------------------------------------------------------
+// --- jobs ---------------------------------------------------------------
 
 export const jobStatusSchema = z.enum(['pending', 'running', 'succeeded', 'failed', 'cancelled']);
 export type JobStatus = z.infer<typeof jobStatusSchema>;
@@ -295,7 +299,7 @@ export type JobStatus = z.infer<typeof jobStatusSchema>;
 /** Kind-specific; the worker validates the concrete shape. */
 export const jobPayloadSchema = z.record(z.string(), z.unknown());
 
-// --- connections (§3.13) ---------------------------------------------------------
+// --- connections ---------------------------------------------------------
 
 export const connectionEngineSchema = z.enum(['postgres', 'mysql', 'sqlite']);
 export const connectionSourceKindSchema = z.enum(['dsn', 'schema-file']);
@@ -314,14 +318,14 @@ export const connectionSettingsSchema = z.object({
 });
 export type ConnectionSettings = z.infer<typeof connectionSettingsSchema>;
 
-// --- schema overrides (§3.15): one row = one op ----------------------------------
+// --- schema overrides: one row = one op ----------------------------------
 
 const toneSchema = z.string();
 
 export const overridePatchSchema = z.discriminatedUnion('op', [
   // Labels are min(1): the engine's `TableModel.label` forbids '' and an empty
   // rename is meaningless (the remap UI drops the op instead of staging '').
-  // Rejecting at write time keeps §3.15 last-write-wins + user>llm provenance
+  // Rejecting at write time keeps last-write-wins + user>llm provenance
   // free of empty-string special cases on the read path.
   z.object({
     op: z.literal('table.label'),
@@ -372,7 +376,7 @@ export type OverridePatch = z.infer<typeof overridePatchSchema>;
 export type OverrideOp = OverridePatch['op'];
 
 /**
- * Provenance of an override row. 06 §8.3 orders it user > llm > heuristic, but
+ * Provenance of an override row. The order is user > llm > heuristic, but
  * only the first two were ever representable — so the introspector's
  * auto-proposed PII masks were stored as `user`, and the LLM apply's
  * user-lock ("a user edit is never superseded") then made every machine guess
@@ -385,18 +389,18 @@ export type OverrideOp = OverridePatch['op'];
 export const overrideOriginSchema = z.enum(['user', 'llm', 'auto']);
 export const overrideStatusSchema = z.enum(['active', 'disabled']);
 
-// --- pages (§3.16/§3.17) -----------------------------------------------------------
+// --- pages -----------------------------------------------------------
 
 export const pageOriginSchema = z.enum(['generated', 'user', 'manifest', 'system', 'llm']);
 export const navGroupSchema = z.enum(['workspace', 'library', 'planning', 'people', 'account']);
 
 /**
  * Opaque: envelope validation is owned by `@adminium/engine/config` and runs
- * at the server route layer before the repo is called (§3.17).
+ * at the server route layer before the repo is called.
  */
 export const pageConfigSchema = z.record(z.string(), z.unknown());
 
-/** Saved-view payload (§3.18). */
+/** Saved-view payload. */
 export const viewConfigSchema = z.object({
   filters: z.array(z.unknown()).optional(),
   sort: z.unknown().optional(),
@@ -405,7 +409,7 @@ export const viewConfigSchema = z.object({
   widgetState: z.record(z.string(), z.unknown()).optional(),
 });
 
-// --- notifications (§3.20/§3.21) ----------------------------------------------------
+// --- notifications ----------------------------------------------------
 
 export const notificationChannelsSchema = z.object({
   inApp: z.boolean(),
@@ -414,7 +418,7 @@ export const notificationChannelsSchema = z.object({
 });
 export type NotificationChannels = z.infer<typeof notificationChannelsSchema>;
 
-// --- llm runs (§3.19 / 06-llm-assist.md §7.4) -----------------------------------------
+// --- llm runs -----------------------------------------
 
 export const llmRunModeSchema = z.enum(['provider', 'byo']);
 
@@ -427,12 +431,11 @@ export const llmRunModeSchema = z.enum(['provider', 'byo']);
 export const llmValidationStatusSchema = z.enum(['pending', 'valid', 'partial', 'invalid']);
 
 /**
- * `status` — the authoritative run-lifecycle machine (06-llm-assist.md §7.4).
- * Transitions (enforced by the server run-service, not the repo):
- *   draft → running | awaiting_response
- *   running | awaiting_response → validated | failed | discarded
- *   validated → applied | partially_applied | discarded
- *   applied | partially_applied | failed | discarded → (terminal, immutable)
+ * `status` — the authoritative run-lifecycle machine. Transitions (enforced
+ * by the server run-service, not the repo): draft → running |
+ * awaiting_response running | awaiting_response → validated | failed |
+ * discarded validated → applied | partially_applied | discarded applied |
+ * partially_applied | failed | discarded → (terminal, immutable)
  */
 export const llmRunStatusSchema = z.enum([
   'draft',
@@ -446,25 +449,27 @@ export const llmRunStatusSchema = z.enum([
 ]);
 export type LlmRunStatus = z.infer<typeof llmRunStatusSchema>;
 
-/** Builder inputs echoed onto the run (§4.1) — opaque here, validated upstream by `buildPrompt`. */
+/** Builder inputs echoed onto the run — opaque here, validated upstream by
+ * `buildPrompt`. */
 export const llmRunSectionsSchema = z.array(z.string());
 export const llmRunLocalesSchema = z.array(z.string()).min(1);
 export const llmRunSamplingSchema = z
   .object({ maxValuesPerColumn: z.number().int().positive() })
   .nullable();
 
-/** `review` — accepted/rejected suggestion-id lists persisted across re-review (§8.3). */
+/** `review` — accepted/rejected suggestion-id lists persisted across re-review.
+ * */
 export const llmRunReviewSchema = z.object({
   accepted: z.array(z.string()),
   rejected: z.array(z.string()),
 });
 export type LlmRunReview = z.infer<typeof llmRunReviewSchema>;
 
-// --- automations (§3.22/§3.23; 42-automations-and-workflow-logs.md §3.2) ---------------
+// --- automations ---------------
 
 /**
  * A rule's stored shape is deliberately PERMISSIVE about completeness and
- * strict about structure (42 D12).
+ * strict about structure.
  *
  * The step picker inserts a node before anyone has said which template it
  * sends or which table it writes, and that half-built rule has to survive a
@@ -495,17 +500,18 @@ export function automationDurationMs(amount: number, unit: AutomationDurationUni
   return amount * UNIT_MS[unit];
 }
 
-/** A wait may not exceed 30 days (42 D8/O6) — longer than an operator can see in the Jobs list. */
+/** A wait may not exceed 30 days — longer than an operator can see in the Jobs
+ * list. */
 export const AUTOMATION_MAX_WAIT_MS = 30 * UNIT_MS.days;
 
-/** Nodes per rule, branch children included (42 §3.2). */
+/** Nodes per rule, branch children included. */
 export const AUTOMATION_MAX_NODES = 40;
 
 /**
  * The comp's five operators (Automation Rules 128-134), plus emptiness and
- * the four relative-time ops a schedule scan needs (42 D5/D18). Relative ops
- * exist only on date/time columns; the server refuses one on any other
- * column, because only a date column has bounds to compute.
+ * the four relative-time ops a schedule scan needs. Relative ops exist only
+ * on date/time columns; the server refuses one on any other column, because
+ * only a date column has bounds to compute.
  */
 export const automationConditionOpSchema = z.enum([
   'is',
@@ -524,7 +530,8 @@ export type AutomationConditionOp = z.infer<typeof automationConditionOpSchema>;
 
 const RELATIVE_OPS = ['within_next', 'within_last', 'more_than_ago', 'more_than_ahead'] as const;
 const NO_OPERAND_OPS = ['is_empty', 'not_empty'] as const;
-/** A count is a number: `contains` and the relative ops are meaningless on one (42 D18). */
+/** A count is a number: `contains` and the relative ops are meaningless on one.
+ * */
 const COUNT_OPS = ['is', 'is_not', 'gt', 'lt'] as const;
 
 export function isRelativeAutomationOp(op: AutomationConditionOp): boolean {
@@ -674,7 +681,7 @@ export const automationTriggerSchema = z.discriminatedUnion('kind', [
 ]);
 export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
 
-// --- actions (42 D10, D15, D17, D19, D20) -----------------------------------
+// --- actions -----------------------------------
 
 /**
  * A value written to a column: a literal (which may carry `{{record.x}}`
@@ -700,7 +707,8 @@ const automationEmailRecipientSchema = z.discriminatedUnion('kind', [
 export const automationActionSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('email'),
-    /** A LIVE template's key; the runner refuses an archived one rather than falling back (39 D4). */
+    /** A LIVE template's key; the runner refuses an archived one rather than
+     * falling back. */
     templateKey: z.string().max(120).nullable().default(null),
     to: automationEmailRecipientSchema.nullable().default(null),
   }),
@@ -722,18 +730,18 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
     values: automationValuesSchema.default({}),
   }),
   z.object({
-    /** Writes back to THIS record; a related row is a residual (42 §10). */
+    /** Writes back to THIS record; a related row is a residual. */
     kind: z.literal('record.update'),
     values: automationValuesSchema.default({}),
   }),
   z.object({
     /*
-     * DRAW A DOCUMENT (34-invoices-add-on.md §7.2 as ruled by D55).
+     * DRAW A DOCUMENT (as ruled by D55).
      *
-     * §7.2 designed a separate `adminium_record_triggers` table with its own
+     * A separate `adminium_record_triggers` table was designed with its own
      * matcher. It was not built: plan 42 had already shipped the indexed
      * lookup, the `when` condition, the 60 s undo window, the per-row dedupe
-     * key and the delay-by-origin rule that §7.2 specified, and O4's only
+     * key and the delay-by-origin rule that specified, and O4's only
      * objection to reusing them — that `automations.manage` was still
      * reserved — went away when 42 un-reserved it. So a document profile's
      * trigger IS a rule, and this is the step it runs.
@@ -879,7 +887,7 @@ export const automationGraphSchema = z
   });
 export type AutomationGraph = z.infer<typeof automationGraphSchema>;
 
-// --- runs (§3.23) -----------------------------------------------------------
+// --- runs -----------------------------------------------------------
 
 /**
  * DEPARTURE D9 — seven statuses where Workflow Logs draws three. `pending`
@@ -899,7 +907,10 @@ export const automationRunStatusSchema = z.enum([
 ]);
 export type AutomationRunStatus = z.infer<typeof automationRunStatusSchema>;
 
-/** Who caused the event — the undo mapping queries this as a column (0028). */
+/**
+ * Who caused the event — the undo mapping queries this as a column (0028).
+ * `hook` and `action` are writes a project's own code made.
+ */
 export const automationOriginSchema = z.enum([
   'dashboard',
   'public',
@@ -908,6 +919,8 @@ export const automationOriginSchema = z.enum([
   'schedule',
   'test',
   'automation',
+  'hook',
+  'action',
 ]);
 export type AutomationOrigin = z.infer<typeof automationOriginSchema>;
 
@@ -919,13 +932,13 @@ export const automationEventNameSchema = z.enum([
   'test',
 ]);
 
-/** What the run was started BY. `snapshot` is PII-masked at this boundary (42 §0.3). */
+/** What the run was started BY. `snapshot` is PII-masked at this boundary. */
 export const automationTriggerEventSchema = z.object({
   event: automationEventNameSchema,
   origin: automationOriginSchema,
   /** Set when `origin` is `automation` — the rule whose write caused this. */
   ruleId: z.string().nullish(),
-  /** Loop guard: refused above 3 (42 §3.3). */
+  /** Loop guard: refused above 3. */
   hops: z.number().int().min(0).max(16).default(0),
   record: recordRefSchema.nullable(),
   snapshot: z.record(z.string(), z.unknown()).nullable(),
@@ -957,7 +970,7 @@ export const automationTraceSchema = z.object({
 export type AutomationTrace = z.infer<typeof automationTraceSchema>;
 
 /**
- * The watch poller's position — a KEYSET, not a scalar (42 D4).
+ * The watch poller's position — a KEYSET, not a scalar.
  *
  * Ten rows can carry the same `created_at` to the millisecond, and a cursor
  * of "the last timestamp I saw" either loses nine of them (`>`) or re-reads
@@ -975,7 +988,8 @@ export const automationWatchCursorSchema = z.object({
 });
 export type AutomationWatchCursor = z.infer<typeof automationWatchCursorSchema>;
 
-// --- scheduled reports (§3.24) ---------------------------------------------------------
+// --- scheduled reports
+// ---------------------------------------------------------
 
 export const reportScheduleSchema = z.object({
   frequency: z.enum(['daily', 'weekly', 'monthly']),
@@ -988,10 +1002,10 @@ export const reportScheduleSchema = z.object({
 export const reportRecipientsSchema = z.array(z.string());
 export const reportFormatSchema = z.enum(['pdf', 'png']);
 
-// --- exports / imports (§3.25/§3.26) ------------------------------------------------------
+// --- exports / imports ------------------------------------------------------
 
 /**
- * One column of an export DEFINITION (41-export-builder.md D1): the row key
+ * One column of an export DEFINITION: the row key
  * it reads and the header it is written under, plus — for a projection — the
  * same `lookup` / `reverse` / `derived` block a `page-crud` column carries.
  * Shape only; the server resolves every name against the snapshot.
@@ -1018,8 +1032,8 @@ export const exportSourceSchema = z.object({
   table: z.string().nullish(),
   viewId: z.string().nullish(),
   filters: z.array(z.unknown()).optional(),
-  // 41-export-builder.md D1 — the builder's definition, all optional so every
-  // stored row (and every scheduled report) parses exactly as before.
+  // The builder's definition, all optional so every stored row (and every
+  // scheduled report) parses exactly as before.
   columns: z.array(exportColumnSchema).max(64).optional(),
   /** A `CrudDerivedConfig`; meta cannot import the leaf, the server validates it. */
   derived: z.unknown().optional(),
@@ -1044,18 +1058,19 @@ export const importStatsSchema = z.object({
 });
 export const importStatusSchema = z.enum(['validating', 'ready', 'running', 'succeeded', 'failed', 'cancelled']);
 
-// --- files (§3.27) --------------------------------------------------------------------------
+// --- files
+// --------------------------------------------------------------------------
 
 /**
- * What a stored file IS. `document` joined on 2026-09-10 (34 §7.3, 34-T11):
- * the bytes a `document-render@1` provider produced for one register row.
+ * What a stored file IS. `document` joined on 2026-09-10: the bytes a
+ * `document-render@1` provider produced for one register row.
  *
  * A KIND RATHER THAN A FLAG ON `export`, because the two differ in every way
  * that matters downstream: an export is a snapshot of a query somebody ran and
  * is disposable, while a document is a thing that was ISSUED to somebody and
  * may have to be produced again years later. They get different retention
- * (`retention.documentsDays`, default null — kept forever, 34 O15), different
- * routes, and different answers to "may this be swept".
+ * (`retention.documentsDays`, default null — kept forever), different routes,
+ * and different answers to "may this be swept".
  */
 export const fileKindSchema = z.enum([
   'upload',
@@ -1067,7 +1082,7 @@ export const fileKindSchema = z.enum([
   'document',
 ]);
 
-// --- storage destinations (37-files-and-storage.md §3.2) --------------------------------------
+// --- storage destinations --------------------------------------
 
 export const storageDriverSchema = z.enum(['local', 's3', 'webdav']);
 export type StorageDriverKind = z.infer<typeof storageDriverSchema>;
@@ -1076,10 +1091,10 @@ export type StorageDriverKind = z.infer<typeof storageDriverSchema>;
  * A base URL under which this destination's objects are readable WITHOUT
  * Adminium — a CDN in front of a public bucket, a WebDAV share behind a
  * reverse proxy. Optional everywhere and used for ONE thing: minting a `url`
- * reference to store in the user's own column (37 D7). It is never used to
- * render an `<img>` — the dashboard's CSP is `default-src 'self'` and a
- * cross-origin thumbnail is blocked (37 D24) — and never as a read path for
- * Adminium itself, which always goes back through the driver.
+ * reference to store in the user's own column. It is never used to render
+ * an `<img>` — the dashboard's CSP is `default-src 'self'` and a
+ * cross-origin thumbnail is blocked — and never as a read path for Adminium
+ * itself, which always goes back through the driver.
  */
 const publicBaseUrl = z.string().url().max(400).optional();
 
@@ -1099,7 +1114,7 @@ export const localDestinationConfigSchema = z.object({
    * Absolute path to the storage root. This is the "host it on the server, in
    * a directory I choose" case (a mounted volume, an SMB mount, a NAS path) —
    * NOT this server's default disk, which is the implicit destination and has
-   * no row at all (37 D3).
+   * no row at all.
    */
   root: z.string().min(1).max(400),
 });
@@ -1152,7 +1167,7 @@ export type StorageDestinationConfig = z.infer<typeof storageDestinationConfigSc
 export const storageDestinationStatusSchema = z.enum(['untested', 'ok', 'error']);
 export type StorageDestinationStatus = z.infer<typeof storageDestinationStatusSchema>;
 
-/** Per-driver config parser — the repo's single entry point (37 §3.2). */
+/** Per-driver config parser — the repo's single entry point. */
 export function parseStorageDestinationConfig(
   driver: StorageDriverKind,
   value: unknown,
@@ -1167,19 +1182,21 @@ export function parseStorageDestinationConfig(
   }
 }
 
-// --- email templates / webhooks / flags / manifests (§3.28–§3.32) -----------------------------
+// --- email templates / webhooks / flags / manifests
+// -----------------------------
 
 /**
  * Block array — the OPEN envelope. The concrete per-kind data shapes are owned
- * by `apps/server/src/email/document.ts` (39-email-templates-and-campaigns.md
- * §3.3): an unknown kind must round-trip through the repo byte-identical so a
- * row a newer server wrote is never rejected by an older one.
+ * by `apps/server/src/email/document.ts`: an unknown kind must round-trip
+ * through the repo byte-identical so a row a newer server wrote is never
+ * rejected by an older one.
  */
 export const emailBlocksSchema = z.array(z.record(z.string(), z.unknown()));
 
-// --- email documents (39-email-templates-and-campaigns.md §3.2) ----------------------------
+// --- email documents ----------------------------
 
-/** `template` (bound to a flow, sent by the product) | `campaign` (a send-out) — 39 D2. */
+/** `template` (bound to a flow, sent by the product) | `campaign` (a send-out).
+ * */
 export const emailDocumentKindSchema = z.enum(['template', 'campaign']);
 export type EmailDocumentKind = z.infer<typeof emailDocumentKindSchema>;
 
@@ -1189,9 +1206,9 @@ export type EmailCategory = z.infer<typeof emailCategorySchema>;
 
 /**
  * The twelve logo marks the comp's Branding panel offers (comp 1559), plus
- * `logo` for the workspace's own logo when one is set (39 D6). Each of the
- * twelve ships as a white PNG the renderer attaches by CID — SVG does not
- * render in mail — so the set is closed here rather than "any Lucide name".
+ * `logo` for the workspace's own logo when one is set. Each of the twelve
+ * ships as a white PNG the renderer attaches by CID — SVG does not render
+ * in mail — so the set is closed here rather than "any Lucide name".
  */
 export const EMAIL_MARKS = [
   'hexagon',
@@ -1210,11 +1227,12 @@ export const EMAIL_MARKS = [
 export const emailMarkSchema = z.enum([...EMAIL_MARKS, 'logo']);
 export type EmailMark = z.infer<typeof emailMarkSchema>;
 
-/** Per-document brand & sender (39 D6/D7). `fromEmail` must be a configured sender — checked by the server, not here. */
+/** Per-document brand & sender. `fromEmail` must be a configured sender —
+ * checked by the server, not here. */
 export const emailBrandSchema = z.object({
   name: z.string().max(80),
   mark: emailMarkSchema,
-  /** Six-digit hex; the mail's `bgcolor` and the canvas's gradient (39 D6). */
+  /** Six-digit hex; the mail's `bgcolor` and the canvas's gradient. */
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   fromName: z.string().max(120),
   fromEmail: z.string().max(320),
@@ -1222,9 +1240,9 @@ export const emailBrandSchema = z.object({
 export type EmailBrand = z.infer<typeof emailBrandSchema>;
 
 /**
- * What travels with every send (39 D8). A `file` attachment names a library
- * file whose bytes are read at delivery; a `generated` one names a `{{token}}`
- * the caller fills with a file id per recipient.
+ * What travels with every send. A `file` attachment names a library file whose
+ * bytes are read at delivery; a `generated` one names a `{{token}}` the caller
+ * fills with a file id per recipient.
  */
 export const emailAttachmentSchema = z.discriminatedUnion('kind', [
   z.object({ id: z.string().min(1).max(40), kind: z.literal('file'), fileId: z.string().min(1).max(36) }),
@@ -1253,9 +1271,9 @@ export type EmailBlockStyle = z.infer<typeof emailBlockStyleSchema>;
 
 /**
  * A structural edit the editor mirrors onto a document's other language
- * variants (39 D1: collected in the session, applied by the save). The
- * algebra is the comp's `applyOp` (comp 1317-1323); `applyEmailBlockOps` in
- * the repo is its implementation.
+ * variants (collected in the session, applied by the save). The algebra is
+ * the comp's `applyOp` (comp 1317-1323); `applyEmailBlockOps` in the repo
+ * is its implementation.
  */
 export const emailMirrorOpSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -1269,7 +1287,8 @@ export const emailMirrorOpSchema = z.discriminatedUnion('kind', [
 export type EmailMirrorOp = z.infer<typeof emailMirrorOpSchema>;
 export const emailMirrorOpsSchema = z.array(emailMirrorOpSchema).max(200);
 
-/** Who a campaign goes to (39 D11). `users` is phase 1; a table audience joins in the next wave (O1). */
+/** Who a campaign goes to. `users` is phase 1; a table audience joins in the
+ * next wave (O1). */
 export const emailAudienceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('users'), roleIds: z.array(z.string().min(1)).max(50).optional() }),
 ]);
@@ -1285,7 +1304,7 @@ export const emailRunFailuresSchema = z
   .max(EMAIL_RUN_FAILURES_MAX);
 export type EmailRunFailure = z.infer<typeof emailRunFailuresSchema>[number];
 
-// --- invoice documents (34-invoices-add-on.md §3.9) ---------------------------------------
+// --- invoice documents ---------------------------------------
 
 /** `template` (a reusable design) | `invoice` (a document built from one, or from scratch). */
 export const invoiceDocumentKindSchema = z.enum(['template', 'invoice']);
@@ -1305,7 +1324,7 @@ export const invoiceTopicSchema = z.enum(['recurring', 'services', 'receipts', '
 export type InvoiceTopic = z.infer<typeof invoiceTopicSchema>;
 
 /**
- * The six DOCUMENT languages (34 O23; comp `langs()` 1183-1192) — the
+ * The six DOCUMENT languages (comp `langs()` 1183-1192) — the
  * customer's, not the admin UI's locale. The enum's order IS the comp's
  * fixed order (1185-1190): language groups always run this way.
  */
@@ -1323,9 +1342,9 @@ export const invoiceBodySchema = z.record(z.string(), z.unknown());
 export type InvoiceBodyRecord = z.infer<typeof invoiceBodySchema>;
 
 /**
- * What the manager's card and row read without decoding the body (34 §3.9
- * "denormalised columns"), written by the server on every save. Mirrors
- * `InvoiceSummaryFacts` in `apps/dashboard/src/invoices/api.ts` exactly.
+ * What the manager's card and row read without decoding the body, written
+ * by the server on every save. Mirrors `InvoiceSummaryFacts` in
+ * `apps/dashboard/src/invoices/api.ts` exactly.
  */
 export const invoiceSummarySchema = z.object({
   number: z.string(),
@@ -1337,14 +1356,14 @@ export const invoiceSummarySchema = z.object({
   accent: z.string(),
   currency: z.string(),
   cents: z.boolean(),
-  /** The ladder's total in integer minor units (the money law, 34 D20/O25). */
+  /** The ladder's total in integer minor units (the money law). */
   totalMinor: z.number(),
   /** How many line items — the thumbnail draws up to three rows (comp 1432). */
   itemCount: z.number().int(),
 });
 export type InvoiceSummary = z.infer<typeof invoiceSummarySchema>;
 
-// --- report documents (43-report-builder.md §3.2) -----------------------------------------
+// --- report documents -----------------------------------------
 
 /** `template` (a reusable layout) | `report` (a document built from one, or from scratch). */
 export const reportDocumentKindSchema = z.enum(['template', 'report']);
@@ -1368,8 +1387,8 @@ export const reportBodySchema = z.record(z.string(), z.unknown());
 export type ReportBodyRecord = z.infer<typeof reportBodySchema>;
 
 /**
- * What the manager's card and row draw without decoding the body (43 D15/D16),
- * written by the server on every save. Exactly the inputs of the comp's `cards`
+ * What the manager's card and row draw without decoding the body, written by
+ * the server on every save. Exactly the inputs of the comp's `cards`
  * (584-591) and `starters` (570-576) thumbnails. Mirrors `ReportSummaryFacts`
  * in `apps/dashboard/src/report-builder/api.ts`.
  */
@@ -1382,7 +1401,7 @@ export const reportSummarySchema = z.object({
   kpiCount: z.number().int(),
   /** The first bar/line block's values, at most six (584-591). */
   series: z.array(z.number()),
-  /** The starter's icon, carried on the row so a rename never changes it (43 D14). */
+  /** The starter's icon, carried on the row so a rename never changes it. */
   starterIcon: z.string(),
 });
 export type ReportSummary = z.infer<typeof reportSummarySchema>;
@@ -1397,7 +1416,7 @@ export const featureFlagEnvironmentSchema = z.object({
 });
 export const featureFlagEnvironmentsSchema = z.record(z.string(), featureFlagEnvironmentSchema);
 
-/** Envelope only — the full manifest spec is frozen in 13-marketplace.md. */
+/** Envelope only — the full manifest spec is frozen. */
 export const manifestDocSchema = z
   .object({
     key: z.string(),

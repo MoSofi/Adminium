@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Starlight content-collection schema (14-docs-site.md §10.1).
+ * Starlight content-collection schema.
  *
  * `title` and `description` are both REQUIRED: the style guide's "one H1 per
  * page" rule is enforced by making the frontmatter title the only H1, and the
@@ -17,7 +17,7 @@ export const collections = {
     schema: docsSchema({
       extend: z.object({
         description: z.string({
-          message: 'Every docs page needs a `description` (14-docs-site.md §10.1).',
+          message: 'Every docs page needs a `description`.',
         }),
       }),
     }),

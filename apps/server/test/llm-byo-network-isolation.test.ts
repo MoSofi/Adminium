@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * BYO telemetry-free guarantee (06-llm-assist.md §9 / §9.1, acceptance #9 + #1).
+ * BYO telemetry-free guarantee (acceptance #9 + #1).
  *
  * Drives the WHOLE BYO round-trip over the real `/api/v1/llm/*` routes on an
  * in-memory SQLite meta store — `POST /runs` (build the prompt) → `POST
  * /runs/:id/response` (paste + validate) → `POST /runs/:id/apply` (transactional
  * executor) — with ALL outbound network disabled and asserts that NO interception
- * ever occurs (§9.1). The doc names an `undici` MockAgent with `net.connect` off;
+ * ever occurs. The doc names an `undici` MockAgent with `net.connect` off;
  * `undici` is not a dependency of this repo, so we install the same guarantee
  * directly: `globalThis.fetch`, `net.connect`/`createConnection`,
  * `Socket.prototype.connect` and `http(s).request` are all replaced with
@@ -15,8 +15,8 @@
  * stray call would both throw (failing the round-trip) and be recorded.
  *
  * Also asserts, for the same BYO run:
- *  - `adminium_llm_runs.provider` / `.model` stay NULL (§9, never recorded — the
- *    metering-free signal: no AI-credit/metering code runs on the BYO path);
+ * - `adminium_llm_runs.provider` / `.model` stay NULL (never recorded — the
+ *  metering-free signal: no AI-credit/metering code runs on the BYO path);
  *  - the prompt served by `POST /runs` is byte-identical to what the DIRECT path
  *    would send (acceptance #1): the direct runner reconstructs its per-message
  *    `system`/`user` from the very same stored `prompt_text` via
@@ -84,7 +84,7 @@ const ALLOWED = {
   widgets: ['kpi-stat-card', 'chart-line-area', 'chart-donut', 'top-movers-list'],
 };
 
-// ─── Network kill-switch (§9.1: "net.connect disabled … assert no interception") ──
+// ─── Network kill-switch ("net.connect disabled … assert no interception") ──
 
 interface NetGuard {
   /** Every outbound attempt seen while disabled — must stay empty on the BYO path. */
@@ -116,7 +116,7 @@ function disableNetwork(): NetGuard {
     (...args: unknown[]): never => {
       const target = describeTarget(args[0]);
       attempts.push(`${label} → ${target}`);
-      throw new Error(`network disabled (BYO §9): blocked ${label} to ${target}`);
+      throw new Error(`network disabled (BYO): blocked ${label} to ${target}`);
     };
 
   const g = globalThis as { fetch: typeof globalThis.fetch };
@@ -162,9 +162,9 @@ interface Harness {
   /**
    * Recording stand-in for the PRODUCTION stats collector wired in compose
    * (llm/stats-collector.ts — it opens the SOURCE database). Prompt build
-   * (§4.2) legitimately calls it ONCE per POST /runs; `armed` makes any later
-   * call throw, so a paste/diff/apply that re-acquires the source DB both
-   * fails its request and shows up in `calls`.
+   * legitimately calls it ONCE per POST /runs; `armed` makes any later call
+   * throw, so a paste/diff/apply that re-acquires the source DB both fails
+   * its request and shows up in `calls`.
    */
   statsRecorder: { calls: number; armed: boolean };
 }
@@ -200,7 +200,7 @@ async function buildHarness(): Promise<Harness> {
     schema: demoSchemaIr,
     checksum: 'sha-shop-1',
   });
-  // The generated CRUD pages the nav-group re-placement lands on (§8.3).
+  // The generated CRUD pages the nav-group re-placement lands on.
   for (const table of ['public.customers', 'public.products', 'public.orders']) {
     await pagesRepo(meta).create({
       connectionId: connection.id,
@@ -235,7 +235,7 @@ async function buildHarness(): Promise<Harness> {
   const recordingCollector = async (): Promise<never[]> => {
     statsRecorder.calls += 1;
     if (statsRecorder.armed) {
-      throw new Error('collectStats invoked after prompt build — §9 BYO isolation violated');
+      throw new Error('collectStats invoked after prompt build — BYO isolation violated');
     }
     return [];
   };
@@ -244,7 +244,7 @@ async function buildHarness(): Promise<Harness> {
       // No `createClient`, no provider resolver, no jobs runtime are wired: the
       // BYO path must reach `applied` without ever needing any of them. The
       // recording collector occupies the SAME injection point compose wires the
-      // real source-DB collector into, pinning §9 against route re-wiring.
+      // real source-DB collector into, pinning against route re-wiring.
       await api.register(
         llmRoutes({
           meta,
@@ -265,7 +265,7 @@ async function buildHarness(): Promise<Harness> {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('BYO round-trip — telemetry-free guarantee (§9, acceptance #9)', () => {
+describe('BYO round-trip — telemetry-free guarantee (acceptance #9)', () => {
   let t: Harness;
   beforeEach(async () => {
     t = await buildHarness();
@@ -291,8 +291,8 @@ describe('BYO round-trip — telemetry-free guarantee (§9, acceptance #9)', () 
       runId = createdBody.run.id;
       expect(createdBody.run.mode).toBe('byo');
 
-      // Prompt build calls the stats collector exactly once (§4.2 enrichment);
-      // from here on ANY invocation is a §9 violation — arm it to throw.
+      // Prompt build calls the stats collector exactly once (enrichment);
+      // from here on ANY invocation is a violation — arm it to throw.
       expect(t.statsRecorder.calls).toBe(1);
       t.statsRecorder.armed = true;
 
@@ -335,7 +335,8 @@ describe('BYO round-trip — telemetry-free guarantee (§9, acceptance #9)', () 
       guard.restore();
     }
 
-    // The whole round-trip made ZERO outbound network attempts (§9.1: no interception).
+    // The whole round-trip made ZERO outbound network attempts (no
+    // interception).
     expect(guard.attempts).toEqual([]);
 
     // And the source-DB stats collector was never re-acquired after prompt
@@ -349,7 +350,7 @@ describe('BYO round-trip — telemetry-free guarantee (§9, acceptance #9)', () 
     expect(pages.some((p) => p.origin === 'llm' && p.type === 'page-dashboard')).toBe(true);
   });
 
-  it('the BYO run records NO provider/model and no metering signal (§9)', async () => {
+  it('the BYO run records NO provider/model and no metering signal', async () => {
     const created = await t.app.inject({
       method: 'POST',
       url: '/api/v1/llm/runs',
@@ -396,7 +397,7 @@ describe('BYO round-trip — telemetry-free guarantee (§9, acceptance #9)', () 
     expect(served.length).toBeGreaterThan(0);
 
     // The persisted prompt_text is exactly the served BYO documents, joined by the
-    // chunk separator — the single source both paths read from (§1 invariant 1).
+    // chunk separator — the single source both paths read from.
     const row = await llmRunsRepo(t.meta).findById(body.run.id);
     const CHUNK_SEPARATOR = '\n\n=== NEXT PROMPT ===\n\n';
     expect(row?.promptText).toBe(served.map((c) => c.byo).join(CHUNK_SEPARATOR));

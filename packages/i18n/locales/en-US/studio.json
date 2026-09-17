@@ -1204,6 +1204,7 @@
       "generated": "Generated",
       "llm": "Assistant",
       "manifest": "Add-on",
+      "project": "Project code",
       "system": "System",
       "user": "Custom"
     },
@@ -1218,6 +1219,34 @@
     "preview": {
       "note": "An illustration of the layout, not your data.",
       "untitled": "Untitled page"
+    },
+    "project": {
+      "badge": {
+        "changed": "Changed on server",
+        "conflict": "Conflict",
+        "outside": "Not in project"
+      },
+      "changed": {
+        "body": "Pull the changes into your project and deploy it, or they stay on this server only:",
+        "title": "{count, plural, one {# page was changed on this server} other {# pages were changed on this server}}"
+      },
+      "conflicts": {
+        "body": "This server keeps its own version until you choose one.",
+        "title": "{count, plural, one {# page was changed here and in the project} other {# pages were changed here and in the project}}"
+      },
+      "fromCode": "This page comes from {source}. Change it there.",
+      "invalid": {
+        "body": "Fix these files. Until then the last good version stays in use.",
+        "title": "{count, plural, one {# project file was not applied} other {# project files were not applied}}"
+      },
+      "keepServer": "Keep server copy",
+      "notConfigured": "Some of them belong to a database the project does not list. Add it to adminium.config.ts to keep its pages in the project.",
+      "outside": {
+        "body": "They exist on this server only. Pull them into the project to keep them:",
+        "title": "{count, plural, one {# page is not in the project} other {# pages are not in the project}}"
+      },
+      "resolveFailed": "That could not be changed.",
+      "useProject": "Use project copy"
     },
     "row": {
       "menu": "Actions for {title}"
@@ -1254,6 +1283,84 @@
       "narrow": "Narrow (720px)",
       "page": "Page (1080px)",
       "wide": "Wide (1800px)"
+    }
+  },
+  "project": {
+    "actions": {
+      "bulk": "One or more records",
+      "empty": "No actions. A file in actions/ puts a button on records.",
+      "needs": "Needs: {permission}",
+      "single": "One record",
+      "title": "Actions"
+    },
+    "changes": {
+      "empty": "Every page and schema file matches this server.",
+      "open": "Resolve in Pages",
+      "title": "Changed on this server"
+    },
+    "code": {
+      "disabled": "Not loaded: the desktop app never runs project code",
+      "label": "Project code",
+      "loaded": "Loaded {when}",
+      "none": "None loaded"
+    },
+    "failures": {
+      "empty": "No hook has failed since the server started.",
+      "title": "Hook errors"
+    },
+    "files": {
+      "count": "{count, plural, one {# file} other {# files}}",
+      "pages": "Page files",
+      "schema": "Schema files",
+      "title": "Files"
+    },
+    "folder": "Folder",
+    "hooks": {
+      "empty": "No hooks. A file in hooks/ runs code when records change.",
+      "onImport": "Also for CSV imports",
+      "title": "Hooks"
+    },
+    "loadFailed": "The project could not be loaded",
+    "mode": {
+      "dev": "Development: the folder and Studio stay in step",
+      "label": "Runs as",
+      "server": "Server: the folder changes only with a deploy"
+    },
+    "none": {
+      "body": "A project is a folder made with `npx @adminiumjs/adminium new`. Its pages, hooks and actions show here when the server runs it.",
+      "title": "This server runs no project"
+    },
+    "pages": {
+      "empty": "No pages. A .tsx file in pages/ adds a page of your own.",
+      "hidden": "Not in the sidebar",
+      "title": "Pages"
+    },
+    "permission": {
+      "create": "Add",
+      "delete": "Delete",
+      "read": "View",
+      "update": "Edit"
+    },
+    "problems": {
+      "body": "Fix these files. The rest of the project code is running.",
+      "title": "{count, plural, one {# file did not load} other {# files did not load}}"
+    },
+    "status": {
+      "changed": "Changed on this server",
+      "conflict": "Conflict",
+      "invalid": "Not valid",
+      "outside": "Not in the project",
+      "pending": "Not applied yet"
+    },
+    "subtitle": "The project folder this server runs, and the code it loaded.",
+    "superAdminOnly": "Only a super admin can see the project this server runs.",
+    "title": "Project",
+    "version": "Adminium",
+    "widgets": {
+      "card": "Dashboard card",
+      "cell": "Table cell",
+      "empty": "No widgets. A file in widgets/ adds a table cell or a dashboard card.",
+      "title": "Widgets"
     }
   },
   "publicApi": {
@@ -1439,11 +1546,11 @@
       "searchPlaceholder": "Search tables…",
       "unsaved": "Unsaved change"
     },
-    "unavailableBody": "This build does not include the remap editor yet (09-T12). Re-run generation after it lands to remap labels, types and relations.",
+    "unavailableBody": "This build does not include the remap editor yet. Re-run generation after it lands to remap labels, types and relations.",
     "unavailableTitle": "Schema remap editor not available"
   },
   "review": {
-    "unavailableBody": "This build does not include the enrichment review screen yet (06-T14). It lands with the diff-and-apply flow.",
+    "unavailableBody": "This build does not include the enrichment review screen yet. It lands with the diff-and-apply flow.",
     "unavailableTitle": "Review screen not available"
   },
   "settings": {
@@ -1590,6 +1697,11 @@
         "error": "A bare hostname or IP address — no scheme, port or credentials.",
         "label": "SMTP host"
       },
+      "linkOrigin": {
+        "error": "Enter an address such as https://admin.example.com, with no path.",
+        "helper": "Password-reset and invitation links open this address. If it is empty, Adminium fills it in from the next admin who signs in or saves a change, unless they are on localhost.",
+        "label": "Address in email links"
+      },
       "pass": {
         "error": "This username needs a password.",
         "helper": "Stored encrypted and never shown again. Leave blank to keep the current one.",
@@ -1654,6 +1766,11 @@
       "body": "Add, edit and delete pages, change what each one shows, and reorder the sidebar.",
       "cta": "Manage pages",
       "heading": "Pages"
+    },
+    "projectCard": {
+      "body": "The project folder this server runs: its hooks, actions and page files.",
+      "cta": "Open project",
+      "heading": "Project"
     },
     "publicApiCard": {
       "body": "Let your own customer- or staff-facing pages read this database, through a scope you define.",

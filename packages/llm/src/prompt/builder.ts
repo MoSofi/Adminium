@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `buildPrompt(input, opts)` — the ONLY producer of prompt text (06-llm-assist.md
- * §1 invariant 1, §4, §5).
+ * `buildPrompt(input, opts)` — the ONLY producer of prompt text.
  *
  * It renders the verbatim {@link PROMPT_V1} templates into a
  * {@link PromptArtifact}: the direct path sends `system`/`user` as separate
@@ -10,14 +9,14 @@
  * byte-identical to `system` + `user` (acceptance criterion 1).
  *
  * Responsibilities:
- *  - section toggles (§4.4): drop deselected numbered decision blocks, keeping
- *    the original numbering so the template's "decision N" cross-references stay
- *    valid;
- *  - locale injection (§5.2): the requested OUTPUT locales are injected as data;
- *    the prompt TEXT itself is always English (Open decision 3);
- *  - allow-list bounds (§5 builder notes): the injected page-template / widget
- *    vocabularies come from `opts.allowed`;
- *  - sample-free serialization by default (§4.2), delegated to `serializer.ts`.
+ * - section toggles: drop deselected numbered decision blocks, keeping the
+ *  original numbering so the template's "decision N" cross-references stay
+ *  valid;
+ * - locale injection: the requested OUTPUT locales are injected as data; the
+ *  prompt TEXT itself is always English (Open decision 3);
+ * - allow-list bounds (builder notes): the injected page-template / widget
+ *  vocabularies come from `opts.allowed`;
+ * - sample-free serialization by default, delegated to `serializer.ts`.
  *
  * Determinism: pure string assembly, no `Date.now`/`Math.random`; string-literal
  * token replacement uses function replacers so a `$` in injected JSON is never
@@ -39,7 +38,7 @@ import {
   type RequestedSection,
 } from './types.js';
 
-/** BYO flattening dividers (§1 invariant 1, §5). */
+/** BYO flattening dividers. */
 export const BYO_SYSTEM_MARKER = '=== SYSTEM ===';
 export const BYO_USER_MARKER = '=== USER ===';
 
@@ -78,9 +77,9 @@ export function buildPrompt(input: PromptInput, options: BuildPromptOptions): Pr
   return { system, user, byo, chunks: [chunk], tokenEstimate, overBudget, sections };
 }
 
-// ─── Section normalization + block removal (§4.4) ────────────────────────────
+// ─── Section normalization + block removal ───────────────────────────────────
 
-/** Dedupe + canonically order the requested sections; empty ⇒ all (§4.4). */
+/** Dedupe + canonically order the requested sections; empty ⇒ all. */
 export function normalizeSections(
   requested: readonly RequestedSection[],
 ): readonly RequestedSection[] {
@@ -98,10 +97,10 @@ interface DecisionBlock {
 }
 
 /**
- * Apply the section toggles to the user template (§4.4): remove BOTH the numbered
+ * Apply the section toggles to the user template: remove BOTH the numbered
  * decision blocks AND the embedded response-schema keys of deselected sections
- * (per the §5 builder note "the builder deletes the numbered instruction blocks
- * (and schema keys) of deselected sections"). Kept decision blocks retain their
+ * (per the builder note "the builder deletes the numbered instruction blocks (and
+ * schema keys) of deselected sections"). Kept decision blocks retain their
  * original numbers (gaps are fine) so the template's "for decision 6" / "Skip
  * decisions 2 and 7" references stay valid. With all sections active the template
  * is returned unchanged (verbatim — acceptance criterion 2).
@@ -129,7 +128,7 @@ export function applySectionToggles(
   return pruneResponseSchema(withDecisions, new Set(sections));
 }
 
-// ─── Response-schema key removal (§4.4, §5 builder note) ──────────────────────
+// ─── Response-schema key removal (builder note) ───────────────────────────────
 
 /** Anchors bounding the embedded `=== RESPONSE SCHEMA … ===` object notation. */
 const SCHEMA_OBJECT_START = '{\n  schema_version: "adminium.llm/v1",';
@@ -189,7 +188,7 @@ const SCHEMA_KEY_CUTS: Partial<Record<RequestedSection, ReadonlyArray<readonly [
 
 /**
  * Remove the response-schema keys of deselected sections from the embedded
- * RESPONSE SCHEMA block (§4.4: deselected keys are "omitted from … the embedded
+ * RESPONSE SCHEMA block (deselected keys are "omitted from … the embedded
  * response schema"), so a scoped run's schema reflects only the requested
  * decisions and the model does not emit — and pay output tokens for — keys the
  * run neither asked for nor validates.
@@ -299,7 +298,7 @@ function replaceOnce(text: string, token: string, value: string): string {
   return text.replace(token, () => value);
 }
 
-/** The `{{CHUNK_INFO}}` sentence for a chunked run; empty otherwise (§4.5, §5.2). */
+/** The `{{CHUNK_INFO}}` sentence for a chunked run; empty otherwise. */
 export function renderChunkInfo(chunk: PromptChunkInfo | undefined): string {
   if (chunk === undefined) return '';
   return (
@@ -314,6 +313,6 @@ export function renderChunkInfo(chunk: PromptChunkInfo | undefined): string {
 
 function requireEnUs(locales: readonly string[]): void {
   if (!locales.includes('en_US')) {
-    throw new Error('buildPrompt: locales must include "en_US" (06-llm-assist.md §4.1).');
+    throw new Error('buildPrompt: locales must include "en_US".');
   }
 }

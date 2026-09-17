@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The design buffer's keying — 35-schema-authoring.md 35-T12.
+ * The design buffer's keying.
  *
  * ─── The bug this file exists to keep fixed ────────────────────────────────
  *
@@ -92,7 +92,7 @@ describe('a new table keeps ONE buffer entry while it is being named', () => {
   });
 });
 
-describe('loading an EXISTING table brings its real columns (35-T12)', () => {
+describe('loading an EXISTING table brings its real columns', () => {
   /*
    * The bug: clicking an existing table staged `blankTable(name)` with the real
    * table's id. A blank table has one column, so the planner diffed one column

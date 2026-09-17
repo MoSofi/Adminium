@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The §4 bridge as the renderer sees it: what is exposed, and what a rejection
+ * The bridge as the renderer sees it: what is exposed, and what a rejection
  * looks like.
  *
  * The allow-list test below is the one with teeth. Every other property here
  * would fail loudly the first time somebody used the feature; a bridge that
  * quietly grew a thirteenth method — `ipcRenderer`, a `send(channel, …)`
  * passthrough, a node primitive, a debug helper somebody meant to remove — would
- * work perfectly and hand a compromised renderer main-process authority §2.4
- * spent four settings denying it. So the exposed key set is asserted EXACTLY,
- * and adding to §4 means editing this list on purpose.
+ * work perfectly and hand a compromised renderer main-process authority spent
+ * four settings denying it. So the exposed key set is asserted EXACTLY, and
+ * adding to means editing this list on purpose.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -82,7 +82,7 @@ const build = (ipc: IpcRendererLike = new FakeIpc()): AdminiumDesktopApi =>
 
 describe('the exposed surface', () => {
   /**
-   * §4's `AdminiumDesktopApi`, spelled out. Not derived from the type — a test
+   * `AdminiumDesktopApi`, spelled out. Not derived from the type — a test
    * that computed this list from the thing it is testing would agree with any
    * future version of it, including the one with `ipcRenderer` on it.
    */
@@ -91,7 +91,7 @@ describe('the exposed surface', () => {
     'checkForUpdates',
     'chooseDirectory',
     'downloadUpdate',
-    // §13's About panel: diagnostics copy + the in-app licence/notices viewer.
+    // The About panel: diagnostics copy + the in-app licence/notices viewer.
     'getDiagnostics',
     'getRuntimeInfo',
     'onUpdateEvent',
@@ -102,13 +102,13 @@ describe('the exposed surface', () => {
     'relaunch',
     'saveFile',
     'setConfig',
-    // NOT in §4's listing, and deliberately so: §6 step 1's "Change…" needs a
+    // NOT listing, and deliberately so: the wizard's "Change…" needs a
     // COMMIT, which `setConfig` must not be. Moving the data dir relaunches the
     // app and can refuse (cloud-sync path, non-empty target), so it gets its own
     // channel with its own gate rather than becoming a key `setConfigSchema`
     // exists to reject. See `main/ipc.ts`'s `setDataDirSchema`.
     'setDataDir',
-    // §14: the renderer pushes the native menu's localized labels here, so it
+    // The renderer pushes the native menu's localized labels here, so it
     // rebuilds on locale change without the shell importing `@adminium/i18n`.
     'setMenuLabels',
     'showItemInFolder',
@@ -116,11 +116,11 @@ describe('the exposed surface', () => {
     'versions',
   ];
 
-  it('is exactly §4 — no more, no less', () => {
+  it('is exactly — no more, no less', () => {
     expect(Object.keys(build()).sort()).toEqual(SECTION_4_KEYS);
   });
 
-  it('exposes §12 capabilities as exactly list + invoke', () => {
+  it('exposes capabilities as exactly list + invoke', () => {
     expect(Object.keys(build().capabilities).sort()).toEqual(['invoke', 'list']);
   });
 
@@ -139,13 +139,13 @@ describe('the exposed surface', () => {
     expect(api['process']).toBeUndefined();
   });
 
-  it('carries §4 platform + versions as plain values, not promises', () => {
+  it('carries platform + versions as plain values, not promises', () => {
     const api = build();
     expect(api.platform).toBe('darwin');
     expect(api.versions).toEqual(BOOTSTRAP.versions);
   });
 
-  it('exposes under §4 the one key the SPA and the server both name', () => {
+  it('exposes the one key the SPA and the server both name', () => {
     const expose = vi.fn();
     exposeBridge({ ipc: new FakeIpc(), bootstrap: BOOTSTRAP, expose });
     expect(expose).toHaveBeenCalledTimes(1);
@@ -305,7 +305,7 @@ describe('onUpdateEvent', () => {
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
 describe('readBootstrap', () => {
-  it('reads §4 platform + versions over the sync channel', () => {
+  it('reads platform + versions over the sync channel', () => {
     const ipc = new FakeIpc();
     expect(readBootstrap(ipc)).toEqual(BOOTSTRAP);
     expect(ipc.calls).toEqual([{ channel: IPC_CHANNELS.bootstrap, args: [] }]);
@@ -320,8 +320,8 @@ describe('readBootstrap', () => {
     const ipc = new FakeIpc();
     ipc.syncReply = syncReply;
     // Throwing is the point: a `window.adminiumDesktop` that exists with a
-    // made-up app version would satisfy §4's detection contract while lying to
-    // §13's About screen. Failing here surfaces as "Unable to load preload
+    // made-up app version would satisfy detection contract while lying to
+    // The About screen. Failing here surfaces as "Unable to load preload
     // script" and the SPA correctly reports "not the desktop shell".
     expect(() => readBootstrap(ipc)).toThrow(/bootstrap/);
   });

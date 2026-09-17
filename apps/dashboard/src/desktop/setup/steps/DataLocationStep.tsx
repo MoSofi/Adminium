@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 1 — "Welcome & data location" (11-electron.md §6).
+ * Step 1 — "Welcome & data location".
  *
- * Shows `<userData>/data` with a Change… button, and §6's blocking cloud-sync
- * warning when the picked folder is inside one.
+ * Shows `<userData>/data` with a Change… button, blocking cloud-sync warning
+ * when the picked folder is inside one.
  *
  * THE WARNING IS NOT RENDERED FROM A LOCAL CHECK. `detectCloudSyncFolder` lives
- * in the main process (11-T03) and the SPA cannot reach it, so this component
- * asks `setDataDir` to commit and renders the refusal it gets back. That is the
+ * in the main process and the SPA cannot reach it, so this component asks
+ * `setDataDir` to commit and renders the refusal it gets back. That is the
  * correct direction of authority — the gate is on the side that owns the file —
  * and it is why "Continue" is the moment the check happens rather than the pick:
  * the answer and the act are the same call.
@@ -24,14 +24,14 @@ export interface DataLocationStepProps {
   currentDataDir: string | null;
   /** Picked but not committed; `null` ⇒ keeping {@link currentDataDir}. */
   pendingDataDir: string | null;
-  /** §6's blocking warning, as the main process refused it. */
+  /** The blocking warning, as the main process refused it. */
   cloudSync: CloudSyncBlock | null;
   /** The main process could not use the folder (not writable, …). */
   unusableReason: string | null;
   busy: boolean;
   onChoose: () => void;
   onRevert: () => void;
-  /** Re-commit with the acknowledgement §6 requires. */
+  /** Re-commit with the acknowledgement requires. */
   onAcknowledgeCloudSync: () => void;
 }
 
@@ -120,7 +120,7 @@ export function DataLocationStep(props: DataLocationStepProps): ReactNode {
               <Button variant="outline" onClick={props.onChoose} disabled={props.busy}>
                 {t('desktop.setup.dataDir.chooseAnother', 'Choose another folder')}
               </Button>
-              {/* §6: "require explicit confirmation" — a second, deliberate act,
+              {/* "require explicit confirmation" — a second, deliberate act,
                   never a checkbox that Continue could carry along with it. */}
               <Button
                 variant="destructiveSoft"

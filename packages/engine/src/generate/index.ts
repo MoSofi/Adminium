@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `generatePages()` — Generator v1 (M4-T08, 05-introspection-engine.md
- * generation section, research/widget-registry.md §14–§15, 09-generated-app.md
- * §2.2 nav rules, §8.4 intent variants).
+ * `generatePages()` — Generator v1 (generation section,
+ * research/widget-registry.md nav rules, intent variants).
  *
  * Pure and deterministic: same classified model + options in, same
- * `PageEnvelope[]` out (05 §9 — regeneration is safe to re-run). Every
- * emitted envelope is validated against `pageEnvelopeSchema` (and dashboard
- * widget instances against `widgetConfigSchema`) before return — outputs
- * cannot drift from the frozen config contract.
+ * `PageEnvelope[]` out (regeneration is safe to re-run). Every emitted
+ * envelope is validated against `pageEnvelopeSchema` (and dashboard widget
+ * instances against `widgetConfigSchema`) before return — outputs cannot
+ * drift from the frozen config contract.
  */
 
 import {
@@ -89,7 +88,7 @@ export {
   SlugRegistry,
 } from './util.js';
 
-/** 09 §8.4 generation intent variants (adminium_connections.settings.intent). */
+/** Generation-intent variants (adminium_connections.settings.intent). */
 export const GENERATE_INTENTS = [
   'full-admin',
   'read-only-analytics',
@@ -103,29 +102,29 @@ export type GenerateIntent = z.infer<typeof generateIntentSchema>;
 export const DASHBOARD_CAP = 3;
 
 /**
- * The §14 archetypes each 09 §8.4 intent OMITS (empty ⇒ it admits them all).
- * `crud` is absent because it skips the archetype pass wholesale ("`page-crud`
- * per table … no dashboards beyond a minimal home").
+ * The archetypes each intent OMITS (empty ⇒ it admits them all). `crud` is
+ * absent because it skips the archetype pass wholesale ("`page-crud` per table
+ * … no dashboards beyond a minimal home").
  *
- * An archetype is omitted when the intent's §8.4 row rules out the *surface*, not
+ * An archetype is omitted when the intent's row rules out the *surface*, not
  * merely the permission: capping roles at Viewer still leaves a kanban whose
  * whole affordance is dragging a row to a new status, and a page's `toolbar` /
  * `overlays` chrome is generated per template, not per role. Dropping the page is
- * what makes the intent mean what §8.4 says it means.
+ * what makes the intent mean what says it means.
  */
 const INTENT_OMITTED_ARCHETYPES: Readonly<Record<string, readonly string[]>> = {
   'full-admin': [],
-  // §8.4: "dashboards, analytics, data grids (read-only), search, exports; no
+  // "dashboards, analytics, data grids (read-only), search, exports; no
   // forms/boards/imports". page-board is the board; page-files is the import
   // surface (upload-dropzone); page-queue-inbox (modal-wizard approvals) and
   // page-chat (message compose) are the form surfaces.
   'read-only-analytics': ['page-board', 'page-chat', 'page-files', 'page-queue-inbox'],
-  // §8.4: "queue/master-detail templates prioritized …; boards/analytics omitted".
+  // "queue/master-detail templates prioritized …; boards/analytics omitted".
   'support-console': ['page-board'],
 };
 
 export interface GenerateOptions {
-  /** 09 §8.4; default 'full-admin'. */
+  /** Default: 'full-admin'. */
   intent?: GenerateIntent | undefined;
   /**
    * Connection the pages bind to. Defaults to the model's live-source
@@ -134,15 +133,15 @@ export interface GenerateOptions {
    */
   connectionId?: string | null | undefined;
   /**
-   * Widget-registry membership test, threaded into the §14 archetype step
-   * (04 §8 H1/H4) so unregistered ids are dropped before they reach a stored
+   * Widget-registry membership test, threaded into the archetype step
+   * (H1/H4) so unregistered ids are dropped before they reach a stored
    * page.
    *
    * **Defaults to `isRegisteredWidgetId`** — the checked-in mirror of
    * `widgetRegistry` that `@adminium/widgets/generate` exports (the Engine is
    * Node-only and cannot import the registry map itself, and neither can the
-   * server, 01 §2.3). Defaulting rather than requiring is deliberate: this option
-   * being *optional and omitted* by the sole production caller is what made every
+   * server). Defaulting rather than requiring is deliberate: this option being
+   * *optional and omitted* by the sole production caller is what made every
    * registry filter in the archetype pipeline dead code, persisting chrome ids
    * like `toast-stack`/`date-range-picker` into real page envelopes.
    *
@@ -159,7 +158,7 @@ export interface GenerateResult {
 }
 
 /**
- * Nav icon per table shape (lucide names, 09 §2.2).
+ * Nav icon per table shape (lucide names).
  *
  * Exported so it can be checked against lucide's real catalogue — every value
  * is resolved at runtime through `lucideByName`, which falls back to a neutral
@@ -196,11 +195,11 @@ function splitTables(
     const info = classified.get(table.id);
     const role = info?.semantics.role ?? table.semantics?.role ?? 'entity';
     if (table.system || role === 'system') {
-      warnings.push(`skipped system table ${table.id} (05 §8.2)`);
+      warnings.push(`skipped system table ${table.id}`);
       continue;
     }
     if (role === 'join-table') {
-      warnings.push(`skipped join table ${table.id} — hidden from nav, relation still powers M2M (05 §8.2)`);
+      warnings.push(`skipped join table ${table.id} — hidden from nav, relation still powers M2M`);
       graph.push(table);
       continue;
     }
@@ -217,17 +216,17 @@ interface ArchetypePassOptions {
   warnings: string[];
   /** Always resolved by `generatePages` — never optional past this boundary. */
   isRegistered: (widgetId: string) => boolean;
-  /** §14 templates this run's 09 §8.4 intent omits. */
+  /** Templates this run's intent omits. */
   omittedArchetypes: ReadonlySet<string>;
   /** Page ids already emitted — an archetype must never clobber a crud page. */
   emittedIds: Set<string>;
 }
 
 /**
- * The §14 archetype pass: for every included table, the highest-scoring §14
- * trigger (04 §8 H2: "1 page archetype per table … `page-crud` always emitted
- * regardless") composed into a page. Tables that trigger nothing, tie, or whose
- * template has an unfillable `required` slot yield nothing.
+ * The archetype pass: for every included table, the highest-scoring trigger
+ * (H2: "1 page archetype per table … `page-crud` always emitted regardless")
+ * composed into a page. Tables that trigger nothing, tie, or whose template has
+ * an unfillable `required` slot yield nothing.
  */
 function archetypePages(
   candidateModel: readonly CandidateTableInput[],
@@ -237,7 +236,7 @@ function archetypePages(
   const { connectionId, warnings } = opts;
   if (connectionId === null) {
     warnings.push(
-      'no connection id — §14 archetype pages skipped (query descriptors bind to a connection)',
+      'no connection id — archetype pages skipped (query descriptors bind to a connection)',
     );
     return [];
   }
@@ -259,7 +258,7 @@ function archetypePages(
     if (selection === null) continue;
     if (opts.omittedArchetypes.has(selection.template)) {
       warnings.push(
-        `${selection.template} for ${table.id} skipped — the generation intent omits this archetype (09 §8.4)`,
+        `${selection.template} for ${table.id} skipped — the generation intent omits this archetype`,
       );
       continue;
     }
@@ -302,7 +301,7 @@ function archetypePages(
 
 /**
  * Is this table a CASCADE-OWNED CHILD — rows that the schema itself declares
- * cannot outlive their parent (30-record-pages.md follow-up, 2026-08-24)?
+ * cannot outlive their parent (follow-up, 2026-08-24)?
  *
  * With record pages, such a table's home is its parent's record-page tab
  * (invoice items on the invoice, proposal items on the proposal), so its
@@ -349,12 +348,12 @@ function isCascadeOwnedChild(
 /**
  * Generate the v1 page set for a classified model: one `page-crud` per
  * included table plus one `page-dashboard` per FK-cluster domain (cap
- * {@link DASHBOARD_CAP}), honoring the 09 §8.4 intent. The model should come
- * out of `applyClassification` (snapshots persist that form); classification
- * is recomputed here regardless — `classifyModel` is pure and cheap, and the
+ * {@link DASHBOARD_CAP}), honoring the intent. The model should come out of
+ * `applyClassification` (snapshots persist that form); classification is
+ * recomputed here regardless — `classifyModel` is pure and cheap, and the
  * generator also needs the non-persisted shape/displayColumn outputs. Column
  * stamps with `source: 'llm' | 'override'` still beat the recomputed tags
- * (05 §7, `archetype.ts#toClassifiedInput`); heuristic stamps do not — the
+ * (`archetype.ts#toClassifiedInput`); heuristic stamps do not — the
  * recomputed classification of the model as handed in (post `includedTables`
  * filtering) is authoritative.
  */
@@ -384,7 +383,7 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
 
   // -- dashboards first: they own the WORKSPACE group and low nav orders ----
   // `crud` gets "no dashboards beyond a minimal home" and `support-console` has
-  // "analytics omitted" — both per 09 §8.4.
+  // "analytics omitted" — both.
   const wantDashboards = intent !== 'crud' && intent !== 'support-console';
   if (wantDashboards) {
     if (connectionId === null) {
@@ -400,7 +399,7 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
         .filter((domain) => domain.tableIds.length > 0);
       const eligible = domains.filter((domain) => {
         if (domainHasDashboardSignal(domain, candidateModel, model.relations)) return true;
-        warnings.push(`domain ${domain.key} has no timestamp column — dashboard skipped (05 §8)`);
+        warnings.push(`domain ${domain.key} has no timestamp column — dashboard skipped`);
         return false;
       });
       if (eligible.length > DASHBOARD_CAP) {
@@ -439,7 +438,7 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
     }
   }
 
-  // -- one page-crud per included table (research/widget-registry.md §14) --
+  // -- one page-crud per included table (research/widget-registry.md) --
   const readOnly = intent === 'read-only-analytics';
   const includedIds: ReadonlySet<string> = includedIdSet;
   // FK-chip display columns (tableId → the referenced table's display column):
@@ -473,7 +472,7 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
     rawPages.push(buildCrudEnvelope(entry, ctx));
   }
 
-  // -- plus the highest-scoring §14 archetype per table (§15 step 3) -------
+  // -- plus the highest-scoring archetype per table -------
   //
   // Strictly additive, and strictly LAST: the crud/dashboard envelopes above
   // are the v0.1-gate-proven output, so this pass may not perturb them. Running

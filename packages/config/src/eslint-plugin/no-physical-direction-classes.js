@@ -2,11 +2,11 @@
 /**
  * Rule: adminium/no-physical-direction-classes
  *
- * RTL is a permanent CI matrix (10-i18n-theming.md §5.2): styling must use
- * Tailwind LOGICAL direction utilities (ms- me- ps- pe- start- end- text-start
- * text-end rounded-s- rounded-e- border-s- border-e-) so every surface mirrors
- * under `dir="rtl"`. This rule flags PHYSICAL direction utilities in class-name
- * string and template literals (arrows below read "physical then logical"):
+ * RTL is a permanent CI matrix: styling must use Tailwind LOGICAL direction
+ * utilities (ms- me- ps- pe- start- end- text-start text-end rounded-s-
+ * rounded-e- border-s- border-e-) so every surface mirrors under `dir="rtl"`.
+ * This rule flags PHYSICAL direction utilities in class-name string and
+ * template literals (arrows below read "physical then logical"):
  *
  *   margin, padding  ml- mr- pl- pr-            ms- me- ps- pe-
  *   inset            left- right-               start- end-
@@ -23,9 +23,9 @@
  * from the reviewed `eslint/physical-direction-allowlist.js` file.
  *
  * No autofix: picking the right logical utility is a judgment call
- * (semantic mirror vs. truly-physical) per §5.1 "Judgment calls".
+ * (semantic mirror vs. truly-physical).
  *
- * Spec: 10-i18n-theming.md §5.2; 02-design-system.md §3.2, §8.
+ * See: https://docs.adminium.dev/anatomy/decisions/i18n-rules/ and https://docs.adminium.dev/anatomy/decisions/tokens-only/
  */
 
 /** After stripping variants + a leading `-`, does the token name a physical utility? */
@@ -74,7 +74,8 @@ export default {
       physical:
         "Physical-direction Tailwind utility '{{token}}' breaks RTL — use the logical equivalent " +
         '(ms-/me-/ps-/pe-/start-/end-/border-s-/border-e-/rounded-s-/rounded-e-/text-start/text-end) ' +
-        'per 10-i18n-theming.md §5.2. Genuinely-physical cases go on the @adminium/config allowlist.',
+        'so every surface mirrors under dir="rtl". Genuinely-physical cases go on the ' +
+        '@adminium/config allowlist.',
     },
   },
 

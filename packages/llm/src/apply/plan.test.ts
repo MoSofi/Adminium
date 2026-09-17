@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Golden apply-plan (06-llm-assist.md §8.3 / acceptance criterion 3).
+ * Golden apply-plan (/ acceptance criterion 3).
  *
- * Planning the Wave-1 valid-demo diff (§6.3) with EVERYTHING accepted yields the
+ * Planning the Wave-1 valid-demo diff with EVERYTHING accepted yields the
  * criterion-3 write set: localized label overrides for all 3 tables and their
  * columns, 3 keys, 1 enum-semantics, 1 virtual relation, 2 PII overrides, 3
  * micro-copy blocks, 3 template pages, 2 nav groups, and 1 revenue dashboard
@@ -75,7 +75,7 @@ function overrideById(id: string): OverrideWrite | undefined {
 }
 
 describe('golden apply-plan: valid-demo, everything accepted (criterion 3)', () => {
-  it('produces exactly the §8.3 write set', () => {
+  it('produces exactly the write set', () => {
     // 27 overrides + 6 page writes; the 5 widgets fold into the dashboard and the
     // 4 heuristic-only labels (surrogate ids/created_at) contribute nothing.
     expect(plan.writes).toHaveLength(33);
@@ -203,7 +203,7 @@ describe('golden apply-plan: valid-demo, everything accepted (criterion 3)', () 
     expect(dash.layout.items).toHaveLength(5);
     expect(dash.widgetIds).toHaveLength(5);
 
-    // Widths follow the §5 span heuristic; KPIs are 3 half-rows tall, charts 8.
+    // Widths follow the span heuristic; KPIs are 3 half-rows tall, charts 8.
     const kpi = dash.layout.items[0]!;
     expect(kpi.i).toBe(widgetId('revenue', 'kpi-stat-card', 1));
     expect({ x: kpi.x, y: kpi.y, w: kpi.w, h: kpi.h }).toEqual({ x: 0, y: 0, w: 3, h: 3 });
@@ -285,7 +285,7 @@ describe('applyPlanSummary (review confirmation modal)', () => {
   });
 });
 
-describe('provenance: user-locked targets are excluded (§8.3 user > llm)', () => {
+describe('provenance: user-locked targets are excluded (user > llm)', () => {
   const rows: SuggestionDiff[] = [
     {
       id: tableLabelId('public.orders'),
@@ -318,7 +318,7 @@ describe('provenance: user-locked targets are excluded (§8.3 user > llm)', () =
   });
 });
 
-describe('provenance: rejects-heuristic acceptances become suppression descriptors (§8.3)', () => {
+describe('provenance: rejects-heuristic acceptances become suppression descriptors', () => {
   it('an explicit pii: null over a heuristic flag writes a pii clear', () => {
     const row: SuggestionDiff = {
       id: piiId('public.users', 'last_ip'),

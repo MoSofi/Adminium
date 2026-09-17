@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Page lifecycle routes (08-server-api.md §2.6) — the Studio page manager's
- * server surface:
+ * Page lifecycle routes — the Studio page manager's server surface:
  *
  * - the gate is the workspace-scoped `system:pages:manage`, NOT the per-page
  *   `page:<id>:edit` the layout PATCH uses;
- * - create validates slug uniqueness and composes a valid §6.1 envelope;
+ * - create validates slug uniqueness and composes a valid envelope;
  * - a metadata edit writes the row AND the envelope, so regeneration cannot
  *   silently revert it;
  * - delete cleans the `page:` grants no foreign key can reach;
@@ -409,7 +408,7 @@ describe('page lifecycle routes', () => {
     });
 
     /**
-     * The page gutter (02 §1.8) is a TOP-LEVEL envelope field, not part of the
+     * The page gutter is a TOP-LEVEL envelope field, not part of the
      * per-template `config` body, so it rides the metadata PATCH. The absent /
      * null distinction is the whole contract: absent means "follow the
      * template", and it has to stay absent rather than being frozen to today's
@@ -614,7 +613,7 @@ describe('page lifecycle routes', () => {
       expect(stored.config.columns).toHaveLength(1);
     });
 
-    it('round-trips a config.derived block untouched (36-derived-columns.md D24)', async () => {
+    it('round-trips a config.derived block untouched', async () => {
       // The one link between "the Studio saves it" and "the read path computes
       // it" that nothing else asserts. Both the PATCH body and the envelope
       // type the config as `z.record(z.string(), z.unknown())`, so an added
@@ -693,8 +692,8 @@ describe('page lifecycle routes', () => {
      * Both halves of the run are asserted because they fail differently: the
      * update pass reverts the page to the generator's template+table, and the
      * prune pass deletes it outright once the generator stops emitting it.
-     * 36-derived-columns.md §0.6 is what makes the loss unrecoverable — a
-     * hand-authored derived column cannot be regenerated from any snapshot.
+     * What makes the loss unrecoverable is that a hand-authored derived column
+     * cannot be regenerated from any snapshot.
      */
     describe('a recomposed page survives the next generation run', () => {
       const DEMO_IR: unknown = JSON.parse(

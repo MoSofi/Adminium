@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Formatter layer tests (10-i18n-theming.md §4): per-locale separators, the
- * §4.2 numeral policy (latn digits in data context everywhere incl. ar_EG;
- * Arabic-Indic digits in ar_EG prose), currency-from-data, relative-time
- * thresholds, lists, and weekInfo fallbacks.
+ * Formatter layer tests: per-locale separators, the numeral policy (latn
+ * digits in data context everywhere incl. ar_EG; Arabic-Indic digits in
+ * ar_EG prose), currency-from-data, relative-time thresholds, lists, and
+ * weekInfo fallbacks.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -42,7 +42,7 @@ describe('number formatting', () => {
   });
 });
 
-describe('currency (§4.4: code from data, format from viewer locale)', () => {
+describe('currency (code from data, format from viewer locale)', () => {
   it('formats USD with German separators for a de-DE viewer', () => {
     const value = plain(getFormatters('de-DE').currency(4120, 'USD'));
     expect(value).toContain('4.120,00');
@@ -84,7 +84,7 @@ describe('dates', () => {
   });
 });
 
-describe('relative time (§4.5 thresholds)', () => {
+describe('relative time (thresholds)', () => {
   const now = Date.UTC(2026, 6, 12, 12, 0, 0);
   const fmt = getFormatters('en-US');
 

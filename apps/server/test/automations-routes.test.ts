@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/automations` and `/automation-runs` (42-automations-and-workflow-logs.md
- * §3.1, §5, 42-T14, 42-T15).
+ * `/automations` and `/automation-runs`.
  *
  * The two properties worth defending hardest:
  *
@@ -295,7 +294,7 @@ describe('42 — the automations routes', () => {
     ).toBe(201);
   });
 
-  it('refuses the §5 shapes that need a schema', async () => {
+  it('refuses the shapes that need a schema', async () => {
     const record = TRIGGER(connectionId) as Extract<AutomationTrigger, { kind: 'record' }>;
     const cases: { graph?: AutomationGraph; trigger?: AutomationTrigger; expect: string }[] = [
       {
@@ -538,11 +537,11 @@ describe('42 — the automations routes', () => {
 
   it('names the child tables a document mapping could read, and only joinable ones', async () => {
     /*
-     * 34 §3.7 step 3. The filter is the PIPELINE's join rule, applied here
-     * because this is the side that has the whole relation: `readSource` reads
-     * a collection with `where <fk> = row[primaryKey[0]]`, so a composite key,
-     * or one referencing a column that is not that key, cannot be expressed by
-     * the single `fkColumn` a mapping stores.
+     * The filter is the PIPELINE's join rule, applied here because this is the
+     * side that has the whole relation: `readSource` reads a collection with
+     * `where <fk> = row[primaryKey[0]]`, so a composite key, or one
+     * referencing a column that is not that key, cannot be expressed by the
+     * single `fkColumn` a mapping stores.
      */
     const res = await get('/automations/sources');
     const body = res.json() as {

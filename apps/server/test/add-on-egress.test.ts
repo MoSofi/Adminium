@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Egress enforcement (26-T12, §5.5, 24 D14) — "declaring is not enforcing".
+ * Egress enforcement — "declaring is not enforcing".
  *
  * The first block attacks the pure predicate directly, because that is where
  * an allow-list bypass would live and testing it through a fetch mock would
@@ -147,7 +147,7 @@ describe('the client an add-on is handed', () => {
   });
 
   it('refuses everything without the outbound-http capability, allow-list or not', async () => {
-    // §5.5: the capability is the consent; the allow-list only narrows it.
+    // The capability is the consent; the allow-list only narrows it.
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const call = client({ hasOutboundHttp: false, fetchImpl: recordingFetch(calls) });
     await expect(call('https://express.api.dhl.com/x')).rejects.toMatchObject({
@@ -246,11 +246,11 @@ describe('the client an add-on is handed', () => {
   });
 });
 
-describe('what this does NOT claim (26 §5.5 overclaims; D4/O1)', () => {
+describe('what this does NOT claim (overclaims; D4/O1)', () => {
   it('guards the client it hands out, which is not the same as guarding a socket', () => {
     // Stated as a test so the limit is recorded next to the thing that has it,
     // rather than only in a docblock somebody may not read. An add-on's server
-    // half runs IN THIS PROCESS under 24 D13, so it can reach global fetch or
+    // half runs IN THIS PROCESS, so it can reach global fetch or
     // node:net directly and nothing here would see it. The control against a
     // HOSTILE add-on is D13's first-party publisher gate; this is the control
     // against an honest one with a bug or a phoning-home dependency.
@@ -282,9 +282,9 @@ describe('the per-add-on client, with its refusals in the audit trail', () => {
     await expect(call('https://evil.example/x')).rejects.toBeInstanceOf(AddOnEgressError);
     expect(calls).toHaveLength(1);
 
-    // §5.5: the refusal is in the audit trail. That row is the whole
-    // operator-facing value — an add-on quietly reaching for an undeclared host
-    // is exactly what nobody would otherwise find out about.
+    // The refusal is in the audit trail. That row is the whole operator-facing
+    // value — an add-on quietly reaching for an undeclared host is exactly what
+    // nobody would otherwise find out about.
     const rows = await auditRepo(meta).list({ category: 'add-on', limit: 10 });
     expect(rows.map((r) => r.action)).toEqual(['add-on.egress-refused']);
     expect(rows[0]?.changes).toMatchObject({

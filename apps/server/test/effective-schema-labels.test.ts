@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `llm.label` in the effective schema (06-llm-assist.md §8.3): an accepted
- * LLM label bundle is a real override row (`op: 'llm.label'`, origin 'llm',
- * localized value) — before M11 `applyOverrides` had no case for it and the
- * rename silently vanished. These tests pin the resolution rules:
+ * `llm.label` in the effective schema: an accepted LLM label bundle is a
+ * real override row (`op: 'llm.label'`, origin 'llm', localized value) —
+ * before M11 `applyOverrides` had no case for it and the rename silently
+ * vanished. These tests pin the resolution rules:
  *
  *   - the L10n map resolves to the connection's default locale (en_US in v1),
  *   - user `table.label` / `column.label` rows beat llm bundles REGARDLESS of
@@ -123,7 +123,7 @@ describe('degenerate empty-string user labels (legacy rows; write path rejects t
     expect(activeTableLabels(overrides).has('main.order_details')).toBe(false);
   });
 
-  it('an earlier empty row loses to a later non-empty one (§3.15 order preserved)', () => {
+  it('an earlier empty row loses to a later non-empty one (order preserved)', () => {
     const overrides = [row('table.label', { label: '' }), row('table.label', { label: 'Orders' })];
     expect(applyOverrides(MODEL, overrides).tables[0]?.label).toBe('Orders');
     expect(activeTableLabels(overrides).get('main.order_details')).toBe('Orders');
@@ -168,7 +168,7 @@ describe('activeTableLabels (the generation overlay source)', () => {
 });
 
 /**
- * 23-runtime-translations.md §8 — the micro-SaaS half of the ask.
+ * The micro-SaaS half of the ask.
  *
  * A user-authored rename used to be a bare string, so an operator who renamed
  * "Records" to "Patients" got that in one language forever, while `llm.label`
@@ -176,7 +176,7 @@ describe('activeTableLabels (the generation overlay source)', () => {
  * stays correct for a single-language workspace (and is what every existing
  * row holds), a map resolves for the viewer.
  */
-describe('user labels are localizable (23 §8)', () => {
+describe('user labels are localizable', () => {
   const BILINGUAL = { label: { en_US: 'Patients', de_DE: 'Patienten' } };
 
   it('resolves a user table label for the viewer locale', () => {

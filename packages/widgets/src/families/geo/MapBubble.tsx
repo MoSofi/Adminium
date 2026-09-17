@@ -31,7 +31,7 @@ export { mapBubbleConfigSchema, mapBubbleDemoData } from './geo-config.js';
 export type { MapBubbleConfig };
 
 /**
- * `map-bubble` (annex §7) — a Leaflet map with theme-following Carto light/dark
+ * `map-bubble` (annex) — a Leaflet map with theme-following Carto light/dark
  * tiles, circle markers sized by the active metric, tooltips, flyTo on click,
  * and metric tabs. Pairs with `ranked-entity-list`; the built-in top-N companion
  * is the same ranking, rendered inline.
@@ -63,10 +63,10 @@ export type { MapBubbleConfig };
  * this is why the list is not merely a screen-reader fallback.
  *
  * ── RTL ────────────────────────────────────────────────────────────────────
- * The map canvas is a fixed-LTR island (04 §7.4; the same policy as the gantt
- * timeline and the choropleth tilegram): geography does not mirror — flipping it
- * would put Japan west of Portugal. The chrome around it (metric tabs, ranked
- * list, legend) is logical-property flow and mirrors normally.
+ * The map canvas is a fixed-LTR island (the same policy as the gantt timeline
+ * and the choropleth tilegram): geography does not mirror — flipping it would
+ * put Japan west of Portugal. The chrome around it (metric tabs, ranked list,
+ * legend) is logical-property flow and mirrors normally.
  */
 
 /** The Leaflet surface this widget uses — structural, so no `any` leaks in. */
@@ -156,7 +156,7 @@ export function MapBubble({
         radius: bubbleRadius(value, max),
         // Token-driven, not raw hex: the SVG marker inherits `--accent` through
         // the CSS custom property, so it re-tints with the theme/accent axes
-        // exactly like every other surface (02 §7).
+        // exactly like every other surface.
         color: 'var(--accent)',
         fillColor: 'var(--accent)',
         fillOpacity: 0.35,
@@ -306,7 +306,7 @@ export function MapBubble({
       )}
 
       <div className="flex min-h-0 flex-1 flex-wrap items-stretch gap-3">
-        {/* THE LTR ISLAND (04 §7.4). Geography never mirrors — a flipped world
+        {/* THE LTR ISLAND. Geography never mirrors — a flipped world
             map is a wrong map, not a localized one. */}
         <div dir="ltr" className="relative min-h-[12rem] min-w-[16rem] flex-[2] overflow-hidden rounded-lg border border-border">
           <div ref={containerRef} data-part="map-canvas" className="size-full" />
@@ -383,7 +383,7 @@ export function MapBubbleWidget({ config, data, onEvent }: WidgetProps<MapBubble
       {...(config.testId === undefined ? {} : { testId: config.testId })}
       onSelect={(point) => {
         // Selecting a place is a drill-through when config names a route, else a
-        // record-open the page host routes (annex §7 `linkedList`: the host
+        // record-open the page host routes (annex `linkedList`: the host
         // focuses the paired ranked-entity-list — widgets never talk to each
         // other directly).
         if (config.href !== undefined) {
@@ -395,7 +395,7 @@ export function MapBubbleWidget({ config, data, onEvent }: WidgetProps<MapBubble
           ...(source.connectionId === undefined ? {} : { connectionId: source.connectionId }),
           table: source.table,
           recordId: point.code ?? point.name,
-          // annex §7 `linkedList` — carried on the event so the host can focus
+          // annex `linkedList` — carried on the event so the host can focus
           // the paired list. Omitted when unset, so the event stays exactly what
           // it was for an unpaired map.
           ...(config.linkedList === undefined ? {} : { linkedInstanceId: config.linkedList }),

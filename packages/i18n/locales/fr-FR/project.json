@@ -1,0 +1,18 @@
+{
+  "cell": {
+    "notCell": "{id} est une carte, pas une cellule de tableau.",
+    "unknown": "Ce projet n’a pas de widget {id}."
+  },
+  "page": {
+    "failed": {
+      "title": "Le code de cette page ne s’est pas chargé"
+    },
+    "missing": {
+      "body": "Son code vient du dossier du projet. Reconstruisez le projet, ou redémarrez Adminium, pour la charger.",
+      "title": "Cette page n’est pas dans le build en cours"
+    }
+  },
+  "table": {
+    "empty": "Aucun enregistrement"
+  }
+}

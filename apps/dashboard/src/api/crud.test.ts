@@ -47,7 +47,7 @@ describe('createCrudApi serialization', () => {
     });
   });
 
-  it('FK lookup hits the referenced table’s list endpoint with q= (09 §7.1)', async () => {
+  it('FK lookup hits the referenced table’s list endpoint with q=', async () => {
     const fetchMock = captureFetch(() =>
       jsonResponse(200, { data: [{ id: 7, name: 'Ava Reyes' }] }),
     );
@@ -136,7 +136,7 @@ describe('list → create → undo round-trip (mocked server)', () => {
   });
 });
 
-describe('crudListQuery cache discipline (09 §4)', () => {
+describe('crudListQuery cache discipline', () => {
   it('keys on [data, conn, table, params] with staleTime 0 + keepPreviousData', () => {
     const options = crudListQuery(crud, { q: 'a', limit: 25 });
     expect(options.queryKey).toEqual(['data', 'conn_1', 'public.customers', { q: 'a', limit: 25 }]);

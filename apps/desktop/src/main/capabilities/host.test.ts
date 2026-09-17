@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CapabilityHost — the §12 gate, from the main process's side (11-electron.md §12).
+ * CapabilityHost — the gate, from the main process's side.
  *
  * This is the main-process half of the pipeline manifest → consent → grant → IPC
  * → provider. The SERVER half (the grant route writing `adminium_settings`) is
  * pinned in `apps/server/test/desktop-capabilities-route.test.ts`; the two are
  * joined by a schema-pinned contract (`host.ts`'s `_CapabilityGrantMatchesServer`
  * and `index.ts`'s reply-schema mirror), and the whole cross-process walk is
- * 11-T20's Playwright `_electron` suite, which a display-less CI machine cannot
- * run here.
+ * Playwright `_electron` suite, which a display-less CI machine cannot run here.
  *
  * What this file pins is the gate itself, because the gate is the security
  * boundary: an invoke reaches a provider ONLY through a live grant, the read is
@@ -64,7 +63,7 @@ describe('list()', () => {
   });
 });
 
-describe('invoke() — the gate (§12)', () => {
+describe('invoke() — the gate', () => {
   it('reaches the provider when the capability is granted, forwarding method + payload', async () => {
     const provider = spyProvider('printer.escpos');
     const host = createCapabilityHost({
@@ -137,7 +136,7 @@ describe('invoke() — the gate (§12)', () => {
     );
   });
 
-  it('a grant for a capability with no provider is an INTERNAL fault, not a typed §12 code', async () => {
+  it('a grant for a capability with no provider is an INTERNAL fault, not a typed code', async () => {
     const host = createCapabilityHost({
       readGrants: () => Promise.resolve([grant('serial')]),
     });
@@ -148,7 +147,7 @@ describe('invoke() — the gate (§12)', () => {
   });
 });
 
-describe('the escpos stub provider (§12 v1)', () => {
+describe('the escpos stub provider (v1)', () => {
   it('lists no devices and refuses every hardware method with CAPABILITY_STUB', async () => {
     const provider = createEscposPrinterProvider();
     expect(provider.descriptor.status).toBe('stub');

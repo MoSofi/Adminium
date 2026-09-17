@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The add-on package store (32-add-on-distribution.md §4.1, D11).
+ * The add-on package store.
  *
  * These assert the store's own guarantees rather than the archive reader's
  * (`add-on-archive.test.ts` owns those): the path grammar, the atomic swap,
@@ -64,7 +64,10 @@ function packageTarball(files: Record<string, string>): Uint8Array {
     out.set(member, at);
     at += member.byteLength;
   }
-  return gzipSync(out);
+  // `mtime: 0` leaves the gzip header's timestamp at zero, as `npm pack` does.
+  // fflate's default is the current second, so the same files packed a second
+  // apart would hash differently.
+  return gzipSync(out, { mtime: 0 });
 }
 
 const GOOD_FILES = {

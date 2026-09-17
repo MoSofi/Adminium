@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Campaigns in the editor (39-email-templates-and-campaigns.md 39-T16
- * done-when): *Send campaign* saves first and POSTs the audience with the
- * picked roles, then reads *Campaign sent!*; *Schedule* sends `scheduleAt`
- * and reads *Campaign scheduled!*; a running run's chip follows a synthetic
- * `jobs:<id>` progress event and `completed` refetches the document; the
- * Design tab's campaign status pills have no click handler (D13); a
- * scheduled campaign's header shows the chip and *Cancel schedule* POSTs
- * `/cancel`. The realtime client is replaced at the module seam so events
- * can be fired by hand.
+ * Campaigns in the editor: *Send campaign* saves first and POSTs the
+ * audience with the picked roles, then reads *Campaign sent!*; *Schedule*
+ * sends `scheduleAt` and reads *Campaign scheduled!*; a running run's chip
+ * follows a synthetic `jobs:<id>` progress event and `completed` refetches
+ * the document; the Design tab's campaign status pills have no click
+ * handler (D13); a scheduled campaign's header shows the chip and *Cancel
+ * schedule* POSTs `/cancel`. The realtime client is replaced at the module
+ * seam so events can be fired by hand.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -160,7 +159,7 @@ afterEach(() => {
   realtime.clients.length = 0;
 });
 
-describe('Campaigns (39-T16)', () => {
+describe('Campaigns', () => {
   it('Send campaign saves first, POSTs the audience with the picked roles, and reads Campaign sent!', async () => {
     const { user, calls } = await renderEditor(() => detail());
     const heading = screen.getByTestId('email-heading-input');

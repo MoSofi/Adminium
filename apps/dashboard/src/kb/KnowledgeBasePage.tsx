@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/help` — the in-app Knowledge Base (M10-T06; ports
- * `Knowledge Base.dc.html`), annex §14 archetype `page-kb-docs`:
- * hero search + `card-gallery(categories)` + article list + `empty-state`.
+ * `/help` — the in-app Knowledge Base (ports `Knowledge
+ * Base.dc.html`), annex archetype `page-kb-docs`: hero search +
+ * `card-gallery(categories)` + article list + `empty-state`.
  *
- * PORT NOTES (16-milestones §5 checklist).
+ * PORT NOTES (16-milestones checklist).
  *
- * §5.1 keepers kept: the hero search over a local index, **category cards that
- * double as filter toggles** (`ia-mapping.md` §4 names this one), the
- * clear-filter affordance, the article rows with a category tag, and the
- * filtered empty state.
+ * Keepers kept: the hero search over a local index, **category cards that
+ * double as filter toggles** (names this one), the clear-filter affordance,
+ * the article rows with a category tag, and the filtered empty state.
  *
- * §5.5 known defects / sample-domain fictions NOT copied:
+ * Known defects / sample-domain fictions NOT copied:
  *   - **The "New article" authoring modal.** The comp is a help-centre CMS:
  *     write, categorize, publish. Adminium's docs live at docs.adminium.dev and
- *     are versioned with the code (14-docs-site.md); an in-app editor writing to
- *     a second, unversioned content store is a product we did not build. The
- *     header action links to the docs site instead.
+ * are versioned with the code; an in-app editor writing to a second, unversioned
+ *     content store is a product we did not build. The header action links to
+ *     the docs site instead.
  *   - **"142 articles · updated daily"** — a hardcoded number the comp's own
  *     8-item list contradicts. The count is derived from the index.
  *   - **View counts and read times** ("12.4k", "4 min"). There is no analytics
@@ -183,7 +182,7 @@ export function KnowledgeBasePage(): ReactNode {
         />
       </Card>
 
-      {/* Categories — the cards ARE the filter (§4 keeper) */}
+      {/* Categories — the cards ARE the filter (keeper) */}
       <section className="flex flex-col gap-3">
         <h2 className="text-section text-fg">{t('kb.browse', 'Browse by topic')}</h2>
         {/*

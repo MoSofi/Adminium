@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The send flows against the built stack and the SMTP sink
- * (39-email-templates-and-campaigns.md 39-T19): New template from *Welcome
- * email* → rename inline → edit the heading → Save → Test → one message in the
- * sink carrying the on-screen heading and the mark as a CID part → Duplicate
- * → Add language `de_DE` (translated, no warn) → insert a divider → *Apply to
- * all* → Save → both rows changed → attach a PDF from Files → Test → the PDF
- * is a part → Delete → Undo → Archived → *Delete for good* → New campaign from
- * that template → Send to all users → the run reaches *Sent* with every
- * active user counted and the card reads *N sent* → Schedule for +2 min →
- * *Scheduled · time* → *Cancel schedule* → Export → Import (Skip) creates
- * nothing. Everything the flow creates is removed at the end, the sink
- * included.
+ * The send flows against the built stack and the SMTP sink: New template from
+ * *Welcome email* → rename inline → edit the heading → Save → Test → one
+ * message in the sink carrying the on-screen heading and the mark as a CID
+ * part → Duplicate → Add language `de_DE` (translated, no warn) → insert a
+ * divider → *Apply to all* → Save → both rows changed → attach a PDF from
+ * Files → Test → the PDF is a part → Delete → Undo → Archived → *Delete for
+ * good* → New campaign from that template → Send to all users → the run
+ * reaches *Sent* with every active user counted and the card reads *N sent* →
+ * Schedule for +2 min → *Scheduled · time* → *Cancel schedule* → Export →
+ * Import (Skip) creates nothing. Everything the flow creates is removed at the
+ * end, the sink included.
  */
 import { expect, test, type Page } from '@playwright/test';
 
@@ -89,7 +88,7 @@ async function dismissToasts(page: Page): Promise<void> {
   await expect(dismiss).toHaveCount(0);
 }
 
-test.describe('email send flows (39-T19)', () => {
+test.describe('email send flows', () => {
   test('template → test → languages → mirror → attachment → undo → archive → campaign → export/import', async ({ page }, testInfo) => {
     test.setTimeout(600_000);
     page.setDefaultTimeout(20_000); // a stuck locator fails fast instead of eating the budget

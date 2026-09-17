@@ -11,10 +11,10 @@ import {
 } from '../src/index.js';
 
 /**
- * Table-shape classification (05-introspection-engine.md §8 + the §6
- * structural detectors): join-table M2M shape, log/settings/people/workflow
- * shapes, self-FK hierarchy, polymorphic pairs, line-items/messages roles,
- * and display-column / natural-key selection.
+ * Table-shape classification (+ the structural detectors): join-table M2M
+ * shape, log/settings/people/workflow shapes, self-FK hierarchy,
+ * polymorphic pairs, line-items/messages roles, and display-column /
+ * natural-key selection.
  */
 
 const model: DatabaseModel = parseDatabaseModel({
@@ -202,7 +202,7 @@ const model: DatabaseModel = parseDatabaseModel({
 
 const classified = new Map(classifyModel(model).tables.map((t) => [t.tableId, t]));
 
-describe('join-table detection (§6 rule 2)', () => {
+describe('join-table detection', () => {
   it('detects task_tags as a join table at ≥ 0.8', () => {
     const t = classified.get('public.task_tags')!;
     expect(t.shape.kind).toBe('join');
@@ -224,7 +224,7 @@ describe('join-table detection (§6 rule 2)', () => {
   });
 });
 
-describe('shape kinds (§8 trigger table)', () => {
+describe('shape kinds (trigger table)', () => {
   it('users → people (directory trigger)', () => {
     expect(classified.get('public.users')!.shape.kind).toBe('people');
     expect(classified.get('public.users')!.semantics.role).toBe('people');
@@ -263,7 +263,7 @@ describe('shape kinds (§8 trigger table)', () => {
   });
 });
 
-describe('roles beyond shape (§8)', () => {
+describe('roles beyond shape', () => {
   it('order_items → line-items role (2 FKs + qty × rate)', () => {
     expect(classified.get('public.order_items')!.semantics.role).toBe('line-items');
   });
@@ -273,7 +273,7 @@ describe('roles beyond shape (§8)', () => {
   });
 });
 
-describe('hierarchy + polymorphic flags (§6 rules 3–4)', () => {
+describe('hierarchy + polymorphic flags (rules 3–4)', () => {
   it('users.manager_id self-FK → hierarchy', () => {
     expect(classified.get('public.users')!.semantics.hierarchy).toEqual({
       parentColumn: 'manager_id',

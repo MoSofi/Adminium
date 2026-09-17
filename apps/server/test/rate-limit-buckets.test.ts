@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The §6 buckets that are NOT declared on a route (08-server-api.md §6,
- * `plugins/core.ts`): the general `/api/` default, the widget-data /
- * exports-imports / LLM / file-bytes rules, the two stream exemptions, and
- * principal keying.
+ * The buckets that are NOT declared on a route (`plugins/core.ts`): the
+ * general `/api/` default, the widget-data / exports-imports / LLM /
+ * file-bytes rules, the two stream exemptions, and principal keying.
  *
  * These are asserted through `x-ratelimit-limit` on a single reply rather than
  * by exhausting a 300/min window 301 times: the header is the plugin's own
@@ -41,7 +40,7 @@ async function budget(method: 'GET' | 'POST', url: string): Promise<number | nul
   return limit === undefined ? null : Number(limit);
 }
 
-describe('the general /api/ default (§6 row 1)', () => {
+describe('the general /api/ default', () => {
   it('buckets every unmarked /api/ route at 300/min and leaves the SPA alone', async () => {
     await probeApp([
       { method: 'GET', url: '/api/v1/anything' },
@@ -74,7 +73,7 @@ describe('the general /api/ default (§6 row 1)', () => {
 });
 
 describe('the url-matched buckets', () => {
-  it('routes each §6 surface to its own budget', async () => {
+  it('routes each surface to its own budget', async () => {
     await probeApp([
       { method: 'POST', url: '/api/v1/widget-data/query' },
       { method: 'POST', url: '/api/v1/widget-data/batch' },
@@ -104,7 +103,7 @@ describe('the url-matched buckets', () => {
     expect(await budget('POST', '/api/v1/llm/runs/1/execute')).toBe(RATE_BUCKETS.llm.max);
     expect(await budget('GET', '/api/v1/llm/models')).toBe(RATE_BUCKETS.llm.max);
 
-    // The §6 "files" row has no `files` route group to live on, so it lands
+    // The row has no `files` route group to live on, so it lands
     // on the four surfaces that actually move file bytes.
     for (const [method, url] of [
       ['POST', '/api/v1/branding/logo'],

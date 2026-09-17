@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Relation inference — 05-introspection-engine.md §6 rules 1 (name
- * convention) and 2 (join table).
+ * Relation inference — rules 1 (name convention) and 2 (join
+ * table).
  *
  * `RELATION_KINDS` has always declared `inferred-name` and
  * `inferred-join-table`, and five consumers branch on them, but nothing ever
@@ -9,7 +9,7 @@
  * On a schema that declares none — MyISAM, legacy SQLite, most
  * ORM-generated MySQL — that emptiness cascades: `detectDomains` shatters
  * into singletons so every table lands in "General", dashboards are skipped
- * for want of a time axis, and every `*_id` column falls through §7.1 to
+ * for want of a time axis, and every `*_id` column falls through to
  * `external-id` (a mono string) instead of an FK entity chip.
  *
  * Pure and deterministic like the rest of the engine: same model in, same
@@ -22,7 +22,7 @@
  * into `classifyModel`: `applyClassification` spreads `...model` and rebuilds
  * only `tables`, so relations added inside it would vanish on the next call.
  *
- * **Confidence banding.** 05 §6 accepts an inferred relation at ≥ 0.8;
+ * **Confidence banding.** accepts an inferred relation at ≥ 0.8;
  * everything a rule here is less than sure of is emitted in the 0.5–0.79
  * band instead of being dropped. All four 0.8 gates exclude that band, so
  * such a relation is visible to the Studio remap editor as "suggested,
@@ -36,10 +36,10 @@ import { detectJoinTable, joinDetectionColumns } from '../classify/tables.js';
 import type { ColumnModel, DatabaseModel, Relation, TableModel } from '../schema-model.js';
 
 /**
- * Accepted-relation threshold (§6). The SAME number lives in
- * classify/columns.ts (`ACCEPTED_RELATION_CONFIDENCE`), classify/tables.ts
- * (`detectHierarchy`) and generate/domains.ts (`EDGE_CONFIDENCE`); all four
- * move together or the model means different things to different readers.
+ * Accepted-relation threshold. The SAME number lives in classify/columns.ts
+ * (`ACCEPTED_RELATION_CONFIDENCE`), classify/tables.ts (`detectHierarchy`)
+ * and generate/domains.ts (`EDGE_CONFIDENCE`); all four move together or
+ * the model means different things to different readers.
  */
 const ACCEPTED_RELATION_CONFIDENCE = 0.8;
 
@@ -58,7 +58,7 @@ const INTEGER_FAMILY = new Set(['integer', 'bigint']);
 const TEXTISH = new Set(['text', 'varchar']);
 
 /**
- * §6 rule 3 self-FK vocabulary — the same list classify/tables.ts matches in
+ * The self-FK vocabulary — the same list classify/tables.ts matches in
  * `detectHierarchy`. `parent_id` names no table, so the name rule can only
  * resolve it by falling back to the column's own table; without this the
  * tree/org-chart trigger never fires on an FK-less schema.
@@ -248,9 +248,9 @@ function claimedColumns(model: DatabaseModel, table: TableModel): Set<string> {
 }
 
 /**
- * §6 rule 4 — a `<base>_type` / `<base>_id` pair is polymorphic, and no
- * relation is ever fabricated for one. `detectPolymorphic` flags it on the
- * table; this is the same test at the point where a relation would be born.
+ * A `<base>_type` / `<base>_id` pair is polymorphic, and no relation is
+ * ever fabricated for one. `detectPolymorphic` flags it on the table; this
+ * is the same test at the point where a relation would be born.
  */
 function isPolymorphicPartner(table: TableModel, base: string): boolean {
   return table.columns.some((c) => {
@@ -320,8 +320,8 @@ export function inferNameRelations(model: DatabaseModel): InferredRelation[] {
       let hundredths = 60;
       reasons.push(
         hierarchy
-          ? `"${name}" is §6 rule 3 hierarchy vocabulary — resolved to its own table`
-          : `name matches table "${target.table.name}" (§6 rule 1)`,
+          ? `"${name}" is hierarchy vocabulary — resolved to its own table`
+          : `name matches table "${target.table.name}"`,
       );
 
       if (target.exact) hundredths += 5;
@@ -384,7 +384,7 @@ export function inferNameRelations(model: DatabaseModel): InferredRelation[] {
           onUpdate: null,
           selfReferential,
           confidence,
-          // Inferred: no catalog constraint exists to name (35-T33).
+          // Inferred: no catalog constraint exists to name.
           constraintName: null,
         },
         reasons,
@@ -499,7 +499,7 @@ export function inferJoinTableRelations(model: DatabaseModel): InferredRelation[
         selfReferential: from.tableId === to.tableId,
         // A join is never surer than the weaker of the two FKs holding it up.
         confidence: Math.min(join.confidence, from.confidence, to.confidence),
-        // Inferred: no catalog constraint exists to name (35-T33).
+        // Inferred: no catalog constraint exists to name.
         constraintName: null,
       },
       reasons: [...join.reasons, `join-table confidence ${join.confidence.toFixed(2)}`],
@@ -523,7 +523,7 @@ export function inferRelations(model: DatabaseModel): InferredRelation[] {
 }
 
 /**
- * Return a NEW model with §6 rules 1–2 relations appended. Call it BEFORE
+ * Return a NEW model with rules 1–2 relations appended. Call it BEFORE
  * `applyClassification` — the column and table classifiers both read
  * `model.relations`, and that is the entire point of inferring them.
  *

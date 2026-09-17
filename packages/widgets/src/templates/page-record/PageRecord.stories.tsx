@@ -5,10 +5,10 @@ import type { CrudApi, CrudReferenceCount, CrudRow } from '../page-crud/crud-api
 import { demoCustomerColumns, demoCustomerRows } from '../../families/tables/index.js';
 
 /**
- * `page-record` stories over an in-memory CrudApi (30-record-pages.md D4):
- * the key-field hero, field grid, related-record tabs with count pills, and
- * the per-record activity timeline — plus the readOnly and no-page
- * degradations the parity criteria pin (30 D5/D7).
+ * `page-record` stories over an in-memory CrudApi: the key-field hero,
+ * field grid, related-record tabs with count pills, and the per-record
+ * activity timeline — plus the readOnly and no-page degradations the parity
+ * criteria pin.
  */
 const meta = {
   title: 'Widgets/Templates/PageRecord',
@@ -89,7 +89,7 @@ export const RecordPage = {
 };
 
 export const ReadOnly = {
-  name: 'Read-only (no write affordance, 30 D7)',
+  name: 'Read-only (no write affordance)',
   render: () => (
     <PageRecord
       api={makeApi()}

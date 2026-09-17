@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GENERATED MIRROR of ../../../locales/ar-EG/common.json — do not edit by hand.
- * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
  * without JSON import attributes (browser + NodeNext safe).
@@ -300,6 +300,13 @@ export default {
   "undo": {
     "done": "تم التراجع عن التغيير",
     "failed": "تعذَّر التراجع عن هذا التغيير"
+  },
+  "projectAction": {
+    "done": "{label}: تم",
+    "failed": "لم يكتمل {label}",
+    "menu": "الإجراءات",
+    "run": "تشغيل",
+    "selected": "{count, plural, zero {لا توجد سجلات} one {سجل واحد} two {سجلان} few {# سجلات} many {# سجلًا} other {# سجل}}"
   },
   "prefs": {
     "theme": {
@@ -1013,7 +1020,7 @@ export default {
     "article": {
       "install": {
         "title": "تثبيت Adminium",
-        "excerpt": "شغِّل من نسخة المصدر أو عبر docker run، وستصل إلى معالج التشغيل الأول خلال دقيقة."
+        "excerpt": "أنشئ مشروعًا بأمر واحد، أو شغِّل Adminium عبر docker run أو من نسخة المصدر."
       },
       "firstAdmin": {
         "title": "إنشاء أول مسؤول أعلى",
@@ -1622,6 +1629,7 @@ export default {
       "jobsRead": "الاطلاع على كل المهام الخلفية",
       "llmRun": "تشغيل المساعدة بالذكاء الاصطناعي",
       "pagesManage": "إنشاء الصفحات وتنظيمها",
+      "projectRead": "قراءة تغييرات الصفحات والمخطط لسحبها إلى مشروع",
       "reportsManage": "إدارة التقارير المجدولة",
       "rolesManage": "إدارة الأدوار والصلاحيات",
       "schemaRemap": "تعديل تسميات المخطط وتجاوزاته",

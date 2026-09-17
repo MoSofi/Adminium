@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The overlays (39-email-templates-and-campaigns.md 39-T14 done-when): the
- * image picker's Upload POSTs `/files` with the connection and writes the
- * `fileId` to the block; a test send with two addresses POSTs `{ to, document }`
- * and reports *Test sent!* naming the count; a workspace document becomes a
- * fixed attachment. The picker-insert and mirror flows are covered by
+ * The overlays: the image picker's Upload POSTs `/files` with the connection and
+ * writes the `fileId` to the block; a test send with two addresses POSTs `{ to,
+ * document }` and reports *Test sent!* naming the count; a workspace document
+ * becomes a fixed attachment. The picker-insert and mirror flows are covered by
  * `canvas.test.tsx`. `XMLHttpRequest` is stubbed because `uploadFile` streams
  * through it (the same seam `files/uploadFilesDialog.test.tsx` uses).
  */
@@ -221,7 +220,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('Overlays (39-T14)', () => {
+describe('Overlays', () => {
   it('image Upload issues POST /files with the connection and writes fileId to the block', async () => {
     const { user, calls } = await renderEditor();
     await user.click(screen.getAllByTestId('email-block')[1] as HTMLElement);

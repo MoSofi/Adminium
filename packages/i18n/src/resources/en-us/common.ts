@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GENERATED MIRROR of ../../../locales/en-US/common.json — do not edit by hand.
- * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
  * without JSON import attributes (browser + NodeNext safe).
@@ -300,6 +300,13 @@ export default {
   "undo": {
     "done": "Change undone",
     "failed": "Could not undo this change"
+  },
+  "projectAction": {
+    "done": "{label}: done",
+    "failed": "{label} did not finish",
+    "menu": "Actions",
+    "run": "Run",
+    "selected": "{count, plural, one {# record} other {# records}}"
   },
   "prefs": {
     "theme": {
@@ -1013,7 +1020,7 @@ export default {
     "article": {
       "install": {
         "title": "Install Adminium",
-        "excerpt": "Run from a source checkout or with docker run, and reach the first-run wizard in a minute."
+        "excerpt": "Create a project with one command, or run Adminium from Docker or a source checkout."
       },
       "firstAdmin": {
         "title": "Create your first super admin",
@@ -1622,6 +1629,7 @@ export default {
       "jobsRead": "See all background jobs",
       "llmRun": "Run AI assist",
       "pagesManage": "Create and organize pages",
+      "projectRead": "Read pages and schema changes for a project pull",
       "reportsManage": "Manage scheduled reports",
       "rolesManage": "Manage roles and permissions",
       "schemaRemap": "Edit schema labels and overrides",

@@ -21,6 +21,26 @@
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "default": "./dist/runtime/index.js"
+    },
+    "./runtime/react": {
+      "types": "./dist/runtime/react.d.ts",
+      "default": "./dist/runtime/react.js"
+    },
+    "./runtime/jsx-runtime": {
+      "types": "./dist/runtime/jsx-runtime.d.ts",
+      "default": "./dist/runtime/jsx-runtime.js"
+    },
+    "./runtime/compiler-runtime": {
+      "types": "./dist/runtime/compiler-runtime.d.ts",
+      "default": "./dist/runtime/compiler-runtime.js"
+    },
+    "./runtime/react-dom": {
+      "types": "./dist/runtime/react-dom.d.ts",
+      "default": "./dist/runtime/react-dom.js"
     }
   },
   "scripts": {

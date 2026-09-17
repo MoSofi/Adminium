@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure review-model tests (06-llm-assist.md §8.2, §10.3). Pins the two
- * behaviours acceptance criterion 12 hangs on — "'Accept all ≥ 0.8' never
- * selects rejects-heuristic or user-locked rows" and the §8.2 default checks —
- * plus category grouping, header counts and the apply-write summary.
+ * Pure review-model tests. Pins the two behaviours acceptance criterion 12
+ * hangs on — "'Accept all ≥ 0.8' never selects rejects-heuristic or
+ * user-locked rows" and the default checks — plus category grouping,
+ * header counts and the apply-write summary.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -46,10 +46,10 @@ const CORPUS: SuggestionDiff[] = [
 ];
 
 describe('groupDiffs', () => {
-  it('buckets categories into the §10.3 display groups, folding dashboard+widget', () => {
+  it('buckets categories into the display groups, folding dashboard+widget', () => {
     const groups = groupDiffs(CORPUS);
     const ids = groups.map((group) => group.def.id);
-    // §10.3 order, empty groups (icons) dropped.
+    // Review order, empty groups (icons) dropped.
     expect(ids).toEqual(['labels', 'groups', 'enums', 'relations', 'keys', 'templates', 'dashboards', 'pii', 'microcopy']);
     const dashboards = groups.find((group) => group.def.id === 'dashboards');
     expect(dashboards?.rows.map((row) => row.category).sort()).toEqual(['dashboard', 'widget']);
@@ -75,7 +75,7 @@ describe('countStatuses', () => {
   });
 });
 
-describe('default selection (§8.2 review defaults)', () => {
+describe('default selection (review defaults)', () => {
   it('pre-checks agree always, conflict/llm-new only at/above the threshold', () => {
     expect(isDefaultChecked(mk('a', 'label', 'agree', 0.1))).toBe(true);
     expect(isDefaultChecked(mk('a', 'label', 'conflict', 0.8))).toBe(true);

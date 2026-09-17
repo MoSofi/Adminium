@@ -73,7 +73,7 @@ for (const dialect of TEST_DIALECTS) {
       await expect(prefs.set(u.id, { accent: 'chartreuse' as never })).rejects.toThrow(MetaValidationError);
     });
 
-    it('resolves BRIEF §7 order: system default → global override → user override', async () => {
+    it('resolves BRIEF order: system default → global override → user override', async () => {
       const users = usersRepo(t.meta);
       const settings = settingsRepo(t.meta);
       const prefs = userPrefsRepo(t.meta);

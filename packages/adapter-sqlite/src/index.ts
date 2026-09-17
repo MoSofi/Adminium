@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/adapter-sqlite — the `better-sqlite3` implementation of the
- * `DatabaseAdapter` contract (05-introspection-engine.md §3/§4.3, M9/05-T14).
+ * `DatabaseAdapter` contract (M9/).
  *
  * Mirrors the postgres reference adapter: connect/test/probeCapabilities,
  * `introspect()` (schema only — pragma/sqlite_master, plus the documented
- * §4.3 small-file COUNT exception), the Kysely query-engine factory with
+ * small-file COUNT exception), the Kysely query-engine factory with
  * better-sqlite3 instance injection, and the boot registration helper. The
  * data-role methods (`query`/`mutate`/`sample`/`count`) follow the same
- * 05-T05 pattern and currently reject with a typed `UNSUPPORTED` error after
- * their role guard runs — CRUD goes through `createQueryEngine()`.
+ * pattern and currently reject with a typed `UNSUPPORTED` error after their
+ * role guard runs — CRUD goes through `createQueryEngine()`.
  *
  * The connection config is a FILE PATH (`{ file }`, `:memory:` allowed) —
- * this is the Electron/offline engine (11-electron.md). The introspect
- * instance opens `{ readonly: true, fileMustExist: true }`; the data
- * instance opens read-write with WAL/foreign_keys/busy_timeout pragmas.
+ * this is the Electron/offline engine. The introspect instance opens `{
+ * readonly: true, fileMustExist: true }`; the data instance opens
+ * read-write with WAL/foreign_keys/busy_timeout pragmas.
  *
- * NOTE (05 §4.3): the worker-thread pool that keeps the synchronous driver
- * off the Fastify event loop is an integration follow-up — the adapter
- * facade is already Promise-based, so the pool slots in behind `#exec`
- * without any contract change.
+ * NOTE: the worker-thread pool that keeps the synchronous driver off the
+ * Fastify event loop is an integration follow-up — the adapter facade is
+ * already Promise-based, so the pool slots in behind `#exec` without any
+ * contract change.
  */
 import { accessSync, constants, statSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -88,7 +88,7 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
       throw new AdapterError(
         'PERMISSION',
         `connection config is branded "${config.role}" but this adapter instance is "${this.role}"`,
-        { hint: 'the three logical connections are never interchangeable (01-architecture.md §3)' },
+        { hint: 'the three logical connections are never interchangeable' },
       );
     }
     const file = normalizeSqliteFile(config);
@@ -98,8 +98,8 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
       });
     }
     this.#file = file;
-    // The introspect handle ALWAYS opens readonly (05 §4.3) — a safety measure
-    // so introspection can never write, NOT a statement about whether the
+    // The introspect handle ALWAYS opens readonly — a safety measure so
+    // introspection can never write, NOT a statement about whether the
     // underlying database is writable. Keep the config-requested mode separately
     // so read-only DETECTION reflects the CONNECTION, not the forced open mode:
     // otherwise every introspect probe would report the whole connection
@@ -130,7 +130,7 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
 
   /**
    * The Promise-based executor facade over the synchronous driver — the
-   * 05 §4.3 worker pool slots in behind this method without contract change.
+   * worker pool slots in behind this method without contract change.
    */
   async #exec(sql: string): Promise<CatalogRow[]> {
     const db = this.#requireDb();
@@ -142,10 +142,10 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
   }
 
   /**
-   * Read-only detection — 05 §4.3. Reflects whether the CONNECTION (the
-   * underlying database file) is writable, NOT how this role opened its handle:
-   * the introspect handle always opens readonly for safety, yet the connection
-   * may be fully writable via the data role. Genuine read-only signals are an
+   * Read-only detection. Reflects whether the CONNECTION (the underlying
+   * database file) is writable, NOT how this role opened its handle: the
+   * introspect handle always opens readonly for safety, yet the connection may
+   * be fully writable via the data role. Genuine read-only signals are an
    * explicit `mode: 'readonly'` config, a file the process cannot write
    * (`W_OK`), or `PRAGMA query_only = 1`.
    */
@@ -217,13 +217,13 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
     };
   }
 
-  /** SCHEMA ONLY — pragma/sqlite_master (+ §4.3 small-file COUNT exception). */
+  /** SCHEMA ONLY — pragma/sqlite_master (+ small-file COUNT exception). */
   async introspect(
     this: DatabaseAdapter<'introspect'>,
     opts?: IntrospectOptions,
   ): Promise<DatabaseModel> {
     const self = this as SqliteAdapter<'introspect'>;
-    // Runtime guard behind the compile-time role brand (05 §3).
+    // Runtime guard behind the compile-time role brand.
     if ((self.role as ConnectionRole) !== 'introspect') {
       throw new AdapterError(
         'PERMISSION',
@@ -255,15 +255,15 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
       throw new AdapterError(
         'PERMISSION',
         `${method}() is only available on the data-role instance`,
-        { hint: 'row-touching methods never run on the introspect connection (05 §10)' },
+        { hint: 'row-touching methods never run on the introspect connection' },
       );
     }
-    throw new AdapterError('UNSUPPORTED', `${method}() lands with 05-T05 (dynamic Kysely CRUD)`, {
+    throw new AdapterError('UNSUPPORTED', `${method}() is not implemented on the adapter itself`, {
       hint: 'use createQueryEngine() for the CRUD query port in the meantime',
     });
   }
 
-  /* eslint-disable @typescript-eslint/no-unused-vars -- 05-T05 stubs: the
+  /* eslint-disable @typescript-eslint/no-unused-vars -- stubs: the
      parameter lists must match the DatabaseAdapter contract exactly. */
   async count(
     this: DatabaseAdapter<'data'>,
@@ -300,7 +300,7 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
   }
   /* eslint-enable @typescript-eslint/no-unused-vars */
 
-  /** Aggregate statistics for LLM enrichment (06 §4.2); sample-free by default. */
+  /** Aggregate statistics for LLM enrichment; sample-free by default. */
   async collectTableStats(
     this: DatabaseAdapter<'data'>,
     table: TableRef,
@@ -311,7 +311,7 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
       throw new AdapterError(
         'PERMISSION',
         'collectTableStats() is only available on the data-role instance',
-        { hint: 'statistics touch user rows and never run on the introspect connection (05 §10)' },
+        { hint: 'statistics touch user rows and never run on the introspect connection' },
       );
     }
     return collectSqliteStats((sql) => self.#exec(sql), table, opts);
@@ -327,7 +327,7 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
   }
 }
 
-/** What the server registers at boot (01-architecture.md §2.3.1). */
+/** What the server registers at boot. */
 export const sqliteAdapter: AdapterProvider = {
   dialect: 'sqlite',
   async create<Role extends ConnectionRole>(

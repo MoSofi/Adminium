@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Review status of each locale's translations (10-i18n-theming.md §3.3).
+ * Review status of each locale's translations.
  *
  * Every string in a non-English bundle is either machine-drafted (`mt`),
  * human-signed-off (`reviewed`), or stale because the English moved under it
@@ -17,9 +17,9 @@ import { isBuiltinLocaleId, type BuiltinLocaleId, type LocaleId } from './locale
 
 /**
  * Review is a property of the COMPILED bundles, so this axis keys off
- * {@link BuiltinLocaleId}, not {@link LocaleId} (23 §5.1). Two consequences,
- * both wanted: adding a ninth compiled locale is still a compile error here,
- * and a runtime locale — whose strings live in the meta store and were never
+ * {@link BuiltinLocaleId}, not {@link LocaleId}. Two consequences, both
+ * wanted: adding a ninth compiled locale is still a compile error here, and
+ * a runtime locale — whose strings live in the meta store and were never
  * seen by the review pipeline — simply has no entry and reports "not
  * reviewed" rather than widening this record into `Record<string, …>` and
  * quietly losing the exhaustiveness guarantee.
@@ -37,7 +37,7 @@ export interface ReviewCoverage {
 }
 
 /**
- * `true` when the locale clears the §3.3 v1.0 bar: 100% `reviewed` in
+ * `true` when the locale clears the v1.0 bar: 100% `reviewed` in
  * `common`/`ui`/`errors` and ≥95% in `studio`/`generated`.
  */
 export interface LocaleReview extends ReviewCoverage {
@@ -46,13 +46,13 @@ export interface LocaleReview extends ReviewCoverage {
 
 /** GENERATED — see the module docblock. `en_US` is the source and never tracked. */
 export const REVIEW_STATUS: Record<TrackedLocaleId, LocaleReview> = {
-  de_DE: { tracked: 6203, reviewed: 0, mt: 6146, outdated: 57, shipReady: false },
-  fr_FR: { tracked: 6203, reviewed: 0, mt: 6146, outdated: 57, shipReady: false },
-  cs_CZ: { tracked: 6203, reviewed: 0, mt: 6146, outdated: 57, shipReady: false },
-  da_DK: { tracked: 6203, reviewed: 0, mt: 6146, outdated: 57, shipReady: false },
-  zh_CN: { tracked: 6203, reviewed: 0, mt: 6146, outdated: 57, shipReady: false },
-  zh_TW: { tracked: 6203, reviewed: 0, mt: 6146, outdated: 57, shipReady: false },
-  ar_EG: { tracked: 6203, reviewed: 0, mt: 6146, outdated: 57, shipReady: false },
+  de_DE: { tracked: 6288, reviewed: 0, mt: 6230, outdated: 58, shipReady: false },
+  fr_FR: { tracked: 6288, reviewed: 0, mt: 6230, outdated: 58, shipReady: false },
+  cs_CZ: { tracked: 6288, reviewed: 0, mt: 6230, outdated: 58, shipReady: false },
+  da_DK: { tracked: 6288, reviewed: 0, mt: 6230, outdated: 58, shipReady: false },
+  zh_CN: { tracked: 6288, reviewed: 0, mt: 6230, outdated: 58, shipReady: false },
+  zh_TW: { tracked: 6288, reviewed: 0, mt: 6230, outdated: 58, shipReady: false },
+  ar_EG: { tracked: 6288, reviewed: 0, mt: 6230, outdated: 58, shipReady: false },
 };
 
 /**

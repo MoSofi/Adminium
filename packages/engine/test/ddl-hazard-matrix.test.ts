@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The hazard matrix — 35-schema-authoring.md §5, D4.
+ * The hazard matrix.
  *
- * §5 is a table in a document, and a table in a document drifts from the code
- * that is supposed to implement it. This file IS §5, executed: every step kind
+ * The hazard matrix is a table in a document, and a table in a document drifts from the code
+ * that is supposed to implement it. This file IS, executed: every step kind
  * against every dialect, asserting the verdict the plan states. When the two
  * disagree, one of them is wrong and this test says which cell.
  *
- * It also carries the four consequences §5 draws under the table, each as a
- * named test, because those are the claims a reader is most likely to doubt.
+ * It also carries the four consequences draws under the table, each as a
+ * named test, because those are the claims a reader is most likely to
+ * doubt.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -18,7 +19,7 @@ const PG = { dialect: 'postgres' as Dialect, serverVersion: '16.2', tableHasRows
 const MY = { dialect: 'mysql' as Dialect, serverVersion: '8.0.35', tableHasRows: true };
 const LITE = { dialect: 'sqlite' as Dialect, serverVersion: '3.53.4', tableHasRows: true };
 
-/** [kind, postgres, mysql, sqlite] — §5's table, one row per step. */
+/** [kind, postgres, mysql, sqlite] — table, one row per step. */
 const MATRIX: readonly [DdlStepKind, Hazard, Hazard, Hazard][] = [
   ['create-table', 'safe', 'safe', 'safe'],
   ['rename-table', 'safe', 'safe', 'safe'],
@@ -43,7 +44,7 @@ const MATRIX: readonly [DdlStepKind, Hazard, Hazard, Hazard][] = [
   ['rebuild-table', 'rewrite', 'rewrite', 'rewrite'],
 ];
 
-describe('§5, executed', () => {
+describe('Executed', () => {
   it.each(MATRIX)('%s → pg %s · mysql %s · sqlite %s', (kind, pg, my, lite) => {
     expect(classifyStep(kind, PG).hazard, `postgres/${kind}`).toBe(pg);
     expect(classifyStep(kind, MY).hazard, `mysql/${kind}`).toBe(my);
@@ -61,7 +62,7 @@ describe('§5, executed', () => {
   });
 });
 
-describe('the four consequences §5 draws under the table', () => {
+describe('the four consequences draws under the table', () => {
   it('1. MySQL cannot roll back — the rationale says so where it matters', () => {
     expect(classifyStep('rename-table', MY).rationale).toContain('cannot be rolled back');
   });
@@ -119,7 +120,7 @@ describe('row counts change the verdict, not just the copy', () => {
   });
 });
 
-describe('version gates (§0.2: read from the probe, never assumed)', () => {
+describe('version gates (read from the probe, never assumed)', () => {
   it('drop-column rewrites on MySQL before 8.0.29 and is instant after', () => {
     expect(classifyStep('drop-column', { ...MY, serverVersion: '8.0.20' }).hazard).toBe('rewrite');
     expect(classifyStep('drop-column', { ...MY, serverVersion: '8.0.35' }).hazard).toBe('lossy');

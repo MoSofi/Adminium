@@ -45,17 +45,17 @@ export {
 export type { IpAllowlistCardConfig, PolicyListConfig, TestimonialCardConfig, TrustBadgesConfig };
 
 /**
- * TRACK OPS — the ACCESS/ASSURANCE half of the annex §13 ops cards, grouped in
- * one module because all four are read-mostly statements about who may do what,
- * and three of them share the same tiny list-of-claims shape:
+ * TRACK OPS — the ACCESS/ASSURANCE half of the annex ops cards, grouped in one
+ * module because all four are read-mostly statements about who may do what, and
+ * three of them share the same tiny list-of-claims shape:
  *
  *   `policy-list`, `ip-allowlist-card`, `trust-badges`, `testimonial-card`.
  *
  * NEVER WRITES: `policy-list`'s enable toggle emits a `mutate` intent the host
- * runs through the CRUD API with undo + audit (04 §2.1) — disabling an RLS
- * policy is exactly the kind of change that must be audited and reversible, so
- * the widget describes the intent and the host owns the consequence. Unbound →
- * the toggle renders read-only rather than lying about a state it cannot persist.
+ * runs through the CRUD API with undo + audit — disabling an RLS policy is
+ * exactly the kind of change that must be audited and reversible, so the
+ * widget describes the intent and the host owns the consequence. Unbound → the
+ * toggle renders read-only rather than lying about a state it cannot persist.
  *
  * `testimonial-card` / `trust-badges` are the marketing pair (annex: "Kept for
  * adminium.dev landing/marketplace pages"): presentational, no intents, no
@@ -237,7 +237,7 @@ export function IpAllowlistCardView({
           className="flex items-center gap-2 rounded-md bg-surface-2 px-2.5 py-1.5"
         >
           {/*
-            An IPv4/IPv6 literal is an LTR ISLAND (10-i18n-theming.md §5.5): it is
+            An IPv4/IPv6 literal is an LTR ISLAND: it is
             a dotted numeric address, not prose, and letting it reorder under an
             RTL page would render an address that does not resolve.
           */}

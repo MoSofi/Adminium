@@ -51,7 +51,7 @@ export {
 export type { CodeSnippetBlockConfig, ResourceApiCardConfig, WebhookEndpointsListConfig };
 
 /**
- * TRACK OPS — the API-SURFACE half of the annex §13 ops cards, grouped in one
+ * TRACK OPS — the API-SURFACE half of the annex ops cards, grouped in one
  * module because all three describe the same thing (the resources an API
  * exposes) and share the mono/method-chip vocabulary:
  *
@@ -62,11 +62,11 @@ export type { CodeSnippetBlockConfig, ResourceApiCardConfig, WebhookEndpointsLis
  * mounts an API page, bought for a read-only snippet nobody edits. The block is
  * a mono surface + a language chip + a copy button. Highlighting, if it is ever
  * wanted, arrives as a lazily-loaded decorator — not as a static dep on this
- * family's chunk (04 §2.3 / qa/chunk-budget.test.ts).
+ * family's chunk (/ qa/chunk-budget.test.ts).
  *
  * NEVER WRITES: the webhook enable toggle emits a `mutate` intent the host runs
- * through the CRUD API with undo + audit (04 §2.1). Unbound → the toggle renders
- * read-only rather than lying about a state it cannot persist.
+ * through the CRUD API with undo + audit. Unbound → the toggle renders read-only
+ * rather than lying about a state it cannot persist.
  */
 
 /**
@@ -180,7 +180,7 @@ export function CodeSnippetBlockView({
       </div>
 
       {/*
-        The snippet is an LTR ISLAND (10-i18n-theming.md §5.5): code is written
+        The snippet is an LTR ISLAND: code is written
         left-to-right in every locale, so `dir="ltr"` stays on the <pre> even
         under an RTL page — mirroring it would reorder the tokens of a shell
         command into something that does not run. The chrome above mirrors; the
@@ -309,7 +309,8 @@ export function WebhookEndpointsListView({
               control. Dim the affordance, never the content.
             */}
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              {/* `Tag mono` is the schema/event-chip form (design-system §3 Tier 1) — `Badge` has no mono variant. */}
+              {/* `Tag mono` is the schema/event-chip form (design-system Tier
+               * 1) — `Badge` has no mono variant. */}
               <Tag mono tone="info" className="self-start" data-part="webhook-event">
                 {hook.event}
               </Tag>

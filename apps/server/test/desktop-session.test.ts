@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `POST /api/v1/auth/desktop-session` (11-electron.md §5) — the desktop shell's
- * boot-token auto-login.
+ * `POST /api/v1/auth/desktop-session` — the desktop shell's boot-token
+ * auto-login.
  *
  * This is the only route in the product that mints a super-admin session with no
  * password, so the suite is written against the ATTACK rather than the happy
- * path, and each of §5's four gates is pinned INDEPENDENTLY — a suite that only
+ * path, and each of four gates is pinned INDEPENDENTLY — a suite that only
  * proved "the right token works and a wrong one does not" would stay green while
  * the loopback check, the runtime gate, or the single-use claim rotted away.
  *
@@ -40,7 +40,7 @@ import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { makeEnv, TEST_SECRET, type InjectPayload } from './helpers.js';
 
-/** This boot's token. 64 hex characters — §2.2 step 4's 32 bytes. */
+/** This boot's token. 64 hex characters — 32 bytes. */
 const BOOT_TOKEN = 'a'.repeat(64);
 /** A DIFFERENT boot's token: same shape, never issued by this process. */
 const PREVIOUS_BOOT_TOKEN = 'b'.repeat(64);
@@ -82,7 +82,7 @@ interface HarnessOptions {
   noSuperAdmin?: boolean | undefined;
   /**
    * Omit `ADMINIUM_DESKTOP_SINGLE_USER` — the shell did not mirror `config.json`.
-   * Otherwise the harness mirrors `on`, which is what a §2.3-default install
+   * Otherwise the harness mirrors `on`, which is what a -default install
    * (`singleUser: true`) sends and therefore the normal desktop boot.
    */
   noMirror?: boolean | undefined;
@@ -155,7 +155,7 @@ function errorCode(res: { json: () => unknown }): string {
 
 // ─── Gate 1: the route EXISTS only in the desktop runtime ─────────────────────
 
-describe('gate 1 — registration (§5: "registered only when ADMINIUM_RUNTIME=desktop")', () => {
+describe('gate 1 — registration ("registered only when ADMINIUM_RUNTIME=desktop")', () => {
   it('a self-host instance does not expose the route AT ALL', async () => {
     const h = await harness({ selfHost: true });
 
@@ -180,7 +180,7 @@ describe('gate 1 — registration (§5: "registered only when ADMINIUM_RUNTIME=d
   it('a desktop boot with no boot token has nothing to exchange — no route', async () => {
     const h = await harness({ selfHost: true, env: { ADMINIUM_RUNTIME: 'desktop' } });
 
-    // §2.2 always mints one; its absence means the shell could not, and the app
+    // One is always minted; its absence means the shell could not, and the app
     // must land on the normal login screen rather than on a route that 401s.
     expect((await exchange(h)).statusCode).toBe(404);
   });
@@ -200,11 +200,11 @@ describe('gate 1 — registration (§5: "registered only when ADMINIUM_RUNTIME=d
 
 // ─── Gate 2: the peer must be loopback ────────────────────────────────────────
 
-describe('gate 2 — the peer (§2.4: "rejects non-loopback peers unconditionally")', () => {
+describe('gate 2 — the peer ("rejects non-loopback peers unconditionally")', () => {
   it('a LAN peer is refused', async () => {
     const h = await harness();
 
-    // §8.3 binds 0.0.0.0 when LAN share is on, so this is a request the server
+    // The server binds 0.0.0.0 when LAN share is on, so this is a request the server
     // really can receive — from someone with the app's URL and no account.
     const res = await exchange(h, { bootToken: BOOT_TOKEN }, { remoteAddress: '192.168.1.24' });
 
@@ -255,7 +255,7 @@ describe('gate 2 — the peer (§2.4: "rejects non-loopback peers unconditionall
 
 // ─── Gate 3: the singleUser policy ────────────────────────────────────────────
 
-describe('gate 3 — "Require login on this device" (§5)', () => {
+describe('gate 3 — "Require login on this device"', () => {
   it('refuses while singleUser is off, and issues no session', async () => {
     const h = await harness({ env: { ADMINIUM_DESKTOP_SINGLE_USER: 'off' } });
 
@@ -271,7 +271,7 @@ describe('gate 3 — "Require login on this device" (§5)', () => {
   it('the boot mirrors config.json\'s singleUser into the setting the route reads', async () => {
     const h = await harness({ env: { ADMINIUM_DESKTOP_SINGLE_USER: 'off' } });
 
-    // §5: "mirrored into adminium_settings … by the server at boot". The route
+    // "mirrored into adminium_settings … by the server at boot". The route
     // reads the SETTING, so the mirror is what makes the toggle mean anything.
     expect(await settingsRepo(h.meta).get('desktop.singleUser')).toBe(false);
   });
@@ -307,7 +307,7 @@ describe('gate 3 — "Require login on this device" (§5)', () => {
     await meta.db.destroy();
   });
 
-  it('a mirrored `on` allows the exchange — the ordinary §2.3-default boot', async () => {
+  it('a mirrored `on` allows the exchange — the ordinary -default boot', async () => {
     const h = await harness();
 
     expect(await settingsRepo(h.meta).get('desktop.singleUser')).toBe(true);
@@ -330,7 +330,7 @@ describe('gate 3 — "Require login on this device" (§5)', () => {
 
 // ─── Gate 4: the token itself ─────────────────────────────────────────────────
 
-describe('gate 4 — the boot token (§5: one success per boot)', () => {
+describe('gate 4 — the boot token (one success per boot)', () => {
   it('exchanges the boot token for a real super-admin session', async () => {
     const h = await harness();
 
@@ -346,7 +346,7 @@ describe('gate 4 — the boot token (§5: one success per boot)', () => {
     // A REAL session, not a token-shaped reply: the cookie authenticates.
     const cookie = res.headers['set-cookie'];
     expect(String(cookie)).toContain('adminium_session=');
-    // §2.4: loopback http is the sanctioned exception to the secure-cookie rule.
+    // Loopback http is the sanctioned exception to the secure-cookie rule.
     expect(String(cookie)).not.toContain('Secure');
 
     const session = await h.app.inject({
@@ -375,7 +375,7 @@ describe('gate 4 — the boot token (§5: one success per boot)', () => {
     expect((await exchange(h)).statusCode).toBe(200);
     const replay = await exchange(h);
 
-    // §5: "One success per boot token". The token is not a password — it is a
+    // "One success per boot token". The token is not a password — it is a
     // one-shot hand-off, and its second use is by definition not the shell.
     expect(replay.statusCode).toBe(401);
     expect(errorCode(replay)).toBe('INVALID_CREDENTIALS');
@@ -423,7 +423,7 @@ describe('gate 4 — the boot token (§5: one success per boot)', () => {
 
     const res = await exchange(h);
 
-    // The token was RIGHT; there is simply nobody to be yet (§6 owns this boot).
+    // The token was RIGHT; there is simply nobody to be yet (owns this boot).
     expect(res.statusCode).toBe(409);
     expect(res.headers['set-cookie']).toBeUndefined();
   });
@@ -501,7 +501,7 @@ describe('createBootTokenGuard', () => {
   });
 });
 
-// ─── The log (§1.3, and 11-electron.md §9's log files) ────────────────────────
+// ─── The log (log files) ──────────────────────────────────────────────────────
 
 describe('the boot token never reaches the log', () => {
   /** Captures every line the server logs, as pino would write it to the file. */
@@ -522,9 +522,9 @@ describe('the boot token never reaches the log', () => {
     });
     await app.ready();
 
-    // §2.2 step 8: the window opens on `/?bootToken=<token>`. The SPA strips it
-    // from history — but this request already happened, and §9 pipes the log to a
-    // file on disk that outlives the boot by days.
+    // The window opens on `/?bootToken=<token>`. The SPA strips it from history
+    // — but this request already happened, pipes the log to a file on disk that
+    // outlives the boot by days.
     await app.inject({ method: 'GET', url: `/?bootToken=${BOOT_TOKEN}&returnTo=/p/orders` });
 
     const log = lines.join('\n');

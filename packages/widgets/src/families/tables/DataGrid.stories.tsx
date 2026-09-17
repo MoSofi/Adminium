@@ -12,9 +12,9 @@ import { PaginationFooter } from './PaginationFooter.js';
 import { demoCustomerColumns, demoCustomerRows } from './demo-data.js';
 
 /**
- * `tables` family stories (M4-T03 acceptance: data-grid states + attached
- * widgets on demo data). Loosely typed — the 04-T17 QA harness wires widgets
- * stories into the workspace Storybook.
+ * `tables` family stories (data-grid states + attached widgets on demo
+ * data). Loosely typed — the QA harness wires widgets stories into the
+ * workspace Storybook.
  */
 const meta = {
   title: 'Widgets/Tables/DataGrid',
@@ -104,7 +104,7 @@ export const RowActions = {
   name: 'Row actions (peek eye)',
   render: () => (
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      {/* The 30 §3.3 slot: openable rows + an end-pinned action per row. The
+      {/* The slot: openable rows + an end-pinned action per row. The
           action must be reachable without triggering the row's own open. */}
       <DataGrid
         columns={demoCustomerColumns}

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/about` (M10-T04): version + AGPL licence + source offer + meta engine, and
- * the update notice's gating on the `updates.checkEnabled` preference —
- * including the property that an opted-out instance issues NO update request at
- * all from this screen.
+ * `/about`: version + AGPL licence + source offer + meta engine, and the update
+ * notice's gating on the `updates.checkEnabled` preference — including the
+ * property that an opted-out instance issues NO update request at all from this
+ * screen.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -105,7 +105,7 @@ describe('AboutPage', () => {
     expect(await screen.findByText('SQLite')).toBeDefined();
   });
 
-  it('links the LICENCE and — the AGPL §13 source offer — the source code', async () => {
+  it('links the LICENCE and — the AGPL source offer — the source code', async () => {
     await renderAbout(makeAbout());
     await screen.findByRole('heading', { name: 'About Adminium' });
 

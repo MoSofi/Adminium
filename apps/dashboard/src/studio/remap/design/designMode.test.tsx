@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Design mode end to end in the browser sense — 35-schema-authoring.md 35-T14,
- * 35-T15, D8, D11.
+ * Design mode end to end in the browser sense.
  *
  * ─── What this covers that unit tests did not ──────────────────────────────
  *
@@ -178,7 +177,7 @@ describe('renaming an existing table is an explicit intent (D1)', () => {
      * field re-staged the table under its new name and the wire carried no
      * `renames` entry, so the server diffed and found nothing to do: the review
      * pane said "No schema changes yet." and the rename round trip was
-     * unreachable from the product. Found by running §10's criterion 13.
+     * unreachable from the product. Found by running criterion 13.
      *
      * The distinction is not cosmetic. Without the explicit intent a diff
      * cannot tell "rename this" from "drop that and create this", and getting
@@ -235,7 +234,7 @@ describe('a failed apply is not a partial one', () => {
      * steps ran" — which reads as "something happened to your database" when
      * nothing did, and swallowed the engine's message entirely. The ledger had
      * `failed` and the real error the whole time; only the sentence was wrong.
-     * Found on the first MySQL apply of the acceptance run (§9.8).
+     * Found on the first MySQL apply of the acceptance run.
      */
     installFetch({
       onPlan: () => jsonResponse(200, { ...DROP_PLAN, hazard: 'safe', requiresSuperAdmin: false }),
@@ -331,7 +330,7 @@ describe("D18's ceiling door", () => {
     /*
      * D18's wording says "type-the-row-count". Its own capped probe makes that
      * number the literal 1,000,000 for every table forever — a second magic
-     * word. The table's name is the fact that differs. See §9.9.
+     * word. The table's name is the fact that differs.
      */
     installFetch({ onPlan: () => jsonResponse(200, CEILING_PLAN) });
     await reachTheCeiling();
@@ -422,7 +421,7 @@ describe("D18's ceiling door", () => {
   });
 });
 
-describe('honest absence (35-T15, D5)', () => {
+describe('honest absence', () => {
   it('removes the Design tab entirely on a read-only connection, and says why', async () => {
     /*
      * Absence, not a disabled button. A disabled control still asserts "this is

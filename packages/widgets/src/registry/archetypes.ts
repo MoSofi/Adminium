@@ -1,32 +1,31 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page-archetype selection — the **Auto-trigger** column of
- * research/widget-registry.md §14, and the H2 cap that closes it: "1 page
- * archetype per table (highest-scoring §14 trigger; `page-crud` always emitted
- * regardless)" (04-widget-registry.md §8).
+ * research/widget-registry.md, and the H2 cap that closes it: "1 page
+ * archetype per table (highest-scoring trigger; `page-crud` always emitted
+ * regardless)".
  *
- * This is the second half of §15 step 3 — "per table emit: `page-crud` always;
- * **plus the highest-scoring archetype from §14 triggers**; plus KPI candidates
+ * This is the second half of the emit rule — "per table emit: `page-crud`
+ * always; **plus the highest-scoring archetype trigger**; plus KPI candidates
  * and 2–4 chart candidates". The candidates themselves come from
  * `./candidates.ts`; this module only answers *which template* a table earns,
  * and `composeTemplate` (`../templates/compose.ts`) fills that template's slots
  * from the candidate list.
  *
  * WHY HERE AND NOT IN THE ENGINE: same reason as `./candidates.ts` — the
- * triggers are properties of the §14 catalog, which this package owns. The input
- * is the classified model as **data** (`CandidateTable` / `ClassifiedTableInput`),
- * so nothing here imports the engine and the Engine adapts its model on the way
- * in (01-architecture.md §2.3).
+ * triggers are properties of the catalog, which this package owns. The input is
+ * the classified model as **data** (`CandidateTable` / `ClassifiedTableInput`), so
+ * nothing here imports the engine and the Engine adapts its model on the way in.
  *
  * DETERMINISM: pure; scores round to 1e-3 (see `./candidates.ts`). Ranking is a
  * TOTAL order — score desc, then template id — so the winner never depends on
- * rule declaration order and 04 §8 H5's byte-identical re-run holds even when two
+ * rule declaration order, and the byte-identical re-run holds even when two
  * archetypes tie on score. Only "nothing triggered" means "emit nothing extra";
  * the table still gets its `page-crud` either way.
  *
  * FILLABILITY IS PART OF THE TRIGGER: a rule must not fire unless the candidate
  * rules can fill its template's `required` slots. `composeTemplate` returning
- * `null` costs the table its §14 page outright — the Engine drops it rather than
+ * `null` costs the table its page outright — the Engine drops it rather than
  * falling back to the runner-up archetype — so each rule below gates on the
  * signals its manifest's required slots actually need.
  */
@@ -50,12 +49,12 @@ import {
   type ClassifiedTableInput,
 } from './candidates.js';
 
-/** Annex §14 `page-queue-inbox`: "pending/approved-style workflow enums". */
+/** Annex `page-queue-inbox`: "pending/approved-style workflow enums". */
 const QUEUE_STATE_RE =
   /^(pending|awaiting|awaiting_approval|submitted|requested|in_review|review|approved|rejected|declined|denied|granted|escalated|unread)$/i;
-/** Annex §5/§14 `page-scheduler`: shift-type vocabulary. */
+/** Annex `page-scheduler`: shift-type vocabulary. */
 const SHIFT_TYPE_RE = /(^|_)(shift|slot|rota|duty)(_type|_kind|_name)?(_|$)/i;
-/** Annex §5/§14 `page-scheduler`: hours-per-project capacity numerics. */
+/** Annex `page-scheduler`: hours-per-project capacity numerics. */
 const HOURS_RE = /(^|_)(hours?|capacity|allocation|workload|effort|load)(_|$)/i;
 
 const NUMERIC_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
@@ -86,16 +85,16 @@ function byMatch(matches: boolean, hit = 1.1, miss = 0.95): number {
 /* ----------------------------------------------------------------- output */
 
 export interface ArchetypeSelection {
-  /** A §14 template id — always one of {@link ARCHETYPE_TEMPLATE_IDS}. */
+  /** A template id — always one of {@link ARCHETYPE_TEMPLATE_IDS}. */
   template: string;
-  /** 0–1; the §14 trigger's confidence for this table. */
+  /** 0–1; the trigger's confidence for this table. */
   score: number;
   /** Why it triggered — surfaced in the Studio review UI and the LLM prompt. */
   reasons: string[];
 }
 
 export interface ArchetypeRule {
-  /** The §14 template id this rule triggers. */
+  /** The template id this rule triggers. */
   template: string;
   /** `null` ⇔ the trigger does not apply to this table. */
   match(view: CandidateView, ctx: CandidateContext): Omit<ArchetypeSelection, 'template'> | null;
@@ -104,9 +103,9 @@ export interface ArchetypeRule {
 /* ------------------------------------------------------------------ rules */
 
 /**
- * §14 — "Status enum classified as workflow; optional lane dimension".
+ * The trigger: "Status enum classified as workflow; optional lane dimension".
  *
- * Never fires on a log-shaped table. §14 routes "Audit/event/webhook/log tables"
+ * Never fires on a log-shaped table: "Audit/event/webhook/log tables" route
  * to `page-log-viewer` unconditionally, and the classifier's `log` shape/role is
  * a definitive signal — whereas this rule's enum-vocabulary match is a heuristic.
  * Without the exclusion the two compete at near-identical scores on any audit
@@ -146,10 +145,10 @@ const pageBoard: ArchetypeRule = {
 };
 
 /**
- * §14 — "Date column + title column".
+ * The trigger: "Date column + title column".
  *
  * A start/end **pair** is scheduling/gantt data, not point-in-time events
- * (annex §5: "two timestamp columns (start/end) → scheduling candidate"), so a
+ * (annex: "two timestamp columns (start/end) → scheduling candidate"), so a
  * range-only table scores as a weak calendar and normally loses to the
  * scheduler / domain-card archetypes below.
  */
@@ -162,7 +161,7 @@ const pageCalendar: ArchetypeRule = {
     if (date === null || view.displayColumn === null) return null;
     const reasons = [`date column "${date.name}" + title column "${view.displayColumn}"`];
     if (point === null) reasons.push('start/end pair only — scheduling-shaped, not point events');
-    if (view.shape === 'events') reasons.push('table classified as events-shaped (05 §8)');
+    if (view.shape === 'events') reasons.push('table classified as events-shaped');
     return {
       score: score(0.75, byMatch(view.shape === 'events', 1.15, 1), point === null ? 0.6 : 1),
       reasons,
@@ -171,13 +170,13 @@ const pageCalendar: ArchetypeRule = {
 };
 
 /**
- * §14 — "People-shaped table (name/email/role/avatar)".
+ * The trigger: "People-shaped table (name/email/role/avatar)".
  *
  * Like `pageMasterDetail` below, this only fires when the candidate rules can
  * actually fill the manifest's `required` `directory` slot, which accepts just
  * `card-gallery` (needs an `image-url` — `media.image-card-gallery`) or
  * `org-chart` (needs a self-FK — `domain.self-fk-tree`). A people table with
- * neither would select this archetype, compose to `null`, and lose its §14 page
+ * neither would select this archetype, compose to `null`, and lose its page
  * entirely — `archetypePages` drops rather than falling back to the runner-up.
  * Gating here instead means such a table keeps whatever archetype it *can*
  * compose (or just its `page-crud`).
@@ -191,11 +190,11 @@ const pageDirectory: ArchetypeRule = {
     const avatar = firstWithSemantic(view, 'image-url');
     if (avatar === null && view.hierarchyColumn === null) return null;
     const reasons = [
-      `people-shaped table with ${identity.map((c) => `"${c.name}"`).join(' + ')} (05 §8 directory trigger)`,
+      `people-shaped table with ${identity.map((c) => `"${c.name}"`).join(' + ')} (directory trigger)`,
     ];
     if (avatar !== null) reasons.push(`avatar column "${avatar.name}" — card gallery`);
     if (view.hierarchyColumn !== null) {
-      reasons.push(`self-FK "${view.hierarchyColumn}" — org-chart tree variant (annex §14)`);
+      reasons.push(`self-FK "${view.hierarchyColumn}" — org-chart tree variant`);
     }
     // The 1.1 is unconditional now that the gate above guarantees one of the two
     // fillable variants — it is the "name-match strength" hit for a people table
@@ -204,7 +203,7 @@ const pageDirectory: ArchetypeRule = {
   },
 };
 
-/** §14 — "Person FK × date × shift-type; or hours-per-project assignments". */
+/** The trigger: "Person FK × date × shift-type; or hours-per-project assignments". */
 const pageScheduler: ArchetypeRule = {
   template: 'page-scheduler',
   match(view) {
@@ -219,7 +218,7 @@ const pageScheduler: ArchetypeRule = {
       return {
         score: score(0.82, byMatch(SHIFT_TYPE_RE.test(normalize(shiftType.name)))),
         reasons: [
-          `person FK "${person.name}" × date "${date.name}" × shift type "${shiftType.name}" (annex §14 shift scheduler)`,
+          `person FK "${person.name}" × date "${date.name}" × shift type "${shiftType.name}" (shift scheduler)`,
         ],
       };
     }
@@ -232,7 +231,7 @@ const pageScheduler: ArchetypeRule = {
       return {
         score: score(0.82),
         reasons: [
-          `hours "${hours.name}" per person "${person.name}" per project "${project.name}" (annex §14 team workload)`,
+          `hours "${hours.name}" per person "${person.name}" per project "${project.name}" (team workload)`,
         ],
       };
     }
@@ -240,24 +239,24 @@ const pageScheduler: ArchetypeRule = {
   },
 };
 
-/** §14 — "Audit/event/webhook/log tables". */
+/** The trigger: "Audit/event/webhook/log tables". */
 const pageLogViewer: ArchetypeRule = {
   template: 'page-log-viewer',
   match(view) {
     if (view.shape !== 'log' && view.role !== 'log') return null;
     return {
       score: score(0.88),
-      reasons: [`${view.table.id} classified as a log table (05 §8): ${view.classified.shape}`],
+      reasons: [`${view.table.id} classified as a log table: ${view.classified.shape}`],
     };
   },
 };
 
-/** §14 — "File/attachment-shaped tables or storage integration". */
+/** The trigger: "File/attachment-shaped tables or storage integration". */
 const pageFiles: ArchetypeRule = {
   template: 'page-files',
   match(view) {
     if (!isFileShaped(view)) return null;
-    const reasons = ['file-shaped table: display name + size numeric or file reference (annex §8/§14)'];
+    const reasons = ['file-shaped table: display name + size numeric or file reference'];
     if (view.hierarchyColumn !== null) {
       reasons.push(`parent self-FK "${view.hierarchyColumn}" — folder tree`);
     }
@@ -265,7 +264,7 @@ const pageFiles: ArchetypeRule = {
   },
 };
 
-/** §14 — "Conversation+message table pair". */
+/** The trigger: "Conversation+message table pair". */
 const pageChat: ArchetypeRule = {
   template: 'page-chat',
   match(view, ctx) {
@@ -274,13 +273,13 @@ const pageChat: ArchetypeRule = {
     return {
       score: score(0.95),
       reasons: [
-        `conversation container paired with messages table "${messages.table.id}" (sender FK + body + created-at, 05 §8)`,
+        `conversation container paired with messages table "${messages.table.id}" (sender FK + body + created-at)`,
       ],
     };
   },
 };
 
-/** §14 — "Tables with pending/approved-style workflow enums or read/unread booleans". */
+/** The trigger: "Tables with pending/approved-style workflow enums or read/unread booleans". */
 const pageQueueInbox: ArchetypeRule = {
   template: 'page-queue-inbox',
   match(view) {
@@ -296,10 +295,10 @@ const pageQueueInbox: ArchetypeRule = {
     const reasons: string[] = [];
     if (status !== null && queueish.length > 0) {
       reasons.push(
-        `approval-style workflow enum "${status.name}" (${queueish.join(', ')}) (annex §14)`,
+        `approval-style workflow enum "${status.name}" (${queueish.join(', ')})`,
       );
     }
-    if (readFlag !== undefined) reasons.push(`read/unread boolean "${readFlag.name}" (annex §14)`);
+    if (readFlag !== undefined) reasons.push(`read/unread boolean "${readFlag.name}"`);
     return {
       score: score(
         0.78,
@@ -314,21 +313,21 @@ const pageQueueInbox: ArchetypeRule = {
 };
 
 /**
- * §14 — "Enum-heavy tables with rich per-record detail".
+ * The trigger: "Enum-heavy tables with rich per-record detail".
  *
  * Two variants, matching the manifest's detail slot (which accepts
  * `detail-key-value` **or a domain card** — `org-chart` / `gantt-chart` /
- * `chat-thread`, per §14's "detail pane (right: `detail-key-value` / domain card
- * / `chat-thread`)"):
+ * `chat-thread`, per the registry's "detail pane (right: `detail-key-value` /
+ * domain card / `chat-thread`)"):
  *
- *   - **domain-card**: the table carries the §13 gantt signal ("start+end dates
- *     + phase FK → `gantt-chart`"). `page-master-detail` is the only shipped
- *     archetype whose detail pane accepts `gantt-chart`, so this variant is what
- *     makes that §13 trigger reachable as a page. (§13's other tree signal,
- *     `org-chart` on a self-FK people table, is `page-directory`'s tree variant
- *     — see that rule; it always outscores this one.)
- *   - **enum-heavy**: the literal §14 trigger — ≥2 enum columns plus a detail
- *     payload worth a pane (free text / JSON / ≥6 informative columns).
+ * - **domain-card**: the table carries the gantt signal ("start+end dates +
+ *   phase FK → `gantt-chart`"). `page-master-detail` is the only shipped
+ *   archetype whose detail pane accepts `gantt-chart`, so this variant is what
+ *   makes that trigger reachable as a page. (The other tree signal, `org-chart`
+ *   on a self-FK people table, is `page-directory`'s tree variant — see that
+ *   rule; it always outscores this one.)
+ * - **enum-heavy**: the literal trigger — ≥2 enum columns plus a detail
+ *   payload worth a pane (free text / JSON / ≥6 informative columns).
  *
  * Both variants only fire when the candidate rules can actually fill the
  * manifest's two `required` slots: the domain-card variant mirrors
@@ -345,7 +344,7 @@ const pageMasterDetail: ArchetypeRule = {
       return {
         score: score(0.8),
         reasons: [
-          `start/end pair "${start.name}"/"${start.pair?.partner ?? '?'}" with progress/phase — gantt-chart detail pane (annex §13/§14)`,
+          `start/end pair "${start.name}"/"${start.pair?.partner ?? '?'}" with progress/phase — gantt-chart detail pane`,
         ],
       };
     }
@@ -359,15 +358,15 @@ const pageMasterDetail: ArchetypeRule = {
     return {
       score: score(0.6),
       reasons: [
-        `enum-heavy (${enums.map((c) => `"${c.name}"`).join(', ')}) with rich per-record detail (annex §14)`,
+        `enum-heavy (${enums.map((c) => `"${c.name}"`).join(', ')}) with rich per-record detail`,
       ],
     };
   },
 };
 
 /**
- * Every §14 auto-trigger the runtime can compose today, in annex table order.
- * The other twelve §14 archetypes are not schema-triggered (`page-settings`,
+ * Every auto-trigger the runtime can compose today, in annex table order. The
+ * other twelve archetypes are not schema-triggered (`page-settings`,
  * `page-auth`, `page-api`, … are "always generated" / marketing surfaces) or
  * await their manifest, so they never appear here.
  */
@@ -387,7 +386,7 @@ export const archetypeRules: readonly ArchetypeRule[] = [
 export const ARCHETYPE_TEMPLATE_IDS: readonly string[] = archetypeRules.map((r) => r.template);
 
 /**
- * Every §14 trigger that fires for a table, best first. Ordering is total:
+ * Every trigger that fires for a table, best first. Ordering is total:
  * score desc, then template id — so a caller inspecting the runners-up (the
  * Studio "why this page?" panel, the LLM prompt) sees a stable list.
  */
@@ -397,7 +396,7 @@ export function scoreArchetypes(
   ctx: CandidateContext,
 ): ArchetypeSelection[] {
   const view = buildCandidateView(table, classified);
-  // System and join tables are never paged (05 §8.2).
+  // System and join tables are never paged.
   if (view.role === 'system' || view.role === 'join-table') return [];
 
   const out: ArchetypeSelection[] = [];
@@ -411,16 +410,16 @@ export function scoreArchetypes(
 }
 
 /**
- * The one §14 archetype a table earns (H2: "1 page archetype per table —
- * highest-scoring §14 trigger"), or `null` when nothing triggers. `page-crud` is
+ * The one archetype a table earns (H2: "1 page archetype per table —
+ * highest-scoring trigger"), or `null` when nothing triggers. `page-crud` is
  * emitted by the Engine regardless and is deliberately not a candidate here.
  *
  * A tie on score is NOT a reason to drop the page: `scoreArchetypes` orders by
  * score desc **then template id**, a total order that does not depend on rule
  * declaration order, so `ranked[0]` is already stable across runs and satisfies
- * 04 §8 H5's byte-identical requirement. Returning `null` instead would silently
- * cost the table its §14 page (the Engine cannot distinguish "nothing triggered"
- * from "two triggers tied"), which breaks H2's "highest-scoring trigger".
+ * H5's byte-identical requirement. Returning `null` instead would silently cost
+ * the table its page (the Engine cannot distinguish "nothing triggered" from
+ * "two triggers tied"), which breaks H2's "highest-scoring trigger".
  */
 export function selectArchetype(
   table: CandidateTable,
@@ -432,8 +431,8 @@ export function selectArchetype(
 
 /**
  * Archetype selection for a whole model, keyed by table id. Threads `ctx.model`
- * through so the cross-table §14 triggers (the conversation+message pair) see
- * every table. Tables that earn nothing are absent from the map.
+ * through so the cross-table triggers (the conversation+message pair) see every
+ * table. Tables that earn nothing are absent from the map.
  */
 export function selectModelArchetypes(
   model: readonly CandidateTableInput[],

@@ -88,10 +88,10 @@ function withoutVersion(config: DesktopConfig): Record<string, unknown> {
   return body;
 }
 
-// ─── Schema (§2.3) ───────────────────────────────────────────────────────────
+// ─── Schema ──────────────────────────────────────────────────────────────────
 
 describe('desktopConfigSchema', () => {
-  it('accepts the §2.3 body verbatim', () => {
+  it('accepts the body verbatim', () => {
     const body = {
       version: 1,
       dataDir: '/Users/ava/Library/Application Support/Adminium/data',
@@ -155,13 +155,13 @@ describe('desktopConfigSchema', () => {
 });
 
 describe('path helpers', () => {
-  it('places config.json and the default data dir under userData (§2.3, §6)', () => {
+  it('places config.json and the default data dir under userData', () => {
     expect(configPathFor('/u')).toBe(join('/u', 'config.json'));
     expect(defaultDataDirFor('/u')).toBe(join('/u', 'data'));
   });
 });
 
-// ─── Atomic write (§2.3) ─────────────────────────────────────────────────────
+// ─── Atomic write ────────────────────────────────────────────────────────────
 
 describe('saveConfig / loadConfig', () => {
   it('round-trips a config through the real filesystem', async () => {
@@ -172,7 +172,7 @@ describe('saveConfig / loadConfig', () => {
     expect(result).toEqual({ status: 'loaded', config, migratedFrom: null });
   });
 
-  it('reports a missing file as first-run rather than throwing (§2.2 step 2)', async () => {
+  it('reports a missing file as first-run rather than throwing', async () => {
     await expect(loadConfig(join(dir, 'nope.json'))).resolves.toEqual({ status: 'missing' });
   });
 
@@ -411,7 +411,7 @@ describe('migrateConfig', () => {
   });
 });
 
-// ─── Secret handling (§2.2 step 3) ───────────────────────────────────────────
+// ─── Secret handling ─────────────────────────────────────────────────────────
 
 describe('resolveSecret', () => {
   it('generates a 32-byte secret that clears the server’s 16-char minimum', () => {
@@ -572,7 +572,7 @@ describe('resolveSecret', () => {
       expect((error as Error).message).toMatch(/keyring/i);
     });
 
-    it('warns loudly enough for the About screen’s banner to be justified (§13)', () => {
+    it('warns loudly enough for the About screen’s banner to be justified', () => {
       const logger = capturingLogger();
       resolveSecret(validConfig(), fakeSafeStorage(false), { logger });
       expect(logger.lines.join('\n')).toMatch(/plaintext/i);
@@ -585,7 +585,7 @@ describe('resolveSecret', () => {
 describe('secret redaction', () => {
   const SECRET = 'a'.repeat(64);
 
-  it('redactConfig strips both secret fields entirely (§9 backup, §13 diagnostics)', () => {
+  it('redactConfig strips both secret fields entirely (backup, diagnostics)', () => {
     const config = validConfig({
       secretEncrypted: Buffer.from(`kc:${SECRET}`, 'utf8').toString('base64'),
       secretPlain: SECRET,
@@ -673,7 +673,7 @@ describe('secret redaction', () => {
   });
 });
 
-// ─── Cloud-sync folder detection (§6 step 1, §9) ─────────────────────────────
+// ─── Cloud-sync folder detection ─────────────────────────────────────────────
 
 describe('detectCloudSyncFolder', () => {
   it.each([

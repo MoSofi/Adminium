@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * Track F `tables` additions (annex §3): render + interaction tests for
+ * Track F `tables` additions (annex): render + interaction tests for
  * master-list, log-table, card-gallery, grouped-summary-table, schema-tree,
  * and toggle-matrix, plus deterministic demoData and the four WidgetFrame
  * states through WidgetHost.
@@ -136,14 +136,14 @@ describe('grouped-summary-table', () => {
   });
 
   /**
-   * 36-derived-columns.md 36-T14. `formatMoney` grew a `decimals` option and
-   * stopped coercing decimal STRINGS through `Number()`; this widget is its
-   * other production caller and passes `{locale}` only, so the per-value
-   * `Number.isInteger(x) ? 0 : 2` flip has to survive as the absent-default.
-   * The string below is the pre-wave rendering, pinned character for
-   * character — `$33,385` and not `$33,385.00`.
+   * `formatMoney` grew a `decimals` option and stopped coercing decimal
+   * STRINGS through `Number()`; this widget is its other production caller
+   * and passes `{locale}` only, so the per-value `Number.isInteger(x) ? 0:
+   * 2` flip has to survive as the absent-default. The string below is the
+   * pre-wave rendering, pinned character for character — `$33,385` and not
+   * `$33,385.00`.
    */
-  it('renders byte-identically to the pre-wave build (36-T14)', () => {
+  it('renders byte-identically to the pre-wave build', () => {
     render(<GroupedSummaryTable data={groupedSummaryTableDemoData(5)} />);
     expect(document.body.textContent).toBe(
       'GroupRequestsRevenueQuotaErrors' +

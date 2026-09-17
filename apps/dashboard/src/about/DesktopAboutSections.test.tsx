@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * §13's desktop About panel — the sections that exist ONLY in the Electron shell
- * (11-electron.md §13). Renders the whole `AboutPage` with `window.adminiumDesktop`
- * present, proving the wiring end to end: `AboutPage` detects the shell, mounts
- * `DesktopAboutSections`, and every §13 field paints — including the plaintext
- * secret WARN banner, which is the one that is a security control rather than a
- * label.
+ * The desktop About panel — the sections that exist ONLY in the Electron shell.
+ * Renders the whole `AboutPage` with `window.adminiumDesktop` present, proving the
+ * wiring end to end: `AboutPage` detects the shell, mounts `DesktopAboutSections`,
+ * and every field paints — including the plaintext secret WARN banner, which is the
+ * one that is a security control rather than a label.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -61,12 +60,13 @@ function makeRuntime(overrides: Partial<DesktopRuntimeInfo> = {}): DesktopRuntim
   };
 }
 
-/** A stub §4 bridge; `window.adminiumDesktop !== undefined` is the detection contract. */
+/** A stub bridge; `window.adminiumDesktop !== undefined` is the detection
+ * contract. */
 function installBridge(
   runtime: DesktopRuntimeInfo,
   checkResult: DesktopUpdateCheckResult = { status: 'none' },
 ) {
-  // §11's `onUpdateEvent` supports multiple subscribers (the About card's flow
+  // `onUpdateEvent` supports multiple subscribers (the About card's flow
   // and AppShell's global toaster both listen); collect them so a test can emit.
   const listeners: Array<(e: DesktopUpdateEvent) => void> = [];
   const downloadUpdate = vi.fn(() => Promise.resolve());
@@ -145,8 +145,8 @@ afterEach(() => {
   delete (window as { adminiumDesktop?: AdminiumDesktopApi }).adminiumDesktop;
 });
 
-describe('AboutPage — desktop §13 sections', () => {
-  it('renders every §13 version field from the bridge and the server', async () => {
+describe('AboutPage — desktop sections', () => {
+  it('renders every version field from the bridge and the server', async () => {
     await renderDesktopAbout(makeAbout(), makeRuntime());
     await screen.findByRole('heading', { name: 'About Adminium' });
 
@@ -168,7 +168,7 @@ describe('AboutPage — desktop §13 sections', () => {
     expect(screen.getByText('Encrypted by your operating system')).toBeDefined();
   });
 
-  it('WARNS when the secret is stored in plaintext (§2.2-3) — a security control, not a label', async () => {
+  it('WARNS when the secret is stored in plaintext (-3) — a security control, not a label', async () => {
     await renderDesktopAbout(makeAbout(), makeRuntime({ secretStorage: 'plain' }));
     expect(await screen.findByTestId('about-secret-plain-warning')).toBeDefined();
     expect(screen.getByText(/stored unencrypted on disk/)).toBeDefined();
@@ -187,9 +187,9 @@ describe('AboutPage — desktop §13 sections', () => {
     expect(screen.queryByRole('button', { name: /Check for updates/ })).toBeNull();
   });
 
-  // §11 acceptance: "downloads only on user action, and installs on restart".
-  // Before this the whole flow was dead — nothing subscribed to onUpdateEvent and
-  // nothing called downloadUpdate/quitAndInstall anywhere in the SPA.
+  // "downloads only on user action, and installs on restart". Before this the
+  // whole flow was dead — nothing subscribed to onUpdateEvent and nothing called
+  // downloadUpdate/quitAndInstall anywhere in the SPA.
   it('turns a discovered update into Download → progress → Restart-to-install', async () => {
     const h = await renderDesktopAbout(makeAbout(), makeRuntime({ updates: { mode: 'notify' } }), {
       status: 'available',
@@ -202,7 +202,7 @@ describe('AboutPage — desktop §13 sections', () => {
     fireEvent.click(download);
     expect(h.downloadUpdate).toHaveBeenCalledTimes(1);
 
-    // §11's progress → downloaded events drive the card to the Restart control.
+    // The progress → downloaded events drive the card to the Restart control.
     act(() => {
       h.emitUpdate({ type: 'progress', percent: 42 });
     });
@@ -218,7 +218,7 @@ describe('AboutPage — desktop §13 sections', () => {
   it('surfaces an availability event with no manual check (notify mode is no longer dead)', async () => {
     const h = await renderDesktopAbout(makeAbout(), makeRuntime({ updates: { mode: 'notify' } }));
     await screen.findByRole('heading', { name: 'About Adminium' });
-    // A broadcast `available` — the scheduled check §11 runs — now has a consumer.
+    // A broadcast `available` — the scheduled check runs — now has a consumer.
     act(() => {
       h.emitUpdate({ type: 'available', version: '3.1.0' });
     });

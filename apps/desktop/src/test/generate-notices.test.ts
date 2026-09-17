@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `scripts/generate-notices.mjs` — the 11-electron.md §13 third-party-notices
- * gate (11-T18).
+ * `scripts/generate-notices.mjs` — the third-party-notices gate.
  *
  * WHY THE TEST LIVES HERE, and why it SPAWNS the script: identical to
  * `check-offline-assets.test.ts` next door. The script is repo-root because it
- * attributes the packaged app's whole production graph, but §13 is this app's
- * chapter and the notices ship in this app's bundle, so the suite that fails when
- * the gate rots is this app's. Spawning it (as CI and the `build` script do) is
- * the only way to assert the one thing that matters about a CI gate — the exit
- * code. A generator that finds an unlicensed dep and exits 0 is not a gate.
+ * attributes the packaged app's whole production graph, but is this app's chapter
+ * and the notices ship in this app's bundle, so the suite that fails when the
+ * gate rots is this app's. Spawning it (as CI and the `build` script do) is the
+ * only way to assert the one thing that matters about a CI gate — the exit code.
+ * A generator that finds an unlicensed dep and exits 0 is not a gate.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -96,7 +95,7 @@ describe('generate-notices — produces a notices file', () => {
     expect(readFileSync(out, 'utf8')).toContain('License: Apache-2.0');
   });
 
-  it('stages the bundled LICENSE next to the notices for the §13 in-app viewer', () => {
+  it('stages the bundled LICENSE next to the notices for the in-app viewer', () => {
     const ws = workspace();
     const licensed = pkg(ws, 'ok-lib', { name: 'ok-lib', version: '1.0.0', license: 'MIT' }, 'MIT');
     const out = join(ws, 'NOTICES.txt');
@@ -112,7 +111,7 @@ describe('generate-notices — produces a notices file', () => {
   });
 });
 
-describe('generate-notices — fails the build on an unlicensed dependency (§13)', () => {
+describe('generate-notices — fails the build on an unlicensed dependency', () => {
   it('exits non-zero and names the package when a dep ships no licence', () => {
     const ws = workspace();
     const bad = pkg(ws, 'bad-lib', { name: 'bad-lib', version: '0.1.0' });

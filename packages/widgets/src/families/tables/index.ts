@@ -3,7 +3,7 @@
  * `tables` family public surface — standalone components consumed by the
  * page templates (page-crud composes DataGrid/PaginationFooter/… directly)
  * plus the column-spec vocabulary shared with the interpreter.
- * Registry metadata stays in `definitions.ts` (lazy chunk boundary, 04 §2.3).
+ * Registry metadata stays in `definitions.ts` (lazy chunk boundary).
  */
 export {
   COLUMN_DISPLAY_KINDS,
@@ -36,6 +36,12 @@ export {
   type GridTone,
 } from './column-spec.js';
 export { CellValue, MASKED_PLACEHOLDER, cellAlignClass, type CellContext, type ResolvedFile } from './cells.js';
+export {
+  CustomCellProvider,
+  useCustomCellRenderer,
+  type CustomCellProviderProps,
+  type CustomCellRenderer,
+} from './custom-cells.js';
 export { DataGrid, type DataGridProps, type DataGridSort } from './DataGrid.js';
 export {
   PAGE_SIZE_OPTIONS,
@@ -52,7 +58,7 @@ export { MiniTable, type MiniTableProps } from './MiniTable.js';
 export { demoCustomerColumns, demoCustomerRows, demoRecordList } from './demo-data.js';
 export { tablesWidgetDefinitions } from './definitions.js';
 
-// Track F additions (annex §3) — standalone components + registry metadata.
+// Track F additions (annex) — standalone components + registry metadata.
 export { MasterList, type MasterListProps } from './MasterList.js';
 export { LogTable, codeTone, isErrorRow, smartTimestamp, type LogTableProps, type LogRow } from './LogTable.js';
 export { CardGallery, type CardGalleryProps, type GalleryCard } from './CardGallery.js';
@@ -74,7 +80,7 @@ export {
 } from './ToggleMatrixWidget.js';
 export { tablesTrackFDefinitions } from './tables-track-f.definitions.js';
 
-// M7 Wave-4 TAIL (annex §3) — the six list widgets that complete the family.
+// M7 Wave-4 TAIL (annex) — the six list widgets that complete the family.
 export {
   SparklineTable,
   SparklineTableWidget,

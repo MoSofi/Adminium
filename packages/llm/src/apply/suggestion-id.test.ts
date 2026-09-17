@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Stable suggestion-id scheme (06-llm-assist.md §8.1). Locks: each constructor
- * emits the exact §8.1 string; ids are deterministic (stable across calls); the
- * dispatcher matches the constructors; ids are collision-free across every
- * suggestion in the demo schema.
+ * Stable suggestion-id scheme. Locks: each constructor emits the exact string;
+ * ids are deterministic (stable across calls); the dispatcher matches the
+ * constructors; ids are collision-free across every suggestion in the demo
+ * schema.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -25,7 +25,7 @@ import {
   type SuggestionRef,
 } from './suggestion-id.js';
 
-describe('suggestion-id constructors match §8.1 verbatim', () => {
+describe('suggestion-id constructors match', () => {
   it('emits the documented id strings', () => {
     expect(tableLabelId('public.orders')).toBe('label:public.orders');
     expect(columnLabelId('public.orders', 'total_cents')).toBe('label:public.orders.total_cents');
@@ -129,7 +129,7 @@ describe('suggestionIdPrefix', () => {
   });
 });
 
-describe('collision-freedom across the demo schema (§6.2/§6.3)', () => {
+describe('collision-freedom across the demo schema', () => {
   it('assigns a unique id to every atomic suggestion', () => {
     const orders = 'public.orders';
     const customers = 'public.customers';

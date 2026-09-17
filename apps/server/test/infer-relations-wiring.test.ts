@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two ends of §6 relation inference that live in the SERVER, not the
+ * The two ends of relation inference that live in the SERVER, not the
  * engine — both of which were open.
  *
- * `packages/engine/src/infer/relations.ts` implements 05 §6 rules 1–2 and has
- * its own thorough test file, but `applyInference` had no call site outside
- * those tests: every downstream consumer still received the empty
- * `relations: []` of an FK-less schema, so none of it did anything for a user.
- * And `relation.add` / `relation.remove` were applied only on the READ path
+ * `packages/engine/src/infer/relations.ts` implements rules 1–2 and has its
+ * own thorough test file, but `applyInference` had no call site outside those
+ * tests: every downstream consumer still received the empty `relations: []` of
+ * an FK-less schema, so none of it did anything for a user. And `relation.add`
+ * / `relation.remove` were applied only on the READ path
  * (`connections/effective-schema.ts`), so a relation a user accepted in the
  * Studio remap editor was visible in the schema browser and then absent from
  * the very next regeneration — the override→regeneration loop was open at the
@@ -114,7 +114,7 @@ function stubIntrospection(manager: ConnectionManager, model: DatabaseModel): vo
     async () => adapter;
 }
 
-describe('runIntrospection runs §6 inference before classification', () => {
+describe('runIntrospection runs inference before classification', () => {
   let h: Harness;
   beforeEach(async () => {
     h = await buildHarness();
@@ -218,7 +218,7 @@ function row(
 describe('applyAcceptedRelations', () => {
   const model = snapshotModel();
 
-  it('re-enters an accepted relation at confidence 1.0 with kind "override" (05 §6)', () => {
+  it('re-enters an accepted relation at confidence 1.0 with kind "override"', () => {
     const { model: out, warnings } = applyAcceptedRelations(model, [
       row(
         'relation.add',
@@ -362,7 +362,7 @@ describe('applyOverrides still folds relation ops (read path)', () => {
     expect(effective.relations[0]?.label).toBe('Billed to');
   });
 
-  it('honours a remove written after the add (§3.15 later-row-wins)', () => {
+  it('honours a remove written after the add (later-row-wins)', () => {
     const effective = applyOverrides(model, [
       row(
         'relation.add',

@@ -1,27 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for `GET /api/v1/bootstrap` (09-generated-app.md §2.1,
- * 01-architecture.md §5): the one-round-trip boot payload — session user +
- * roles, server-resolved preference axes, the permission-filtered nav tree
- * derived from `adminium_pages`, and version/configVersion stamps.
+ * Zod schemas for `GET /api/v1/bootstrap`: the one-round-trip boot payload
+ * — session user + roles, server-resolved preference axes, the
+ * permission-filtered nav tree derived from `adminium_pages`, and
+ * version/configVersion stamps.
  *
  * SYNC NOTE: the client-side mirror of these shapes lives in
  * `apps/dashboard/src/app/bootstrap.ts` (type-only copy — the dashboard may
- * not import server runtime code per the 01-architecture.md §2.3 matrix).
- * Change both together.
+ * not import server runtime code per the matrix). Change both together.
  */
 import { z } from 'zod';
 
 import { authUserView } from '../auth/schema.js';
 import { mePrefsResolvedView } from '../me/schema.js';
 
-/** The five fixed sidebar groups, in order (research/ia-mapping.md §2A). */
+/** The five fixed sidebar groups, in order. */
 export const NAV_GROUP_KEYS = ['workspace', 'library', 'planning', 'people', 'account'] as const;
 
 export const navGroupKey = z.enum(NAV_GROUP_KEYS);
 export type NavGroupKey = z.infer<typeof navGroupKey>;
 
-/** One sidebar entry (09-generated-app.md §2.2 NavTree item). */
+/** One sidebar entry (NavTree item). */
 export const bootstrapNavItem = z.object({
   pageId: z.string(),
   /** Unique kebab-case URL segment — the `/p/$slug` param. */
@@ -34,22 +33,22 @@ export const bootstrapNavItem = z.object({
   /** Live badge source, resolved over WS (client concern). */
   badge: z.enum(['unread-count', 'pending-count']).optional(),
   order: z.number(),
-  /** Owning connection (M5-T05): with 2+ connections the sidebar groups
+  /** Owning connection: with 2+ connections the sidebar groups
    *  generated items under the connection's display name. Null = shared. */
   connectionId: z.string().nullable(),
   connectionName: z.string().nullable(),
   /**
-   * The owning connection's ISO-4217 currency (10-i18n.md §4.4): money cells
-   * on this page's grid and record view format with it instead of the `USD`
-   * fallback every money cell in the product has been using. Null = unset, and
-   * unset renders exactly what it renders today.
+   * The owning connection's ISO-4217 currency: money cells on this page's grid
+   * and record view format with it instead of the `USD` fallback every money
+   * cell in the product has been using. Null = unset, and unset renders
+   * exactly what it renders today.
    *
    * It rides the NAV ITEM rather than a separate connections payload because
    * that is the object the client already resolves a page through — a page is
    * looked up by slug here and rendered from what this row carries.
    */
   currency: z.string().nullable(),
-  /** The page envelope's `source.table` (30-record-pages.md D5): feeds the
+  /** The page envelope's `source.table`: feeds the
    *  client's (connectionId, table) → slug map so record pages can cross-link
    *  related rows. Null for source-less pages. */
   sourceTable: z.string().nullable(),
@@ -62,7 +61,7 @@ export const bootstrapNavTree = z.object({
 export type BootstrapNavTree = z.infer<typeof bootstrapNavTree>;
 
 /**
- * One blended app section in the sidebar (29-app-surfaces.md D7).
+ * One blended app section in the sidebar.
  *
  * Labels arrive RESOLVED to the session's locale. The build emits all eight
  * (`surface.json` on disk), and resolving here rather than shipping the map is
@@ -76,7 +75,7 @@ export const bootstrapHostedNavItem = z.object({
   label: z.string(),
   /** lucide icon name; absent means the sidebar's neutral glyph. */
   icon: z.string().optional(),
-  /** A lens within the surface (28-T44) — its own row, not a permission. */
+  /** A lens within the surface — its own row, not a permission. */
   persona: z.string().optional(),
 });
 export type BootstrapHostedNavItem = z.infer<typeof bootstrapHostedNavItem>;
@@ -84,9 +83,9 @@ export type BootstrapHostedNavItem = z.infer<typeof bootstrapHostedNavItem>;
 export const bootstrapHostedApp = z.object({
   appKey: z.string(),
   /**
-   * The instance slug, when this section is an extra tenant of the app (29 D9).
-   * Absent on the app's own section — the unslugged mount — so an instance is
-   * additive and nothing about the existing section changes.
+   * The instance slug, when this section is an extra tenant of the app. Absent
+   * on the app's own section — the unslugged mount — so an instance is additive
+   * and nothing about the existing section changes.
    */
   instance: z.string().optional(),
   label: z.string(),
@@ -94,22 +93,61 @@ export const bootstrapHostedApp = z.object({
 });
 export type BootstrapHostedApp = z.infer<typeof bootstrapHostedApp>;
 
+/** One built project file. */
+const projectClientFile = z.object({
+  url: z.string(),
+  /** Subresource integrity, `sha384-…`. */
+  integrity: z.string(),
+});
+
+const projectClientEntry = {
+  module: projectClientFile,
+  /** Every chunk the module imports, directly or not. */
+  imports: z.array(projectClientFile),
+  styles: z.array(projectClientFile),
+};
+
+/**
+ * The project folder a server runs. The dashboard reads database keys here
+ * (the UI kit's hooks name databases by key), and imports the project's pages
+ * and widgets from these URLs.
+ */
+export const bootstrapProject = z.object({
+  /** Database key from `adminium.config.ts` → connection id. */
+  databases: z.record(z.string(), z.string()),
+  /** Null where project code never loads (the desktop app). */
+  client: z
+    .object({
+      digest: z.string(),
+      pages: z.array(z.object({ slug: z.string(), ...projectClientEntry })),
+      widgets: z.array(
+        z.object({
+          id: z.string(),
+          kind: z.enum(['cell', 'card']),
+          title: z.string().nullable(),
+          ...projectClientEntry,
+        }),
+      ),
+    })
+    .nullable(),
+});
+
 export const bootstrapReply = z.object({
   data: z.object({
     user: authUserView,
     /** Role slugs for the session user (RBAC grants resolve server-side). */
     roles: z.array(z.string()),
-    /** §7.2 resolved axes (system → global → user) + provenance. */
+    /** Resolved axes (system → global → user) + provenance. */
     prefs: mePrefsResolvedView,
     nav: bootstrapNavTree,
     /** Server build version (package.json). */
     version: z.string(),
     /** Monotonic config stamp — max(updatedAt) over adminium_pages; 0 when none. */
     configVersion: z.number(),
-    /** `llm.enabled` gates the ⌘K "Ask AI" affordance (06-llm-assist.md). */
+    /** `llm.enabled` gates the ⌘K "Ask AI" affordance. */
     llm: z.object({ enabled: z.boolean() }),
     /**
-     * §7 item 4: the session-bound CSRF token every mutating call echoes in
+     * The session-bound CSRF token every mutating call echoes in
      * `x-adminium-csrf` (security/csrf.ts). Issued here because this is the
      * one round trip the SPA is guaranteed to make before it can mutate
      * anything, and because it is session-bound — an anonymous surface has no
@@ -117,7 +155,7 @@ export const bootstrapReply = z.object({
      */
     csrfToken: z.string(),
     /**
-     * Hosted apps blended into this dashboard (29-app-surfaces.md D7/D9).
+     * Hosted apps blended into this dashboard.
      *
      * Only STAFF surfaces, only those whose placement is `internal`, and only
      * those whose build emitted a readable `surface.json`. Empty on every
@@ -126,14 +164,14 @@ export const bootstrapReply = z.object({
      */
     hostedApps: z.array(bootstrapHostedApp),
     /**
-     * Pages hidden from the sidebar but very much alive (30-record-pages.md
-     * follow-up): same item shape as the nav, no group. The dashboard resolves
-     * `/p/<slug>` URLs, palette landings, and record-page related-tab specs
-     * and cross-links through these exactly as through nav items — "hidden"
-     * is a sidebar fact, not an existence fact. Cascade-owned child tables
-     * (invoice items, …) generate straight into this list; Studio's "Hide
-     * from sidebar" moves a page here; per-page view permission still filters
-     * it, so a viewer without the grant sees the page nowhere at all.
+     * Pages hidden from the sidebar but very much alive (follow-up): same item
+     * shape as the nav, no group. The dashboard resolves `/p/<slug>` URLs,
+     * palette landings, and record-page related-tab specs and cross-links
+     * through these exactly as through nav items — "hidden" is a sidebar fact,
+     * not an existence fact. Cascade-owned child tables (invoice items, …)
+     * generate straight into this list; Studio's "Hide from sidebar" moves a
+     * page here; per-page view permission still filters it, so a viewer
+     * without the grant sees the page nowhere at all.
      */
     hiddenPages: z.array(bootstrapNavItem),
     /**
@@ -147,6 +185,8 @@ export const bootstrapReply = z.object({
      * on a 404 that explains nothing.
      */
     pausedPages: z.array(bootstrapNavItem),
+    /** Only on a server that runs a project folder (`adminium start` in a project, `adminium dev`). */
+    project: bootstrapProject.optional(),
   }),
 });
 export type BootstrapReply = z.infer<typeof bootstrapReply>;

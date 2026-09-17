@@ -7,7 +7,7 @@ import {
   widgetConfigSchema,
 } from '../src/config-schema/index.js';
 
-/** The page-crud example from 07-meta-store.md §3.17, verbatim field shapes. */
+/** The page-crud example, verbatim field shapes. */
 const pageCrudExample = {
   v: 1,
   kind: 'page',
@@ -28,7 +28,7 @@ const pageCrudExample = {
   },
 };
 
-/** The page-dashboard example from 07-meta-store.md §3.17 (abridged). */
+/** The page-dashboard example (abridged). */
 const dashboardExample = {
   v: 1,
   kind: 'dashboard',
@@ -57,14 +57,14 @@ const dashboardExample = {
 };
 
 describe('pageEnvelopeSchema', () => {
-  it('accepts the §3.17 page-crud envelope', () => {
+  it('accepts the page-crud envelope', () => {
     const parsed = pageEnvelopeSchema.parse(pageCrudExample);
     expect(parsed.kind).toBe('page');
     // per-template config body round-trips untouched
     expect(parsed.config).toEqual(pageCrudExample.config);
   });
 
-  it('accepts the §3.17 dashboard envelope with a valid layout', () => {
+  it('accepts the dashboard envelope with a valid layout', () => {
     const parsed = pageEnvelopeSchema.parse(dashboardExample);
     expect(parsed.kind).toBe('dashboard');
   });

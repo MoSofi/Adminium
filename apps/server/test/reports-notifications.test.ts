@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M7 reports/notifications track: croner schedule math, the /me notification
- * routes (keyset + unread + read transitions + the §8.2 prefs matrix), the
+ * routes (keyset + unread + read transitions + the prefs matrix), the
  * scheduled-reports resource (manage-guarded admin verbs, croner-computed
  * next_run_at, enable toggle), the email-templates contract (byte-for-byte
  * with apps/dashboard/src/api/emailTemplates.ts), and the report-run job
@@ -74,7 +74,7 @@ import {
 
 // --- croner schedule math (pure) --------------------------------------------------
 
-describe('schedule/next-run: §3.24 fields → croner next occurrence', () => {
+describe('schedule/next-run: stored fields → croner next occurrence', () => {
   it('morphs frequency fields into cron expressions', () => {
     expect(cronExprFor({ frequency: 'daily', time: '09:05', timezone: 'UTC' })).toBe('5 9 * * *');
     expect(
@@ -398,7 +398,7 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
       channels: { id: string; available: boolean; reason?: string }[];
       events: { key: string; channels: Record<string, boolean>; custom: boolean }[];
     };
-    // §8.2: email/push are IN the matrix, marked unavailable WITH a reason.
+    // Email/push are IN the matrix, marked unavailable WITH a reason.
     const email = d.channels.find((ch) => ch.id === 'email');
     expect(email?.available).toBe(false);
     expect(email?.reason).toBe(EMAIL_CHANNEL_UNAVAILABLE_REASON);
@@ -480,7 +480,7 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
     };
     reportId = view.id;
     expect(view.pageTitle).toBe('Customers');
-    expect(view.format).toBe('pdf'); // stored §3.24 intent
+    expect(view.format).toBe('pdf'); // the stored intent
     expect(view.enabled).toBe(true);
     // croner computed a real future occurrence on the Monday-09:00 lattice.
     expect(view.nextRunAt).not.toBeNull();
@@ -711,7 +711,7 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
     expect(createdBody.key).toBe('welcome');
     expect(createdBody.locale).toBe('en_US');
 
-    // An explicit save (39 D1) — the ONLY way a row's document changes; an
+    // An explicit save — the ONLY way a row's document changes; an
     // unknown block kind rides through byte-identical.
     const put = await t.app.inject({
       method: 'PUT',
@@ -746,7 +746,7 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
       enabled: true,
       category: 'lifecycle',
     });
-    // An unknown KIND keeps its data verbatim (39 D5); a stray top-level key
+    // An unknown KIND keeps its data verbatim; a stray top-level key
     // is not part of the envelope and does not survive normalization.
     expect(detailBody.document.blocks).toEqual([
       { id: 'h', block: 'block-hero', data: { heading: 'Hello' }, style: {} },

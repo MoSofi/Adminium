@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * TRACK FCS — `chrome` family unit tests (annex §11).
+ * TRACK FCS — `chrome` family unit tests (annex).
  *
  * The QA harness (qa/*) already proves the generic contracts for every
  * delivered widget (four states, config fuzz, determinism, chunk budget). These
@@ -89,7 +89,7 @@ describe('isSafeHref — hrefs come from the DATABASE, so they are untrusted', (
 
 // ── sidebar-nav ────────────────────────────────────────────────────────────
 
-describe('navGroupsOf (annex §11)', () => {
+describe('navGroupsOf (annex)', () => {
   const rows = [
     { group: 'library', label: 'Products', href: '/products' },
     { group: 'workspace', label: 'Orders', href: '/orders', badge: 12 },
@@ -162,7 +162,7 @@ describe('SidebarNavWidget', () => {
 
 // ── breadcrumb ─────────────────────────────────────────────────────────────
 
-describe('collapseTrail (annex §11 maxDepth)', () => {
+describe('collapseTrail (annex maxDepth)', () => {
   const trail = ['a', 'b', 'c', 'd', 'e', 'f'];
 
   it('leaves a short trail untouched', () => {
@@ -228,7 +228,7 @@ describe('BreadcrumbWidget', () => {
 
 // ── command-palette ────────────────────────────────────────────────────────
 
-describe('groupEntries (annex §11 fixed group order)', () => {
+describe('groupEntries (annex fixed group order)', () => {
   const entries = commandEntriesOf(
     {
       rows: [
@@ -273,7 +273,7 @@ describe('groupEntries (annex §11 fixed group order)', () => {
 
 // ── global-search ──────────────────────────────────────────────────────────
 
-describe('search filtering (annex §11)', () => {
+describe('search filtering (annex)', () => {
   const results = searchResultsOf(
     {
       rows: [
@@ -603,7 +603,7 @@ describe('NavCardWidget', () => {
 
 // ── shortcuts-panel ────────────────────────────────────────────────────────
 
-describe('shortcuts-panel (annex §11)', () => {
+describe('shortcuts-panel (annex)', () => {
   it('resolves the MOD token to the platform glyph the HOST chose', () => {
     expect(displayKey('MOD', 'Ctrl')).toBe('Ctrl');
     expect(displayKey('MOD', '⌘')).toBe('⌘');
@@ -698,7 +698,7 @@ describe('AvatarStackWidget', () => {
   });
 });
 
-// ── payload leniency (04 §3) ───────────────────────────────────────────────
+// ── payload leniency ───────────────────────────────────────────────────────
 
 describe('malformed payloads never throw into the error boundary', () => {
   const cases: [string, unknown][] = [

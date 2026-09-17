@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `kind: "add-on"` branch (24 §5.2, §5.3) and — just as important — the
- * proof that adding it broke nothing: a manifest written before wave 4 carries
- * no `kind` field at all and must still validate, with `manifestVersion` still
- * 1 (acceptance criterion 9).
+ * The `kind: "add-on"` branch and — just as important — the proof that adding
+ * it broke nothing: a manifest written before wave 4 carries no `kind` field
+ * at all and must still validate, with `manifestVersion` still 1 (acceptance
+ * criterion 9).
  */
 import { describe, expect, it } from 'vitest';
 
@@ -131,7 +131,7 @@ describe('the add-on branch', () => {
     if (isAddOnManifest(parsed)) expect(parsed.addOn.connect.kind).toBe('api-key');
   });
 
-  it('makes it IMPOSSIBLE for an add-on to declare pages or a frontend (§5.7)', () => {
+  it('makes it IMPOSSIBLE for an add-on to declare pages or a frontend', () => {
     expect(addOnManifestSchema.safeParse({ ...DHL, pages: [] }).success).toBe(false);
     expect(
       addOnManifestSchema.safeParse({ ...DHL, frontends: [{ side: 'customer', kind: 'spa' }] }).success,
@@ -154,7 +154,7 @@ describe('the add-on branch', () => {
   });
 });
 
-describe('the cross-block rules (§5.3)', () => {
+describe('the cross-block rules', () => {
   it('NETWORK_ALLOW_REQUIRED — outbound-http with no allow-list fails', () => {
     const { network: _network, ...addOn } = DHL.addOn;
     const result = validateManifest({ ...DHL, addOn });
@@ -227,7 +227,7 @@ describe('the cross-block rules (§5.3)', () => {
     }
   });
 
-  it('refuses `dashboard`, which is the stock deployment\'s own host key (34 O10)', () => {
+  it('refuses `dashboard`, which is the stock deployment\'s own host key', () => {
     // Not a route collision like the others — `dashboard` is what an add-on
     // declaring `attaches: [{app: '*'}]` is attached UNDER on a deployment
     // with no host app, so the consent dialog has something to enable. An app

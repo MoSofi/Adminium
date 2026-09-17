@@ -2118,9 +2118,9 @@
       }
     ],
     "warnings": [
-      "skipped join table public.customer_customer_demo — hidden from nav, relation still powers M2M (05 §8.2)",
-      "skipped join table public.employee_territories — hidden from nav, relation still powers M2M (05 §8.2)",
-      "domain general has no timestamp column — dashboard skipped (05 §8)"
+      "skipped join table public.customer_customer_demo — hidden from nav, relation still powers M2M",
+      "skipped join table public.employee_territories — hidden from nav, relation still powers M2M",
+      "domain general has no timestamp column — dashboard skipped"
     ]
   },
   "read-only-analytics": {
@@ -3606,9 +3606,9 @@
       }
     ],
     "warnings": [
-      "skipped join table public.customer_customer_demo — hidden from nav, relation still powers M2M (05 §8.2)",
-      "skipped join table public.employee_territories — hidden from nav, relation still powers M2M (05 §8.2)",
-      "domain general has no timestamp column — dashboard skipped (05 §8)"
+      "skipped join table public.customer_customer_demo — hidden from nav, relation still powers M2M",
+      "skipped join table public.employee_territories — hidden from nav, relation still powers M2M",
+      "domain general has no timestamp column — dashboard skipped"
     ]
   },
   "crud": {
@@ -5496,8 +5496,8 @@
       }
     ],
     "warnings": [
-      "skipped join table public.customer_customer_demo — hidden from nav, relation still powers M2M (05 §8.2)",
-      "skipped join table public.employee_territories — hidden from nav, relation still powers M2M (05 §8.2)"
+      "skipped join table public.customer_customer_demo — hidden from nav, relation still powers M2M",
+      "skipped join table public.employee_territories — hidden from nav, relation still powers M2M"
     ]
   }
 }

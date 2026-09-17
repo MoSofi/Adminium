@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * RBAC permission grammar (08-server-api.md §5.1) and its mapping onto the
- * `adminium_role_permissions` matrix rows (07-meta-store.md §3.9).
+ * RBAC permission grammar and its mapping onto the
+ * `adminium_role_permissions` matrix rows.
  *
  * Grant strings:
  *
@@ -21,9 +21,9 @@
  * Reserved keys: meta's `RESERVED_SYSTEM_ACTION_KEYS` (automations.manage,
  * webhooks.manage, sql.run) are deferred features with no enforcement point in
  * v1. `manifests.manage` left that list on 2026-08-29 when the
- * `/api/v1/add-ons` routes landed to check it (26-T05). The grammar here still accepts them — stored
- * grants must keep round-tripping — but no permissions UI may offer them;
- * grantable lists come from meta's `GRANTABLE_SYSTEM_ACTION_KEYS`.
+ * `/api/v1/add-ons` routes landed to check it. The grammar here still accepts them — stored grants
+ * must keep round-tripping — but no permissions UI may offer them; grantable lists come from meta's
+ * `GRANTABLE_SYSTEM_ACTION_KEYS`.
  */
 
 import {
@@ -35,7 +35,7 @@ import {
   type TableActions,
 } from '@adminium/meta';
 
-/** Table matrix actions (07-meta-store.md §3.9 `actions` payload). */
+/** Table matrix actions (`actions` payload). */
 export const TABLE_ACTIONS = ['read', 'create', 'update', 'delete', 'export', 'import'] as const;
 export type TableAction = (typeof TABLE_ACTIONS)[number];
 
@@ -55,26 +55,28 @@ export const PERMISSIONS = {
   exportsManage: 'system:exports:manage',
   importsManage: 'system:imports:manage',
   reportsManage: 'system:reports:manage',
-  // Jobs (08 §2.17). The routes/realtime hub carry local constants
+  // Jobs. The routes/realtime hub carry local constants
   // (JOBS_READ_PERMISSION / JOBS_MANAGE_PERMISSION in realtime/hub.ts);
   // these are the canonical spellings.
   jobsRead: 'system:jobs:read',
   jobsManage: 'system:jobs:manage',
-  // M16 / 26 D3 — the add-on runtime. Deliberately NOT `settingsManage`:
+  // M16 / — the add-on runtime. Deliberately NOT `settingsManage`:
   // installing an add-on and changing a workspace setting are not the same
-  // authority, and 08 §2.19 was amended to say so.
+  // authority, was amended to say so.
   manifestsManage: 'system:manifests:manage',
-  // 37-files-and-storage.md D10/D37. `filesManage` gates seeing and acting on
+  // `filesManage` gates seeing and acting on
   // files somebody else uploaded (lists are mine-only without it); uploading is
   // authorised by the entity table's own grant, never by this. `storageManage`
   // gates the destinations themselves.
   filesManage: 'system:files:manage',
   storageManage: 'system:storage:manage',
-  // 42 D1 — ONE key this wave, gating both pages, every rule write and every
-  // run read. A read-only `automations.read` is a residual (42 §10): while
+  // ONE key this wave, gating both pages, every rule write and every
+  // run read. A read-only `automations.read` is a residual: while
   // only super-admins and explicitly-granted admins author rules, a second
   // key would be a switch with nothing behind it.
   automationsManage: 'system:automations:manage',
+  // Project folders: what `pull --from` reads (`GET /project/export`).
+  projectRead: 'system:project:read',
 } as const;
 
 export type ParsedGrant =
@@ -190,7 +192,7 @@ export function isGranted(grants: ReadonlySet<string>, required: string): boolea
 
 // --- matrix-row ⇄ grant-string mapping ---------------------------------------
 
-/** `table` resource_ref is `<connectionId>/<schema.table>` (07 §3.9). */
+/** `table` resource_ref is `<connectionId>/<schema.table>`. */
 function splitTableRef(resourceRef: string): { connectionId: string; table: string } | null {
   const slash = resourceRef.indexOf('/');
   if (slash <= 0 || slash === resourceRef.length - 1) return null;

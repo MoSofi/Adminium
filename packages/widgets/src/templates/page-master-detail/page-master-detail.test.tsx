@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `page-master-detail` template tests (M7 track, 09 §7.3 + M7-T04): the master
- * rail renders from the stored config with facet chips + live counts, the
- * priority/status pill tints come from the stored `enumTones` map (never
- * hardcoded — Ticket Queue defect), selection drives the detail pane and
- * emits `record-open`, `J`/`K` move the selection, the filtered zero-match
- * state is distinct from first-use, the gantt domain card mounts through
- * WidgetHost with bridged `*Column` keys, and bad configs never crash.
+ * `page-master-detail` template tests (M7 track): the master rail renders from
+ * the stored config with facet chips + live counts, the priority/status pill
+ * tints come from the stored `enumTones` map (never hardcoded — Ticket Queue
+ * defect), selection drives the detail pane and emits `record-open`, `J`/`K`
+ * move the selection, the filtered zero-match state is distinct from
+ * first-use, the gantt domain card mounts through WidgetHost with bridged
+ * `*Column` keys, and bad configs never crash.
  */
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
@@ -85,11 +85,11 @@ describe('PageMasterDetail', () => {
     const group = screen.getByRole('group', { name: 'Filter' });
     expect(group.textContent).toContain('All');
     expect(group.textContent).toContain('Open');
-    // Derived subtitle: "2 open · 1 pending" (09 §7.3 ticket flavor).
+    // Derived subtitle: "2 open · 1 pending" (ticket flavor).
     expect(screen.getByText('2 open · 1 pending')).toBeDefined();
   });
 
-  it('tints priority + status pills from the stored enumTones map (M7-T04)', () => {
+  it('tints priority + status pills from the stored enumTones map', () => {
     const { container } = render(<PageMasterDetail config={config()} now={NOW} states={loaded} />);
     const priorityPills = container.querySelectorAll('[data-part="priority-pill"]');
     expect(priorityPills.length).toBe(3);

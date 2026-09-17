@@ -321,14 +321,14 @@ for (const dialect of TEST_DIALECTS) {
       const dashboard = rows.find((r) => r.slug === 'dashboard');
       expect(dashboard?.navGroup).toBe('workspace');
       expect(dashboard?.navOrder).toBe(10);
-      // Owning connection rides along (multi-connection nav labels, M5-T05).
+      // Owning connection rides along (multi-connection nav labels).
       expect(dashboard?.connectionId).toBe(connectionId);
-      // No `source` in this fixture's envelope → null, never a throw (30 D5).
+      // No `source` in this fixture's envelope → null, never a throw.
       expect(dashboard?.sourceTable).toBeNull();
       expect(await repo.configVersion()).toBe(5_000);
     });
 
-    it('navRows extracts source.table from the stored envelope (30 D5)', async () => {
+    it('navRows extracts source.table from the stored envelope', async () => {
       const repo = pagesRepo(t.meta);
       await repo.upsertGenerated(
         connectionId,
@@ -367,7 +367,7 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.countGeneratedByConnection()).toEqual({ [connectionId]: 2 });
     });
 
-    // --- page lifecycle (Studio → Pages, 08 §2.6) ---------------------------
+    // --- page lifecycle (Studio → Pages) ---------------------------
 
     it('a user page holding a generated slug is reported, not thrown', async () => {
       // The bug this pins: upsertGenerated keys on ID but the unique index is
@@ -851,7 +851,7 @@ for (const dialect of TEST_DIALECTS) {
       const repo = pagesRepo(t.meta);
       expect(await repo.setLayout('page_nope', { version: 1, items: [] })).toBeNull();
 
-      // `config` is opaque by contract (01 §6.1) — hand-authored and llm-seed
+      // `config` is opaque by contract — hand-authored and llm-seed
       // rows are not envelopes yet, and the dashboard layout write must not
       // throw on one.
       const scalar = await repo.create({

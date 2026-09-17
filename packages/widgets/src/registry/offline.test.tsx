@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * The §7 offline asset policy (11-electron.md §7, 11-T09) — the pure rule and,
- * more importantly, the rule AS WIRED into WidgetHost.
+ * The offline asset policy — the pure rule and, more importantly, the rule AS
+ * WIRED into WidgetHost.
  *
  * The second half is the point. `resolveOfflineWidgetId` is a two-line function
  * that could be exported, tested, and called by nobody — this repo has shipped
@@ -14,7 +14,7 @@ import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /*
-  THE LEAFLET SPY — what turns "the other id mounted" into §7's actual claim,
+  THE LEAFLET SPY — what turns "the other id mounted" into the offline contract's actual claim,
   "Leaflet is NEVER loaded in desktop runtime".
 
   Two jobs. First, safety, and the geo suite learned this the hard way: Leaflet
@@ -24,13 +24,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
   honest fixture.
 
   Second — the assertion itself. The factory records every attempt to load the
-  module, which is the event §7 forbids. `map-bubble` reaches Leaflet through a
+  module, which is the event the contract forbids. `map-bubble` reaches Leaflet through a
   dynamic `import('leaflet')` in its mount effect and is the ONLY module in the
   package that names it (qa/chunk-budget.test.ts pins that at file granularity),
   so this spy IS the observable for "did a map engine get pulled in". Asserting
   it stays untouched in a desktop runtime — while proving it fires in a browser
   one, so the observable is known to work — is the closest a unit suite can get
-  to 11-T18's offline smoke test.
+  to the offline smoke test.
 */
 const { leafletLoads } = vi.hoisted(() => ({ leafletLoads: vi.fn() }));
 vi.mock('leaflet', () => {
@@ -56,7 +56,7 @@ const OFFLINE_BROWSER: WidgetRuntimeEnv = { runtime: 'browser', offlineAssets: t
 beforeEach(() => leafletLoads.mockClear());
 afterEach(cleanup);
 
-describe('resolveOfflineWidgetId — §7 "runtime === desktop or offlineAssets === true"', () => {
+describe('resolveOfflineWidgetId — "runtime === desktop or offlineAssets === true"', () => {
   it('is identity online: self-host and Cloud must be untouched by this', () => {
     expect(resolveOfflineWidgetId('map-bubble', BROWSER)).toBe('map-bubble');
     expect(resolveOfflineWidgetId('kpi-stat-card', BROWSER)).toBe('kpi-stat-card');
@@ -83,7 +83,7 @@ describe('resolveOfflineWidgetId — §7 "runtime === desktop or offlineAssets =
     }
   });
 
-  it('covers a map-* id that does not exist yet (the annex §7 family is open)', () => {
+  it('covers a map-* id that does not exist yet (the annex family is open)', () => {
     // The reason this is a prefix rule and not a two-row lookup table: a future
     // `map-heat` must be offline-safe on the day it lands, without anyone
     // remembering to come back here.
@@ -146,14 +146,14 @@ describe('WidgetHost — the wiring, against the real registry', () => {
     await waitFor(() => expect(leafletLoads).toHaveBeenCalled());
   });
 
-  it('mounts the tilegram in a desktop runtime, and NEVER loads Leaflet (§7)', async () => {
+  it('mounts the tilegram in a desktop runtime, and NEVER loads Leaflet', async () => {
     render(
       <WidgetRuntimeProvider env={DESKTOP}>
         <WidgetHost widgetId="map-bubble" instanceId="i2" config={{}} data={data} />
       </WidgetRuntimeProvider>,
     );
     expect(await mountedWidget()).toBe('map-choropleth-grid');
-    // §7's maps row, verbatim: "Leaflet is never loaded in desktop runtime".
+    // The maps row, verbatim: "Leaflet is never loaded in desktop runtime".
     // The mount effect that would import it belongs to a component that was
     // never constructed, so there is nothing to fail and nothing to catch.
     expect(leafletLoads).not.toHaveBeenCalled();

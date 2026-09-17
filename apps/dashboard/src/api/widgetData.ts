@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Widget-data binding (04-widget-registry.md §5, 09-generated-app.md §4.1):
- * one `POST /api/v1/widget-data/batch` round trip per dashboard page mount —
- * `{ requests: [{ instanceId, descriptor }], params }` (≤40) → per-instance
- * results. Identical descriptors are deduped in the request and fanned back
- * out on receipt; per-item failures map to per-widget error states, and a
- * whole-batch transport failure maps every instance to an error state — the
- * page itself never crashes.
+ * Widget-data binding: one `POST /api/v1/widget-data/batch` round trip per
+ * dashboard page mount — `{ requests: [{ instanceId, descriptor }], params
+ * }` (≤40) → per-instance results. Identical descriptors are deduped in the
+ * request and fanned back out on receipt; per-item failures map to
+ * per-widget error states, and a whole-batch transport failure maps every
+ * instance to an error state — the page itself never crashes.
  *
  * This module implements the `DashboardData` adapter the `page-dashboard`
  * template (packages/widgets/src/templates/page-dashboard) consumes: a lookup
@@ -30,7 +29,7 @@ export interface WidgetDataRequest {
   descriptor: QueryDescriptor;
 }
 
-/** Page-control published params (date range, filter facets — 04 §5.1). */
+/** Page-control published params (date range, filter facets). */
 export type WidgetDataParams = Record<string, unknown>;
 
 interface BatchReplyItem {
@@ -41,10 +40,10 @@ interface BatchReplyItem {
 }
 
 /**
- * Wire shape (apps/server routes/widget-data, 04 §5.2): `results` is an
- * OBJECT keyed by request instanceId, each item `{ ok, result?, error?,
- * cached }` — the shaped payload rides under `result`. Normalized here into
- * the flat per-instance items the rest of this module works with.
+ * Wire shape (apps/server routes/widget-data): `results` is an OBJECT keyed
+ * by request instanceId, each item `{ ok, result?, error?, cached }` — the
+ * shaped payload rides under `result`. Normalized here into the flat
+ * per-instance items the rest of this module works with.
  */
 interface WireBatchItem {
   ok: boolean;
@@ -62,7 +61,7 @@ export interface DashboardData {
   /**
    * Data state for one layout instance; `null` when the instance carries no
    * binding (the template renders the widget's deterministic demo data —
-   * 04 §5.3 demo mode).
+   * demo mode).
    */
   stateFor(instanceId: string): WidgetDataState | null;
   /** Refetch the page batch (kebab → Refresh, `R` shortcut). */
@@ -98,7 +97,7 @@ export function extractBindings(page: PageEnvelope): ExtractedBindings {
   return { requests, invalid };
 }
 
-/** Batch-level dedupe: identical descriptors are sent once (04 §5.3). */
+/** Batch-level dedupe: identical descriptors are sent once. */
 export function dedupeRequests(requests: WidgetDataRequest[]): {
   unique: WidgetDataRequest[];
   /** sent instanceId → every instanceId sharing that descriptor. */
@@ -203,10 +202,10 @@ export function useDashboardData(page: PageEnvelope, params: WidgetDataParams = 
       if (invalidMessage !== undefined) {
         return { status: 'error', error: new WidgetDataItemError('INVALID_BINDING', invalidMessage) };
       }
-      if (!bound.has(instanceId)) return null; // unbound → demo data (04 §5.3)
+      if (!bound.has(instanceId)) return null; // unbound → demo data
       if (query.isPending) return { status: 'loading' };
       if (query.isError) {
-        // Whole-batch transport failure → per-widget error states (§4.1).
+        // Whole-batch transport failure → per-widget error states.
         return { status: 'error', error: query.error, refetch };
       }
       const item = query.data.get(instanceId);

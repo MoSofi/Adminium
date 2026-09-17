@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `scripts/check-offline-assets.mjs` — the 11-electron.md §7 gate (11-T09).
+ * `scripts/check-offline-assets.mjs` — the gate.
  *
  * WHY THE TEST LIVES HERE. The script is repo-root because it scans two apps'
- * build outputs, but §7 is this app's chapter and the offline guarantee is this
+ * build outputs, but is this app's chapter and the offline guarantee is this
  * app's promise, so the suite that fails when the gate rots should be this app's
  * too. There is no import edge — the script is SPAWNED, exactly as CI and the
  * `build` script spawn it — which is also what lets a test assert the one thing
@@ -58,8 +58,8 @@ function run(dir: string): Run {
   }
 }
 
-describe('check-offline-assets — §7 must-fail list', () => {
-  it('fails on a Google Fonts stylesheet link (§7 fonts row)', () => {
+describe('check-offline-assets — must-fail list', () => {
+  it('fails on a Google Fonts stylesheet link (fonts row)', () => {
     const result = run(
       fixture({
         'index.html':
@@ -77,13 +77,13 @@ describe('check-offline-assets — §7 must-fail list', () => {
     expect(result.output).toContain('fonts.gstatic.com');
   });
 
-  it('fails on a CDN <script> (§7 icons row: no CDN script/link)', () => {
+  it('fails on a CDN <script> (icons row: no CDN script/link)', () => {
     const result = run(fixture({ 'index.html': '<script src="https://unpkg.com/leaflet/leaflet.js"></script>' }));
     expect(result.status).not.toBe(0);
     expect(result.output).toContain('html-remote-tag');
   });
 
-  it('fails on a Leaflet/OSM tile URL (§7 maps row)', () => {
+  it('fails on a Leaflet/OSM tile URL (maps row)', () => {
     const result = run(fixture({ 'app.js': 'const t="https://tile.openstreetmap.org/{z}/{x}/{y}.png";' }));
     expect(result.status).not.toBe(0);
     expect(result.output).toContain('tile.openstreetmap.org');
@@ -240,7 +240,7 @@ describe('check-offline-assets — what it must NOT flag', () => {
         'app.js': [
           // @xyflow/react's attribution anchor — rendered on purpose
           // (proOptions.hideAttribution === false) and opened by the SYSTEM
-          // browser under §2.4, never fetched.
+          // browser, never fetched.
           'const a = "https://reactflow.dev?utm_source=attribution";',
           // Its error text, as the minifier actually emits it. The source says
           // `${lib}`; `e` is terser's choice and is free to change.

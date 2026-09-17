@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The single page gutter (02-design-system.md §1.8 density axis).
+ * The single page gutter (density axis).
  *
  * Every routed screen renders exactly one `PageSurface` as its outermost
  * element. Before it, each page invented its own gutter — `p-6` here,
@@ -103,7 +103,7 @@ export function PageSurface({
       /* A stored pair only exists at runtime, and Tailwind generates utilities
          from source TEXT — so the pair rides a custom property that the literal
          `p-[var(--adm-page-pad)]` above reads. A custom property is also the
-         only `style` the design system allows (02 §7, adminium/no-style-prop),
+         only `style` the design system allows (adminium/no-style-prop),
          which is why this is a plain literal rather than a conditional object. */
       style={{
         '--adm-page-pad': custom ? `${String(padding.y)}px ${String(padding.x)}px` : undefined,
@@ -122,7 +122,7 @@ const WIDTH_NAMES = new Set<string>(['full', 'narrow', 'content', 'page', 'dash'
  * Membership-checked rather than cast, for the same reason
  * {@link resolvePagePadding} range-checks its pair: a hand-edited or
  * newer-version document must degrade to the template's column, not render a
- * page with no `max-w` class at all (09 §3.1 never-crash).
+ * page with no `max-w` class at all (never-crash).
  */
 export function resolvePageWidth(stored: unknown, templateDefault: PageSurfaceWidth): PageSurfaceWidth {
   return typeof stored === 'string' && WIDTH_NAMES.has(stored)
@@ -142,7 +142,7 @@ export function resolvePagePadding(stored: unknown, templateDefault: PagePadding
     const { x, y } = stored as PagePaddingPair;
     // `>= 0` also rejects NaN and non-numbers, so a hand-edited or
     // future-version document degrades to the default rather than to a broken
-    // layout (09 §3.1 never-crash).
+    // layout (never-crash).
     if (typeof x === 'number' && typeof y === 'number' && x >= 0 && y >= 0) return { x, y };
   }
   return templateDefault;

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/settings/desktop` — the "Require login on this device" toggle (11-electron.md
- * §5, §2.3).
+ * `/settings/desktop` — the "Require login on this device" toggle.
  *
  * The load-bearing assertions: the toggle is the INVERSE of `config.singleUser`,
  * it writes the FILE through the bridge (not the server's mirror, which the next
@@ -32,7 +31,8 @@ interface BridgeStub {
   patches: Array<{ singleUser?: boolean | undefined }>;
 }
 
-/** Installs a §4-shaped `window.adminiumDesktop` with just the two members used. */
+/** Installs a -shaped `window.adminiumDesktop` with just the two members used.
+ * */
 function stubBridge(opts: {
   singleUser: boolean;
   failWrite?: boolean;
@@ -132,7 +132,7 @@ describe('DesktopSettingsPage', () => {
     });
     await userEvent.click(toggle);
 
-    // Through the BRIDGE — §2.3 makes config.json the source of truth, and the
+    // Through the BRIDGE — makes config.json the source of truth, and the
     // server's `desktop.singleUser` setting is a mirror the next boot rewrites
     // from it. Writing the mirror instead would look like it worked and silently
     // revert on relaunch.
@@ -156,7 +156,7 @@ describe('DesktopSettingsPage', () => {
     });
   });
 
-  it('says the change applies on the next launch — §5 promises exactly that', async () => {
+  it('says the change applies on the next launch — promises exactly that', async () => {
     stubBridge({ singleUser: true });
     renderDesktopSettings();
 
@@ -177,8 +177,8 @@ describe('DesktopSettingsPage', () => {
   });
 
   it('does not exist outside the desktop shell', async () => {
-    // No `window.adminiumDesktop` — a browser tab or a self-host deployment (§4
-    // detection contract). There is no config.json to write, so there is no
+    // No `window.adminiumDesktop` — a browser tab or a self-host deployment
+    // (detection contract). There is no config.json to write, so there is no
     // setting: the address is simply wrong.
     renderDesktopSettings();
 

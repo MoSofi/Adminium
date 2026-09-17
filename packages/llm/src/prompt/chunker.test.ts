@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chunker.ts` — huge-schema map-reduce (06-llm-assist.md §4.5, acceptance
- * criterion 7): "A 300-table synthetic schema chunks into ≥ 2 prompts each
- * ≤ 45k estimated tokens; cross-chunk FK targets appear as stubs; deterministic
- * merge + merge-prompt output validate and produce exactly one group per table."
+ * `chunker.ts` — huge-schema map-reduce (acceptance criterion 7): "A 300-table
+ * synthetic schema chunks into ≥ 2 prompts each ≤ 45k estimated tokens;
+ * cross-chunk FK targets appear as stubs; deterministic merge + merge-prompt
+ * output validate and produce exactly one group per table."
  *
  * The synthetic schema is one connected FK component (a 3-ary tree via
  * `parent_id`), which forces the single cluster to be split across chunks — the
@@ -106,7 +106,7 @@ function makeInput(overrides: Partial<PromptInput> = {}): PromptInput {
 
 // ─── Chunking behavior ───────────────────────────────────────────────────────
 
-describe('buildChunkedPrompts (§4.5, criterion 7)', () => {
+describe('buildChunkedPrompts (criterion 7)', () => {
   const artifact = buildChunkedPrompts(makeInput(), options);
 
   it('splits a 300-table schema into ≥ 2 chunks', () => {

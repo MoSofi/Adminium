@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Settings → Desktop → "Share on local network" (11-electron.md §8.3).
+ * Settings → Desktop → "Share on local network".
  *
  * The toggle, the port, and the share panel it opens. Everything mechanical
  * lives elsewhere on purpose — `desktop/lanShare.ts` holds the two feeds and the
@@ -14,18 +14,18 @@
  *    server's own bind address. A panel that listed URLs because a checkbox was
  *    ticked would hand out addresses that nothing is listening on — the one
  *    output that makes this feature worse than not having it.
- * 2. **The transport sentence is not a tooltip.** §8.3 fixes the copy and this
- *    renders it in the panel body, at rest, next to the URLs it is about — not
- *    behind a hover, an info icon, or a "learn more". It is the reason the user
- *    might decide not to do this.
- * 3. **A collision changes nothing.** §8.3's "inline error with a 'Try 4601'
+ * 2. **The transport sentence is not a tooltip.** This card renders it in the
+ *    panel body, at rest, next to the URLs it is about — not behind a hover,
+ *    an info icon, or a "learn more". It is the reason the user might decide
+ *    not to do this.
+ * 3. **A collision changes nothing.** The "inline error with a 'Try 4601'
  *    suggestion" is only possible because main probes BEFORE it writes or
  *    restarts; this card renders that rejection in place, with the suggested
  *    port as a button, and no state has moved.
  *
- * ─── §8.3's "Manage users & roles" link ──────────────────────────────────────
+ * ─── "Manage users & roles" link ─────────────────────────────────────────────
  *
- * §8.3 asks the panel for a link to the user/role surface, and it now exists:
+ * The panel needs a link to the user/role surface, and it now exists:
  * `/settings/team` (the directory + invites) over the `routes/users` and
  * `routes/roles` endpoints. The link sits next to the session count because
  * that is the sentence which motivates it — "2 devices signed in" → "who are
@@ -71,7 +71,7 @@ export const LAN_SHARE_QUERY_KEY = ['desktop', 'lan-share-config'] as const;
 /** A collision, held in state so it can be rendered where it happened. */
 interface PortCollision {
   port: number;
-  /** §8.3's "Try 4601", or `null` at the top of the range. */
+  /** The "Try 4601" suggestion, or `null` at the top of the range. */
   suggestion: number | null;
 }
 
@@ -107,7 +107,7 @@ export function LanShareCard(): ReactNode {
     onSuccess: (_result, next) => {
       void queryClient.invalidateQueries({ queryKey: LAN_SHARE_QUERY_KEY });
       void queryClient.invalidateQueries({ queryKey: ['desktop', 'lan-share'] });
-      // `system/info`'s `lanShare` is what §8.1's chip reads; the rebind makes
+      // `system/info`'s `lanShare` is what chip reads; the rebind makes
       // the cached copy a lie until it refetches.
       void queryClient.invalidateQueries({ queryKey: ['system', 'info'] });
       setPortInput(null);
@@ -119,7 +119,7 @@ export function LanShareCard(): ReactNode {
       });
     },
     onError: (error, next) => {
-      // §8.3's collision is the ONE failure with a specific remedy, so it is the
+      // The collision is the ONE failure with a specific remedy, so it is the
       // one that gets rendered inline instead of thrown at the toast layer.
       // Everything else — an EACCES on a privileged port, a dead bridge — has no
       // suggestion worth making up and says what it says.
@@ -162,20 +162,20 @@ export function LanShareCard(): ReactNode {
   // Pending and failed are not zero; neither is a reason to state a falsehood.
   const otherUsers = status.isSuccess ? status.data.otherUsers : null;
 
-  // §8.3's precondition: "at least one non-super-admin user exists *or* the
-  // admin acknowledges they'll invite users next". Note what it does NOT say —
+  // The precondition: "at least one non-super-admin user exists *or* the admin
+  // acknowledges they'll invite users next". Note what it does NOT say —
   // nothing about `singleUser`, which may stay on: auto-login is loopback-only
-  // by construction (§5), so a shared machine that skips its own login screen is
-  // not a contradiction. Enforced here in the UI, exactly as §8.3 scopes it.
+  // by construction, so a shared machine that skips its own login screen is
+  // not a contradiction. Enforced here in the UI, exactly scopes it.
   //
   // The acknowledgement is the escape hatch in BOTH unknown cases, and that is
-  // §8.3's own design rather than a workaround: the spec already accepts an
+  // the design rather than a workaround: the spec already accepts an
   // admin's word instead of a user count, so an admin whose count we could not
   // read is not worse off than one who has no users — they are in exactly the
   // branch the spec wrote for. What changes is what we SAY to them.
   const preconditionMet = (otherUsers !== null && otherUsers > 0) || acknowledged;
 
-  // Three states, three sentences (§8.2's "never hide, always explain" — an
+  // Three states, three sentences ("never hide, always explain" — an
   // explanation that is wrong does not satisfy it):
   //  - `known-none`  → we asked, nobody else has an account. State it.
   //  - `unavailable` → we asked and got nothing back. Say THAT, not "zero".
@@ -289,28 +289,28 @@ export function LanShareCard(): ReactNode {
 }
 
 /**
- * §8.3's precondition, as the thing the admin actually has to think about.
+ * The precondition, framed as the thing the admin actually has to think
+ * about.
  *
  * Rendered only when we have not established that other accounts exist — either
  * because there are genuinely none (`otherUsers === 0`) or because the probe
  * failed and we cannot say. The common case (a team that already has accounts,
  * counted) never sees a checkbox asking it to promise something it has already
- * done. The wording is a promise and not a warning because that is what §8.3
- * makes it: sharing a machine on a network where only you have an account is not
+ * done. The wording is a promise and not a warning because that is what makes
+ * it: sharing a machine on a network where only you have an account is not
  * dangerous, it is pointless, and the honest reason to stop the user is that
  * they are about to be confused.
  *
  * The two reasons are one component and two sentences rather than two
- * components, because the ACT is identical (§8.3 takes the admin's word) and
- * only the claim differs. Splitting them would duplicate the checkbox to vary a
+ * components, because the ACT is identical (takes the admin's word) and only
+ * the claim differs. Splitting them would duplicate the checkbox to vary a
  * paragraph.
  */
 function InviteAcknowledgement(props: {
   /**
    * WHY we are asking. `known-none` is the fact; `unavailable` is the absence of
-   * it. They share a checkbox because §8.3 accepts the same answer either way,
-   * and they do NOT share a sentence because only one of them is something we
-   * know.
+   * it. They share a checkbox because accepts the same answer either way, and
+   * they do NOT share a sentence because only one of them is something we know.
    */
   reason: 'known-none' | 'unavailable';
   checked: boolean;
@@ -347,7 +347,7 @@ function InviteAcknowledgement(props: {
 }
 
 /**
- * The port, editable per §8.3 ("port editable; 4600 default").
+ * The port, editable ("port editable; 4600 default").
  *
  * The Apply button appears only when the number changed AND sharing is already
  * on, because those are the only conditions under which the edit does anything
@@ -357,9 +357,9 @@ function InviteAcknowledgement(props: {
  * field — is not a design anyone survives.
  *
  * `min={1024}`: below that is privileged on macOS and Linux, the child does not
- * run as root, and the bind fails with an EACCES that §8.3's "Try 4601" cannot
- * help with (4601 is privileged too if 4600 was). Refusing it in the form is
- * kinder than discovering it in a restart.
+ * run as root, and the bind fails with an EACCES that "Try 4601" cannot help
+ * with (4601 is privileged too if 4600 was). Refusing it in the form is kinder
+ * than discovering it in a restart.
  */
 function PortField(props: {
   value: string;
@@ -410,7 +410,7 @@ function PortField(props: {
 }
 
 /**
- * §8.3's panel: the URLs, the session count, the transport sentence, the
+ * The panel: the URLs, the session count, the transport sentence, the
  * firewall line.
  *
  * `pending` and `mismatch` do not render URLs, and that is the point of taking
@@ -487,7 +487,7 @@ function SharePanel(props: {
                 )}
           </p>
 
-          {/* §8.3's link, next to the count it answers. */}
+          {/* The link, next to the count it answers. */}
           <Button asChild variant="secondary" size="sm" className="self-start">
             <Link to="/settings/team">{t('desktop.lan.manageTeam', 'Manage users & roles')}</Link>
           </Button>
@@ -495,7 +495,7 @@ function SharePanel(props: {
       ) : null}
 
       {/*
-        §8.3, VERBATIM AND REQUIRED. Not a tooltip, not a "learn more", not
+        VERBATIM AND REQUIRED. Not a tooltip, not a "learn more", not
         conditional on the view: the sentence is the reason a user might decide
         against this, and it has to be readable at the moment they are deciding.
         TLS termination is explicitly out of scope for the desktop shell, so this
@@ -513,7 +513,7 @@ function SharePanel(props: {
       />
 
       {/*
-        §8.3's firewall line. One line, as specified — the OS dialog it describes
+        The firewall line. One line, as specified — the OS dialog it describes
         appears on first enable and is the single most likely reason a correct
         setup is unreachable anyway.
       */}

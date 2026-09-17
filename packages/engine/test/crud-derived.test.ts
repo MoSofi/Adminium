@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 36-T04: the derived-column vocabulary reaches the SERVER through
+ * The derived-column vocabulary reaches the SERVER through
  * `@adminium/engine/config` and nowhere else.
  *
  * That is not a stylistic preference. dependency-cruiser's
@@ -11,8 +11,8 @@
  * the built `page-config` leaf, the config-schema re-export, and the values
  * that come out the other side.
  *
- * It also pins the other half of 36-T04: the two new blocks are OPT-IN, so
- * every page in the byte-pinned generation baseline must carry neither.
+ * It also pins the other half of: the two new blocks are OPT-IN, so every
+ * page in the byte-pinned generation baseline must carry neither.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -115,7 +115,7 @@ describe('the new blocks are absent from every generated page', () => {
   );
 });
 
-describe('text outcomes (41-export-builder.md D5)', () => {
+describe('text outcomes', () => {
   const rule = {
     id: 'shipping',
     scale: 0,

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Bootstrap nav connection labels (M5-T05): every nav item carries its
- * owning `connectionId` + `connectionName` so multi-connection sidebars can
- * group unambiguously; connection-less (user/system) pages stay null; an
- * unknown connection id degrades to a null name instead of failing.
+ * Bootstrap nav connection labels: every nav item carries its owning
+ * `connectionId` + `connectionName` so multi-connection sidebars can group
+ * unambiguously; connection-less (user/system) pages stay null; an unknown
+ * connection id degrades to a null name instead of failing.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { connectionsRepo, newId, writeBool, type MetaDb, type PageNavRow } from '@adminium/meta';
@@ -131,10 +131,9 @@ describe('GET /api/v1/bootstrap nav connection labels', () => {
   });
 
   /**
-   * 36-derived-columns.md 36-T15. Every money cell in the product renders USD
-   * because nothing has ever told the client what a connection's currency is;
-   * the nav item is the object the client already resolves a page through, so
-   * it carries it.
+   * Every money cell in the product renders USD because nothing has ever told
+   * the client what a connection's currency is; the nav item is the object
+   * the client already resolves a page through, so it carries it.
    */
   it("carries the owning connection's currency, and null when it has none", () => {
     const navRow = (connectionId: string | null): PageNavRow => ({
@@ -167,7 +166,7 @@ describe('GET /api/v1/bootstrap nav connection labels', () => {
   });
 });
 
-describe('hidden pages on /bootstrap (30-record-pages.md follow-up)', () => {
+describe('hidden pages on /bootstrap (follow-up)', () => {
   let t: AuthTestApp;
   beforeEach(async () => {
     t = await buildAuthApp();

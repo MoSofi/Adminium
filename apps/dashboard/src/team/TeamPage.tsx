@@ -16,7 +16,7 @@
  * So the link renders in a one-time banner in COMPONENT STATE (never the query
  * cache), exactly as `api-keys/ApiKeysPage.tsx` renders its plaintext key, and
  * the "Email it instead" affordance is rendered VISIBLY DISABLED behind
- * `emailSendGate` with its `smtp-not-configured` reason spelled out — §8.2's
+ * `emailSendGate` with its `smtp-not-configured` reason spelled out — the
  * "never hide, always explain". Nothing on this page ever says or implies that
  * mail went out.
  *
@@ -162,7 +162,7 @@ function InviteBanner({ result, onDismiss }: { result: InviteResult; onDismiss: 
         )}
 
         {/*
-          §8.2's email row, rendered rather than hidden. The button is here so
+          The email row, rendered rather than hidden. The button is here so
           the absence has a shape the admin can see and a sentence that explains
           it; `resolved` guards the CLAIM — a failed /system/info probe must not
           tell an operator with a working relay that they have no mail server.

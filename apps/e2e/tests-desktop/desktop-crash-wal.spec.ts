@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 11-T20 — the crash / WAL-durability check (11-electron.md §9).
+ * The crash / WAL-durability check.
  *
  * "All local databases run WAL mode; killing the app mid-write loses no
  * committed data (crash test in E2E)."
@@ -26,7 +26,7 @@ import { editEmployeeTitle, readEmployeeTitle } from './helpers/api.js';
 import { completeFirstRunDemo, waitForAppShell } from './helpers/flow.js';
 import { closeDesktop, killDesktop, launchDesktop, waitForAppWindow } from './helpers/launch.js';
 
-test.describe('desktop app: crash / WAL durability (§9)', () => {
+test.describe('desktop app: crash / WAL durability', () => {
   test('a committed write survives a hard kill and reopens cleanly', async () => {
     const userDataDir = mkdtempSync(join(tmpdir(), 'adminium-desktop-e2e-'));
     try {
@@ -53,8 +53,8 @@ test.describe('desktop app: crash / WAL durability (§9)', () => {
       });
 
       // 4) Relaunch the SAME data dir. config.json now exists (not first-run), so
-      // §5 single-user auto-login lands straight in the app — which only happens
-      // if meta.db and the source .sqlite both reopened after the unclean kill.
+      // single-user auto-login lands straight in the app — which only happens if
+      // meta.db and the source.sqlite both reopened after the unclean kill.
       const second = await launchDesktop({ userDataDir });
       const secondPage = await waitForAppWindow(second.app);
       await waitForAppShell(secondPage);
@@ -62,7 +62,7 @@ test.describe('desktop app: crash / WAL durability (§9)', () => {
       // 5) The committed value survived: WAL recovered it.
       expect(
         await readEmployeeTitle(secondPage, record),
-        'a committed write must survive a crash (WAL durability, §9)',
+        'a committed write must survive a crash (WAL durability)',
       ).toBe(marker);
 
       await closeDesktop(second.app);

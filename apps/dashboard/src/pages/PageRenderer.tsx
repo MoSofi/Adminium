@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * PageRenderer — the runtime config interpreter (09-generated-app.md §4.1):
+ * PageRenderer — the runtime config interpreter:
  *
  *   GET /api/v1/pages/:pageId → migrate + Zod-validate (src/api/pages.ts)
  *     → resolve `template` against the page-template registry
@@ -8,12 +8,12 @@
  *     → WidgetEvents: record-open → hrefForRecord navigation, drill-through →
  *       href navigation, mutate → CRUD call + undo toast + cache invalidation.
  *
- * Never-crash rules (§3.1): unknown slug → branded 404 (no server round trip);
- * `v` too new → "config too new" card; invalid envelope → invalid-config card;
+ * Never-crash rules: unknown slug → branded 404 (no server round trip); `v`
+ * too new → "config too new" card; invalid envelope → invalid-config card;
  * unknown/not-yet-shipped template → unknown-template card; a throwing
  * template degrades to an error card via WidgetErrorBoundary. Page-level API
  * 403/404/5xx render the matching system state *inside* the content outlet —
- * shell and nav stay usable (§6.1).
+ * shell and nav stay usable.
  */
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from '@tanstack/react-router';
@@ -39,6 +39,7 @@ import {
 } from '../shell/PageSurface.js';
 import { NotFoundPage } from '../states/NotFoundPage.js';
 import { StatePage } from '../states/StatePage.js';
+import { PageHostContext, type PageHost } from './pageHost.js';
 import { DEFAULT_TEMPLATE_SURFACE, templateSurface } from './surfaceDefaults.js';
 import { resolvePageTemplate, type PageTemplateAdapters, type PageTemplateComponent } from './templates.js';
 import { useUndoToast } from './toasts.js';
@@ -52,7 +53,7 @@ export function PageRenderer() {
   // still answers its URL (30 follow-up).
   const item = findPageBySlug(bootstrap, slug);
 
-  // Unknown slug → branded 404 with NO pages round trip (09 §2.3).
+  // Unknown slug → branded 404 with NO pages round trip.
   if (item === null) return <NotFoundPage />;
   return <PageDocument key={item.pageId} pageId={item.pageId} slug={slug} recordId={recordId} />;
 }
@@ -119,18 +120,19 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
 
 type TemplateResolution =
   | { phase: 'resolving' }
-  | { phase: 'resolved'; component: PageTemplateComponent | null };
+  | { phase: 'resolved'; component: PageTemplateComponent | null }
+  | { phase: 'failed'; error: Error };
 
 /**
- * The template id the record child route renders (30-record-pages.md D1):
- * with a `recordId` present, a page envelope whose `config.detail.template`
- * names one owns the route — today always `page-record` in generated crud
- * bodies. Envelopes without a `detail` block keep the page's own template
- * byte-for-byte (which is what leaves `page-master-detail`, `page-board` and
- * every non-crud template untouched).
+ * The template id the record child route renders: with a `recordId` present,
+ * a page envelope whose `config.detail.template` names one owns the route —
+ * today always `page-record` in generated crud bodies. Envelopes without a
+ * `detail` block keep the page's own template byte-for-byte (which is what
+ * leaves `page-master-detail`, `page-board` and every non-crud template
+ * untouched).
  *
- * A shallow read, deliberately — the full typed parse (30-T01) happens inside
- * the lazy record binding; the entry chunk only needs the id string.
+ * A shallow read, deliberately — the full typed parse happens inside the lazy
+ * record binding; the entry chunk only needs the id string.
  */
 function detailTemplateOf(page: PageEnvelope): string | null {
   const detail = page.config['detail'];
@@ -139,7 +141,8 @@ function detailTemplateOf(page: PageEnvelope): string | null {
   return typeof template === 'string' && template.length > 0 ? template : null;
 }
 
-function TemplateMount({
+/** Mounts one page document with its template. Exported for its tests. */
+export function TemplateMount({
   page,
   slug,
   recordId,
@@ -161,9 +164,10 @@ function TemplateMount({
   canUnmask?: boolean | undefined;
 }) {
   const [resolution, setResolution] = useState<TemplateResolution>({ phase: 'resolving' });
+  const [attempt, setAttempt] = useState(0);
 
-  // 30 D1: the effective template — the detail template on the record route,
-  // the page's own everywhere else. Same registry, same memoized resolution,
+  // The effective template — the detail template on the record route, the
+  // page's own everywhere else. Same registry, same memoized resolution,
   // same unknown-template card.
   const effectiveTemplate =
     recordId !== undefined ? (detailTemplateOf(page) ?? page.template) : page.template;
@@ -171,25 +175,35 @@ function TemplateMount({
   useEffect(() => {
     let alive = true;
     setResolution({ phase: 'resolving' });
-    void resolvePageTemplate(effectiveTemplate).then((component) => {
-      if (alive) setResolution({ phase: 'resolved', component });
-    });
+    // A chunk that fails to load gets the error card and its Retry, not a
+    // skeleton that never ends. `resolvePageTemplate` forgets a failed load, so
+    // Retry (a new `attempt`) fetches it again.
+    resolvePageTemplate(effectiveTemplate).then(
+      (component) => {
+        if (alive) setResolution({ phase: 'resolved', component });
+      },
+      (error: unknown) => {
+        if (alive) {
+          setResolution({ phase: 'failed', error: error instanceof Error ? error : new Error(String(error)) });
+        }
+      },
+    );
     return () => {
       alive = false;
     };
-  }, [effectiveTemplate]);
+  }, [effectiveTemplate, attempt]);
 
   const adapters = usePageAdapters(page, slug);
 
   // The connection's display currency, resolved once here so every template
   // gets it the same way and no binding has to know about the nav tree
-  // (36-derived-columns.md 36-T15). `useQuery` rather than the suspense form:
+  // . `useQuery` rather than the suspense form:
   // this is a formatting nicety, and a page must render without it.
   const { data: navBootstrap } = useQuery(bootstrapQuery());
   const currency =
     navBootstrap === undefined ? null : (findPageBySlug(navBootstrap, slug)?.currency ?? null);
 
-  // The ONE gutter for `/p/<slug>` (02 §1.8): the template's default from
+  // The ONE gutter for `/p/<slug>`: the template's default from
   // `surfaceDefaults`, overridden by the page's stored `padding` when an admin
   // set one. Applied here rather than in each of the fifteen bindings so the
   // skeleton, the error cards and the loaded template all sit in the same box —
@@ -202,9 +216,17 @@ function TemplateMount({
   if (resolution.phase === 'resolving') {
     return <PageSkeleton padding={padding} width={width} />;
   }
-  const Template = resolution.component;
+  // A template whose code did not load renders as one that throws, so the
+  // boundary below shows it, and its Retry resolves the template again.
+  const failed = resolution.phase === 'failed' ? resolution.error : null;
+  const Template: PageTemplateComponent | null =
+    resolution.phase === 'resolved'
+      ? resolution.component
+      : () => {
+          throw failed;
+        };
   if (Template === null) {
-    // Unknown template id — forward compatibility per 09 §3.1: degrade, never crash.
+    // Unknown template id — forward compatibility: degrade, never crash.
     return (
       <PageMessageCard
         icon={<FileQuestion />}
@@ -230,7 +252,7 @@ function TemplateMount({
             <button
               type="button"
               className="text-body-sm font-bold text-accent hover:underline"
-              onClick={reset}
+              onClick={failed === null ? reset : () => setAttempt((value) => value + 1)}
             >
               {t('common.retry', 'Retry')}
             </button>
@@ -239,24 +261,26 @@ function TemplateMount({
       )}
     >
       <PageSurface padding={padding} width={width} fill={surface.fill}>
-        <Template
-          page={page}
-          adapters={adapters}
-          recordId={recordId}
-          canEditLayout={canEditLayout}
-          canCreate={canCreate}
-          canUpdate={canUpdate}
-          canDelete={canDelete}
-          canAttach={canAttach}
-          canUnmask={canUnmask}
-          {...(currency === null || currency === undefined ? {} : { currency })}
-        />
+        <PageHostContext.Provider value={PAGE_HOST}>
+          <Template
+            page={page}
+            adapters={adapters}
+            recordId={recordId}
+            canEditLayout={canEditLayout}
+            canCreate={canCreate}
+            canUpdate={canUpdate}
+            canDelete={canDelete}
+            canAttach={canAttach}
+            canUnmask={canUnmask}
+            {...(currency === null || currency === undefined ? {} : { currency })}
+          />
+        </PageHostContext.Provider>
       </PageSurface>
     </WidgetErrorBoundary>
   );
 }
 
-/** Data adapters + the WidgetEvent sink (09 §4.1) for one mounted page. */
+/** Data adapters + the WidgetEvent sink for one mounted page. */
 function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -279,10 +303,10 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
   );
 
   /**
-   * `record-open` routing (30 D5): the event names a TABLE, and the record
-   * page that shows it may not be this one — a related-tab row or an FK chip
-   * points at another table entirely. Resolve the table to its page through
-   * the bootstrap map; the page's own table keeps today's same-slug path. A
+   * `record-open` routing: the event names a TABLE, and the record page that
+   * shows it may not be this one — a related-tab row or an FK chip points at
+   * another table entirely. Resolve the table to its page through the
+   * bootstrap map; the page's own table keeps today's same-slug path. A
    * table no page shows is a no-op rather than a wrong-page navigation (the
    * old behavior pushed the OTHER table's id onto THIS page's record route).
    */
@@ -319,12 +343,12 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
       }
       if (event.type === 'record-open') {
         // Widgets never navigate directly — the host maps record-open to the
-        // canonical record href (09 §2.3 navigation helpers), routed by the
-        // event's TABLE (30 D5).
+        // canonical record href (navigation helpers), routed by the
+        // event's TABLE.
         openRecordFor(event);
         return;
       }
-      // mutate intent (04 §2.1): run through the CRUD API with undo + audit.
+      // mutate intent: run through the CRUD API with undo + audit.
       if (crud === null) return;
       const run = async (): Promise<CrudMutationResult> => {
         if (event.intent === 'insert') return crud.create(event.values ?? {});
@@ -363,6 +387,9 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
     [crud, hasLayout, dashboard, onEvent, openRecord, notifyUndoable],
   );
 }
+
+/** What a template's own mounts use (`pageHost.ts`); exported for tests. */
+export const PAGE_HOST: PageHost = { usePageAdapters, resolvePageTemplate, detailTemplateOf };
 
 // --- chrome ------------------------------------------------------------------
 

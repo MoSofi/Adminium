@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline unit tests — driver error → `AdapterError` mapping (05 §3). The
- * driver error shapes are constructed by hand (a `pg.DatabaseError` is an
+ * Offline unit tests — driver error → `AdapterError` mapping. The driver
+ * error shapes are constructed by hand (a `pg.DatabaseError` is an
  * `Error` carrying the SQLSTATE on `.code`), so no database is involved.
  */
 import { describe, expect, it } from 'vitest';
@@ -79,7 +79,7 @@ describe('toAdapterError — pooled (PgBouncer) endpoints', () => {
   });
 });
 
-describe('toAdapterError — the rest of the §3 table', () => {
+describe('toAdapterError — the rest of the table', () => {
   it.each([
     ['28P01', 'password authentication failed for user "app"', 'AUTH'],
     ['28000', 'no pg_hba.conf entry for host', 'AUTH'],

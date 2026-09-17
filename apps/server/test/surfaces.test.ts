@@ -183,7 +183,7 @@ describe('staff surface — gated on the admin session', () => {
   });
 });
 
-describe('surface.json — the build-emitted nav contract (29-T11)', () => {
+describe('surface.json — the build-emitted nav contract', () => {
   const ok = {
     v: 1,
     appKey: 'clients',
@@ -253,7 +253,7 @@ describe('surface.json — the build-emitted nav contract (29-T11)', () => {
   });
 });
 
-describe('bootstrap hostedApps (29-T11, D7/D9)', () => {
+describe('bootstrap hostedApps', () => {
   const staffSurface = (manifest: HostedSurface['manifest']): HostedSurface => ({
     appKey: 'clients',
     side: 'staff',
@@ -286,9 +286,9 @@ describe('bootstrap hostedApps (29-T11, D7/D9)', () => {
 
   it('adds ONE SECTION PER INSTANCE, with the same items behind each', () => {
     /*
-     * The two-Dashboards shape (29 D9): the items are identical because it is
-     * the same app — only the database behind them differs, which is why the
-     * slug has to be in the heading and not in the rows.
+     * The two-Dashboards shape: the items are identical because it is the
+     * same app — only the database behind them differs, which is why the slug
+     * has to be in the heading and not in the rows.
      */
     const settings = {
       apps: {
@@ -331,12 +331,12 @@ describe('bootstrap hostedApps (29-T11, D7/D9)', () => {
   });
 });
 
-describe('framing — the internal placement\'s precondition (29-T09)', () => {
+describe('framing — the internal placement\'s precondition', () => {
   it('lets the dashboard frame a staff surface at its own origin', async () => {
     /*
      * The internal placement (D6) puts `/apps/<key>/staff/` inside an iframe on
      * `/a/<key>/…`. Both are this origin, so this passes — but it passed
-     * NOTHING before 29-T09: helmet shipped `frame-ancestors 'none'` and
+     * NOTHING before: helmet shipped `frame-ancestors 'none'` and
      * `X-Frame-Options: DENY`, and the frame would have rendered blank with a
      * console line and no server-side symptom at all. Asserted on the SURFACE
      * reply specifically, not just on an API reply, because a future

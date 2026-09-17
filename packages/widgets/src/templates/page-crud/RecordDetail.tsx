@@ -12,10 +12,10 @@ import { displayValueOf } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 
 /**
- * RecordDetail — the `/p/$slug/r/$recordId` panel body (09 §7.1): key-field
- * headline, `detail-key-value` fields, tabs generated from inbound FKs with
- * live count pills; each tab lists related records through
- * `CrudApi.listRelated` when the host provides it (counts only otherwise).
+ * RecordDetail — the `/p/$slug/r/$recordId` panel body: key-field headline,
+ * `detail-key-value` fields, tabs generated from inbound FKs with live
+ * count pills; each tab lists related records through `CrudApi.listRelated`
+ * when the host provides it (counts only otherwise).
  */
 
 export interface RecordDetailProps {
@@ -144,7 +144,7 @@ export function RecordDetail({
   return (
     <div data-part="record-detail" className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        {/* Key-field highlight (09 §8.3). */}
+        {/* Key-field highlight. */}
         <h3 className="truncate text-modal text-fg">{title}</h3>
         <div className="flex shrink-0 items-center gap-1.5">
           {onEdit !== undefined && (

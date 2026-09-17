@@ -1204,6 +1204,7 @@
       "generated": "Générée",
       "llm": "Assistant",
       "manifest": "Extension",
+      "project": "Code du projet",
       "system": "Système",
       "user": "Personnalisée"
     },
@@ -1218,6 +1219,34 @@
     "preview": {
       "note": "Une illustration de la disposition, pas de vos données. La vraie page se remplit une fois enregistrée.",
       "untitled": "Page sans titre"
+    },
+    "project": {
+      "badge": {
+        "changed": "Modifiée sur le serveur",
+        "conflict": "Conflit",
+        "outside": "Hors du projet"
+      },
+      "changed": {
+        "body": "Récupérez les modifications dans votre projet et déployez-le, sinon elles restent uniquement sur ce serveur :",
+        "title": "{count, plural, one {# page a été modifiée sur ce serveur} other {# pages ont été modifiées sur ce serveur}}"
+      },
+      "conflicts": {
+        "body": "Ce serveur conserve sa propre version jusqu’à ce que vous en choisissiez une.",
+        "title": "{count, plural, one {# page a été modifiée ici et dans le projet} other {# pages ont été modifiées ici et dans le projet}}"
+      },
+      "fromCode": "Cette page vient de {source}. Modifiez-la là-bas.",
+      "invalid": {
+        "body": "Corrigez ces fichiers. En attendant, la dernière version valide reste utilisée.",
+        "title": "{count, plural, one {# fichier du projet n’a pas été appliqué} other {# fichiers du projet n’ont pas été appliqués}}"
+      },
+      "keepServer": "Garder la version du serveur",
+      "notConfigured": "Certaines appartiennent à une base de données que le projet ne liste pas. Ajoutez-la à adminium.config.ts pour garder ses pages dans le projet.",
+      "outside": {
+        "body": "Elles n’existent que sur ce serveur. Récupérez-les dans le projet pour les garder :",
+        "title": "{count, plural, one {# page n’est pas dans le projet} other {# pages ne sont pas dans le projet}}"
+      },
+      "resolveFailed": "Impossible d’effectuer ce changement.",
+      "useProject": "Utiliser la version du projet"
     },
     "row": {
       "menu": "Actions pour {title}"
@@ -1254,6 +1283,84 @@
       "narrow": "Étroite (720 px)",
       "page": "Page (1080 px)",
       "wide": "Large (1800 px)"
+    }
+  },
+  "project": {
+    "actions": {
+      "bulk": "Un ou plusieurs enregistrements",
+      "empty": "Aucune action. Un fichier dans actions/ ajoute un bouton aux enregistrements.",
+      "needs": "Nécessite : {permission}",
+      "single": "Un enregistrement",
+      "title": "Actions"
+    },
+    "changes": {
+      "empty": "Tous les fichiers de pages et de schéma correspondent à ce serveur.",
+      "open": "Régler dans Pages",
+      "title": "Modifié sur ce serveur"
+    },
+    "code": {
+      "disabled": "Non chargé : l’application de bureau n’exécute jamais le code d’un projet",
+      "label": "Code du projet",
+      "loaded": "Chargé {when}",
+      "none": "Rien de chargé"
+    },
+    "failures": {
+      "empty": "Aucun hook n’a échoué depuis le démarrage du serveur.",
+      "title": "Erreurs de hooks"
+    },
+    "files": {
+      "count": "{count, plural, one {# fichier} other {# fichiers}}",
+      "pages": "Fichiers de pages",
+      "schema": "Fichiers de schéma",
+      "title": "Fichiers"
+    },
+    "folder": "Dossier",
+    "hooks": {
+      "empty": "Aucun hook. Un fichier dans hooks/ exécute du code quand des enregistrements changent.",
+      "onImport": "Aussi pour les imports CSV",
+      "title": "Hooks"
+    },
+    "loadFailed": "Impossible de charger le projet",
+    "mode": {
+      "dev": "Développement : le dossier et Studio restent synchronisés",
+      "label": "Mode",
+      "server": "Serveur : le dossier ne change qu’avec un déploiement"
+    },
+    "none": {
+      "body": "Un projet est un dossier créé avec `npx @adminiumjs/adminium new`. Ses pages, hooks et actions apparaissent ici quand le serveur l’exécute.",
+      "title": "Ce serveur n’exécute aucun projet"
+    },
+    "pages": {
+      "empty": "Aucune page. Un fichier .tsx dans pages/ ajoute une page à vous.",
+      "hidden": "Absente de la barre latérale",
+      "title": "Pages"
+    },
+    "permission": {
+      "create": "Ajouter",
+      "delete": "Supprimer",
+      "read": "Consulter",
+      "update": "Modifier"
+    },
+    "problems": {
+      "body": "Corrigez ces fichiers. Le reste du code du projet fonctionne.",
+      "title": "{count, plural, one {# fichier n’a pas été chargé} other {# fichiers n’ont pas été chargés}}"
+    },
+    "status": {
+      "changed": "Modifié sur ce serveur",
+      "conflict": "Conflit",
+      "invalid": "Non valide",
+      "outside": "Hors du projet",
+      "pending": "Pas encore appliqué"
+    },
+    "subtitle": "Le dossier de projet que ce serveur exécute, et le code qu’il a chargé.",
+    "superAdminOnly": "Seul un super administrateur peut voir le projet que ce serveur exécute.",
+    "title": "Projet",
+    "version": "Adminium",
+    "widgets": {
+      "card": "Carte de tableau de bord",
+      "cell": "Cellule de tableau",
+      "empty": "Aucun widget. Un fichier dans widgets/ ajoute une cellule de tableau ou une carte de tableau de bord.",
+      "title": "Widgets"
     }
   },
   "publicApi": {
@@ -1439,11 +1546,11 @@
       "searchPlaceholder": "Rechercher des tables…",
       "unsaved": "Modification non enregistrée"
     },
-    "unavailableBody": "Cette version n’inclut pas encore l’éditeur de remappage (09-T12). Relancez la génération une fois qu’il sera disponible pour remapper les libellés, les types et les relations.",
+    "unavailableBody": "Cette version n’inclut pas encore l’éditeur de remappage. Relancez la génération une fois qu’il sera disponible pour remapper les libellés, les types et les relations.",
     "unavailableTitle": "Éditeur de remappage du schéma indisponible"
   },
   "review": {
-    "unavailableBody": "Cette version n’inclut pas encore l’écran de revue d’enrichissement (06-T14). Il arrive avec le flux diff-et-application.",
+    "unavailableBody": "Cette version n’inclut pas encore l’écran de revue d’enrichissement. Il arrive avec le flux diff-et-application.",
     "unavailableTitle": "Écran de revue indisponible"
   },
   "settings": {
@@ -1590,6 +1697,11 @@
         "error": "Un nom d’hôte ou une adresse IP uniquement — sans schéma, port ni identifiants.",
         "label": "Hôte SMTP"
       },
+      "linkOrigin": {
+        "error": "Saisissez une adresse comme https://admin.example.com, sans chemin.",
+        "helper": "Les liens de réinitialisation du mot de passe et d’invitation ouvrent cette adresse. Si elle est vide, Adminium la reprend du prochain administrateur qui se connecte ou enregistre une modification, sauf s’il passe par localhost.",
+        "label": "Adresse des liens dans les e-mails"
+      },
       "pass": {
         "error": "Ce nom d’utilisateur exige un mot de passe.",
         "helper": "Chiffré au stockage et jamais réaffiché. Laissez vide pour conserver l’actuel.",
@@ -1654,6 +1766,11 @@
       "body": "Ajoutez, modifiez et supprimez des pages, changez leur contenu et réordonnez la barre latérale.",
       "cta": "Gérer les pages",
       "heading": "Pages"
+    },
+    "projectCard": {
+      "body": "Le dossier de projet que ce serveur exécute : ses hooks, ses actions et ses fichiers de pages.",
+      "cta": "Ouvrir le projet",
+      "heading": "Projet"
     },
     "publicApiCard": {
       "body": "Laissez vos propres pages destinées aux clients ou au personnel lire cette base de données, via une portée que vous définissez.",

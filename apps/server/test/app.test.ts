@@ -47,20 +47,20 @@ describe('GET /api/v1/system/info', () => {
       version: APP_VERSION,
       node: process.version,
       dialect: null,
-      // 11-electron.md §8.2 flags. `smtpConfigured` is false because a server
+      // The desktop feature flags. `smtpConfigured` is false because a server
       // with no meta store has no `email.smtp` setting to read — email genuinely
       // cannot send, so this is the answer, not a fallback.
       runtime: 'self-host',
       smtpConfigured: false,
       networkFeaturesAllowed: true,
-      // §8.1's LAN chip. False here for the same reason `runtime` is
-      // 'self-host': the flag is env-derived, and only the Electron shell binds
-      // `0.0.0.0` (§8.3 applies the toggle by re-forking the child). This stays
-      // an exact-equality assertion on purpose — it is what caught this field
+      // The LAN chip. False here for the same reason `runtime` is 'self-host':
+      // the flag is env-derived, and only the Electron shell binds `0.0.0.0`
+      // (applies the toggle by re-forking the child). This stays an
+      // exact-equality assertion on purpose — it is what caught this field
       // arriving unannounced, and an unannounced field on an unauthenticated
       // route is exactly what should have to be spelled out here.
       lanShare: false,
-      // §6 step 2 card 4: can this build seed the demo database? False for a
+      // The wizard's demo card: can this build seed the demo database? False for a
       // third time for the same reason — it is env-derived, and both halves of
       // the condition (desktop runtime AND a seed script) fail on self-host.
       // Spelled out because this assertion caught it too, which is the point.
@@ -72,7 +72,7 @@ describe('GET /api/v1/system/info', () => {
     // BOTH halves, because the wizard gates its fourth source card on this and
     // `compose.ts` gates the ROUTE on the same predicate (`desktop/demo-seed.ts`).
     // A flag that said `true` on a desktop build with no script would offer a
-    // card whose button 404s — §8.2's "never hide, always explain" inverted.
+    // card whose button 404s — "never hide, always explain" inverted.
     const withoutScript = await build({ ADMINIUM_RUNTIME: 'desktop' });
     const off = await withoutScript.inject({ method: 'GET', url: '/api/v1/system/info' });
     expect(off.json<{ desktopDemo: boolean }>().desktopDemo).toBe(false);
@@ -94,7 +94,7 @@ describe('GET /api/v1/system/info', () => {
     expect(res.json<{ desktopDemo: boolean }>().desktopDemo).toBe(false);
   });
 
-  it('reports the desktop runtime the Electron shell booted it with (§4)', async () => {
+  it('reports the desktop runtime the Electron shell booted it with', async () => {
     const server = await build({ ADMINIUM_RUNTIME: 'desktop' });
     const res = await server.inject({ method: 'GET', url: '/api/v1/system/info' });
     expect(res.json<{ runtime: string }>().runtime).toBe('desktop');
@@ -145,7 +145,7 @@ describe('request id', () => {
 });
 
 describe('unknown routes', () => {
-  it('returns the §1.4 NOT_FOUND envelope for unknown API routes', async () => {
+  it('returns the NOT_FOUND envelope for unknown API routes', async () => {
     const server = await build();
     const res = await server.inject({ method: 'GET', url: '/api/v1/nope' });
     expect(res.statusCode).toBe(404);
@@ -163,7 +163,7 @@ describe('unknown routes', () => {
   });
 });
 
-describe('route schema enforcement (08-server-api.md §1.1)', () => {
+describe('route schema enforcement', () => {
   it('refuses an /api route registered without a schema', async () => {
     const server = await build();
     let error: unknown;

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 11-T05's unit suite: the §2.4 posture, the navigation lockdown, the §14
- * window-state clamp, and the two static pages' offline contract (§7).
+ * The unit suite: the posture, the navigation lockdown, the
+ * window-state clamp, and the two static pages' offline
+ * contract.
  *
  * A real Electron app cannot be launched headlessly (see vitest.config.ts), so
- * `createWindowManager` itself is 11-T20's Playwright `_electron` suite to
- * cover. What is covered HERE is every decision it makes — which is the part
- * that can be wrong in a way nobody notices.
+ * `createWindowManager` itself is Playwright `_electron` suite to cover. What
+ * is covered HERE is every decision it makes — which is the part that can be
+ * wrong in a way nobody notices.
  */
 
 import { readFileSync } from 'node:fs';
@@ -32,9 +33,9 @@ import { MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH } from './config.js';
 
 const APP_ORIGIN = 'http://127.0.0.1:52341';
 
-// ─── §2.4 posture ────────────────────────────────────────────────────────────
+// ─── posture ─────────────────────────────────────────────────────────────────
 
-describe('WEB_PREFERENCES (§2.4)', () => {
+describe('WEB_PREFERENCES', () => {
   // Each of these is its own acceptance criterion ("Renderer security:
   // contextIsolation on, sandbox on, nodeIntegration off …"), so each is its own
   // assertion rather than one object snapshot: a snapshot updated in bulk is how
@@ -56,11 +57,11 @@ describe('WEB_PREFERENCES (§2.4)', () => {
   });
 });
 
-// ─── §2.4 permission handler ─────────────────────────────────────────────────
+// ─── permission handler ──────────────────────────────────────────────────────
 
-describe('isPermissionAllowed (§2.4)', () => {
+describe('isPermissionAllowed', () => {
   it('denies every Chromium permission, including ones Chromium has not shipped yet', () => {
-    // §2.4: "Permission request handler denies all Chromium permission prompts
+    // "Permission request handler denies all Chromium permission prompts
     // (camera, geolocation, notifications use native paths instead)."
     const permissions = [
       'media',
@@ -94,11 +95,11 @@ describe('isPermissionAllowed (§2.4)', () => {
   });
 });
 
-// ─── §2.4 navigation lockdown ────────────────────────────────────────────────
+// ─── navigation lockdown ─────────────────────────────────────────────────────
 
-describe('decideNavigation (§2.4)', () => {
+describe('decideNavigation', () => {
   it('only lets https: out to the system browser', () => {
-    // §2.4: "every other URL goes to shell.openExternal after an allowlist check
+    // "every other URL goes to shell.openExternal after an allowlist check
     // (`https:` only)". openExternal hands the string to the OS.
     expect([...EXTERNAL_SCHEMES]).toEqual(['https:']);
   });
@@ -116,7 +117,7 @@ describe('decideNavigation (§2.4)', () => {
 
     // ── external, and NOT safe to hand to the OS ──
     // Plain http off-origin is not on the https-only allowlist, so it is denied
-    // rather than opened: §2.4 allows exactly one http origin, ours.
+    // rather than opened: exactly one http origin is allowed, ours.
     ['plain http elsewhere', 'http://example.com/', 'deny'],
     // file: through openExternal opens a local file with the OS handler.
     ['a file url', 'file:///etc/passwd', 'deny'],
@@ -142,9 +143,9 @@ describe('decideNavigation (§2.4)', () => {
     ['the origin as a path', 'https://evil.com/http://127.0.0.1:52341', 'external'],
     // A second local service is not us. `origin` pins the port.
     ['loopback on another port', 'http://127.0.0.1:8080/', 'deny'],
-    // localhost resolves to the same interface but is a different origin, and
-    // §2.4 names 127.0.0.1. Cookies are origin-scoped: allowing both would mean
-    // two session jars.
+    // localhost resolves to the same interface but is a different origin, names
+    // 127.0.0.1. Cookies are origin-scoped: allowing both would mean two
+    // session jars.
     ['localhost by name', 'http://localhost:52341/', 'deny'],
     ['loopback over https', 'https://127.0.0.1:52341/', 'external'],
     ['the ipv6 loopback', 'http://[::1]:52341/', 'deny'],
@@ -185,7 +186,7 @@ describe('decideNavigation (§2.4)', () => {
     // A blob: URL reports the origin of the URL inside it, so an origin-only
     // check calls it same-origin and navigates the window to a document the page
     // minted with URL.createObjectURL — attacker-authored markup executing
-    // inside the origin that holds the session cookie. §2.4 allows
+    // inside the origin that holds the session cookie. The lockdown allows
     // "http://127.0.0.1:<port>"; a blob: URL is not that, whatever its origin
     // says.
     expect(new URL(`blob:${APP_ORIGIN}/abc-123`).origin).toBe(APP_ORIGIN); // the trap
@@ -203,7 +204,7 @@ describe('decideNavigation (§2.4)', () => {
 
 describe('originOf', () => {
   it('reduces the boot URL to the origin nav is locked to', () => {
-    // The URL index.ts builds at §2.2 step 8 carries the boot token; the origin
+    // The URL index.ts builds carries the boot token; the origin
     // must not.
     expect(originOf('http://127.0.0.1:52341/?bootToken=deadbeef')).toBe(APP_ORIGIN);
     expect(originOf('http://127.0.0.1:52341/desktop/setup')).toBe(APP_ORIGIN);
@@ -216,9 +217,9 @@ describe('originOf', () => {
   });
 });
 
-// ─── Crash-page actions (§2.2 step 9) ────────────────────────────────────────
+// ─── Crash-page actions ──────────────────────────────────────────────────────
 
-describe('parseCrashAction (§2.2 step 9)', () => {
+describe('parseCrashAction', () => {
   const page = 'file:///Applications/Adminium.app/Contents/out/renderer/crash.html';
 
   it.each([
@@ -245,9 +246,9 @@ describe('parseCrashAction (§2.2 step 9)', () => {
   });
 });
 
-// ─── The crash payload (§2.2 steps 7 and 9) ──────────────────────────────────
+// ─── The crash payload (steps 7 and 9) ───────────────────────────────────────
 
-describe('crashRenderScript (§2.2 steps 7 and 9)', () => {
+describe('crashRenderScript (steps 7 and 9)', () => {
   const base = { reason: 'The server stopped.', canRestart: true };
 
   it('carries the payload as JSON data, not as interpolated code', () => {
@@ -301,7 +302,7 @@ describe('crashRenderScript (§2.2 steps 7 and 9)', () => {
   });
 });
 
-// ─── §14 window state ────────────────────────────────────────────────────────
+// ─── window state ────────────────────────────────────────────────────────────
 
 /** A 2560×1440 primary at the origin, plus a 1920×1080 to its left. */
 const PRIMARY: DisplayArea = { x: 0, y: 0, width: 2560, height: 1440 };
@@ -317,7 +318,7 @@ const state = (over: Partial<WindowState> = {}): WindowState => ({
   ...over,
 });
 
-describe('clampWindowState (§14)', () => {
+describe('clampWindowState', () => {
   it('keeps a window that is fully on a display exactly where it was', () => {
     expect(clampWindowState(state(), [PRIMARY])).toEqual(state());
   });
@@ -336,7 +337,7 @@ describe('clampWindowState (§14)', () => {
     ['far above', { x: 100, y: -9000 }],
     ['on an unplugged display to the left', { x: -4000, y: 100 }],
   ] as const)('drops the position of a window %s', (_name, position) => {
-    // §14's "off-screen correction". The window would be unreachable: there is
+    // The "off-screen correction". The window would be unreachable: there is
     // no in-app recovery, because the window that would show it is the one that
     // is gone. Dropping x/y hands Electron its own centering.
     const clamped = clampWindowState(state(position), [PRIMARY]);
@@ -373,7 +374,7 @@ describe('clampWindowState (§14)', () => {
     ['a width below the minimum', { width: 400 }, { width: MIN_WINDOW_WIDTH }],
     ['a height below the minimum', { height: 300 }, { height: MIN_WINDOW_HEIGHT }],
     ['both below the minimum', { width: 1, height: 1 }, { width: MIN_WINDOW_WIDTH, height: MIN_WINDOW_HEIGHT }],
-  ] as const)('grows %s to §14\'s 1024×700', (_name, saved, expected) => {
+  ] as const)('grows %s to \'s 1024×700', (_name, saved, expected) => {
     expect(clampWindowState(state(saved), [PRIMARY])).toMatchObject(expected);
   });
 
@@ -389,7 +390,7 @@ describe('clampWindowState (§14)', () => {
   });
 
   it('never shrinks below the minimum, even on a display smaller than it', () => {
-    // §14's 1024×700 is a product constraint and Electron enforces it at
+    // The 1024×700 is a product constraint and Electron enforces it at
     // minWidth/minHeight regardless, so returning less than it here would just
     // be a lie the caller has to re-fix. The position clamp must not invert.
     const tiny: DisplayArea = { x: 0, y: 0, width: 800, height: 600 };
@@ -430,7 +431,7 @@ describe('clampWindowState (§14)', () => {
   });
 });
 
-// ─── §7 offline contract for the static pages ────────────────────────────────
+// ─── offline contract for the static pages ───────────────────────────────────
 
 const html = (name: string): string =>
   readFileSync(fileURLToPath(new URL(`../renderer/${name}`, import.meta.url)), 'utf8');
@@ -446,12 +447,12 @@ const html = (name: string): string =>
  */
 const markup = (name: string): string => html(name).replace(/<!--[\s\S]*?-->/g, '');
 
-describe('boot.html / crash.html (§7 offline guarantee)', () => {
+describe('boot.html / crash.html (offline guarantee)', () => {
   it.each(['boot.html', 'crash.html'])('%s references no remote origin', (name) => {
-    // §7: "fully functional with the network cable unplugged, forever". These
-    // two are shown BEFORE a server exists, so they cannot reach even loopback.
-    // scripts/check-offline-assets.mjs (11-T09) gates the packaged build; this
-    // catches it at the source, where the fix is cheap.
+    // "fully functional with the network cable unplugged, forever". These two
+    // are shown BEFORE a server exists, so they cannot reach even loopback.
+    // scripts/check-offline-assets.mjs gates the packaged build; this catches
+    // it at the source, where the fix is cheap.
     const remote = markup(name).match(/https?:\/\/[^"'\s)]+/g) ?? [];
     // The CSP keyword `'self'` and the doctype are not URLs; nothing else may be.
     expect(remote).toEqual([]);
@@ -479,7 +480,7 @@ describe('boot.html / crash.html (§7 offline guarantee)', () => {
     const source = markup('crash.html');
     // The degradation contract: if the injection never runs, the page still
     // says what happened and still offers a way out. Actions start VISIBLE and
-    // are only ever hidden by the script (§2.2 step 9's spent crash budget).
+    // are only ever hidden by the script (spent crash budget).
     expect(source).toContain('Adminium could not start its server');
     for (const action of ['retry', 'logs', 'quit']) {
       expect(source).toMatch(new RegExp(`href="\\?action=${action}"[^>]*data-slot="${action}"`));

@@ -291,6 +291,13 @@
     "done": "Ændring fortrudt",
     "failed": "Ændringen kunne ikke fortrydes"
   },
+  "projectAction": {
+    "done": "{label}: udført",
+    "failed": "{label} blev ikke fuldført",
+    "menu": "Handlinger",
+    "run": "Kør",
+    "selected": "{count, plural, one {# post} other {# poster}}"
+  },
   "prefs": {
     "theme": {
       "label": "Tema",
@@ -1003,7 +1010,7 @@
     "article": {
       "install": {
         "title": "Installér Adminium",
-        "excerpt": "Kør fra et kildekode-checkout eller med docker run, og nå førstegangsguiden på et minut."
+        "excerpt": "Opret et projekt med én kommando, eller kør Adminium med docker run eller fra et kildekode-checkout."
       },
       "firstAdmin": {
         "title": "Opret din første superadministrator",
@@ -1612,6 +1619,7 @@
       "jobsRead": "Se alle baggrundsjob",
       "llmRun": "Kør AI-assistance",
       "pagesManage": "Opret og organisér sider",
+      "projectRead": "Læs side- og skemaændringer til et projekt-pull",
       "reportsManage": "Administrér planlagte rapporter",
       "rolesManage": "Administrér roller og rettigheder",
       "schemaRemap": "Redigér skemaetiketter og tilsidesættelser",

@@ -3,9 +3,9 @@
  * Offline introspection tests — the full assembly pipeline driven through a
  * canned-rows executor (no server, no driver), plus the SQL-text contract:
  * every statement in the fixed set references `information_schema`
- * exclusively (the "schema only" invariant, 05 §10) and is scoped to the
- * connected database. The live suite (adapter.live.test.ts) re-verifies the
- * same behavior against a real MySQL when TEST_MYSQL_URL is set.
+ * exclusively (the "schema only" invariant) and is scoped to the connected
+ * database. The live suite (adapter.live.test.ts) re-verifies the same
+ * behavior against a real MySQL when TEST_MYSQL_URL is set.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -433,10 +433,10 @@ function cannedExecutor(overrides: Partial<Record<string, CatalogRow[]>> = {}) {
 // The SQL-text contract
 // ---------------------------------------------------------------------------
 
-describe('introspection statement set (05 §4.2/§10)', () => {
+describe('introspection statement set', () => {
   const statements = introspectionStatements(DB);
 
-  it('is a fixed set of 6 statements (+1 probe = 7 per 05 §4.2, ≤ 10 budget)', () => {
+  it('is a fixed set of 6 statements (+1 probe = 7, ≤ 10 budget)', () => {
     expect(statements).toHaveLength(6);
     expect(statements.length + 1).toBeLessThanOrEqual(10);
   });
@@ -1278,7 +1278,7 @@ describe('introspectMysql — foreign keys', () => {
   });
 
   it('warns on a CROSS-DATABASE foreign key rather than emitting it', async () => {
-    // Cross-database FKs are out of scope for v1 (05 §4.2): the target table
+    // Cross-database FKs are out of scope for v1: the target table
     // is not in the model, so a relation pointing at it would dangle.
     const exec = routed({
       tables: twoTables,

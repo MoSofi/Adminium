@@ -1204,6 +1204,7 @@
       "generated": "自動產生",
       "llm": "助理",
       "manifest": "外掛",
+      "project": "專案程式碼",
       "system": "系統",
       "user": "自訂"
     },
@@ -1218,6 +1219,34 @@
     "preview": {
       "note": "這是版面示意圖，不是您的資料。儲存後真實頁面才會填入內容。",
       "untitled": "未命名頁面"
+    },
+    "project": {
+      "badge": {
+        "changed": "已在伺服器上變更",
+        "conflict": "衝突",
+        "outside": "不在專案中"
+      },
+      "changed": {
+        "body": "請將這些變更拉取到專案中並部署，否則它們只會留在此伺服器上：",
+        "title": "{count, plural, other {此伺服器上有 # 個頁面已變更}}"
+      },
+      "conflicts": {
+        "body": "在你做出選擇之前，此伺服器會保留自己的版本。",
+        "title": "{count, plural, other {有 # 個頁面在此處和專案中都已變更}}"
+      },
+      "fromCode": "此頁面來自 {source}。請在那裡修改。",
+      "invalid": {
+        "body": "請修正這些檔案。在此之前，會繼續使用最後一個有效版本。",
+        "title": "{count, plural, other {有 # 個專案檔案未被套用}}"
+      },
+      "keepServer": "保留伺服器版本",
+      "notConfigured": "其中一些屬於專案未列出的資料庫。將其加入 adminium.config.ts，即可將其頁面保留在專案中。",
+      "outside": {
+        "body": "它們只存在於此伺服器上。將它們拉取到專案中即可保留：",
+        "title": "{count, plural, other {有 # 個頁面不在專案中}}"
+      },
+      "resolveFailed": "無法完成此變更。",
+      "useProject": "使用專案版本"
     },
     "row": {
       "menu": "{title} 的操作"
@@ -1254,6 +1283,84 @@
       "narrow": "窄（720px）",
       "page": "頁面（1080px）",
       "wide": "寬（1800px）"
+    }
+  },
+  "project": {
+    "actions": {
+      "bulk": "一筆或多筆記錄",
+      "empty": "沒有動作。actions/ 中的檔案會為記錄加上按鈕。",
+      "needs": "需要：{permission}",
+      "single": "一筆記錄",
+      "title": "動作"
+    },
+    "changes": {
+      "empty": "所有頁面與結構描述檔案都與此伺服器一致。",
+      "open": "在「頁面」中處理",
+      "title": "在此伺服器上已變更"
+    },
+    "code": {
+      "disabled": "未載入：桌面應用程式從不執行專案程式碼",
+      "label": "專案程式碼",
+      "loaded": "已載入（{when}）",
+      "none": "未載入任何內容"
+    },
+    "failures": {
+      "empty": "伺服器啟動以來沒有掛鉤失敗。",
+      "title": "掛鉤錯誤"
+    },
+    "files": {
+      "count": "{count, plural, other {# 個檔案}}",
+      "pages": "頁面檔案",
+      "schema": "結構描述檔案",
+      "title": "檔案"
+    },
+    "folder": "資料夾",
+    "hooks": {
+      "empty": "沒有掛鉤。hooks/ 中的檔案會在記錄變更時執行程式碼。",
+      "onImport": "也適用於 CSV 匯入",
+      "title": "掛鉤"
+    },
+    "loadFailed": "無法載入專案",
+    "mode": {
+      "dev": "開發：資料夾與 Studio 保持同步",
+      "label": "執行方式",
+      "server": "伺服器：資料夾只隨部署而改變"
+    },
+    "none": {
+      "body": "專案是以 `npx @adminiumjs/adminium new` 建立的資料夾。伺服器執行專案時，其頁面、掛鉤與動作會顯示在這裡。",
+      "title": "此伺服器未執行任何專案"
+    },
+    "pages": {
+      "empty": "沒有頁面。pages/ 中的 .tsx 檔案會加上你自己的頁面。",
+      "hidden": "不在側邊欄中",
+      "title": "頁面"
+    },
+    "permission": {
+      "create": "新增",
+      "delete": "刪除",
+      "read": "檢視",
+      "update": "編輯"
+    },
+    "problems": {
+      "body": "請修正這些檔案。其餘專案程式碼正在執行。",
+      "title": "{count, plural, other {# 個檔案未能載入}}"
+    },
+    "status": {
+      "changed": "在此伺服器上已變更",
+      "conflict": "衝突",
+      "invalid": "無效",
+      "outside": "不在專案中",
+      "pending": "尚未套用"
+    },
+    "subtitle": "此伺服器執行的專案資料夾，以及它載入的程式碼。",
+    "superAdminOnly": "只有超級管理員可以查看此伺服器執行的專案。",
+    "title": "專案",
+    "version": "Adminium",
+    "widgets": {
+      "card": "儀表板卡片",
+      "cell": "表格儲存格",
+      "empty": "沒有小工具。widgets/ 中的檔案會加上表格儲存格或儀表板卡片。",
+      "title": "小工具"
     }
   },
   "publicApi": {
@@ -1439,11 +1546,11 @@
       "searchPlaceholder": "搜尋資料表…",
       "unsaved": "未儲存的變更"
     },
-    "unavailableBody": "目前的組建尚未包含重新對應編輯器（09-T12）。等它推出後重新執行產生流程，即可重新對應標籤、型別與關聯。",
+    "unavailableBody": "目前的組建尚未包含重新對應編輯器。等它推出後重新執行產生流程，即可重新對應標籤、型別與關聯。",
     "unavailableTitle": "結構描述重新對應編輯器無法使用"
   },
   "review": {
-    "unavailableBody": "此組建尚未包含增強審閱畫面（06-T14）。它將隨差異與套用流程一起推出。",
+    "unavailableBody": "此組建尚未包含增強審閱畫面。它將隨差異與套用流程一起推出。",
     "unavailableTitle": "審閱畫面不可用"
   },
   "settings": {
@@ -1590,6 +1697,11 @@
         "error": "只能填寫主機名稱或 IP 位址 — 不含通訊協定、連接埠或憑證。",
         "label": "SMTP 主機"
       },
+      "linkOrigin": {
+        "error": "請輸入類似 https://admin.example.com 的位址，不要包含路徑。",
+        "helper": "密碼重設與邀請連結會開啟此位址。若留空，Adminium 會從下一位登入或儲存變更的管理員自動填入，但使用 localhost 時除外。",
+        "label": "電子郵件連結中的位址"
+      },
       "pass": {
         "error": "此使用者名稱需要密碼。",
         "helper": "加密儲存且不會再顯示。留空即保留目前的密碼。",
@@ -1654,6 +1766,11 @@
       "body": "新增、編輯與刪除頁面，變更每個頁面的內容，並重新排列側邊欄。",
       "cta": "管理頁面",
       "heading": "頁面"
+    },
+    "projectCard": {
+      "body": "此伺服器執行的專案資料夾：其掛鉤、動作與頁面檔案。",
+      "cta": "開啟專案",
+      "heading": "專案"
     },
     "publicApiCard": {
       "body": "讓你自己面向客戶或員工的頁面，透過你定義的範圍讀取這個資料庫。",

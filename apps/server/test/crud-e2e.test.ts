@@ -184,7 +184,7 @@ describe('CRUD API end-to-end (fake adapter)', () => {
     connId = await createConnectionViaApi(t, 'postgres://fake@fake-host:5432/fakedb');
     const result = await introspectViaApi(t, connId);
     expect(result.noop).toBe(false);
-    // phone classified as PII → auto-proposed column.pii mask (05 §7.2)
+    // phone classified as PII → auto-proposed column.pii mask
     expect(result.proposedMasks).toBeGreaterThan(0);
 
     // Grants: admin full table access; viewer reads everything; editor works
@@ -292,7 +292,7 @@ describe('CRUD API end-to-end (fake adapter)', () => {
     expect(badColumn.status).toBe(422);
   });
 
-  it('masks PII columns for non-privileged readers and refuses masked selects (§5.3)', async () => {
+  it('masks PII columns for non-privileged readers and refuses masked selects', async () => {
     const viewerRows = await list(`/api/v1/data/${connId}/main.customers`);
     expect(viewerRows.status).toBe(200);
     const alfki = viewerRows.body.data.find((row) => row.customer_id === 'ALFKI')!;
@@ -313,7 +313,7 @@ describe('CRUD API end-to-end (fake adapter)', () => {
     expect(adminAlfki._masked).toBeUndefined();
   });
 
-  it('enforces per-table RBAC after identifier resolution (§5.2)', async () => {
+  it('enforces per-table RBAC after identifier resolution', async () => {
     // Viewer holds read only → writes are TABLE_FORBIDDEN.
     const write = await t.app.inject({
       method: 'POST',
@@ -417,7 +417,7 @@ describe('CRUD API end-to-end (fake adapter)', () => {
     };
     expect(data.unit_price).toBe(99.5);
 
-    // Only the issuing user may undo (§2.7.3 step 4).
+    // Only the issuing user may undo.
     const wrongUser = await t.app.inject({
       method: 'POST',
       url: `/api/v1/data/undo/${undoToken}`,

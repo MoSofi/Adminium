@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The multiplexed widget-data stream transport (04-widget-registry.md §5.3):
- * reference-counted channel subscribe/unsubscribe, per-channel fan-out, status
- * broadcast, and connection lifecycle — driven through a fake realtime client
- * (no socket).
+ * The multiplexed widget-data stream transport: reference-counted channel
+ * subscribe/unsubscribe, per-channel fan-out, status broadcast, and connection
+ * lifecycle — driven through a fake realtime client (no socket).
  *
  * The last block drives the REAL client down to its SSE fallback instead,
  * because {@link STREAM_SSE_EVENT_TYPES} is one of those lists that cannot
@@ -204,7 +203,7 @@ describe('STREAM_SSE_EVENT_TYPES over the real SSE fallback', () => {
     vi.unstubAllGlobals();
   });
 
-  it('delivers record.attachments — the record page’s Attachments panel (37 D27)', () => {
+  it('delivers record.attachments — the record page’s Attachments panel', () => {
     const channel = 'widget-data:conn_1:public.invoices';
     const seen: RealtimeEvent[] = [];
     const { transport, stream } = fallenBackTransport(channel, seen);

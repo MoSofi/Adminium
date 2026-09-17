@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * First-run bootstrap (07-meta-store.md §6): migrations + built-in role and
- * permission seeds + `system.*` settings, plus the guarded creation of the
- * first super admin. Re-running is safe — every step is guarded by existence
- * checks and seeds use slug/key natural-key upserts, so upgrades can add new
- * built-in permission rows without touching user edits.
+ * First-run bootstrap: migrations + built-in role and permission seeds +
+ * `system.*` settings, plus the guarded creation of the first super admin.
+ * Re-running is safe — every step is guarded by existence checks and seeds
+ * use slug/key natural-key upserts, so upgrades can add new built-in
+ * permission rows without touching user edits.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -22,17 +22,17 @@ export interface BuiltinRoleDef {
   slug: string;
   name: string;
   description: string;
-  /** System action grants seeded as `{ allowed: true }` rows (§6 step 3). */
+  /** System action grants seeded as `{ allowed: true }` rows. */
   systemActions: readonly SystemActionKey[];
 }
 
 /**
- * The four built-in roles (§3.8, §6). Super-admin gets every system action
- * (the RBAC layer short-circuits for `super-admin` anyway); admin gets the §6
- * management set — including `users.manage` and `audit.read`, without which an
- * Admin can neither invite a colleague nor read the trail its own changes
- * leave; editor/viewer get table/page grants dynamically at generation time,
- * no system actions.
+ * The four built-in roles. Super-admin gets every system action (the RBAC
+ * layer short-circuits for `super-admin` anyway); admin gets the management
+ * set — including `users.manage` and `audit.read`, without which an Admin can
+ * neither invite a colleague nor read the trail its own changes leave;
+ * editor/viewer get table/page grants dynamically at generation time, no
+ * system actions.
  *
  * `roles.manage` deliberately stays super-admin-only: it authorizes GRANTING a
  * role, and an actor that can both invite a user and pick that user's role can
@@ -64,11 +64,18 @@ export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
     slug: 'admin',
     name: 'Admin',
     description: 'Manages connections, schema, and LLM assist.',
-    // `schema.ddl` is deliberately ABSENT (35-schema-authoring.md D6/D7):
+    // `schema.ddl` is deliberately ABSENT:
     // the built-in Admin manages connections and labels, and writing DDL to
     // the customer's database is a capability an operator grants on purpose,
     // not one four roles arrive holding. Super Admin has it via SYSTEM_ACTION_KEYS.
-    systemActions: ['users.manage', 'audit.read', 'connections.manage', 'schema.remap', 'llm.run'],
+    systemActions: [
+      'users.manage',
+      'audit.read',
+      'connections.manage',
+      'schema.remap',
+      'llm.run',
+      'project.read',
+    ],
   },
   {
     slug: 'editor',
@@ -126,9 +133,9 @@ export async function seedBuiltinRoles(meta: MetaDb, at: number = Date.now()): P
 }
 
 /**
- * Seed the `system.*` settings keys (§6 step 4). Only system identity keys
- * are written — behavioral settings stay unset so a fresh install resolves to
- * registry defaults (indigo / system theme / en_US) without a settings row.
+ * Seed the `system.*` settings keys. Only system identity keys are written —
+ * behavioral settings stay unset so a fresh install resolves to registry
+ * defaults (indigo / system theme / en_US) without a settings row.
  */
 export async function seedSystemSettings(meta: MetaDb, at: number = Date.now()): Promise<void> {
   const settings = settingsRepo(meta);
@@ -149,7 +156,7 @@ export interface FirstRunResult {
 /**
  * Everything a fresh database needs from a single call: apply all pending
  * migrations, seed built-in roles/permissions, seed system settings.
- * Safe to run at every boot (§6).
+ * Safe to run at every boot.
  */
 export async function firstRun(meta: MetaDb, at: number = Date.now()): Promise<FirstRunResult> {
   const { applied } = await applyMigrations(meta.db, { dialect: meta.dialect });
@@ -168,13 +175,13 @@ export interface CreateFirstSuperAdminInput {
 
 /**
  * The settings key whose ROW PRESENCE claims the one-and-only first-run
- * bootstrap (M10-T04). See the registry entry for why it exists.
+ * bootstrap. See the registry entry for why it exists.
  */
 const SUPER_ADMIN_CLAIM_KEY = 'system.superAdminCreatedAt';
 
 /**
- * Create the very first user and grant `super-admin` (§6 step 2). This is the
- * entire attack surface of a self-hosted first boot, so it is once-only by
+ * Create the very first user and grant `super-admin`. This is the entire
+ * attack surface of a self-hosted first boot, so it is once-only by
  * CONSTRUCTION rather than by a check-then-act read:
  *
  * everything runs in ONE transaction that first INSERTs the
@@ -240,11 +247,11 @@ export async function createFirstSuperAdmin(
 
 /**
  * Zero users AND an unclaimed bootstrap ⇒ setup mode: the server serves only
- * /setup/* (§6 step 1).
+ * /setup/*.
  *
  * The claim is checked as well as the user count so that bootstrap is
  * PERMANENTLY closed once it has run: deleting every user later must not
- * re-open an unauthenticated super-admin-creation endpoint (M10-T04).
+ * re-open an unauthenticated super-admin-creation endpoint.
  */
 export async function isBootstrapRequired(meta: MetaDb): Promise<boolean> {
   if ((await usersRepo(meta).count()) > 0) return false;

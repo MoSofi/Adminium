@@ -14,7 +14,7 @@
   },
   "main": "out/main/index.js",
   "//exports": [
-    "ONE public entry point, and it ships no code (11-electron.md \u00a74): 'Typed",
+    "ONE public entry point, and it ships no code: the typed",
     "contract lives in apps/desktop/src/preload/api.d.ts and is re-exported to the",
     "dashboard as @adminium/desktop/api (types only) so @adminium/dashboard compiles",
     "without Electron installed.'",
@@ -22,7 +22,7 @@
     "The `types` condition is the ONLY one, deliberately. A subpath with no runtime",
     "target cannot be imported at runtime \u2014 Node and every bundler fail the resolve",
     "with ERR_PACKAGE_PATH_NOT_EXPORTED rather than pulling an Electron app into a",
-    "browser bundle. That is the 01-architecture.md \u00a72.3 rule ('apps are not imported')",
+    "browser bundle. That is the 'apps are not imported' rule",
     "enforced by the resolver instead of by review.",
     "",
     "The root '.' is absent for the same reason: this app is not a library. Electron",
@@ -43,7 +43,7 @@
     }
   },
   "//scripts": [
-    "`build` chains the offline asset gate because 11-electron.md \u00a77 says it 'runs",
+    "`build` chains the offline asset gate because the shell must run",
     "in CI on every desktop build' \u2014 and the only way to make that literal, rather",
     "than a workflow step someone can forget to keep next to the build, is to make",
     "it part of the build. It scans out/renderer + out/dashboard, which do not",
@@ -63,11 +63,11 @@
     "dist": "electron-builder"
   },
   "//packaging": [
-    "11-T13. `dist`/`pack` are the ONLY call sites of electron-builder.yml \u2014 a",
+    "`dist`/`pack` are the ONLY call sites of electron-builder.yml \u2014 a",
     "config no script runs packages nothing. They are NOT turbo tasks: turbo's",
     "cache keys off file inputs, and a real electron-builder run downloads Electron",
     "binaries and (on mac) reads signing certs from the environment, neither of",
-    "which is a hermetic input turbo can hash. The release workflow (11-T14) drives",
+    "which is a hermetic input turbo can hash. The release workflow drives",
     "the full sequence explicitly, in order:",
     "",
     "  1. build   \u2014 electron-vite bundles out/**, generates NOTICES, offline-gate",
@@ -100,7 +100,7 @@
     "package."
   ],
   "//dependencies": [
-    "RUNTIME DEPS OF THE FORKED SERVER (11-electron.md \u00a72.1/\u00a73), not of the shell.",
+    "RUNTIME DEPS OF THE FORKED SERVER, not of the shell.",
     "electron.vite.config.ts bundles @adminium/server into out/server/index.js, but",
     "a bundler cannot inline a module reached through a COMPUTED specifier, and it",
     "must not inline a native one. Those stay runtime `import`s \u2014 resolved by Node",
@@ -129,7 +129,7 @@
     "    store is ALWAYS local SQLite (\u00a72.1), but a SOURCE db may be a reachable",
     "    Postgres/MySQL, and meta/store.ts reaches those drivers the same way.",
     "",
-    "This is a DEPLOYMENT surface, not an import edge: 01-architecture.md \u00a72.3 caps",
+    "This is a DEPLOYMENT surface, not an import edge: the layering caps",
     "what apps/desktop/src may IMPORT at @adminium/server, and .dependency-cruiser",
     "`desktop-shell-only` enforces exactly that against the source graph."
   ],
@@ -151,7 +151,7 @@
   },
   "//native-modules": [
     "NATIVE ABI: @electron/rebuild MUST NOT be wired into a `postinstall` here,",
-    "and this note is why \u2014 the instruction in 11-electron.md \u00a72.1 ('wired into",
+    "and this note is why \u2014 the requirement that the server is wired into",
     "`postinstall` for `apps/desktop` and into electron-builder's `npmRebuild`')",
     "predates the pnpm layout and its first half is not safely expressible in it.",
     "",
@@ -180,7 +180,7 @@
     "THE CONCLUSION STILL HOLDS, on weaker grounds: no `postinstall`. It would do",
     "pointless compile work on every install for everyone, for a rebuild whose",
     "output better-sqlite3 does not even load. The rebuild stays where it is, in",
-    "electron-builder's `npmRebuild: true` (11-T13), together with \u00a710's",
+    "electron-builder's `npmRebuild: true`, together with the signing",
     "`asarUnpack: ['**/*.node']` \u2014 and asarUnpack is NOT optional at any ABI: a",
     ".node inside an asar cannot be dlopen'd.",
     "",
@@ -200,16 +200,16 @@
     "literal. It is now a tidiness follow-up rather than a correctness one.",
     "",
     "THE DEV-LOOP CONSEQUENCE IS ALSO GONE. This note used to warn that until",
-    "11-T13 landed, `pnpm --filter @adminium/desktop dev` forked a utilityProcess",
+    "Before packaging landed, `pnpm --filter @adminium/desktop dev` forked a utilityProcess",
     "on Electron's bundled Node and the meta store's better-sqlite3 import threw",
     "ERR_DLOPEN_FAILED (NODE_MODULE_VERSION mismatch), surfacing as",
-    "{ type: 'error', stage: 'meta-store' } on the crash screen. 11-T13 has shipped,",
+    "{ type: 'error', stage: 'meta-store' } on the crash screen. That has shipped,",
     "and the N-API bumps removed the mismatch independently. @electron/rebuild",
     "remains declared here for the packaging path."
   ],
   "//devDependencies": [
     "@adminium/dashboard and @adminium/tokens are BUILD INPUTS, never imports",
-    "(01-architecture.md \u00a72.3 lets desktop use `dashboard build output (static",
+    "(the layering lets desktop use `dashboard build output (static",
     "files)` and bans reaching into packages' internals; .dependency-cruiser.cjs",
     "`desktop-shell-only` enforces it). The dashboard's dist/ is copied to",
     "out/dashboard/ by electron.vite.config.ts; tokens supplies the CSS the",

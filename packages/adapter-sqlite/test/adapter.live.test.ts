@@ -2,9 +2,9 @@
 /**
  * Full-adapter tests through the real better-sqlite3 driver — gated on the
  * native binding loading, so the suite skips cleanly pre-install. Covers the
- * connect/test/probe surface (read-only detection per 05 §4.3: mode, file
- * permissions, PRAGMA query_only), role guards, error mapping, registration,
- * and CRUD through the Kysely query engine with instance injection.
+ * connect/test/probe surface (read-only detection: mode, file permissions,
+ * PRAGMA query_only), role guards, error mapping, registration, and CRUD
+ * through the Kysely query engine with instance injection.
  */
 import { chmodSync, unlinkSync } from 'node:fs';
 
@@ -65,7 +65,7 @@ describe.skipIf(!driverReady)('SqliteAdapter (better-sqlite3 driver)', () => {
     // The introspect HANDLE always opens readonly (a safety measure), but
     // read-only DETECTION must reflect the connection — the file is writable
     // via the data role — not the forced open mode. Conflating the two reported
-    // every connection read-only and gated all CRUD (05 §4.3 regression).
+    // every connection read-only and gated all CRUD (regression).
     const result = await introspectAdapter.test();
     expect(result.canWrite).toBe(true);
     const probe = await introspectAdapter.probeCapabilities();
@@ -117,7 +117,7 @@ describe.skipIf(!driverReady)('SqliteAdapter (better-sqlite3 driver)', () => {
     }
   });
 
-  it('probeCapabilities() reflects the §4.3 capability flags', async () => {
+  it('probeCapabilities() reflects the capability flags', async () => {
     const probe = await introspectAdapter.probeCapabilities();
     expect(probe.capabilities).toMatchObject({
       hasEnums: false,
@@ -385,7 +385,7 @@ describe.skipIf(!driverReady)('query engine (Kysely SqliteDialect CRUD)', () => 
     }
   });
 
-  it('supports better-sqlite3 instance injection (05-T14)', async () => {
+  it('supports better-sqlite3 instance injection', async () => {
     const { Kysely, SqliteDialect } = await import('kysely');
     const { default: Database } = await import('better-sqlite3');
     const db = new Database(file);
@@ -469,7 +469,7 @@ describe.skipIf(!driverReady)('query engine (Kysely SqliteDialect CRUD)', () => 
   });
 });
 
-describe.skipIf(!driverReady)('collectTableStats (data role — 06 §4.2 statistics)', () => {
+describe.skipIf(!driverReady)('collectTableStats (data role — statistics)', () => {
   let mod: AdapterModule;
   let dir = '';
   let file = '';

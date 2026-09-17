@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure contract for the "bars & ranking" widget group (04-T09): config-schema
- * defaults + per-widget empty copy, §3 envelope narrowing, deterministic demo
- * payloads, and registry metadata (ids/sizing/contract). No rendering — this
- * runs in the node env, independent of the @adminium/charts build.
+ * Pure contract for the "bars & ranking" widget group: config-schema defaults
+ * + per-widget empty copy, envelope narrowing, deterministic demo payloads,
+ * and registry metadata (ids/sizing/contract). No rendering — this runs in
+ * the node env, independent of the @adminium/charts build.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -45,7 +45,7 @@ describe('config schemas', () => {
     for (const schema of schemas) expect(schema.safeParse({}).success).toBe(true);
   });
 
-  it('each carries per-widget empty copy (04 §4)', () => {
+  it('each carries per-widget empty copy', () => {
     for (const schema of schemas) {
       const parsed = schema.parse({});
       expect(typeof parsed.emptyState?.titleKey).toBe('string');
@@ -113,7 +113,7 @@ describe('demo payloads', () => {
     }
   });
 
-  it('match their declared §3 envelope and read as non-empty', () => {
+  it('match their declared envelope and read as non-empty', () => {
     for (const [name, generator, shape] of cases) {
       const payload = generator(7) as unknown as Record<string, unknown>;
       if (shape === 'record-list') {
@@ -168,7 +168,7 @@ describe('registry metadata', () => {
     expect(byId.get('chart-slope')?.sizing).toEqual({ minW: 4, minH: 6, defaultW: 6, defaultH: 6 });
   });
 
-  it('maps each id to its §3 data contract', () => {
+  it('maps each id to its data contract', () => {
     expect(byId.get('chart-bullet')?.dataContract).toBe('record-list');
     expect(byId.get('chart-ranking-bars')?.dataContract).toBe('categorical');
     expect(byId.get('chart-marimekko')?.dataContract).toBe('matrix');

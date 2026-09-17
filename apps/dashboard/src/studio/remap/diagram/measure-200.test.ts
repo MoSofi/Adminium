@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The 200-table measurement — 35-schema-authoring.md 35-T23, §10 criterion 20.
+ * The 200-table measurement — criterion 20.
  *
  * Not a behaviour test: it is the recorded measurement the done-when asks for,
  * kept as a test so the numbers are re-taken rather than remembered, and so a
@@ -54,7 +54,7 @@ function time(fn: () => unknown, runs = 9): number {
   return median(samples);
 }
 
-describe('a 200-table connection (35-T23)', () => {
+describe('a 200-table connection', () => {
   it('is the fixture it claims to be', () => {
     expect(model.tables).toHaveLength(200);
     expect(model.relations.length).toBeGreaterThanOrEqual(150);
@@ -103,7 +103,7 @@ describe('a 200-table connection (35-T23)', () => {
     const search = time(() => matchTables(model, 'lookup_1'));
 
     console.log(
-      `[35-T23] 200 tables / ${String(model.relations.length)} relations → ` +
+      `200 tables / ${String(model.relations.length)} relations → ` +
         `buildGraph ${build.toFixed(1)}ms · layoutGraph ${layout.toFixed(1)}ms · ` +
         `matchTables ${search.toFixed(2)}ms · ${String(graph.nodes.length)} nodes, ` +
         `${String(graph.edges.length)} edges, ${String(graph.omittedTables)} hidden`,
@@ -127,7 +127,7 @@ describe('a 200-table connection (35-T23)', () => {
     const cappedMs = time(() => layoutGraph(capped, { manual: {} }), 5);
     const uncappedMs = time(() => layoutGraph(all, { manual: {} }), 5);
     console.log(
-      `[35-T23] layout: ${String(capped.nodes.length)} nodes ${cappedMs.toFixed(1)}ms vs ` +
+      `layout: ${String(capped.nodes.length)} nodes ${cappedMs.toFixed(1)}ms vs ` +
         `${String(all.nodes.length)} nodes ${uncappedMs.toFixed(1)}ms ` +
         `(${(uncappedMs / cappedMs).toFixed(1)}× for ${(200 / capped.nodes.length).toFixed(1)}× the nodes)`,
     );

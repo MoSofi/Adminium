@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The scope document and its compiler (28-public-surface.md §3.2, 28-T03).
+ * The scope document and its compiler.
  *
  * A scope is the whole of what a publishable key may reach. It is authored by
- * the OPERATOR — not by a manifest publisher (28 D2) — because it describes
- * their production database, and because the shipped customer pages are meant
- * to be replaceable by pages that need a column the publisher never listed.
+ * the OPERATOR — not by a manifest publisher — because it describes their
+ * production database, and because the shipped customer pages are meant to be
+ * replaceable by pages that need a column the publisher never listed.
  *
  * ── WHY THIS IS A COMPILER AND NOT A VALIDATOR ─────────────────────────────
  * Every refusal below is BOOT-FATAL and happens once, at write time and at
@@ -33,17 +33,17 @@ export type PublicSide = (typeof PUBLIC_SIDES)[number];
 
 /**
  * v1 has no `delete`. A public surface that can destroy rows is a different
- * risk conversation and 28 §9 defers it explicitly — the vocabulary is closed
- * here so "just add delete" is a spec change, not a config change.
+ * risk conversation defers it explicitly — the vocabulary is closed here so
+ * "just add delete" is a spec change, not a config change.
  */
 export const PUBLIC_ACTIONS = ['read', 'create', 'update'] as const;
 export type PublicAction = (typeof PUBLIC_ACTIONS)[number];
 
 /**
- * Claim tiers (28 D11/D17). `lookup` is possession-of-a-reference and is
- * permitted only on tables the operator has NOT marked sensitive. `email-code`
- * needs SMTP. `external` is declared and unimplemented so the durable path is
- * additive rather than a rewrite.
+ * Claim tiers. `lookup` is possession-of-a-reference and is permitted only on
+ * tables the operator has NOT marked sensitive. `email-code` needs SMTP.
+ * `external` is declared and unimplemented so the durable path is additive
+ * rather than a rewrite.
  */
 export const CLAIM_STRATEGIES = ['lookup', 'email-code', 'external'] as const;
 export type ClaimStrategy = (typeof CLAIM_STRATEGIES)[number];
@@ -94,8 +94,8 @@ const mandatoryConditionSchema = z.object({
  *
  * `column` is matched against a value the CLAIM resolved (e.g. `patient_id`).
  * `via` is one hop and one hop only: `{ ref, localColumn, foreignColumn }`.
- * Two hops is a join planner with an authorization boundary inside it, and 28
- * §3.4 refuses it on purpose.
+ * Two hops is a join planner with an authorization boundary inside it,
+ * refuses it on purpose.
  */
 const claimScopeSchema = z
   .object({
@@ -127,13 +127,12 @@ const resourceSchema = z
     /**
      * Server-injected on create; a caller may not supply these.
      *
-     * A value is ordinarily a literal. Since 33-T10 it may instead be a
-     * SENTINEL — `{ "$generate": "uuid" }` or `{ "$generate": "now" }` — which
-     * the server resolves per request, per dialect. That is what makes an
-     * anonymous create possible without a writable primary key; see
-     * `generate.ts` for the whole account, including the one thing it costs
-     * (a `json` column can no longer default to an object with a `$generate`
-     * key).
+     * A value is ordinarily a literal. Since it may instead be a SENTINEL — `{
+     * "$generate": "uuid" }` or `{ "$generate": "now" }` — which the server
+     * resolves per request, per dialect. That is what makes an anonymous
+     * create possible without a writable primary key; see `generate.ts` for
+     * the whole account, including the one thing it costs (a `json` column can
+     * no longer default to an object with a `$generate` key).
      *
      * The shape is checked in `compileScope` rather than here, because zod
      * cannot see the resource's `writable` list from inside a record's value
@@ -154,9 +153,9 @@ export const publicScopeDocumentSchema = z
     version: z.literal(1),
     side: z.enum(PUBLIC_SIDES),
     /**
-     * IANA zone (28 D20). OPTIONAL since 28-T34, and an OVERRIDE rather than
-     * the home: the zone belongs to the connection, and a scope that omits it
-     * inherits from there.
+     * IANA zone. OPTIONAL since, and an OVERRIDE rather than the home: the
+     * zone belongs to the connection, and a scope that omits it inherits from
+     * there.
      *
      * Optional is not lax. `compileScope` still refuses when NEITHER source
      * yields a canonical zone, so D20's boot-fatal guarantee is unchanged — the
@@ -171,7 +170,7 @@ export const publicScopeDocumentSchema = z
      */
     timezone: z.string().min(1).max(64).optional(),
     /**
-     * ISO-4217 currency, when this scope serves money (28-T34).
+     * ISO-4217 currency, when this scope serves money.
      *
      * Same argument as `timezone`, and the audit measured the same absence: a
      * `money` column comes back as a bare decimal string — `"45.00"` — with
@@ -204,7 +203,7 @@ export const publicScopeDocumentSchema = z
       .strict()
       .optional(),
     /**
-     * May this key ASK for a document to be drawn (34 §7.6, D15)?
+     * May this key ASK for a document to be drawn?
      *
      * Default off, and off is the only safe default: a publishable key ships in
      * the page bundle by design, so with this on, anybody holding it can put
@@ -267,7 +266,7 @@ export interface CompiledScope {
   /** ISO-4217, when the scope serves money. */
   currency: string | null;
   claim: PublicScopeDocument['claim'] | null;
-  /** 34 §7.6's door, already defaulted — the request path reads one boolean. */
+  /** The door, already defaulted — the request path reads one boolean. */
   documents: { create: boolean };
   byRef: ReadonlyMap<string, CompiledResource>;
 }
@@ -348,8 +347,8 @@ export function canonicalTimeZone(tz: string): string | null {
  */
 /**
  * Tenant facts the CONNECTION carries, which a scope inherits when it does not
- * state its own (28-T34). Absent in Studio authoring, where no connection has
- * been chosen yet — which is exactly why they are optional here.
+ * state its own. Absent in Studio authoring, where no connection has been
+ * chosen yet — which is exactly why they are optional here.
  */
 export interface InheritedTenantConfig {
   timezone?: string | null;
@@ -392,7 +391,7 @@ export function compileScope(
         declaredZone === null
           ? // Naming both places matters: an operator told only "the scope has
             // no timezone" will add one to every scope instead of setting it
-            // once on the connection, which is the whole point of 28-T34.
+            // once on the connection, which is the whole point of the setting.
             'no time zone is configured. Set one on the connection, or state a ' +
             '`timezone` on this scope to override it.'
           : `"${declaredZone}" is not a canonical IANA time zone. Use a Region/City name such as ` +
@@ -415,9 +414,11 @@ export function compileScope(
      * public surface addresses the DATA connection; a ref pointed at an
      * `adminium_` table would be asking the records API to serve the meta store
      * to the internet. Refused by name rather than by permission, because a
-     * permission is something someone can grant.
+     * permission is something someone can grant. The table's own name is what
+     * counts: every meta table starts with `adminium_`, while a MySQL database
+     * named `adminium_shop` holds the operator's tables.
      */
-    if (/(^|\.)adminium_/.test(r.table)) {
+    if (/(^|\.)adminium_[^.]*$/.test(r.table)) {
       issues.push({
         code: 'SCOPE_REF_META_NAMESPACE',
         message: `ref "${r.ref}" maps into the adminium_ namespace, which is never publishable`,
@@ -634,7 +635,7 @@ export function compileScope(
   }
 
   /*
-   * 34 §7.6 — the document door is a CUSTOMER-side affordance and nothing else.
+   * The document door is a CUSTOMER-side affordance and nothing else.
    *
    * A staff-side key belongs to a person Adminium can authenticate, and the
    * staff surfaces already have `POST /api/v1/documents/render` behind a real
@@ -764,9 +765,9 @@ export function publicConfigOf(scope: CompiledScope): {
   currency: string | null;
   claim: { strategy: ClaimStrategy; ref: string; match: string[] } | null;
   /**
-   * 34 §7.6. A capability, not a rule about rows — the page needs to know
-   * whether it may offer "email me a copy" at all, and hiding that would make
-   * it discover the refusal by being refused.
+   * A capability, not a rule about rows — the page needs to know whether it
+   * may offer "email me a copy" at all, and hiding that would make it
+   * discover the refusal by being refused.
    */
   documents: { create: boolean };
   refs: Record<string, { actions: PublicAction[]; expose: string[]; filterable: string[]; searchable: string[]; orderable: string[]; writable: string[]; limit: number }>;

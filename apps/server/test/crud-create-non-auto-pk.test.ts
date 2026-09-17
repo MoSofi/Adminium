@@ -352,7 +352,7 @@ describe('insertRow compiles per dialect', () => {
 
 // --- mapDbError: mysql driver error symbols -----------------------------------
 
-describe('mapDbError maps mysql2 error codes to §1.4 envelope codes', () => {
+describe('mapDbError maps mysql2 error codes to envelope codes', () => {
   it('ER_DUP_ENTRY → 409 UNIQUE_VIOLATION', () => {
     const error = Object.assign(new Error("Duplicate entry 'E2E01' for key 'customers.PRIMARY'"), {
       code: 'ER_DUP_ENTRY',

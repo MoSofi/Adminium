@@ -69,7 +69,7 @@ describe('schema tree', () => {
   });
 });
 
-describe('capability notes (M9-T04)', () => {
+describe('capability notes', () => {
   it('shows the per-engine degradation notes for a sqlite source', async () => {
     const model = makeModel();
     model.dialect = 'sqlite';

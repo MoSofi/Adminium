@@ -191,12 +191,12 @@ describe('ForgotPasswordForm', () => {
   });
 
   /**
-   * `disabled` is 11-electron.md §8.2's email row: the instance has no relay, so
-   * there is no mail to wait for. It must not merely stop the click — a form
-   * still submits on Enter, and a "reset link sent" that was never sent is the
-   * whole failure the flag exists to prevent.
+   * `disabled` is email row: the instance has no relay, so there is no mail to
+   * wait for. It must not merely stop the click — a form still submits on Enter,
+   * and a "reset link sent" that was never sent is the whole failure the flag
+   * exists to prevent.
    */
-  describe('disabled (no SMTP relay, §8.2)', () => {
+  describe('disabled (no SMTP relay)', () => {
     it('never calls onSubmit, by button or by Enter', async () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();

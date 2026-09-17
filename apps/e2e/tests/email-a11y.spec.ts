@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The email surfaces under axe (39-email-templates-and-campaigns.md 39-T18):
- * the manager in gallery and list, grouped by topic, its actions menu, the
- * New / Import / Delete modals and archived mode; the editor with every block
- * kind, the inspector's Design panels, the block picker, the image picker, the
- * test-send and Send-campaign modals, the language menu, the mirror modal and
- * the discard-changes modal — each in light and dark, LTR (en_US) and RTL
- * (ar_EG). Zero serious/critical violations is the gate; the lesser counts
- * are annotated per state so a regression in them is visible in the report.
+ * The email surfaces under axe: the manager in gallery and list, grouped by
+ * topic, its actions menu, the New / Import / Delete modals and archived mode;
+ * the editor with every block kind, the inspector's Design panels, the block
+ * picker, the image picker, the test-send and Send-campaign modals, the
+ * language menu, the mirror modal and the discard-changes modal — each in
+ * light and dark, LTR (en_US) and RTL (ar_EG). Zero serious/critical
+ * violations is the gate; the lesser counts are annotated per state so a
+ * regression in them is visible in the report.
  *
  * Theme and locale are the signed-in user's own prefs (`PATCH /api/v1/me/prefs`,
  * applied on reload) and are restored to "inherit" afterwards, because the
@@ -19,8 +19,8 @@
  * axe's `aria-hidden-focus` rule reads the trapped-out background — the search
  * box, the tabs — as "hidden but focusable" and fails every overlay of every
  * Radix surface in the product. That is a primitive-versus-rule conflict
- * (`inert` on the app root would settle it) and is recorded in 39 §6.1, not
- * masked here: the page-level states still run over the whole document.
+ * (`inert` on the app root would settle it) and is recorded, not masked here:
+ * the page-level states still run over the whole document.
  */
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
@@ -143,7 +143,7 @@ async function removeScratch(page: Page, scratch: Scratch): Promise<void> {
   }
 }
 
-test.describe('email surfaces under axe (39-T18)', () => {
+test.describe('email surfaces under axe', () => {
   test.describe.configure({ mode: 'serial' });
   let scratch: Scratch | null = null;
 

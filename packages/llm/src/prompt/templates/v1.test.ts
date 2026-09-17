@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * PROMPT_V1 verbatim pin (06-llm-assist.md §5, acceptance criterion 2).
+ * PROMPT_V1 verbatim pin (acceptance criterion 2).
  *
  * The system + user templates are a SHIP-VERBATIM artifact. This test pins them
  * with a SHA-256 that also folds in {@link PROMPT_VERSION}: editing the template
@@ -31,7 +31,7 @@ function promptDigest(): string {
     .digest('hex');
 }
 
-describe('PROMPT_V1 — verbatim pin (§5)', () => {
+describe('PROMPT_V1 — verbatim pin', () => {
   it('pins the exact system + user template text against PROMPT_VERSION', () => {
     // If this fails, the ship-verbatim prompt text (or PROMPT_VERSION) changed.
     // Update the digest ONLY together with a PROMPT_VERSION bump (criterion 2).
@@ -126,7 +126,7 @@ describe('PROMPT_V1 — verbatim pin (§5)', () => {
     });
   });
 
-  it('the merge template (§4.5) exposes its three tokens', () => {
+  it('the merge template exposes its three tokens', () => {
     for (const token of [
       '{{TOTAL}}',
       '{{ALL_TABLE_NAMES_JSON}}',

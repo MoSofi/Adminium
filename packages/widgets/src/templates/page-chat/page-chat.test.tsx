@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * page-chat template tests (09 §7.9): projects a conversation+message pair
- * onto the inbox + thread panes (email→name derivation, FK-scoped thread),
- * routes selection to the host and re-scopes the fallback thread, appends an
+ * page-chat template tests: projects a conversation+message pair onto the
+ * inbox + thread panes (email→name derivation, FK-scoped thread), routes
+ * selection to the host and re-scopes the fallback thread, appends an
  * optimistic echo on send (rolled back on a rejected insert), honors a
  * host-fed messagesState, and degrades on loading/error/invalid layouts.
  */
@@ -45,7 +45,7 @@ function statesFor() {
 }
 
 describe('chat-mapping', () => {
-  it('derives display names from emails (09 §7.9)', () => {
+  it('derives display names from emails', () => {
     expect(displayNameOf('morgan.lee@acme.dev')).toBe('Morgan Lee');
     expect(displayNameOf('sam_park@x.io')).toBe('Sam Park');
     expect(displayNameOf('Design Team')).toBe('Design Team');
@@ -108,7 +108,7 @@ describe('chat-mapping', () => {
 
     it('keeps a visitor on the visitor side even when they type a staff address', () => {
       /*
-       * 33 §10 criterion 6, and the reason the kind outranks the name at all.
+       * The criterion, and the reason the kind outranks the name at all.
        * `author` is writable by an anonymous visitor through the public
        * surface; `sender_kind` is stamped server-side and is not. Without this
        * ordering, typing a support agent's address into the name field would

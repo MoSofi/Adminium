@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CREATE RECORD and UPDATE FIELD (42-automations-and-workflow-logs.md D17,
- * 42-T10) — the owner's "create a row in the beneficiaries table" and "mark
- * it as a no-show".
+ * CREATE RECORD and UPDATE FIELD — the owner's "create a row in the
+ * beneficiaries table" and "mark it as a no-show".
  *
  * --- Through the CRUD layer, never around it ------------------------------
  *
  * The temptation is an INSERT: the runner already holds a Kysely handle. What
  * that would skip is every rule the product's own write path enforces —
  * identifier resolution against the snapshot, the system-table guard, write
- * coercion, the audit row, and the fan-out that lets ANOTHER rule react. So
- * these go through the same helpers `routes/data` uses, and end in
- * `afterRecordWrite` with `origin: 'automation'` and `hops + 1`, which is
- * what makes the loop guard (§3.3) able to see them at all.
+ * coercion, the project's hooks, the audit row, and the fan-out that lets
+ * ANOTHER rule react. So these go through the write service
+ * (`crud/write-service.ts`), and end in `afterRecordWrite` with
+ * `origin: 'automation'` and `hops + 1`, which is what makes the loop guard
+ * able to see them at all.
  *
  * --- `{ now: true }` is a marker, not a timestamp -------------------------
  *
@@ -25,9 +25,8 @@
  *
  * --- A rule's writes are not undoable -------------------------------------
  *
- * By spec (08 §2.7.3 item 6). Nobody holds a token for them and none is
- * issued: an undo token belongs to the person who made a change, and nobody
- * made this one.
+ * By spec. Nobody holds a token for them and none is issued: an undo token
+ * belongs to the person who made a change, and nobody made this one.
  */
 
 import type { Kysely } from 'kysely';
@@ -37,9 +36,16 @@ import type { SourceDatabase } from '../../connections/manager.js';
 import { afterRecordWrite } from '../../crud/after-record-write.js';
 import type { ResolvedTable } from '../../crud/identifiers.js';
 import { maskRow, type Row } from '../../crud/mask.js';
-import { fetchByPk, pkLabel } from '../../crud/records.js';
+import { pkLabel } from '../../crud/records.js';
+import {
+  HookFailedError,
+  HookRejectedError,
+  createWriteService,
+  type RecordWriteService,
+  type WriteContext,
+  type WriteTarget,
+} from '../../crud/write-service.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
-import { insertRow } from '../../routes/data/index.js';
 import { substitute } from '../templating.js';
 import { pairsOf } from '../trace.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
@@ -84,7 +90,7 @@ export function resolveValues(
     if (resolved.secret || resolved.masked) {
       // A rule may not write into a column the product hides from the person
       // who wrote the rule — they could not have seen what they were
-      // overwriting (§5.3's asymmetry, kept on the write side).
+      // overwriting (asymmetry, kept on the write side).
       throw new ActionFailure(`${column} is a protected column and cannot be written by a rule.`);
     }
     out[column] =
@@ -93,6 +99,37 @@ export function resolveValues(
         : nowValueFor(table, column, ctx.now);
   }
   return out;
+}
+
+/** The service a run writes through; one without hooks in unit tests of one step. */
+const NO_HOOK_WRITES = createWriteService();
+
+function writesOf(ctx: ActionContext): RecordWriteService {
+  return ctx.writes ?? NO_HOOK_WRITES;
+}
+
+/** A rule's write is one hop deeper than the event that started the run. */
+function writeContext(ctx: ActionContext): WriteContext {
+  return {
+    origin: 'automation',
+    hops: ctx.hops + 1,
+    actor: { kind: 'automation', id: ctx.rule.id, label: ctx.rule.name },
+    request: null,
+  };
+}
+
+/** A failed statement, or a hook's refusal, is this step's failure. */
+function failStep(error: unknown): never {
+  throw new ActionFailure(error instanceof Error ? error.message : String(error));
+}
+
+async function asStep<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (error instanceof HookRejectedError || error instanceof HookFailedError) failStep(error);
+    throw error;
+  }
 }
 
 function sourceOf(ctx: ActionContext) {
@@ -121,22 +158,23 @@ export async function runCreateAction(
   const source = sourceOf(ctx);
   const table = createTargetOf(action, ctx);
   const values = resolveValues(action.values, table, ctx);
-
-  let inserted: Row;
-  try {
-    inserted = await insertRow(source.db, source.dialect, table, values);
-  } catch (error) {
-    throw new ActionFailure(error instanceof Error ? error.message : String(error));
-  }
-  const pk = Object.fromEntries(table.primaryKey.map((c) => [c, inserted[c]]));
-  const entity: RecordRef = {
-    connectionId: source.connectionId,
-    table: table.id,
-    pk,
-    label: pkLabel(table, pk),
+  const target: WriteTarget = { ...source, table };
+  const entityOf = (inserted: Row): RecordRef => {
+    const pk = Object.fromEntries(table.primaryKey.map((c) => [c, inserted[c]]));
+    return { connectionId: source.connectionId, table: table.id, pk, label: pkLabel(table, pk) };
   };
-  await announce(ctx, { table, action: 'create', entity, before: null, after: inserted });
-  return { log: ctx.text.createOk(entity.label) };
+
+  const inserted = await asStep(() =>
+    writesOf(ctx).create({
+      target,
+      values,
+      context: writeContext(ctx),
+      mapError: failStep,
+      announce: (row) =>
+        announce(ctx, { table, action: 'create', entity: entityOf(row), before: null, after: row }),
+    }),
+  );
+  return { log: ctx.text.createOk(entityOf(inserted).label) };
 }
 
 export function dryRunCreateAction(action: CreateAction, ctx: ActionContext): ActionResult {
@@ -156,27 +194,30 @@ export async function runUpdateAction(
   if (Object.keys(values).length === 0) throw new ActionFailure('This step sets no values.');
 
   const before = source.row;
-  try {
-    let query = source.db.updateTable(source.table.id).set(values as never);
-    for (const [column, value] of Object.entries(source.record.pk)) {
-      query = query.where((eb) => eb(source.db.dynamic.ref(column), '=', value as never));
-    }
-    await query.execute();
-  } catch (error) {
-    throw new ActionFailure(error instanceof Error ? error.message : String(error));
-  }
-  const after = (await fetchByPk(source.db, source.table, source.record.pk as Row)) ?? before;
-  // The run's own view of the record moves with the write, so a condition
-  // AFTER this step sees what this step did — which is exactly what C.3's
-  // `gt 1` count depends on.
-  source.row = after;
-  await announce(ctx, {
-    table: source.table,
-    action: 'update',
-    entity: source.record,
-    before,
-    after,
-  });
+  await asStep(() =>
+    writesOf(ctx).update({
+      target: source,
+      pk: source.record.pk as Row,
+      values,
+      before,
+      context: writeContext(ctx),
+      mapError: failStep,
+      announce: async (outcome) => {
+        const after = outcome.after ?? before;
+        // The run's own view of the record moves with the write, so a
+        // condition AFTER this step sees what this step did — which is exactly
+        // what C.3's `gt 1` count depends on.
+        source.row = after;
+        await announce(ctx, {
+          table: source.table,
+          action: 'update',
+          entity: source.record,
+          before,
+          after,
+        });
+      },
+    }),
+  );
   return { log: ctx.text.updateOk(pairsOf(maskRow(values, source.table, false))) };
 }
 
@@ -214,7 +255,7 @@ async function announce(
     origin: 'automation',
     ruleId: ctx.rule.id,
     // One deeper than the event that started this run — the loop guard's
-    // whole arithmetic (§3.3).
+    // whole arithmetic.
     hops: ctx.hops + 1,
     occurredAt: ctx.now,
   });

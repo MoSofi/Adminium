@@ -5,13 +5,13 @@ import { z } from 'zod';
 import type { DataShape } from '../page-config/index.js';
 
 /**
- * Widget registry core types — 04-widget-registry.md §2.1, verbatim.
- * A widget is one React component + one Zod config schema + one data-contract
- * declaration + default grid sizing, registered exactly once in a typed map.
- * Visual variants are config, never new registry ids.
+ * Widget registry core types, verbatim. A widget is one React component + one
+ * Zod config schema + one data-contract declaration + default grid sizing,
+ * registered exactly once in a typed map. Visual variants are config, never
+ * new registry ids.
  */
 
-/** The thirteen widget families (04 §2.4). */
+/** The thirteen widget families. */
 export type WidgetFamily =
   | 'kpi'
   | 'charts'
@@ -45,19 +45,19 @@ export const WIDGET_FAMILIES = [
 
 export interface WidgetSizing {
   minW: number; // 12-col grid units
-  minH: number; // half-row units (04 §6.1 — 40px half-units, annex 1.5 rows → 3)
+  minH: number; // half-row units (40px half-units, annex 1.5 rows → 3)
   defaultW: number;
   defaultH: number;
 }
 
-/** WidgetFrame loading silhouette variants (04 §2.1 / §4). */
+/** WidgetFrame loading silhouette variants. */
 export type WidgetSkeleton = 'card' | 'chart' | 'table' | 'list' | 'block';
 
-/** Grid placement class (04 §2.1). */
+/** Grid placement class. */
 export type WidgetPlacement = 'grid' | 'inline' | 'overlay' | 'page';
 
 export interface WidgetCapabilities {
-  exportPng?: boolean; // chart raster export (04 §7.6)
+  exportPng?: boolean; // chart raster export
   exportCsv?: boolean; // record-list/table export
   realtime?: boolean; // accepts `stream` bindings over WS
   editsData?: boolean; // performs INSERT/UPDATE/DELETE (kanban drop, inline edit…)
@@ -68,7 +68,7 @@ export interface WidgetDefinition<S extends z.ZodType = z.ZodType> {
   family: WidgetFamily;
   component: LazyExoticComponent<ComponentType<WidgetProps<z.infer<S>>>>;
   configSchema: S; // always .extend() of widgetSharedConfigSchema
-  dataContract: DataShape | DataShape[]; // shapes this widget accepts (04 §3)
+  dataContract: DataShape | DataShape[]; // shapes this widget accepts
   sizing: WidgetSizing;
   placement: WidgetPlacement;
   // inline  = never grid-placed (chart-sparkline, status-pill, unread-badge)
@@ -76,13 +76,13 @@ export interface WidgetDefinition<S extends z.ZodType = z.ZodType> {
   // page    = fills the page body (kanban-board, file-browser, state-hero)
   skeleton: WidgetSkeleton; // WidgetFrame loading silhouette
   capabilities?: WidgetCapabilities;
-  demoData: (seed: number) => unknown; // deterministic payload matching dataContract (04 §7.7)
+  demoData: (seed: number) => unknown; // deterministic payload matching dataContract
   descriptionKey: string; // i18n key, shown in builder palette + info tooltip
 }
 
 export interface WidgetProps<C> {
   config: C;
-  data: unknown; // narrowed by shape guards from 04 §3
+  data: unknown; // narrowed by shape guards from the data contract
   instanceId: string;
   // drill-through, cross-widget links, mutations. A host MAY return a promise
   // for `mutate` events (resolves on commit, rejects on failure) so optimistic
@@ -107,7 +107,7 @@ export type WidgetEvent =
       recordId: string | number;
       /**
        * Instance id of a sibling widget this selection pairs with — the host
-       * MAY focus/scroll it to the same record (annex §7 `map-bubble.linkedList`
+       * MAY focus/scroll it to the same record (annex `map-bubble.linkedList`
        * names a `ranked-entity-list`). Widgets never talk to each other, so the
        * pairing rides on the event and the host decides what to do with it;
        * absent → an unpaired open, which every existing host already handles.

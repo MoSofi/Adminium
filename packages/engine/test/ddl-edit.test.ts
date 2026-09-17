@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `SchemaEdit` vocabulary + validator — 35-schema-authoring.md 35-T02, 35-T32.
+ * `SchemaEdit` vocabulary + validator.
  *
- * The six named cases in 35-T02's done-when are the `describe('the six refusals
- * 35-T02 names')` block below; the reserved-word cases are 35-T32's.
+ * The six named cases done-when are the `describe('the six refusals names')`
+ * block below; the reserved-word cases are.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -129,7 +129,7 @@ describe('the authorable vocabulary (D30)', () => {
   });
 });
 
-describe('the six refusals 35-T02 names', () => {
+describe('the six refusals names', () => {
   it('1. refuses an adminium_ name when the meta store shares the database', () => {
     const issues = validateSchemaEdit(
       edit({ upsertTables: [table({ name: 'adminium_x' })] }),
@@ -217,7 +217,7 @@ describe('the six refusals 35-T02 names', () => {
   });
 });
 
-describe('reserved words (35-T32)', () => {
+describe('reserved words', () => {
   it('rejects select, order and user on postgres', () => {
     for (const word of ['select', 'order', 'user']) {
       const issues = validateSchemaEdit(edit({ upsertTables: [table({ name: word })] }), ctx());

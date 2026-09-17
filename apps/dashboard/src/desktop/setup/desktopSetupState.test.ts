@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The first-run wizard's pure rules (11-electron.md §6, task 11-T07). Four of
- * them are worth a test each because they decide something the user cannot
- * undo, or cannot see:
+ * The first-run wizard's pure rules. Four of them are worth a test each
+ * because they decide something the user cannot undo, or cannot see:
  *
  *  - `slugPreview` MIRRORS the server's `slugFor`. The preview it draws is the
  *    filename the server will create, so a drift is a screen that lies.
@@ -67,7 +66,7 @@ describe('slugPreview', () => {
 });
 
 describe('desktopSetupStepLabel', () => {
-  it('names every step §6 orders, with no id falling through', () => {
+  it('names every step orders, with no id falling through', () => {
     expect(DESKTOP_SETUP_STEP_IDS.map(desktopSetupStepLabel)).toEqual([
       'Welcome',
       'Your first database',

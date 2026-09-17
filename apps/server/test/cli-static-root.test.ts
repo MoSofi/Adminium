@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard-build resolution + the published-package wiring (01 §4.1: the
- * `adminium` package "bundles the server, the dashboard `dist/`, and the meta
- * migrations — one `npx adminium` is a complete install").
+ * Dashboard-build resolution + the published-package wiring (the `adminium`
+ * package "bundles the server, the dashboard `dist/`, and the meta migrations
+ * — one `npx adminium` is a complete install").
  *
  * The resolver's contract is an ORDER, so that is what is asserted — checking
  * "did it find a build" would only test whichever tree the suite happens to run
@@ -100,7 +100,7 @@ describe('resolveStaticRoot', () => {
   });
 });
 
-describe('package.json — the published `adminium` package (01 §4.1)', () => {
+describe('package.json — the published `adminium` package', () => {
   it('exposes the `adminium` bin pointing at the compiled CLI entry', async () => {
     const pkg = JSON.parse(await readFile(join(serverRoot, 'package.json'), 'utf8')) as {
       bin: Record<string, string>;
@@ -121,7 +121,7 @@ describe('package.json — the published `adminium` package (01 §4.1)', () => {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
     };
-    // §3.1 OD-1 makes embedded SQLite the default for a bare `adminium start`,
+    // Embedded SQLite is the default for a bare `adminium start`,
     // so the driver cannot be a devDependency of the published package.
     expect(pkg.dependencies['better-sqlite3']).toBeDefined();
     expect(pkg.devDependencies['better-sqlite3']).toBeUndefined();

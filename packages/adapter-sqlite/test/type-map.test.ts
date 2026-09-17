@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests — declared type → affinity → LogicalType mapping
- * (05 §2.2 SQLite column + §4.3 quirks), default classification, CHECK
- * scanning/enum synthesis, file-path normalization, identifier quoting, and
- * the type-serialization policy. No database, no drivers.
+ * (SQLite column + quirks), default classification, CHECK scanning/enum
+ * synthesis, file-path normalization, identifier quoting, and the
+ * type-serialization policy. No database, no drivers.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -49,7 +49,7 @@ describe('sqliteAffinity — the five-rule algorithm', () => {
   });
 });
 
-describe('mapSqliteType — the §2.2 SQLite column (declared → affinity)', () => {
+describe('mapSqliteType — the SQLite column (declared → affinity)', () => {
   it.each([
     ['TEXT', 'text'],
     ['CLOB', 'text'],
@@ -67,7 +67,7 @@ describe('mapSqliteType — the §2.2 SQLite column (declared → affinity)', ()
     ['DOUBLE', 'float'],
     ['FLOAT', 'float'],
     ['BLOB', 'binary'],
-    // declared-name hints over NUMERIC/TEXT/INTEGER affinity — 05 §2.2
+    // declared-name hints over NUMERIC/TEXT/INTEGER affinity
     ['BOOLEAN', 'boolean'],
     ['BOOL', 'boolean'],
     ['DATETIME', 'timestamp'],
@@ -136,7 +136,7 @@ describe('classifyDefault — pragma dflt_value text', () => {
   });
 });
 
-describe('scanCheckConstraints + parseCheckEnum — DDL CHECK synthesis (05 §4.3)', () => {
+describe('scanCheckConstraints + parseCheckEnum — DDL CHECK synthesis', () => {
   const DDL = `CREATE TABLE tickets (
     id INTEGER PRIMARY KEY,
     status TEXT NOT NULL DEFAULT 'open'
@@ -174,7 +174,7 @@ describe('scanCheckConstraints + parseCheckEnum — DDL CHECK synthesis (05 §4.
   });
 });
 
-describe('normalizeSqliteFile — the accepted DSN spellings (05 §4.3)', () => {
+describe('normalizeSqliteFile — the accepted DSN spellings', () => {
   it.each([
     [{ file: '/abs/path/app.db' }, '/abs/path/app.db'],
     [{ file: ':memory:' }, ':memory:'],
@@ -199,7 +199,7 @@ describe('normalizeSqliteFile — the accepted DSN spellings (05 §4.3)', () => 
   });
 });
 
-describe('exactCountsSql — the §4.3 small-file COUNT exception', () => {
+describe('exactCountsSql — the small-file COUNT exception', () => {
   it('counts every table in one UNION ALL statement, quoted', () => {
     const sql = exactCountsSql(['orders', 'order details']);
     expect(sql).toContain('SELECT \'orders\' AS table_name, count(*) AS n FROM "orders"');

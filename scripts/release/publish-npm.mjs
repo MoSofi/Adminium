@@ -17,6 +17,23 @@
  * The flagship CLI (@adminium/server, bin `adminium`) publishes as
  * `@<scope>/adminium` — the unscoped name `adminium` is also taken.
  *
+ * ONE PACKAGE FOR THE CLI
+ * Only four workspaces publish: the flagship, and the three packages other
+ * repos install on their own (public-client, manifest, add-on-contracts).
+ * Everything else is `private`. The flagship carries the internal packages it
+ * loads inside its own tarball, as `node_modules/@adminium/<name>/`:
+ *   - they are listed in `bundleDependencies`, and each is also a dependency,
+ *     spelled as the same alias as before. npm only packs a bundled package
+ *     that a dependency points at, and never fetches one from the registry. A
+ *     package manager that ignored the bundle would ask for `@adminiumjs/*`,
+ *     never for a name in the third party's `@adminium` scope;
+ *   - their copies have no dependency lists. npm would otherwise install what
+ *     they declare, and `@adminium/widgets` declares React for the dashboard;
+ *   - the flagship declares the third-party packages they load instead, from
+ *     scripts/release/server-runtime-deps.json (traced from the built code;
+ *     this script refuses to run while that file is stale).
+ * Which packages get bundled comes from that same file.
+ *
  * WHY THIS SCRIPT DOES SO MUCH MANIFEST SURGERY
  * This drives `npm`, not `pnpm`, because only npm understands the alias
  * rewrite above. npm has no idea what pnpm's `workspace:` and `catalog:`
@@ -69,9 +86,27 @@ const SCOPE = process.env.NPM_SCOPE ?? 'adminiumjs';
 const DRY_RUN = process.argv.includes('--dry-run');
 const OUT_DIR = join(ROOT, 'scripts/release/out');
 const PACK_TMP = join(OUT_DIR, '.pack-tmp');
+/** The bundled packages' own tarballs, before they go inside the flagship's. */
+const BUNDLED_TMP = join(OUT_DIR, '.bundled');
+/** Where the flagship is assembled with its bundled packages, then packed. */
+const STAGE_DIR = join(OUT_DIR, '.stage');
+/** The flagship's intermediate and final tarballs, before validation. */
+const FLAGSHIP_TMP = join(OUT_DIR, '.flagship');
+/** Any other package's tarball, until it passes validation. */
+const VALIDATE_TMP = join(OUT_DIR, '.validate');
+/** Scratch folders this run creates under OUT_DIR, all removed at the end. */
+const SCRATCH_DIRS = [PACK_TMP, BUNDLED_TMP, STAGE_DIR, FLAGSHIP_TMP, VALIDATE_TMP];
 const ROOT_LICENSE = join(ROOT, 'LICENSE');
+const RUNTIME_DEPS_FILE = join(ROOT, 'scripts/release/server-runtime-deps.json');
+const FLAGSHIP = '@adminium/server';
 
-/** Workspace dirs that may publish (apps/server is the CLI flagship). */
+/**
+ * Dashboard-only libraries. None of them may reach the flagship's dependency
+ * lists: the server never loads them, and the dashboard ships pre-built.
+ */
+const BROWSER_ONLY = [/^react$/, /^react-dom$/, /^lucide-react$/, /^leaflet$/, /^@radix-ui\//, /^@dnd-kit\//, /^@tanstack\//, /^d3-/];
+
+/** Workspace dirs holding `@adminium/*` packages (apps/server is the CLI flagship). */
 const WORKSPACE_GLOBS = ['packages', 'apps'];
 
 /** Dependency fields whose ranges a consumer's installer has to resolve. */
@@ -179,15 +214,21 @@ function resolveCatalogRange({ range, dep, field, pkgName, catalogs }) {
  * ------------------------------------------------------------------ */
 
 /**
- * Every workspace's pristine package.json text, keyed by path. Captured once,
- * at discovery, and used both as the restore source and as the end-of-run
- * integrity reference.
+ * The pristine package.json text of every workspace this run rewrites, keyed
+ * by path. Read once, at discovery, and used both as the restore source and as
+ * the end-of-run integrity reference.
  * @type {Map<string,string>}
  */
 const originals = new Map();
 
+/** Remember `w`'s manifest as it was at discovery: this run rewrites it. */
+function track(w) {
+  originals.set(w.pkgPath, w.text);
+}
+
+/** Every `@adminium/*` workspace, published or private, keyed by name. */
 function loadWorkspaces() {
-  const found = [];
+  const found = new Map();
   for (const group of WORKSPACE_GLOBS) {
     const dirs = readdirSync(join(ROOT, group), { withFileTypes: true })
       .filter((e) => e.isDirectory())
@@ -222,9 +263,8 @@ function loadWorkspaces() {
             `Restore it (git checkout -- ${pkgPath}) and delete any stray LICENSE beside it, then re-run.`,
         );
       }
-      if (pkg.private === true || !pkg.name?.startsWith('@adminium/')) continue;
-      originals.set(pkgPath, text);
-      found.push({ dir: join(ROOT, group, dir), pkgPath, pkg });
+      if (!pkg.name?.startsWith('@adminium/')) continue;
+      found.set(pkg.name, { dir: join(ROOT, group, dir), pkgPath, pkg, text });
     }
   }
   return found;
@@ -286,6 +326,114 @@ function rewriteForPublish(pkg, catalogs) {
   // leaves consumers with commands that cannot run and npm with lifecycle
   // hooks pointing at absent files.
   delete out.scripts;
+  return out;
+}
+
+const sortKeys = (record) => Object.fromEntries(Object.entries(record).sort(([a], [b]) => a.localeCompare(b, 'en')));
+
+/**
+ * A package that travels inside the flagship: its published manifest with
+ * every dependency list removed. npm installs what a bundled package declares,
+ * and the flagship declares what these packages load (rewriteFlagship).
+ */
+function rewriteForBundle(pkg, catalogs) {
+  const out = rewriteForPublish(pkg, catalogs);
+  for (const field of [...DEP_FIELDS, 'peerDependenciesMeta', 'bundleDependencies', 'bundledDependencies']) {
+    delete out[field];
+  }
+  return out;
+}
+
+/** Throws if a dashboard-only library made it into a dependency list. */
+function assertNoBrowserLibraries(manifest, where) {
+  const found = DEP_FIELDS.flatMap((field) =>
+    Object.keys(manifest[field] ?? {})
+      .filter((dep) => BROWSER_ONLY.some((pattern) => pattern.test(dep)))
+      .map((dep) => `${field}.${dep}`),
+  );
+  if (found.length) {
+    throw new Error(
+      `${where}: dashboard-only libraries in the dependencies (the server never loads them):\n` +
+        found.map((f) => `    ${f}`).join('\n'),
+    );
+  }
+}
+
+/**
+ * The flagship's published manifest: its own dependencies, one alias per
+ * bundled package, and the third-party packages the bundled code loads.
+ *
+ * @param {{ pkg: any }} server
+ * @param {string[]} bundled  source names, from server-runtime-deps.json
+ * @param {string[]} fromBundled  third-party names, from the same file
+ * @param {Map<string, { pkg: any }>} workspaces
+ */
+function rewriteFlagship(server, bundled, fromBundled, workspaces, catalogs) {
+  const out = rewriteForPublish(server.pkg, catalogs);
+  const version = server.pkg.version;
+
+  const internal = DEP_FIELDS.flatMap((field) =>
+    Object.keys(server.pkg[field] ?? {})
+      .filter((dep) => dep.startsWith('@adminium/'))
+      .map((dep) => ({ field, dep })),
+  );
+  const wrong = internal.filter(({ field, dep }) => field !== 'dependencies' || !bundled.includes(dep));
+  if (wrong.length) {
+    throw new Error(
+      `${server.pkg.name} declares internal packages the flagship cannot carry:\n` +
+        wrong.map(({ field, dep }) => `    ${field}.${dep}`).join('\n') +
+        '\nEvery internal dependency must be a plain dependency listed as `bundled` in ' +
+        'server-runtime-deps.json. If the trace does not reach it, the server never loads it.',
+    );
+  }
+
+  // npm packs a bundled package only when a dependency edge points at it, so
+  // every bundled package is a dependency, spelled as the alias it always was.
+  out.dependencies ??= {};
+  for (const name of bundled) out.dependencies[name] = `npm:${mappedName(name)}@${version}`;
+
+  // What the bundled code loads. Every declarer must agree on the range. Where
+  // the server declares the package itself, its choice of field stands: pg and
+  // mysql2 are optional on purpose (a `--no-optional` install is SQLite-only,
+  // and a missing adapter is reported, not fatal), even though the adapters
+  // declare them as hard dependencies. Otherwise a package any bundled declarer
+  // requires is a hard dependency.
+  const declarers = [server, ...bundled.map((name) => workspaces.get(name))];
+  for (const dep of fromBundled) {
+    const declarations = declarers.flatMap((w) =>
+      ['dependencies', 'optionalDependencies']
+        .filter((field) => w.pkg[field]?.[dep] !== undefined)
+        .map((field) => ({
+          owner: w.pkg.name,
+          field,
+          range: resolveCatalogRange({ range: w.pkg[field][dep], dep, field, pkgName: w.pkg.name, catalogs }),
+        })),
+    );
+    if (!declarations.length) {
+      throw new Error(`server-runtime-deps.json lists ${dep}, but nothing it bundles declares it — re-run its --write`);
+    }
+    const ranges = new Set(declarations.map((d) => d.range));
+    if (ranges.size > 1) {
+      throw new Error(
+        `${dep} is declared with different ranges; align them before publishing:\n` +
+          declarations.map((d) => `    ${d.owner} ${d.field}.${dep} = "${d.range}"`).join('\n'),
+      );
+    }
+    const [range] = ranges;
+    const serverField = declarations.find((d) => d.owner === server.pkg.name)?.field;
+    const field =
+      serverField ?? (declarations.some((d) => d.field === 'dependencies') ? 'dependencies' : 'optionalDependencies');
+    out[field] ??= {};
+    out[field][dep] = range;
+  }
+
+  out.dependencies = sortKeys(out.dependencies);
+  if (out.optionalDependencies) {
+    if (Object.keys(out.optionalDependencies).length) out.optionalDependencies = sortKeys(out.optionalDependencies);
+    else delete out.optionalDependencies;
+  }
+  out.bundleDependencies = [...bundled].sort();
+  assertNoBrowserLibraries(out, `${out.name} (staged manifest)`);
   return out;
 }
 
@@ -386,7 +534,7 @@ function validateTarball(tarball, expectedName, version) {
 
   if (!entries.includes('package/LICENSE')) {
     throw new Error(
-      `${label}: no package/LICENSE — the manifest declares "${manifest.license}" and AGPL §4 ` +
+      `${label}: no package/LICENSE — the manifest declares "${manifest.license}" and AGPL section 4 ` +
         `requires the licence text to travel with every copy`,
     );
   }
@@ -421,6 +569,58 @@ function validateTarball(tarball, expectedName, version) {
     );
   }
   return entries.length;
+}
+
+/**
+ * The flagship's extra X-ray: exactly the bundled packages are inside, each
+ * with no dependency list of its own, and nothing else sits in node_modules.
+ */
+function validateBundledFlagship(tarball, bundled, version) {
+  const entries = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    .split('\n')
+    .map((e) => e.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+  const read = (path) =>
+    JSON.parse(execFileSync('tar', ['-xzOf', tarball, path], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }));
+  const label = `${mappedName(FLAGSHIP)}@${version} (${basename(tarball)})`;
+  const manifest = read('package/package.json');
+
+  const listed = [...(manifest.bundleDependencies ?? [])].sort();
+  if (JSON.stringify(listed) !== JSON.stringify([...bundled].sort())) {
+    throw new Error(`${label}: bundleDependencies is [${listed.join(', ')}], expected [${[...bundled].sort().join(', ')}]`);
+  }
+  const problems = [];
+  for (const name of bundled) {
+    const expected = `npm:${mappedName(name)}@${version}`;
+    if (manifest.dependencies?.[name] !== expected) {
+      problems.push(`dependencies.${name} is "${manifest.dependencies?.[name]}", expected "${expected}"`);
+    }
+    const inner = `package/node_modules/${name}/package.json`;
+    if (!entries.includes(inner)) {
+      problems.push(`${name} is not inside the tarball`);
+      continue;
+    }
+    const pkg = read(inner);
+    if (pkg.name !== mappedName(name) || pkg.version !== version) {
+      problems.push(`${inner} is ${pkg.name}@${pkg.version}, expected ${mappedName(name)}@${version}`);
+    }
+    const lists = [...DEP_FIELDS, 'bundleDependencies', 'bundledDependencies'].filter((field) => pkg[field] !== undefined);
+    if (lists.length) problems.push(`${inner} still has ${lists.join(', ')} (npm would install them)`);
+  }
+  const stray = [
+    ...new Set(
+      entries
+        .filter((e) => e.startsWith('package/node_modules/'))
+        .map((e) => e.split('/').slice(2, e.split('/')[2]?.startsWith('@') ? 4 : 3).join('/'))
+        // A bare `@scope` is a directory entry, not a package.
+        .filter((name) => name && !(name.startsWith('@') && !name.includes('/')) && !bundled.includes(name)),
+    ),
+  ];
+  if (stray.length) problems.push(`packages inside the tarball that are not bundled: ${stray.join(', ')}`);
+  if (problems.length) {
+    throw new Error(`${label}:\n${problems.map((p) => `    ${p}`).join('\n')}`);
+  }
+  assertNoBrowserLibraries(manifest, label);
 }
 
 /* ------------------------------------------------------------------ *
@@ -586,30 +786,89 @@ function alreadyPublished(name, version) {
  * main
  * ------------------------------------------------------------------ */
 
-function packToTmp(w) {
+/** `npm pack` in `dir`; returns the one tarball it wrote, moved to `destDir`. */
+function packDir(dir, label, destDir) {
   rmSync(PACK_TMP, { recursive: true, force: true });
   mkdirSync(PACK_TMP, { recursive: true });
-  execFileSync('npm', ['pack', '--pack-destination', PACK_TMP], { cwd: w.dir, stdio: 'inherit' });
+  execFileSync('npm', ['pack', '--pack-destination', PACK_TMP], { cwd: dir, stdio: 'inherit' });
   const packed = readdirSync(PACK_TMP).filter((f) => f.endsWith('.tgz'));
   if (packed.length !== 1) {
-    throw new Error(`npm pack produced ${packed.length} tarballs for ${w.pkg.name}, expected 1`);
+    throw new Error(`npm pack produced ${packed.length} tarballs for ${label}, expected 1`);
   }
-  return join(PACK_TMP, packed[0]);
+  mkdirSync(destDir, { recursive: true });
+  const dest = join(destDir, packed[0]);
+  rmSync(dest, { force: true });
+  renameSync(join(PACK_TMP, packed[0]), dest);
+  rmSync(PACK_TMP, { recursive: true, force: true });
+  return dest;
+}
+
+/** Pack a workspace in place, with `manifest` written over its package.json for the duration. */
+function packWorkspace(w, manifest, destDir) {
+  try {
+    stagePackage(w, manifest);
+    return packDir(w.dir, w.pkg.name, destDir);
+  } finally {
+    // One package wide: the tree is whole again before the next package.
+    unstagePackage();
+  }
+}
+
+/** Unpack an npm tarball's `package/` folder into `dir`. */
+function extractPackage(tarball, dir) {
+  mkdirSync(dir, { recursive: true });
+  execFileSync('tar', ['-xzf', tarball, '-C', dir, '--strip-components=1']);
 }
 
 /**
- * Every internal alias must point at a package this same run publishes, at the
- * same version — otherwise a consumer resolves `npm:@scope/x@1.2.3` against a
- * version that never reaches the registry. Cheap, and it catches a publish set
- * that silently lost a member.
+ * The flagship tarball, with its bundled packages inside.
+ *
+ * Packing in place cannot do this: in the monorepo, node_modules/@adminium/*
+ * are pnpm links into the workspace, and npm would follow them into every
+ * bundled package's dependency tree. So the flagship's own files are packed in
+ * place WITHOUT bundleDependencies, unpacked into a staging folder next to the
+ * bundled packages' own packed files, and packed again from there.
  */
-function assertInternalGraphComplete(workspaces) {
-  const byName = new Map(workspaces.map((w) => [w.pkg.name, w]));
+function packFlagship(server, manifest, bundledTarballs) {
+  const ownFilesManifest = { ...manifest };
+  delete ownFilesManifest.bundleDependencies;
+  const ownFiles = packWorkspace(server, ownFilesManifest, join(FLAGSHIP_TMP, 'own-files'));
+
+  rmSync(STAGE_DIR, { recursive: true, force: true });
+  extractPackage(ownFiles, STAGE_DIR);
+  for (const { name, tarball } of bundledTarballs) {
+    const dir = join(STAGE_DIR, 'node_modules', name);
+    extractPackage(tarball, dir);
+    // The bundled copy's manifest was packed without dependency lists
+    // (rewriteForBundle); assert it rather than trust it.
+    const inner = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
+    const lists = [...DEP_FIELDS, 'bundleDependencies'].filter((field) => inner[field] !== undefined);
+    if (lists.length) throw new Error(`${name}: the bundled copy still has ${lists.join(', ')}`);
+  }
+  writeFileSync(join(STAGE_DIR, 'package.json'), JSON.stringify(manifest, null, 2) + '\n');
+  return packDir(STAGE_DIR, `${server.pkg.name} (bundled)`, join(FLAGSHIP_TMP, 'final'));
+}
+
+/**
+ * Every internal alias must point at a package this same run ships, at the
+ * same version — otherwise a consumer resolves `npm:@scope/x@1.2.3` against a
+ * version that never reaches the registry. For the flagship "ships" means
+ * bundled; for the other published packages it means published. Cheap, and it
+ * catches a publish set that silently lost a member.
+ */
+function assertInternalGraphComplete(published, bundled) {
+  const byName = new Map(published.map((w) => [w.pkg.name, w]));
   const problems = [];
-  for (const w of workspaces) {
+  for (const w of published) {
     for (const field of DEP_FIELDS) {
       for (const [dep, range] of Object.entries(w.pkg[field] ?? {})) {
         if (!dep.startsWith('@adminium/')) continue;
+        if (w.pkg.name === FLAGSHIP) {
+          if (!bundled.has(dep)) {
+            problems.push(`${w.pkg.name} ${field}.${dep} (${range}) — ${dep} is not bundled (server-runtime-deps.json)`);
+          }
+          continue;
+        }
         const target = byName.get(dep);
         if (!target) {
           problems.push(`${w.pkg.name} ${field}.${dep} (${range}) — ${dep} is not in the publish set`);
@@ -635,10 +894,30 @@ async function main() {
   }
 
   const catalogs = loadCatalogs();
-  const workspaces = topoSort(loadWorkspaces());
+  const workspaces = loadWorkspaces();
+  const server = workspaces.get(FLAGSHIP);
+  if (!server) throw new Error(`${FLAGSHIP} is not among the workspaces`);
+  const published = topoSort([...workspaces.values()].filter((w) => w.pkg.private !== true));
+
+  // What the flagship carries is traced from the built code. A stale trace
+  // would publish a manifest missing a dependency, so a stale one stops here.
+  console.log('checking scripts/release/server-runtime-deps.json against the built code…');
+  execFileSync('node', [join(ROOT, 'scripts/release/server-runtime-deps.mjs'), '--check'], { stdio: 'inherit' });
+  const runtime = JSON.parse(readFileSync(RUNTIME_DEPS_FILE, 'utf8'));
+  const bundled = runtime.bundled.map((name) => {
+    const w = workspaces.get(name);
+    if (!w) throw new Error(`server-runtime-deps.json bundles ${name}, which is not a workspace`);
+    if (w.pkg.version !== server.pkg.version) {
+      throw new Error(`${name} is at ${w.pkg.version} but ${FLAGSHIP} is at ${server.pkg.version}`);
+    }
+    return w;
+  });
+
   console.log(
-    `${DRY_RUN ? 'DRY-RUN pack' : 'PUBLISH'} of ${workspaces.length} packages under @${SCOPE}:\n` +
-      workspaces.map((w) => `  ${w.pkg.name} -> ${mappedName(w.pkg.name)}@${w.pkg.version}`).join('\n'),
+    `${DRY_RUN ? 'DRY-RUN pack' : 'PUBLISH'} of ${published.length} packages under @${SCOPE}:\n` +
+      published.map((w) => `  ${w.pkg.name} -> ${mappedName(w.pkg.name)}@${w.pkg.version}`).join('\n') +
+      `\n${mappedName(FLAGSHIP)} carries ${bundled.length} packages inside it:\n` +
+      bundled.map((w) => `  ${w.pkg.name}`).join('\n'),
   );
   console.log(
     `\npnpm catalogs: default=${catalogs.default.size} entr${catalogs.default.size === 1 ? 'y' : 'ies'}` +
@@ -647,14 +926,22 @@ async function main() {
 
   // PRE-FLIGHT. Build every publish manifest and assert it up front: one bad
   // range aborts the whole run rather than half-publishing an immutable set.
-  assertInternalGraphComplete(workspaces);
+  assertInternalGraphComplete(published, new Set(runtime.bundled));
   const staged = new Map();
-  for (const w of workspaces) {
-    const manifest = rewriteForPublish(w.pkg, catalogs);
+  for (const w of published) {
+    const manifest =
+      w === server
+        ? rewriteFlagship(server, runtime.bundled, runtime.fromBundled, workspaces, catalogs)
+        : rewriteForPublish(w.pkg, catalogs);
     assertPublishableRanges(manifest, `${w.pkg.name} (staged manifest)`);
     staged.set(w.pkg.name, manifest);
   }
-  console.log(`pre-flight: ${staged.size} manifests resolve to registry-installable ranges.`);
+  const bundledManifests = new Map(bundled.map((w) => [w.pkg.name, rewriteForBundle(w.pkg, catalogs)]));
+  for (const w of [...published, ...bundled]) track(w);
+  console.log(
+    `pre-flight: ${staged.size} manifests resolve to registry-installable ranges; ` +
+      `${mappedName(FLAGSHIP)} declares ${Object.keys(staged.get(FLAGSHIP).dependencies).length} dependencies.`,
+  );
 
   // The CLI resolver probes the bundled vocabulary snapshot first — a stale
   // snapshot ships a stale LLM allow-list, silently.
@@ -674,8 +961,13 @@ async function main() {
   execFileSync('node', [join(ROOT, 'apps/server/scripts/bundle-dashboard.mjs')], {
     stdio: 'inherit',
   });
+  // `adminium new --sample` needs the demo seed, which lives in apps/desktop.
+  execFileSync('node', [join(ROOT, 'apps/server/scripts/bundle-samples.mjs')], {
+    stdio: 'inherit',
+  });
 
   mkdirSync(OUT_DIR, { recursive: true });
+  for (const dir of SCRATCH_DIRS) rmSync(dir, { recursive: true, force: true });
   installRestoreHandlers();
 
   const results = [];
@@ -689,7 +981,7 @@ async function main() {
     // promise or an exports target absent from the tarball. Both classes must
     // therefore fail the whole run BEFORE the first upload.
     const validated = [];
-    for (const w of workspaces) {
+    for (const w of published) {
       // The one point in the run where the event loop turns: a queued
       // SIGINT/SIGTERM handler fires HERE, between packages, with the tree
       // already whole. Without it the handler could never run at all.
@@ -703,20 +995,28 @@ async function main() {
       }
 
       let tarball;
-      try {
-        stagePackage(w, staged.get(w.pkg.name));
-        tarball = packToTmp(w);
-        const fileCount = validateTarball(tarball, publishName, w.pkg.version);
-        const dest = join(OUT_DIR, basename(tarball));
-        rmSync(dest, { force: true });
-        renameSync(tarball, dest);
-        console.log(`  validated ${publishName}@${w.pkg.version} (${fileCount} entries)`);
-        validated.push({ w, publishName, tarball: dest });
-      } finally {
-        // One package wide: the tree is whole again before the next package.
-        unstagePackage();
-        rmSync(PACK_TMP, { recursive: true, force: true });
+      if (w === server) {
+        const bundledTarballs = [];
+        for (const b of bundled) {
+          await tick();
+          if (interrupted) break;
+          const packed = packWorkspace(b, bundledManifests.get(b.pkg.name), BUNDLED_TMP);
+          const count = validateTarball(packed, mappedName(b.pkg.name), b.pkg.version);
+          console.log(`  validated ${b.pkg.name} for the bundle (${count} entries)`);
+          bundledTarballs.push({ name: b.pkg.name, tarball: packed });
+        }
+        if (interrupted) break;
+        tarball = packFlagship(server, staged.get(w.pkg.name), bundledTarballs);
+      } else {
+        tarball = packWorkspace(w, staged.get(w.pkg.name), VALIDATE_TMP);
       }
+      const fileCount = validateTarball(tarball, publishName, w.pkg.version);
+      if (w === server) validateBundledFlagship(tarball, runtime.bundled, w.pkg.version);
+      const dest = join(OUT_DIR, basename(tarball));
+      rmSync(dest, { force: true });
+      renameSync(tarball, dest);
+      console.log(`  validated ${publishName}@${w.pkg.version} (${fileCount} entries)`);
+      validated.push({ w, publishName, tarball: dest });
     }
 
     // ── PHASE 2: upload the validated tarballs, in dependency order ─────────
@@ -730,7 +1030,7 @@ async function main() {
         //
         // `npm publish` with no `--tag` moves the `latest` dist-tag, so an
         // rc rehearsal would hand every `npm i @adminiumjs/<pkg>` a release
-        // candidate across all 15 packages — and undoing it means restoring
+        // candidate across every published package — and undoing it means restoring
         // the tag on each one by hand. The release workflow is prerelease-
         // aware everywhere else (docker leaves `:latest` alone, the GitHub
         // release gets `--prerelease`); this is that rule for npm.
@@ -761,7 +1061,7 @@ async function main() {
   } finally {
     restorePending();
     assertTreeRestored();
-    rmSync(PACK_TMP, { recursive: true, force: true });
+    for (const dir of SCRATCH_DIRS) rmSync(dir, { recursive: true, force: true });
   }
   console.log('\n' + results.join('\n'));
   console.log(`\ntarballs in ${OUT_DIR}`);

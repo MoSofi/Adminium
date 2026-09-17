@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The email document envelope and the starters (39-email-templates-and-
- * campaigns.md 39-T02, 39-T07).
+ * campaigns.md).
  *
  * The starter assertions are the ones with teeth: every starter must
  * validate (a starter that the editor would refuse to save is a New button
- * that creates a broken document), must contain none of the 17 §2 sweep's
- * words in its English (seeded copy is user-visible and swept over built
- * bytes), and must use only vars the test-send samples fill.
+ * that creates a broken document), must contain none of the sweep's words
+ * in its English (seeded copy is user-visible and swept over built bytes),
+ * and must use only vars the test-send samples fill.
  */
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_LOCALE_IDS } from '@adminium/i18n';
@@ -39,7 +39,7 @@ import { EMAIL_BLOCK_SAMPLES } from './email-samples.js';
 
 const PLACEHOLDER_RE = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
 
-/** 17 §2's grep, verbatim: substrings, case-insensitive. */
+/** The grep, verbatim: substrings, case-insensitive. */
 const TRAP_RE = /pricing|plan|tier|billing|upgrade|\/mo|free/i;
 
 function ctx(over: Partial<Parameters<typeof validateDocument>[1]> = {}): Parameters<typeof validateDocument>[1] {
@@ -64,7 +64,7 @@ function stubT(key: string, opts?: Record<string, unknown>): string {
   });
 }
 
-describe('normalizeDocument / validateDocument (39-T02)', () => {
+describe('normalizeDocument / validateDocument', () => {
   it('every kind’s sample data validates, and so does an empty record (the picker’s fresh block)', () => {
     for (const kind of EMAIL_BLOCK_KINDS) {
       const data = EMAIL_BLOCK_SAMPLES[kind];
@@ -97,7 +97,7 @@ describe('normalizeDocument / validateDocument (39-T02)', () => {
     expect(normalized.blocks[0]?.style).toEqual({});
   });
 
-  it('refuses an unconfigured From, naming the address (39 D7)', () => {
+  it('refuses an unconfigured From, naming the address', () => {
     const bad = doc({ brand: { name: 'Acme', mark: 'zap', accent: '#0d9488', fromName: 'Acme', fromEmail: 'nope@acme.test' } });
     expect(() => validateDocument(bad, ctx())).toThrowError(
       expect.objectContaining({ statusCode: 422, details: { code: 'SENDER_NOT_CONFIGURED', address: 'nope@acme.test' } }),
@@ -109,7 +109,7 @@ describe('normalizeDocument / validateDocument (39-T02)', () => {
     expect(bareAddress('Acme <hi@acme.test>')).toBe('hi@acme.test');
   });
 
-  it('refuses attachments over the cap, naming the total and the cap (39 D8)', () => {
+  it('refuses attachments over the cap, naming the total and the cap', () => {
     const over = doc({
       attachments: [
         { id: 'a', kind: 'file', fileId: 'file_A' },
@@ -153,7 +153,7 @@ describe('keys and vars', () => {
     expect(mintKey('x'.repeat(200), ['x'.repeat(80)]).length).toBeLessThanOrEqual(80);
   });
 
-  it('derives vars from what the document is (39 D18)', () => {
+  it('derives vars from what the document is', () => {
     expect(documentVars('password-reset')).toEqual(BUILTIN_EMAIL_TEMPLATE_VARS['password-reset']);
     expect(documentVars('weekly-digest')).toEqual(['appName', 'name', 'first_name', 'email']);
     expect(documentVars('order-receipt', 'receipt')).toEqual([
@@ -170,7 +170,7 @@ describe('keys and vars', () => {
   });
 });
 
-describe('starters (39-T07, D10)', () => {
+describe('starters', () => {
   it('renders twelve cards in the comp’s order, four re-themed', () => {
     const cards = starterCards(stubT as never);
     expect(cards.map((c) => c.key)).toEqual([...EMAIL_STARTER_KEYS]);
@@ -225,7 +225,7 @@ describe('starters (39-T07, D10)', () => {
     }
   });
 
-  it('the receipt ships a generated attachment whose token is resolved per send (39 D8)', () => {
+  it('the receipt ships a generated attachment whose token is resolved per send', () => {
     const receipt = renderStarter('receipt', stubT as never);
     expect(receipt.document.attachments).toEqual([
       expect.objectContaining({ kind: 'generated', label: 'Receipt PDF', token: '{{receipt_pdf}}' }),

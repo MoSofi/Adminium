@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * TRACK FCS — `forms` family unit tests (annex §10).
+ * TRACK FCS — `forms` family unit tests (annex).
  *
  * The QA harness (qa/*) already proves the generic contracts for every
  * delivered widget (four states, config fuzz, determinism, chunk budget). These
@@ -59,7 +59,7 @@ const FIELDS: FormFieldConfig[] = [
 
 // ── form-state readers ─────────────────────────────────────────────────────
 
-describe('form-state readers (04 §3)', () => {
+describe('form-state readers', () => {
   it('reads the values map out of the envelope', () => {
     expect(formValuesOf({ fields: [], values: { a: 1 } })).toEqual({ a: 1 });
   });
@@ -117,7 +117,7 @@ describe('missingRequired', () => {
 
 // ── modal-wizard: the write model ──────────────────────────────────────────
 
-describe('ModalWizardWidget (annex §10)', () => {
+describe('ModalWizardWidget (annex)', () => {
   const open = () => fireEvent.click(screen.getByText('Create'));
 
   it('blocks submit and flags the field when a required value is missing', async () => {
@@ -244,7 +244,7 @@ describe('ModalWizardWidget (annex §10)', () => {
 
 // ── drawer-form ────────────────────────────────────────────────────────────
 
-describe('DrawerFormWidget (annex §10)', () => {
+describe('DrawerFormWidget (annex)', () => {
   it('emits an insert intent and closes on a successful commit', async () => {
     const onEvent = vi.fn();
     render(
@@ -281,7 +281,7 @@ describe('DrawerFormWidget (annex §10)', () => {
 
 // ── toggle-switch-list: optimistic + rollback ──────────────────────────────
 
-describe('booleanEntriesOf (04 §3 boolean-map)', () => {
+describe('booleanEntriesOf (boolean-map)', () => {
   it('reads the entries map', () => {
     expect(booleanEntriesOf({ entries: { a: true, b: false } })).toEqual({ a: true, b: false });
   });
@@ -301,7 +301,7 @@ describe('booleanEntriesOf (04 §3 boolean-map)', () => {
   });
 });
 
-describe('ToggleSwitchListWidget (annex §10)', () => {
+describe('ToggleSwitchListWidget (annex)', () => {
   const ROWS = [{ key: 'mentions', label: 'Mentions' }, { key: 'deploys', label: 'Deploys' }];
 
   it('reflects the bound boolean-map', () => {
@@ -418,7 +418,7 @@ describe('ToggleSwitchListWidget (annex §10)', () => {
 
 // ── filter-chip-bar: derived counts ────────────────────────────────────────
 
-describe('facetCountsOf / facetsOf (annex §10)', () => {
+describe('facetCountsOf / facetsOf (annex)', () => {
   const data = {
     rows: [{ status: 'running' }, { status: 'completed' }, { status: 'completed' }, { status: 'failed' }],
     total: 4,
@@ -511,7 +511,7 @@ describe('FilterChipBarWidget', () => {
 
 // ── stepper ────────────────────────────────────────────────────────────────
 
-describe('stepsOf (annex §10)', () => {
+describe('stepsOf (annex)', () => {
   const rows = { rows: [{ label: 'A' }, { label: 'B' }, { label: 'C' }], total: 3 };
 
   it('DERIVES done/active/pending from activeIndex when the payload carries no state', () => {
@@ -564,7 +564,7 @@ describe('StepperWidget', () => {
 
 // ── progress-bar ───────────────────────────────────────────────────────────
 
-describe('ProgressBarWidget (annex §10)', () => {
+describe('ProgressBarWidget (annex)', () => {
   it('renders the bound percent', () => {
     render(<ProgressBarWidget config={cfg(progressBarConfigSchema)} instanceId="p1" onEvent={noop} data={{ value: 42 }} />);
     expect(screen.getByText('42%')).toBeTruthy();
@@ -588,7 +588,7 @@ describe('ProgressBarWidget (annex §10)', () => {
 
 // ── validation-issues-list ─────────────────────────────────────────────────
 
-describe('sortIssues (annex §10)', () => {
+describe('sortIssues (annex)', () => {
   it('orders errors before warnings before info', () => {
     const issues = issuesOf(
       {
@@ -663,7 +663,7 @@ describe('ValidationIssuesListWidget', () => {
 
 // ── option-cards ───────────────────────────────────────────────────────────
 
-describe('OptionCardsWidget (annex §10)', () => {
+describe('OptionCardsWidget (annex)', () => {
   const data = { rows: [{ key: 'pg', label: 'PostgreSQL', description: 'Postgres 12+' }], total: 1 };
 
   it('renders cards from the payload', () => {
@@ -772,7 +772,7 @@ describe('PasswordStrengthMeterWidget', () => {
   });
 });
 
-// ── payload leniency (04 §3) ───────────────────────────────────────────────
+// ── payload leniency ───────────────────────────────────────────────────────
 
 describe('malformed payloads never throw into the error boundary', () => {
   const cases: [string, unknown][] = [

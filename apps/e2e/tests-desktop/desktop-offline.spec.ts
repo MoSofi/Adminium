@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 11-T20 — the offline smoke test (11-electron.md §7).
+ * The offline smoke test.
  *
  * Launches the built app with a `session.webRequest` deny-all for every
  * non-loopback request, walks the same first-run → demo → dashboard → CRUD →
@@ -34,7 +34,7 @@ import {
   waitForAppWindow,
 } from './helpers/launch.js';
 
-test.describe('desktop app: offline smoke (§7)', () => {
+test.describe('desktop app: offline smoke', () => {
   test.describe.configure({ mode: 'serial' });
 
   let app: ElectronApplication;
@@ -43,8 +43,8 @@ test.describe('desktop app: offline smoke (§7)', () => {
 
   test.beforeAll(async () => {
     // `ADMINIUM_DISABLE_UPDATES=1` forces `updates.mode=disabled` regardless of
-    // config (§11 `resolveUpdateMode`), so there is no update traffic even during
-    // a true first-run; telemetry is off by default (§7).
+    // config (`resolveUpdateMode`), so there is no update traffic even during
+    // a true first-run; telemetry is off by default.
     ({ app, userDataDir } = await launchDesktop({ env: { ADMINIUM_DISABLE_UPDATES: '1' } }));
     // Install the deny-all BEFORE the SPA loads — the multi-second server boot is
     // the window in which it must be in place.

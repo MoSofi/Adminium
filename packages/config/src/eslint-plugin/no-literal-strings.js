@@ -11,7 +11,7 @@
  * 49 strings rendering English on the 404/500/offline pages in all 8 locales,
  * invisible because nothing ever asserted their absence.
  *
- * Deliberately NOT reported (10-i18n-theming.md §2.7):
+ * Deliberately NOT reported:
  *  - strings with no letters: '—', '·', '/', numbers, emoji
  *  - technical props: className, id, href, to, key, data-*, variant, role, type
  *  - uppercase-only technical tokens: 'POST', 'UTF-8', 'PK', 'CSV'
@@ -19,9 +19,9 @@
  *  - single characters, which are punctuation or glyphs in practice
  *
  * Escape hatch: `{/* i18n-exempt: reason *​/}` on or above the line. Every
- * exemption needs a stated reason; the §8.3 audits grep for ones without.
+ * exemption needs a stated reason; the audits grep for ones without.
  *
- * Spec: 10-i18n-theming.md §2.7.
+ * See: https://docs.adminium.dev/anatomy/decisions/i18n-rules/
  */
 
 const DEFAULT_ATTRS = ['title', 'placeholder', 'alt', 'aria-label', 'aria-description'];
@@ -60,11 +60,11 @@ export default {
     messages: {
       literalText:
         'Hardcoded UI text renders English in all 8 locales — route it through t() with a key in ' +
-        'packages/i18n/locales (10-i18n-theming.md §2.7). If it is not user-visible copy, add ' +
+        'packages/i18n/locales. If it is not user-visible copy, add ' +
         '`{/* i18n-exempt: <reason> */}`.',
       literalAttr:
         "Hardcoded text in the user-visible `{{attr}}` prop renders English in all 8 locales — " +
-        'route it through t() (10-i18n-theming.md §2.7), or add `{/* i18n-exempt: <reason> */}`.',
+        'route it through t(), or add `{/* i18n-exempt: <reason> */}`.',
     },
   },
 

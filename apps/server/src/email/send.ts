@@ -16,9 +16,8 @@
  *
  * WHY BYTES DO NOT. An attachment is a library file and the brand mark is a
  * shipped PNG; the payload carries their IDS and delivery reads the bytes
- * right before `sendMail` (39-email-templates-and-campaigns.md D8). A queue
- * that copied every PDF into every row would be a second file store with no
- * retention policy.
+ * right before `sendMail`. A queue that copied every PDF into every row
+ * would be a second file store with no retention policy.
  *
  * WHY THE BODY IS ENCRYPTED AT REST. A rendered password-reset or invite mail
  * contains the PLAINTEXT single-use token — the exact thing
@@ -33,8 +32,8 @@
  *
  * TWO KEYS, TWO PURPOSES. {@link emailEnvelopeKey} seals the queued body;
  * `emailSecretKey` (config.ts) opens the stored SMTP password. Separate HKDF
- * salts, per 01 §7.1 — a job row and a settings row are different blast radii
- * and must not share a key.
+ * salts, — a job row and a settings row are different blast radii and must
+ * not share a key.
  *
  * DEGRADATION IS THE DEFAULT. Email is optional infrastructure: a self-hosted
  * instance with no SMTP must keep working. Every path here returns quietly
@@ -114,7 +113,7 @@ export const USER_INVITE_TEMPLATE_KEY = 'user-invite';
 export const NOTIFICATION_EMAIL_TEMPLATE_KEY = 'notification';
 
 /**
- * The document a mapping drew, on its way out (34 §7.7).
+ * The document a mapping drew, on its way out.
  *
  * Here rather than in `documents/deliver.ts` because `builtins.ts` says these
  * constants live in this file, and `email-render.test.ts` checks that every one
@@ -174,7 +173,7 @@ export interface EnqueueEmailInput {
    * Substitutions. Read the expected names off
    * `BUILTIN_EMAIL_TEMPLATE_VARS` rather than guessing — an omitted var is
    * re-emitted verbatim by the renderer, on purpose. A `generated` attachment's
-   * token (39 D8) is resolved from here too: `vars[token]` must be a file id.
+   * token is resolved from here too: `vars[token]` must be a file id.
    */
   vars: Record<string, string>;
   /**
@@ -235,9 +234,10 @@ export interface EmailSendPayload {
   locale: string;
   /** `enc:v1:` token over {@link EmailEnvelope} (config/secrets.ts). */
   envelope: string;
-  /** Library files whose bytes travel with the message (39 D8); absent on `v: 1` rows. */
+  /** Library files whose bytes travel with the message; absent on `v: 1` rows.
+   * */
   attachments?: EmailSendAttachmentRef[];
-  /** Inline images the HTML references by `cid:` (39 D6/D9); absent on `v: 1` rows. */
+  /** Inline images the HTML references by `cid:`; absent on `v: 1` rows. */
   inline?: EmailSendInlineRef[];
 }
 
@@ -248,7 +248,7 @@ export interface PreparedEmail {
   render: Pick<RenderEmailInput, 'document' | 'brand' | 'mark' | 'imageFiles'>;
   /** A configured sender's `Name <addr>`, or undefined for the transport's own. */
   from: string | undefined;
-  /** Fixed attachments — the library files that exist (39 D8). */
+  /** Fixed attachments — the library files that exist. */
   attachments: EmailSendAttachmentRef[];
   /** Fixed attachments whose file is missing or trashed — reported, never silently dropped. */
   missing: { id: string; fileId: string }[];
@@ -256,13 +256,13 @@ export interface PreparedEmail {
 
 /**
  * Resolve a document's brand, mark, images and fixed attachments against the
- * workspace (39 D6–D9). Exported for the routes (test-send carries the
- * on-screen document) and the campaign runner.
+ * workspace. Exported for the routes (test-send carries the on-screen
+ * document) and the campaign runner.
  *
  * The From header is `"${fromName} <${fromEmail}>"` only when the document
  * names a configured sender; `validateDocument` refused anything else at save
  * time, and this re-checks so a stale row cannot send from an address the
- * operator has since removed (39 D7).
+ * operator has since removed.
  */
 export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource): Promise<PreparedEmail> {
   const settings = settingsRepo(meta);
@@ -323,7 +323,8 @@ export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource): Promis
   };
 }
 
-/** `Name <addr>` when the document's sender is configured; undefined otherwise (39 D7). */
+/** `Name <addr>` when the document's sender is configured; undefined otherwise.
+ * */
 export function senderHeader(brand: EmailBrand | null, configured: readonly string[]): string | undefined {
   if (brand === null || brand.fromEmail.trim() === '') return undefined;
   const wanted = bareAddress(brand.fromEmail);
@@ -334,8 +335,8 @@ export function senderHeader(brand: EmailBrand | null, configured: readonly stri
 }
 
 /**
- * A `generated` attachment (39 D8) names a `{{token}}`; the caller fills it
- * with a file id per send. An unknown or non-file value is skipped with one
+ * A `generated` attachment names a `{{token}}`; the caller fills it with a
+ * file id per send. An unknown or non-file value is skipped with one
  * warning — the caller's contract, like an unresolved `{{var}}`.
  */
 export async function resolveGeneratedAttachments(
@@ -384,7 +385,7 @@ export interface EnqueueRenderedEmailInput {
 /**
  * Seal an already-rendered message and queue it. The lower half of
  * {@link enqueueEmail}, used directly by test sends (which render the
- * on-screen document, 39 D1) and by anything else that already has a body.
+ * on-screen document) and by anything else that already has a body.
  * Returns null when no secret is available — never throws.
  */
 export async function enqueueRenderedEmail(
@@ -473,7 +474,7 @@ export async function enqueueEmail(
       { templateKey: input.templateKey, attachmentId: gone.id, fileId: gone.fileId },
       'a fixed attachment names a missing or trashed file — the send will fail at delivery',
     );
-    // Queue it anyway with the reference: the handler fails LOUDLY on it (39 D8),
+    // Queue it anyway with the reference: the handler fails LOUDLY on it,
     // which is what makes the dead-letter row an operator can act on.
     prepared.attachments.push({ fileId: gone.fileId, filename: gone.fileId });
   }
@@ -544,32 +545,6 @@ async function templateExists(meta: MetaDb, key: string, locale: string): Promis
   const repo = emailTemplatesRepo(meta);
   if ((await repo.findByKeyLocale(key, locale)) !== null) return true;
   return (await repo.findByKeyLocale(key, 'en_US')) !== null;
-}
-
-/**
- * The absolute origin a link in an outbound email should point at, taken from
- * the request that triggered it.
- *
- * THIS IS DERIVED, NOT CONFIGURED, and the trade-off is deliberate. There is
- * no `system.publicUrl` setting and (v1 decision) no new env var, so the only
- * thing that knows where this instance answers is the request in hand. The
- * consequence an operator must know about: a forged `Host` header can point a
- * reset link at an attacker's origin, so a reverse proxy in front of Adminium
- * should pin `Host` to the real hostname — the standard deployment posture,
- * and the one `@fastify/cors`'s same-origin default already assumes.
- *
- * The `Origin` header wins when present: a browser sets it, and a page cannot
- * forge it cross-origin.
- */
-export function requestOrigin(request: {
-  protocol: string;
-  host?: string | undefined;
-  hostname: string;
-  headers: Record<string, unknown>;
-}): string {
-  const origin = request.headers['origin'];
-  if (typeof origin === 'string' && /^https?:\/\//.test(origin)) return origin.replace(/\/+$/, '');
-  return `${request.protocol}://${request.host ?? request.hostname}`;
 }
 
 /**

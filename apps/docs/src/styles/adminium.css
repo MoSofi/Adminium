@@ -1,5 +1,5 @@
 /**
- * 14-docs-site.md §4 — restyle Starlight onto @adminium/tokens.
+ * — restyle Starlight onto @adminium/tokens.
  *
  * Starlight ships its own CSS-variable theme. This file remaps those variables
  * onto the product's tokens so a reader moving between docs.adminium.dev and
@@ -9,7 +9,7 @@
  * Token hexes are NEVER forked here: every value below is a var() reference into
  * @adminium/tokens (imported ahead of this file in astro.config.mjs). The dark
  * neutral palette it points at is the independently authored one from
- * 02-design-system.md §1.1; the dark ACCENT it points at is derived from the
+ *; the dark ACCENT it points at is derived from the
  * light accent by recipe (see the header of accents.css). Either way this file
  * only references them — it never restates a hex.
  *
@@ -45,7 +45,7 @@
   --sl-color-text: var(--fg);
   --sl-color-text-invert: var(--accent-fg);
 
-  /* Aside/callout tones — the product's semantic pairs (§4). */
+ /* Aside/callout tones — the product's semantic pairs. */
   --sl-color-green: var(--pos);
   --sl-color-green-low: var(--pos-soft);
   --sl-color-green-high: var(--pos);
@@ -67,7 +67,7 @@
   --sl-shadow-lg: var(--shadow-lg);
 
   /* Type. Font binaries are bundled by @adminium/tokens/fonts.css — no CDN,
-     no Google Fonts (§1 principle 3). */
+ no Google Fonts. */
   --sl-font: 'Manrope', ui-sans-serif, system-ui, sans-serif;
   --sl-font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
@@ -88,7 +88,7 @@
 }
 
 /* Numerals, IDs, connection strings, and kbd chips render in the mono face
-   (02-design-system.md §2 — tabular figures for anything scannable). */
+ (tabular figures for anything scannable). */
 code,
 kbd,
 .sl-markdown-content code {
@@ -96,7 +96,7 @@ kbd,
   font-variant-numeric: tabular-nums;
 }
 
-/* ar_EG: IBM Plex Sans Arabic is the Arabic family (10-i18n-theming.md §5.1).
+/* ar_EG: IBM Plex Sans Arabic is the Arabic family.
    Scoped to [dir='rtl'] so the Latin tree keeps Manrope. */
 [dir='rtl'] {
   --sl-font: 'IBM Plex Sans Arabic', 'Manrope', system-ui, sans-serif;

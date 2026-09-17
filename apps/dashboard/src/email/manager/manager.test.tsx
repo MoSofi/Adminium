@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The email manager (39-email-templates-and-campaigns.md 39-T08 + 39-T09
- * done-when), rendered through the real router and shell so the topbar's
- * published actions, the toasts and the navigation are the product's own.
- * The API is a fetch stub keyed on the routes the manager calls.
+ * The email manager, rendered through the real router and shell so the
+ * topbar's published actions, the toasts and the navigation are the
+ * product's own. The API is a fetch stub keyed on the routes the manager
+ * calls.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -186,7 +186,7 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe('EmailManager — shell (39-T08)', () => {
+describe('EmailManager — shell', () => {
   it('publishes the actions menu with the five items in the comp order and a divider before Email settings', async () => {
     const { user } = await renderPage({ templates: [doc()] });
     await user.click(screen.getByRole('button', { name: 'More actions' }));
@@ -301,7 +301,7 @@ describe('EmailManager — shell (39-T08)', () => {
   });
 });
 
-describe('EmailManager — gallery, list and groups (39-T09)', () => {
+describe('EmailManager — gallery, list and groups', () => {
   const welcomeFamily = [
     doc({ id: 'et_en', locale: 'en_US' }),
     doc({ id: 'et_de', locale: 'de_DE', name: 'Willkommen' }),

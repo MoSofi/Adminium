@@ -26,7 +26,7 @@ for (const dialect of TEST_DIALECTS) {
       await t.destroy();
     });
 
-    it('appends audit entries with the §3.11 shape', async () => {
+    it('appends audit entries with the shape', async () => {
       const audit = auditRepo(t.meta);
       const entry = await audit.append(
         {

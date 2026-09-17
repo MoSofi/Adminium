@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * §9's "5 MB × 5 rotation" and the stdout/stderr piping.
+ * "5 MB × 5 rotation" and the stdout/stderr piping.
  *
  * These run against a REAL temp directory rather than a mocked `node:fs`. The
  * bugs worth catching here — an off-by-one that drops the newest archive, a
@@ -281,7 +281,7 @@ describe('pipeStreamToLog', () => {
 });
 
 describe('createDesktopLogging', () => {
-  it('creates the two §9 logs side by side', () => {
+  it('creates the two logs side by side', () => {
     const logging = createDesktopLogging({ logsDir: dir });
 
     expect(logging.server.path).toBe(join(dir, SERVER_LOG_FILENAME));

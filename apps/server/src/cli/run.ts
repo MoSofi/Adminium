@@ -3,28 +3,41 @@
  * The dispatcher: argv → command → exit code.
  *
  * Returns a code rather than calling `process.exit`, so the whole CLI is a pure
- * function of (argv, deps) in tests — including the 06 §10.4 exit-code contract,
- * which is asserted against this function's return value.
+ * function of (argv, deps) in tests — including the exit-code contract, which is
+ * asserted against this function's return value.
  */
 
 import { APP_VERSION } from '../version.js';
 import { renderCommandHelp, renderRootHelp, type Command } from './command.js';
 import { applyLlmResponseCommand } from './commands/apply-llm-response.js';
+import { buildCommand } from './commands/build.js';
+import { checkCommand } from './commands/check.js';
+import { devCommand } from './commands/dev.js';
+import { ejectCommand } from './commands/eject.js';
 import { exportZipCommand } from './commands/export-zip.js';
 import { generatePromptCommand } from './commands/generate-prompt.js';
+import { homeCommand } from './commands/home.js';
 import { importZipCommand } from './commands/import-zip.js';
 import { initCommand } from './commands/init.js';
 import { introspectCommand } from './commands/introspect.js';
 import { migrateCommand } from './commands/migrate.js';
+import { newCommand } from './commands/new.js';
+import { pullCommand } from './commands/pull.js';
 import { startCommand } from './commands/start.js';
 import { CliError, CliUsageError, EXIT_ERROR, EXIT_OK, type ExitCode } from './exit.js';
 import { nodeIo, type CliIo } from './io.js';
 import { defaultCliDeps, type CliDeps } from './runtime.js';
 
-/** Registry order == the order `--help` lists them: setup first, then the rest. */
+/** Registry order == the order `--help` lists them: the project workflow first, then the rest. */
 export const COMMANDS: readonly Command[] = [
-  initCommand,
+  newCommand,
+  devCommand,
+  buildCommand,
   startCommand,
+  checkCommand,
+  pullCommand,
+  ejectCommand,
+  initCommand,
   migrateCommand,
   introspectCommand,
   generatePromptCommand,
@@ -33,8 +46,9 @@ export const COMMANDS: readonly Command[] = [
   importZipCommand,
 ];
 
+/** A command by its name or one of its aliases (`init` runs `try`). */
 export function findCommand(name: string): Command | undefined {
-  return COMMANDS.find((command) => command.name === name);
+  return COMMANDS.find((command) => command.name === name || command.aliases?.includes(name) === true);
 }
 
 const HELP_FLAGS = new Set(['--help', '-h', 'help']);
@@ -87,8 +101,8 @@ export interface RunCliOptions {
 }
 
 /**
- * Parse and dispatch. `adminium` with no arguments runs the setup wizard, which
- * is the whole point of `npx adminium` (01 §4.1).
+ * Parse and dispatch. `adminium` with no command runs {@link homeCommand}: it
+ * creates a project, or lists the commands of the one you are in.
  */
 export async function runCli(argv: readonly string[], opts: RunCliOptions = {}): Promise<ExitCode> {
   const io = opts.io ?? nodeIo();
@@ -109,9 +123,11 @@ export async function runCli(argv: readonly string[], opts: RunCliOptions = {}):
     return EXIT_OK;
   }
 
-  // No command → the wizard. Its own flags still parse (`adminium --port 8080`).
-  const command = first === undefined || first.startsWith('-') ? initCommand : findCommand(first);
-  const commandArgv = command === initCommand && first !== 'init' ? [...argv] : rest;
+  // No command → create a project (or list this project's commands). Options
+  // without a command are `adminium new` options (`adminium --sample`).
+  const noCommand = first === undefined || first.startsWith('-');
+  const command = noCommand ? homeCommand : findCommand(first);
+  const commandArgv = noCommand ? [...argv] : rest;
 
   if (command === undefined) {
     io.err(`Unknown command "${String(first)}".`);
@@ -124,7 +140,7 @@ export async function runCli(argv: readonly string[], opts: RunCliOptions = {}):
   // has to be a flag on every command.
   //
   // Only tokens in FLAG POSITION count. A blind `argv.includes('--help')` also
-  // matched flag VALUES: `adminium init --name help` (a connection named
+  // matched flag VALUES: `adminium try --name help` (a connection named
   // "help") and `adminium import-zip --in help` (a bundle file named `help`)
   // both printed help and returned EXIT_OK, so a script branching on exit 0
   // concluded the command had run.

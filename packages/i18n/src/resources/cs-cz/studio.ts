@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GENERATED MIRROR of ../../../locales/cs-CZ/studio.json — do not edit by hand.
- * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
  * without JSON import attributes (browser + NodeNext safe).
@@ -1214,6 +1214,7 @@ export default {
       "generated": "Vygenerovaná",
       "llm": "Asistent",
       "manifest": "Doplněk",
+      "project": "Kód projektu",
       "system": "Systémová",
       "user": "Vlastní"
     },
@@ -1228,6 +1229,34 @@ export default {
     "preview": {
       "note": "Nákres rozvržení, nikoli vašich dat. Skutečná stránka se naplní po uložení.",
       "untitled": "Nepojmenovaná stránka"
+    },
+    "project": {
+      "badge": {
+        "changed": "Změněno na serveru",
+        "conflict": "Konflikt",
+        "outside": "Mimo projekt"
+      },
+      "changed": {
+        "body": "Stáhněte změny do projektu a nasaďte ho, jinak zůstanou jen na tomto serveru:",
+        "title": "{count, plural, one {# stránka byla změněna na tomto serveru} few {# stránky byly změněny na tomto serveru} many {# stránky bylo změněno na tomto serveru} other {# stránek bylo změněno na tomto serveru}}"
+      },
+      "conflicts": {
+        "body": "Tento server si ponechá svou verzi, dokud jednu nevyberete.",
+        "title": "{count, plural, one {# stránka byla změněna zde i v projektu} few {# stránky byly změněny zde i v projektu} many {# stránky bylo změněno zde i v projektu} other {# stránek bylo změněno zde i v projektu}}"
+      },
+      "fromCode": "Tato stránka pochází z {source}. Změňte ji tam.",
+      "invalid": {
+        "body": "Opravte tyto soubory. Do té doby zůstává v platnosti poslední platná verze.",
+        "title": "{count, plural, one {# soubor projektu nebyl použit} few {# soubory projektu nebyly použity} many {# souboru projektu nebylo použito} other {# souborů projektu nebylo použito}}"
+      },
+      "keepServer": "Ponechat verzi serveru",
+      "notConfigured": "Některé z nich patří k databázi, kterou projekt neuvádí. Přidejte ji do adminium.config.ts, aby její stránky zůstaly v projektu.",
+      "outside": {
+        "body": "Existují jen na tomto serveru. Stáhněte je do projektu, abyste je zachovali:",
+        "title": "{count, plural, one {# stránka není v projektu} few {# stránky nejsou v projektu} many {# stránky není v projektu} other {# stránek není v projektu}}"
+      },
+      "resolveFailed": "Tuto změnu nelze provést.",
+      "useProject": "Použít verzi projektu"
     },
     "row": {
       "menu": "Akce pro {title}"
@@ -1264,6 +1293,84 @@ export default {
       "narrow": "Úzká (720 px)",
       "page": "Stránka (1080 px)",
       "wide": "Široká (1800 px)"
+    }
+  },
+  "project": {
+    "actions": {
+      "bulk": "Jeden nebo více záznamů",
+      "empty": "Žádné akce. Soubor ve složce actions/ přidá k záznamům tlačítko.",
+      "needs": "Vyžaduje: {permission}",
+      "single": "Jeden záznam",
+      "title": "Akce"
+    },
+    "changes": {
+      "empty": "Všechny soubory stránek a schématu odpovídají tomuto serveru.",
+      "open": "Vyřešit ve Stránkách",
+      "title": "Změněno na tomto serveru"
+    },
+    "code": {
+      "disabled": "Nenačteno: desktopová aplikace kód projektu nikdy nespouští",
+      "label": "Kód projektu",
+      "loaded": "Načteno {when}",
+      "none": "Nic nenačteno"
+    },
+    "failures": {
+      "empty": "Od spuštění serveru žádný hook neselhal.",
+      "title": "Chyby hooků"
+    },
+    "files": {
+      "count": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}",
+      "pages": "Soubory stránek",
+      "schema": "Soubory schématu",
+      "title": "Soubory"
+    },
+    "folder": "Složka",
+    "hooks": {
+      "empty": "Žádné hooky. Soubor ve složce hooks/ spouští kód při změně záznamů.",
+      "onImport": "Také pro importy CSV",
+      "title": "Hooky"
+    },
+    "loadFailed": "Projekt se nepodařilo načíst",
+    "mode": {
+      "dev": "Vývoj: složka a Studio zůstávají v souladu",
+      "label": "Běží jako",
+      "server": "Server: složka se mění jen nasazením"
+    },
+    "none": {
+      "body": "Projekt je složka vytvořená příkazem `npx @adminiumjs/adminium new`. Jeho stránky, hooky a akce se zde zobrazí, když ho server spouští.",
+      "title": "Tento server nespouští žádný projekt"
+    },
+    "pages": {
+      "empty": "Žádné stránky. Soubor .tsx ve složce pages/ přidá vlastní stránku.",
+      "hidden": "Není v postranním panelu",
+      "title": "Stránky"
+    },
+    "permission": {
+      "create": "Přidat",
+      "delete": "Smazat",
+      "read": "Zobrazit",
+      "update": "Upravit"
+    },
+    "problems": {
+      "body": "Opravte tyto soubory. Zbytek kódu projektu běží.",
+      "title": "{count, plural, one {# soubor se nenačetl} few {# soubory se nenačetly} many {# souboru se nenačetlo} other {# souborů se nenačetlo}}"
+    },
+    "status": {
+      "changed": "Změněno na tomto serveru",
+      "conflict": "Konflikt",
+      "invalid": "Neplatné",
+      "outside": "Mimo projekt",
+      "pending": "Zatím nepoužito"
+    },
+    "subtitle": "Složka projektu, kterou tento server spouští, a kód, který načetl.",
+    "superAdminOnly": "Projekt, který tento server spouští, může vidět jen superadministrátor.",
+    "title": "Projekt",
+    "version": "Adminium",
+    "widgets": {
+      "card": "Karta nástěnky",
+      "cell": "Buňka tabulky",
+      "empty": "Žádné widgety. Soubor ve složce widgets/ přidá buňku tabulky nebo kartu nástěnky.",
+      "title": "Widgety"
     }
   },
   "publicApi": {
@@ -1449,11 +1556,11 @@ export default {
       "searchPlaceholder": "Hledat tabulky…",
       "unsaved": "Neuložená změna"
     },
-    "unavailableBody": "Tento build zatím editor přemapování neobsahuje (09-T12). Až přibude, spusťte generování znovu a přemapujte popisky, typy a vztahy.",
+    "unavailableBody": "Tento build zatím editor přemapování neobsahuje. Až přibude, spusťte generování znovu a přemapujte popisky, typy a vztahy.",
     "unavailableTitle": "Editor přemapování schématu není k dispozici"
   },
   "review": {
-    "unavailableBody": "Tento build zatím obrazovku kontroly obohacení neobsahuje (06-T14). Přijde s tokem rozdílu a použití.",
+    "unavailableBody": "Tento build zatím obrazovku kontroly obohacení neobsahuje. Přijde s tokem rozdílu a použití.",
     "unavailableTitle": "Obrazovka kontroly není k dispozici"
   },
   "settings": {
@@ -1600,6 +1707,11 @@ export default {
         "error": "Pouze název hostitele nebo IP adresa — bez schématu, portu a přihlašovacích údajů.",
         "label": "Server SMTP"
       },
+      "linkOrigin": {
+        "error": "Zadejte adresu jako https://admin.example.com bez cesty.",
+        "helper": "Odkazy pro obnovení hesla a z pozvánek otevírají tuto adresu. Pokud je prázdná, Adminium ji převezme od dalšího správce, který se přihlásí nebo uloží změnu, pokud nepracuje přes localhost.",
+        "label": "Adresa v odkazech v e-mailech"
+      },
       "pass": {
         "error": "K tomuto uživatelskému jménu patří heslo.",
         "helper": "Uloženo šifrovaně a už se nikdy nezobrazí. Ponechte prázdné, chcete-li zachovat stávající.",
@@ -1664,6 +1776,11 @@ export default {
       "body": "Přidávejte, upravujte a mažte stránky, měňte jejich obsah a přeuspořádejte postranní panel.",
       "cta": "Spravovat stránky",
       "heading": "Stránky"
+    },
+    "projectCard": {
+      "body": "Složka projektu, kterou tento server spouští: její hooky, akce a soubory stránek.",
+      "cta": "Otevřít projekt",
+      "heading": "Projekt"
     },
     "publicApiCard": {
       "body": "Umožněte svým zákaznickým nebo zaměstnaneckým stránkám číst tuto databázi prostřednictvím rozsahu, který určíte.",

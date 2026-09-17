@@ -29,7 +29,7 @@ import {
 } from './rolesApi.js';
 
 describe('isPermissionGrant', () => {
-  it('accepts the three §5.1 forms', () => {
+  it('accepts the three forms', () => {
     expect(isPermissionGrant('system:users:manage')).toBe(true);
     expect(isPermissionGrant('table:pg-main:orders:read')).toBe(true);
     expect(isPermissionGrant('table:pg-main:*:export')).toBe(true);

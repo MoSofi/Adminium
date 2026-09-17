@@ -3,7 +3,7 @@
  * Scheduled Reports surfaces (M7 reports track): cadence formatting, the
  * list rendering through `scheduled-jobs-list` with the honest CSV-snapshot
  * delivery badge, the enable toggle PATCHing the server, and the create
- * modal's §8.2 delivery copy.
+ * modal's delivery copy.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -77,7 +77,7 @@ afterEach(() => {
 });
 
 describe('cadenceLabel', () => {
-  it('formats the §3.24 schedule fields per frequency', () => {
+  it('formats the schedule fields per frequency', () => {
     expect(cadenceLabel({ frequency: 'daily', time: '07:30', timezone: 'UTC' })).toBe(
       'Daily at 07:30 (UTC)',
     );
@@ -114,7 +114,7 @@ describe('ScheduledReportsPage', () => {
 
     expect(screen.getByText('Weekly customers')).toBeTruthy();
     expect(screen.getByText('Weekly · Mon at 09:00 (UTC)')).toBeTruthy();
-    // Delivery truth, not the stored pdf intent (§8.2).
+    // Delivery truth, not the stored pdf intent.
     expect(screen.getByText('CSV snapshot')).toBeTruthy();
 
     const toggle = screen.getByRole('switch');
@@ -143,7 +143,7 @@ describe('ScheduledReportsPage', () => {
     expect(
       screen.getByText(/Data snapshot \(PDF\/PNG rendering arrives in a later release\)/),
     ).toBeTruthy();
-    // Recipients stored-not-emailed, explained inline (§8.2 / free-launch copy).
+    // Recipients stored-not-emailed, explained inline (/ free-launch copy).
     expect(screen.getByText(/Email delivery arrives in a later release/)).toBeTruthy();
     // Save is gated on name + page.
     expect((screen.getByTestId('save-report') as HTMLButtonElement).disabled).toBe(true);

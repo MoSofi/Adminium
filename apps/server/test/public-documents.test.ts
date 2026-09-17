@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/api/v1/public/documents*` (34-invoices-add-on.md §7.6; 34-T20).
+ * `/api/v1/public/documents*`.
  *
  * ─── THE GATE, ASKED OF THE RUNNING ROUTE ──────────────────────────────────
  *
- * 34-T20's done-when asks for "a route-table assertion that EVERY
+ * The done-when asks for "a route-table assertion that EVERY
  * `/public/documents*` route names a gate". A public route's gate is not in its
  * options — it is the first line of the handler — so the route table cannot see
  * it. What CAN be seen is the consequence: a call with no publishable key must
@@ -127,7 +127,7 @@ describe('every /public/documents route is gated', () => {
   });
 });
 
-describe('the documents.create flag (§7.6)', () => {
+describe('the documents.create flag', () => {
   const BASE = {
     version: 1 as const,
     side: 'customer' as const,

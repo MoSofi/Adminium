@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Adminium</title>
     <!--
-      NO WEBFONT LINKS HERE. 11-electron.md §7's fonts row: Manrope, JetBrains
-      Mono and IBM Plex Sans Arabic ship as self-hosted woff2 in
-      `@adminium/tokens` (02-design-system.md §2.4), reaching this page through
+      NO WEBFONT LINKS HERE. Manrope, JetBrains Mono and IBM Plex Sans Arabic
+      ship as self-hosted woff2 in `@adminium/tokens`, reaching this page through
       `src/styles.css` → `@adminium/tokens/index.css` → `fonts.css`. A remote
       stylesheet here is unstyled text the moment the network is gone — which for
       the desktop build is "forever, by design".
@@ -24,7 +23,7 @@
       comments are bytes it is right not to trust.
     -->
     <!--
-      Pre-hydration flash guard (02-design-system.md §4.3). This MUST be the
+ Pre-hydration flash guard. This MUST be the
       first script, before any stylesheet paints content.
 
       SYNC NOTE: literal copy of `preHydrationScript` from

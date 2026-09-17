@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 30-T01: the typed `config.detail` schema is validated against REAL stored
- * configs — every `page-crud` envelope in the pinned generation baseline
- * (the byte-identical output `generate-baseline.test.ts` protects), not
+ * The typed `config.detail` schema is validated against REAL stored configs
+ * — every `page-crud` envelope in the pinned generation baseline (the
+ * byte-identical output `generate-baseline.test.ts` protects), not
  * hand-written fixtures. A schema that only accepts what a fixture imagines
  * would let generation and validation drift apart silently.
  */
@@ -35,7 +35,7 @@ describe('crudDetailConfigSchema against the pinned generation baseline', () => 
     (_id, page) => {
       const detail = parseCrudDetailConfig(page.config);
       expect(detail).not.toBeNull();
-      // The id every generated body has stored all along (30 §0.1/D3).
+      // The id every generated body has stored all along.
       expect(detail?.template).toBe('page-record');
       // Every generated tab is fully resolved: table + fkColumn + label.
       for (const tab of detail?.tabs ?? []) {
@@ -51,7 +51,7 @@ describe('crudDetailConfigSchema against the pinned generation baseline', () => 
     expect(parseCrudDetailConfig({ detail: null })).toBeNull();
   });
 
-  it('degrades an unreadable block to null rather than throwing (09 §3.1)', () => {
+  it('degrades an unreadable block to null rather than throwing', () => {
     expect(parseCrudDetailConfig({ detail: { tabs: [] } })).toBeNull(); // no template id
     expect(parseCrudDetailConfig({ detail: 'page-record' })).toBeNull();
   });

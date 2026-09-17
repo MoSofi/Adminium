@@ -110,7 +110,7 @@ describe('diffRows', () => {
 });
 
 describe('isTruncated', () => {
-  it('reports the §3.11 16 KB cap so a partial diff is never shown as whole', () => {
+  it('reports the 16 KB cap so a partial diff is never shown as whole', () => {
     expect(isTruncated({ _truncated: true })).toBe(true);
     expect(isTruncated({ before: {} })).toBe(false);
     expect(isTruncated(null)).toBe(false);

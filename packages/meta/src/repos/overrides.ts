@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * overridesRepo — adminium_schema_overrides (07-meta-store.md §3.15).
+ * overridesRepo — adminium_schema_overrides.
  *
  * One row = one correction op layered over the active snapshot (labels, type
  * overrides, relation add/suppress, enum semantics, PII masks, …). Payloads
- * are validated against the §3.15 op vocabulary (`overridePatchSchema`) —
- * an invalid payload never reaches the database. The effective schema =
- * active snapshot + active ops applied in created_at order (later ops win
- * per (op, table, column) target — applied by the server, not here).
+ * are validated against the op vocabulary (`overridePatchSchema`) — an
+ * invalid payload never reaches the database. The effective schema = active
+ * snapshot + active ops applied in created_at order (later ops win per (op,
+ * table, column) target — applied by the server, not here).
  */
 
 import type { Selectable } from 'kysely';
@@ -22,6 +22,7 @@ import {
   type OverridePatch,
 } from '../schema/json-payloads.js';
 import type { AdminiumSchemaOverridesTable } from '../schema/tables.js';
+import { llmOverrideField, validateLlmOverride } from './llm-overrides.js';
 import { MetaValidationError, packJson, readJson } from './util.js';
 
 /** Ops that target a column and therefore require `columnName`. */
@@ -43,6 +44,8 @@ export interface SchemaOverride {
   origin: 'user' | 'llm' | 'auto';
   llmRunId: string | null;
   status: 'active' | 'disabled';
+  /** Model confidence for `llm` rows (0008); null for the rest. */
+  confidence?: number | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -61,6 +64,17 @@ export interface CreateOverrideInput {
   createdBy?: string | null | undefined;
 }
 
+/** One row of a project's `schema/<database>.json`, ready to store. */
+export interface ProjectOverrideInput {
+  op: string;
+  tableName: string;
+  columnName?: string | null | undefined;
+  value: unknown;
+  origin: 'user' | 'llm';
+  status: 'active' | 'disabled';
+  confidence?: number | null | undefined;
+}
+
 function decode(row: Selectable<AdminiumSchemaOverridesTable>): SchemaOverride {
   return {
     id: row.id,
@@ -72,13 +86,14 @@ function decode(row: Selectable<AdminiumSchemaOverridesTable>): SchemaOverride {
     origin: row.origin as 'user' | 'llm' | 'auto',
     llmRunId: row.llmRunId,
     status: row.status as 'active' | 'disabled',
+    confidence: row.confidence ?? null,
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 
-/** Validate one op + payload against the §3.15 vocabulary; throws on failure. */
+/** Validate one op + payload against the vocabulary; throws on failure. */
 export function validateOverrideInput(input: CreateOverrideInput): OverridePatch {
   const parsed = overridePatchSchema.safeParse({ op: input.op, value: input.value });
   if (!parsed.success) {
@@ -114,7 +129,8 @@ export function overridesRepo(meta: MetaDb) {
     origin: string;
     llmRunId: string | null;
     status: string;
-    /** Model confidence — always null for user-remap ops (LLM apply sets it, §8.3). */
+    /** Model confidence — always null for user-remap ops (LLM apply sets it).
+     * */
     confidence: number | null;
     createdBy: string | null;
     createdAt: number;
@@ -177,9 +193,9 @@ export function overridesRepo(meta: MetaDb) {
     },
 
     /**
-     * PUT semantics for the remap editor (08 §2.5): replace the connection's
-     * override set in one transaction. Every row is validated before any
-     * write happens, so a bad payload leaves the set untouched.
+     * PUT semantics for the remap editor: replace the connection's override
+     * set in one transaction. Every row is validated before any write
+     * happens, so a bad payload leaves the set untouched.
      */
     async replaceForConnection(
       connectionId: string,
@@ -196,7 +212,61 @@ export function overridesRepo(meta: MetaDb) {
       });
     },
 
-    /** Toggle a correction off without deleting it (§3.15). */
+    /**
+     * Replace the connection's `user` and `llm` rows with the ones a project's
+     * `schema/<database>.json` lists, in one transaction. `auto` rows are the
+     * engine's own guesses, which every install derives again, so they stay.
+     * The rows land in the given order, which is the order they are applied
+     * in. Every row is checked before anything is written.
+     */
+    async replaceProjectRows(
+      connectionId: string,
+      inputs: readonly ProjectOverrideInput[],
+      at: number = Date.now(),
+    ): Promise<void> {
+      const rows = inputs.map((input) => {
+        const columnName = input.columnName ?? null;
+        let value = input.value;
+        if (llmOverrideField(input.op) !== null) {
+          if (input.origin !== 'llm') {
+            throw new MetaValidationError(`op ${input.op} is written by AI assist; its origin must be llm`);
+          }
+          if (input.tableName.length === 0) throw new MetaValidationError('tableName must not be empty');
+          validateLlmOverride(input.op, columnName, input.value);
+        } else {
+          value = validateOverrideInput({ connectionId, ...input, columnName }).value;
+        }
+        const status = overrideStatusSchema.safeParse(input.status);
+        if (!status.success) throw new MetaValidationError('invalid override status', status.error.issues);
+        return {
+          id: newId('ovr'),
+          connectionId,
+          op: input.op,
+          tableName: input.tableName,
+          columnName,
+          value: packJson(value),
+          origin: input.origin,
+          llmRunId: null,
+          status: status.data,
+          confidence: input.confidence ?? null,
+          createdBy: null,
+          createdAt: at,
+          updatedAt: at,
+        };
+      });
+      await db.transaction().execute(async (trx) => {
+        await trx
+          .deleteFrom('adminium_schema_overrides')
+          .where('connectionId', '=', connectionId)
+          .where('origin', '!=', 'auto')
+          .execute();
+        for (const row of rows) {
+          await trx.insertInto('adminium_schema_overrides').values(row).execute();
+        }
+      });
+    },
+
+    /** Toggle a correction off without deleting it. */
     async setStatus(id: string, status: 'active' | 'disabled', at: number = Date.now()): Promise<boolean> {
       const valid = overrideStatusSchema.safeParse(status);
       if (!valid.success) throw new MetaValidationError('invalid override status', valid.error.issues);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GENERATED MIRROR of ../../../locales/da-DK/common.json — do not edit by hand.
- * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
  * without JSON import attributes (browser + NodeNext safe).
@@ -300,6 +300,13 @@ export default {
   "undo": {
     "done": "Ændring fortrudt",
     "failed": "Ændringen kunne ikke fortrydes"
+  },
+  "projectAction": {
+    "done": "{label}: udført",
+    "failed": "{label} blev ikke fuldført",
+    "menu": "Handlinger",
+    "run": "Kør",
+    "selected": "{count, plural, one {# post} other {# poster}}"
   },
   "prefs": {
     "theme": {
@@ -1013,7 +1020,7 @@ export default {
     "article": {
       "install": {
         "title": "Installér Adminium",
-        "excerpt": "Kør fra et kildekode-checkout eller med docker run, og nå førstegangsguiden på et minut."
+        "excerpt": "Opret et projekt med én kommando, eller kør Adminium med docker run eller fra et kildekode-checkout."
       },
       "firstAdmin": {
         "title": "Opret din første superadministrator",
@@ -1622,6 +1629,7 @@ export default {
       "jobsRead": "Se alle baggrundsjob",
       "llmRun": "Kør AI-assistance",
       "pagesManage": "Opret og organisér sider",
+      "projectRead": "Læs side- og skemaændringer til et projekt-pull",
       "reportsManage": "Administrér planlagte rapporter",
       "rolesManage": "Administrér roller og rettigheder",
       "schemaRemap": "Redigér skemaetiketter og tilsidesættelser",

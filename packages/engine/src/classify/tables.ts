@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Table-shape classification — 05-introspection-engine.md §8 (roles) plus
- * the §6 structural detectors that live at table granularity: join-table
- * detection (rule 2), self-FK hierarchy (rule 3), and the polymorphic
- * pattern flag (rule 4). Also selects each table's display column and
- * natural key, which the generator uses for FK chips, cards, and detail
- * titles (research/widget-registry.md §15).
+ * Table-shape classification — (roles) plus the structural detectors that
+ * live at table granularity: join-table detection (rule 2), self-FK
+ * hierarchy (rule 3), and the polymorphic pattern flag (rule 4). Also
+ * selects each table's display column and natural key, which the
+ * generator uses for FK chips, cards, and detail titles
+ * (research/widget-registry.md).
  *
  * Two outputs per table:
  *  - `semantics`: the persisted `TableSemantics` (role/hierarchy/polymorphic
@@ -71,13 +71,13 @@ export interface ClassifiedTable {
 // ---------------------------------------------------------------------------
 
 /**
- * Tables the connect wizard keeps out of the picker by default — 05 §8.2.
+ * Tables the connect wizard keeps out of the picker by default.
  *
  * Three kinds, none of which anyone wants CRUD pages over: Adminium's own
  * `adminium_*` store, which lands in the SOURCE database whenever the meta
- * store is placed there (a supported 01 §3.1 configuration); other tools'
- * migration bookkeeping; and join tables, which exist to be traversed rather
- * than edited. Generation already declines to page all three —
+ * store is placed there (a supported configuration); other tools' migration
+ * bookkeeping; and join tables, which exist to be traversed rather than
+ * edited. Generation already declines to page all three —
  * `filterModelToIncludedTables` keeps them in the graph for M2M detection and
  * nothing else — so offering them only ever produced a selection that could
  * not be honoured.
@@ -97,15 +97,15 @@ export function isPreHiddenTable(table: {
   return table.system === true || role === 'join-table' || role === 'system';
 }
 
-/** §8 trigger: `page-log-viewer` name pattern. */
+/** Trigger: the `page-log-viewer` name pattern. */
 const LOG_TABLE_RE = /(^|_)(audit|logs?|events?|history|deliveries)(_|$)/;
 const SETTINGS_TABLE_RE = /(^|_)(settings?|preferences?|configs?|configurations?|options)(_|$)/;
-/** §8.2 system-table vocabulary. */
+/** System-table vocabulary. */
 const SYSTEM_TABLE_RE =
   /^(adminium_.*|_prisma_migrations|schema_migrations|ar_internal_metadata|django_migrations|knex_migrations.*|sqlite_sequence|mysql\..*)$/;
-/** §6 rule 3 — self-FK column names that imply a hierarchy. */
+/** Self-FK column names that imply a hierarchy. */
 const HIERARCHY_COLUMN_RE = /^(parent|manager|supervisor|reports_to|superior)(_id)?$/;
-/** Join-table "allowed extra" columns (§6 rule 2). */
+/** Join-table "allowed extra" columns. */
 const POSITION_RE = /^(position|sort_order|rank|ordering)$/;
 /** Line-items detection: quantity × rate numerics on a 2-FK child table. */
 const QTY_RE = /(^|_)(qty|quantity|units|count)(_|$)/;
@@ -113,7 +113,7 @@ const RATE_RE = /(^|_)(price|rate|amount|cost|unit_price)(_|$)/;
 /** Messages detection: sender FK + body text + created-at. */
 const SENDER_RE = /(^|_)(sender|author|user|from_user|creator)(_id)?$/;
 const BODY_RE = /^(body|message|content|text)$/;
-/** §8 log shape: "verb-ish text" = a short action/event/verb column. */
+/** Log shape: "verb-ish text" = a short action/event/verb column. */
 const VERBISH_RE = /(^|_)(action|event|activity|verb|operation)(_type|_name)?(_|$)/;
 /** Events-shaped table names (guards the calendar trigger against orders-like tables). */
 const EVENTS_TABLE_RE =
@@ -125,7 +125,7 @@ const TITLE_SUFFIX_RE = /_(title|name|label|subject)$/;
 const TEXTISH = new Set(['text', 'varchar']);
 
 // ---------------------------------------------------------------------------
-// §6 rule 2 — join-table detection (M2M)
+// — join-table detection (M2M)
 // ---------------------------------------------------------------------------
 
 export interface JoinTableResult {
@@ -136,7 +136,7 @@ export interface JoinTableResult {
 }
 
 /**
- * Accepted-relation threshold (05 §6). The SAME number lives in
+ * Accepted-relation threshold. The SAME number lives in
  * classify/columns.ts, infer/relations.ts and generate/domains.ts; all four
  * move together or the model means different things to different readers.
  */
@@ -146,10 +146,10 @@ const ACCEPTED_RELATION_CONFIDENCE = 0.8;
  * The column view {@link detectJoinTable} must be given — its FK test read
  * through two lenses, not one.
  *
- * `detectJoinTable` looks for `semantics.primary === 'fk'`, but §7.1 rule 2
- * (pk-id) precedes rule 3 (fk), so a composite-PK FK column — which is what
- * the canonical join table is made of — classifies as `pk-id` and is invisible
- * to it. The detector already compensates with a fallback to the DECLARED
+ * `detectJoinTable` looks for `semantics.primary === 'fk'`, but (pk-id)
+ * precedes rule 3 (fk), so a composite-PK FK column — which is what the
+ * canonical join table is made of — classifies as `pk-id` and is invisible to
+ * it. The detector already compensates with a fallback to the DECLARED
  * `references` mirror. An INFERRED or overridden FK has no such mirror, so on
  * exactly the FK-less schemas `infer/relations.ts` exists for, a perfectly
  * obvious `order_products(order_id, product_id)` stayed an `entity`: rule 1
@@ -159,7 +159,7 @@ const ACCEPTED_RELATION_CONFIDENCE = 0.8;
  * So accepted relations (≥ 0.8, non-M2M) are restated as `fk` here: the
  * inferred half of the same fallback. The override is LOCAL to join
  * detection and never reaches `ClassifiedTable.columns` — a composite-PK
- * column stays `pk-id` everywhere else, as §7.1 says it must.
+ * column stays `pk-id` everywhere else, says it must.
  *
  * M2M relations are excluded on purpose: their `from.columns` are the TARGET
  * table's key columns, not FKs on the through table, so counting them would
@@ -191,7 +191,7 @@ export function joinDetectionColumns(
  * {surrogate id, created-at-classified, position/sort_order, one small
  * metadata column}. Boosters: composite PK/unique over the pair (+0.1),
  * name matching the two target names (+0.1). Base 0.7 → typical 0.8–0.9;
- * accepted at ≥ 0.8 (§6 thresholds).
+ * accepted at ≥ 0.8 (thresholds).
  */
 export function detectJoinTable(
   table: TableModel,
@@ -260,7 +260,7 @@ export function detectJoinTable(
 }
 
 // ---------------------------------------------------------------------------
-// §6 rules 3–4 — hierarchy + polymorphic flags
+// rules 3–4 — hierarchy + polymorphic flags
 // ---------------------------------------------------------------------------
 
 function detectHierarchy(model: DatabaseModel, table: TableModel): { parentColumn: string } | null {
@@ -393,7 +393,7 @@ export function classifyTable(model: DatabaseModel, table: TableModel): Classifi
   if (table.system || SYSTEM_TABLE_RE.test(tableName)) {
     kind = 'generic';
     role = 'system';
-    reasons.push('system/migration table (§8.2) — excluded and hidden by default');
+    reasons.push('system/migration table — excluded and hidden by default');
   } else if (join.isJoin) {
     kind = 'join';
     role = 'join-table';
@@ -414,8 +414,8 @@ export function classifyTable(model: DatabaseModel, table: TableModel): Classifi
     role = 'log';
     reasons.push(
       LOG_TABLE_RE.test(tableName)
-        ? 'table name matches audit/log/events/history vocabulary (§8)'
-        : 'append-only shape: created-at + actor FK + text, no updated-at (§8)',
+        ? 'table name matches audit/log/events/history vocabulary'
+        : 'append-only shape: created-at + actor FK + text, no updated-at',
     );
   } else if (SETTINGS_TABLE_RE.test(tableName)) {
     kind = 'settings';
@@ -423,16 +423,16 @@ export function classifyTable(model: DatabaseModel, table: TableModel): Classifi
   } else if (ctx.peopleish && (has('person-name') || has('email'))) {
     kind = 'people';
     role = 'people';
-    reasons.push('people shape: person-name/email columns on a people-ish table (§8 directory trigger)');
+    reasons.push('people shape: person-name/email columns on a people-ish table');
   } else if (has('status-workflow')) {
     kind = 'workflow';
-    reasons.push('status-workflow enum present (§7.1 rule 7 → kanban trigger)');
+    reasons.push('status-workflow enum present — kanban trigger');
   } else if (
     (has('event-timestamp') || has('date-range')) &&
     (EVENTS_TABLE_RE.test(tableName) || has('date-range'))
   ) {
     kind = 'events';
-    reasons.push('event timestamps with an events-shaped name or start/end pair (§8 calendar trigger)');
+    reasons.push('event timestamps with an events-shaped name or start/end pair');
   } else {
     // Line-items / messages roles are orthogonal to the remaining kinds.
     const geoColumns = columns.filter(
@@ -446,7 +446,7 @@ export function classifyTable(model: DatabaseModel, table: TableModel): Classifi
     ) {
       kind = 'geo';
       reasons.push(
-        `${geoColumns.length}/${dataColumns.length} data columns are geographic (§7.1 rules 14–15)`,
+        `${geoColumns.length}/${dataColumns.length} data columns are geographic`,
       );
     } else {
       const displayColumn = selectDisplayColumn(table, columns);
@@ -455,7 +455,7 @@ export function classifyTable(model: DatabaseModel, table: TableModel): Classifi
         kind = 'catalog';
         reasons.push('display column plus money/category/image columns — catalog shape');
       } else {
-        reasons.push('no §8 trigger matched');
+        reasons.push('no archetype trigger matched');
       }
     }
   }
@@ -474,19 +474,19 @@ export function classifyTable(model: DatabaseModel, table: TableModel): Classifi
     );
     if (fkCount >= 2 && hasQty && hasRate) {
       role = 'line-items';
-      reasons.push('line-items role: child of 2 FKs with qty × rate numerics (§8 invoice trigger)');
+      reasons.push('line-items role: child of 2 FKs with qty × rate numerics');
     } else if (actorFk && hasBody && has('created-at')) {
       role = 'messages';
-      reasons.push('messages role: sender FK + body text + created-at (§8 chat trigger)');
+      reasons.push('messages role: sender FK + body text + created-at');
     }
   }
 
   const semantics: TableSemantics = { role, hierarchy, polymorphic };
   if (hierarchy !== null) {
-    reasons.push(`self-FK hierarchy via "${hierarchy.parentColumn}" (§6 rule 3)`);
+    reasons.push(`self-FK hierarchy via "${hierarchy.parentColumn}"`);
   }
   for (const p of polymorphic) {
-    reasons.push(`polymorphic pair ${p.typeColumn}/${p.idColumn} (§6 rule 4 — no relation fabricated)`);
+    reasons.push(`polymorphic pair ${p.typeColumn}/${p.idColumn} — no relation fabricated`);
   }
 
   return {

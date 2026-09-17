@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-crud` template (09-generated-app.md §7.1; 04 §10) — the component the
- * dashboard PageRenderer mounts for `template: 'page-crud'` envelopes, plus
- * the CrudApi adapter contract the interpreter implements against the
- * generated CRUD API.
+ * `page-crud` template — the component the dashboard PageRenderer mounts for
+ * `template: 'page-crud'` envelopes, plus the CrudApi adapter contract the
+ * interpreter implements against the generated CRUD API.
  */
 export {
   CRUD_FILTER_OPS,
@@ -42,6 +41,7 @@ export {
   PAGE_CRUD_TEMPLATE_ID,
   PageCrud,
   SEARCH_DEBOUNCE_MS,
+  type PageCrudBulkAction,
   type PageCrudFiles,
   type PageCrudGridState,
   type PageCrudLabels,

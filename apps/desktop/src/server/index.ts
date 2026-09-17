@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * THE utilityProcess ENTRY (11-electron.md §2.1 topology, §2.2 steps 5–7).
+ * THE utilityProcess ENTRY (topology, steps 5–7).
  *
  * This is the whole of the desktop app's server: a wrapper that resolves the
- * §2.2 env block, opens the local SQLite meta store, bootstraps it, composes the
- * REAL server, listens on an OS-assigned loopback port, and reports that port
- * back to the main process over `parentPort`. It contains no business logic and
- * must never grow any (§1 principle 1: "Anything that smells like a feature
- * belongs in `@adminium/server`").
+ * env block, opens the local SQLite meta store, bootstraps it, composes the REAL
+ * server, listens on an OS-assigned loopback port, and reports that port back to
+ * the main process over `parentPort`. It contains no business logic and must
+ * never grow any ("Anything that smells like a feature belongs in
+ * `@adminium/server`").
  *
  * ─── `composeServer`, NOT `buildServer` ──────────────────────────────────────
  *
- * §3 describes this file as importing "the exported `buildServer()` factory".
+ * This file imports "the exported `buildServer()` factory".
  * Taken literally that is a BUG, and one this repo has already shipped once:
  * `buildServer` is the Fastify SKELETON — six of the seventeen `/api/v1`
  * namespaces the dashboard calls (`compose.ts` header, and the M10 review that
  * found `adminium start` serving an API whose connect wizard 404'd).
  * `composeServer` is the shared composition root that wires the other eleven,
  * and it is what `cli/runtime.ts`'s `startServer` — the working reference — has
- * called ever since. The desktop shell is a wrapper (01 §4: "All four deployment
- * modes run the identical `@adminium/server` process; only the wrapper
- * differs"), so it goes through the same door as every other wrapper. Reaching
- * for `buildServer` here would ship a hollow API to every desktop user.
+ * called ever since. The desktop shell is a wrapper ("All four deployment modes
+ * run the identical `@adminium/server` process; only the wrapper differs"), so
+ * it goes through the same door as every other wrapper. Reaching for
+ * `buildServer` here would ship a hollow API to every desktop user.
  *
  * By the same argument the service graph comes from `openRuntime` rather than a
  * hand-rolled copy: it is the one place that opens the meta store via
- * `openMetaStore` (01 §7.2 precedence), registers the adapters, and builds the
+ * `openMetaStore` (precedence), registers the adapters, and builds the
  * `ConnectionManager` + run/apply/prompt services. A second assembly of those
  * parts, living here, is precisely the drift the M10 risk register warns about.
  *
@@ -35,24 +35,23 @@
  * A boot that only migrated would serve a first-run wizard whose
  * `POST /setup/super-admin` dies inside `createFirstSuperAdmin` ("built-in roles
  * missing") — permanently, because the claim row rolls back with it and every
- * retry re-fails (`cli/commands/start.ts`, 07-meta-store.md §6). On desktop that
- * failure mode is worse than on self-host: §6's first-run wizard is the app's
- * front door, so the very first launch would dead-end. `firstRun` is the
- * documented idempotent boot entry point — migrate + seed built-in roles + seed
- * `system.*`.
+ * retry re-fails (`cli/commands/start.ts`). On desktop that failure mode is
+ * worse than on self-host: the first-run wizard is the app's front door, so the
+ * very first launch would dead-end. `firstRun` is the documented idempotent boot
+ * entry point — migrate + seed built-in roles + seed `system.*`.
  *
  * ─── Failure reporting ───────────────────────────────────────────────────────
  *
  * Every stage is wrapped so a failure becomes an `error` message on the
- * handshake (§2.2's `{ type: "error", stage, message }`) BEFORE the process
- * exits nonzero. Without it the parent's only signal is a 30 s timeout, and the
- * crash screen can offer the user nothing but a log path.
+ * handshake (`{ type: "error", stage, message }`) BEFORE the process exits
+ * nonzero. Without it the parent's only signal is a 30 s timeout, and the crash
+ * screen can offer the user nothing but a log path.
  */
 
 // EVERYTHING comes through `@adminium/server`, including `firstRun` (which that
 // package re-exports from `@adminium/meta` for exactly this caller). The
-// 01-architecture.md §2.3 matrix gives this app two inputs — "`@adminium/server`
-// (spawned)" and "dashboard build output (static files)" — and no others.
+// matrix gives this app two inputs — "`@adminium/server` (spawned)" and
+// "dashboard build output (static files)" — and no others.
 import {
   LATEST_META_MIGRATION,
   composeServer,
@@ -158,17 +157,17 @@ export async function bootDesktopServer(
   const desktop: DesktopServerEnv = await stage('env', () => parseDesktopServerEnv(processEnv));
 
   const env = await stage('env', () => {
-    // §2.1 is unconditional: "Meta-store is always local SQLite at
+    // The rule is unconditional: "Meta-store is always local SQLite at
     // <dataDir>/meta.db, even when the source DB is a remote Postgres/MySQL."
     // The DSN is normally computed by `buildServerEnv`, so a non-SQLite value
     // means somebody overrode it — refuse rather than quietly opening a remote
     // meta store that takes the user's prefs, pages and sessions offline the
-    // moment the network drops (§7: "fully functional with the network cable
+    // moment the network drops ("fully functional with the network cable
     // unplugged, forever").
     const engine = metaEngineFromUrl(desktop.metaDsn);
     if (engine !== 'sqlite') {
       throw new Error(
-        `the desktop meta store must be SQLite (11-electron.md §2.1), got "${engine}" ` +
+        `the desktop meta store must be SQLite, got "${engine}" ` +
           `from ADMINIUM_META_DSN`,
       );
     }
@@ -178,8 +177,8 @@ export async function bootDesktopServer(
   const runtime = await stage('meta-store', () =>
     openRuntime(env, {
       // The desktop app's databases ARE local: `<dataDir>/databases/*.sqlite`,
-      // and §6 offers "Connect to a server database" against whatever the user
-      // can reach — including a Postgres on their own machine. The SSRF guard
+      // offers "Connect to a server database" against whatever the user can
+      // reach — including a Postgres on their own machine. The SSRF guard
       // defaults to `blockLoopback: NODE_ENV === 'production'`, which is exactly
       // what a packaged build sets, so leaving it to the default would make a
       // shipped desktop app refuse the local databases it exists to administer.
@@ -191,10 +190,10 @@ export async function bootDesktopServer(
     const { appliedMigrations } = await stage('migrate', () => firstRun(runtime.metaStore.meta));
 
     const app = await stage('compose', async () => {
-      // §3: the packaged build copies the dashboard into `resources/` and points
-      // the server's existing static handler at it (`ADMINIUM_STATIC_ROOT`, set
-      // by ServerManager). Absent ⇒ the monorepo/tarball candidates ⇒ absent ⇒
-      // API only, which is the static plugin's documented degradation.
+      // The packaged build copies the dashboard into `resources/` and points the
+      // server's existing static handler at it (`ADMINIUM_STATIC_ROOT`, set by
+      // ServerManager). Absent ⇒ the monorepo/tarball candidates ⇒ absent ⇒ API
+      // only, which is the static plugin's documented degradation.
       const staticRoot = resolveStaticRoot(
         desktop.staticRoot === undefined ? {} : { override: desktop.staticRoot },
       );
@@ -212,8 +211,8 @@ export async function bootDesktopServer(
     });
 
     const port = await stage('listen', async () => {
-      // §2.4: loopback, and port 0 ⇒ the OS assigns. `desktop.port` is the only
-      // value that reaches the socket; `env.PORT` deliberately never does (see
+      // Loopback, and port 0 ⇒ the OS assigns. `desktop.port` is the only value
+      // that reaches the socket; `env.PORT` deliberately never does (see
       // `env.ts`).
       await app.listen({ port: desktop.port, host: desktop.host });
       return resolveListeningPort(app);
@@ -244,15 +243,14 @@ export interface RunServerEntryOptions {
   env?: NodeJS.ProcessEnv | undefined;
   /** Test seam. Defaults to `process.exit`. */
   exit?: (code: number) => void;
-  /** Test seam. Defaults to `console.error` — piped into the log file by §9. */
+  /** Test seam. Defaults to `console.error`; main pipes it into the log file. */
   onLog?: (line: string) => void;
 }
 
 /**
  * Boot, announce, and wire the shutdown path. Returns the booted server so a
  * caller (or a test) can drive it; on failure it reports `error` over the
- * handshake and exits nonzero, which is what §2.2 step 9 turns into the crash
- * screen.
+ * handshake and exits nonzero, which is what turns into the crash screen.
  */
 export async function runServerEntry(opts: RunServerEntryOptions): Promise<BootedServer | null> {
   const port = opts.parentPort;
@@ -261,7 +259,7 @@ export async function runServerEntry(opts: RunServerEntryOptions): Promise<Boote
   const post = (message: ServerMessage): void => {
     if (port === null) {
       // Not forked (someone ran the bundle directly). Say so on stderr rather
-      // than crashing — this is a useful debugging mode, and §9 pipes stderr
+      // than crashing — this is a useful debugging mode, pipes stderr
       // into the log file either way.
       log(`[server] no parentPort; ${JSON.stringify(message)}`);
       return;

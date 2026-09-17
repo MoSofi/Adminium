@@ -36,7 +36,7 @@ const approvalsConfig = {
   templateVersion: 1,
   toolbar: ['segmented-control', 'filter-chip-bar'],
   overlays: ['modal-wizard', 'toast-stack'],
-  archetype: { score: 0.85, reasons: ['pending/approved workflow enum (annex §14)'] },
+  archetype: { score: 0.85, reasons: ['pending/approved workflow enum'] },
   layout: {
     version: 1,
     items: [

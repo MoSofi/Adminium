@@ -50,7 +50,7 @@ describe('sha256Hex', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Canonical hash (§9): volatile fields stripped, ordering-insensitive
+// Canonical hash: volatile fields stripped, ordering-insensitive
 // ---------------------------------------------------------------------------
 
 describe('hashModel / canonicalModelJson', () => {
@@ -63,7 +63,7 @@ describe('hashModel / canonicalModelJson', () => {
     expect(JSON.stringify(northwind)).toBe(before);
   });
 
-  it('ignores the §9 volatile fields (introspectedAt/stats/warnings/estimates/activity/sizeBytes)', () => {
+  it('ignores the volatile fields (introspectedAt/stats/warnings/estimates/activity/sizeBytes)', () => {
     const noisy = clone(northwind);
     noisy.introspectedAt = '2030-01-01T00:00:00.000Z';
     noisy.stats = { tableCount: 0, columnCount: 0, relationCount: 0, durationMs: 999 };
@@ -125,7 +125,7 @@ describe('snapshotFromModel / diffSnapshots', () => {
 });
 
 // ---------------------------------------------------------------------------
-// diffModels (§9)
+// diffModels
 // ---------------------------------------------------------------------------
 
 describe('diffModels', () => {
@@ -189,7 +189,7 @@ describe('diffModels', () => {
     const diff = diffModels(northwind, b);
     const changed = diff.changedTables['public.customers']!;
     expect(changed.removedColumns).toEqual(['fax']);
-    expect(changed.renamedColumns).toEqual([]); // 05 §9: rename-detect.ts is a follow-up
+    expect(changed.renamedColumns).toEqual([]); // rename-detect.ts is a follow-up
     expect(diff.breaking).toBe(true);
   });
 

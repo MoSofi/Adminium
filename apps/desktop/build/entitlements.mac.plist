@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  macOS hardened-runtime entitlements — 11-electron.md §10 checklist, 11-T15.
+  macOS hardened-runtime entitlements for the signed, notarized build.
   electron-builder passes this file (and, via entitlementsInherit, the same file)
   to `codesign` for every Mach-O in the notarized app.
 
@@ -11,13 +11,13 @@
     explicit entitlement. This is the NARROW one.
 
   * com.apple.security.cs.allow-unsigned-executable-memory — NOT granted, on
-    purpose (§10 checklist). It is the BROAD sibling of allow-jit and would let any
+    purpose. It is the BROAD sibling of allow-jit and would let any
     unsigned page execute; allow-jit alone is sufficient for modern Electron, so
     granting the broad one only widens the attack surface a notarized app is
     supposed to shrink.
 
   * App Sandbox (com.apple.security.app-sandbox) — NOT present. The app opens
-    user-chosen SQLite files by absolute path anywhere on disk (§6 "Open an
+    user-chosen SQLite files by absolute path anywhere on disk ("Open an
     existing SQLite file… opened in place"); the sandbox's power-scoped file model
     is incompatible with that, and this app ships outside the Mac App Store, so it
     is not required. No sandbox means no need for user-selected-file entitlements

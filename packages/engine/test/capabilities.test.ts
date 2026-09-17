@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-engine capability matrix + degradation notes (M9-T04,
- * gap-analysis §2.1): the static facts that drive the wizard's honesty copy.
+ * Per-engine capability matrix + degradation notes
+ * (gap-analysis): the static facts that drive the wizard's
+ * honesty copy.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -26,7 +27,7 @@ describe('ENGINE_CAPABILITY_MATRIX', () => {
     expect(adapterCapabilitiesSchema.parse(IMPORT_BASE_CAPABILITIES)).toEqual(IMPORT_BASE_CAPABILITIES);
   });
 
-  it('encodes the 05 §4 dialect facts', () => {
+  it('encodes the dialect facts', () => {
     expect(ENGINE_CAPABILITY_MATRIX.postgres).toMatchObject({
       hasSchemas: true,
       hasRLS: true,
@@ -44,7 +45,7 @@ describe('ENGINE_CAPABILITY_MATRIX', () => {
       supportsStatementTimeout: false,
       maxIdentifierLength: 128,
     });
-    // No import ever has live signals (05 §5.2).
+    // No import ever has live signals.
     expect(IMPORT_BASE_CAPABILITIES).toMatchObject({ hasRowEstimates: false, hasRLS: false });
   });
 

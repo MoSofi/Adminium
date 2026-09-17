@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * TRACK DOMAIN unit tests (annex §13) — the two M7 exit-criteria widgets.
+ * TRACK DOMAIN unit tests (annex) — the two M7 exit-criteria widgets.
  *
  * Covers, per the track's definition of done: render, empty, deterministic
  * layout/geometry, the direction rules (org-chart mirrors, gantt does NOT — it
- * is a fixed-LTR island per 10-i18n-theming.md §5.5), and SELF-FK CYCLE SAFETY
- * (a `manager_id` cycle must not infinite-loop). The four-state /
- * determinism / config-fuzz / parity gates run centrally over `qa/delivered.ts`.
+ * is a fixed-LTR island), and SELF-FK CYCLE SAFETY (a `manager_id` cycle must
+ * not infinite-loop). The four-state / determinism / config-fuzz / parity
+ * gates run centrally over `qa/delivered.ts`.
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -365,7 +365,7 @@ describe('OrgChart — render', () => {
   });
 });
 
-describe('OrgChart — direction (§5.5: a hierarchy MIRRORS)', () => {
+describe('OrgChart — direction (a hierarchy MIRRORS)', () => {
   const data = { rows: [person('c0', null), person('r1', 'c0')], total: 2 };
 
   it('positions cards on inset-inline-start, never a physical offset', () => {
@@ -601,7 +601,7 @@ describe('GanttChart — render', () => {
 
   it('routes the axis dates through the Intl layer with Latin data digits', () => {
     // ar-EG prose uses Arabic-Indic digits, but a gantt DATE HEADER is data
-    // context → latn, so the header stays tabular-nums aligned (§4.2).
+    // context → latn, so the header stays tabular-nums aligned.
     render(
       <GanttChart data={demo} fields={GANTT_FIELDS} locale="ar-EG" todayMs={GANTT_DEMO_TODAY_MS} />,
     );
@@ -610,7 +610,7 @@ describe('GanttChart — render', () => {
   });
 });
 
-describe('GanttChart — direction (§5.5: the time axis is a FIXED-LTR ISLAND)', () => {
+describe('GanttChart — direction (the time axis is a FIXED-LTR ISLAND)', () => {
   const demo = ganttChartDemoData(7);
 
   it('declares the timeline canvas an LTR island', () => {
@@ -647,7 +647,7 @@ describe('GanttChart — direction (§5.5: the time axis is a FIXED-LTR ISLAND)'
 // demoData
 // ============================================================================
 
-describe('demoData (04 §7.7)', () => {
+describe('demoData', () => {
   it('org-chart: same seed → identical payload; distinct seeds → distinct trees', () => {
     expect(JSON.stringify(orgChartDemoData(7))).toBe(JSON.stringify(orgChartDemoData(7)));
     const shapes = new Set([1, 7, 42, 1234, 65_535].map((s) => JSON.stringify(orgChartDemoData(s))));

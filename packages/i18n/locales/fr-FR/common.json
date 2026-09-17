@@ -291,6 +291,13 @@
     "done": "Modification annulée",
     "failed": "Impossible d’annuler cette modification"
   },
+  "projectAction": {
+    "done": "{label} : terminé",
+    "failed": "{label} n’a pas abouti",
+    "menu": "Actions",
+    "run": "Exécuter",
+    "selected": "{count, plural, one {# enregistrement} other {# enregistrements}}"
+  },
   "prefs": {
     "theme": {
       "label": "Thème",
@@ -1003,7 +1010,7 @@
     "article": {
       "install": {
         "title": "Installer Adminium",
-        "excerpt": "Lancez depuis un dépôt source ou via docker run, et atteignez l’assistant de première exécution en une minute."
+        "excerpt": "Créez un projet avec une seule commande, ou lancez Adminium via docker run ou depuis un dépôt source."
       },
       "firstAdmin": {
         "title": "Créer votre premier super-administrateur",
@@ -1612,6 +1619,7 @@
       "jobsRead": "Voir toutes les tâches en arrière-plan",
       "llmRun": "Utiliser l’assistance IA",
       "pagesManage": "Créer et organiser les pages",
+      "projectRead": "Lire les modifications de pages et de schéma pour une récupération de projet",
       "reportsManage": "Gérer les rapports planifiés",
       "rolesManage": "Gérer les rôles et les permissions",
       "schemaRemap": "Modifier les libellés et les remplacements du schéma",

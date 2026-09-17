@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * connectionsRepo — adminium_connections (07-meta-store.md §3.13).
+ * connectionsRepo — adminium_connections.
  *
  * One row per configured source database. DSNs are stored encrypted; this
  * package stays crypto-agnostic — the caller (apps/server) provides
- * {@link DsnCrypto} closures built from its secret handling
- * (01-architecture.md §3/§7). Repos never see key material.
+ * {@link DsnCrypto} closures built from its secret handling. Repos never
+ * see key material.
  */
 
 import type { Selectable } from 'kysely';
@@ -50,9 +50,9 @@ export interface Connection {
   lastTestedAt: number | null;
   lastLatencyMs: number | null;
   lastError: string | null;
-  /** Remediation copy for {@link lastError}, from the adapter (05 §3). */
+  /** Remediation copy for {@link lastError}, from the adapter. */
   lastErrorHint: string | null;
-  /** Tenant configuration (28-T34, D20). Null = not configured. */
+  /** Tenant configuration. Null = not configured. */
   timezone: string | null;
   /**
    * Who chose {@link timezone} (0018). `null` is "no claim" — an unattributed
@@ -71,14 +71,16 @@ export interface Connection {
   /**
    * What the last probe said about DDL on this role (wave 0023). `null` =
    * never probed. A UI hint, never a guard — the authority is the per-target
-   * privilege preflight at plan time (35 D17).
+   * privilege preflight at plan time.
    */
   canDdl: boolean | null;
-  /** ER-diagram node positions, per connection (35 D21). */
+  /** ER-diagram node positions, per connection. */
   diagramLayout: unknown;
   disabledAt: number | null;
   /** Convenience mirror of `disabledAt !== null` — the question callers ask. */
   disabled: boolean;
+  /** The key a project's config names this database by (0033); null outside a project. */
+  projectKey: string | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -106,10 +108,10 @@ function readTimezoneSource(value: string | null): TimezoneSource | null {
   return value === 'host' || value === 'operator' ? value : null;
 }
 
-/** Decrypted per-role DSNs (01-architecture.md §3 privilege model). */
+/** Decrypted per-role DSNs (privilege model). */
 export interface ConnectionDsns {
   introspectDsn: string | null;
-  /** Falls back to the introspect DSN in single-role setups (§3.13). */
+  /** Falls back to the introspect DSN in single-role setups. */
   dataDsn: string | null;
 }
 
@@ -130,6 +132,8 @@ export interface CreateConnectionInput {
    * pass `null` explicitly to create one with no zone at all.
    */
   timezone?: string | null;
+  /** The project key this connection is created for (0033). */
+  projectKey?: string | null;
   createdBy?: string | null;
 }
 
@@ -153,9 +157,9 @@ export interface ConnectionTestOutcome {
   error?: string | null;
   /** The failure's remediation hint, when the adapter supplied one. */
   errorHint?: string | null;
-  /** Probe result — a read-only data role flips the app read-only (§3.13). */
+  /** Probe result — a read-only data role flips the app read-only. */
   readOnly?: boolean;
-  /** Probe result — whether this role can run DDL (wave 0023, 35 D17). */
+  /** Probe result — whether this role can run DDL (wave 0023). */
   canDdl?: boolean;
 }
 
@@ -183,6 +187,7 @@ function decode(row: Selectable<AdminiumConnectionsTable>): Connection {
     diagramLayout: readJsonOrNull(row.diagramLayout),
     disabledAt: row.disabledAt,
     disabled: row.disabledAt !== null,
+    projectKey: row.projectKey ?? null,
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -190,7 +195,7 @@ function decode(row: Selectable<AdminiumConnectionsTable>): Connection {
 }
 
 /**
- * The connection's tenant facts, with NO DSN crypto involved (28-T34).
+ * The connection's tenant facts, with NO DSN crypto involved.
  *
  * `connectionsRepo` needs a `DsnCrypto` because it decrypts connection
  * strings. Reading a timezone does not, and the public-API route that wants
@@ -233,10 +238,10 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
       throw new MetaValidationError('invalid source_kind', sourceKind.error.issues);
     }
     if (sourceKind.data === 'dsn' && (input.introspectDsn === undefined || input.introspectDsn === null)) {
-      throw new MetaValidationError('introspectDsn is required when source_kind = dsn (§3.13)');
+      throw new MetaValidationError('introspectDsn is required when source_kind = dsn');
     }
     if (sourceKind.data === 'schema-file' && (input.schemaFileId === undefined || input.schemaFileId === null)) {
-      throw new MetaValidationError('schemaFileId is required when source_kind = schema-file (§3.13)');
+      throw new MetaValidationError('schemaFileId is required when source_kind = schema-file');
     }
     const settings = connectionSettingsSchema.safeParse(input.settings ?? {});
     if (!settings.success) {
@@ -313,6 +318,7 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
         currency: null,
         // New sources serve immediately — pausing is always a later decision.
         disabledAt: null,
+        projectKey: input.projectKey ?? null,
         createdBy: input.createdBy ?? null,
         createdAt: at,
         updatedAt: at,
@@ -335,6 +341,29 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
     async list(): Promise<Connection[]> {
       const rows = await db.selectFrom('adminium_connections').selectAll().orderBy('createdAt', 'asc').execute();
       return rows.map(decode);
+    },
+
+    /** The connection a project's config names `key` (0033), or null. */
+    async findByProjectKey(key: string): Promise<Connection | null> {
+      const row = await db
+        .selectFrom('adminium_connections')
+        .selectAll()
+        .where('projectKey', '=', key)
+        .executeTakeFirst();
+      return row === undefined ? null : decode(row);
+    },
+
+    /**
+     * Tie a connection to a project key, or untie it with `null` (0033). The
+     * unique index refuses a key another connection already holds.
+     */
+    async setProjectKey(id: string, key: string | null, at: number = Date.now()): Promise<Connection | null> {
+      await db
+        .updateTable('adminium_connections')
+        .set({ projectKey: key, updatedAt: at } as never)
+        .where('id', '=', id)
+        .execute();
+      return this.findById(id);
     },
 
     /** Decrypt the stored DSNs; `dataDsn` falls back to the introspect DSN. */
@@ -395,7 +424,7 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
       return this.findById(id);
     },
 
-    /** Persist a test/probe outcome (health chip fields, §3.13). */
+    /** Persist a test/probe outcome (health chip fields). */
     async recordTestResult(id: string, outcome: ConnectionTestOutcome, at: number = Date.now()): Promise<void> {
       const set: Record<string, unknown> = {
         lastTestedAt: at,
@@ -410,7 +439,7 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
       if (outcome.readOnly !== undefined) set.readOnly = writeBool(meta, outcome.readOnly);
       // Wave 0023: the probe has computed `canDDL` since M3 and thrown it away
       // every time. Persisting it is what lets Studio hide schema authoring
-      // without a round trip (35-T15) — it is not the guard (35 D17).
+      // without a round trip — it is not the guard.
       if (outcome.canDdl !== undefined) set.canDdl = writeBool(meta, outcome.canDdl);
       await db
         .updateTable('adminium_connections')
@@ -420,7 +449,7 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
     },
 
     /**
-     * Persist the ER-diagram node positions (wave 0023, 35 D21).
+     * Persist the ER-diagram node positions (wave 0023).
      *
      * Its own writer rather than a field on {@link UpdateConnectionInput}
      * because `update` writes `settings` whole under `connections.manage`, and

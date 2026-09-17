@@ -4,17 +4,16 @@ import { z } from 'zod';
 import { queryDescriptorSchema } from '../page-config/index.js';
 
 /**
- * Shared config carried by every widget (04-widget-registry.md §2.1, verbatim;
- * annex "Conventions" — the annex field `dataSource` is implemented as
- * `binding`, see 04 Open decisions #1). Every widget's `configSchema` is an
- * `.extend()` of this schema.
+ * Shared config carried by every widget (verbatim; annex "Conventions" — the
+ * annex field `dataSource` is implemented as `binding`, see 04 Open decisions
+ * #1). Every widget's `configSchema` is an `.extend()` of this schema.
  */
 export const widgetSharedConfigSchema = z.object({
   title: z.string().optional(),
   subtitle: z.string().optional(),
   icon: z.string().optional(), // lucide-react icon name
   href: z.string().optional(), // drill-through route
-  binding: queryDescriptorSchema.optional(), // 04 §5; absent → demoData(seed)
+  binding: queryDescriptorSchema.optional(), // absent → demoData(seed)
   refreshInterval: z.number().int().min(5).max(86_400).optional(), // seconds
   emptyState: z
     .object({
@@ -42,7 +41,7 @@ export const widgetSharedConfigSchema = z.object({
       /**
        * Reference clock (epoch ms) for relative timestamps. Widgets that render
        * "3h ago"-style times use it as `now` when set, else the wall clock —
-       * pinning it makes demo/VRT captures byte-deterministic (04-T17).
+       * pinning it makes demo/VRT captures byte-deterministic.
        */
       referenceTime: z.number().int().optional(),
     })

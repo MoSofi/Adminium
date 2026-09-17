@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 3 — "Your account" (11-electron.md §6): the super-admin, the
- * "Skip login on this computer" checkbox (§5), and the locale/theme pickers
- * pre-filled from the OS.
+ * Step 3 — "Your account": the super-admin, the "Skip login on this
+ * computer" checkbox, and the locale/theme pickers pre-filled from the OS.
  *
  * REUSED, NOT RE-DERIVED: `validateAccount` and the segmented `PasswordStrength`
  * meter come from the M10 self-host wizard (`setup/FirstRunWizard.tsx`). The
@@ -135,7 +134,7 @@ export function AccountStep(props: AccountStepProps): ReactNode {
         />
       </FormField>
 
-      {/* §5 / §6 step 3 — checked by default. The label is the SPEC's wording
+      {/* Checked by default. The label is the SPEC's wording
           ("Skip login on this computer"); Settings → Desktop states the same
           answer inverted ("Require login on this device"), because there the
           user is turning protection ON and here they are turning it off. */}
@@ -164,7 +163,7 @@ export function AccountStep(props: AccountStepProps): ReactNode {
       <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface-2 p-4">
         <div className="flex flex-col gap-2">
           <Label>{t('desktop.setup.account.locale', 'Language')}</Label>
-          {/* Pre-filled from the OS locale and the system theme (§6 step 3): the
+          {/* Pre-filled from the OS locale and the system theme: the
               parent seeds them from `navigator.language` / the theme provider
               before this renders, so these are pickers with an answer already in
               them, not empty questions. */}

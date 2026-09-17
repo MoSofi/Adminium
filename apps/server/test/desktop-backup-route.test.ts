@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `POST /api/v1/desktop/backup` (11-electron.md §9) — the route's gates.
+ * `POST /api/v1/desktop/backup` — the route's gates.
  *
  * A backup archive is every row in every local database plus every user record,
  * so this endpoint is an exfiltration primitive with a friendly name. It is
@@ -151,11 +151,11 @@ afterEach(async () => {
   t = null;
 });
 
-// ─── Gate 2: the peer (§2.4) ─────────────────────────────────────────────────
+// ─── Gate 2: the peer ────────────────────────────────────────────────────────
 
 describe('gate 2 — the peer', () => {
   it('refuses a LAN peer even with a valid super-admin session', async () => {
-    // §8.3 binds 0.0.0.0 when LAN share is on, so this is a request the server
+    // The server binds 0.0.0.0 when LAN share is on, so this is a request the server
     // really can receive. RBAC alone would ALLOW it — the account is genuinely a
     // super admin — which is exactly why the peer gate is separate and why it
     // runs first. A backup is every row in the install; it does not leave over
@@ -192,7 +192,7 @@ describe('gate 3 — session and RBAC', () => {
   });
 
   it('refuses a signed-in user without system:settings:manage', async () => {
-    // A viewer has a real session on the same machine. §9's archive is not
+    // A viewer has a real session on the same machine. The archive is not
     // theirs to take.
     const res = await post(t as Harness, { user: (t as Harness).viewer });
     expect(res.statusCode).toBe(403);
@@ -205,7 +205,7 @@ describe('gate 3 — session and RBAC', () => {
   });
 });
 
-// ─── The body (§9) ───────────────────────────────────────────────────────────
+// ─── The body ────────────────────────────────────────────────────────────────
 
 describe('the request body', () => {
   it('has no destination path in it at all', async () => {
@@ -238,7 +238,7 @@ describe('the request body', () => {
     }
   });
 
-  it('defaults `keep` to §9’s 7', async () => {
+  it('defaults `keep` to 7', async () => {
     const res = await post(t as Harness, {
       user: (t as Harness).superAdmin,
       body: { destination: 'auto' },
@@ -262,7 +262,7 @@ describe('the request body', () => {
   });
 });
 
-// ─── The reply and its side effects (§9) ─────────────────────────────────────
+// ─── The reply and its side effects ──────────────────────────────────────────
 
 describe('the reply', () => {
   it('returns the archive path, size and the whole manifest', async () => {
@@ -278,15 +278,15 @@ describe('the reply', () => {
     expect(body.data.manifest.appVersion).toBe('1.2.3');
   });
 
-  it('raises an adminium_notifications entry for an auto backup (§9)', async () => {
+  it('raises an adminium_notifications entry for an auto backup', async () => {
     const h = t as Harness;
     await post(h, { user: h.superAdmin, body: { destination: 'auto' } });
 
     const rows = await h.meta.db.selectFrom('adminium_notifications').selectAll().execute();
     expect(rows).toHaveLength(1);
     expect(rows[0]?.kind).toBe(BACKUP_NOTIFICATION_KIND);
-    // §9's "Show in folder" is not a URL — it is `shell.showItemInFolder`,
-    // which lives behind §4's bridge. The path rides in `entity` instead.
+    // "Show in folder" is not a URL — it is `shell.showItemInFolder`,
+    // which lives behind bridge. The path rides in `entity` instead.
     expect(rows[0]?.actionUrl).toBeNull();
     expect(rows[0]?.userId).toBe(h.superAdmin.id);
     expect(String(rows[0]?.entity)).toContain('backups/adminium-backup-');

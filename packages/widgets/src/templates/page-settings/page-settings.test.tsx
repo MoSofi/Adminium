@@ -3,9 +3,9 @@
 /**
  * `page-settings` template (M7 reports/notifications track): the controlled
  * matrix truth (host rollback snaps a cell back), per-cell autosave firing
- * with the requested value, the saved-indicator choreography, the §8.2
+ * with the requested value, the saved-indicator choreography, the
  * unavailable-channel explanation (togglable, explained, never hidden), and
- * the manifest passing the §10 schema.
+ * the manifest passing the schema.
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
@@ -40,7 +40,7 @@ function cell(rowLabel: string, colLabel: string) {
 }
 
 describe('page-settings manifest', () => {
-  it('passes the §10 schema with a required toggle-matrix slot', () => {
+  it('passes the schema with a required toggle-matrix slot', () => {
     const parsed = parsePageTemplate(pageSettingsManifest);
     expect(parsed.id).toBe('page-settings');
     const matrix = parsed.slots.find((slot) => slot.slot === 'matrix');
@@ -131,7 +131,7 @@ describe('PageSettings', () => {
     expect(dirty.length).toBe(1);
   });
 
-  it('explains an unavailable channel instead of hiding or locking it (§8.2)', async () => {
+  it('explains an unavailable channel instead of hiding or locking it', async () => {
     const user = userEvent.setup();
     const onToggle = vi.fn();
     render(<PageSettings channels={CHANNELS} events={EVENTS} onToggle={onToggle} />);

@@ -5,13 +5,13 @@ import { tablesWidgetDefinitions } from './definitions.js';
 import { buildRegistry } from '../../registry/index.js';
 
 /**
- * Registry-metadata contract for the tables family (annex §3 sizing rows —
+ * Registry-metadata contract for the tables family (annex sizing rows —
  * annex heights are rows, sizing uses 40px half-units → ×2).
  */
 describe('tablesWidgetDefinitions', () => {
   const byId = new Map(tablesWidgetDefinitions.map((d) => [d.id, d]));
 
-  it('registers the M4-T03 slice with unique ids', () => {
+  it('registers the slice with unique ids', () => {
     expect([...byId.keys()].sort()).toEqual([
       'bulk-action-toolbar',
       'data-grid',

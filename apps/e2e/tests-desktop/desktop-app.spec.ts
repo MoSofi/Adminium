@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 11-T20 — the desktop E2E happy path (Playwright `_electron`).
+ * The desktop E2E happy path (Playwright `_electron`).
  *
- * Launches the BUILT app (`apps/desktop/out/main/index.js`) and walks §6's
- * first-run → demo DB → dashboard → CRUD edit → chart render → backup, asserting
- * the §2.4 renderer security posture along the way. One app, launched once, is
- * driven serially — the flow is stateful (the wizard builds the database the
- * later steps read).
+ * Launches the BUILT app (`apps/desktop/out/main/index.js`) and walks first-run
+ * → demo DB → dashboard → CRUD edit → chart render → backup, asserting the
+ * renderer security posture along the way. One app, launched once, is driven
+ * serially — the flow is stateful (the wizard builds the database the later
+ * steps read).
  *
  * This runs in CI (a display + a native-ABI rebuild are prerequisites — see
  * `helpers/paths.ts`). It is gated behind the `desktop-e2e` Playwright project
@@ -74,7 +74,7 @@ test.describe('desktop app: first-run → demo → dashboard → CRUD → chart 
     await assertNavigationLockdown(app, page);
   });
 
-  test('backup writes a §9 archive via the File → Back up now… menu item', async () => {
+  test('backup writes a archive via the File → Back up now… menu item', async () => {
     const savePath = join(mkdtempSync(join(tmpdir(), 'adminium-backup-')), 'adminium-backup-e2e.zip');
     await stubBackupDialogs(app, savePath);
 
@@ -88,7 +88,7 @@ test.describe('desktop app: first-run → demo → dashboard → CRUD → chart 
       })
       .toBe(true);
 
-    // §9's archive is a zip: assert the PK\x03\x04 local-file-header magic.
+    // The archive is a zip: assert the PK\x03\x04 local-file-header magic.
     const head = readFileSync(savePath).subarray(0, 4);
     expect([head[0], head[1], head[2], head[3]], 'backup must be a real zip archive').toEqual([
       0x50, 0x4b, 0x03, 0x04,

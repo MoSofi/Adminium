@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Audit-coverage registry (08-server-api.md §7 item 9): every state-changing
- * route either writes an audit row, or carries a written reason why it does not.
+ * Audit-coverage registry: every state-changing route either writes an audit
+ * row, or carries a written reason why it does not.
  *
  * ── WHY A DECLARATIVE MARKER AND NOT A SOURCE SCAN ──────────────────────────
  * "Does this route audit?" cannot be answered by grepping the handler body. The
@@ -20,12 +20,12 @@
  * permission-denied branch; a SUCCESSFUL query writes nothing. Any scan reading
  * "an audit call appears near this route" would have passed it.
  *
- * So coverage is DECLARED, exactly the way §6 rate-limit buckets are: a
- * route-level `config.audit` marker, validated in an `onRoute` hook (`app.ts`),
- * read back off `route.config`. The marker is a claim by the route's author, not
- * a proof — its job is to make the claim explicit, reviewable, and impossible to
- * forget, because a state-changing route carrying no mark at all fails
- * {@link assertAuditCoverage}.
+ * So coverage is DECLARED, exactly the way rate-limit buckets are: a route-level
+ * `config.audit` marker, validated in an `onRoute` hook (`app.ts`), read back
+ * off `route.config`. The marker is a claim by the route's author, not a proof —
+ * its job is to make the claim explicit, reviewable, and impossible to forget,
+ * because a state-changing route carrying no mark at all fails {@link
+ * assertAuditCoverage}.
  *
  * ── THE THREE AUDIT WRITE PATHS ─────────────────────────────────────────────
  * A registry that knew only `app.rbac.audit` would false-alarm on 14 routes.
@@ -87,7 +87,7 @@ export function auditGap(note: string): AuditMark {
 
 declare module 'fastify' {
   interface FastifyContextConfig {
-    /** §7-item-9 coverage marker; validated by the `onRoute` hook in app.ts. */
+    /** Audit-coverage marker; validated by the `onRoute` hook in app.ts. */
     audit?: AuditMark;
   }
   interface FastifyInstance {
@@ -115,7 +115,7 @@ export function auditRouteKey(method: string, url: string): string {
  * ledger cannot quietly drift away from the source it claims to summarize.
  */
 export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
-  // ── /auth (08 §2.1) — every mutation, via `auditAuth` in routes/auth/handlers.ts.
+  // ── /auth — every mutation, via `auditAuth` in routes/auth/handlers.ts.
   // Registered inside `buildServer`, so `app.rbac` is not reachable from them.
   'POST /api/v1/auth/login': audited('auth'), // login | login_failed | 2fa_challenge
   'POST /api/v1/auth/2fa/verify': audited('auth'), // login | 2fa_failed
@@ -127,7 +127,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'POST /api/v1/auth/2fa/enroll': audited('auth'), // 2fa_enroll_started
   'POST /api/v1/auth/2fa/activate': audited('auth'), // 2fa_enrolled
   'POST /api/v1/auth/2fa/disable': audited('auth'), // 2fa_disabled
-  // 11-electron.md §5, both the rejection and the failure paths.
+  // Both the rejection and the failure paths.
   'POST /api/v1/auth/desktop-session': audited('auth'),
 
   // ── /me — the caller's own account and their own UI state.
@@ -162,7 +162,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
 
   // ── Dry runs and stateless parses. Nothing persists, so there is no state
   // change for a trail to explain. (They still cost a live connection attempt,
-  // which is the §6 rate limiter's problem, not this one's.)
+  // which is the rate limiter's problem, not this one's.)
   'POST /api/v1/connections/test': auditExempt(
     'Dry run: opens a probe connection against a submitted DSN and persists nothing.',
   ),
@@ -180,13 +180,13 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   // The permission-denied branch DOES audit (rbac permission.denied); a
   // successful query writes nothing, and should not — it is a read.
   'POST /api/v1/widget-data/query': auditExempt(
-    'A read expressed as POST (the descriptor is too large for a query string); auditing successful reads is not the §7 item 9 contract.',
+    'A read expressed as POST (the descriptor is too large for a query string); auditing successful reads is not the contract.',
   ),
   'POST /api/v1/widget-data/batch': auditExempt(
     'A read expressed as POST, same as /query — the batch form of the same descriptor.',
   ),
 
-  // ── Connections + schema (08 §2.4–§2.6).
+  // ── Connections + schema.
   'POST /api/v1/connections': audited('rbac'), // connection.create
   'PATCH /api/v1/connections/:id': audited('rbac'), // connection.update
   'DELETE /api/v1/connections/:id': audited('rbac'), // connection.delete
@@ -197,7 +197,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PUT /api/v1/connections/:id/schema/overrides': audited('rbac'),
   'PUT /api/v1/connections/:id/overrides': audited('rbac'),
 
-  // ── CRUD (08 §3). Every one of these audits through the shared
+  // ── CRUD. Every one of these audits through the shared
   // `afterMutation()` helper in routes/data/index.ts — the shared-helper blind spot.
   'POST /api/v1/data/:connectionId/:table': audited('rbac'), // record.create
   'PATCH /api/v1/data/:connectionId/:table/:recordId': audited('rbac'), // record.update
@@ -233,7 +233,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PUT /api/v1/settings/telemetry': audited('rbac'), // settings.telemetry.update
   'POST /api/v1/branding/logo': audited('rbac'), // settings.branding.logo.update
   'DELETE /api/v1/branding/logo': audited('rbac'), // settings.branding.logo.remove
-  // Email documents (39-email-templates-and-campaigns.md D20): every write is
+  // Email documents: every write is
   // marked on its route in routes/email-templates/index.ts, next to the audit call.
   'PUT /api/v1/i18n/keys': audited('rbac'), // i18n.key.update
   'DELETE /api/v1/i18n/keys': audited('rbac'), // i18n.key.reset
@@ -243,7 +243,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PATCH /api/v1/i18n/locales/:locale': audited('rbac'), // i18n.locale.update
   'DELETE /api/v1/i18n/locales/:locale': audited('rbac'), // i18n.locale.delete
 
-  // ── Identity + access (08 §5). The most audit-sensitive surface there is.
+  // ── Identity + access. The most audit-sensitive surface there is.
   'POST /api/v1/roles': audited('rbac'), // role.create
   'PATCH /api/v1/roles/:id': audited('rbac'), // role.update
   'DELETE /api/v1/roles/:id': audited('rbac'), // role.delete
@@ -258,7 +258,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'POST /api/v1/api-keys': audited('rbac'), // api-key.create
   'DELETE /api/v1/api-keys/:id': audited('rbac'), // api-key.revoke
 
-  // The public surface's management routes (28-public-surface.md §3.3). Every
+  // The public surface's management routes. Every
   // one of these changes what an anonymous caller can reach, so all of them are
   // audited via `app.rbac.audit` (hence the `rbac` WRITE PATH, not the `system`
   // category the rows carry) — including `reveal`, which is a READ. Re-reading a publishable
@@ -271,7 +271,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'POST /api/v1/public-keys/:id/rotate': audited('rbac'), // public-key.rotate
   'DELETE /api/v1/public-keys/:id': audited('rbac'), // public-key.revoke
 
-  // ── Desktop-only doors (11-electron.md). Registered only under
+  // ── Desktop-only doors. Registered only under
   // ADMINIUM_RUNTIME=desktop, so most topologies never see these keys — an
   // unused entry is harmless, a missing one fails the desktop boot's coverage.
   'POST /api/v1/desktop/local-database': audited('rbac'), // connection.create
@@ -280,7 +280,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'POST /api/v1/desktop/capability-grants': audited('rbac'), // desktop_capability_granted
   'DELETE /api/v1/desktop/capability-grants': audited('rbac'), // desktop_capability_revoked
 
-  // ── LLM assist (06-llm-assist.md).
+  // ── LLM assist.
   'PUT /api/v1/llm/config': audited('rbac'), // llm.config.update
   'POST /api/v1/llm/runs': audited('rbac'), // llm.run.create
   'POST /api/v1/llm/runs/:id/execute': audited('rbac'), // llm.run.execute
@@ -288,7 +288,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'POST /api/v1/llm/runs/:id/apply': audited('rbac'), // llm.run.apply
   'POST /api/v1/llm/runs/:id/undo/:token': audited('rbac'), // llm.run.undo
 
-  // ── Background jobs (08 §2.17). The generic enqueue/cancel door; the
+  // ── Background jobs. The generic enqueue/cancel door; the
   // per-domain enqueues (exports, imports, introspect, reports) audit in their
   // own categories, and the worker audits what the job then did.
   'POST /api/v1/jobs': audited('rbac'), // job.enqueue

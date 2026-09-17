@@ -2,7 +2,7 @@
 import { z } from 'zod';
 
 /**
- * The normalized schema model (the IR) — 05-introspection-engine.md §2.
+ * The normalized schema model (the IR).
  *
  * One model for everything: live introspection, every schema-import parser,
  * the LLM round-trip, snapshots, and the generator all speak this shape.
@@ -12,9 +12,9 @@ import { z } from 'zod';
  * the serialized model persists verbatim into
  * `adminium_schema_snapshots.model`.
  *
- * Minimal valid IR (§2.3): `irVersion`, `dialect: 'generic'`, `name`, one
- * table with one column — everything else has defaults so third-party
- * emitters stay small.
+ * Minimal valid IR: `irVersion`, `dialect: 'generic'`, `name`, one table
+ * with one column — everything else has defaults so third-party emitters
+ * stay small.
  */
 
 export const IR_VERSION = 1 as const;
@@ -37,7 +37,7 @@ export const IMPORT_FORMATS = [
 export const importFormatSchema = z.enum(IMPORT_FORMATS);
 export type ImportFormat = z.infer<typeof importFormatSchema>;
 
-/** §2.2 — every adapter/parser maps native types onto this closed set. */
+/** Every adapter/parser maps native types onto this closed set. */
 export const LOGICAL_TYPES = [
   'text',
   'varchar',
@@ -75,7 +75,7 @@ export type ModelSource = z.infer<typeof modelSourceSchema>;
 
 /**
  * Capability flags describing what the SOURCE could express (drives UI
- * degradation) — 05 §2.1 `AdapterCapabilities`. Adapters also expose these
+ * degradation) — `AdapterCapabilities`. Adapters also expose these
  * statically per dialect; imports set them to what the format expresses.
  */
 export const adapterCapabilitiesSchema = z.strictObject({
@@ -101,7 +101,7 @@ export type AdapterCapabilities = z.infer<typeof adapterCapabilitiesSchema>;
 export const capabilityFlagsSchema = adapterCapabilitiesSchema;
 export type CapabilityFlags = AdapterCapabilities;
 
-/** §2.1 `EnumDef` — native = pg CREATE TYPE AS ENUM · column-type = MySQL enum(...) · check = CHECK (col IN (...)). */
+/** `EnumDef` — native = pg CREATE TYPE AS ENUM · column-type = MySQL enum(...) · check = CHECK (col IN (...)). */
 export const enumDefSchema = z.strictObject({
   /** pg: `${schema}.${typname}`; mysql/check: `${tableId}.${column}`. */
   id: z.string().min(1),
@@ -134,9 +134,9 @@ export const columnDefaultSchema = z
 export type ColumnDefault = z.infer<typeof columnDefaultSchema>;
 
 /**
- * §7 column semantic tags — one kebab-case id per §7.1 rule row, in
- * precedence order. Later docs and the LLM prompt reference these exact ids;
- * the classifier (classify/columns.ts, 05-T07) must emit only these.
+ * Column semantic tags — one kebab-case id per rule row, in precedence order.
+ * Later docs and the LLM prompt reference these exact ids; the classifier
+ * (classify/columns.ts) must emit only these.
  */
 export const SEMANTIC_TAGS = [
   'secret',
@@ -149,10 +149,10 @@ export const SEMANTIC_TAGS = [
   'category-enum',
   'created-at',
   'updated-at',
-  'date-range', // §7.1 row 11 "start/end pair" — pair roles carry start/end
+  'date-range', // "start/end pair" — pair roles carry start/end
   'event-timestamp',
   'duration',
-  'geo-point', // §7.1 row 14 "geo-lat/lng" — pair roles carry lat/lng
+  'geo-point', // "geo-lat/lng" — pair roles carry lat/lng
   'geo-region',
   'person-name',
   'email',
@@ -173,7 +173,7 @@ export const SEMANTIC_TAGS = [
 export const semanticTagSchema = z.enum(SEMANTIC_TAGS);
 export type SemanticTag = z.infer<typeof semanticTagSchema>;
 
-/** §7.2 PII kinds — a flag layer independent of the primary semantic. */
+/** PII kinds — a flag layer independent of the primary semantic. */
 export const PII_KINDS = [
   'email',
   'phone',
@@ -188,7 +188,7 @@ export const PII_KINDS = [
 export const piiKindSchema = z.enum(PII_KINDS);
 export type PiiKind = z.infer<typeof piiKindSchema>;
 
-/** §7 `ColumnSemantics` — classifier output persisted with the model. */
+/** `ColumnSemantics` — classifier output persisted with the model. */
 export const columnSemanticsSchema = z.strictObject({
   primary: semanticTagSchema,
   flags: z.strictObject({
@@ -211,7 +211,7 @@ export const columnSemanticsSchema = z.strictObject({
 });
 export type ColumnSemantics = z.infer<typeof columnSemanticsSchema>;
 
-/** §8 `TableSemantics` — table-shape classifier output. */
+/** `TableSemantics` — table-shape classifier output. */
 export const TABLE_ROLES = [
   'entity',
   'join-table',
@@ -226,9 +226,9 @@ export type TableRole = z.infer<typeof tableRoleSchema>;
 
 export const tableSemanticsSchema = z.strictObject({
   role: tableRoleSchema,
-  /** Self-FK hierarchy (§6 rule 3) → tree/org-chart triggers. */
+  /** Self-FK hierarchy → tree/org-chart triggers. */
   hierarchy: z.strictObject({ parentColumn: z.string().min(1) }).nullable().default(null),
-  /** §6 rule 4 — no Relation is fabricated for polymorphic pairs. */
+  /** No Relation is fabricated for polymorphic pairs. */
   polymorphic: z
     .array(
       z.strictObject({
@@ -268,7 +268,7 @@ export const columnModelSchema = z.strictObject({
     .strictObject({ tableId: z.string().min(1), column: z.string().min(1) })
     .nullable()
     .default(null),
-  /** Classifier output (§7); null until classification runs. */
+  /** Classifier output; null until classification runs. */
   semantics: columnSemanticsSchema.nullable().default(null),
 });
 export type ColumnModel = z.infer<typeof columnModelSchema>;
@@ -323,7 +323,7 @@ const tableModelBaseSchema = z.strictObject({
     .default(null),
   /** Migration/meta tables (adminium_*, _prisma_migrations, …). */
   system: z.boolean().default(false),
-  /** Table-shape classifier output (§8); null until classification runs. */
+  /** Table-shape classifier output; null until classification runs. */
   semantics: tableSemanticsSchema.nullable().default(null),
 });
 
@@ -357,7 +357,7 @@ const relationEndpointSchema = z.strictObject({
 });
 export type RelationEndpoint = z.infer<typeof relationEndpointSchema>;
 
-/** §2.1 `Relation` — declared + inferred + overrides, deduped. */
+/** `Relation` — declared + inferred + overrides, deduped. */
 export const relationSchema = z.strictObject({
   /** Stable hash (or readable key) of kind+from+to. */
   id: z.string().min(1),
@@ -379,12 +379,12 @@ export const relationSchema = z.strictObject({
   onDelete: fkActionSchema.nullable().default(null),
   onUpdate: fkActionSchema.nullable().default(null),
   selfReferential: z.boolean().default(false),
-  /** 1.0 declared/override; <1 inferred (§6 thresholds). */
+  /** 1.0 declared/override; <1 inferred (thresholds). */
   confidence: z.number().min(0).max(1).default(1),
   /**
-   * The catalog's own name for a DECLARED foreign-key constraint
-   * (35-schema-authoring.md 35-T33). Null for inferred and virtual relations,
-   * and null on SQLite, whose `PRAGMA foreign_key_list` exposes no name.
+   * The catalog's own name for a DECLARED foreign-key constraint. Null for
+   * inferred and virtual relations, and null on SQLite, whose `PRAGMA
+   * foreign_key_list` exposes no name.
    *
    * `Relation.id` is a derived key (`fk:<from>(cols)-><to>(cols)`), so it
    * cannot be used to DROP a constraint — the dialect needs the name it
@@ -523,16 +523,15 @@ export type DatabaseModel = z.output<typeof databaseModelSchema>;
 
 /**
  * Workplan aliases: the milestone plan and several sibling docs refer to the
- * IR as `SchemaModel` (e.g. 01-architecture.md §2.3 "interface + SchemaModel
- * types"). Same schema, same type.
+ * IR as `SchemaModel` (e.g.). Same schema, same type.
  */
 export const schemaModelSchema = databaseModelSchema;
 export type SchemaModel = DatabaseModel;
 
 /**
  * Single entry point used by the JSON IR importer, the LLM response
- * validator (06-llm-assist.md), and snapshot loading. Accepts a parsed JSON
- * value or a JSON string. Throws ZodError (or SyntaxError for bad JSON).
+ * validator, and snapshot loading. Accepts a parsed JSON value or a JSON
+ * string. Throws ZodError (or SyntaxError for bad JSON).
  */
 export function parseDatabaseModel(json: unknown): DatabaseModel {
   const value: unknown = typeof json === 'string' ? JSON.parse(json) : json;

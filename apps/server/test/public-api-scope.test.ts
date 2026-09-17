@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `compileScope` (28-public-surface.md §3.2, 28-T03).
+ * `compileScope`.
  *
  * The example tests below pin each individual refusal. The PROPERTY tests at
- * the bottom are the ones that matter: 28 §1.1 calls this "security-critical
+ * the bottom are the ones that matter: this is "security-critical
  * new code [that] needs property tests, not unit tests", because an example
  * test only ever proves the case its author already thought of, and the failure
  * mode here is a scope that quietly reaches one column further than intended.
@@ -79,7 +79,7 @@ describe('compileScope — shape', () => {
   });
 });
 
-describe('compileScope — tenant config inherited from the connection (28-T34)', () => {
+describe('compileScope — tenant config inherited from the connection', () => {
   const noZone = (): Record<string, unknown> => {
     const d = doc();
     delete (d as Record<string, unknown>)['timezone'];
@@ -130,7 +130,7 @@ describe('compileScope — tenant config inherited from the connection (28-T34)'
 
 describe('compileScope — the timezone requirement (D20)', () => {
   it('refuses a missing timezone when the connection has none either', () => {
-    // 28-T34 made the field OPTIONAL so it can be inherited. The refusal is
+    // The field was made OPTIONAL so it can be inherited. The refusal is
     // unchanged in force and better in kind: it used to be a Zod shape error
     // naming a missing key, and is now a timezone error that says where to
     // put one.
@@ -142,7 +142,7 @@ describe('compileScope — the timezone requirement (D20)', () => {
   it('tells the operator about BOTH places, not just the scope', () => {
     // An operator told only "this scope has no timezone" adds one to every
     // scope. The connection is where it belongs, and the message has to say so
-    // or 28-T34 buys nothing.
+    // or buys nothing.
     const d = doc();
     delete (d as Record<string, unknown>)['timezone'];
     let message = '';
@@ -189,7 +189,7 @@ describe('compileScope — the timezone requirement (D20)', () => {
   });
 });
 
-describe('currency (28-T34)', () => {
+describe('currency', () => {
   it('is optional — a scope serving no money needs none', () => {
     expect(issuesOf(doc())).toEqual([]);
     expect(compileScope(doc(), columnsOf).currency).toBeNull();
@@ -333,7 +333,7 @@ describe('compileScope — writing yourself out of scope', () => {
   });
 });
 
-describe('compileScope — `$generate` defaults (33-T10, D21)', () => {
+describe('compileScope — `$generate` defaults', () => {
   /*
    * A public scope may now say "the server mints this one": `{ "$generate":
    * "uuid" }` or `{ "$generate": "now" }`. It is what makes an anonymous create
@@ -404,10 +404,19 @@ describe('compileScope — `$generate` defaults (33-T10, D21)', () => {
 });
 
 describe('compileScope — the meta namespace is never publishable', () => {
-  it.each(['adminium_users', 'public.adminium_settings', 'meta.adminium_api_keys'])('refuses %s', (table) => {
+  it.each(['adminium_users', 'public.adminium_settings', 'meta.adminium_api_keys', 'adminium_shop.adminium_users'])(
+    'refuses %s',
+    (table) => {
+      expect(
+        issuesOf(doc({ resources: [{ ref: 'x', table, actions: ['read'], expose: ['id'] }] })),
+      ).toContain('SCOPE_REF_META_NAMESPACE');
+    },
+  );
+
+  it('lets a MySQL database whose name starts with adminium_ publish its own tables', () => {
     expect(
-      issuesOf(doc({ resources: [{ ref: 'x', table, actions: ['read'], expose: ['id'] }] })),
-    ).toContain('SCOPE_REF_META_NAMESPACE');
+      issuesOf(doc({ resources: [{ ref: 'x', table: 'adminium_shop.customers', actions: ['read'], expose: ['id'] }] })),
+    ).not.toContain('SCOPE_REF_META_NAMESPACE');
   });
 });
 

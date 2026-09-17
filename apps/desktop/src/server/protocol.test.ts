@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The handshake contract (11-electron.md §2.2 steps 7/9).
+ * The handshake contract (steps 7/9).
  *
  * These parse a wire format that crosses a process boundary, so the interesting
  * cases are all the malformed ones: structured clone hands the parent `unknown`,
@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { parseParentMessage, parseServerMessage, SERVER_BOOT_STAGES } from './protocol.js';
 
 describe('parseServerMessage', () => {
-  it('accepts the §2.2 step 7 ready message', () => {
+  it('accepts the ready message', () => {
     const result = parseServerMessage({
       type: 'ready',
       port: 51234,
@@ -90,7 +90,7 @@ describe('parseServerMessage', () => {
   });
 
   it('rejects a ready port of 0 — the resolved port can never be the ephemeral request', () => {
-    // §2.1 asks the child to LISTEN on 0; a `ready` reporting 0 back means the
+    // The child LISTENs on 0; a `ready` reporting 0 back means the
     // child read the config instead of the socket, and the window would navigate
     // to http://127.0.0.1:0.
     const result = parseServerMessage({

@@ -95,6 +95,11 @@ const DESCRIPTIONS = {
   meta: 'Where the meta store lives, and relocating it',
   onboarding: 'The first-run checklist',
   pages: 'Pages and dashboards — layout, config, nav order, shared views',
+  project:
+    'A project folder on the server that runs one — which pages and schema customizations ' +
+    'differ from the deployed files, settling a page changed on both sides, the changed ' +
+    'copies `adminium pull --from` writes into the project, running the project’s actions, ' +
+    'the built files of its own pages and widgets, and what Studio shows about the project',
   public: 'The scoped public API for customer- and staff-facing pages (off by default)',
   'public-api': 'Turn the public API on or off, and see whether this instance opted in',
   'public-scopes': 'Define what a public key may read — resources, columns, filters and time zone',

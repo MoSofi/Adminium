@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `geo` family (annex §7, TRACK COMM-GEO): the `geo-points` reader, the bubble
+ * `geo` family (annex, TRACK COMM-GEO): the `geo-points` reader, the bubble
  * scale, and render/behaviour tests for map-bubble + map-choropleth-grid.
  *
  * TWO SUITES CARRY REAL WEIGHT HERE:
@@ -18,11 +18,11 @@
  *     #3 is asserted in qa/chunk-budget.test.ts, which can see the module graph;
  *     this half asserts the runtime consequence.
  *
- *  2. THE LTR ISLAND (04 §7.4). Geography does not mirror: the map canvas must
- *     stay `dir="ltr"` under an RTL host, while the chrome around it mirrors
- *     through logical properties. As elsewhere in the repo, "does it mirror" is
- *     asserted on WHICH utilities express the layout (happy-dom computes no
- *     geometry), plus a hard ban on physical-direction utilities.
+ * 2. THE LTR ISLAND. Geography does not mirror: the map canvas must stay
+ *  `dir="ltr"` under an RTL host, while the chrome around it mirrors through
+ *  logical properties. As elsewhere in the repo, "does it mirror" is asserted
+ *  on WHICH utilities express the layout (happy-dom computes no geometry), plus
+ *  a hard ban on physical-direction utilities.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -69,7 +69,7 @@ import { mapBubbleDefinition, mapChoroplethGridDefinition } from './geo-track.de
 
 afterEach(cleanup);
 
-/** Every physical-direction Tailwind utility the RTL policy bans (10 §5.2). */
+/** Every physical-direction Tailwind utility the RTL policy bans. */
 const PHYSICAL =
   /(^|\s)-?(ml|mr|pl|pr)-|(^|\s)-?(left|right)-|(^|\s)border-(l|r)(-|\s|$)|(^|\s)rounded-(l|r|tl|tr|bl|br)(-|\s|$)|(^|\s)text-(left|right)(\s|$)/;
 
@@ -82,7 +82,7 @@ const FIELDS = { nameField: 'name', codeField: 'code', latField: 'lat', lngField
 // ── geo-lib: the geo-points reader ──────────────────────────────────────────
 
 describe('geoPointsOf — envelope handling', () => {
-  it('reads the canonical §3 { points } envelope with an explicit values map', () => {
+  it('reads the canonical { points } envelope with an explicit values map', () => {
     const points = geoPointsOf({ points: [{ name: 'Tokyo', lat: 35.7, lng: 139.7, values: { users: 10 } }] }, FIELDS);
     expect(points).toEqual([{ name: 'Tokyo', lat: 35.7, lng: 139.7, values: { users: 10 } }]);
   });
@@ -210,7 +210,7 @@ describe('bubbleRadius', () => {
 });
 
 describe('geo-lib misc', () => {
-  it('sourceOf reads binding.source.name (04 §5.1 — not binding.table)', () => {
+  it('sourceOf reads binding.source.name (not binding.table)', () => {
     expect(sourceOf({ connectionId: 'c1', source: { name: 'stores' } })).toEqual({
       connectionId: 'c1',
       table: 'stores',
@@ -225,7 +225,7 @@ describe('geo-lib misc', () => {
     expect(localeOf('ar-EG')).toBe('ar-EG');
   });
 
-  it('serves theme-matched Carto basemaps (annex §7 "theme-following tiles")', () => {
+  it('serves theme-matched Carto basemaps ("theme-following tiles")', () => {
     expect(CARTO_TILES.light).toContain('light_all');
     expect(CARTO_TILES.dark).toContain('dark_all');
   });
@@ -300,7 +300,7 @@ describe('map-bubble', () => {
     );
   });
 
-  it('keeps the map canvas a fixed-LTR island — geography never mirrors (04 §7.4)', () => {
+  it('keeps the map canvas a fixed-LTR island — geography never mirrors', () => {
     const { container } = render(<MapBubble points={CITY_POINTS} />);
     const canvasWrap = container.querySelector('[data-part="map-canvas"]')?.parentElement;
     // A mirrored world map is a WRONG map, not a localized one: flipping it puts
@@ -326,13 +326,13 @@ describe('map-bubble', () => {
     expect(widgetHtml('rtl')).toBe(widgetHtml('ltr'));
   });
 
-  it('uses no physical-direction utility anywhere in the tree (10 §5.2)', () => {
+  it('uses no physical-direction utility anywhere in the tree', () => {
     const { container } = render(<MapBubble points={CITY_POINTS} />);
     const offenders = allClassNames(container).filter((name) => PHYSICAL.test(name));
     expect(offenders).toEqual([]);
   });
 
-  it('switches the ranking when the metric tabs change (annex §7 "metric tabs")', () => {
+  it('switches the ranking when the metric tabs change ("metric tabs")', () => {
     const { container } = render(<MapBubble points={CITY_POINTS} format={(v) => `${v}`} />);
     expect(container.querySelector('[data-part="metric-tabs"]')).not.toBeNull();
     fireEvent.click(screen.getByRole('radio', { name: 'revenue' }));
@@ -363,7 +363,7 @@ describe('map-bubble', () => {
 describe('map-bubble widget wrapper', () => {
   it('emits record-open against binding.source.name for the selected place', () => {
     const onEvent = vi.fn();
-    // A full, schema-valid query descriptor (04 §5.1) — the table/view lives at
+    // A full, schema-valid query descriptor — the table/view lives at
     // `binding.source.name`, NOT `binding.table`.
     const config = mapBubbleConfigSchema.parse({
       binding: { connectionId: 'conn-1', source: { name: 'stores' }, shape: 'geo-points' },
@@ -386,7 +386,7 @@ describe('map-bubble widget wrapper', () => {
   });
 
   /**
-   * annex §7 `linkedList`. The config field is only meaningful if it REACHES the
+   * annex `linkedList`. The config field is only meaningful if it REACHES the
    * host: widgets never talk to each other, so the pairing has to ride on the
    * event or the host can never focus the list the user configured.
    */
@@ -479,7 +479,7 @@ describe('map-choropleth-grid', () => {
   });
 
   /**
-   * The DEFAULT desktop case, not an edge case: 11-electron.md §7 resolves every
+   * The DEFAULT desktop case, not an edge case: the offline contract resolves every
    * `map-*` id to this widget offline, so a page whose data is coordinate points
    * (name + values, NO region code — the `map-bubble` shape) now renders here. The
    * tilegram can place none of them; the grid fallback tiles them all.
@@ -510,7 +510,7 @@ describe('map-choropleth-grid', () => {
     expect(container.querySelectorAll('[data-region-tile]')).toHaveLength(1);
   });
 
-  it('uses no physical-direction utility anywhere in the tree (10 §5.2)', () => {
+  it('uses no physical-direction utility anywhere in the tree', () => {
     const { container } = render(<MapChoroplethGrid points={REGION_POINTS} metric="sales" />);
     expect(allClassNames(container).filter((name) => PHYSICAL.test(name))).toEqual([]);
   });
@@ -518,7 +518,7 @@ describe('map-choropleth-grid', () => {
 
 // ── registry metadata ───────────────────────────────────────────────────────
 
-describe('geo registry metadata (annex §7)', () => {
+describe('geo registry metadata (annex)', () => {
   it('registers the exact annex ids in the geo family', () => {
     expect(mapBubbleDefinition.id).toBe('map-bubble');
     expect(mapChoroplethGridDefinition.id).toBe('map-choropleth-grid');
@@ -526,13 +526,13 @@ describe('geo registry metadata (annex §7)', () => {
     expect(mapChoroplethGridDefinition.family).toBe('geo');
   });
 
-  it('declares the §3 geo-points contract for both', () => {
+  it('declares the geo-points contract for both', () => {
     expect(mapBubbleDefinition.dataContract).toBe('geo-points');
     expect(mapChoroplethGridDefinition.dataContract).toBe('geo-points');
   });
 
   it('sizes map-bubble per the annex (min 6×4, default 8×5 → half-units)', () => {
-    // 04 §6.1: annex rows R ⇒ h = round(R × 2).
+    // Annex rows R ⇒ h = round(R × 2).
     expect(mapBubbleDefinition.sizing).toEqual({ minW: 6, minH: 8, defaultW: 8, defaultH: 10 });
   });
 
@@ -545,14 +545,14 @@ describe('geo registry metadata (annex §7)', () => {
     expect(mapChoroplethGridDefinition.sizing).toEqual({ minW: 4, minH: 6, defaultW: 6, defaultH: 6 });
   });
 
-  it('both components are React.lazy refs (one chunk per family, 04 §2.3)', () => {
+  it('both components are React.lazy refs (one chunk per family)', () => {
     const LAZY = Symbol.for('react.lazy');
     expect((mapBubbleDefinition.component as { $$typeof?: symbol }).$$typeof).toBe(LAZY);
     expect((mapChoroplethGridDefinition.component as { $$typeof?: symbol }).$$typeof).toBe(LAZY);
   });
 });
 
-// ── demoData (04 §7.7) ──────────────────────────────────────────────────────
+// ── demoData ────────────────────────────────────────────────────────────────
 
 describe('geo demoData determinism', () => {
   it('map-bubble: same seed → identical payload; different seeds → different', () => {

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `GET /api/v1/search` (08-server-api.md §2.9, M4-T06) over the fake-adapter
- * harness registered as a SQLITE engine — so the record search exercises the
- * real `LOWER(...) LIKE LOWER(...)` lowering of `compileILike` against a real
- * BetterSqlite3 engine (the same dialect seam the crud `q=` search uses; the
- * live-PG `ILIKE` variant lives in the companion suite below).
+ * `GET /api/v1/search` over the fake-adapter harness registered as a SQLITE
+ * engine — so the record search exercises the real `LOWER(...) LIKE
+ * LOWER(...)` lowering of `compileILike` against a real BetterSqlite3 engine
+ * (the same dialect seam the crud `q=` search uses; the live-PG `ILIKE`
+ * variant lives in the companion suite below).
  *
  * What this pins:
  *  - grants filter results: no `table:<conn>:<t>:read` → that table's hits
@@ -277,7 +277,7 @@ describe('GET /api/v1/search (fake sqlite engine)', () => {
     const anon = await t.app.inject({ method: 'GET', url: '/api/v1/search?q=cha' });
     expect(anon.statusCode).toBe(401);
 
-    // Schema validation maps to the §1.4 envelope's 422 VALIDATION_FAILED.
+    // Schema validation maps to the envelope's 422 VALIDATION_FAILED.
     const short = await t.app.inject({
       method: 'GET',
       url: '/api/v1/search?q=c',
@@ -302,7 +302,7 @@ describe('GET /api/v1/search (fake sqlite engine)', () => {
     });
   });
 
-  it('ships §2.9 row context from readable non-label columns — never masked ones', async () => {
+  it('ships row context from readable non-label columns — never masked ones', async () => {
     // products: beyond the PK and the label, the two readable scalar columns
     // are unit_price + units_in_stock — exactly the context pair, in order.
     const { body } = await search('chai');
@@ -311,7 +311,7 @@ describe('GET /api/v1/search (fake sqlite engine)', () => {
     expect(hit?.context).toBe('unit_price 18 · units_in_stock 39');
 
     // customers: the only non-label, non-PK column is the PII-masked phone.
-    // Masked columns never surface in context (§5.3) — not even for a caller
+    // Masked columns never surface in context — not even for a caller
     // holding the unmask grant — so the field is omitted entirely.
     const named = await search('alfreds', t.users.admin);
     const customer = groupFor(named.body, 'main.customers')?.hits[0];
@@ -354,7 +354,7 @@ describe('GET /api/v1/search (fake sqlite engine)', () => {
     expect(groupFor(admin.body, 'main.orders')?.count).toBe(2);
   });
 
-  it('PII-masked columns never match nor label hits — for any caller (§5.3)', async () => {
+  it('PII-masked columns never match nor label hits — for any caller', async () => {
     // `phone` is auto-masked by the introspection PII scan. Its VALUES must
     // not be reachable through search…
     const viewer = await search('0074321');

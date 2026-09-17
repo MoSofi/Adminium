@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE READ-ONLY SOURCE STILL TAKES ATTACHMENTS
- * (37-files-and-storage.md §6 criterion 3, §3.5, D11).
+ * (criterion 3).
  *
  * The criterion is a whole-stack claim and had no test anywhere: "a connection
  * flagged `read_only` with `config.attachments` enabled accepts a sidecar
@@ -164,7 +164,7 @@ function makeReadOnlyRegistry(sqlite: BetterSqlite3.Database, sink: SqlSink): Ad
   return registry;
 }
 
-describe('a sidecar attachment on a read-only source (§6 criterion 3)', () => {
+describe('a sidecar attachment on a read-only source (criterion 3)', () => {
   let t: DataTestContext;
   let dataDir: string;
   let connId: string;
@@ -267,7 +267,7 @@ describe('a sidecar attachment on a read-only source (§6 criterion 3)', () => {
     expect(res.statusCode).toBe(201);
     const body = res.json();
     // Attached on upload, because the record already exists — the sidecar's
-    // whole point is that it needs no column to hang off (§3.5).
+    // whole point is that it needs no column to hang off.
     expect(body.data.attachedAt).not.toBeNull();
     expect(body.data.entity).toEqual({ connectionId: connId, table: TABLE, recordId: RECORD });
     fileId = body.data.id as string;

@@ -1,9 +1,9 @@
 <!doctype html>
 <!--
-  The crash page (11-electron.md §2.2 steps 7 and 9): the failure reason, the log
-  excerpt, and three actions — Restart server / Show logs / Quit. Owned by 11-T05.
+ The crash page (steps 7 and 9): the failure reason, the log
+ excerpt, and three actions — Restart server / Show logs / Quit. Owned by.
 
-  Same offline contract as boot.html (§7), and for a sharper reason: this page is
+ Same offline contract as boot.html, and for a sharper reason: this page is
   what the user sees when the server could not start AT ALL, so anything it
   needed to fetch is precisely what would not be there. See boot.html's header
   for why tokens.css is a relative <link> to a build-time copy and why no webfont
@@ -25,7 +25,7 @@
   ─── AND WHY THE BUTTONS ARE LINKS ───────────────────────────────────────────
   <a href="?action=retry"> — a click fires `will-navigate` in the main process,
   where window.ts's `parseCrashAction` reads it and preventDefaults. No script,
-  no preload bridge (§4's bridge is a loopback-page affordance, and this page is
+ no preload bridge (bridge is a loopback-page affordance, and this page is
   file://, and handing it to the log viewer would be the wrong direction).
 
   ─── DEGRADATION IS DELIBERATE ───────────────────────────────────────────────
@@ -248,7 +248,7 @@
       </div>
 
       <div class="actions">
-        <!-- §2.2 step 9. `retry` is hidden by the injected script once the
+ <!--. `retry` is hidden by the injected script once the
              3-crashes-in-60 s budget is spent; `logs` when there is no log
              path to show. -->
         <a class="action primary" href="?action=retry" data-slot="retry">Restart server</a>

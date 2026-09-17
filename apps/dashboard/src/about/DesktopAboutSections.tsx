@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The desktop-only §13 About sections (11-electron.md §13), rendered beneath the
- * shared About surface (see `AboutPage.tsx`) whenever the SPA runs in the
- * Electron shell.
+ * The desktop-only About sections, rendered beneath the shared About surface
+ * (see `AboutPage.tsx`) whenever the SPA runs in the Electron shell.
  *
- * Every field §13 enumerates lives here: app/server/migration/Electron/Chromium/
+ * Every field enumerates lives here: app/server/migration/Electron/Chromium/
  * Node versions, the data directory (click → reveal), the secret-storage mode
  * with its plain-text WARN banner, the update channel + "Check for updates", the
  * AGPL notice with an in-app licence viewer, the third-party notices viewer, the
  * telemetry toggle, and the diagnostics copy/show-logs actions.
  *
- * The data is the §4 bridge's (native affordances — versions, the data dir, the
+ * The data is the bridge's (native affordances — versions, the data dir, the
  * bundled files) plus the shared `/api/v1/about` reply (server version, migration
  * version, telemetry state) and the `/api/v1/settings/telemetry` write. Feature
  * gating is NOT decided here — this component renders only when the shell is
@@ -100,7 +99,7 @@ function SectionCard(props: {
   );
 }
 
-// ─── System / versions (§13) ─────────────────────────────────────────────────
+// ─── System / versions ───────────────────────────────────────────────────────
 
 function SystemCard({ about }: { about: AboutData }): ReactNode {
   const versions = desktopVersions();
@@ -124,7 +123,7 @@ function SystemCard({ about }: { about: AboutData }): ReactNode {
       <div className="flex flex-col gap-4">
         <KeyValueList items={items} />
 
-        {/* Data directory — click to reveal in the OS file manager (§13). */}
+        {/* Data directory — click to reveal in the OS file manager. */}
         <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface px-4 py-2.5">
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="text-body-sm text-fg-muted">
@@ -149,7 +148,7 @@ function SystemCard({ about }: { about: AboutData }): ReactNode {
           </Button>
         </div>
 
-        {/* Secret storage mode + the §2.2-3 plaintext WARN banner. */}
+        {/* Secret storage mode + the plaintext WARN banner. */}
         {runtime?.secretStorage === 'plain' ? (
           <Banner tone="warn" data-testid="about-secret-plain-warning">
             {t(
@@ -175,7 +174,7 @@ function SystemCard({ about }: { about: AboutData }): ReactNode {
   );
 }
 
-// ─── Updates (§11 / §13) ─────────────────────────────────────────────────────
+// ─── Updates ─────────────────────────────────────────────────────────────────
 
 function updateModeLabel(mode: string | undefined): string {
   switch (mode) {
@@ -194,7 +193,7 @@ function UpdatesCard(): ReactNode {
   const { data: runtime } = useQuery(desktopRuntimeQuery());
   const [outcome, setOutcome] = useState<DesktopUpdateOutcome | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
-  // §11's event-driven flow: the About card is the SPA surface that turns a
+  // The event-driven flow: the About card is the SPA surface that turns a
   // broadcast `available`/`progress`/`downloaded` into the Download → progress →
   // Restart controls. Before this, `onUpdateEvent` had no subscriber and
   // `downloadUpdate`/`quitAndInstall` had no caller anywhere in the SPA.
@@ -273,8 +272,8 @@ function UpdatesCard(): ReactNode {
 }
 
 /**
- * §11's in-app download/install controls: the availability → Download → progress
- * → Restart lifecycle the acceptance criterion names ("downloads only on user
+ * The in-app download/install controls: the availability → Download → progress →
+ * Restart lifecycle the acceptance criterion names ("downloads only on user
  * action, and installs on restart").
  */
 function UpdateFlowLine({ flow }: { flow: DesktopUpdateFlow }): ReactNode {
@@ -378,7 +377,7 @@ function UpdateOutcomeLine({ outcome }: { outcome: DesktopUpdateOutcome }): Reac
   }
 }
 
-// ─── Legal / licences (§13) ──────────────────────────────────────────────────
+// ─── Legal / licences ────────────────────────────────────────────────────────
 
 function BundledTextModal(props: {
   kind: 'license' | 'third-party-notices';
@@ -463,7 +462,7 @@ function LegalCard({ about }: { about: AboutData }): ReactNode {
               'Third-party notices are generated when the app is packaged and are not available in this build.',
             )}
           />
-          {/* The source link opens the system browser (§2.4 nav lockdown). */}
+          {/* The source link opens the system browser (the nav lockdown). */}
           <Button asChild variant="outline" size="md">
             <a href={about.sourceUrl} target="_blank" rel="noreferrer noopener">
               {t('about.desktop.legal.source', 'Source code')}
@@ -476,7 +475,7 @@ function LegalCard({ about }: { about: AboutData }): ReactNode {
   );
 }
 
-// ─── Telemetry (§13) ─────────────────────────────────────────────────────────
+// ─── Telemetry ───────────────────────────────────────────────────────────────
 
 function TelemetryCard({ about }: { about: AboutData }): ReactNode {
   const queryClient = useQueryClient();
@@ -528,7 +527,7 @@ function TelemetryCard({ about }: { about: AboutData }): ReactNode {
   );
 }
 
-// ─── Diagnostics (§13) ───────────────────────────────────────────────────────
+// ─── Diagnostics ─────────────────────────────────────────────────────────────
 
 function DiagnosticsCard({ about }: { about: AboutData }): ReactNode {
   const { data: runtime } = useQuery(desktopRuntimeQuery());

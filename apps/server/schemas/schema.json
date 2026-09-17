@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The table, e.g. public.customers."
+          },
+          "column": {
+            "description": "The column, for column-level ops.",
+            "type": "string",
+            "minLength": 1
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "table.label",
+              "table.exclude",
+              "table.keyField",
+              "column.label",
+              "column.semanticType",
+              "column.enumLabels",
+              "column.pii",
+              "column.hidden",
+              "relation.add",
+              "relation.remove",
+              "relation.label",
+              "llm.label",
+              "llm.key",
+              "llm.pii",
+              "llm.copy",
+              "llm.enum_semantics",
+              "llm.virtual_relation",
+              "llm.relation_suppressed"
+            ]
+          },
+          "value": {
+            "description": "What the op sets; its shape depends on the op."
+          },
+          "origin": {
+            "description": "Who set it. Absent means user. llm.* ops are always llm.",
+            "type": "string",
+            "enum": [
+              "user",
+              "llm"
+            ]
+          },
+          "status": {
+            "description": "Absent means active.",
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ]
+          },
+          "confidence": {
+            "description": "How sure AI assist was.",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "table",
+          "op",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "overrides"
+  ],
+  "additionalProperties": false,
+  "description": "One database's schema customizations: labels, hidden columns, masks and relations."
+}

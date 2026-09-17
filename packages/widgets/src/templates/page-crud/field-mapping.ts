@@ -3,7 +3,7 @@ import { dateOnlyValue } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 
 /**
- * Column spec → generated form-field kind (09 §7.1: FormField + Input/
+ * Column spec → generated form-field kind (FormField + Input/
  * Select/Checkbox/DateInput by logicalType + semantics; enums → Select or
  * SegmentedControl by arity per the CRUD Admin comp; FK → async Combobox).
  * Pure so the mapping rules are unit-testable.
@@ -24,7 +24,7 @@ export type FieldKind =
   | 'fk' // async avatar combobox
   | 'email'
   | 'url'
-  | 'file' // a `file` block on the column — upload, chip, replace (37 D14)
+  | 'file' // a `file` block on the column — upload, chip, replace
   | 'json';
 
 /** Enum arity at or below which the form renders a SegmentedControl (comp rule). */
@@ -43,17 +43,17 @@ export function fieldKindFor(column: GridColumnSpec): FieldKind {
   ) {
     return 'hidden';
   }
-  // Server-managed columns never render as inputs (09 §7.1 form keeper).
+  // Server-managed columns never render as inputs (form keeper).
   if (column.primaryKey && column.hasDefault) return 'hidden';
   if (column.semantic !== null && SERVER_MANAGED_SEMANTICS.has(column.semantic)) return 'hidden';
   if (column.readOnly) return 'readonly';
 
   if (column.fk !== undefined) return 'fk';
 
-  // 37 D14: the `file` block is the ONLY trigger. Not the `file-ref` /
-  // `image-url` semantic tags, which are already on every generated page and
-  // already drive a bare `url` input — honouring the TAG would change how
-  // every stored page's form renders, including pages a person has edited.
+  // The `file` block is the ONLY trigger. Not the `file-ref` / `image-url`
+  // semantic tags, which are already on every generated page and already
+  // drive a bare `url` input — honouring the TAG would change how every
+  // stored page's form renders, including pages a person has edited.
   // Generation seeds the block on new pages, so a freshly generated app gets
   // upload affordances without anybody configuring one.
   //
@@ -110,7 +110,7 @@ export function formColumns(columns: readonly GridColumnSpec[]): GridColumnSpec[
   });
 }
 
-/** A column is required when NOT NULL and without a DB default (09 §7.1). */
+/** A column is required when NOT NULL and without a DB default. */
 export function isRequired(column: GridColumnSpec): boolean {
   return !column.nullable && !column.hasDefault && !column.readOnly;
 }

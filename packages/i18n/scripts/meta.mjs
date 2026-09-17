@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Translation review-status tracking (10-i18n-theming.md §3.1/§3.3).
+ * Translation review-status tracking.
  *
  * Every non-English locale carries `locales/<tag>/.meta.json`:
  *
@@ -45,7 +45,7 @@ const TAGS = ['de-DE', 'fr-FR', 'cs-CZ', 'da-DK', 'zh-CN', 'zh-TW', 'ar-EG'];
  * typed `NAMESPACES` in src/resources/namespaces.ts and gen-resources.mjs).
  * A namespace missing from this one is not tracked at all — its keys never
  * appear in a `.meta.json`, so the table reports 100% of a set that silently
- * excludes them. `onboarding` landed that way in 45-T08.
+ * excludes them. `onboarding` landed that way.
  */
 const NAMESPACES = fs
   .readdirSync(path.join(root, 'locales/en-US'))
@@ -53,7 +53,7 @@ const NAMESPACES = fs
   .map((file) => path.basename(file, '.json'))
   .sort();
 
-/** Namespaces that must be 100% `reviewed` before v1.0 (§3.3). */
+/** Namespaces that must be 100% `reviewed` before v1.0. */
 const GATE_STRICT = ['common', 'ui', 'errors'];
 /** …and these need ≥95%. */
 const GATE_RELAXED = {
@@ -68,29 +68,31 @@ const GATE_RELAXED = {
   dataio: 0.95,
   files: 0.95,
   reportBuilder: 0.95,
-  // The first-run wizard (45-onboarding.md). Named here for the reason the
-  // note above gives: a namespace in neither list is held to nothing.
+  // The first-run wizard. Named here for the reason the note above gives:
+  // a namespace in neither list is held to nothing.
   onboarding: 0.95,
+  // What the dashboard says about a project's own code.
+  project: 0.95,
 };
 
 /*
- * `src` (28-public-surface.md §7A / 28-T14) — the target value is BYTE-IDENTICAL
- * to en-US, i.e. English standing in for a translation that has not been made.
+ * `src` (A /) — the target value is BYTE-IDENTICAL to en-US, i.e. English
+ * standing in for a translation that has not been made.
  *
  * It existed as a gap rather than a state: `reconcile` seeded every untracked
  * key as `mt`, and nothing here ever compared a target value to its source, so
  * pasted English was indistinguishable in the tracker from a genuine draft.
  * That is how a few hundred English-identical entries accumulated while the
- * table reported them as machine translation. `10-i18n-theming.md §3.5`
+ * table reported them as machine translation. The review policy
  * specified this state ("tracked as untranslated, never silently") and it was
  * never built.
  *
- * It is NOT a fourth quality tier. For the §3.3 gate it counts exactly like
- * `mt` — not reviewed, not done. The only thing it changes is that the debt is
- * now countable and honest.
+ * It is NOT a fourth quality tier. For the gate it counts exactly like `mt` —
+ * not reviewed, not done. The only thing it changes is that the debt is now
+ * countable and honest.
  */
 /*
- * ── AND `deferred`, FOR A KEY THAT IS NOT IN THE BUNDLE AT ALL (28-T32) ─────
+ * ── AND `deferred`, FOR A KEY THAT IS NOT IN THE BUNDLE AT ALL ──────────────
  *
  * `src` is English standing in for a translation: the key is THERE and its
  * value happens to equal the source. `deferred` is the honest alternative — the
@@ -106,7 +108,7 @@ const GATE_RELAXED = {
  * that filter could never match, because `parity.test.ts` required every locale
  * to carry every key.
  *
- * Like `mt` and `src` this is NOT a quality tier — for the §3.3 gate it is not
+ * Like `mt` and `src` this is NOT a quality tier — for the gate it is not
  * reviewed and not done.
  */
 const STATUSES = new Set(['mt', 'src', 'reviewed', 'outdated', 'deferred']);
@@ -239,7 +241,7 @@ function coverage(meta, src) {
     per[ns] ??= { reviewed: 0, mt: 0, src: 0, outdated: 0, deferred: 0, total: 0 };
     const stale = src[key] !== undefined && isStale(entry, src[key]);
     // A stale entry counts as neither reviewed nor freshly drafted: it is work
-    // to redo, and the §3.3 gate must not treat it as done.
+    // to redo, and the gate must not treat it as done.
     per[ns][stale ? 'outdated' : entry.status] += 1;
     per[ns].total += 1;
   }
@@ -283,7 +285,8 @@ function reportTable(src) {
     );
   }
   console.log(
-    `\nGate (§3.3): ${GATE_STRICT.join('/')} must be 100% reviewed; ` +
+    `
+Gate: ${GATE_STRICT.join('/')} must be 100% reviewed; ` +
       `${Object.keys(GATE_RELAXED).join('/')} ≥95%. Locales below that are labelled ` +
       `"(community draft)" in the picker.`,
   );

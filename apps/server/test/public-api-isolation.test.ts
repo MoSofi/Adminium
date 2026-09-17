@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 28-T09 — a publishable key is inert on every route that is not the public
- * namespace (28-public-surface.md D3, acceptance criterion 1).
+ * A publishable key is inert on every route that is not the public
+ * namespace (acceptance criterion 1).
  *
  * ── WHY THIS TEST IS THE LOAD-BEARING ONE ──────────────────────────────────
  * The whole off switch rests on one property: an `adm_pub_` token can never
  * become an `RbacPrincipal`, so it is refused everywhere by construction rather
- * than by an allow-list somebody maintains. §3.5 makes that claim explicitly,
+ * than by an allow-list somebody maintains. That claim is explicit,
  * and the plan notes a competing design that asserted the same property while
  * ALSO shipping an eleven-prefix route allow-list — a contradiction that went
  * unnoticed until a reviewer read both halves.
@@ -131,13 +131,13 @@ afterEach(async () => {
  * where it changed the outcome.
  *
  * Extracted so the sweep can be driven twice — once as a plain caller, once
- * wearing same-origin provenance with the `self` sentinel set (29-T03). The
- * concern there is narrow and worth naming: `self` widens what the PUBLIC
- * namespace accepts, and the question is whether it widened anything else. It
- * cannot, because `parseBearerApiKey` gates on `adm_sk_` and an `adm_pub_`
- * token never becomes a principal — but "cannot by construction" is the exact
- * claim 28 §3.5 made while a competing design shipped a route allow-list, so it
- * is asserted rather than argued.
+ * wearing same-origin provenance with the `self` sentinel set. The concern
+ * there is narrow and worth naming: `self` widens what the PUBLIC namespace
+ * accepts, and the question is whether it widened anything else. It cannot,
+ * because `parseBearerApiKey` gates on `adm_sk_` and an `adm_pub_` token never
+ * becomes a principal — but "cannot by construction" is the exact claim made
+ * while a competing design shipped a route allow-list, so it is asserted rather
+ * than argued.
  */
 async function sweepWithToken(
   app: ComposedServer['app'],
@@ -224,7 +224,7 @@ async function sweepWithToken(
   return acted;
 }
 
-describe('28-T09 — publishable keys are inert outside /api/v1/public', () => {
+describe('Publishable keys are inert outside /api/v1/public', () => {
   it('is refused by every registered route in the whole tree', async () => {
     const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
     await firstRun(meta);
@@ -240,7 +240,7 @@ describe('28-T09 — publishable keys are inert outside /api/v1/public', () => {
     expect(acted, `an adm_pub_ token CHANGED the outcome on these routes:\n${acted.join('\n')}`).toEqual([]);
   }, 60_000);
 
-  it('is still inert with `self` set and same-origin provenance (29-T03)', async () => {
+  it('is still inert with `self` set and same-origin provenance', async () => {
     /*
      * The sentinel's blast radius, measured rather than reasoned about.
      *
@@ -328,10 +328,10 @@ describe('the public envelope never leaks the dashboard\'s', () => {
      * error handler and answered with the dashboard envelope: prose, a
      * `requestId`, and a `details.issues` list naming the offending field.
      *
-     * That breaks both contracts at once — §3.6 says the wire carries codes,
-     * and §3.2 says failures must not be distinguishable, while "this field
-     * exists but your value is wrong" is information. A scoped
-     * `setErrorHandler` on the public plugin is the fix.
+     * That breaks both contracts at once — says the wire carries codes, says
+     * failures must not be distinguishable, while "this field exists but
+     * your value is wrong" is information. A scoped `setErrorHandler` on the
+     * public plugin is the fix.
      */
     const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
     await firstRun(meta);
@@ -363,9 +363,9 @@ describe('the public envelope never leaks the dashboard\'s', () => {
   }, 60_000);
 });
 
-describe('28-T08 — the off switch', () => {
+describe('The off switch', () => {
   it('does not register the namespace at all when the origin list is unset', async () => {
-    // Level 1: no door to probe, rather than a door that refuses (§3.5).
+    // Level 1: no door to probe, rather than a door that refuses.
     const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
     await firstRun(meta);
     const runService = createRunService({ meta });

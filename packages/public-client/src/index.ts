@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `@adminiumjs/public-client` — the browser client for Adminium's scoped public
- * API (28-public-surface.md §3, 28-T12).
+ * API.
  *
  * ── ZERO DEPENDENCIES, ON PURPOSE ──────────────────────────────────────────
  * This ships inside fifteen separate app bundles, every one of them a static
@@ -46,6 +46,11 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_CLAIM_NO_MATCH',
   'PUBLIC_CLAIM_UNAVAILABLE',
   'PUBLIC_WRITE_REFUSED',
+  /**
+   * The Adminium project's own code refused the write. Unlike every other
+   * code, `message` here is meant for people: it is the project's own text.
+   */
+  'PUBLIC_WRITE_REJECTED',
   'PUBLIC_UPSTREAM_UNAVAILABLE',
   /** Not from the server: the network never answered. */
   'PUBLIC_NETWORK_UNAVAILABLE',
@@ -123,12 +128,12 @@ export interface PublicConfig {
   currency: string | null;
   claim: { strategy: 'lookup' | 'email-code' | 'external'; ref: string; match: string[] } | null;
   /**
-   * 34 §7.6. Whether this key may ask for a document to be drawn.
+   * Whether this key may ask for a document to be drawn.
    *
    * A capability, so a page can decide whether to OFFER "email me a copy"
    * rather than discovering the refusal by being refused. Optional on the type
-   * because a server older than 34d does not send it, and an app compiled
-   * against this client must keep working against one.
+   * because a server older than the release that added documents does not send
+   * it, and an app compiled against this client must keep working against one.
    */
   documents?: { create: boolean };
   refs: Record<string, PublicRefConfig>;
@@ -176,9 +181,9 @@ export interface PublicDocument {
   number: string | null;
   status: string;
   /**
-   * `pending-review` on an intent the visitor asked for: D15 says nothing is
-   * emailed unattended, so a page should say "we will send this shortly"
-   * rather than "sent".
+   * `pending-review` on an intent the visitor asked for: nothing is emailed
+   * unattended, so a page should say "we will send this shortly" rather than
+   * "sent".
    */
   delivery: string | null;
   format: string;
@@ -237,7 +242,7 @@ export interface PublicClient {
   /** Is a claim session currently held? */
   isClaimed: () => boolean;
   /**
-   * The documents this visitor may see and ask for (34 §7.6, 34-T21).
+   * The documents this visitor may see and ask for.
    *
    * Every verb here needs a CLAIM: a document belongs either to the intent the
    * visitor asked for or to a row their claim reaches, and an unclaimed caller

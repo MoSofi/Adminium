@@ -3,7 +3,7 @@
  * The daily retention sweep (`compose.ts` `RETENTION_GC_SCHEDULE_NAME`).
  *
  * THE BUG THIS PINS. `sessionsRepo`, `passwordResetsRepo`, `jobsRepo` and
- * `auditRepo` each ship a `gc()` written against the BRIEF §8 retention policy,
+ * `auditRepo` each ship a `gc()` written against the BRIEF retention policy,
  * and no line of the product called any of them. Four meta tables grew for the
  * life of every install — one `adminium_sessions` row per login forever, one
  * `adminium_jobs` row per scheduled-report tick, one `adminium_audit_log` row
@@ -181,7 +181,7 @@ describe('firing the sweep deletes what the policy says', () => {
     expect(await jobs.findById(pending.id)).not.toBeNull();
   });
 
-  it('sweeps automation runs, keeps failed ones twice as long, spares waiting work (42 D23)', async () => {
+  it('sweeps automation runs, keeps failed ones twice as long, spares waiting work', async () => {
     const { meta, server } = await compose();
     const rules = automationsRepo(meta);
     const runs = automationRunsRepo(meta);

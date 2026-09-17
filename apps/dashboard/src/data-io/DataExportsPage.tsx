@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Data Exports (M7-T07, 09-generated-app.md §11.2): request an export
- * (table + format) and watch the artifact list — an optimistic `processing`
- * row lands immediately, progress rides the polled list (+ the export job's
- * `jobs:<id>` channel), and ready rows download through the authenticated
- * `/exports/:id/download` route. Rows render through `scheduled-jobs-list`
- * (the §11.2 "master list of jobs" consistency choice).
+ * Data Exports: request an export (table + format) and watch the artifact
+ * list — an optimistic `processing` row lands immediately, progress rides
+ * the polled list (+ the export job's `jobs:<id>` channel), and ready rows
+ * download through the authenticated `/exports/:id/download` route. Rows
+ * render through `scheduled-jobs-list` (the consistency choice).
  *
  * xlsx is deliberately absent from the format picker — the server rejects it
  * in this build (no dependency-free workbook writer; documented deviation).
@@ -102,7 +101,7 @@ export function DataExportsPage() {
       });
     },
     onSuccess: (reply) => {
-      // Optimistic processing row (§11.2) — prepend, then let polling refine.
+      // Optimistic processing row — prepend, then let polling refine.
       queryClient.setQueryData(exportsListQuery().queryKey, (old: ExportDto[] | undefined) => [
         reply.data,
         ...(old ?? []),
@@ -138,7 +137,7 @@ export function DataExportsPage() {
   return (
     // Gutter + column come from the route's `PageSurface` (data-io/routes.tsx).
     <div className="flex h-full min-h-0 flex-col gap-5">
-      {/* The comp's header primary (41-export-builder.md §3.9): the builder
+      {/* The comp's header primary: the builder
           is where a file is put together; this form stays as the quick path. */}
       <PageActions>
         <Button asChild size="topbar" iconLeft={<Plus />} data-testid="exports-new">
@@ -218,7 +217,7 @@ export function DataExportsPage() {
           if (row === undefined) return;
           if (row.status === 'ready') download(row.id);
           // A failed row is the comp Data Exports' "Retry": the builder opens
-          // with every step pre-filled from the stored definition (41 D18).
+          // with every step pre-filled from the stored definition.
           if (row.status === 'failed') void navigate({ to: '/exports/new', search: { basedOn: row.id } });
         }}
         testId="exports-list"

@@ -9,10 +9,10 @@ import type { PageEnvelope } from '../src/index.js';
 import { ARCHETYPE_CONNECTION, archetypeModel } from './fixtures/archetypes-model.js';
 
 /**
- * **The M7 exit criteria.** research/widget-registry.md §15 step 3 —
- * "Per table emit: `page-crud` always; **plus the highest-scoring archetype from
- * §14 triggers**" — proven end to end: a classified schema in, stored page
- * envelopes out, one assertion per §14 Auto-trigger row.
+ * **The M7 exit criteria.** research/widget-registry.md — "Per table emit:
+ * `page-crud` always; **plus the highest-scoring archetype triggers**" — proven
+ * end to end: a classified schema in, stored page envelopes out, one assertion
+ * Auto-trigger row.
  *
  * This is the far side of the package boundary described in
  * `src/generate/archetype.ts`: the rules are unit-tested against their own
@@ -46,11 +46,11 @@ function itemConfig(page: PageEnvelope, widget: string): Record<string, unknown>
   return item.config;
 }
 
-describe('§14 auto-triggers — one archetype page per table, alongside page-crud', () => {
+describe('auto-triggers — one archetype page per table, alongside page-crud', () => {
   it('a status-enum workflow table emits a page-board', () => {
     const page = archetypeFor('public.tasks') as PageEnvelope;
     expect(page.template).toBe('page-board');
-    // `team` is an orthogonal enum → the swimlane variant (annex §6/§14).
+    // `team` is an orthogonal enum → the swimlane variant (annex).
     expect(widgetsOn(page)).toContain('kanban-swimlane-grid');
     const board = itemConfig(page, 'kanban-swimlane-grid');
     expect(board['statusColumn']).toBe('status');
@@ -88,8 +88,8 @@ describe('§14 auto-triggers — one archetype page per table, alongside page-cr
 
   it('start/end + progress + phase FK emits a page hosting the gantt-chart', () => {
     const page = archetypeFor('public.project_tasks') as PageEnvelope;
-    // §14 ships no page-gantt: the gantt is a *domain card* in the
-    // page-master-detail detail pane (annex §14 "detail pane … / domain card").
+    // There is no page-gantt: the gantt is a *domain card* in the
+    // page-master-detail detail pane (annex).
     expect(page.template).toBe('page-master-detail');
     expect(widgetsOn(page)).toContain('gantt-chart');
     const gantt = itemConfig(page, 'gantt-chart');
@@ -136,7 +136,8 @@ describe('§14 auto-triggers — one archetype page per table, alongside page-cr
   it('a pending/approved workflow enum emits a page-queue-inbox', () => {
     const page = archetypeFor('public.approvals') as PageEnvelope;
     expect(page.template).toBe('page-queue-inbox');
-    // The manifest's kpi-row is `required` — the §1 count/new/status cards fill it.
+    // The manifest's kpi-row is `required` — the count/new/status cards fill
+    // it.
     expect(widgetsOn(page).filter((w) => w === 'kpi-stat-card').length).toBeGreaterThan(0);
     expect(widgetsOn(page)).toContain('master-list');
   });
@@ -148,7 +149,7 @@ describe('§14 auto-triggers — one archetype page per table, alongside page-cr
     expect(widgetsOn(page)).toContain('detail-key-value');
   });
 
-  it('a table with no §14 trigger gets nothing extra', () => {
+  it('a table with no trigger gets nothing extra', () => {
     expect(archetypeFor('public.regions')).toBeUndefined();
     expect(result.pages.some((p) => p.source.table === 'public.regions')).toBe(true); // page-crud
   });
@@ -159,7 +160,7 @@ describe('archetype pages are well-formed stored documents', () => {
     (p) => p.template !== 'page-crud' && p.template !== 'page-dashboard',
   );
 
-  it('covers nine of the §14 archetypes on this schema', () => {
+  it('covers nine of the archetypes on this schema', () => {
     expect([...new Set(archetypes.map((p) => p.template))].sort()).toEqual([
       'page-board',
       'page-calendar',
@@ -173,7 +174,7 @@ describe('archetype pages are well-formed stored documents', () => {
     ]);
   });
 
-  it('validates against the frozen envelope contract (01 §6.1)', () => {
+  it('validates against the frozen envelope contract', () => {
     for (const page of archetypes) {
       expect(() => pageEnvelopeSchema.parse(page)).not.toThrow();
       expect(page.v).toBe(1);
@@ -186,7 +187,7 @@ describe('archetype pages are well-formed stored documents', () => {
     }
   });
 
-  it('every widget instance carries a compilable query descriptor (04 §5.1)', () => {
+  it('every widget instance carries a compilable query descriptor', () => {
     for (const page of archetypes) {
       const layout = page.config['layout'] as { items: unknown[] };
       expect(layout.items.length).toBeGreaterThan(0);
@@ -228,7 +229,7 @@ describe('archetype pages are well-formed stored documents', () => {
     }
   });
 
-  it('is deterministic — a re-run is byte-identical (04 §8 H5)', () => {
+  it('is deterministic — a re-run is byte-identical (H5)', () => {
     const again = generatePages(model, { connectionId: ARCHETYPE_CONNECTION });
     expect(JSON.stringify(again)).toBe(JSON.stringify(result));
   });
@@ -279,13 +280,13 @@ describe('archetype pages respect generation options', () => {
   });
 
   /**
-   * 09 §8.4: read-only-analytics is "dashboards, analytics, data grids
-   * (read-only), search, exports; **no forms/boards/imports**". The archetype
-   * pass used to gate only on `intent !== 'crud'`, so this intent emitted a
+   * Read-only-analytics is "dashboards, analytics, data grids (read-only),
+   * search, exports; **no forms/boards/imports**". The archetype pass used to
+   * gate only on `intent !== 'crud'`, so this intent emitted a
    * drag-to-change-status kanban with a create wizard — byte-identical to the
    * full-admin output — on a connection explicitly scoped to read-only.
    */
-  it("intent 'read-only-analytics' omits boards, files, queues and chat (09 §8.4)", () => {
+  it("intent 'read-only-analytics' omits boards, files, queues and chat", () => {
     const readOnly = generatePages(model, {
       connectionId: ARCHETYPE_CONNECTION,
       intent: 'read-only-analytics',
@@ -305,12 +306,12 @@ describe('archetype pages respect generation options', () => {
   });
 
   /**
-   * 09 §8.4: support-console is "queue/master-detail templates prioritized …;
+   * Support-console is "queue/master-detail templates prioritized …;
    * boards/analytics omitted". It used to fall through to the full-admin set
    * while emitting a warning that the queue templates "land M7" — the milestone
    * that shipped them.
    */
-  it("intent 'support-console' omits boards and dashboards, keeps queues (09 §8.4)", () => {
+  it("intent 'support-console' omits boards and dashboards, keeps queues", () => {
     const support = generatePages(model, {
       connectionId: ARCHETYPE_CONNECTION,
       intent: 'support-console',
@@ -323,7 +324,7 @@ describe('archetype pages respect generation options', () => {
     expect(support.warnings.some((w) => w.includes('land M7'))).toBe(false);
   });
 
-  it('drops widgets the live registry does not know (04 §10)', () => {
+  it('drops widgets the live registry does not know', () => {
     const noOrgChart = generatePages(model, {
       connectionId: ARCHETYPE_CONNECTION,
       isRegistered: (id) => id !== 'org-chart',
@@ -353,7 +354,7 @@ describe('archetype pages respect generation options', () => {
     const detached = { ...model, source: { kind: 'import', format: 'json-ir' } as const };
     const offline = generatePages(detached);
     expect(offline.pages.every((p) => p.template === 'page-crud')).toBe(true);
-    expect(offline.warnings.some((w) => w.includes('§14 archetype pages skipped'))).toBe(true);
+    expect(offline.warnings.some((w) => w.includes('archetype pages skipped'))).toBe(true);
   });
 
   it('honours settings.includedTables (the server filters the model upstream)', () => {

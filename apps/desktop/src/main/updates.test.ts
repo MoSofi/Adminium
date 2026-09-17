@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The updater (11-electron.md §11), driven through injected ports — no Electron,
- * no electron-updater, no real timers. What these pin is exactly what the module
- * header calls unpinnable by the Playwright suite: the CORRECTNESS rule
- * (`disabled` constructs nothing and touches no network), the per-mode schedule
- * (`notify` checks on launch + daily, `manual` never), and the translation of
- * autoUpdater events into the ONE §4 notification pipeline.
+ * The updater, driven through injected ports — no Electron, no electron-updater,
+ * no real timers. What these pin is exactly what the module header calls
+ * unpinnable by the Playwright suite: the CORRECTNESS rule (`disabled`
+ * constructs nothing and touches no network), the per-mode schedule (`notify`
+ * checks on launch + daily, `manual` never), and the translation of autoUpdater
+ * events into the ONE notification pipeline.
  */
 
 import { readFileSync } from 'node:fs';
@@ -170,7 +170,7 @@ const available = (version: string, extra: Record<string, unknown> = {}): Update
   updateInfo: { version, ...extra },
 });
 
-// ─── resolveUpdateMode (§11: the env kill-switch) ────────────────────────────
+// ─── resolveUpdateMode (the env kill-switch) ─────────────────────────────────
 
 describe('resolveUpdateMode', () => {
   it('passes the config mode through when the env var is unset', () => {
@@ -190,7 +190,7 @@ describe('resolveUpdateMode', () => {
   });
 });
 
-// ─── canSelfUpdate (§11: deb/rpm are notify-only) ────────────────────────────
+// ─── canSelfUpdate (deb/rpm are notify-only) ─────────────────────────────────
 
 describe('canSelfUpdate', () => {
   it('is always true on macOS and Windows', () => {
@@ -247,7 +247,7 @@ describe('disabled mode never initializes the updater', () => {
   });
 });
 
-// ─── notify vs manual: check timing (§11) ────────────────────────────────────
+// ─── notify vs manual: check timing ──────────────────────────────────────────
 
 describe('check scheduling', () => {
   it('notify checks on launch after a 30 s grace and then every 24 h', async () => {
@@ -272,7 +272,7 @@ describe('check scheduling', () => {
     expect(fake.checkForUpdates).not.toHaveBeenCalled();
     // Firing the launch timer runs a check; the periodic one does too. Each
     // now resolves the release feed first, so the assertion has to await that
-    // — a scheduled check is fire-and-forget by design (§11).
+    // — a scheduled check is fire-and-forget by design.
     afters[0]?.fn();
     everies[0]?.fn();
     await vi.waitFor(() => expect(fake.checkForUpdates).toHaveBeenCalledTimes(2));
@@ -301,9 +301,9 @@ describe('check scheduling', () => {
   });
 });
 
-// ─── updater configuration (§11 verbatim) ────────────────────────────────────
+// ─── updater configuration ───────────────────────────────────────────────────
 
-describe('the updater is configured per §11', () => {
+describe('the updater is configured', () => {
   it('disables auto-download / auto-install / prerelease / downgrade', () => {
     const fake = fakeUpdater(null);
     createUpdateManager({
@@ -574,9 +574,9 @@ describe('a check resolves the feed before every check', () => {
   });
 });
 
-// ─── checkForUpdates result mapping (§4) ─────────────────────────────────────
+// ─── checkForUpdates result mapping ──────────────────────────────────────────
 
-describe('checkForUpdates maps the autoUpdater result to §4', () => {
+describe('checkForUpdates maps the autoUpdater result to', () => {
   const build = (result: UpdaterCheckResult | null): { manager: ReturnType<typeof createUpdateManager> } => {
     const fake = fakeUpdater(result);
     return {
@@ -622,14 +622,14 @@ describe('checkForUpdates maps the autoUpdater result to §4', () => {
       fetchImpl: fakeFetch(RELEASES_FIXTURE),
     });
     expect(await manager?.checkForUpdates()).toEqual({ status: 'error' });
-    // §11: a failed check does not raise a notification.
+    // A failed check does not raise a notification.
     expect(emit).not.toHaveBeenCalled();
   });
 });
 
-// ─── event translation → the ONE notification pipeline (§4 onUpdateEvent) ─────
+// ─── event translation → the ONE notification pipeline (onUpdateEvent) ────────
 
-describe('autoUpdater events become §4 update events', () => {
+describe('autoUpdater events become update events', () => {
   function wired(canSelf = true): { fake: FakeUpdater; emitted: DesktopUpdateEvent[] } {
     const fake = fakeUpdater(null);
     const emitted: DesktopUpdateEvent[] = [];
@@ -663,7 +663,7 @@ describe('autoUpdater events become §4 update events', () => {
     expect(emitted).toEqual([{ type: 'downloaded', version: '1.4.0' }]);
   });
 
-  it('a raw autoUpdater error event stays silent — a failed check must not notify (§11)', () => {
+  it('a raw autoUpdater error event stays silent — a failed check must not notify', () => {
     // electron-updater fires `error` for a failed CHECK as much as a failed
     // download; surfacing it here would turn every offline launch into a toast.
     const { fake, emitted } = wired();
@@ -680,7 +680,7 @@ describe('autoUpdater events become §4 update events', () => {
   });
 });
 
-// ─── deb/rpm: no self-replace (§11) ──────────────────────────────────────────
+// ─── deb/rpm: no self-replace ────────────────────────────────────────────────
 
 describe('non-self-replacing packages route the download to GitHub', () => {
   it('downloadUpdate rejects with the releases URL and never calls the updater', async () => {

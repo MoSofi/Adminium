@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Playwright config for the 3-engine e2e matrix (M9-T05, 01-architecture.md
- * §11 task 01-T10): drives the BUILT server serving the BUILT dashboard,
- * seeded with the Northwind demo data by `scripts/e2e-server.mjs`.
+ * Playwright config for the 3-engine e2e matrix: drives the BUILT server
+ * serving the BUILT dashboard, seeded with the Northwind demo data by
+ * `scripts/e2e-server.mjs`.
  *
- * Engine selection (15-quality.md env-gate conventions):
+ * Engine selection (env-gate conventions):
  *   - default            → sqlite  (file DB, zero external services)
  *   - E2E_ENGINE=postgres → needs TEST_POSTGRES_URL (e.g. postgres://postgres:postgres@127.0.0.1:5432/postgres)
  *   - E2E_ENGINE=mysql    → needs TEST_MYSQL_URL    (e.g. mysql://root:root@127.0.0.1:3306 — same var as the
@@ -30,6 +30,7 @@ import {
   TEST_MYSQL_URL,
   TEST_POSTGRES_URL,
 } from './tests/constants.js';
+import { PROJECT_URL, projectStatePath } from './tests/projectHarness.js';
 
 if (ENGINE !== 'sqlite' && ENGINE !== 'postgres' && ENGINE !== 'mysql') {
   throw new Error(`E2E_ENGINE must be sqlite | postgres | mysql, got "${String(ENGINE)}"`);
@@ -56,14 +57,14 @@ export default defineConfig({
     video: 'off',
   },
   projects: [
-    // One real UI sign-in per run (tests/auth.setup.ts): the §6 auth-login
+    // One real UI sign-in per run (tests/auth.setup.ts): the auth-login
     // bucket allows 5 logins/min/ip in PRODUCTION CODE, and this suite would
     // otherwise perform ~16 — the 6th would 429 by design. Every test then
     // reuses the saved session below.
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'chromium',
-      testIgnore: /onboarding\.spec\.ts/,
+      testIgnore: [/onboarding\.spec\.ts/, /project\.spec\.ts/],
       use: { ...devices['Desktop Chrome'], storageState: storageStatePath() },
       dependencies: ['setup'],
     },
@@ -74,6 +75,15 @@ export default defineConfig({
       name: 'onboarding',
       testMatch: /onboarding\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], baseURL: FIRST_RUN_BASE_URL, storageState: { cookies: [], origins: [] } },
+    },
+    // A project folder: made by the built CLI and served by
+    // `adminium dev`, then `adminium start`, which the spec starts and stops
+    // itself — a redeploy is a restart. The servers below play no part. The
+    // session is the project owner's, saved by the spec's own setup.
+    {
+      name: 'project',
+      testMatch: /project\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], baseURL: PROJECT_URL, storageState: projectStatePath() },
     },
   ],
   webServer: [

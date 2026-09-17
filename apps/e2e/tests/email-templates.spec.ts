@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The email manager against the built stack (39-email-templates-and-
- * campaigns.md 39-T19, first slice: the manager).
+ * campaigns.md, first slice: the manager).
  *
  * The dashboard suite mounts the manager through the real router with a
  * fetch stub (`email/manager/manager.test.tsx`); the server suite covers the
@@ -57,7 +57,7 @@ test.describe('email templates manager', () => {
     await expect(page.getByText('Design reusable emails & the campaigns you send from them.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'New template' })).toBeVisible();
     // Four built-in flows × eight locales: password reset, team invitation,
-    // notification, and document ready (34-T19, `BUILTIN_EMAIL_TEMPLATE_KEYS`).
+    // notification, and document ready (`BUILTIN_EMAIL_TEMPLATE_KEYS`).
     await expect(page.getByTestId('email-card')).toHaveCount(32);
     await expect(page.getByTestId('tab-count').first()).toHaveText('32');
     await testInfo.attach('manager-gallery', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
@@ -210,7 +210,7 @@ test.describe('email templates manager', () => {
     }
   });
 
-  test('Choose image uploads into the block; Send test collects recipients (39-T14)', async ({ page }, testInfo) => {
+  test('Choose image uploads into the block; Send test collects recipients', async ({ page }, testInfo) => {
     // A scratch template with one image block, made and removed through the API; the upload it makes is removed too.
     const created = await page.request.post('/api/v1/email-templates', { data: { kind: 'template', name: 'Overlay scratch', starter: null } });
     expect(created.status()).toBe(201);
@@ -260,7 +260,8 @@ test.describe('email templates manager', () => {
       await expect(page.getByTestId('email-save-chip')).toHaveText('Unsaved changes');
       await testInfo.attach('canvas-uploaded-image', { body: await page.screenshot(), contentType: 'image/png' });
 
-      // Send test email: recipients as chips and the footer count. The send itself joins with the SMTP sink (39-T19).
+      // Send test email: recipients as chips and the footer count. The send
+      // itself joins with the SMTP sink.
       await page.getByTestId('email-test').click();
       const modal = page.getByRole('dialog', { name: 'Send test email' });
       await expect(modal).toBeVisible();
@@ -277,9 +278,9 @@ test.describe('email templates manager', () => {
     }
   });
 
-  test('Send campaign collects the audience and the time, then meets the relay (39-T16)', async ({ page }, testInfo) => {
+  test('Send campaign collects the audience and the time, then meets the relay', async ({ page }, testInfo) => {
     // A scratch campaign, made and removed through the API. The stack has no SMTP relay, so the send
-    // ends at the server's refusal — the SMTP sink and the real run join in 39-T19.
+    // ends at the server's refusal — the SMTP sink and the real run join.
     const created = await page.request.post('/api/v1/email-templates', { data: { kind: 'campaign', name: 'Launch scratch', starter: null } });
     expect(created.status()).toBe(201);
     const doc = (await created.json()) as { id: string };

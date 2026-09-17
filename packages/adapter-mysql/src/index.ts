@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/adapter-mysql — the `mysql2`-driver implementation of the
- * `DatabaseAdapter` contract (05-introspection-engine.md §3/§4.2, M9/05-T13).
+ * `DatabaseAdapter` contract (M9/).
  *
  * Mirrors the postgres reference adapter: connect/test/probeCapabilities,
  * `introspect()` (schema only — never rows, via `information_schema`), the
  * Kysely query-engine factory, and the boot registration helper. The
  * data-role methods (`query`/`mutate`/`sample`/`count`) follow the same
- * 05-T05 pattern and currently reject with a typed `UNSUPPORTED` error after
- * their role guard runs — CRUD goes through `createQueryEngine()`.
+ * pattern and currently reject with a typed `UNSUPPORTED` error after their
+ * role guard runs — CRUD goes through `createQueryEngine()`.
  *
  * Supported servers: MySQL ≥ 8.0, MariaDB ≥ 10.5 (feature-detected via
  * `VERSION()`; older versions → `UNSUPPORTED` with an upgrade hint).
@@ -83,7 +83,7 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
       throw new AdapterError(
         'PERMISSION',
         `connection config is branded "${config.role}" but this adapter instance is "${this.role}"`,
-        { hint: 'the three logical connections are never interchangeable (01-architecture.md §3)' },
+        { hint: 'the three logical connections are never interchangeable' },
       );
     }
     if (config.dsn === undefined || config.dsn.length === 0) {
@@ -99,7 +99,7 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
       connectionLimit:
         config.poolMax ?? (this.role === 'introspect' ? INTROSPECT_POOL_MAX : DATA_POOL_MAX),
     });
-    // Session timeout setup on every new connection — 05 §4.2. MySQL takes
+    // Session timeout setup on every new connection. MySQL takes
     // milliseconds (max_execution_time); MariaDB takes seconds
     // (max_statement_time) — feature-detected by trying both in order.
     const mariadbSeconds = Math.max(1, Math.ceil(statementTimeoutMs / 1000));
@@ -212,7 +212,7 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
     return {
       capabilities: {
         ...MYSQL_CAPABILITIES,
-        // MariaDB ≥ 10.5 supports INSERT/DELETE … RETURNING (05 §4.2).
+        // MariaDB ≥ 10.5 supports INSERT/DELETE … RETURNING.
         supportsReturning: probe.flavor.flavor === 'mariadb',
       },
       privileges: {
@@ -226,13 +226,13 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
     };
   }
 
-  /** SCHEMA ONLY — reads `information_schema` exclusively (05 §10). */
+  /** SCHEMA ONLY — reads `information_schema` exclusively. */
   async introspect(
     this: DatabaseAdapter<'introspect'>,
     opts?: IntrospectOptions,
   ): Promise<DatabaseModel> {
     const self = this as MysqlAdapter<'introspect'>;
-    // Runtime guard behind the compile-time role brand (05 §3).
+    // Runtime guard behind the compile-time role brand.
     if ((self.role as ConnectionRole) !== 'introspect') {
       throw new AdapterError(
         'PERMISSION',
@@ -257,15 +257,15 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
       throw new AdapterError(
         'PERMISSION',
         `${method}() is only available on the data-role instance`,
-        { hint: 'row-touching methods never run on the introspect connection (05 §10)' },
+        { hint: 'row-touching methods never run on the introspect connection' },
       );
     }
-    throw new AdapterError('UNSUPPORTED', `${method}() lands with 05-T05 (dynamic Kysely CRUD)`, {
+    throw new AdapterError('UNSUPPORTED', `${method}() is not implemented on the adapter itself`, {
       hint: 'use createQueryEngine() for the CRUD query port in the meantime',
     });
   }
 
-  /* eslint-disable @typescript-eslint/no-unused-vars -- 05-T05 stubs: the
+  /* eslint-disable @typescript-eslint/no-unused-vars -- stubs: the
      parameter lists must match the DatabaseAdapter contract exactly. */
   async count(
     this: DatabaseAdapter<'data'>,
@@ -302,7 +302,7 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
   }
   /* eslint-enable @typescript-eslint/no-unused-vars */
 
-  /** Aggregate statistics for LLM enrichment (06 §4.2); sample-free by default. */
+  /** Aggregate statistics for LLM enrichment; sample-free by default. */
   async collectTableStats(
     this: DatabaseAdapter<'data'>,
     table: TableRef,
@@ -313,7 +313,7 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
       throw new AdapterError(
         'PERMISSION',
         'collectTableStats() is only available on the data-role instance',
-        { hint: 'statistics touch user rows and never run on the introspect connection (05 §10)' },
+        { hint: 'statistics touch user rows and never run on the introspect connection' },
       );
     }
     return collectMysqlStats((sql) => self.#query(sql), table, opts);
@@ -329,7 +329,7 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
   }
 }
 
-/** What the server registers at boot (01-architecture.md §2.3.1). */
+/** What the server registers at boot. */
 export const mysqlAdapter: AdapterProvider = {
   dialect: 'mysql',
   async create<Role extends ConnectionRole>(

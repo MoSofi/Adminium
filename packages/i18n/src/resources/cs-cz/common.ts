@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GENERATED MIRROR of ../../../locales/cs-CZ/common.json — do not edit by hand.
- * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
  * without JSON import attributes (browser + NodeNext safe).
@@ -300,6 +300,13 @@ export default {
   "undo": {
     "done": "Změna vrácena zpět",
     "failed": "Tuto změnu se nepodařilo vrátit zpět"
+  },
+  "projectAction": {
+    "done": "{label}: hotovo",
+    "failed": "Akci {label} se nepodařilo dokončit",
+    "menu": "Akce",
+    "run": "Spustit",
+    "selected": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}"
   },
   "prefs": {
     "theme": {
@@ -1013,7 +1020,7 @@ export default {
     "article": {
       "install": {
         "title": "Instalace Adminia",
-        "excerpt": "Spusťte ze zdrojového checkoutu nebo přes docker run a během minuty jste u průvodce prvním spuštěním."
+        "excerpt": "Vytvořte projekt jediným příkazem, nebo Adminium spusťte přes docker run či ze zdrojového checkoutu."
       },
       "firstAdmin": {
         "title": "Vytvoření prvního supersprávce",
@@ -1622,6 +1629,7 @@ export default {
       "jobsRead": "Vidět všechny úlohy na pozadí",
       "llmRun": "Spustit asistenta AI",
       "pagesManage": "Vytvářet a uspořádat stránky",
+      "projectRead": "Číst změny stránek a schématu pro stažení do projektu",
       "reportsManage": "Spravovat naplánované sestavy",
       "rolesManage": "Spravovat role a oprávnění",
       "schemaRemap": "Upravovat popisky a úpravy schématu",

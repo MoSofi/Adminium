@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The app catalog's version of D8's proof (48-self-hosted-downloads.md §6b
- * G8-D3/D4): with its switch off, NO app catalog code path makes an outbound
- * call, and with it on, exactly two first-party addresses are reached — the
- * app feed and the downloads host's `/apps/` folder.
+ * The app catalog's version of D8's proof (b G8-D3/D4): with its switch off,
+ * NO app catalog code path makes an outbound call, and with it on, exactly
+ * two first-party addresses are reached — the app feed and the downloads
+ * host's `/apps/` folder.
  *
  * Mirrors `add-on-network-isolation.test.ts`, recording thrower included: ALL
  * outbound network (fetch + node net/http/https) records the attempt and then
@@ -301,7 +301,7 @@ describe('app catalog: the feed schema', () => {
     expect(appCatalogSchema.safeParse(FEED).success).toBe(true);
   });
 
-  it('refuses a price, tier, licence, URL or package field (17 §2, 48 D4)', () => {
+  it('refuses a price, tier, licence, URL or package field', () => {
     for (const extra of [
       { price: 0 },
       { tier: 'pro' },

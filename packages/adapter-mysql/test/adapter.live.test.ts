@@ -319,7 +319,7 @@ describe.skipIf(!liveReady)('query engine (Kysely MysqlDialect CRUD)', () => {
       const kysely = new Kysely<{ shippers: Shipper }>({
         dialect: engine.dialect as InstanceType<typeof MysqlDialect>,
       });
-      // INSERT (no RETURNING on MySQL — re-select by key, 05 §4.2)
+      // INSERT (no RETURNING on MySQL — re-select by key)
       await kysely
         .insertInto('shippers')
         .values({ shipper_id: 99, company_name: 'Test Freight', phone: null })
@@ -469,7 +469,7 @@ describe.skipIf(!liveReady)('query engine (Kysely MysqlDialect CRUD)', () => {
   });
 });
 
-describe.skipIf(!liveReady)('collectTableStats (data role — 06 §4.2 statistics)', () => {
+describe.skipIf(!liveReady)('collectTableStats (data role — statistics)', () => {
   let mod: AdapterModule;
   let db = '';
   let dataAdapter: DatabaseAdapter<'data'>;

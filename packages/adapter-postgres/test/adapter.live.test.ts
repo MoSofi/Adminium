@@ -115,7 +115,7 @@ describe.skipIf(!driverReady)('PostgresAdapter (pg driver)', () => {
     try {
       const asIntrospect = adapter as unknown as DatabaseAdapter<'introspect'>;
       await expect(asIntrospect.introspect()).rejects.toMatchObject({ code: 'PERMISSION' });
-      // Data methods pass the role guard but are 05-T05 scope → UNSUPPORTED.
+      // Data methods pass the role guard but are scope → UNSUPPORTED.
       await expect(
         (adapter as DatabaseAdapter<'data'>).query({ table: { schema: 'public', name: 'orders' } }),
       ).rejects.toMatchObject({ code: 'UNSUPPORTED' });
@@ -174,7 +174,7 @@ describe.skipIf(!driverReady)('PostgresAdapter (pg driver)', () => {
   });
 });
 
-describe.skipIf(!driverReady)('collectTableStats (data role — 06 §4.2 statistics)', () => {
+describe.skipIf(!driverReady)('collectTableStats (data role — statistics)', () => {
   let mod: AdapterModule;
   let db = '';
   let dataAdapter: DatabaseAdapter<'data'>;

@@ -73,11 +73,9 @@
  *
  * No autofix: which foreground is correct depends on what the surface means
  * (solid tone vs. soft tint vs. surface step), and on a soft/surface background
- * the choice between text-fg / text-fg-muted / text-fg-subtle is a design call
- * (02-design-system.md §7 "Porting comps").
+ * the choice between text-fg / text-fg-muted / text-fg-subtle is a design call.
  *
- * Spec: 02-design-system.md §1.1 (token pairs), §3.2 (utility
- * conventions), §8 (the shared-config lint surface).
+ * See: https://docs.adminium.dev/anatomy/decisions/tokens-only/  (the token pairs live in @adminium/ui lib/tones.ts)
  */
 
 /** Tailwind's built-in palette families — `text-red-500` and friends. */
@@ -232,7 +230,7 @@ export default {
         'contrast when the theme flips (measured: white is 2.29:1 on the dark --accent, 2.00:1 on ' +
         'the dark --pos, 2.18:1 on the dark --warn; WCAG 2.1 AA needs 4.5:1). ' +
         'Use the paired foreground token: {{suggestion}} ' +
-        '(02-design-system.md §3.2; the pairs live in @adminium/ui lib/tones.ts).',
+        '(the pairs live in @adminium/ui lib/tones.ts).',
     },
   },
 

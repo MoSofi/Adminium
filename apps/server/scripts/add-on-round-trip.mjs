@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * THE ADD-ON ROUND TRIP (26-add-on-runtime.md §9, 26-T15).
+ * THE ADD-ON ROUND TRIP.
  *
  *   node apps/server/scripts/add-on-round-trip.mjs
  *
  * ── WHY THIS IS A SCRIPT AND NOT A SUITE ───────────────────────────────────
  *
- * 26 D6 says it in one line: "the acceptance test is a round trip, not a green
+ * In one line: "the acceptance test is a round trip, not a green
  * suite". The failure it is written against is the M10/M11 one — routes
  * exported and never registered, green the whole way — and the add-on layer
  * has already produced its own version of it. So this does not build a server
@@ -120,7 +120,7 @@ const KEEP = process.argv.includes('--keep');
 
 /**
  * `--air-gapped` runs the SAME loop with `ADMINIUM_NETWORK_FEATURES=off`
- * (32-T13, acceptance #2).
+ * (acceptance #2).
  *
  * Not a separate script, because the thing being asserted is that it IS the
  * same loop: the bundled set browses and installs, a sideloaded tarball with an
@@ -137,13 +137,12 @@ const AIR_GAPPED = process.argv.includes('--air-gapped');
  * `downloads.adminium.dev` (catalog row → download → verify against the row's
  * ledger integrity → hardened unpack → staged), install it from the stage, and
  * refuse a copy of that file with one bit flipped
- * (48-self-hosted-downloads.md §3 gate 6). It reaches the live internet by design —
- * that is the acceptance — so it is a flag rather than the default, and it
- * contradicts `--air-gapped` outright.
+ * (gate 6). It reaches the live internet by design — that is the acceptance — so it
+ * is a flag rather than the default, and it contradicts `--air-gapped` outright.
  *
- * It then runs the SAME leg for APPS (48 §6b G8): their own switch, their own
- * feed document, and a real app file from the same bucket — the two halves of
- * the marketplace share one transport and one bucket, so proving one proves
+ * It then runs the SAME leg for APPS (b G8): their own switch, their own feed
+ * document, and a real app file from the same bucket — the two halves of the
+ * marketplace share one transport and one bucket, so proving one proves
  * nothing about the other.
  */
 const ONLINE_CATALOG = process.argv.includes('--online-catalog');
@@ -165,7 +164,7 @@ let child = null;
 let baseUrl = null;
 let cookie = null;
 /**
- * The §7-item-4 CSRF token.
+ * The -item-4 CSRF token.
  *
  * A cookie-authenticated mutation is refused without it, which is correct and
  * is why this script holds one: driving the API "as an operator would" means
@@ -227,7 +226,7 @@ async function waitForJob(jobId, deadlineMs = 120_000) {
   const startedAt = Date.now();
   for (;;) {
     const res = await api('GET', `/api/v1/jobs/${jobId}`);
-    // The jobs route wraps its view: `{ data: { status, … } }` (§1.5 shape).
+    // The jobs route wraps its view: `{ data: { status, … } }` (shape).
     const jobStatus = res.json?.data?.status ?? `HTTP ${String(res.status)}`;
     if (jobStatus !== 'pending' && jobStatus !== 'queued' && jobStatus !== 'running') {
       // A failed job's reason is the one thing its status cannot say.
@@ -295,8 +294,8 @@ async function cleanup() {
 async function main() {
   console.log(
     AIR_GAPPED
-      ? 'Add-on round trip, AIR-GAPPED — 32-add-on-distribution.md §7 #2'
-      : 'Add-on round trip — 26-add-on-runtime.md §9',
+      ? 'Add-on round trip, AIR-GAPPED'
+      : 'Add-on round trip',
   );
   console.log('==============================================');
   info(`${PACKAGES.length} package(s) from ${OUT}`);
@@ -542,7 +541,7 @@ async function main() {
     const source = bytes.toString('utf8');
     check(
       !/(?:^|[\s;}])(?:import|export)[^;'"]*?from\s*["'](?![./])/.test(source),
-      'the bundle asks a browser to resolve NO package specifier (26 §0.7)',
+      'the bundle asks a browser to resolve NO package specifier',
     );
     check(source.includes('register'), 'and it exports a register()');
   }
@@ -731,7 +730,7 @@ async function main() {
     const cleanup = await api('DELETE', '/api/v1/add-ons/holiday-calendars');
     check(cleanup.status === 200, 'and uninstalls again, leaving the loop where it started');
 
-    // A BIT-FLIPPED FILE IS REFUSED (48 §3 gate 6). The live host cannot be
+    // A BIT-FLIPPED FILE IS REFUSED (gate 6). The live host cannot be
     // made to serve wrong bytes, so the flip happens here: this script fetches
     // the same file from downloads.adminium.dev, changes one bit, and uploads it
     // against the fingerprint the release recorded. Upload and download stage
@@ -961,7 +960,7 @@ async function main() {
 
   // ── acceptance #7 — no secret reaches the browser ─────────────────────────
   step('acceptance #7 — nothing in the list a browser reads is a credential');
-  // A NEEDLE FOR THE VALUE, NOT THE NAME. Since 34 §7.9 every add-on DTO carries
+  // A NEEDLE FOR THE VALUE, NOT THE NAME. Since every add-on DTO carries
   // its manifest's `settings` declaration so Studio can generate the form, and
   // shipping-dhl declares a secret whose key IS `api_key` (label `…setting.apiKey`).
   // Searching a reply for those names now finds the form's description and says

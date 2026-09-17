@@ -2,7 +2,7 @@
 /**
  * Track E geometry tests (matrix, calendar & geo-grid): determinism (same
  * input → identical output, incl. golden path strings computed in Node with no
- * DOM — acceptance #10/#11), the RTL policy per chart (04 §7.4), and empty /
+ * DOM — acceptance #10/#11), the RTL policy per chart, and empty /
  * triangular-gap handling.
  */
 import { describe, expect, it } from 'vitest';
@@ -81,7 +81,7 @@ describe('heatCalendarLayout', () => {
     expect(layout.maxValue).toBe(9);
   });
 
-  it('runs week columns right→left in RTL (04 §7.4)', () => {
+  it('runs week columns right→left in RTL', () => {
     const ltr = heatCalendarLayout(points, { weeks: 6, rtl: false });
     const rtl = heatCalendarLayout(points, { weeks: 6, rtl: true });
     const xOfWeek0 = (l: typeof ltr) => l.days.find((d) => d.weekIndex === 0)?.x ?? 0;

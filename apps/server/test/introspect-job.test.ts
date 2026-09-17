@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `introspect` job kind (08 §2.4) — pre-M12 audit regression pins.
+ * The `introspect` job kind — pre-M12 audit regression pins.
  *
  * The bug: `registerIntrospectJob` existed but had ZERO call sites, so the
  * async 202+jobId contract was dead code in every deployment — the route's
@@ -62,7 +62,7 @@ async function buildHarness(): Promise<Harness> {
 
   const roles = rolesRepo(meta);
   const users = usersRepo(meta);
-  // The built-in admin role carries `connections.manage` (meta §6 baseline)
+  // The built-in admin role carries `connections.manage` (meta baseline)
   // but NOT `jobs.read` — exactly the principal the ownership path exists for.
   const adminRole = await roles.findBySlug('admin');
   if (adminRole === null) throw new Error('missing built-in role admin');
@@ -116,7 +116,7 @@ async function buildHarness(): Promise<Harness> {
   return { app, meta, admin, connectionId: connection.id };
 }
 
-describe('introspect job wiring (08 §2.4)', () => {
+describe('introspect job wiring', () => {
   let t: Harness;
   beforeEach(async () => {
     t = await buildHarness();

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The demo database (11-electron.md §6 step 2 card 4, task 11-T08) — and, above
- * everything else here, its ACCEPTANCE CRITERION:
+ * The demo database (card 4, task) — and, above everything else here, its
+ * ACCEPTANCE CRITERION:
  *
  *   "the demo DB generates kanban, calendar, gantt, org-chart, and shift pages
- *    from its schema (research/ia-mapping.md §3.1 triggers)"
+ * from its schema (triggers)"
  *
  * ─── WHY THIS SUITE IS SHAPED THE WAY IT IS ──────────────────────────────────
  *
@@ -176,8 +176,8 @@ describe('POST /desktop/demo-database', () => {
     const body = res.json() as {
       data: { connectionId: string; file: string; seeded: boolean; rows: Record<string, number> };
     };
-    // §6 names both halves of this path; the wizard and the backup format (§9,
-    // "databases/<slug>.sqlite") both depend on it being exactly this.
+    // Both halves of this path are named; the wizard and the backup format
+    // ("databases/<slug>.sqlite") both depend on it being exactly this.
     expect(body.data.file).toBe(demoDatabaseFile(t.dataDir));
     expect(body.data.file).toBe(join(t.dataDir, 'databases', 'demo.sqlite'));
     expect(existsSync(body.data.file)).toBe(true);
@@ -192,7 +192,7 @@ describe('POST /desktop/demo-database', () => {
     t = await harness();
     const connectionId = await createDemo(t);
 
-    // §6: "Deletable afterwards from Data Connections (i.e. nothing special)."
+    // "Deletable afterwards from Data Connections (i.e. nothing special)."
     // Driven through the REAL delete route — the claim is about that route
     // accepting this connection, which a repo call would not prove.
     const connection = await t.manager.connections.findById(connectionId);
@@ -267,12 +267,12 @@ describe('POST /desktop/demo-database', () => {
     //
     // Any failure in the ~800 ms after that — the disk fills, or
     // `journal_mode = WAL` fails because dataDir is on a synced share (the exact
-    // placement 11-T03's detector warns about) — used to leave an empty
-    // demo.sqlite that nothing removed. State 2 then claimed it on every
-    // subsequent click, forever: 201 `{seeded:false, rows:{}}`, `testDsn` ok (an
-    // empty file is a valid 0-table SQLite database), status 'connected', and
-    // `generate` producing 0 pages from 0 tables. A success-returning no-op, and
-    // the dead end state 2 exists to prevent.
+    // placement the detector warns about) — used to leave an empty demo.sqlite
+    // nothing removed. State 2 then claimed it on every subsequent click,
+    // forever: 201 `{seeded:false, rows:{}}`, `testDsn` ok (an empty file is a
+    // valid 0-table SQLite database), status 'connected', and `generate`
+    // producing 0 pages from 0 tables. A success-returning no-op, and the dead
+    // end state 2 exists to prevent.
     t = await harness({
       loadSeeder: () =>
         Promise.resolve({
@@ -306,15 +306,15 @@ describe('POST /desktop/demo-database', () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it('seeds no value that would make the demo reach the network (§7)', async () => {
+  it('seeds no value that would make the demo reach the network', async () => {
     t = await harness();
     await createDemo(t);
 
-    // §7: "fully functional with the network cable unplugged, forever". The demo
-    // is the first thing Ava opens, and `contacts.avatar_url` is rendered by a
+    // "fully functional with the network cable unplugged, forever". The demo is
+    // the first thing Ava opens, and `contacts.avatar_url` is rendered by a
     // card-gallery — a plausible-looking `https://…/avatar.png` would be sixty
     // failed requests on that page and sixty entries in the offline smoke test's
-    // blocked-request log, which §7 requires to be empty.
+    // blocked-request log, which requires to be empty.
     //
     // Asserted against the SEEDED FILE rather than the script's source, because
     // the file is what the app actually reads, and a URL could arrive by any
@@ -341,7 +341,7 @@ describe('POST /desktop/demo-database', () => {
   });
 });
 
-describe('the demo database earns its §3.1 page types (acceptance criterion #2)', () => {
+describe('the demo database earns its page types (acceptance criterion #2)', () => {
   it('generates kanban, calendar, gantt, org-chart and shift pages', async () => {
     t = await harness();
     const connectionId = await createDemo(t);
@@ -350,27 +350,27 @@ describe('the demo database earns its §3.1 page types (acceptance criterion #2)
     const bySlug = new Map(pages.map((page) => [page.slug, page]));
     const widgetsOn = (slug: string): string[] => bySlug.get(slug)?.widgets ?? [];
 
-    // ── §3.1 row 6 — kanban, WITH swimlanes (the second categorical column).
+    // ── — kanban, WITH swimlanes (the second categorical column).
     const board = bySlug.get('tasks-board');
     expect(board?.type).toBe('page-board');
     expect(board?.widgets).toContain('kanban-swimlane-grid');
 
-    // ── §3.1 row 7 — calendar (date + title + category enum).
+    // ── — calendar (date + title + category enum).
     const calendar = bySlug.get('releases-calendar');
     expect(calendar?.type).toBe('page-calendar');
     expect(calendar?.widgets).toContain('calendar-month');
 
-    // ── §3.1 row 8 — gantt (start + end + progress + parent grouping).
+    // ── — gantt (start + end + progress + parent grouping).
     const gantt = bySlug.get('project-phases-detail');
     expect(gantt?.type).toBe('page-master-detail');
     expect(gantt?.widgets).toContain('gantt-chart');
 
-    // ── §3.1 row 12 — org chart (self-referential manager_id).
+    // ── — org chart (self-referential manager_id).
     const orgChart = bySlug.get('employees-directory');
     expect(orgChart?.type).toBe('page-directory');
     expect(orgChart?.widgets).toContain('org-chart');
 
-    // ── §3.1 row 9 — shifts (people x dates x shift-type).
+    // ── — shifts (people x dates x shift-type).
     const shifts = bySlug.get('shifts-schedule');
     expect(shifts?.type).toBe('page-scheduler');
     expect(shifts?.widgets).toContain('schedule-matrix');
@@ -386,7 +386,7 @@ describe('the demo database earns its §3.1 page types (acceptance criterion #2)
     }).toEqual({ kanban: true, calendar: true, gantt: true, orgChart: true, shifts: true });
   }, 60_000);
 
-  it('covers the rest of the §3.1 triggers the task enumerates', async () => {
+  it('covers the rest of the triggers the task enumerates', async () => {
     t = await harness();
     const connectionId = await createDemo(t);
     const pages = await generatedPages(t, connectionId);

@@ -41,7 +41,7 @@ for (const dialect of TEST_DIALECTS) {
       expect(await settings.get('system.instanceId')).toBeTypeOf('string');
       expect(await settings.get('system.bootstrappedAt')).toBeTypeOf('number');
       expect(await settings.get('system.configVersion')).toBe(1);
-      // Behavioral settings stay unset — registry defaults only (§6 step 4).
+      // Behavioral settings stay unset — registry defaults only.
       const overrides = await settings.overrides();
       expect(Object.keys(overrides).sort()).toEqual([
         'system.bootstrappedAt',
@@ -50,7 +50,7 @@ for (const dialect of TEST_DIALECTS) {
       ]);
     });
 
-    it('seeds the §6 permission baselines per role', async () => {
+    it('seeds the permission baselines per role', async () => {
       await firstRun(t.meta);
       const roles = rolesRepo(t.meta);
       const permissions = permissionsRepo(t.meta);
@@ -65,7 +65,7 @@ for (const dialect of TEST_DIALECTS) {
 
       const adminGrants = await permissions.listForRole(admin!.id);
       expect(adminGrants.map((g) => g.resourceRef).sort()).toEqual(
-        ['users.manage', 'audit.read', 'connections.manage', 'schema.remap', 'llm.run'].sort(),
+        ['users.manage', 'audit.read', 'connections.manage', 'schema.remap', 'llm.run', 'project.read'].sort(),
       );
       // Admin invites people and reads the trail; GRANTING roles stays
       // super-admin-only (an inviter that picks roles can escalate itself).
@@ -128,9 +128,9 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     /**
-     * The once-only property under real concurrency (M10-T04). This lives here,
-     * in the dialect-parameterized suite, on purpose: on SQLite the driver holds
-     * a single mutex-guarded connection, so `Promise.all` cannot actually
+     * The once-only property under real concurrency. This lives here, in the
+     * dialect-parameterized suite, on purpose: on SQLite the driver holds a
+     * single mutex-guarded connection, so `Promise.all` cannot actually
      * interleave two bootstraps and the SQLite leg of this test would pass even
      * against a naive check-then-act implementation. The PostgreSQL and MySQL
      * legs DO race, and they are where this test earns its keep — they fail

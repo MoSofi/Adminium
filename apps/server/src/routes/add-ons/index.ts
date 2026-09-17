@@ -1,50 +1,50 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/api/v1/add-ons` — install, list, enable/disable and uninstall
- * (26-add-on-runtime.md §5.1, 26-T06; audit rows per 26-T16).
+ * (audit rows).
  *
  * ─── This is what un-reserved `manifests.manage` ───────────────────────────
  *
  * `RESERVED_SYSTEM_ACTION_KEYS`'s own docblock says to move a key out of the
  * reserved list "in the same change that lands its first enforcement point".
- * These routes are that point (26 D3). Deliberately NOT `settings.manage`,
- * which 08 §2.19 originally specified: installing an add-on runs its server
- * half in this process, and that is not the same authority as changing a
- * workspace setting.
+ * These routes are that point. Deliberately NOT `settings.manage`, which
+ * originally specified: installing an add-on runs its server half in this
+ * process, and that is not the same authority as changing a workspace
+ * setting.
  *
  * `GET` is the exception and is only `authenticated` — it is the list a HOST
- * reads on every page load in connected mode (§6), so gating it behind an
- * admin permission would mean no ordinary user could see an add-on's surface.
- * It carries no secret to make that safe (see `schema.ts`).
+ * reads on every page load in connected mode, so gating it behind an admin
+ * permission would mean no ordinary user could see an add-on's surface. It
+ * carries no secret to make that safe (see `schema.ts`).
  *
  * AUTHENTICATED IS NOT NOTHING, and for a fortnight it was: neither `GET` route
  * carried a `preHandler` at all, and this server has no ambient auth hook — a
- * route that names no guard has none. Found by the 26-T15 round trip; the two
- * routes now say `app.requireAuth` where they previously only said so in prose.
+ * route that names no guard has none. Found by the round trip; the two routes
+ * now say `app.requireAuth` where they previously only said so in prose.
  * `add-on-routes.test.ts` asserts every route's guard from the live route table
  * rather than from a list, so a route added without one fails there.
  *
  * ─── Install takes a staged package, never a manifest body ─────────────────
  *
- * 32-add-on-distribution.md §4.3 amends §5.1's `POST` to take a
- * `{ key, version }` reference into the on-disk store. The bytes are already
- * verified against an independent hash — the bundled pin, the catalog row's
- * ledger value, or the operator's own — and the tree is RE-VERIFIED here
- * against its unpack-time pin before a single byte is parsed — the data
- * volume is shared, writable state, so install never re-trusts bare disk
- * bytes. A route that accepted a manifest document would be a route that
- * installs code nobody checked.
+ * `POST` was amended to take a `{ key, version }`
+ * reference into the on-disk store. The bytes are already verified against
+ * an independent hash — the bundled pin, the catalog row's ledger value, or
+ * the operator's own — and the tree is RE-VERIFIED here against its
+ * unpack-time pin before a single byte is parsed — the data volume is
+ * shared, writable state, so install never re-trusts bare disk bytes. A
+ * route that accepted a manifest document would be a route that installs
+ * code nobody checked.
  *
  * ─── The DDL runs BEFORE the meta row is written ───────────────────────────
  *
- * `applyInstall` (26-T02) creates the tables a plan says to create, through
+ * `applyInstall` creates the tables a plan says to create, through
  * `deps.schemaTarget`. The ordering is deliberate and is the shape MySQL's lack
  * of transactional DDL leaves available: a multi-table install cannot be one
  * transaction, so the tables go first and the manifest row goes last. A failure
- * halfway leaves real tables and nothing registered — and every create is
- * `IF NOT EXISTS`, so retrying completes the install rather than colliding with
- * it. The reverse order would leave an add-on registered against tables that
- * are not there.
+ * halfway leaves real tables and nothing registered — and every create is `IF
+ * NOT EXISTS`, so retrying completes the install rather than colliding with it.
+ * The reverse order would leave an add-on registered against tables that are
+ * not there.
  *
  * Two things install still REFUSES rather than does:
  *
@@ -140,7 +140,7 @@ import {
   addOnSettingsReply,
 } from './schema.js';
 
-/** Sideload cap: the largest first-party dist is ~300 KB (32 D5's own sizing). */
+/** Sideload cap: the largest first-party dist is ~300 KB (own sizing). */
 export const UPLOAD_BODY_LIMIT = 32 * 1024 * 1024;
 
 export interface AddOnRoutesDeps {
@@ -169,17 +169,17 @@ export interface AddOnRoutesDeps {
   oauthFlows?: OAuthFlowStore | undefined;
   /**
    * Rebuild the add-on runtime after install, upgrade, enable/disable and
-   * uninstall (34 §7.10, 34-T13).
+   * uninstall.
    *
    * `runtime.ts` has claimed this since wave 26 and `compose.ts` built the
    * state exactly once, at boot — so a provider installed at 10am was
-   * unreachable until the process restarted, and 26 D6's round trip could
-   * never have passed. Optional because a route-only test topology composes
-   * no runtime at all; absent, the routes behave as they did before.
+   * unreachable until the process restarted, round trip could never have
+   * passed. Optional because a route-only test topology composes no runtime
+   * at all; absent, the routes behave as they did before.
    */
   rebuildRuntime?: (() => Promise<void>) | undefined;
   /**
-   * The half of uninstall that is 34's (§7.10). Called INSIDE the uninstall
+   * The half of uninstall that is 34's. Called INSIDE the uninstall
    * handler, before the manifest row goes, so no job can be enqueued for a
    * provider that is already gone.
    */
@@ -195,11 +195,10 @@ type AddOnBlock = AddOnManifest['addOn'];
  * `addOnManifestSchema.safeParse` checks the SHAPE. `validateManifest` adds the
  * policy layer, and two of its rules are the reason this wave exists:
  *
- *  - **The publisher gate** (24 D13 / 26 D4). `allowThirdPartyPublishers` stays
- *    off, so a manifest whose `publisher.id` is not `adminium` is refused. It is
- *    a policy control rather than a supply-chain one — the field is inside the
- *    package — but it is the control the rulings name, and a schema parse does
- *    not run it.
+ * - **The publisher gate**. `allowThirdPartyPublishers` stays off, so a manifest
+ *  whose `publisher.id` is not `adminium` is refused. It is a policy control
+ *  rather than a supply-chain one — the field is inside the package — but it is
+ *  the control the rulings name, and a schema parse does not run it.
  *  - **`FRONTEND_SECRET_LEAK`** (acceptance #7): `publicSettings` may never name
  *    a `secret: true` setting. That is the rule standing between a credential
  *    and a browser, and it is enforced here on the real installed manifest
@@ -256,15 +255,15 @@ function uploadedManifest(bytes: Buffer): AddOnManifest {
 /**
  * Turn an OAuth refusal into the 422 it always was.
  *
- * `AddOnOAuthError` is a plain `Error`, so an unmapped one reaches the §1.4
- * handler as `INTERNAL` and renders a 500. Every one of its six reasons is a
+ * `AddOnOAuthError` is a plain `Error`, so an unmapped one reaches the handler
+ * as `INTERNAL` and renders a 500. Every one of its six reasons is a
  * client-visible, actionable condition — a manifest that points its authorize
  * URL at a host it never declared, a state nobody started, a flow that expired,
  * a provider that answered without a token — and not one of them is a fault in
  * this server.
  *
- * [Found 2026-08-31 by the 26-T15 round trip, on `import-canva`.] A 500 is not
- * a cosmetic mis-labelling here: it tells an operator to look at their server
+ * [Found 2026-08-31 by the round trip, on `import-canva`.] A 500 is not a
+ * cosmetic mis-labelling here: it tells an operator to look at their server
  * logs for a problem that is in an add-on's manifest, and it puts a real
  * refusal in the bucket monitoring pages.
  */
@@ -285,7 +284,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
    * The SRI value a host pins a bundle to.
    *
    * Derived from the sha256 the store recorded at unpack rather than
-   * recomputed: 26 §5.4 asks for a hash "recorded at install and checked on
+   * recomputed: the hash is "recorded at install and checked on
    * read", and one hash used for both is the only shape where what a host pins
    * and what the server will serve cannot drift apart.
    */
@@ -302,7 +301,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     const manifest = parseManifest(installed.document, installed.row.manifestKey);
     const block: AddOnBlock = manifest.addOn;
     // `credentialStatus` deliberately, not `getCredential`: a LIST must never
-    // decrypt anything (24 D15).
+    // decrypt anything.
     const credential = await manifests.credentialStatus(installed.row.id);
     return {
       key: manifest.key,
@@ -340,7 +339,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         options: setting.type === 'enum' ? [...(setting.enum ?? [])] : [],
       })),
       // The stored NON-SECRET half. A secret is written through connect and
-      // read back never (24 D15), so nothing here can carry one.
+      // read back never, so nothing here can carry one.
       settingValues: await addOnSettingsRepo(deps.meta).valuesFor(manifest.key),
       /*
        * THE PIN, NOT THE BYTES — and one drifted file does not take the list
@@ -354,7 +353,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
        * INTERNAL and took the whole list with it — every add-on, every user,
        * and every reply that goes through `toDto` (install, upgrade, connect,
        * patch). "Somebody edited a package on the data volume" is the one
-       * signal §5.4 exists to raise, and it was arriving as an internal fault.
+       * signal exists to raise, and it was arriving as an internal fault.
        *
        * Now the integrity value comes from the pin, and a bundle whose pin
        * cannot be read is reported as an integrity of `null` for that ONE
@@ -452,7 +451,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
   function connectOf(manifest: AddOnManifest): OAuthConnect {
     const connect = manifest.addOn.connect;
     if (connect.authorizeUrl === undefined || connect.tokenUrl === undefined) {
-      // The validator requires both on an `oauth2` connect (§5.6), so reaching
+      // The validator requires both on an `oauth2` connect, so reaching
       // this means an installed manifest predates that rule.
       throw new ValidationFailedError(
         `"${manifest.key}" declares an OAuth connect without both endpoint URLs.`,
@@ -586,12 +585,12 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         schema: { response: { 200: catalogBrowseReply } },
       },
       async (request) => {
-        // NEVER fetches inline (§4.3). Browsing is a disk read: the bundled set
+        // NEVER fetches inline. Browsing is a disk read: the bundled set
         // plus whatever the last refresh cached. That is what makes the page
         // work identically on an air-gapped install, and what stops a page load
         // from becoming an outbound call nobody asked for.
         //
-        // The prefs read is the one addition (40 D2) and it is a META read, not
+        // The prefs read is the one addition and it is a META read, not
         // a network one: the feed carries eight locales per row and the server
         // projects ONE, so the reply keeps a single string per field instead of
         // an 8x multiplier the browser would discard seven-eighths of.
@@ -698,7 +697,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             const current = installed.get(entry.key);
             entries.push({
               key: entry.key,
-              // 40 D2. This used to read `entry.name['en_US']` — a key the feed
+              // This used to read `entry.name['en_US']` — a key the feed
               // has never carried — so every row here was labelled with its own
               // slug. `pickLocalized` reaches `en` for six locales and `zh-cn`
               // / `zh-tw` for the other two.
@@ -734,7 +733,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       '/add-ons/catalog',
       {
         /*
-         * `manifests.manage`, NOT `settings.manage` — 26 D3 in one route.
+         * `manifests.manage`, NOT `settings.manage` — the separation, in one route.
          *
          * This is a settings-registry boolean and every other one lives under
          * `/settings/*`, which is gated on `settings.manage`. Putting it there
@@ -782,7 +781,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         schema: { response: { 200: refreshCatalogReply } },
       },
       async (request) => {
-        // The typed refusal §4.3 asks for. Checked HERE as well as inside the
+        // The typed refusal asks for. Checked HERE as well as inside the
         // job so an operator pressing the button gets an answer, rather than a
         // job that silently reports "disabled" into a log they are not reading.
         if (deps.catalog === undefined || !(await deps.catalog.isEnabled())) {
@@ -870,6 +869,17 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           request.user?.id ?? null,
           request.user?.email ?? 'unknown',
         );
+        /*
+         * The INSTALLED version, uploaded again, is how an operator puts back
+         * files the data directory lost (a redeploy on a host with no disk).
+         * The files are served again at once; a server half only loads on a
+         * rebuild, so rebuild here rather than leave it off until something
+         * unrelated triggers one.
+         */
+        const installed = await manifests.findByKey(staged.key);
+        if (installed !== null && installed.row.version === staged.version) {
+          await deps.rebuildRuntime?.();
+        }
         return {
           key: staged.key,
           version: staged.version,
@@ -889,7 +899,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const { key, version } = request.params;
-        // Declining to install must not be a dead end (§4.3): downloaded bytes
+        // Declining to install must not be a dead end: downloaded bytes
         // an operator decided against should be removable without installing
         // them first. Refusing to discard an INSTALLED version is the one
         // guard — that path is uninstall, which has different consequences and
@@ -921,8 +931,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: addOnKeyParams, response: { 200: upgradeAddOnReply } },
       },
       async (request) => {
-        // 26-T17: re-validate, re-check `attaches`, re-hash. An upgrade is NOT
-        // a reinstall — the hosts it is mounted on and the credential it was
+        // Re-validate, re-check `attaches`, re-hash. An upgrade is NOT a
+        // reinstall — the hosts it is mounted on and the credential it was
         // given both survive it, which is why it is a version bump on the
         // existing row rather than an uninstall/install pair.
         const { key } = request.params;
@@ -998,7 +1008,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         });
 
         // A new version may provide a different contract, or none. Rebuilt
-        // whole, so an upgrade takes effect without a restart (§7.10).
+        // whole, so an upgrade takes effect without a restart.
         await deps.rebuildRuntime?.();
 
         const after = await manifests.findByKey(key);
@@ -1011,18 +1021,17 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       {
         /*
          * AUTHENTICATED, not `manifests.manage` — this is the list a HOST reads
-         * on every page load (§6), and it carries no secret (24 D15).
+         * on every page load, and it carries no secret.
          *
-         * [The guard was MISSING until 2026-08-31, found by the 26-T15 round
-         * trip on its first real run.] The comment that stood here said
-         * "Authenticated" and no `preHandler` said so, and nothing caught it:
-         * `compose.ts` has no ambient auth hook — every route in this server
-         * guards itself — so a docblock was the entire control. Anonymous, the
-         * reply named every installed add-on, its version, WHETHER IT IS
-         * CONNECTED, the exact hosts each one may contact, and the URL of every
-         * bundle. That is a map of an operator's integrations handed to anyone
-         * who asked, and it is exactly the class of defect D6 says a green
-         * suite cannot find.
+         * [The guard was MISSING until 2026-08-31, found by the round trip on
+         * its first real run.] The comment that stood here said "Authenticated"
+         * and no `preHandler` said so, and nothing caught it: `compose.ts` has
+         * no ambient auth hook — every route in this server guards itself — so
+         * a docblock was the entire control. Anonymous, the reply named every
+         * installed add-on, its version, WHETHER IT IS CONNECTED, the exact
+         * hosts each one may contact, and the URL of every bundle. That is a
+         * map of an operator's integrations handed to anyone who asked, and it
+         * is exactly the class of defect D6 says a green suite cannot find.
          */
         preHandler: app.requireAuth,
         schema: { response: { 200: addOnListReply } },
@@ -1037,7 +1046,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: addOnKeyParams, response: { 200: installPlanReply } },
       },
       async (request) => {
-        // The consent dialog's document (§7), computed from the staged package
+        // The consent dialog's document, computed from the staged package
         // BEFORE anything is installed — which is the whole point of a plan.
         const versions = await deps.store.versions(request.params.key);
         const version = versions[0];
@@ -1068,7 +1077,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
 
         const manifest = await manifestFromStore(key, version);
 
-        // §5.1: check `attaches` against what the caller asked for. A manifest
+        // Check `attaches` against what the caller asked for. A manifest
         // declaring `app: '*'` attaches anywhere; otherwise the host must be
         // named. This is the gate that stops an add-on being mounted somewhere
         // its author never claimed it works.
@@ -1091,7 +1100,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         }
 
         // A table that EXISTS but is missing columns the add-on needs is still
-        // refused, and deliberately (26-T02): creating a table an add-on asked
+        // refused, and deliberately: creating a table an add-on asked
         // for is one conversation, and altering one the operator already owns
         // is a different one that is theirs to have. The planner reports it as
         // a partial match, and the message names the columns rather than
@@ -1105,7 +1114,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           );
         }
 
-        // The DDL (26-T02). Runs BEFORE the meta row is written, so a failure
+        // The DDL. Runs BEFORE the meta row is written, so a failure
         // leaves nothing registered — and every create is `IF NOT EXISTS`, so
         // a retry after a partial failure completes the install rather than
         // colliding with it. That ordering is what MySQL's lack of
@@ -1144,7 +1153,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         });
 
         /*
-         * THE REBUILD THAT MAKES 26 D6's ROUND TRIP POSSIBLE.
+         * THE REBUILD THAT MAKES ROUND TRIP POSSIBLE.
          *
          * Without it a provider installed at 10am is unreachable until the
          * process restarts — and the round trip's `install-without-restart`
@@ -1161,7 +1170,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     app.get(
       '/add-ons/:key/bundle/*',
       {
-        // Inside `/api/v1`, DELIBERATELY — 26 §5.4 writes the path as
+        // Inside `/api/v1`, DELIBERATELY — writes the path as
         // `/add-ons/<key>/client.js`, outside the API namespace. Everything
         // outside `/api/` in this server is invisible to all three route
         // ratchets (schema, audit coverage, OpenAPI) and inherits no rate
@@ -1200,7 +1209,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         let bytes: Buffer;
         let sha256: string;
         try {
-          // §5.4's "checked on read": the bytes are re-hashed against the pin
+          // "Checked on read": the bytes are re-hashed against the pin
           // recorded at unpack, so a package edited on the data volume after
           // install is refused rather than served into a host page.
           ({ bytes, sha256 } = await deps.store.readVerifiedFile(
@@ -1414,10 +1423,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const installed = await manifests.findByKey(key);
         if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
 
-        // 24 D16 / 26 D5, and the whole of it: ONE delete, against a table that
-        // holds only secrets. Nothing here touches the data source, the
-        // manifest row or its attachments — which is what makes "disconnecting
-        // keeps your data" a property of the code rather than of a promise.
+        // And the whole of it: ONE delete, against a table that holds only
+        // secrets. Nothing here touches the data source, the manifest row or
+        // its attachments — which is what makes "disconnecting keeps your data"
+        // a property of the code rather than of a promise.
         const credentialsDeleted = await manifests.deleteCredential(installed.row.id);
 
         await auditRepo(deps.meta).append({
@@ -1493,9 +1502,9 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         /*
-         * THE NON-SECRET HALF (34 §7.9, D14). A credential goes through
-         * CONNECT, into the encrypted table; this writes the values an add-on's
-         * settings panel edits and a renderer reads back in clear.
+         * THE NON-SECRET HALF. A credential goes through CONNECT, into the
+         * encrypted table; this writes the values an add-on's settings panel
+         * edits and a renderer reads back in clear.
          *
          * The repo refuses a key the manifest marks `secret`, which is the
          * enforcement point — not this route. There is more than one writer
@@ -1555,24 +1564,24 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const installed = await manifests.findByKey(key);
         if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
 
-        // 24 D16 / 26 D5, in the order that makes the promise true: the meta
-        // rows go (credentials with them, by cascade), and NOTHING touches the
-        // data source. Tables the add-on brought stay, with their rows.
+        // In the order that makes the promise true: the meta rows go
+        // (credentials with them, by cascade), and NOTHING touches the data
+        // source. Tables the add-on brought stay, with their rows.
         /*
-         * 34 §7.10's half, BEFORE the manifest row goes.
+         * The half, BEFORE the manifest row goes.
          *
          * Disables this add-on's document profiles and drops its settings.
          * The ORDER is the point: a profile disabled after the manifest row
          * had already gone would leave a window in which a write could enqueue
          * a render for a provider that no longer exists. Documents and
-         * profiles themselves survive — 24 D16 keeps the customer's data, and
-         * a mapping is work an operator did.
+         * profiles themselves survive — keeps the customer's data, and a
+         * mapping is work an operator did.
          */
         await deps.onAddOnRemoved?.(key);
 
         await manifests.uninstall(installed.row.id);
 
-        // The package directory is 32 D11's store hook. Deliberately after the
+        // The package directory is store hook. Deliberately after the
         // meta delete: a failure here leaves bytes on disk, which is a tidiness
         // problem, whereas the reverse order could leave an installed add-on
         // whose code is gone.
@@ -1594,7 +1603,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           },
         });
 
-        // The runtime is rebuilt WHOLE, never patched (§7.10): a partially
+        // The runtime is rebuilt WHOLE, never patched: a partially
         // updated provider map is worse than a stale one, because a stale one
         // is at least consistent with itself.
         await deps.rebuildRuntime?.();

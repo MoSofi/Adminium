@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GENERATED MIRROR of ../../../locales/zh-TW/common.json — do not edit by hand.
- * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
  * without JSON import attributes (browser + NodeNext safe).
@@ -300,6 +300,13 @@ export default {
   "undo": {
     "done": "已復原變更",
     "failed": "無法復原此變更"
+  },
+  "projectAction": {
+    "done": "{label}：已完成",
+    "failed": "{label} 未能完成",
+    "menu": "動作",
+    "run": "執行",
+    "selected": "{count, plural, other {# 筆記錄}}"
   },
   "prefs": {
     "theme": {
@@ -1013,7 +1020,7 @@ export default {
     "article": {
       "install": {
         "title": "安裝 Adminium",
-        "excerpt": "從原始碼簽出執行，或使用 docker run，一分鐘內進入首次執行精靈。"
+        "excerpt": "用一道命令建立專案，或透過 docker run 或原始碼簽出執行 Adminium。"
       },
       "firstAdmin": {
         "title": "建立第一位超級管理員",
@@ -1622,6 +1629,7 @@ export default {
       "jobsRead": "檢視所有背景工作",
       "llmRun": "執行 AI 協助",
       "pagesManage": "建立與整理頁面",
+      "projectRead": "讀取頁面與結構描述變更以拉取到專案",
       "reportsManage": "管理排程報表",
       "rolesManage": "管理角色與權限",
       "schemaRemap": "編輯結構描述的標籤與覆寫",

@@ -1,0 +1,18 @@
+{
+  "cell": {
+    "notCell": "{id} je karta, ne buňka tabulky.",
+    "unknown": "Tento projekt nemá widget {id}."
+  },
+  "page": {
+    "failed": {
+      "title": "Kód této stránky se nenačetl"
+    },
+    "missing": {
+      "body": "Její kód pochází ze složky projektu. Sestavte projekt znovu nebo restartujte Adminium, aby se načetla.",
+      "title": "Tato stránka není ve spuštěném buildu"
+    }
+  },
+  "table": {
+    "empty": "Žádné záznamy"
+  }
+}

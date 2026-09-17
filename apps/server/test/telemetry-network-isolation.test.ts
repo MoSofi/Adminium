@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Telemetry + update-check opt-in guarantees (M10-T04; v0.5 exit criterion
+ * Telemetry + update-check opt-in guarantees (v0.5 exit criterion
  * "Telemetry is opt-in (off by default)").
  *
  * The load-bearing suite. Mirrors `llm-byo-network-isolation.test.ts`: ALL
@@ -118,7 +118,7 @@ async function buildMeta(): Promise<MetaDb> {
   await firstRun(meta);
 
   // A realistic store: two engines, a credential-bearing DSN, real schema
-  // content, and an LLM run whose prompt 06 §9 promises is never reported.
+  // content, and an LLM run whose prompt promises is never reported.
   const pg = await connectionsRepo(meta, testDsnCrypto).create({
     name: 'Acme Production',
     engine: 'postgres',
@@ -150,7 +150,7 @@ async function buildMeta(): Promise<MetaDb> {
 
 const VERSION = '0.5.0';
 
-describe('telemetry is opt-in and silent when off (M10-T04)', () => {
+describe('telemetry is opt-in and silent when off', () => {
   let meta: MetaDb;
   beforeEach(async () => {
     meta = await buildMeta();
@@ -229,7 +229,7 @@ describe('telemetry is opt-in and silent when off (M10-T04)', () => {
       SECRET_TABLE,
       'base_pay_usd',
       'Acme Production', // connection display name
-      'describe', // LLM prompt text (06 §9: BYO runs are never reported)
+      'describe', // LLM prompt text (BYO runs are never reported)
     ]) {
       expect(wire, `payload must not disclose ${secret}`).not.toContain(secret);
     }
@@ -311,7 +311,7 @@ describe('telemetry is opt-in and silent when off (M10-T04)', () => {
   });
 });
 
-describe('update-available notice is gated on its own preference (M10-T04)', () => {
+describe('update-available notice is gated on its own preference', () => {
   let meta: MetaDb;
   beforeEach(async () => {
     meta = await buildMeta();

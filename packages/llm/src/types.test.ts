@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shared contract types (06-llm-assist.md §3.1, §7.1, §7.4): provider ids, the
- * run status machine, and a constructible `EnrichmentSet`.
+ * Shared contract types: provider ids, the run status machine, and a
+ * constructible `EnrichmentSet`.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -16,7 +16,7 @@ import {
 } from './types.js';
 
 describe('ProviderId', () => {
-  it('enumerates the §3.1 provider matrix', () => {
+  it('enumerates the provider matrix', () => {
     expect(PROVIDER_IDS).toEqual([
       'anthropic',
       'openai',
@@ -33,7 +33,7 @@ describe('ProviderId', () => {
 });
 
 describe('LlmRunStatus machine', () => {
-  it('enumerates the §7.4 states', () => {
+  it('enumerates the states', () => {
     expect(LLM_RUN_STATUSES).toEqual([
       'draft',
       'running',

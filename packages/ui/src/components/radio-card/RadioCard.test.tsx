@@ -58,7 +58,7 @@ describe('RadioCard', () => {
   });
 });
 
-describe('the comp card shapes (45-onboarding.md §3)', () => {
+describe('the comp card shapes', () => {
   it('keeps `row` as the default, so every existing caller is untouched', () => {
     render(
       <RadioGroup value="a" onValueChange={() => undefined}>

@@ -291,6 +291,13 @@
     "done": "Change undone",
     "failed": "Could not undo this change"
   },
+  "projectAction": {
+    "done": "{label}: done",
+    "failed": "{label} did not finish",
+    "menu": "Actions",
+    "run": "Run",
+    "selected": "{count, plural, one {# record} other {# records}}"
+  },
   "prefs": {
     "theme": {
       "label": "Theme",
@@ -1003,7 +1010,7 @@
     "article": {
       "install": {
         "title": "Install Adminium",
-        "excerpt": "Run from a source checkout or with docker run, and reach the first-run wizard in a minute."
+        "excerpt": "Create a project with one command, or run Adminium from Docker or a source checkout."
       },
       "firstAdmin": {
         "title": "Create your first super admin",
@@ -1612,6 +1619,7 @@
       "jobsRead": "See all background jobs",
       "llmRun": "Run AI assist",
       "pagesManage": "Create and organize pages",
+      "projectRead": "Read pages and schema changes for a project pull",
       "reportsManage": "Manage scheduled reports",
       "rolesManage": "Manage roles and permissions",
       "schemaRemap": "Edit schema labels and overrides",

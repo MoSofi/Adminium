@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Email documents — templates and campaigns (39-email-templates-and-campaigns.md
- * §3.1; 07-meta-store.md §3.28 `adminium_email_templates`), mounted under
- * `/api/v1`. The reply bodies are mirrored type-for-type by
+ * Email documents — templates and campaigns (`adminium_email_templates`),
+ * mounted under `/api/v1`. The reply bodies are mirrored type-for-type by
  * `apps/dashboard/src/email/api.ts` (the copied-mirror convention).
  *
- * THE ONE RULE EVERY WRITE HERE OBEYS (39 D1): nothing writes the row while
- * an operator types. `PUT /:id` is the explicit save; the test send and the
+ * THE ONE RULE EVERY WRITE HERE OBEYS: nothing writes the row while an
+ * operator types. `PUT /:id` is the explicit save; the test send and the
  * mirror-to-siblings op both carry the ON-SCREEN document — the test send in
  * its body, the mirror ops on the save — so a half-typed password reset is
  * never the row `enqueueEmail` renders from between keystrokes.
@@ -19,8 +18,8 @@
  *
  * Reads need a session (the manager lists what the workspace sends); every
  * write, test send, import, export and campaign send needs
- * `system:settings:manage` (39 D19 — email documents add no permission key,
- * the json-payloads standing note).
+ * `system:settings:manage` (email documents add no permission key, the
+ * json-payloads standing note).
  *
  * WHY TEST-SEND IS 409 AND NOT 422 when SMTP is unset. The request is
  * well-formed and the caller is authorized; what is wrong is the SERVER's
@@ -71,7 +70,6 @@ import {
   enqueueRenderedEmail,
   isEmailConfigured,
   prepareEmail,
-  requestOrigin,
   resolveGeneratedAttachments,
 } from '../../email/send.js';
 import { isEmailStarterKey, renderStarter, starterCards, starterSampleVars } from '../../email/starters.js';
@@ -79,6 +77,7 @@ import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, Valida
 import type { FileStore } from '../../files/store.js';
 import { translatorFor } from '../../i18n/server-i18n.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { linkOrigin } from '../../security/public-origin.js';
 import {
   emailAddLanguageBody,
   emailAudiencePreviewBody,
@@ -125,8 +124,8 @@ export interface EmailTemplatesRoutesDeps {
   storage?: FileStore | undefined;
   /**
    * `app.jobs.worker.requestCancel` — the cooperative cancel of a RUNNING
-   * campaign (08 §2.17). Optional: a harness without a worker cancels only
-   * scheduled runs.
+   * campaign. Optional: a harness without a worker cancels only scheduled
+   * runs.
    */
   cancelRunningJob?: ((jobId: string) => boolean) | undefined;
 }
@@ -166,12 +165,13 @@ function runView(run: EmailRun): EmailRunView {
   };
 }
 
-/** The registry's picker order — what `compareLocales` sorts siblings by (39 D3). */
+/** The registry's picker order — what `compareLocales` sorts siblings by. */
 function localeOrder(): string[] {
   return allLocales().map((entry) => entry.id);
 }
 
-/** `topicLabel` per key: the `en_US` sibling's name, else the first in locale order (39 D3). */
+/** `topicLabel` per key: the `en_US` sibling's name, else the first in locale
+ * order. */
 function topicLabels(rows: readonly EmailTemplate[]): Map<string, string> {
   const order = localeOrder();
   const byKey = new Map<string, EmailTemplate[]>();
@@ -281,13 +281,13 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
     return row;
   }
 
-  /** The configured From addresses — `email.smtp.from` plus `email.senders` (39 D7). */
+  /** The configured From addresses — `email.smtp.from` plus `email.senders`. */
   async function senders(): Promise<string[]> {
     const [smtp, list] = await Promise.all([settings.get('email.smtp'), settings.get('email.senders')]);
     return [...(smtp === null ? [] : [smtp.from]), ...list.map((s) => s.address)];
   }
 
-  /** Normalize + validate a wire document against the workspace (39 D7/D8/D9). */
+  /** Normalize + validate a wire document against the workspace. */
   async function acceptDocument(input: Parameters<typeof normalizeDocument>[0]): Promise<EmailDocument> {
     const doc = normalizeDocument(input);
     const attachmentSizes = new Map<string, number | null>();
@@ -304,7 +304,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
     return doc;
   }
 
-  /** A scheduled run cannot outlive its campaign's archive or deletion (39 D11). */
+  /** A scheduled run cannot outlive its campaign's archive or deletion. */
   async function cancelScheduledRun(templateId: string, at: number): Promise<void> {
     const run = await runs.active(templateId);
     if (run === null || run.status !== 'scheduled') return;
@@ -529,7 +529,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
             category,
             enabled,
             ...documentColumns(doc),
-            // The row is human-owned now, and a saved variant is a translated one (39 D3).
+            // The row is human-owned now, and a saved variant is a translated
+            // one.
             isBuiltinCopy: false,
             needsTranslation: false,
             updatedBy: userId,
@@ -612,7 +613,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const at = app.rbac.now();
         await cancelScheduledRun(row.id, at);
         if (isBuiltinEmailKey(row.key)) {
-          // A built-in can never be absent: "delete for good" resets it (39 D4).
+          // A built-in can never be absent: "delete for good" resets it.
           const reset = await resetBuiltinEmailTemplate(meta, row.key, row.locale, at);
           if (reset === null) throw new NotFoundError(`Email document ${row.id} not found.`);
           await app.rbac.audit(request, {
@@ -686,7 +687,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         }
         const existing = await templates.findByKeyLocale(row.key, locale);
         if (existing !== null) {
-          // The client opens it instead (39 §3.1).
+          // The client opens it instead.
           throw new ConflictError(`${row.key} already has a ${locale} variation.`, 'CONFLICT', { existingId: existing.id });
         }
         const siblings = await templates.siblings(row.key, { localeOrder: localeOrder() });
@@ -695,7 +696,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         let doc: EmailDocument;
         let needsTranslation: boolean;
         if (row.starter !== null && isEmailStarterKey(row.starter)) {
-          // A starter family: the starter itself, in the target language (39 D3).
+          // A starter family: the starter itself, in the target language.
           const { t } = await translatorForLocale(meta, locale);
           const starter = renderStarter(row.starter, t);
           name = starter.name;
@@ -748,7 +749,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       async (request, reply) => {
         const userId = requireUserId(request);
         await requireSettingsManage(request, 'create campaigns');
-        // `:id` is the TEMPLATE the new campaign starts from (39 D21: the
+        // `:id` is the TEMPLATE the new campaign starts from (the
         // campaign tab's New modal lists the workspace's templates); the
         // campaign is minted here, in one request, from the template's document.
         const source = await mustFind(request.params.id);
@@ -780,7 +781,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       },
     );
 
-    // ── test send (39 D1: the on-screen document) ──────────────────────────
+    // ── test send (the on-screen document) ─────────────────────────────────
 
     app.post(
       '/email-templates/:id/test-send',
@@ -816,7 +817,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
 
         const doc = await acceptDocument(request.body.document);
         const appName = await settings.get('branding.appName');
-        const origin = requestOrigin(request);
+        const origin = await linkOrigin(meta, request);
         const prepared = await prepareEmail(meta, doc);
         const locale = row.locale;
         let queued = 0;
@@ -853,7 +854,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       },
     );
 
-    // ── campaigns (39 D11) ─────────────────────────────────────────────────
+    // ── campaigns ──────────────────────────────────────────────────────────
 
     app.post(
       '/email-templates/:id/audience/preview',
@@ -960,7 +961,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           if (run.jobId !== null) await jobs.cancel(run.jobId, at);
           next = (await runs.update(run.id, { status: 'cancelled', finishedAt: at, jobId: null }, at)) ?? run;
         } else if (run.status === 'running') {
-          // Cooperative (08 §2.17): the worker aborts the handler's signal, and
+          // Cooperative: the worker aborts the handler's signal, and
           // the handler records `cancelled` with the counts so far.
           if (run.jobId !== null) deps.cancelRunningJob?.(run.jobId);
         } else {
@@ -975,7 +976,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       },
     );
 
-    // ── import (39 D14) ────────────────────────────────────────────────────
+    // ── import ─────────────────────────────────────────────────────────────
 
     app.post(
       '/email-templates/import',
@@ -990,7 +991,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const at = app.rbac.now();
 
         // Refuse the WHOLE bundle before writing anything when a document names
-        // a sender this workspace has not configured (39 D7): the 422 names them
+        // a sender this workspace has not configured: the 422 names them
         // so the operator can add them and retry.
         const configured = (await senders()).map((s) => s.toLowerCase());
         const unconfigured = new Set<string>();
@@ -1037,7 +1038,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
                   kind: 'upload',
                   uploadedBy: userId,
                   destinationId: stored.destinationId,
-                  // A library file (38 D4): claimed, so the unattached sweep leaves it.
+                  // A library file: claimed, so the unattached sweep leaves it.
                   attachedAt: at,
                 },
                 at,

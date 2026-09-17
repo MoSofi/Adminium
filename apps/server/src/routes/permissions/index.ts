@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Permission catalog (08-server-api.md §5.1): the vocabulary a role editor
- * may offer, served because the dashboard CANNOT read it at the source —
- * `apps/dashboard` has no `@adminium/meta` dependency (dependency-cruiser
+ * Permission catalog: the vocabulary a role editor may offer, served because
+ * the dashboard CANNOT read it at the source — `apps/dashboard` has no
+ * `@adminium/meta` dependency (dependency-cruiser
  * `dashboard-no-meta-adapters-llm`), so without this endpoint a permissions UI
  * would have to hard-code a second copy of the closed set and drift from it.
  *
@@ -33,7 +33,7 @@ export const permissionCategory = z.enum(['access', 'data', 'workspace', 'operat
 export type PermissionCategory = z.infer<typeof permissionCategory>;
 
 export const systemPermissionDto = z.object({
-  /** §5.1 grant string, e.g. `system:users:manage`. */
+  /** A grant string, e.g. `system:users:manage`. */
   key: z.string(),
   label: z.string(),
   category: permissionCategory,
@@ -74,24 +74,27 @@ const SYSTEM_PERMISSION_META: Record<
   'llm.run': { label: 'Run AI assist', category: 'operations' },
   'jobs.read': { label: 'See all background jobs', category: 'operations' },
   'jobs.manage': { label: 'Start and cancel background jobs', category: 'operations' },
-  // 26-T05. `operations` rather than `workspace`: installing an add-on runs its
-  // server half in this process (24 D13), which is closer to "start a job" than
-  // to "change a setting" — and 26 D3 exists precisely to stop it riding on
+  // `operations` rather than `workspace`: installing an add-on runs its
+  // server half in this process, which is closer to "start a job" than
+  // to "change a setting" — exists precisely to stop it riding on
   // `settings.manage`.
   'manifests.manage': { label: 'Install and connect add-ons', category: 'operations' },
-  // 37-T10. `files.manage` is `data` — it is about other people's records'
+  // `files.manage` is `data` — it is about other people's records'
   // attachments, beside the exports/imports rows it mirrors. `storage.manage`
   // is `workspace`: it configures where the whole instance writes bytes and
   // holds a credential, which is infrastructure rather than data.
   'files.manage': { label: "Manage everyone's files", category: 'data' },
   'storage.manage': { label: 'Manage storage destinations', category: 'workspace' },
-  // 42-T13. `operations` beside the jobs rows: a rule is work the instance
+  // `operations` beside the jobs rows: a rule is work the instance
   // performs on its own, and the two pages it gates are read as "what is this
   // deployment doing" rather than "how is this workspace configured".
   'automations.manage': { label: 'Manage automations and their logs', category: 'operations' },
+  // `workspace` beside `pages.manage`: it reads the pages and schema
+  // customizations a project folder holds.
+  'project.read': { label: 'Read pages and schema changes for a project pull', category: 'workspace' },
 };
 
-/** `users.manage` → `system:users:manage` (§5.1 spells the dot as a colon). */
+/** `users.manage` → `system:users:manage` (spells the dot as a colon). */
 function grantStringFor(key: GrantableActionKey): string {
   const dot = key.indexOf('.');
   return `system:${key.slice(0, dot)}:${key.slice(dot + 1)}`;

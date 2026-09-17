@@ -19,17 +19,16 @@ import { compareCellValues, rowIdOf } from './column-spec.js';
 import type { GridColumnSpec, GridRow } from './column-spec.js';
 
 /**
- * `data-grid` — the canonical CRUD table (annex §3): headless
+ * `data-grid` — the canonical CRUD table (annex): headless
  * @tanstack/react-table over ui primitives, CSS-grid-free `<table>`-less
  * layout is NOT required — we keep semantic rows via div grid per comp
  * (uppercase letter-spaced micro headers on `--surface-2`, hover highlight,
  * selected tint, checkbox multi-select, type-aware cells).
  *
  * Sorting: with `onSortChange` the grid is server-sorted (manualSorting —
- * the host reissues the query, 09 §7.1); without it, a client-side
- * type-aware sort applies `compareCellValues`, which coerces numeric columns
- * through `Number()` — the Data Table string-mrr defect fix
- * (research/ia-mapping.md §5).
+ * the host reissues the query); without it, a client-side type-aware sort
+ * applies `compareCellValues`, which coerces numeric columns through
+ * `Number()` — the Data Table string-mrr defect fix.
  */
 
 export interface DataGridSort {
@@ -50,17 +49,16 @@ export interface DataGridProps {
   selectable?: boolean | undefined;
   selected?: ReadonlySet<string> | undefined;
   onSelectedChange?: ((ids: ReadonlySet<string>) => void) | undefined;
-  /** Row click → detail (09 §7.1 `rowAction: detail`). */
+  /** Row click → detail (`rowAction: detail`). */
   onRowOpen?: ((row: GridRow) => void) | undefined;
   /** Cell context: FK `record-open` events, PII unmask, format overrides. */
   cellContext?: CellContext | undefined;
   density?: 'comfortable' | 'compact' | undefined;
   /**
-   * End-pinned row-actions slot (30-record-pages.md §3.3): a fixed-width cell
-   * after the data columns (mirrored under RTL by the flex row itself).
-   * Content is interactive — both the cell's click and its keydown stop at the
-   * cell, so an action never also triggers `onRowOpen`. Give the header cell a
-   * name via `labels.rowActions`.
+   * End-pinned row-actions slot: a fixed-width cell after the data columns
+   * (mirrored under RTL by the flex row itself). Content is interactive — both
+   * the cell's click and its keydown stop at the cell, so an action never also
+   * triggers `onRowOpen`. Give the header cell a name via `labels.rowActions`.
    */
   rowEnd?: ((row: GridRow) => ReactNode) | undefined;
   /** Accessible labels (i18n). */
@@ -154,7 +152,7 @@ export function DataGrid({
     ...(manualSorting ? {} : { getSortedRowModel: getSortedRowModel() }),
   });
 
-  /* Row metrics come from the density axis (02 §1.8, §3): the cells below set
+  /* Row metrics come from the density axis: the cells below set
      `py-[var(--row-py)]` (13px / 7px) and `text-[length:var(--cell-fs)]`
      (13px / 12px). Both are declared once in @adminium/tokens/density.css, and
      this grid — the component they were authored for — is their only consumer,
@@ -304,7 +302,7 @@ export function DataGrid({
                     /* The key-field weight: both comps set the primary display
                        column at 700 and leave every other cell at regular, which
                        is what gives a row its anchor. `isDisplay` was already on
-                       the spec ("key field" highlight, 09 §8.3) but nothing in
+                       the spec ("key field" highlight) but nothing in
                        the list read it, so every column rendered identically. */
                     className={`flex min-w-0 flex-1 items-center text-[length:var(--cell-fs)] text-fg ${
                       spec.isDisplay ? 'font-bold' : ''

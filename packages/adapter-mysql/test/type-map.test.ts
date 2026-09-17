@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline unit tests — COLUMN_TYPE → LogicalType mapping (05 §2.2 MySQL
- * column), enum(...)/set(...) parsing, default classification (05 §4.2),
- * CHECK-enum synthesis, server flavor/version gating, grants interpretation,
- * identifier quoting, and the type-serialization policy. No database, no
- * drivers.
+ * Offline unit tests — COLUMN_TYPE → LogicalType mapping (MySQL column),
+ * enum(...)/set(...) parsing, default classification, CHECK-enum synthesis,
+ * server flavor/version gating, grants interpretation, identifier quoting,
+ * and the type-serialization policy. No database, no drivers.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -21,7 +20,7 @@ import {
 } from '../src/serialization.js';
 import { classifyMysqlDefault, mapMysqlType, parseEnumValues } from '../src/type-map.js';
 
-describe('mapMysqlType — the §2.2 MySQL/MariaDB column', () => {
+describe('mapMysqlType — the MySQL/MariaDB column', () => {
   it.each([
     ['tinytext', 'text'],
     ['text', 'text'],
@@ -84,7 +83,7 @@ describe('mapMysqlType — the §2.2 MySQL/MariaDB column', () => {
     expect(mapMysqlType('double').numericPrecision).toBe(53);
   });
 
-  it('flags unsigned int/bigint overflow (05 §4.2)', () => {
+  it('flags unsigned int/bigint overflow', () => {
     expect(mapMysqlType('int unsigned')).toMatchObject({
       unsigned: true,
       warning: 'unsigned-overflow',
@@ -106,7 +105,7 @@ describe('mapMysqlType — the §2.2 MySQL/MariaDB column', () => {
   });
 });
 
-describe('parseEnumValues — COLUMN_TYPE enum(...)/set(...) parsing (05 §4.2)', () => {
+describe('parseEnumValues — COLUMN_TYPE enum(...)/set(...) parsing', () => {
   it('parses ordered enum values', () => {
     expect(parseEnumValues("enum('todo','doing','done')")).toEqual(['todo', 'doing', 'done']);
   });
@@ -126,7 +125,7 @@ describe('parseEnumValues — COLUMN_TYPE enum(...)/set(...) parsing (05 §4.2)'
   });
 });
 
-describe('classifyMysqlDefault — 05 §4.2', () => {
+describe('classifyMysqlDefault', () => {
   it('EXTRA auto_increment wins regardless of default text', () => {
     expect(classifyMysqlDefault(null, 'auto_increment')).toEqual({ kind: 'autoincrement' });
     expect(classifyMysqlDefault('0', 'AUTO_INCREMENT')).toEqual({ kind: 'autoincrement' });
@@ -164,7 +163,7 @@ describe('classifyMysqlDefault — 05 §4.2', () => {
   });
 });
 
-describe('parseCheckEnum — CHECK (col IN (...)) synthesis (05 §4.2)', () => {
+describe('parseCheckEnum — CHECK (col IN (...)) synthesis', () => {
   it('parses the MySQL 8 CHECK_CLAUSE form (backticks + charset introducers)', () => {
     expect(
       parseCheckEnum("(`tier` in (_utf8mb4\\'free\\',_utf8mb4\\'pro\\',_utf8mb4\\'team\\'))"),
@@ -184,7 +183,7 @@ describe('parseCheckEnum — CHECK (col IN (...)) synthesis (05 §4.2)', () => {
   });
 });
 
-describe('detectServerFlavor — the §4.2 support gate', () => {
+describe('detectServerFlavor — the support gate', () => {
   it.each([
     ['8.0.36', 'mysql', true],
     ['8.4.3', 'mysql', true],
@@ -199,7 +198,7 @@ describe('detectServerFlavor — the §4.2 support gate', () => {
   });
 });
 
-describe('interpretProbe / interpretGrants — read-only detection (05 §4.2)', () => {
+describe('interpretProbe / interpretGrants — read-only detection', () => {
   it('reads @@read_only in its numeric and string forms', () => {
     const base = {
       server_version: '8.4.3',

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The canvas (34-invoices-add-on.md 34-T49 done-when; Appendix E §C1-C11,
- * Appendix F, O25): every one of the 27 kinds draws when its flag is on and
- * one custom section of each type exists; the gate leaves the five permanent
- * blocks with every flag off; the ladder prints the money law's figures with
- * the discount row shown only above zero; the tax breakdown uses the ladder's
- * base; the letterhead is read-only; and every input on the sheet — text
- * fields and file inputs alike — has an accessible name.
+ * The canvas (O25): every one of the 27 kinds draws when
+ * its flag is on and one custom section of each type exists; the gate leaves
+ * the five permanent blocks with every flag off; the ladder prints the money
+ * law's figures with the discount row shown only above zero; the tax
+ * breakdown uses the ladder's base; the letterhead is read-only; and every
+ * input on the sheet — text fields and file inputs alike — has an accessible
+ * name.
  *
  * Rendered through the real router (the editor owns selection and the
  * modal). The axe pass runs in the e2e file against the built canvas:
@@ -274,7 +274,7 @@ describe('InvoiceCanvas — the vocabulary and the gate (Appendix F, O19)', () =
   });
 });
 
-describe('InvoiceCanvas — the money (O25, §C9, §C10)', () => {
+describe('InvoiceCanvas — the money (O25)', () => {
   it('the ladder prints the law’s figures; the discount row is hidden at 0', async () => {
     const { paper } = await renderCanvas();
     expect(within(paper).getAllByTestId('invoices-item-amount').map((el) => el.textContent)).toEqual(['$300.00', '$90.50']);
@@ -312,7 +312,7 @@ describe('InvoiceCanvas — the money (O25, §C9, §C10)', () => {
   });
 });
 
-describe('InvoiceCanvas — the letterhead, selection and names (§C2, §C3, a11y)', () => {
+describe('InvoiceCanvas — the letterhead, selection and names (a11y)', () => {
   it('the title, number and status are read-only text; the brand name is an input; clicking a region selects it', async () => {
     const { paper, user } = await renderCanvas();
     expect(within(paper).getByTestId('invoices-title').textContent).toBe('INVOICE');

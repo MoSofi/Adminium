@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Candidate rules — hook **H1 (candidate emission)** and **H2 (scoring &
- * pruning)** of the auto-instantiation pipeline (04-widget-registry.md §8),
- * encoding the per-family "Auto-instantiation" paragraphs of
- * research/widget-registry.md §1–§13 and the §15 decision summary (step 3:
- * "per table emit … KPI candidates and 2–4 chart candidates ranked by
- * column-pair scoring").
+ * pruning)** of the auto-instantiation pipeline, encoding the per-family
+ * "Auto-instantiation" paragraphs of research/widget-registry.md and the
+ * decision summary (step 3: "per table emit … KPI candidates and 2–4 chart
+ * candidates ranked by column-pair scoring").
  *
- * WHY THE RULES LIVE HERE AND NOT IN THE ENGINE (04 §8, verbatim): "The Engine
- * owns introspection/classification/generation; the Registry owns **what can be
+ * WHY THE RULES LIVE HERE AND NOT IN THE ENGINE (verbatim): "The Engine owns
+ * introspection/classification/generation; the Registry owns **what can be
  * instantiated and why** … encoded as data-driven rules living in this package
  * so the catalog and its trigger logic never drift apart."
  *
  * WHY THE INPUT TYPES ARE STRUCTURAL: `@adminium/widgets` must never import
- * `@adminium/engine` beyond the pure-Zod `@adminium/engine/config` leaf
- * (01-architecture.md §2.3), so this module cannot name `TableModel` /
- * `ClassifiedTable`. Instead it declares the **fields the rules read** as its
- * own contract ({@link CandidateTable} / {@link ClassifiedTableInput}) and the
- * Engine adapts its model into them (`@adminium/engine/generate/archetype.ts`).
- * The two are kept in lockstep by the engine-side adapter's compile-time types
- * plus `packages/engine/test/generate-archetypes.test.ts`.
+ * `@adminium/engine` beyond the pure-Zod `@adminium/engine/config` leaf, so
+ * this module cannot name `TableModel` / `ClassifiedTable`. Instead it declares
+ * the **fields the rules read** as its own contract ({@link CandidateTable} /
+ * {@link ClassifiedTableInput}) and the Engine adapts its model into them
+ * (`@adminium/engine/generate/archetype.ts`). The two are kept in lockstep by
+ * the engine-side adapter's compile-time types plus
+ * `packages/engine/test/generate-archetypes.test.ts`.
  *
  * PURITY / DETERMINISM: no `Date.now()`, no `Math.random()`, no I/O. Generation
  * output is content-hashed (`generated_hash`, H5), so identical inputs must
@@ -73,7 +72,7 @@ export interface CandidateTable {
    */
   label?: string | undefined;
   kind?: 'table' | 'view' | 'materialized-view' | undefined;
-  /** ESTIMATE only (05 §8); null ⇔ unknown. */
+  /** ESTIMATE only; null ⇔ unknown. */
   rowCountEstimate?: number | null | undefined;
   /** pg_stat write activity (inserts+updates+deletes); null ⇔ unknown. */
   writeVelocity?: number | null | undefined;
@@ -104,7 +103,7 @@ export interface ClassifiedTableInput {
   role: string;
   displayColumn?: string | null | undefined;
   naturalKey?: string | null | undefined;
-  /** `TableSemantics.hierarchy.parentColumn` — the self-FK (05 §6 rule 3). */
+  /** `TableSemantics.hierarchy.parentColumn` — the self-FK. */
   hierarchyColumn?: string | null | undefined;
   columns: readonly ClassifiedColumnInput[];
 }
@@ -127,7 +126,7 @@ export interface CandidateRelation {
   from: { tableId: string; columns: readonly string[] };
   /** Referenced side. */
   to: { tableId: string };
-  /** 1.0 declared/override; <1 inferred (05 §6 thresholds). */
+  /** 1.0 declared/override; <1 inferred (thresholds). */
   confidence: number;
 }
 
@@ -135,17 +134,17 @@ export interface CandidateContext {
   /** `adminium_connections.id` every emitted binding scopes to. */
   connectionId: string;
   /**
-   * Live registry membership test. Supplying it is what enforces 04 §10's
-   * invariant that "candidates only ever carry registered ids" — the rules are
-   * written against the full annex catalog, so ids whose family has not shipped
-   * are dropped here rather than reaching a page as `widget-missing`. Omitted ⇒
-   * every id is treated as registered (unit tests, annex-completeness checks).
+   * Live registry membership test. Supplying it is what enforces invariant that
+   * "candidates only ever carry registered ids" — the rules are written against
+   * the full annex catalog, so ids whose family has not shipped are dropped
+   * here rather than reaching a page as `widget-missing`. Omitted ⇒ every id is
+   * treated as registered (unit tests, annex-completeness checks).
    */
   isRegistered?: ((widgetId: string) => boolean) | undefined;
   /**
    * Every table of the model, including `table` itself. Cross-table triggers
-   * read it: the annex §9 conversation+message **pair**, and §5's person/project
-   * FK targets. Omitted ⇒ single-table rules only.
+   * read it: the annex conversation+message **pair**, person/project FK targets.
+   * Omitted ⇒ single-table rules only.
    */
   model?: readonly CandidateTableInput[] | undefined;
 }
@@ -153,14 +152,14 @@ export interface CandidateContext {
 /* ----------------------------------------------------------------- outputs */
 
 /**
- * One instantiable widget a rule proposes for a table (04 §8, verbatim fields:
+ * One instantiable widget a rule proposes for a table (verbatim fields:
  * `widget` / `score` / `binding` / `config` / `reason`).
  *
- * `shape`, `family` and `rule` extend the §8 listing with what the downstream
+ * `shape`, `family` and `rule` extend the listing with what the downstream
  * hooks need and would otherwise have to re-derive: `composeTemplate` matches
- * `accepts.shapes` on **the shape the binding produces** (04 §10), H2 caps are
- * per family, and `rule` is both the provenance the Studio review UI shows and
- * the first tiebreak that keeps ordering total.
+ * `accepts.shapes` on **the shape the binding produces**, H2 caps are per
+ * family, and `rule` is both the provenance the Studio review UI shows and the
+ * first tiebreak that keeps ordering total.
  */
 export interface WidgetCandidate {
   /** Registry id. */
@@ -172,7 +171,7 @@ export interface WidgetCandidate {
   config: Record<string, unknown>;
   /** Human-readable — surfaced in the Studio review UI and in the LLM prompt. */
   reason: string;
-  /** The data contract `binding` produces (04 §3). */
+  /** The data contract `binding` produces. */
   shape: DataShape;
   family: WidgetFamily;
   /** Emitting {@link CandidateRule.id}. */
@@ -181,10 +180,10 @@ export interface WidgetCandidate {
 
 /**
  * A table + its classification, pre-joined per column. Rules receive this
- * instead of §8's `(table, cols, stats)` triple: it carries exactly those three
- * ({@link CandidateView.table}, {@link CandidateView.columns},
- * {@link CandidateView.stats}) with the column/semantics join done once per
- * table rather than once per rule.
+ * instead of `(table, cols, stats)` triple: it carries exactly those three
+ * ({@link CandidateView.table}, {@link CandidateView.columns}, {@link
+ * CandidateView.stats}) with the column/semantics join done once per table
+ * rather than once per rule.
  */
 export interface CandidateView {
   table: CandidateTable;
@@ -283,7 +282,7 @@ function byName(matches: boolean, hit = 1.1, miss = 0.95): number {
   return matches ? hit : miss;
 }
 
-/** Cardinality fit: an enum breakdown reads best at 2–6 slices (annex §2). */
+/** Cardinality fit: an enum breakdown reads best at 2–6 slices (annex). */
 function byCardinality(count: number, best: number, worst: number): number {
   if (count <= 0) return 0.5;
   if (count <= best) return 1.05;
@@ -295,35 +294,35 @@ const NUMERIC_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decima
 const TEXTISH_TYPES: ReadonlySet<string> = new Set(['text', 'varchar']);
 const DATE_TYPES: ReadonlySet<string> = new Set(['date', 'timestamp', 'timestamptz']);
 
-/** Annex §1: money name vocabulary that upgrades a SUM card to a currency hero. */
+/** Annex: money name vocabulary that upgrades a SUM card to a currency hero. */
 const MONEY_NAME_RE = /(amount|price|mrr|arr|total|budget|revenue)/i;
-/** Annex §1/§6: the "currently open" state a status KPI counts. */
+/** Annex: the "currently open" state a status KPI counts. */
 const ACTIVE_STATE_RE = /^(open|pending|new|in_progress|active|todo|backlog|queued|draft)$/i;
 /**
- * Annex §6: kanban-worthy workflow value vocabulary (05 §7.1 rule 7 subset).
- * Shared with `./archetypes.ts` — the §14 `page-board` trigger is "a status enum
- * classified as workflow", i.e. exactly what puts a `kanban-board` on the page.
+ * Annex: kanban-worthy workflow value vocabulary (subset). Shared with
+ * `./archetypes.ts` — the `page-board` trigger is "a status enum classified as
+ * workflow", i.e. exactly what puts a `kanban-board` on the page.
  */
 export const BOARD_STATE_RE =
   /^(todo|to_do|backlog|open|new|draft|in_progress|inprogress|doing|review|in_review|blocked|on_hold|done|completed?|closed|cancell?ed|archived|active|paused|shipped|q[1-4])$/i;
-/** Annex §4: read/unread notification booleans. Shared with `./archetypes.ts`. */
+/** Annex: read/unread notification booleans. Shared with `./archetypes.ts`. */
 export const READ_FLAG_RE = /(^|_)(read|seen|opened|acknowledged|unread)(_|$)/i;
-/** Annex §4: verb-ish activity text. */
+/** Annex: verb-ish activity text. */
 const VERBISH_RE = /(^|_)(action|event|activity|verb|operation)(_type|_name)?(_|$)/i;
-/** Annex §4: changelog version strings. */
+/** Annex: changelog version strings. */
 const VERSION_RE = /(^|_)(version|release|tag|semver)(_|$)/i;
-/** Annex §5/§14: shift-type vocabulary. */
+/** Annex: shift-type vocabulary. */
 const SHIFT_TYPE_RE = /(^|_)(shift|slot|rota|duty)(_type|_kind|_name)?(_|$)/i;
-/** Annex §5: hours-per-project capacity numerics. */
+/** Annex: hours-per-project capacity numerics. */
 const HOURS_RE = /(^|_)(hours?|capacity|allocation|workload|effort|load)(_|$)/i;
-/** Annex §5/§14: project/phase FK targets. */
+/** Annex: project/phase FK targets. */
 const PROJECT_RE = /(^|_)(projects?|phases?|epics?|milestones?|sprints?|initiatives?)(_|$)/i;
-/** Annex §8/§14: people FK targets (mirrors the engine's PEOPLE_TABLE_RE). */
+/** Annex: people FK targets (mirrors the engine's PEOPLE_TABLE_RE). */
 const PEOPLE_TARGET_RE =
   /(^|_)(users?|people|persons?|employees?|staff|members?|contacts?|customers?|profiles?|teachers?|students?|drivers?|agents?|authors?|patients?)(_|$)/i;
-/** Annex §8: file-shaped size columns. */
+/** Annex: file-shaped size columns. */
 const SIZE_RE = /(^|_)(size|bytes|filesize|file_size|storage|quota)(_|$)/i;
-/** Annex §9: conversation containers. */
+/** Annex: conversation containers. */
 const CONVERSATION_RE = /(^|_)(conversations?|threads?|chats?|channels?|rooms?|tickets?)(_|$)/i;
 
 /** `public.orders` → the last segment. */
@@ -407,7 +406,7 @@ function timeAxis(view: CandidateView): ViewColumn | null {
   );
 }
 
-/** A point-in-time event column — the annex §5 `calendar-month` axis. */
+/** A point-in-time event column — the annex `calendar-month` axis. */
 export function eventDate(view: CandidateView): ViewColumn | null {
   return (
     view.columns.find((c) => c.semantic === 'event-timestamp' && DATE_TYPES.has(c.logicalType)) ??
@@ -415,12 +414,12 @@ export function eventDate(view: CandidateView): ViewColumn | null {
   );
 }
 
-/** The `start` half of a §7.1-row-11 start/end pair (annex §5 scheduling signal). */
+/** The `start` half of a -row-11 start/end pair (annex scheduling signal). */
 export function dateRangeStart(view: CandidateView): ViewColumn | null {
   return view.columns.find((c) => c.semantic === 'date-range' && c.pair?.role === 'start') ?? null;
 }
 
-/** An FK whose target table name reads as people (annex §5/§8/§13). */
+/** An FK whose target table name reads as people (annex). */
 export function personFk(view: CandidateView): ViewColumn | null {
   return (
     view.columns.find(
@@ -432,7 +431,7 @@ export function personFk(view: CandidateView): ViewColumn | null {
   );
 }
 
-/** An FK whose target reads as a project/phase container (annex §5/§13). */
+/** An FK whose target reads as a project/phase container (annex). */
 export function projectFk(view: CandidateView): ViewColumn | null {
   return (
     view.columns.find(
@@ -441,7 +440,7 @@ export function projectFk(view: CandidateView): ViewColumn | null {
   );
 }
 
-/** Low-cardinality enum columns, richest breakdown first (annex §2). */
+/** Low-cardinality enum columns, richest breakdown first (annex). */
 export function enumColumns(view: CandidateView): ViewColumn[] {
   const wanted = ['status-workflow', 'category-enum'];
   return view.columns
@@ -493,7 +492,7 @@ function descriptor(
   };
 }
 
-/** A binding against a *sibling* table (the annex §9 pair rule needs one). */
+/** A binding against a *sibling* table (the annex pair rule needs one). */
 function siblingDescriptor(
   sibling: CandidateView,
   ctx: CandidateContext,
@@ -511,7 +510,7 @@ function siblingDescriptor(
 
 /* ------------------------------------------------------------------ rules */
 
-/** Annex §1 — "For every table the introspector emits KPI candidates". */
+/** Annex — "For every table the introspector emits KPI candidates". */
 const kpiCountTotal: CandidateRule = {
   id: 'kpi.count-total',
   family: 'kpi',
@@ -524,7 +523,7 @@ const kpiCountTotal: CandidateRule = {
         shape: 'single-metric',
         family: 'kpi',
         rule: 'kpi.count-total',
-        reason: `COUNT(*) over ${view.table.id} — the annex §1 total card every table gets`,
+        reason: `COUNT(*) over ${view.table.id} — the total card every table gets`,
         binding: descriptor(view, ctx, 'single-metric', {
           aggregations: [{ fn: 'count', alias: 'value' }],
         }),
@@ -534,7 +533,7 @@ const kpiCountTotal: CandidateRule = {
   },
 };
 
-/** Annex §1 — money-typed numeric → SUM card with currency format. */
+/** Annex — money-typed numeric → SUM card with currency format. */
 const kpiMoneySum: CandidateRule = {
   id: 'kpi.money-sum',
   family: 'kpi',
@@ -547,7 +546,7 @@ const kpiMoneySum: CandidateRule = {
         shape: 'single-metric' as const,
         family: 'kpi' as const,
         rule: 'kpi.money-sum',
-        reason: `money column "${column.name}" — SUM card with currency format (annex §1)`,
+        reason: `money column "${column.name}" — SUM card with currency format`,
         binding: descriptor(view, ctx, 'single-metric', {
           aggregations: [{ fn: 'sum', column: column.name, alias: 'value' }],
         }),
@@ -561,7 +560,7 @@ const kpiMoneySum: CandidateRule = {
   },
 };
 
-/** Annex §1 — `created_at` → "new this period" + delta vs prior period. */
+/** Annex — `created_at` → "new this period" + delta vs prior period. */
 const kpiNewThisPeriod: CandidateRule = {
   id: 'kpi.new-this-period',
   family: 'kpi',
@@ -575,7 +574,7 @@ const kpiNewThisPeriod: CandidateRule = {
         shape: 'metric+delta',
         family: 'kpi',
         rule: 'kpi.new-this-period',
-        reason: `created-at "${column.name}" — new-this-period card with a prior-period delta (annex §1)`,
+        reason: `created-at "${column.name}" — new-this-period card with a prior-period delta`,
         binding: descriptor(view, ctx, 'metric+delta', {
           aggregations: [{ fn: 'count', alias: 'value' }],
           window: { column: column.name, last: 30, unit: 'day', compareToPrior: true },
@@ -586,7 +585,7 @@ const kpiNewThisPeriod: CandidateRule = {
   },
 };
 
-/** Annex §1 — enum/status column → per-state counts (Pending/Approved…). */
+/** Annex — enum/status column → per-state counts (Pending/Approved…). */
 const kpiStatusCount: CandidateRule = {
   id: 'kpi.status-count',
   family: 'kpi',
@@ -602,7 +601,7 @@ const kpiStatusCount: CandidateRule = {
         shape: 'single-metric',
         family: 'kpi',
         rule: 'kpi.status-count',
-        reason: `status enum "${column.name}" — count of the "${active}" state (annex §1)`,
+        reason: `status enum "${column.name}" — count of the "${active}" state`,
         binding: descriptor(view, ctx, 'single-metric', {
           aggregations: [{ fn: 'count', alias: 'value' }],
           filters: [{ column: column.name, op: 'eq', value: active }],
@@ -613,7 +612,7 @@ const kpiStatusCount: CandidateRule = {
   },
 };
 
-/** Annex §1 — score-like 0–100 column → `gauge-ring`. */
+/** Annex — score-like 0–100 column → `gauge-ring`. */
 const kpiScoreGauge: CandidateRule = {
   id: 'kpi.score-gauge',
   family: 'kpi',
@@ -627,7 +626,7 @@ const kpiScoreGauge: CandidateRule = {
         shape: 'single-metric',
         family: 'kpi',
         rule: 'kpi.score-gauge',
-        reason: `${column.semantic} column "${column.name}" — average as a 0–100 ring (annex §1)`,
+        reason: `${column.semantic} column "${column.name}" — average as a 0–100 ring`,
         binding: descriptor(view, ctx, 'single-metric', {
           aggregations: [{ fn: 'avg', column: column.name, alias: 'value' }],
         }),
@@ -638,10 +637,10 @@ const kpiScoreGauge: CandidateRule = {
 };
 
 /**
- * Annex §1 — "numeric + configured cap … → `usage-meter`". No
- * `adminium_settings` cap is available at generation time, so the rule fires on
- * the storage shape the annex §14 `page-files` template meters (a byte/size
- * numeric); the limit stays a config default the admin edits in Studio.
+ * Annex — "numeric + configured cap … → `usage-meter`". No `adminium_settings`
+ * cap is available at generation time, so the rule fires on the storage shape
+ * the annex `page-files` template meters (a byte/size numeric); the limit stays
+ * a config default the admin edits in Studio.
  */
 const kpiStorageUsage: CandidateRule = {
   id: 'kpi.storage-usage',
@@ -658,7 +657,7 @@ const kpiStorageUsage: CandidateRule = {
         shape: 'single-metric',
         family: 'kpi',
         rule: 'kpi.storage-usage',
-        reason: `size numeric "${column.name}" — quota meter over SUM(${column.name}) (annex §1)`,
+        reason: `size numeric "${column.name}" — quota meter over SUM(${column.name})`,
         binding: descriptor(view, ctx, 'single-metric', {
           aggregations: [{ fn: 'sum', column: column.name, alias: 'value' }],
         }),
@@ -674,7 +673,7 @@ const kpiStorageUsage: CandidateRule = {
   },
 };
 
-/** Annex §2 — "timestamp column + numeric column → `chart-line-area`". */
+/** Annex — "timestamp column + numeric column → `chart-line-area`". */
 const chartsHeroTimeseries: CandidateRule = {
   id: 'charts.time-numeric',
   family: 'charts',
@@ -695,8 +694,8 @@ const chartsHeroTimeseries: CandidateRule = {
         rule: 'charts.time-numeric',
         reason:
           money !== null
-            ? `time axis "${axis.name}" × money "${money.name}" — the annex §2 hero timeseries`
-            : `time axis "${axis.name}" — row counts per month as the annex §2 hero timeseries`,
+            ? `time axis "${axis.name}" × money "${money.name}" — the hero timeseries`
+            : `time axis "${axis.name}" — row counts per month as the hero timeseries`,
         binding: descriptor(view, ctx, 'timeseries', {
           aggregations: [
             money !== null
@@ -711,7 +710,7 @@ const chartsHeroTimeseries: CandidateRule = {
   },
 };
 
-/** Annex §2 — "timestamp alone → `chart-heatmap-calendar` of row counts". */
+/** Annex — "timestamp alone → `chart-heatmap-calendar` of row counts". */
 const chartsTimeHeatmap: CandidateRule = {
   id: 'charts.time-only',
   family: 'charts',
@@ -726,7 +725,7 @@ const chartsTimeHeatmap: CandidateRule = {
         shape: 'timeseries',
         family: 'charts',
         rule: 'charts.time-only',
-        reason: `time axis "${axis.name}" with no numeric measure — daily row-count heatmap (annex §2)`,
+        reason: `time axis "${axis.name}" with no numeric measure — daily row-count heatmap`,
         binding: descriptor(view, ctx, 'timeseries', {
           aggregations: [{ fn: 'count', alias: 'value' }],
           bucket: { column: axis.name, unit: 'day' },
@@ -737,7 +736,7 @@ const chartsTimeHeatmap: CandidateRule = {
   },
 };
 
-/** Annex §2 — "low-cardinality enum/text (≤8 distinct) → `chart-donut`". */
+/** Annex — "low-cardinality enum/text (≤8 distinct) → `chart-donut`". */
 const chartsCategoricalDonut: CandidateRule = {
   id: 'charts.low-cardinality-enum',
   family: 'charts',
@@ -752,7 +751,7 @@ const chartsCategoricalDonut: CandidateRule = {
         shape: 'categorical',
         family: 'charts',
         rule: 'charts.low-cardinality-enum',
-        reason: `enum "${column.name}" with ${column.enumValues.length} values — part-to-whole donut (annex §2)`,
+        reason: `enum "${column.name}" with ${column.enumValues.length} values — part-to-whole donut`,
         binding: descriptor(view, ctx, 'categorical', {
           aggregations: [{ fn: 'count', alias: 'value' }],
           groupBy: [column.name],
@@ -764,7 +763,7 @@ const chartsCategoricalDonut: CandidateRule = {
   },
 };
 
-/** Annex §2 — "two numerics → `chart-scatter-bubble`". */
+/** Annex — "two numerics → `chart-scatter-bubble`". */
 const chartsScatter: CandidateRule = {
   id: 'charts.two-numerics',
   family: 'charts',
@@ -782,7 +781,7 @@ const chartsScatter: CandidateRule = {
         shape: 'record-list',
         family: 'charts',
         rule: 'charts.two-numerics',
-        reason: `numeric pair "${x.name}" × "${y.name}" — correlation scatter (annex §2)`,
+        reason: `numeric pair "${x.name}" × "${y.name}" — correlation scatter`,
         binding: descriptor(view, ctx, 'record-list', {
           select: [x.name, y.name],
           limit: 500,
@@ -793,7 +792,7 @@ const chartsScatter: CandidateRule = {
   },
 };
 
-/** Annex §2 — "per-row latency/duration numeric → `chart-boxplot`". */
+/** Annex — "per-row latency/duration numeric → `chart-boxplot`". */
 const chartsDurationBoxplot: CandidateRule = {
   id: 'charts.duration-distribution',
   family: 'charts',
@@ -807,7 +806,7 @@ const chartsDurationBoxplot: CandidateRule = {
         shape: 'distribution',
         family: 'charts',
         rule: 'charts.duration-distribution',
-        reason: `duration column "${column.name}" — quantile distribution (annex §2)`,
+        reason: `duration column "${column.name}" — quantile distribution`,
         binding: descriptor(view, ctx, 'distribution', {
           aggregations: [
             { fn: 'percentile', column: column.name, p: 0.5, alias: 'p50' },
@@ -821,7 +820,7 @@ const chartsDurationBoxplot: CandidateRule = {
   },
 };
 
-/** Annex §2/§7 — "region codes → `chart-choropleth-grid`". */
+/** Annex — "region codes → `chart-choropleth-grid`". */
 const chartsGeoRegion: CandidateRule = {
   id: 'charts.geo-region',
   family: 'charts',
@@ -835,7 +834,7 @@ const chartsGeoRegion: CandidateRule = {
         shape: 'geo-points',
         family: 'charts',
         rule: 'charts.geo-region',
-        reason: `region code "${column.name}" — grid choropleth of row counts (annex §2/§7)`,
+        reason: `region code "${column.name}" — grid choropleth of row counts`,
         binding: descriptor(view, ctx, 'geo-points', {
           aggregations: [{ fn: 'count', alias: 'value' }],
           groupBy: [column.name],
@@ -847,7 +846,7 @@ const chartsGeoRegion: CandidateRule = {
   },
 };
 
-/** Annex §3 — "every included table gets a `data-grid`". */
+/** Annex — "every included table gets a `data-grid`". */
 const tablesDataGrid: CandidateRule = {
   id: 'tables.data-grid',
   family: 'tables',
@@ -856,13 +855,13 @@ const tablesDataGrid: CandidateRule = {
       {
         widget: 'data-grid',
         // Deliberately below the specialised lists: `page-crud` already gives
-        // every table its grid (§15 step 3), so as an archetype-slot candidate
+        // every table its grid, so as an archetype-slot candidate
         // the grid is the last-resort filler, not the first choice.
         score: score(0.55, byRowCount(view)),
         shape: 'record-list',
         family: 'tables',
         rule: 'tables.data-grid',
-        reason: `every included table gets a typed data-grid (annex §3)`,
+        reason: `every included table gets a typed data-grid`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           limit: 50,
@@ -874,20 +873,21 @@ const tablesDataGrid: CandidateRule = {
 };
 
 /**
- * Annex §3 — "enum column present → `master-list` + detail split candidate".
+ * Annex — "enum column present → `master-list` + detail split candidate".
  *
- * Also fires for the §13 domain-card shape (start/end + progress/phase), which
+ * Also fires for the domain-card shape (start/end + progress/phase), which
  * `./archetypes.ts` routes to `page-master-detail` as well: that manifest's
  * `master` slot is `required`, so the split view needs its rail whether the
  * detail pane ends up a key-value list or a gantt.
  *
  * SCORING — `master-list` is deliberately flat 0.95, unmodified: `page-master-
- * detail`'s `master` slot accepts **any** `record-list` (04 §10 shape match) and
- * is filled before `detail`, so the rail must outrank every other record-list
+ * detail`'s `master` slot accepts **any** `record-list` (shape match) and is
+ * filled before `detail`, so the rail must outrank every other record-list
  * candidate on the table or it would consume the very domain card the detail
  * pane exists to show (a `gantt-chart` in the 4-column master rail, and an
  * unfillable `detail` → no page at all). No modifier may lift another candidate
- * past it — see `byRowCount`'s cap and the ordering test in `candidates.test.ts`.
+ * past it — see `byRowCount`'s cap and the ordering test in
+ * `candidates.test.ts`.
  */
 const tablesMasterDetail: CandidateRule = {
   id: 'tables.master-detail',
@@ -902,8 +902,8 @@ const tablesMasterDetail: CandidateRule = {
     const enumColumn = enums[0];
     const reason =
       enumColumn === undefined
-        ? `start/end pair "${start?.name}" — master rail of the domain-card split view (annex §3/§13)`
-        : `enum "${enumColumn.name}" — master list of the split view (annex §3)`;
+        ? `start/end pair "${start?.name}" — master rail of the domain-card split view`
+        : `enum "${enumColumn.name}" — master list of the split view`;
     return [
       {
         widget: 'master-list',
@@ -927,7 +927,7 @@ const tablesMasterDetail: CandidateRule = {
         shape: 'record',
         family: 'tables',
         rule: 'tables.master-detail',
-        reason: `per-record detail pane for the ${humanize(view.table.name)} split view (annex §3)`,
+        reason: `per-record detail pane for the ${humanize(view.table.name)} split view`,
         binding: descriptor(view, ctx, 'record', { limit: 1 }),
         config: { title: `${humanize(view.table.name)} Detail` },
       },
@@ -935,7 +935,7 @@ const tablesMasterDetail: CandidateRule = {
   },
 };
 
-/** Annex §3 — "table with `name`+`image/avatar/logo` columns → `card-gallery`". */
+/** Annex — "table with `name`+`image/avatar/logo` columns → `card-gallery`". */
 const tablesCardGallery: CandidateRule = {
   id: 'tables.card-gallery',
   family: 'tables',
@@ -949,7 +949,7 @@ const tablesCardGallery: CandidateRule = {
         shape: 'record-list',
         family: 'tables',
         rule: 'tables.card-gallery',
-        reason: `display column "${view.displayColumn}" + image "${image.name}" — card gallery (annex §3)`,
+        reason: `display column "${view.displayColumn}" + image "${image.name}" — card gallery`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           limit: 60,
@@ -964,7 +964,8 @@ const tablesCardGallery: CandidateRule = {
   },
 };
 
-/** Annex §3 — "audit/log-named tables (`*_log`, `*_events`, `audit*`) → `log-table`". */
+/** Annex — "audit/log-named tables (`*_log`, `*_events`, `audit*`) →
+ * `log-table`". */
 const tablesLogTable: CandidateRule = {
   id: 'tables.log-table',
   family: 'tables',
@@ -978,7 +979,7 @@ const tablesLogTable: CandidateRule = {
         shape: 'record-list',
         family: 'tables',
         rule: 'tables.log-table',
-        reason: `${view.table.id} classified as a log table — dense log grid (annex §3)`,
+        reason: `${view.table.id} classified as a log table — dense log grid`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           ...(axis === null ? {} : { orderBy: [{ column: axis.name, dir: 'desc' as const }] }),
@@ -990,7 +991,7 @@ const tablesLogTable: CandidateRule = {
   },
 };
 
-/** Annex §3 — "parent-child FK self-reference → `schema-tree`-style tree view". */
+/** Annex — "parent-child FK self-reference → `schema-tree`-style tree view". */
 const tablesTree: CandidateRule = {
   id: 'tables.self-fk-tree',
   family: 'tables',
@@ -1003,7 +1004,7 @@ const tablesTree: CandidateRule = {
         shape: 'hierarchy/tree',
         family: 'tables',
         rule: 'tables.self-fk-tree',
-        reason: `self-FK "${view.hierarchyColumn}" — collapsible tree view (annex §3)`,
+        reason: `self-FK "${view.hierarchyColumn}" — collapsible tree view`,
         binding: descriptor(view, ctx, 'hierarchy/tree', {
           select: listSelect(view, 4),
           limit: 500,
@@ -1018,7 +1019,8 @@ const tablesTree: CandidateRule = {
   },
 };
 
-/** Annex §4 — "(actor FK | user_id) + timestamp + verb-ish text → `activity-feed`". */
+/** Annex — "(actor FK | user_id) + timestamp + verb-ish text →
+ * `activity-feed`". */
 const feedsActivity: CandidateRule = {
   id: 'feeds.actor-timestamp-verb',
   family: 'feeds',
@@ -1036,7 +1038,7 @@ const feedsActivity: CandidateRule = {
         shape: 'record-list',
         family: 'feeds',
         rule: 'feeds.actor-timestamp-verb',
-        reason: `actor FK "${actor.name}" + "${axis.name}" + verb text "${verb.name}" — activity feed (annex §4)`,
+        reason: `actor FK "${actor.name}" + "${axis.name}" + verb text "${verb.name}" — activity feed`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           orderBy: [{ column: axis.name, dir: 'desc' }],
@@ -1048,7 +1050,7 @@ const feedsActivity: CandidateRule = {
   },
 };
 
-/** Annex §4 — "`read`/`seen` boolean → `notification-feed` with unread logic". */
+/** Annex — "`read`/`seen` boolean → `notification-feed` with unread logic". */
 const feedsNotification: CandidateRule = {
   id: 'feeds.read-flag',
   family: 'feeds',
@@ -1067,7 +1069,7 @@ const feedsNotification: CandidateRule = {
         shape: 'record-list',
         family: 'feeds',
         rule: 'feeds.read-flag',
-        reason: `read/unread flag "${flag.name}" — notification feed with unread logic (annex §4)`,
+        reason: `read/unread flag "${flag.name}" — notification feed with unread logic`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           ...(axis === null ? {} : { orderBy: [{ column: axis.name, dir: 'desc' as const }] }),
@@ -1079,7 +1081,7 @@ const feedsNotification: CandidateRule = {
   },
 };
 
-/** Annex §4 — "high write-rate tables → `realtime-feed` candidate". */
+/** Annex — "high write-rate tables → `realtime-feed` candidate". */
 const feedsRealtime: CandidateRule = {
   id: 'feeds.high-write-rate',
   family: 'feeds',
@@ -1095,7 +1097,7 @@ const feedsRealtime: CandidateRule = {
         shape: 'stream',
         family: 'feeds',
         rule: 'feeds.high-write-rate',
-        reason: `write velocity ${velocity} — streamed realtime feed (annex §4)`,
+        reason: `write velocity ${velocity} — streamed realtime feed`,
         binding: descriptor(view, ctx, 'stream', {
           select: listSelect(view),
           orderBy: [{ column: axis.name, dir: 'desc' }],
@@ -1107,7 +1109,7 @@ const feedsRealtime: CandidateRule = {
   },
 };
 
-/** Annex §4 — "version-string column + date → changelog `timeline-vertical`". */
+/** Annex — "version-string column + date → changelog `timeline-vertical`". */
 const feedsTimeline: CandidateRule = {
   id: 'feeds.version-timeline',
   family: 'feeds',
@@ -1127,8 +1129,8 @@ const feedsTimeline: CandidateRule = {
         rule: 'feeds.version-timeline',
         reason:
           version === undefined
-            ? `log table with time axis "${axis.name}" — vertical trace timeline (annex §4)`
-            : `version column "${version.name}" + "${axis.name}" — changelog timeline (annex §4)`,
+            ? `log table with time axis "${axis.name}" — vertical trace timeline`
+            : `version column "${version.name}" + "${axis.name}" — changelog timeline`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           orderBy: [{ column: axis.name, dir: 'desc' }],
@@ -1140,7 +1142,8 @@ const feedsTimeline: CandidateRule = {
   },
 };
 
-/** Annex §5 — "date/timestamp column + title-ish text column → `calendar-month` + `day-agenda`". */
+/** Annex — "date/timestamp column + title-ish text column → `calendar-month` +
+ * `day-agenda`". */
 const calendarMonth: CandidateRule = {
   id: 'calendar.date-title',
   family: 'calendar',
@@ -1167,7 +1170,7 @@ const calendarMonth: CandidateRule = {
         shape: 'calendar-events',
         family: 'calendar',
         rule: 'calendar.date-title',
-        reason: `date "${date.name}" + title "${view.displayColumn}" — month calendar (annex §5)`,
+        reason: `date "${date.name}" + title "${view.displayColumn}" — month calendar`,
         binding: binding(),
         config: { title: humanize(view.table.name), ...config },
       },
@@ -1177,7 +1180,7 @@ const calendarMonth: CandidateRule = {
         shape: 'calendar-events',
         family: 'calendar',
         rule: 'calendar.date-title',
-        reason: `date "${date.name}" + title "${view.displayColumn}" — day agenda beside the calendar (annex §5)`,
+        reason: `date "${date.name}" + title "${view.displayColumn}" — day agenda beside the calendar`,
         binding: binding(),
         config: { title: 'Agenda', ...config },
       },
@@ -1185,7 +1188,7 @@ const calendarMonth: CandidateRule = {
   },
 };
 
-/** Annex §5 — "FK-to-people + date + enum(type) → `schedule-matrix`". */
+/** Annex — "FK-to-people + date + enum(type) → `schedule-matrix`". */
 const calendarScheduleMatrix: CandidateRule = {
   id: 'calendar.person-date-shift',
   family: 'calendar',
@@ -1208,7 +1211,7 @@ const calendarScheduleMatrix: CandidateRule = {
         shape: 'record-list',
         family: 'calendar',
         rule: 'calendar.person-date-shift',
-        reason: `person FK "${person.name}" × date "${date.name}" × type "${type.name}" — shift matrix (annex §5)`,
+        reason: `person FK "${person.name}" × date "${date.name}" × type "${type.name}" — shift matrix`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           orderBy: [{ column: date.name, dir: 'asc' }],
@@ -1225,7 +1228,7 @@ const calendarScheduleMatrix: CandidateRule = {
   },
 };
 
-/** Annex §5 — "numeric hours + FK person + FK project → `capacity-board`". */
+/** Annex — "numeric hours + FK person + FK project → `capacity-board`". */
 const calendarCapacityBoard: CandidateRule = {
   id: 'calendar.hours-per-project',
   family: 'calendar',
@@ -1243,7 +1246,7 @@ const calendarCapacityBoard: CandidateRule = {
         shape: 'record-list',
         family: 'calendar',
         rule: 'calendar.hours-per-project',
-        reason: `hours "${hours.name}" × person "${person.name}" × project "${project.name}" — capacity board (annex §5)`,
+        reason: `hours "${hours.name}" × person "${person.name}" × project "${project.name}" — capacity board`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           limit: 500,
@@ -1260,13 +1263,13 @@ const calendarCapacityBoard: CandidateRule = {
 };
 
 /**
- * Annex §6 — "status-like enum (≤6 values, names matching `todo|progress|…` or
+ * Annex — "status-like enum (≤6 values, names matching `todo|progress|…` or
  * LLM-classified as workflow states) → kanban candidate alongside the
  * `data-grid`; **second orthogonal enum or team FK → swimlanes**; numeric
  * `pct/progress` column → card progress bar".
  *
  * One rule, two widget ids: the lane dimension *is* the discriminator between
- * `kanban-board` and `kanban-swimlane-grid` (annex §14 lists them as one
+ * `kanban-board` and `kanban-swimlane-grid` (annex lists them as one
  * composition, "`kanban-board`/`kanban-swimlane-grid` … optional lane
  * dimension"). Emitting both and letting them fight over `page-board`'s slot on
  * score would make the winner an artefact of modifier arithmetic; picking here
@@ -1301,8 +1304,8 @@ const boardsKanban: CandidateRule = {
         rule: 'boards.workflow-enum',
         reason:
           lane === null
-            ? `workflow enum "${status.name}" with ${status.enumValues.length} states — kanban columns (annex §6)`
-            : `workflow enum "${status.name}" × lane dimension "${lane.name}" — swimlane grid (annex §6)`,
+            ? `workflow enum "${status.name}" with ${status.enumValues.length} states — kanban columns`
+            : `workflow enum "${status.name}" × lane dimension "${lane.name}" — swimlane grid`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           limit: 200,
@@ -1320,7 +1323,7 @@ const boardsKanban: CandidateRule = {
   },
 };
 
-/** Annex §7 — "paired `lat`/`lng` … numeric columns → `map-bubble`". */
+/** Annex — "paired `lat`/`lng` … numeric columns → `map-bubble`". */
 const geoMapBubble: CandidateRule = {
   id: 'geo.lat-lng-pair',
   family: 'geo',
@@ -1335,7 +1338,7 @@ const geoMapBubble: CandidateRule = {
         shape: 'geo-points',
         family: 'geo',
         rule: 'geo.lat-lng-pair',
-        reason: `lat/lng pair "${lat.name}"/"${lng.name}" — bubble map (annex §7)`,
+        reason: `lat/lng pair "${lat.name}"/"${lng.name}" — bubble map`,
         binding: descriptor(view, ctx, 'geo-points', {
           select: listSelect(view),
           limit: 1000,
@@ -1346,7 +1349,8 @@ const geoMapBubble: CandidateRule = {
   },
 };
 
-/** Annex §8 — "column typed storage-URL or named file|attachment|… → `attachment-list`". */
+/** Annex — "column typed storage-URL or named file|attachment|… →
+ * `attachment-list`". */
 const mediaAttachmentList: CandidateRule = {
   id: 'media.file-ref',
   family: 'media',
@@ -1360,7 +1364,7 @@ const mediaAttachmentList: CandidateRule = {
         shape: 'record-list',
         family: 'media',
         rule: 'media.file-ref',
-        reason: `file reference "${file.name}" — attachment list (annex §8)`,
+        reason: `file reference "${file.name}" — attachment list`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           limit: 50,
@@ -1371,7 +1375,7 @@ const mediaAttachmentList: CandidateRule = {
   },
 };
 
-/** Annex §8 — "`image-board`/`card-gallery` thumbnails when multiple images". */
+/** Annex — "`image-board`/`card-gallery` thumbnails when multiple images". */
 const mediaImageBoard: CandidateRule = {
   id: 'media.image-url',
   family: 'media',
@@ -1386,7 +1390,7 @@ const mediaImageBoard: CandidateRule = {
         shape: 'record-list',
         family: 'media',
         rule: 'media.image-url',
-        reason: `image column "${image.name}" — thumbnail board (annex §8)`,
+        reason: `image column "${image.name}" — thumbnail board`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           limit: 60,
@@ -1397,7 +1401,7 @@ const mediaImageBoard: CandidateRule = {
   },
 };
 
-/** Annex §8 — "table with name+size+parent self-FK → `file-browser`". */
+/** Annex — "table with name+size+parent self-FK → `file-browser`". */
 const mediaFileBrowser: CandidateRule = {
   id: 'media.file-shaped-table',
   family: 'media',
@@ -1410,7 +1414,7 @@ const mediaFileBrowser: CandidateRule = {
         shape: 'record-list',
         family: 'media',
         rule: 'media.file-shaped-table',
-        reason: `file-shaped table (name + size + file reference) — file browser (annex §8)`,
+        reason: `file-shaped table (name + size + file reference) — file browser`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           limit: 200,
@@ -1425,7 +1429,7 @@ const mediaFileBrowser: CandidateRule = {
   },
 };
 
-/** Annex §8 — "URL columns → `link-list`". */
+/** Annex — "URL columns → `link-list`". */
 const mediaLinkList: CandidateRule = {
   id: 'media.url-column',
   family: 'media',
@@ -1439,7 +1443,7 @@ const mediaLinkList: CandidateRule = {
         shape: 'record-list',
         family: 'media',
         rule: 'media.url-column',
-        reason: `URL column "${url.name}" — link list (annex §8)`,
+        reason: `URL column "${url.name}" — link list`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           limit: 50,
@@ -1451,8 +1455,9 @@ const mediaLinkList: CandidateRule = {
 };
 
 /**
- * Annex §9 — "table pair shaped like conversations(id, participants) +
- * messages(conversation_fk, sender_fk, body, created_at) → `conversation-inbox`
+ * Annex — "table pair shaped like conversations(id, participants) +
+ * messages(conversation_fk, sender_fk, body, created_at) →
+ * `conversation-inbox`
  * + `chat-thread` page". Emitted on the **conversation** side (the page's
  * subject); the thread binds to the messages child.
  */
@@ -1471,7 +1476,7 @@ const communicationPair: CandidateRule = {
         shape: 'record-list',
         family: 'communication',
         rule: 'communication.conversation-message-pair',
-        reason: `conversation table paired with messages "${messages.table.id}" — inbox rail (annex §9)`,
+        reason: `conversation table paired with messages "${messages.table.id}" — inbox rail`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           limit: 100,
@@ -1484,7 +1489,7 @@ const communicationPair: CandidateRule = {
         shape: 'record-list',
         family: 'communication',
         rule: 'communication.conversation-message-pair',
-        reason: `messages "${messages.table.id}" of ${view.table.id} — chat thread pane (annex §9)`,
+        reason: `messages "${messages.table.id}" of ${view.table.id} — chat thread pane`,
         binding: siblingDescriptor(messages, ctx, 'record-list', {
           select: listSelect(messages),
           ...(axis === null ? {} : { orderBy: [{ column: axis.name, dir: 'asc' as const }] }),
@@ -1496,7 +1501,7 @@ const communicationPair: CandidateRule = {
   },
 };
 
-/** Annex §13 — "self-FK on a people table (`manager_id`) → `org-chart`". */
+/** Annex — "self-FK on a people table (`manager_id`) → `org-chart`". */
 const domainOrgChart: CandidateRule = {
   id: 'domain.people-self-fk',
   family: 'domain',
@@ -1510,7 +1515,7 @@ const domainOrgChart: CandidateRule = {
         shape: 'hierarchy/tree',
         family: 'domain',
         rule: 'domain.people-self-fk',
-        reason: `people table with self-FK "${view.hierarchyColumn}" — org chart (annex §13)`,
+        reason: `people table with self-FK "${view.hierarchyColumn}" — org chart`,
         binding: descriptor(view, ctx, 'hierarchy/tree', {
           select: listSelect(view),
           limit: 500,
@@ -1525,7 +1530,7 @@ const domainOrgChart: CandidateRule = {
   },
 };
 
-/** Annex §13 — "start+end dates + phase FK → `gantt-chart`". */
+/** Annex — "start+end dates + phase FK → `gantt-chart`". */
 const domainGanttChart: CandidateRule = {
   id: 'domain.start-end-phase',
   family: 'domain',
@@ -1544,7 +1549,7 @@ const domainGanttChart: CandidateRule = {
         rule: 'domain.start-end-phase',
         reason: `start/end pair "${start.name}"/"${start.pair.partner}"${
           phase === null ? '' : ` + phase FK "${phase.name}"`
-        } — gantt chart (annex §13)`,
+        } — gantt chart`,
         binding: descriptor(view, ctx, 'record-list', {
           select: listSelect(view),
           orderBy: [{ column: start.name, dir: 'asc' }],
@@ -1565,7 +1570,7 @@ const domainGanttChart: CandidateRule = {
 
 /* ------------------------------------------------- cross-table predicates */
 
-/** Annex §8 `page-files` shape: a display name + a size numeric or a file ref. */
+/** Annex `page-files` shape: a display name + a size numeric or a file ref. */
 export function isFileShaped(view: CandidateView): boolean {
   if (view.displayColumn === null) return false;
   const hasSize = view.columns.some(
@@ -1574,12 +1579,12 @@ export function isFileShaped(view: CandidateView): boolean {
   const hasFileRef = view.columns.some((c) => c.semantic === 'file-ref');
   // name + size + parent self-FK (the annex's literal trigger), or the weaker
   // name + explicit file reference — an attachments table with a storage URL and
-  // no size column, which §14's "or storage integration" clause is exactly about.
+  // no size column, which is what the "or storage integration" clause covers.
   return (hasSize && view.hierarchyColumn !== null) || hasFileRef;
 }
 
 /**
- * The messages child of a conversation container (annex §9): a `messages`-role
+ * The messages child of a conversation container (annex): a `messages`-role
  * table with an FK back to `view`. Returns the child's view, or null.
  */
 export function messagesChildOf(
@@ -1604,59 +1609,59 @@ export function messagesChildOf(
 /* -------------------------------------------------------------- rule table */
 
 /**
- * Every rule, in family order (04 §8 `candidateRules`). Order here is only a
+ * Every rule, in family order (`candidateRules`). Order here is only a
  * reading aid — {@link emitCandidates} imposes a total order on the output.
  */
 export const candidateRules: readonly CandidateRule[] = [
-  // §1 KPI / Stat
+  // KPI / Stat
   kpiCountTotal,
   kpiMoneySum,
   kpiNewThisPeriod,
   kpiStatusCount,
   kpiScoreGauge,
   kpiStorageUsage,
-  // §2 Charts
+  // Charts
   chartsHeroTimeseries,
   chartsTimeHeatmap,
   chartsCategoricalDonut,
   chartsScatter,
   chartsDurationBoxplot,
   chartsGeoRegion,
-  // §3 Tables & Lists
+  // Tables & Lists
   tablesDataGrid,
   tablesMasterDetail,
   tablesCardGallery,
   tablesLogTable,
   tablesTree,
-  // §4 Feeds
+  // Feeds
   feedsActivity,
   feedsNotification,
   feedsRealtime,
   feedsTimeline,
-  // §5 Calendar
+  // Calendar
   calendarMonth,
   calendarScheduleMatrix,
   calendarCapacityBoard,
-  // §6 Boards
+  // Boards
   boardsKanban,
-  // §7 Geo
+  // Geo
   geoMapBubble,
-  // §8 Media
+  // Media
   mediaAttachmentList,
   mediaImageBoard,
   mediaFileBrowser,
   mediaLinkList,
-  // §9 Communication
+  // Communication
   communicationPair,
-  // §13 Domain
+  // Domain
   domainOrgChart,
   domainGanttChart,
 ];
 
 /**
- * H2 per-family caps. §8's listing fixes the dashboard-facing ones — "≤4 KPI
+ * H2 per-family caps. The listing fixes the dashboard-facing ones — "≤4 KPI
  * candidates per dashboard, exactly 1 hero chart, ≤4 secondary charts" (charts
- * = 1 + 4) — and the remaining families cap at the widest slot any §14 template
+ * = 1 + 4) — and the remaining families cap at the widest slot any template
  * offers them, so pruning can never starve a template.
  */
 export const FAMILY_CAPS: Readonly<Record<WidgetFamily, number>> = {
@@ -1669,9 +1674,9 @@ export const FAMILY_CAPS: Readonly<Record<WidgetFamily, number>> = {
   geo: 1,
   media: 4,
   communication: 2,
-  forms: 0, // page chrome, not candidates (annex §10 — the crud form owns them)
-  chrome: 0, // app shell, mounted by the template's `chrome` block (annex §11)
-  system: 0, // states/pills wired by the host widgets themselves (annex §12)
+  forms: 0, // page chrome, not candidates — the crud form owns them
+  chrome: 0, // app shell, mounted by the template's `chrome` block
+  system: 0, // states/pills wired by the host widgets themselves
   domain: 2,
 };
 
@@ -1702,7 +1707,7 @@ export function emitCandidates(
   ctx: CandidateContext,
 ): WidgetCandidate[] {
   const view = buildCandidateView(table, classified);
-  // System and join tables are never paged (05 §8.2) — they get no widgets.
+  // System and join tables are never paged — they get no widgets.
   if (view.role === 'system' || view.role === 'join-table') return [];
 
   const emitted: { candidate: WidgetCandidate; order: number }[] = [];
@@ -1729,9 +1734,9 @@ export function emitCandidates(
 }
 
 /**
- * **H1 for a whole model** — 04 §8's `emitCandidates(schemaModel)`, keyed by
- * table id. `ctx.model` is threaded through automatically so cross-table rules
- * (annex §9's conversation+message pair) see every table.
+ * **H1 for a whole model** — `emitCandidates(schemaModel)`, keyed by table id.
+ * `ctx.model` is threaded through automatically so cross-table rules (annex
+ * conversation+message pair) see every table.
  */
 export function emitModelCandidates(
   model: readonly CandidateTableInput[],

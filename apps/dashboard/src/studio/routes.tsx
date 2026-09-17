@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Studio route factory (09 §8.1) — mounted under the authed app layout by
+ * Studio route factory — mounted under the authed app layout by
  * app/router.tsx. Routes this wave:
  *
- * - `/studio`                        → connections manager hub (M5-T05)
- * - `/studio/connect`                → connect wizard (M5-T01/02/03)
- * - `/studio/pages`                  → page manager (08 §2.6 lifecycle surface)
- * - `/studio/settings`               → workspace settings hub (M5-T05)
- * - `/studio/public-api`             → the scoped public API: switch, scopes, keys
- *   (28-public-surface.md §3, 28-T13). LAZY like its siblings — see the note below.
- * - `/studio/apps`                   → hosted app surfaces: placement + domain
- *   attachment (29-app-surfaces.md §3.1, 29-T17). LAZY like its siblings.
+ * - `/studio` → connections manager hub
+ * - `/studio/connect` → connect wizard (/02/03)
+ * - `/studio/pages` → page manager (lifecycle surface)
+ * - `/studio/settings` → workspace settings hub
+ * - `/studio/settings/project`       → the project folder this server runs, its
+ *   hooks and actions (super admins). LAZY like its siblings.
+ * - `/studio/public-api` → the scoped public API: switch, scopes, keys. LAZY like
+ * its siblings — see the note below.
+ * - `/studio/apps` → hosted app surfaces: placement + domain attachment. LAZY
+ * like its siblings.
  * - `/studio/remap/$connectionId`    → schema remap editor — OWNED BY THE
  *   REMAP AGENT. Contract: `./remap/RemapEditor.tsx` exports
  *   `RemapEditor({ connectionId }: { connectionId: string })`. Loaded
@@ -42,7 +44,7 @@ import { takeBridgeTicket } from './connect/bridgeSeed.js';
 // `takeBridgeTicket` stays static: it is a tiny module read in a state
 // initialiser before the wizard renders, so deferring it would race the ticket.
 //
-// Their STRINGS are deferred too, since 10-T06: the `studio` message namespace
+// Their STRINGS are deferred too, since: the `studio` message namespace
 // is fetched by `StudioBody` below rather than bundled, which took the last
 // ~15 KiB gz of admin-console text out of everybody else's first load. That is
 // the half no amount of lazy-loading a component could reach — every en-US key
@@ -88,6 +90,11 @@ const StoragePageLazy = lazy(async () => {
   return { default: mod.StoragePage };
 });
 
+const ProjectSettingsPageLazy = lazy(async () => {
+  const mod = await import('./project/ProjectSettingsPage.js');
+  return { default: mod.ProjectSettingsPage };
+});
+
 const StudioAiPageLazy = lazy(async () => {
   const mod = await import('./ai/StudioAiPage.js');
   return { default: mod.StudioAiPage };
@@ -117,7 +124,7 @@ interface RemapEditorModule {
 const remapModules = import.meta.glob('./remap/RemapEditor.tsx');
 
 // --- review contract (screen owned by T14, may land later) -------------------
-// The LLM-run review-diff screen (06 §10.3) is delivered separately. We register
+// The LLM-run review-diff screen is delivered separately. We register
 // its route here — the single registration point, mirroring the remap contract —
 // so the run-history rows on Settings → AI can navigate to it. It is loaded
 // lazily from `./llm-runs/ReviewScreen.tsx` exporting
@@ -138,7 +145,7 @@ function RemapUnavailable() {
         title={t('studio:remap.unavailableTitle', 'Schema remap editor not available')}
         body={t(
           'studio:remap.unavailableBody',
-          'This build does not include the remap editor yet (09-T12). Re-run generation after it lands to remap labels, types and relations.',
+          'This build does not include the remap editor yet. Re-run generation after it lands to remap labels, types and relations.',
         )}
       />
     </PageSurface>
@@ -160,7 +167,7 @@ function ReviewUnavailable() {
         title={t('studio:review.unavailableTitle', 'Review screen not available')}
         body={t(
           'studio:review.unavailableBody',
-          'This build does not include the enrichment review screen yet (06-T14). It lands with the diff-and-apply flow.',
+          'This build does not include the enrichment review screen yet. It lands with the diff-and-apply flow.',
         )}
       />
     </PageSurface>
@@ -277,7 +284,19 @@ function SettingsRouteComponent() {
           onOpenStorage={() => void navigate({ to: '/studio/storage' })}
           onOpenAddOns={() => void navigate({ to: '/studio/add-ons' })}
           onOpenPublicApi={() => void navigate({ to: '/studio/public-api' })}
+          onOpenProject={() => void navigate({ to: '/studio/settings/project' })}
         />
+      </StudioBody>
+    </StudioGuard>
+  );
+}
+
+function ProjectSettingsRouteComponent() {
+  const navigate = useNavigate();
+  return (
+    <StudioGuard>
+      <StudioBody>
+        <ProjectSettingsPageLazy onOpenPages={() => void navigate({ to: '/studio/pages' })} />
       </StudioBody>
     </StudioGuard>
   );
@@ -400,9 +419,9 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
   }
 
   /*
-   * `/studio/documents` (34 §3.7, 34-T14) — document MAPPINGS, not authoring.
-   * Lazy like every Studio surface: an admin-only screen a handful of people
-   * open occasionally has no business in everybody's entry chunk.
+   * `/studio/documents` — document MAPPINGS, not authoring. Lazy like every
+   * Studio surface: an admin-only screen a handful of people open
+   * occasionally has no business in everybody's entry chunk.
    */
   const documentsRoute = createRoute({
     getParentRoute: () => parent,
@@ -420,6 +439,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     getParentRoute: () => parent,
     path: '/studio/settings/ai',
     component: AiSettingsRouteComponent,
+  });
+
+  const projectSettingsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/settings/project',
+    component: ProjectSettingsRouteComponent,
   });
 
   const reviewRoute = createRoute({
@@ -489,6 +514,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     documentsRoute,
     settingsRoute,
     aiSettingsRoute,
+    projectSettingsRoute,
     publicApiRoute,
     hostedAppsRoute,
     storageRoute,

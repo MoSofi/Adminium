@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The staged validation pipeline (06-llm-assist.md §7.2/§7.3) + the fixture
- * corpus (§6.2/§6.3).
+ * The staged validation pipeline + the fixture corpus.
  *
  * Locks (acceptance criteria 3–5):
- *  - `responses/valid-demo.json` (§6.3) passes stages 1–7 with ZERO errors and
- *    ZERO warnings against `demo-schema.json` (§6.2), and nothing is pruned.
+ * - `responses/valid-demo.json` passes stages 1–7 with ZERO errors and ZERO
+ *  warnings against `demo-schema.json`, and nothing is pruned.
  *  - every `responses/invalid-*.json` yields its documented code + JSON path,
  *    with the correct fatal-vs-per-item behaviour.
  *  - one hallucinated table drops only its own suggestions + the dashboard
@@ -33,9 +32,9 @@ const snapshot: DatabaseModel = parseDatabaseModel(fixture('demo-schema.json'));
  * The recommendable page-template vocabulary — `LLM_ALLOWED_TEMPLATES` as
  * `@adminium/widgets` derives it: `page-dashboard` + the nine data-shaped M7
  * archetypes. Deliberately excludes `page-crud` (always generated, rejected
- * with its bespoke message — 06 §5 decision 6) and the tool surfaces
- * (`page-builder` / `page-wizard` / `page-settings`), which are renderable but
- * never recommendable, so membership alone rejects them.
+ * with its bespoke message) and the tool surfaces (`page-builder` /
+ * `page-wizard` / `page-settings`), which are renderable but never
+ * recommendable, so membership alone rejects them.
  */
 const ALLOWED_TEMPLATES = [
   'page-dashboard',
@@ -50,7 +49,7 @@ const ALLOWED_TEMPLATES = [
   'page-chat',
 ] as const;
 
-/** The curated dashboard-widget subset (06 §5 builder notes). */
+/** The curated dashboard-widget subset (builder notes). */
 const ALLOWED_WIDGETS = [
   'kpi-stat-card',
   'kpi-progress',
@@ -70,7 +69,7 @@ const ALLOWED_WIDGETS = [
   'activity-feed',
 ] as const;
 
-/** Context for the two-locale golden run (§6.3 requested `["en_US","de_DE"]`). */
+/** Context for the two-locale golden run (requested `["en_US","de_DE"]`). */
 const demoCtx: ValidationContext = {
   snapshot,
   locales: ['en_US', 'de_DE'],
@@ -87,7 +86,7 @@ const corpusCtx: ValidationContext = {
   allowedWidgets: ALLOWED_WIDGETS,
 };
 
-/* ------------------------------------------------- valid golden (§6.3) */
+/* ------------------------------------------------- valid golden */
 
 describe('valid-demo.json — golden response (acceptance criterion 3)', () => {
   const result = validateResponse(fixture('responses/valid-demo.json'), demoCtx);
@@ -224,7 +223,7 @@ describe('invalid-*.json corpus — documented code + JSON path', () => {
 
 /* --------------- non-canonical locale key is per-item, not fatal (stage 5) */
 
-describe('non-canonical locale key stays a per-item drop (§7.2 stage 5)', () => {
+describe('non-canonical locale key stays a per-item drop (stage 5)', () => {
   // A stray BCP-47 / unrequested key on ONE column must not fail the whole run
   // at Zod (stage 4); stage 5 drops only that suggestion and keeps the rest.
   const response = JSON.stringify({
@@ -295,7 +294,7 @@ describe('hallucinated-table isolation (acceptance criterion 4)', () => {
 
 /* ---------------- pseudo-enum acceptance + stub rejection (findings 5 & 7) */
 
-describe('pseudo-enum acceptance + stub-table rejection (§7.3)', () => {
+describe('pseudo-enum acceptance + stub-table rejection', () => {
   const demoStats: StatsResult[] = [
     {
       table: { schema: 'public', name: 'customers' },
@@ -414,9 +413,9 @@ describe('schema_version negotiation through the pipeline (criterion 5)', () => 
   });
 });
 
-/* -------------------- template vocabulary = recommendable ids only (§7.3) */
+/* -------------------- template vocabulary = recommendable ids only */
 
-describe('page-template suggestions against the recommendable vocabulary (06 §5 decision 6)', () => {
+describe('page-template suggestions against the recommendable vocabulary', () => {
   // One coherent contract: the prompt injects only recommendable ids and this
   // same list is the referential membership check. A recommendable M7
   // archetype (`page-board`) survives; a renderable-but-not-recommendable tool

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `communication` family (annex §9, Track COMM): render + behaviour tests for
+ * `communication` family (annex, Track COMM): render + behaviour tests for
  * conversation-inbox, chat-thread, and ai-chat-panel.
  *
  * The RTL suite is the load-bearing one (acceptance #9). happy-dom does no
@@ -79,7 +79,7 @@ function message(id: string, own: boolean, body: string, offsetMs: number, autho
   };
 }
 
-/** Every physical-direction Tailwind utility the RTL policy bans (10 §5.2). */
+/** Every physical-direction Tailwind utility the RTL policy bans. */
 const PHYSICAL = /(^|\s)-?(ml|mr|pl|pr)-|(^|\s)-?(left|right)-|(^|\s)border-(l|r)(-|\s|$)|(^|\s)rounded-(l|r|tl|tr|bl|br)(-|\s|$)|(^|\s)text-(left|right)(\s|$)/;
 
 function allClassNames(root: HTMLElement): string[] {
@@ -98,7 +98,7 @@ describe('chat-lib helpers', () => {
   });
 
   /**
-   * The canonical §3 `record-list` these widgets DECLARE as their dataContract,
+   * The canonical `record-list` these widgets DECLARE as their dataContract,
    * and the exact shape the server's `ShapedRecordList` shaper returns. Reading
    * only `data`/`snapshot` meant a generated chat page rendered an inbox, a
    * thread and an AI panel all claiming "no messages" against a live payload of
@@ -654,7 +654,7 @@ describe('communication demoData is deterministic and schema-shaped', () => {
       expect(schema.safeParse({}).success).toBe(true);
     });
 
-    // The CANONICAL §3 envelope — `{ rows, total }`, exactly what the server's
+    // The CANONICAL envelope — `{ rows, total }`, exactly what the server's
     // `ShapedRecordList` returns. Asserting the canonical key here is what keeps
     // the generators honest about the contract the widgets declare: they used to
     // emit `{ data }`, which `chatRowsOf` happened to read while the real server
@@ -682,7 +682,7 @@ describe('communication demoData is deterministic and schema-shaped', () => {
   });
 });
 
-describe('communication registry definitions (annex §9)', () => {
+describe('communication registry definitions (annex)', () => {
   const definitions = [conversationInboxDefinition, chatThreadDefinition, aiChatPanelDefinition];
 
   it('registers the exact annex ids in the communication family', () => {
@@ -692,7 +692,7 @@ describe('communication registry definitions (annex §9)', () => {
 
   it('binds record-list and declares annex sizing in 40px half-units', () => {
     expect(definitions.every((d) => d.dataContract === 'record-list')).toBe(true);
-    // annex min 3×5 / 6×5 / 4×5 → minH = round(rows × 2) = 10 (04 §6.1)
+    // annex min 3×5 / 6×5 / 4×5 → minH = round(rows × 2) = 10
     expect(definitions.map((d) => [d.sizing.minW, d.sizing.minH])).toEqual([
       [3, 10],
       [6, 10],
@@ -709,10 +709,10 @@ describe('communication registry definitions (annex §9)', () => {
     expect(callWidgetDefinition.capabilities?.editsData).toBe(true);
   });
 
-  it('registers the Wave-4 tail with the exact annex ids and §3 contracts', () => {
+  it('registers the Wave-4 tail with the exact annex ids contracts', () => {
     expect(typingIndicatorDefinition.id).toBe('typing-indicator');
     expect(callWidgetDefinition.id).toBe('call-widget');
-    // annex §9: "boolean per conversation" and "{kind, peer, state}".
+    // annex: "boolean per conversation" and "{kind, peer, state}".
     expect(typingIndicatorDefinition.dataContract).toBe('boolean-map');
     expect(callWidgetDefinition.dataContract).toBe('record');
   });
@@ -725,8 +725,8 @@ describe('communication registry definitions (annex §9)', () => {
   /**
    * page-chat.json holds a 3×6 optional `call` slot open for this widget. A slot
    * shorter than the widget's registered minimum persists a layout item below
-   * the widget's own enforced floor (04 §6.1), so it renders clipped and reflows
-   * on the first drag in edit mode.
+   * the widget's own enforced floor, so it renders clipped and reflows on the
+   * first drag in edit mode.
    */
   it('sizes call-widget to fit page-chat’s call slot (3×6)', () => {
     expect(callWidgetDefinition.sizing.minW).toBeLessThanOrEqual(3);
@@ -734,7 +734,7 @@ describe('communication registry definitions (annex §9)', () => {
   });
 });
 
-describe('communication tail demoData (04 §7.7)', () => {
+describe('communication tail demoData', () => {
   it('typing-indicator: deterministic per seed, and varies across seeds', () => {
     expect(JSON.stringify(typingIndicatorDemoData(7))).toBe(JSON.stringify(typingIndicatorDemoData(7)));
     const payloads = new Set([0, 1, 7, 42, 1234, 65_535].map((s) => JSON.stringify(typingIndicatorDemoData(s))));
@@ -773,10 +773,10 @@ describe('communication tail demoData (04 §7.7)', () => {
   });
 });
 
-// ── typing-indicator (annex §9) ─────────────────────────────────────────────
+// ── typing-indicator (annex) ────────────────────────────────────────────────
 
 describe('typingEntriesOf / isTypingIn', () => {
-  it('reads the §3 boolean-map envelope', () => {
+  it('reads the boolean-map envelope', () => {
     expect(typingEntriesOf({ entries: { c1: true, c2: false } })).toEqual({ c1: true, c2: false });
   });
 
@@ -851,7 +851,7 @@ describe('typing-indicator', () => {
     expect(screen.getByText('typing…')).toBeTruthy();
   });
 
-  it('uses no physical-direction utility (10 §5.2)', () => {
+  it('uses no physical-direction utility', () => {
     const { container } = render(<TypingIndicator typing typists={['Morgan Lee']} label="typing…" />);
     expect(allClassNames(container).filter((name) => PHYSICAL.test(name))).toEqual([]);
   });
@@ -897,10 +897,10 @@ describe('typing-indicator', () => {
   });
 });
 
-// ── call-widget (annex §9) ──────────────────────────────────────────────────
+// ── call-widget (annex) ─────────────────────────────────────────────────────
 
 describe('recordRowOf / call coercion', () => {
-  it('reads the §3 record envelope and the bare-object shorthand', () => {
+  it('reads the record envelope and the bare-object shorthand', () => {
     expect(recordRowOf({ row: { peer: 'Morgan Lee' } })).toEqual({ peer: 'Morgan Lee' });
     expect(recordRowOf({ peer: 'Morgan Lee' })).toEqual({ peer: 'Morgan Lee' });
     expect(recordRowOf({ row: null })).toBeNull();
@@ -929,7 +929,7 @@ describe('call-widget', () => {
   /**
    * The ring is decoration. Under `prefers-reduced-motion` it must not animate —
    * hence `motion-safe:`, not a bare `animate-ping` — and the meaning has to
-   * survive its absence, which is what the state label is for (02 §6).
+   * survive its absence, which is what the state label is for.
    */
   it('animates the ring only under motion-safe, and states the call in text regardless', () => {
     const { container } = render(<CallWidget peer="Morgan Lee" kind="voice" state="ringing" stateLabel="Ringing…" />);
@@ -965,7 +965,7 @@ describe('call-widget', () => {
     expect(screen.getByText('No active call')).toBeTruthy();
   });
 
-  it('uses no physical-direction utility (10 §5.2)', () => {
+  it('uses no physical-direction utility', () => {
     const { container } = render(<CallWidget peer="Morgan Lee" kind="video" state="ringing" />);
     expect(allClassNames(container).filter((name) => PHYSICAL.test(name))).toEqual([]);
   });

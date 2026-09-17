@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Auth flow requests (§2.1 step-up). Two things are load-bearing here and
+ * Auth flow requests (step-up). Two things are load-bearing here and
  * neither is visible from a screen test.
  *
  * `login` has to tell a 200 SESSION from a 202 CHALLENGE, and it reads BOTH
@@ -148,7 +148,7 @@ describe('the 2FA challenge in sessionStorage', () => {
     expect(readChallenge()).toEqual({ challengeToken: 'chal_1', returnTo: null, next: null });
   });
 
-  it('round-trips the surface gate’s next target, path-only (29 D4)', () => {
+  it('round-trips the surface gate’s next target, path-only', () => {
     storeChallenge('chal_1', undefined, '/schedule');
     expect(readChallenge()).toEqual({ challengeToken: 'chal_1', returnTo: null, next: '/schedule' });
     // A stored non-path is dropped on READ — sessionStorage is same-origin

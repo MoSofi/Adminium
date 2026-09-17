@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The mapping editor's rules (34-invoices-add-on.md §3.7 steps 2–4; 34-T14).
+ * The mapping editor's rules (steps 2–4).
  *
  * The page is a form; these are its decisions, and they are tested apart from
  * it because they are what a later change is most likely to get wrong — in
@@ -209,7 +209,7 @@ describe('the provider’s own words', () => {
   });
 });
 
-describe('which slots may be given a typed value (§3.7 step 4)', () => {
+describe('which slots may be given a typed value', () => {
   it('offers it on an optional scalar', () => {
     expect(mayTypeValue({ type: 'percent', required: false })).toBe(true);
   });

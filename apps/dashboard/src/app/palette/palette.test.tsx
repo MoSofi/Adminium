@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * ⌘K palette (09-generated-app.md §5.2, M4-T06): fixed group order Actions →
- * Navigate → Recent → Records, client-side nav filtering, the DEBOUNCED async
- * Records group from `GET /api/v1/search` (loading row while in flight,
- * honest empty state after), Recent from localStorage (per-user key, dedup,
- * cap 8), keyboard navigation into a record route, query echoed in the empty
- * state, Ask AI hidden while `llm.enabled` is false, and selection dispatch.
+ * ⌘K palette: fixed group order Actions → Navigate → Recent → Records,
+ * client-side nav filtering, the DEBOUNCED async Records group from `GET
+ * /api/v1/search` (loading row while in flight, honest empty state after),
+ * Recent from localStorage (per-user key, dedup, cap 8), keyboard navigation
+ * into a record route, query echoed in the empty state, Ask AI hidden while
+ * `llm.enabled` is false, and selection dispatch.
  */
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
@@ -127,7 +127,7 @@ describe('CommandPaletteHost', () => {
 
     act(() => vi.advanceTimersByTime(1));
     expect(searchMock).toHaveBeenCalledTimes(1);
-    // 08 §2.9: the palette asks for records only, capped at 3 per group.
+    // The palette asks for records only, capped at 3 per group.
     expect(searchMock).toHaveBeenCalledWith('alf', { limit: 3, types: ['record'] });
   });
 
@@ -145,7 +145,7 @@ describe('CommandPaletteHost', () => {
     const option = await screen.findByRole('option', { name: /Alfreds Futterkiste/ });
     expect(option).toBeDefined();
     expect(screen.getByRole('group', { name: 'Records' })).toBeDefined();
-    // §2.9 "record hits show row context" — the muted subtitle line.
+    // The muted subtitle line.
     expect(screen.getByText('city Berlin · country Germany')).toBeDefined();
     expect(screen.queryByText('Searching records…')).toBeNull();
 
@@ -190,7 +190,7 @@ describe('CommandPaletteHost', () => {
   });
 });
 
-describe('recent.ts (09 §5.2 localStorage shape)', () => {
+describe('recent.ts (localStorage shape)', () => {
   it('dedupes by href (move to front) and caps at 8 entries', () => {
     for (let i = 0; i < 10; i += 1) {
       pushRecent(USER_ID, { type: 'page', label: `Page ${i}`, href: `/p/page-${i}` });
