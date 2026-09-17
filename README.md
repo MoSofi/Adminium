@@ -12,6 +12,28 @@ introspects the structure and relations, and generates a complete, professional,
 
 ## Run it
 
+**A project folder** (Node.js 22.14 or newer, from 0.2.10) — the way to work on
+an admin you want to change and commit:
+
+```sh
+npx @adminiumjs/adminium new my-admin --sample
+cd my-admin
+npm run dev   # → http://localhost:4600
+```
+
+`new` writes the folder, a `.env` holding a generated `ADMINIUM_SECRET`, and a
+pinned `@adminiumjs/adminium` dependency; `--sample` adds a small demo
+database. Without a name, `npx @adminiumjs/adminium new` turns the current
+folder into the project. Its pages and schema customizations are files under
+`pages/` and `schema/`, which `npm run dev` keeps in step with Studio. Its own
+server code goes in `hooks/` and `actions/`, and pages and widgets written in
+React in `pages/` and `widgets/`.
+[Projects](https://docs.adminium.dev/projects/) ·
+[Page files](https://docs.adminium.dev/projects/page-files/) ·
+[Hooks and actions](https://docs.adminium.dev/projects/hooks-and-actions/) ·
+[Pages and widgets](https://docs.adminium.dev/projects/pages-and-widgets/) ·
+[Deploying one](https://docs.adminium.dev/projects/deploy/).
+
 `ADMINIUM_SECRET` is required and must stay **stable** across restarts — it derives
 the encryption key for every stored DSN and API key. Generate it once with
 `openssl rand -hex 32`.
@@ -23,7 +45,7 @@ ADMINIUM_SECRET=$(openssl rand -hex 32) docker compose up
 # → http://localhost:4600 → first-run wizard
 ```
 
-**npm** (Node 22+):
+**npm** (Node.js 22.14 or newer):
 
 ```sh
 npm install -g @adminiumjs/adminium
@@ -31,33 +53,53 @@ export ADMINIUM_SECRET=${ADMINIUM_SECRET:-$(openssl rand -hex 32)}  # save this 
 adminium start   # → http://localhost:4600
 ```
 
+On a server, pin the version (`@adminiumjs/adminium@0.2.10`) and set
+`ADMINIUM_DATA_DIR`. Do not run a server with plain `npx @adminiumjs/adminium`.
+Without a version, npx looks for a newer release on every run. With no
+terminal attached, it installs one without asking, and `start` then migrates
+the meta store to it. [A VPS without Docker](https://docs.adminium.dev/self-hosting/vps/)
+sets up a pinned install under systemd.
+
 Full guides — self-hosting, meta store, LLM assist — at
 [docs.adminium.dev](https://docs.adminium.dev).
 
-### Deploy to a managed host
+## Where Adminium runs
 
-Adminium is a long-running server with a durable meta store, so it runs on any host
-that gives it a process plus a disk (or a managed database). Ready-made configs live
-in [`deploy/`](deploy/):
+Adminium is one long-running Node.js server. It runs on any host that keeps that
+process running and gives it a disk that survives restarts. A host without a
+disk also works, as long as the meta store is a managed Postgres or MySQL
+database and files go to a storage bucket.
 
-| Host | Meta store | Files | Config |
-|------|-----------|-------|--------|
-| Docker / Compose · any VPS | SQLite volume, or external Postgres/MySQL | the data volume | [`docker-compose.yml`](docker-compose.yml) |
-| Render | SQLite on a disk | the disk | [`deploy/render.yaml`](deploy/render.yaml) |
-| Fly.io | SQLite on a volume | the volume, or Tigris via `fly storage create` | [`deploy/fly.toml`](deploy/fly.toml) |
-| DigitalOcean App Platform | managed Postgres | **a storage destination is required** — no local disk | [`deploy/do-app.yaml`](deploy/do-app.yaml) |
-| Railway · Elestio · PikaPods | managed | the volume, or a bucket | see [`deploy/README.md`](deploy/README.md) |
+| Platform | How it runs | Meta store | Files | Setup |
+|----------|-------------|------------|-------|-------|
+| Any VPS or server, e.g. a DigitalOcean Droplet | Docker Compose, or Node.js under systemd | SQLite on the disk, or Postgres/MySQL | the disk | [`docker-compose.yml`](docker-compose.yml) · [VPS guide](https://docs.adminium.dev/self-hosting/vps/) |
+| Railway | the published image, with a volume | SQLite on the volume, or Railway Postgres | the volume, or a bucket | [`deploy/README.md`](deploy/README.md#railway) |
+| Render | the published image, with a disk | SQLite on the disk | the disk | [`deploy/render.yaml`](deploy/render.yaml) |
+| Fly.io | the published image, with a volume | SQLite on the volume | the volume, or Tigris via `fly storage create` | [`deploy/fly.toml`](deploy/fly.toml) |
+| DigitalOcean App Platform | the published image, with no disk | managed Postgres | **a storage destination is required** | [`deploy/do-app.yaml`](deploy/do-app.yaml) |
+
+Docker Compose and the VPS guide have been run end to end. The Railway, Render,
+Fly.io and App Platform setups are written against the published image and have
+not yet been tried on a live account.
 
 *Files* means uploads, record attachments, export artifacts and the branding
 logo. They go to `ADMINIUM_DATA_DIR/files` on the server's own disk unless
 `ADMINIUM_STORAGE_URL` sends them to an S3-compatible bucket or a WebDAV server,
 which is required on a host with no persistent disk and optional everywhere
-else. Backup archives are not among them — those are written straight to
-`ADMINIUM_DATA_DIR/backups` and never follow a destination.
+else. Installed apps and add-ons are not files, and neither are the automatic
+pre-upgrade snapshots of an embedded SQLite store: they always stay in
+`ADMINIUM_DATA_DIR`. So on a host with no persistent disk, every installed app,
+and every add-on the image does not bundle, is lost at each deploy — see
+[`deploy/README.md`](deploy/README.md#apps-and-add-ons-on-a-host-with-no-disk).
 
-**Netlify and Vercel are not supported for the server** — they run
-functions/serverless, not a long-lived process with a durable meta store. "Host
-anywhere" is delivered by Docker, not by a button that fails on boot.
+### Not supported: Vercel and Netlify
+
+Adminium does not have a serverless mode at the moment, so it does not run on
+Vercel or Netlify. Both run code as short-lived functions: Vercel stops an idle
+instance after five minutes and keeps no disk, and Netlify functions cannot hold
+a live connection open. Adminium needs a process that keeps running for its
+background jobs, schedules and live updates. The [example apps](#example-apps)
+are static sites, so those do deploy to either.
 
 _Some managed hosts run a revenue-share or affiliate program; Adminium may earn a
 commission from them, and the price you pay is unchanged._
@@ -130,13 +172,27 @@ name both belong to unrelated parties — so the CLI installs as
 | `packages/meta` | `@adminium/meta` | `adminium_*` meta-store + migrations |
 | `packages/i18n` | `@adminium/i18n` | 8 locales, RTL utils, Intl formatters |
 | `packages/manifest` | `@adminium/manifest` | Micro-SaaS manifest spec + installer |
+| `packages/add-on-contracts` | `@adminium/add-on-contracts` | The typed contracts add-ons fill, and their slot ids |
+| `packages/public-client` | `@adminium/public-client` | Browser client for the scoped public API |
 | `packages/config` | `@adminium/config` | Shared tsconfig/ESLint (incl. `no-style-prop`)/Prettier |
 
 ## Development
 
+Three commands from a fresh clone to a running admin panel:
+
 ```sh
+corepack enable
 pnpm install
-pnpm build && pnpm lint && pnpm typecheck && pnpm test
+pnpm dev
+```
+
+The first `pnpm dev` writes a `.env` with a stable `ADMINIUM_SECRET` and builds a sample database to start on, so there is nothing to configure first. Then:
+
+```sh
+pnpm lint && pnpm typecheck && pnpm test
+pnpm preflight      # every gate CI runs that can run locally, in CI's order
 ```
 
 The design system's in-repo source of truth is `packages/tokens` + `packages/ui`; browse it through the `@adminium/ui` Storybook.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the rest, and the decisions many files rest on are public at [docs.adminium.dev/anatomy/decisions](https://docs.adminium.dev/anatomy/decisions/).

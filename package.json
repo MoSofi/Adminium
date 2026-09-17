@@ -4,10 +4,10 @@
   "license": "AGPL-3.0-only",
   "packageManager": "pnpm@10.28.1",
   "engines": {
-    "node": ">=22"
+    "node": "^22.14.0 || >=23.6.0"
   },
   "scripts": {
-    "dev": "turbo run dev --filter=@adminium/dashboard... --filter=@adminium/server",
+    "dev": "node scripts/dev-setup.mjs && turbo run dev --filter=@adminium/dashboard... --filter=@adminium/server",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -19,12 +19,17 @@
     "check-email-block-vocab": "node scripts/check-email-block-vocab.mjs",
     "check-invoice-block-vocab": "node scripts/check-invoice-block-vocab.mjs",
     "check-invoice-money-fixture": "node scripts/check-invoice-money-fixture.mjs",
+    "check-private-citations": "node scripts/check-private-citations.mjs",
     "check-spdx": "node scripts/check-spdx.mjs",
     "check-tailwind-utilities": "node scripts/check-tailwind-utilities.mjs",
     "openapi": "pnpm --filter @adminium/server run openapi",
     "openapi-check": "pnpm --filter @adminium/server run openapi:check",
+    "server-runtime-deps": "node scripts/release/server-runtime-deps.mjs",
+    "server-runtime-deps-check": "node scripts/release/server-runtime-deps.mjs --check",
     "ir-schema": "pnpm --filter @adminium/engine run ir-schema",
     "ir-schema-check": "pnpm --filter @adminium/engine run ir-schema:check",
+    "project-schemas": "pnpm --filter @adminium/server run project-schemas",
+    "project-schemas-check": "pnpm --filter @adminium/server run project-schemas:check",
     "rest-api-docs": "pnpm --filter @adminium/docs run rest-api",
     "rest-api-docs-check": "pnpm --filter @adminium/docs run rest-api:check",
     "icon-core": "node scripts/gen-icon-core.mjs",
@@ -34,7 +39,8 @@
     "cross-package-tests-check": "node scripts/check-cross-package-tests.mjs --phase=source",
     "cross-package-dist-tests-check": "node scripts/check-cross-package-tests.mjs --phase=dist",
     "generate-notices": "node scripts/generate-notices.mjs",
-    "changeset": "changeset"
+    "changeset": "changeset",
+    "dev-setup": "node scripts/dev-setup.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.0",
