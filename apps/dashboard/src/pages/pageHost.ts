@@ -2,10 +2,9 @@
 /**
  * What `PageRenderer` lends to code that mounts a page template itself: the
  * data adapters and the template registry. The project UI kit's
- * `GeneratedPage` (49-developer-projects.md §6.2) reads them here, as context,
- * because importing the renderer would close a loop: the renderer loads the
- * templates, a template loads the project's pages, and loading those
- * publishes the kit.
+ * `GeneratedPage` reads them here, as context, because importing the renderer
+ * would close a loop: the renderer loads the templates, a template loads the
+ * project's pages, and loading those publishes the kit.
  */
 import { createContext } from 'react';
 import type { PageEnvelope } from '@adminium/engine/config';

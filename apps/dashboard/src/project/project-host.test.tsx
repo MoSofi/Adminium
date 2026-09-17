@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The dashboard side of a project's browser code (49 §6.3–§6.4): the loader
- * (runtime first, integrity-checked preloads, a retry after a failure), the
- * `project-page` template, project cells in a table and project cards on a
- * dashboard, each with its failure states, and the realtime event that makes
- * open pages load a rebuilt file.
+ * The dashboard side of a project's browser code: the loader (runtime first,
+ * integrity-checked preloads, a retry after a failure), the `project-page`
+ * template, project cells in a table and project cards on a dashboard, each
+ * with its failure states, and the realtime event that makes open pages load
+ * a rebuilt file.
  *
  * Modules are handed in through the importer seam; `project-bundle.test.tsx`
  * builds and imports real ones.

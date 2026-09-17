@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A project folder, end to end (49-T28): `adminium new` → `adminium dev` → the
- * folder's files and code in a browser → `adminium start` as a server →
- * `pull --from` → a redeploy with a conflict.
+ * A project folder, end to end: `adminium new` → `adminium dev` → the folder's
+ * files and code in a browser → `adminium start` as a server → `pull --from` →
+ * a redeploy with a conflict.
  *
  * One project for the whole file, run in order: every step builds on the state
  * the one before left, as it would on a developer's machine. The folder, its
@@ -274,7 +274,7 @@ test('a Studio edit in dev lands in its page file, changing only the lines it to
   expect(after).toHaveLength(before.length);
   const changed = after.filter((line, index) => line !== before[index]);
   // The title, and the generated hash: a generated page edited by hand keeps
-  // a hash that no longer matches, so regeneration leaves it alone (49 §4.7).
+  // a hash that no longer matches, so regeneration leaves it alone.
   expect(changed).toEqual(['    "fallback": "Product categories",', expect.stringMatching(/^ {4}"hash": "[0-9a-f]{64}"$/)]);
   const hashLine = after.findIndex((line, index) => line !== before[index] && line.includes('"hash"'));
   expect(after[hashLine - 1]).toBe('  "generated": {');

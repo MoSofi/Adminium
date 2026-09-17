@@ -2,7 +2,7 @@
 /**
  * Publishing the dashboard's React, and the project UI kit, on the host
  * runtime global (`@adminium/add-on-contracts/runtime`), before any project
- * bundle is imported (49-developer-projects.md §6.1).
+ * bundle is imported.
  *
  * A project bundle's `react`, `react/jsx-runtime`, `react-dom` and
  * `@adminiumjs/adminium/ui` imports were replaced at build time by shims that

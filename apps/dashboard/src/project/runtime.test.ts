@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The host runtime this dashboard publishes for project code (49 §6.1): its
- * React is this app's React, and the lists the build's shims re-export still
- * match the React and react-dom this app ships. A React upgrade that adds an
+ * The host runtime this dashboard publishes for project code: its React is
+ * this app's React, and the lists the build's shims re-export still match
+ * the React and react-dom this app ships. A React upgrade that adds an
  * export fails here, before a project library that needs it fails in a page.
  */
 import React from 'react';

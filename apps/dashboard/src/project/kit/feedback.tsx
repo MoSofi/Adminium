@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The UI kit's feedback pieces and icons (49-developer-projects.md §6.2):
- * `toast`, `EmptyState` and `Icon`.
+ * The UI kit's feedback pieces and icons: `toast`, `EmptyState` and
+ * `Icon`.
  */
 
 import { createElement, type ReactNode } from 'react';

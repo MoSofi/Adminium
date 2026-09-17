@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The deferred `project` namespace's contract (49-developer-projects.md §6.3;
- * the twin of `reportBuilderNamespace.test.ts`):
+ * The deferred `project` namespace's contract (the twin of
+ * `reportBuilderNamespace.test.ts`):
  *
  * 1. Every `project:` key must exist in the en-US bundle.
  * 2. Every call site carries an inline fallback that is the catalogue text,

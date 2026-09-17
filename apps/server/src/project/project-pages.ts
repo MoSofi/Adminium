@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The page rows behind a project's hand-written pages, `pages/<slug>.tsx`
- * (49-developer-projects.md §6.3).
+ * The page rows behind a project's hand-written pages,
+ * `pages/<slug>.tsx`.
  *
  * A custom page is a page like any other: a row with an address, a sidebar
  * place and view grants, and the template `project-page`. The code is the
@@ -13,10 +13,9 @@
  *
  * A row is found by its address. A new page gets a fixed id
  * (`projectPageId`), so grants given in Team → Roles survive a restart and a
- * rebuild. A page that replaced its page file (`adminium eject`, 49 §7)
- * keeps the row that file had instead: its id, grants, views, database and
- * data source stay, and regeneration, which only rewrites rows it made,
- * leaves it alone.
+ * rebuild. A page that replaced its page file (`adminium eject`) keeps the
+ * row that file had instead: its id, grants, views, database and data source
+ * stay, and regeneration, which only rewrites rows it made, leaves it alone.
  */
 
 import { createHash } from 'node:crypto';

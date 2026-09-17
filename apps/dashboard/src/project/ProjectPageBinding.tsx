@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The `project-page` template: a page written by hand in the project folder,
- * `pages/<slug>.tsx` (49-developer-projects.md §6.3).
+ * `pages/<slug>.tsx`.
  *
  * The server keeps a page row for it, so it has a sidebar place, an address
  * and the same view grants as any page. The row names the built file

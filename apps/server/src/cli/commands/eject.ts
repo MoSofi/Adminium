@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `adminium eject <address>` — turn a page file into a page written in React
- * (49-developer-projects.md §7).
+ * `adminium eject <address>` — turn a page file into a page written in
+ * React.
  *
  * It writes `pages/<address>.tsx`, which draws the page file's settings with
  * the UI kit's `GeneratedPage`, and deletes `pages/<address>.json`. Only the

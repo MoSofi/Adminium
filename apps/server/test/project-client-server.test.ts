@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A project's pages and widgets inside a composed server (49 §6.3–§6.4): the
- * page rows a build gets, the bootstrap payload that lists the files, the
- * route that serves them, Studio's page routes refusing changes, a rebuild in
- * dev, and nothing at all on the desktop app.
+ * A project's pages and widgets inside a composed server: the page rows a
+ * build gets, the bootstrap payload that lists the files, the route that
+ * serves them, Studio's page routes refusing changes, a rebuild in dev, and
+ * nothing at all on the desktop app.
  *
  * The build is written by hand, as `adminium build` would leave it, so this
  * needs no esbuild (`project-client-build.test.ts` runs the real one).

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The UI kit's layout pieces (49-developer-projects.md §6.2): `Page`, `Card`,
- * `Stack` and `Grid`. Thin on purpose: the design system's own components with
- * the few props a project page needs, so a kit change never follows an
- * internal one by accident.
+ * The UI kit's layout pieces: `Page`, `Card`, `Stack` and `Grid`. Thin on
+ * purpose: the design system's own components with the few props a project
+ * page needs, so a kit change never follows an internal one by accident.
  */
 
 import type { ReactNode } from 'react';

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `GeneratedPage` (49-developer-projects.md §6.2): renders a page config held
- * in code, such as the constant `adminium eject` writes, with the same
- * templates a generated page uses.
+ * `GeneratedPage`: renders a page config held in code, such as the constant
+ * `adminium eject` writes, with the same templates a generated page uses.
  *
  * It mounts the template itself rather than through `PageRenderer`'s
  * `TemplateMount`: the project page around it already has the page gutter,

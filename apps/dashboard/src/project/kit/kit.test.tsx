@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The project UI kit (49 §6.2), piece by piece, as a page written in a project
- * would use it: layout and controls, the data table, toasts through the app's
- * queue, the data hooks against the `/api/v1/data` routes, navigation, and a
- * page config rendered from code.
+ * The project UI kit, piece by piece, as a page written in a project would use
+ * it: layout and controls, the data table, toasts through the app's queue, the
+ * data hooks against the `/api/v1/data` routes, navigation, and a page config
+ * rendered from code.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {

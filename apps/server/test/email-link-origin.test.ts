@@ -330,7 +330,7 @@ describe('POST /auth/password/forgot: the reset link host', () => {
     const { app, meta, tokens } = await setUp();
 
     const res = await forgot(app, { host: 'evil.example/phish?x=' });
-    // §2.1: the reply never changes, whatever happened behind it.
+    // The reply never changes, whatever happened behind it.
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ data: { ok: true } });
     expect(tokens).toHaveLength(1);

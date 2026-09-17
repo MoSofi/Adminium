@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a page gets when the server runs a project with browser code
- * (49-developer-projects.md §6.3):
+ * What a page gets when the server runs a project with browser
+ * code:
  *
  * - table cells drawn by the project's `cell` widgets, for any column whose
  *   spec names one (`widget: "project.flag-cell"`);

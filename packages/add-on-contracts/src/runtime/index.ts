@@ -4,9 +4,9 @@
  * page that loads it.
  *
  * Two kinds of code arrive as ES modules the host did not build: an add-on's
- * client bundle, and a project's own pages and widgets (49-developer-projects.md
- * §6). Both must render with the host's React. Two copies of React in one page
- * are two reconcilers arguing over one DOM tree: hooks throw, context is empty.
+ * client bundle, and a project's own pages and widgets. Both must render with
+ * the host's React. Two copies of React in one page are two reconcilers arguing
+ * over one DOM tree: hooks throw, context is empty.
  *
  * So the host publishes its React on a well-known global before it imports any
  * such module, and the module's build replaces `react`, `react/jsx-runtime`,
@@ -167,8 +167,8 @@ export const REACT_DOM_EXPORTS = [
 ] as const;
 
 /**
- * The project UI kit (`@adminiumjs/adminium/ui`, 49 §6.2): what a host puts in
- * `ui`. `definePage` and `defineWidget` are not here; they are plain functions
+ * The project UI kit (`@adminiumjs/adminium/ui`): what a host puts in `ui`.
+ * `definePage` and `defineWidget` are not here; they are plain functions
  * inside the kit module itself, so a build can read a page's settings without
  * a host.
  */
