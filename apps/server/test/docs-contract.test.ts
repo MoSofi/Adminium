@@ -20,11 +20,32 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { COMMANDS } from '../src/cli/run.js';
 import { envSchema } from '../src/config/env.js';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const docsRoot = join(repoRoot, 'apps', 'docs', 'src', 'content', 'docs');
+
+/**
+ * Every command the dispatcher registers, read out of its source.
+ *
+ * NOT imported: `src/cli/run.ts` pulls the whole CLI in, and with it
+ * `@adminium/engine`, whose package entry does not exist until the workspace is
+ * built. This suite runs in the cross-package runner's SOURCE phase, where
+ * nothing is, so the import turned a docs assertion into a "file did not run".
+ * Reading the file is also what the header above promises.
+ */
+function registeredCommands(): string[] {
+  const run = read('apps/server/src/cli/run.ts');
+  const list = /export const COMMANDS: readonly Command\[\] = \[([^\]]*)\]/.exec(run)?.[1] ?? '';
+  return [...list.matchAll(/([A-Za-z]+Command)/g)].map(([, identifier]) => {
+    const from = new RegExp(`import \\{ ${identifier} \\} from '([^']+)'`).exec(run)?.[1];
+    expect(from, `run.ts registers ${identifier} but imports it from nowhere`).toBeDefined();
+    const source = read(join('apps', 'server', 'src', 'cli', (from ?? '').replace(/^\.\//, '').replace(/\.js$/, '.ts')));
+    const name = /^  name: '([a-z-]+)',$/m.exec(source)?.[1];
+    expect(name, `${identifier} declares no \`name\``).toBeDefined();
+    return name ?? '';
+  });
+}
 
 /** Every route the docs site publishes, as the in-app links address them. */
 function docsRoutes(): Set<string> {
@@ -144,8 +165,12 @@ describe('the docs describe the build that shipped', () => {
     // The same promise, kept for the commands added later (`new`, `dev`, …)
     // rather than for one command someone happened to check by hand.
     const cli = read('apps/docs/src/content/docs/reference/cli.md');
-    for (const command of COMMANDS) {
-      expect(cli, `reference/cli.md has no section for \`${command.name}\``).toContain(`## \`${command.name}\``);
+    const commands = registeredCommands();
+    // A parse that returned nothing would make the loop below vacuous, which is
+    // the one way this test could pass while documenting none of them.
+    expect(commands.length, 'no commands were parsed out of run.ts').toBeGreaterThanOrEqual(14);
+    for (const command of commands) {
+      expect(cli, `reference/cli.md has no section for \`${command}\``).toContain(`## \`${command}\``);
     }
   });
 
