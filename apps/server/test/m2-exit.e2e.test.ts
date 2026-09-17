@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * M2 exit criteria, end-to-end (16-milestones.md — "M2 — Server
- * core", Exit criteria) against ONE composed server instance on a fresh
- * in-memory SQLite meta store:
+ * M2 exit criteria, end-to-end ("M2 — Server core", Exit criteria)
+ * against ONE composed server instance on a fresh in-memory SQLite meta
+ * store:
  *
  *  (a) firstRun migrates + seeds; createFirstSuperAdmin;
  *  (b) super admin signs in (cookie session) and provisions Admin/Editor/
@@ -162,7 +162,7 @@ async function composeServer(opts: { websocket: boolean }): Promise<ComposedServ
 
 /**
  * Every credential-facing request in this ONE continuous scenario signs in
- * from its own source address: the §6 `auth-login` bucket (plugins/core.ts)
+ * from its own source address: the `auth-login` bucket (plugins/core.ts)
  * allows 5/min per ip, and this file makes more sign-ins than that on one
  * shared server. Distinct addresses keep the scenario about auth mechanics —
  * bucket enforcement has its own suite (rate-limit.test.ts).

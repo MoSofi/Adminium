@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure ranking-bar layout (`chart-ranking-bars`, research/widget-registry.md
- * §2): label + proportional horizontal bar (leader solid, rest dimmed) + mono
- * value. DOM-free so scheduled-report workers reuse it. Horizontal value axis
- * mirrors in RTL (annex §7.4: categorical/ranking scales flip; bars anchor at
- * inline-start, which is the right edge under `rtl`).
+ * Pure ranking-bar layout (`chart-ranking-bars`,
+ * research/widget-registry.md): label + proportional horizontal bar (leader
+ * solid, rest dimmed) + mono value. DOM-free so scheduled-report workers
+ * reuse it. Horizontal value axis mirrors in RTL (annex: categorical/ranking
+ * scales flip; bars anchor at inline-start, which is the right edge under
+ * `rtl`).
  */
 
 export interface RankingInput {

@@ -26,7 +26,7 @@ async function putJson<T>(path: string, payload: unknown): Promise<T> {
   const response = await fetch(path, {
     method: 'PUT',
     credentials: 'same-origin',
-    // Hand-rolled fetch ⇒ hand-rolled CSRF header (08 §7 item 4). Without it
+    // Hand-rolled fetch ⇒ hand-rolled CSRF header. Without it
     // every schema-override save 403s.
     headers: { accept: 'application/json', 'content-type': 'application/json', ...csrfHeaders() },
     body: JSON.stringify(payload),

@@ -4,15 +4,15 @@ import { getFormatters, latnDataTag } from '@adminium/i18n';
 import { formatAbsoluteTime, formatRelativeTime } from '../tables/column-spec.js';
 
 /**
- * Shared helpers for the `communication` family (annex §9) — the seeded PRNG
- * demo generators use, the `record-list` row readers, the author/day grouping
- * that drives `chat-thread`'s bubble runs + day separators, and the Intl-routed
- * time formatting.
+ * Shared helpers for the `communication` family (annex) — the seeded PRNG demo
+ * generators use, the `record-list` row readers, the author/day grouping that
+ * drives `chat-thread`'s bubble runs + day separators, and the Intl-routed time
+ * formatting.
  *
  * Kept framework-light (no i18n provider dependency, no React): widgets stay
  * pure and render in stories/tests without a wrapper — the dashboard resolves
  * user-visible labels through @adminium/i18n at the host boundary and passes
- * them down as config, exactly like the feeds/boards families (04 §2, 04-T06).
+ * them down as config, exactly like the feeds/boards families.
  */
 
 /** Mulberry32 — the repo's deterministic seeded PRNG (see feeds/feed-lib.tsx). */
@@ -34,13 +34,13 @@ export function pickFrom<T>(random: () => number, items: readonly T[]): T {
 
 /**
  * Fixed demo epoch so `demoData(seed)` is byte-identical across runs and
- * platforms (04 §7.7). Matches the feeds family's `DEMO_EPOCH`.
+ * platforms. Matches the feeds family's `DEMO_EPOCH`.
  */
 export const CHAT_DEMO_EPOCH = Date.UTC(2026, 6, 14, 12, 0, 0);
 
 /**
  * A `record-list` envelope's rows. Tolerant of every shape the repo emits: the
- * §3 canonical `{ rows }` the server's shapers return (apps/server
+ * canonical `{ rows }` the server's shapers return (apps/server
  * `ShapedRecordList`), the `{ data }` / `{ snapshot }` shorthands, and a bare
  * array. `rows` is checked first — it is the contract these widgets declare.
  */
@@ -103,7 +103,7 @@ export interface ChatAttachment {
  * One rendered bubble: the message plus the run/grouping decisions. A "run" is
  * a maximal streak of consecutive messages by the same author on the same day —
  * only the FIRST message of a run shows the avatar + author name, and only the
- * LAST shows the timestamp (annex §9: "avatar on first message of a run").
+ * LAST shows the timestamp (annex: "avatar on first message of a run").
  */
 export interface ChatBubble extends ChatMessage {
   /** First message of an author-run → render the avatar + name. */
@@ -141,7 +141,7 @@ export function sortBySentAt(messages: readonly ChatMessage[]): ChatMessage[] {
 }
 
 /**
- * Group an ordered message list into day groups of author-runs (annex §9).
+ * Group an ordered message list into day groups of author-runs (annex).
  * Messages are sorted by `sentAt` first, so an out-of-order payload still
  * renders chronologically. A run breaks on an author change, an `own` change,
  * or a day boundary — so a day separator can never appear *inside* a run.
@@ -226,13 +226,13 @@ export function attachmentsOf(value: unknown): ChatAttachment[] {
   });
 }
 
-// ── typing-indicator: the §3 `boolean-map` envelope ─────────────────────────
+// ── typing-indicator: the `boolean-map` envelope ────────────────────────────
 
 /**
- * A `boolean-map` envelope's `entries` (04 §3; `isEmptyByShape['boolean-map']`
- * reads the same key, so an `{}` payload routes to WidgetFrame's empty state
- * before the widget ever sees it). Annex §9 types `typing-indicator` as
- * "boolean per conversation", so the keys are conversation ids.
+ * A `boolean-map` envelope's `entries` (`isEmptyByShape['boolean-map']` reads
+ * the same key, so an `{}` payload routes to WidgetFrame's empty state before
+ * the widget ever sees it). Annex types `typing-indicator` as "boolean per
+ * conversation", so the keys are conversation ids.
  *
  * Tolerant of the bare-record shorthand (`{ c1: true }`) a hand-written demo or
  * a thin host adapter may pass, and coerces 1/0 + 'true'/'false' cells the way
@@ -264,9 +264,10 @@ export function isTypingIn(entries: Record<string, boolean>, conversationId?: st
   return Object.values(entries).some((value) => value);
 }
 
-// ── call-widget: the §3 `record` envelope ───────────────────────────────────
+// ── call-widget: the `record` envelope ──────────────────────────────────────
 
-/** A `record` envelope's row (04 §3: `isEmpty ⇔ row == null`). Tolerant of a bare object. */
+/** A `record` envelope's row (`isEmpty ⇔ row == null`). Tolerant of a bare
+ * object. */
 export function recordRowOf(data: unknown): Record<string, unknown> | null {
   if (typeof data !== 'object' || data === null || Array.isArray(data)) return null;
   const envelope = data as { row?: unknown };
@@ -276,7 +277,7 @@ export function recordRowOf(data: unknown): Record<string, unknown> | null {
   return 'row' in envelope ? null : (data as Record<string, unknown>);
 }
 
-/** The two call kinds annex §9 names ("voice/video kind label"). */
+/** The two call kinds annex names ("voice/video kind label"). */
 export const CALL_KINDS = ['voice', 'video'] as const;
 export type CallKind = (typeof CALL_KINDS)[number];
 
@@ -298,7 +299,7 @@ export function callStateOf(value: unknown): CallState {
   return (CALL_STATES as readonly string[]).includes(String(value)) ? (value as CallState) : 'ringing';
 }
 
-// ── Intl-routed formatting (data context — latn digits per 10 §4.2) ──────────
+// ── Intl-routed formatting (data context — latn digits) ──────────────────────
 
 /**
  * Coerce an untrusted locale tag to one `Intl` accepts. `format.locale` is an
@@ -370,9 +371,9 @@ export function fmtCount(tag: string, count: number): string {
 
 /**
  * The `{connectionId, table}` pair a `record-open` / `mutate` event carries,
- * read off the widget's query descriptor (04 §5.1: `binding.source.name` is the
- * table/view). Tolerant of a `table`-spelled source and of an absent binding
- * (a demoData-backed instance still renders and emits against `records`).
+ * read off the widget's query descriptor (`binding.source.name` is the
+ * table/view). Tolerant of a `table`-spelled source and of an absent binding (a
+ * demoData-backed instance still renders and emits against `records`).
  */
 export function sourceOf(binding: unknown): { connectionId?: string | undefined; table: string } {
   const descriptor = binding as

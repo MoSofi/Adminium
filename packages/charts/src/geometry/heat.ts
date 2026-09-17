@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared heat-intensity helpers for the matrix/calendar/geo charts (Track E).
- * Pure and DOM-free (04-widget-registry.md §7.1) so scheduled-report
- * workers reuse them. Sequential intensity maps onto the accent alpha ramp
- * `--viz-ramp-1..6` (research/design-system.md §1.3 / tokens viz.css); zero maps
- * to the neutral `--surface-2` empty cell. No hex literals — colors are var()
- * expressions only (acceptance #8).
+ * Pure and DOM-free so scheduled-report workers reuse them. Sequential intensity
+ * maps onto the accent alpha ramp `--viz-ramp-1.6` (research/design-system.md /
+ * tokens viz.css); zero maps to the neutral `--surface-2` empty cell. No hex
+ * literals — colors are var() expressions only (acceptance #8).
  */
 
 /** Number of steps in the accent alpha ramp exposed by @adminium/tokens. */

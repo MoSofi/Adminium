@@ -35,24 +35,24 @@ export {
 export type { OnboardingChecklistConfig, StarterTemplatePickerConfig };
 
 /**
- * TRACK OPS — the GETTING-STARTED half of the annex §13 ops cards, grouped in
- * one module because both render a set of do-this-next cards over a progress
+ * TRACK OPS — the GETTING-STARTED half of the annex ops cards, grouped in one
+ * module because both render a set of do-this-next cards over a progress
  * readout:
  *
  *   `starter-template-picker`, `onboarding-checklist`.
  *
  * `onboarding-checklist` IS NOT the app's checklist. apps/dashboard/src/onboarding
- * already ships a reactive checklist (M5-T06) wired to real workspace state, and
- * this widget deliberately shares NO code with it: `@adminium/widgets` must never
- * import `apps/*` — the dependency would invert the architecture (01 §2.3), and
- * `pnpm check-deps` enforces it. So this is built from the DATA CONTRACT (steps +
- * done flags) and stays presentational; the app's copy stays the app's. The two
- * are expected to converge later on the APP's side, by the app mounting this
- * widget — not by this widget reaching into the app.
+ * already ships a reactive checklist wired to real workspace state, and this
+ * widget deliberately shares NO code with it: `@adminium/widgets` must never
+ * import `apps/*` — the dependency would invert the architecture, and `pnpm
+ * check-deps` enforces it. So this is built from the DATA CONTRACT (steps + done
+ * flags) and stays presentational; the app's copy stays the app's. The two are
+ * expected to converge later on the APP's side, by the app mounting this widget —
+ * not by this widget reaching into the app.
  *
  * NEVER WRITES: ticking a step emits a `mutate` intent through `onEvent`; the CTA
- * emits `drill-through`. The host owns both (04 §2.1). Unbound → a step renders
- * as a read-only state rather than a checkbox that forgets what it was told.
+ * emits `drill-through`. The host owns both. Unbound → a step renders as a
+ * read-only state rather than a checkbox that forgets what it was told.
  */
 
 // ── starter-template-picker ─────────────────────────────────────────────────
@@ -64,8 +64,8 @@ type KickerDocType = 'invoice' | 'report' | 'email';
  * Localized kicker copy per builder — the annex's per-`docType` thumbnail
  * kicker. Carries its own LITERAL bundle key so the render site indexes rather
  * than assembles one: `docType` is a free-form config string, and a key built
- * from it would be invisible to the extractor and render raw on a miss
- * (10 §2.5). The `satisfies` clause keeps the map exhaustive over the surfaces.
+ * from it would be invisible to the extractor and render raw on a miss. The
+ * `satisfies` clause keeps the map exhaustive over the surfaces.
  */
 const DOC_KICKER: Readonly<Record<string, { key: string; label: string }>> = {
   invoice: { key: 'ui:widgets.domain.starterTemplatePicker.kicker.invoice', label: 'Invoice' },
@@ -272,8 +272,8 @@ export interface OnboardingChecklistViewProps {
  * It does NOT import the `gauge-ring` WIDGET: widgets are registry entries the
  * host mounts, not components families reach across for — importing kpi's
  * component here would weld the domain chunk to the kpi chunk and defeat the
- * per-family split (04 §2.3). The ring is ~15 lines of geometry; the coupling
- * would cost more than it saves.
+ * per-family split. The ring is ~15 lines of geometry; the coupling would cost
+ * more than it saves.
  *
  * `aria-hidden` because the same figure is stated in text right beside it.
  */

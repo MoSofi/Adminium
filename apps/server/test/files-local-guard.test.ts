@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `local` driver's fail-closed key guard, and the byte-identity claim
- * (37-files-and-storage.md D3, 37-T07).
+ * The `local` driver's fail-closed key guard, and the byte-identity
+ * claim.
  *
  * SUCCEEDS `files-storage.test.ts`, which tested `files/storage.ts` before wave
  * 0024 folded it into `drivers/local.ts`. The round-trip, incremental-writer

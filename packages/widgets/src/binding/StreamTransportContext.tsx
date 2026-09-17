@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * React context carrying the app's realtime {@link StreamTransport} (04 §5.3).
- * The host app (`apps/dashboard`) constructs the concrete WS/SSE transport once
- * and provides it here; `useWidgetStream` reads it for bound stream widgets.
- * Absent a provider, bound widgets stay disconnected (demo/unbound widgets
- * build their own deterministic transport and never touch this context).
+ * React context carrying the app's realtime {@link StreamTransport}. The host
+ * app (`apps/dashboard`) constructs the concrete WS/SSE transport once and
+ * provides it here; `useWidgetStream` reads it for bound stream widgets. Absent
+ * a provider, bound widgets stay disconnected (demo/unbound widgets build their
+ * own deterministic transport and never touch this context).
  */
 
 import { createContext, useContext, type ReactNode } from 'react';

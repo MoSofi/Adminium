@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-anomaly` primitive (research/widget-registry.md §2): actual line over
- * an expected-range band + dashed expected line + halo dots on anomalies. A
- * time axis (never mirrors, 04 §7.4). The expected band + anomaly flags are
- * computed by the pure `anomalyModel` (z-score). Colors from the viz palette
- * and the danger token only.
+ * `chart-anomaly` primitive (research/widget-registry.md): actual line over an
+ * expected-range band + dashed expected line + halo dots on anomalies. A time
+ * axis (never mirrors). The expected band + anomaly flags are computed by the
+ * pure `anomalyModel` (z-score). Colors from the viz palette and the danger
+ * token only.
  */
 import type { ReactNode } from 'react';
 

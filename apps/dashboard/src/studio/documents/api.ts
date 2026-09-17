@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/documents`'s data (34-invoices-add-on.md §3.7, §7.5; 34-T14).
+ * `/studio/documents`'s data.
  *
  * ─── EVERY LABEL ON THIS PAGE COMES FROM THE PROVIDER ──────────────────────
  *
  * `kind.label`, `slot.label` and `slot.help` are eight-locale records the
- * add-on carries itself (34 D14, 0.3 trap 19). The editor picks the viewer's
- * locale out of them and renders it. There is no bundle to load, no English
+ * add-on carries itself (0.3 trap 19). The editor picks the viewer's locale
+ * out of them and renders it. There is no bundle to load, no English
  * fallback, and — the part that matters — no vocabulary for invoices anywhere
  * in this page: a folio provider or a certificate provider appears here
  * unchanged, under its own key, with its own words.

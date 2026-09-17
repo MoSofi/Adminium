@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shortcuts panel (09-generated-app.md §5.3, Shortcuts Panel.dc.html):
- * a Modal rendering the LIVE registration set from the shortcut manager —
- * never a hardcoded list — as a two-column grid of groups with Kbd clusters
- * ("then" separators for chords) and the "Press ? anytime" footer. Keycaps
- * localize per platform (`⌘` → `Ctrl` off-mac) via the manager's mapping.
+ * Shortcuts panel (Shortcuts Panel.dc.html): a Modal rendering the LIVE
+ * registration set from the shortcut manager — never a hardcoded list — as
+ * a two-column grid of groups with Kbd clusters ("then" separators for
+ * chords) and the "Press ? anytime" footer. Keycaps localize per platform
+ * (`⌘` → `Ctrl` off-mac) via the manager's mapping.
  */
 import { Keyboard } from 'lucide-react';
 import { Kbd, Modal, ModalClose, ModalHeader } from '@adminium/ui';

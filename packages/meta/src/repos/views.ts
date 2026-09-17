@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * viewsRepo — adminium_views (07-meta-store.md §3.18, 04-widget-registry.md §6.3).
+ * viewsRepo — adminium_views.
  *
  * Saved filters/layouts over a page. `user_id = NULL` is a shared workspace
  * view; a non-null `user_id` owns the view privately. `config` is an opaque
@@ -23,7 +23,7 @@ import { newId } from '../ids.js';
 import type { AdminiumViewsTable } from '../schema/tables.js';
 import { packJson, readBool, readJson, writeBool } from './util.js';
 
-/** Row discriminator (04-widget-registry.md §6.3). */
+/** Row discriminator. */
 export const VIEW_KINDS = ['filters', 'layout'] as const;
 export type ViewKind = (typeof VIEW_KINDS)[number];
 
@@ -170,7 +170,7 @@ export function viewsRepo(meta: MetaDb) {
       return Number(res.numDeletedRows ?? 0n) === 1;
     },
 
-    // --- per-user dashboard layout overrides (04-widget-registry.md §6.3) -----
+    // --- per-user dashboard layout overrides -----
     // Exactly one row per (page_id, user_id, kind: 'layout'). Addressed by that
     // key, never by name; `config` holds the opaque `pageLayout` document.
 

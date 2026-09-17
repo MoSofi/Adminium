@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The export builder's reads (41-export-builder.md §3.1, §3.5), mounted
- * inside `exportsRoutes` under `/api/v1`:
+ * The export builder's reads, mounted inside `exportsRoutes` under
+ * `/api/v1`:
  *
  * - `GET  /exports/sources?connectionId=` — the connection's tables with the
  *   caller's export grant resolved server-side (`canExport`), row and column
@@ -17,13 +17,13 @@
  *
  * The schema itself is NOT served here: `GET /connections/:id/schema`
  * (routes/schema) needs only a session, so the builder's browser reads the
- * Studio's DTO through the Studio's own call (a §0 correction to plan 41 — the
+ * Studio's DTO through the Studio's own call (a correction to plan 41 — the
  * plan cited the connections file, which guards a different set of routes).
  *
  * Grants are the create route's: `table:<conn>:<table>:export` on the base
  * table, the PII capability per request, `read` per reached table through
  * the shared resolver. Every refused projection in a preview is audited as
- * `projection.denied`, exactly as a page read is (36 D16).
+ * `projection.denied`, exactly as a page read is.
  */
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -54,7 +54,7 @@ export interface BuilderRoutesDeps {
   manager: ConnectionManager;
 }
 
-/** Lines the "Raw file" tab shows — the comp draws a dozen (41 §3.5). */
+/** Lines the "Raw file" tab shows — the comp draws a dozen. */
 export const RAW_PREVIEW_LINES = 12;
 
 /** Longest a sources read waits for one `COUNT(*)` when the snapshot has no estimate. */
@@ -72,7 +72,7 @@ function boundTableOf(page: Page): string | null {
   return typeof source?.table === 'string' && source.table.length > 0 ? source.table : null;
 }
 
-/** The page's stored `config.config.columns` — the nested envelope (41 §0.3). */
+/** The page's stored `config.config.columns` — the nested envelope. */
 function pageColumnsOf(page: Page): Record<string, unknown>[] | null {
   const body = (page.config as { config?: { columns?: unknown } } | null)?.config;
   const columns = body?.columns;

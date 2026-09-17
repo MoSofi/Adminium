@@ -2,16 +2,15 @@
 /**
  * `page-crud` config-body composer — the body-building vocabulary of the
  * Engine's bespoke `generate/crud.ts`, relocated behind the leaf boundary
- * (research/widget-registry.md §14: "Every included table"; 01-architecture.md
- * §6.1 fixes the config body shape: `columns[]`, `defaultSort`, `pageSize`,
- * `detail`).
+ * (research/widget-registry.md: "Every included table"; fixes the config body
+ * shape: `columns[]`, `defaultSort`, `pageSize`, `detail`).
  *
- * `page-crud` deliberately keeps its TYPED body (09-generated-app.md §3.3) —
- * this module produces `config.columns`/`form`/`detail`, not a `config.layout`,
- * and the Engine still wraps the body into the §6.1 envelope. What moved is the
- * vocabulary: column selection, tones, form-field mapping — the rules of *what
- * a crud page contains* — now live beside the candidate rules (04 §8: the
- * Registry owns what can be instantiated and why).
+ * `page-crud` deliberately keeps its TYPED body — this module produces
+ * `config.columns`/`form`/`detail`, not a `config.layout`, and the Engine still
+ * wraps the body into the envelope. What moved is the vocabulary: column
+ * selection, tones, form-field mapping — the rules of *what a crud page
+ * contains* — now live beside the candidate rules (the Registry owns what can
+ * be instantiated and why).
  *
  * PARITY CONTRACT: `packages/engine/test/generate-baseline.test.ts` pins the
  * generator's output byte-identical, so every function here reproduces the
@@ -21,9 +20,9 @@
  *
  * Column selection follows 05 (assignment note): display column, status,
  * money, dates first; list capped at ~8 visible columns. Secrets are
- * hard-excluded (05 §7.1 rule 1), pk ids are hidden by default (rule 2) —
- * emitted as `hidden` specs (not dropped) so the page-crud template can still
- * resolve row identity and generate the create/edit form's key field.
+ * hard-excluded, pk ids are hidden by default (rule 2) — emitted as `hidden`
+ * specs (not dropped) so the page-crud template can still resolve row
+ * identity and generate the create/edit form's key field.
  */
 
 import { fkDisplayAliasOf, type GridColumnSpecInput } from '../page-config/grid-column-spec.js';
@@ -41,7 +40,7 @@ import {
 const LIST_COLUMN_CAP = 8;
 const DEFAULT_PAGE_SIZE = 50;
 
-/** §7.1 rule-7 heuristic tone map for status pills. */
+/** The heuristic tone map for status pills. */
 const TONE_POS = /^(active|paid|done|completed?|closed|approved|healthy|shipped|delivered)$/i;
 const TONE_WARN = /^(pending|trial|review|in_review|draft|queued|on_hold|paused|open|new)$/i;
 const TONE_DANGER = /^(failed|rejected|churned|overdue|blocked|cancell?ed|error)$/i;
@@ -92,7 +91,7 @@ function rankColumn(
   if (tag === 'pk-id') return null; // hidden by default in grids (rule 2)
   if (column.logicalType === 'binary' || column.logicalType === 'json') return null;
   // `image-url` is excluded from grids because a bare URL in a cell is noise.
-  // A chip with a name, a size and a thumbnail is not — so 37 D14 lifts the
+  // A chip with a name, a size and a thumbnail is not — so lifts the
   // exclusion for a column that will CARRY a `file` block, which is exactly the
   // text-typed `image-url` columns `columnSpecFor` seeds one on. A `binary` or
   // `json` column stays excluded by the line above whatever its tag says.
@@ -198,7 +197,7 @@ function fkDisplayFor(
   return display;
 }
 
-/** Detail-tab entry (09 §7.1 — `tab-bar` with live count pills). */
+/** Detail-tab entry (`tab-bar` with live count pills). */
 export interface CrudDetailTab {
   /** The referencing table's id. */
   table: string;
@@ -212,7 +211,7 @@ export interface CrudSortSpec {
   dir: 'asc' | 'desc';
 }
 
-/** One generated form field (09 §7.1 — the modal-wizard renders these). */
+/** One generated form field (the modal-wizard renders these). */
 export interface CrudFormField {
   column: string;
   label: string;
@@ -237,7 +236,7 @@ export interface CrudFormField {
   unique?: boolean;
 }
 
-/** The typed `page-crud` config body (01 §6.1 / 09 §3.3), pre-envelope. */
+/** The typed `page-crud` config body, pre-envelope. */
 export interface CrudPageBody {
   columns: GridColumnSpecInput[];
   defaultSort: CrudSortSpec[];
@@ -290,7 +289,7 @@ export function buildColumnDef(
     name: column.name,
     label: humanize(column.name),
     // The candidate mirror keeps `logicalType` an open string; the engine enum
-    // it mirrors is identical to GRID_LOGICAL_TYPES (schema-model.ts §6), so
+    // it mirrors is identical to GRID_LOGICAL_TYPES (schema-model.ts), so
     // the narrow assertion cannot widen the emitted vocabulary.
     logicalType: column.logicalType as GridColumnSpecInput['logicalType'],
     semantic: semantics.semantic,
@@ -320,7 +319,7 @@ export function buildColumnDef(
   if (semantics.maskedByDefault ?? false) def.pii = true;
   /**
    * SEED THE `file` BLOCK on a NEW page for the columns the classifier already
-   * calls files (37-files-and-storage.md D14).
+   * calls files.
    *
    * `file-ref` and `image-url` have been tagged since M5 and have driven a bare
    * link ever since. Seeding here — rather than teaching the renderer to honour
@@ -329,8 +328,8 @@ export function buildColumnDef(
    * upload affordances without anybody configuring one.
    *
    * Only on a TEXT column. A `binary` column is bytes inside the customer's
-   * database (a different feature, refused in §4) and a `json` one is O5; both
-   * are excluded from grids by `rankColumn` anyway, and neither can hold a
+   * database (a different feature, refused) and a `json` one is O5; both are
+   * excluded from grids by `rankColumn` anyway, and neither can hold a
    * reference.
    *
    * `ref: 'url'` is D31's default and the only shape seeded — the other two are
@@ -427,7 +426,7 @@ function defaultSort(table: CandidateTable, classified: ClassifiedTableInput): C
   return [];
 }
 
-/** Detail tabs from inbound FKs (09 §7.1) — conf ≥ 0.8, deduped, no self-FK. */
+/** Detail tabs from inbound FKs — conf ≥ 0.8, deduped, no self-FK. */
 function detailTabs(
   table: CandidateTable,
   relations: readonly CandidateRelation[],
@@ -454,7 +453,7 @@ function detailTabs(
 
 const AUTO_MANAGED_TAGS = new Set(['created-at', 'updated-at']);
 
-/** Generated form field defs (09 §7.1 — the modal-wizard renders these). */
+/** Generated form field defs (the modal-wizard renders these). */
 function formFields(table: CandidateTable, classified: ClassifiedTableInput): CrudFormField[] {
   const byName = new Map(classified.columns.map((c) => [c.column, c]));
   const fields: CrudFormField[] = [];

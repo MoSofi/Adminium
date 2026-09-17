@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Hostile-fixture suite for the add-on unpack path
- * (32-add-on-distribution.md §7 acceptance #3, D5).
+ * (#3, D5).
  *
  * The fixtures are BUILT HERE rather than checked in as binaries: a tar-slip
  * archive committed to the repo is a thing every scanner in CI has an opinion

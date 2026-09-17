@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Lenient payload narrowing for the "bars & ranking" group's §3 envelopes
- * (04 §3). Widget components receive `data: unknown` (already non-empty per the
+ * Lenient payload narrowing for the "bars & ranking" group's envelopes.
+ * Widget components receive `data: unknown` (already non-empty per the
  * definition's isEmpty predicate) and narrow it here; a malformed payload
  * returns null so the component renders its own fallback rather than throwing
  * into the error boundary. Pure module — no chart-primitive imports.
@@ -26,7 +26,7 @@ function str(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-/** `record-list` rows ride under `rows` (§3) or `data` (CRUD envelope). */
+/** `record-list` rows ride under `rows` or `data` (CRUD envelope). */
 export function recordRows(data: unknown): Rec[] | null {
   const r = rec(data);
   if (r === null) return null;

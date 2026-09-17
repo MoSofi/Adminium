@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Undo/redo over the unsaved document (34-invoices-add-on.md Appendix E §E5;
- * the comp's `pushHist`/`undo`/`redo`, 1341-1352): a stack of SNAPSHOTS, sixty
- * deep, of whatever the editor holds — name, status, topic, language and the
- * body together, so one undo step reverts one edit whatever it touched.
+ * Undo/redo over the unsaved document (the comp's
+ * `pushHist`/`undo`/`redo`, 1341-1352): a stack of SNAPSHOTS, sixty deep, of
+ * whatever the editor holds — name, status, topic, language and the body
+ * together, so one undo step reverts one edit whatever it touched.
  *
  * Snapshots are serialized strings, as in the comp: cheap to compare (a push
  * that repeats the top of the stack is dropped — 1342 — so focusing a field

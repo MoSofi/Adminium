@@ -1,36 +1,35 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LAN share, as the MAIN PROCESS owns it (11-electron.md §8.3).
+ * LAN share, as the MAIN PROCESS owns it.
  *
  * Three things live here, and each is here because it needs something only this
  * process has:
  *
- *  1. {@link enumerateLanUrls} — §8.3's "reachable URLs (`http://<LAN-IPv4>:4600`
- *     for each non-internal interface, via `os.networkInterfaces()`)". The
- *     server child cannot answer this: it knows the socket it bound, not the
- *     addresses that reach it, and `0.0.0.0` is not an address you can type into
- *     a phone.
- *  2. {@link probeBindable} — the §8.3 collision check ("Port collision ⇒ inline
- *     error with a 'Try 4601' suggestion"), run BEFORE the restart rather than
- *     discovered by it. See its comment for why the ordering is the whole
- *     feature.
+ * 1. {@link enumerateLanUrls} — "reachable URLs (`http://<LAN-IPv4>:4600` for
+ *  each non-internal interface, via `os.networkInterfaces()`)". The server child
+ *  cannot answer this: it knows the socket it bound, not the addresses that reach
+ *  it, and `0.0.0.0` is not an address you can type into a phone.
+ * 2. {@link probeBindable} — the collision check ("Port collision ⇒ inline error
+ *  with a 'Try 4601' suggestion"), run BEFORE the restart rather than discovered
+ *  by it. See its comment for why the ordering is the whole feature.
  *  3. {@link suggestNextPort} — the "Try 4601".
  *
- * NOTHING HERE DECIDES ANYTHING. The toggle is `config.json`'s (§2.3) and the
- * rebind is `ServerManager.restart`'s (§2.2 step 9); this module supplies facts.
- * `os` and `net` are injected so all three are testable without a real machine's
- * interfaces or a real free port, which matters — an interface list is exactly
- * the kind of input whose interesting cases (a Docker bridge, a VPN's IPv6-only
- * tunnel, a `lo` alias) never appear on the developer's laptop.
+ * NOTHING HERE DECIDES ANYTHING. The toggle is `config.json`'s and the rebind is
+ * `ServerManager.restart`'s; this module supplies facts. `os` and `net` are
+ * injected so all three are testable without a real machine's interfaces or a
+ * real free port, which matters — an interface list is exactly the kind of input
+ * whose interesting cases (a Docker bridge, a VPN's IPv6-only tunnel, a `lo`
+ * alias) never appear on the developer's laptop.
  */
 
 import net from 'node:net';
 import os from 'node:os';
 
-/** §8.3 / BRIEF §3: the default LAN port. Mirrors `config.ts`'s `DEFAULT_LAN_PORT`. */
+/** The default LAN port. Mirrors `config.ts`'s
+ * `DEFAULT_LAN_PORT`. */
 export const DEFAULT_LAN_PORT = 4600;
 
-/** §2.4/§8.3: the bind that makes this app reachable from the LAN. */
+/** The bind that makes this app reachable from the LAN. */
 export const WILDCARD_HOST = '0.0.0.0';
 
 /** The slice of `os.networkInterfaces()`'s entries this module reads. */
@@ -43,37 +42,37 @@ export interface NetworkInterfaceLike {
 
 export type NetworkInterfaces = () => NodeJS.Dict<NetworkInterfaceLike[]>;
 
-/** One reachable address, ready for the §8.3 panel's list + copy button. */
+/** One reachable address, ready for the panel's list + copy button. */
 export interface LanUrl {
   /** The OS's name for the NIC (`en0`, `Wi-Fi`, `eth0`) — the panel labels rows with it. */
   interfaceName: string;
   address: string;
-  /** `http://<LAN-IPv4>:<port>` (§8.3). */
+  /** `http://<LAN-IPv4>:<port>`. */
   url: string;
 }
 
 /**
- * §8.3's URL list: `http://<LAN-IPv4>:<port>` for every non-internal interface.
+ * The URL list: `http://<LAN-IPv4>:<port>` for every non-internal interface.
  *
  * ─── The three filters, and why each one is a real case ──────────────────────
  *
- * **`internal`** — §8.3 says "non-internal" and means it. `lo0` carries
+ * **`internal`** — says "non-internal" and means it. `lo0` carries
  * `127.0.0.1`, which is reachable from exactly this machine; putting it in a
  * list headed "other devices can use these addresses" would be the panel's one
  * unforgivable lie, because it is the address that WORKS when you test it
  * yourself and fails for everyone you send it to.
  *
- * **IPv4 only** — §8.3 writes `http://<LAN-IPv4>:4600` explicitly. It is not
+ * **IPv4 only** — writes `http://<LAN-IPv4>:4600` explicitly. It is not
  * arbitrary: a link-local IPv6 address (`fe80::…%en0`) is not typeable into
  * another device's browser without its zone index, the zone index is that
  * DEVICE'S name for the interface and not ours, and a global IPv6 address is not
- * a LAN address at all — it is a public one, which is precisely what §8.3's
- * transport-honesty copy ("Share only on networks you trust") assumes we are
- * NOT handing out over plain HTTP.
+ * a LAN address at all — it is a public one, which is precisely what
+ * transport-honesty copy ("Share only on networks you trust") assumes we are NOT
+ * handing out over plain HTTP.
  *
  * **Node's `family` shape** — compared against both `'IPv4'` and `4`. Node 18
  * changed this from the number to the string and the type says `string | number`
- * across the versions this repo's `engines.node >= 22` allows on paper; a
+ * across the versions this repo's `engines.node` floor allows on paper; a
  * strict `=== 'IPv4'` silently produces an EMPTY list on the wrong runtime,
  * which reads as "no network" rather than as a bug.
  *
@@ -104,20 +103,20 @@ export function enumerateLanUrls(
   );
 }
 
-/** {@link enumerateLanUrls}, flattened to the `string[]` §4's bridge carries. */
+/** {@link enumerateLanUrls}, flattened to the `string[]` bridge carries. */
 export function lanShareUrls(port: number, interfaces?: NetworkInterfaces): string[] {
   return (interfaces === undefined ? enumerateLanUrls(port) : enumerateLanUrls(port, interfaces))
     .map((entry) => entry.url);
 }
 
-/** §8.3's "Try 4601" — the next port up, or `null` at the top of the range. */
+/** "Try 4601" — the next port up, or `null` at the top of the range. */
 export function suggestNextPort(port: number): number | null {
   return port >= 65535 ? null : port + 1;
 }
 
 export type ProbeResult =
   | { ok: true }
-  /** Something already holds the port — §8.3's collision. */
+  /** Something already holds the port — collision. */
   | { ok: false; reason: 'in-use' }
   /** The OS refused the bind for another reason (EACCES on a privileged port…). */
   | { ok: false; reason: 'refused'; message: string };
@@ -132,7 +131,7 @@ export interface ProbeDeps {
  *
  * ─── Why this exists at all, i.e. why not just try the restart ───────────────
  *
- * §8.3 asks for "an inline error with a 'Try 4601' suggestion", and an inline
+ * The panel needs "an inline error with a 'Try 4601' suggestion", and an inline
  * error has to happen while the user is still looking at the form. Discovering
  * the collision by restarting cannot do that, and the reason is mechanical
  * rather than aesthetic: a rebind changes the port, `main/index.ts`'s `subscribe`

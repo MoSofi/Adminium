@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Config-migration runner (01-architecture.md §8.2).
+ * Config-migration runner.
  *
  * Each migration is a pure function `(doc) => doc` upgrading one version
  * step. The server runs the chain at boot and lazily on read; zip import
@@ -49,8 +49,8 @@ export function latestConfigVersion(
  * Upgrades `doc.v` to the latest version by running the migration chain.
  * Returns a new document — the input is never mutated. Throws
  * `ConfigMigrationError` when the document has no usable version, is newer
- * than this build understands (the boot downgrade guard's condition,
- * 01-architecture.md §8.1), or a step in the chain is missing.
+ * than this build understands (the boot downgrade guard's condition), or a
+ * step in the chain is missing.
  */
 export function runConfigMigrations(
   doc: unknown,

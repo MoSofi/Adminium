@@ -2,11 +2,11 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto';
 
 /**
- * Secret handling (01-architecture.md §7.1): `ADMINIUM_SECRET` is the master
- * secret; HKDF-SHA256 derives purpose-scoped keys (DSN, meta-URL, LLM-key and
- * TOTP-secret encryption at rest). @fastify/cookie signs the session cookie
- * with the master secret directly. Values at rest are AES-256-GCM tokens of
- * the form `enc:v1:<base64(iv|tag|ciphertext)>`.
+ * Secret handling: `ADMINIUM_SECRET` is the master secret; HKDF-SHA256
+ * derives purpose-scoped keys (DSN, meta-URL, LLM-key and TOTP-secret
+ * encryption at rest). @fastify/cookie signs the session cookie with the
+ * master secret directly. Values at rest are AES-256-GCM tokens of the form
+ * `enc:v1:<base64(iv|tag|ciphertext)>`.
  *
  * The CSRF key is one of these derivations (`security/csrf.ts`, info string
  * `adminium:csrf`): `GET /bootstrap` issues `HMAC(key, session.id)` and the

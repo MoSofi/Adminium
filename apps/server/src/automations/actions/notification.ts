@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SEND NOTIFICATION (42-automations-and-workflow-logs.md D20, 42-T10) — the
- * in-app notice 08 §2.13 named and the picker's second tile (D10).
+ * SEND NOTIFICATION — the in-app notice named and the picker's second
+ * tile (D10).
  *
  * It goes through `notify()`, which is what makes it honour each recipient's
  * own channel preferences and mail them a copy when they asked for one. A
@@ -96,7 +96,7 @@ export async function runNotificationAction(
         userId,
         kind: AUTOMATION_NOTICE_KIND,
         // The RULE is the actor, denormalised onto the row so the notice still
-        // says who sent it after the rule is deleted (§3.20's own reasoning).
+        // says who sent it after the rule is deleted (own reasoning).
         actorLabel: ctx.rule.name,
         title,
         body,

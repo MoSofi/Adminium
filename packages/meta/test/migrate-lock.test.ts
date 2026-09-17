@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Migration-lock suite (07-meta-store.md §4).
+ * Migration-lock suite.
  *
  * Every assertion here needs TWO handles on the SAME meta store, which the
  * shared harness deliberately cannot give: `dialect.make()` provisions a fresh

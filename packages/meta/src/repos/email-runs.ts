@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * emailRunsRepo — adminium_email_runs (39-email-templates-and-campaigns.md
- * §3.2, D11): one row per campaign send.
+ * emailRunsRepo — adminium_email_runs: one row per campaign send.
  *
- * A campaign's status is DERIVED from its latest run (39 D2): no run → Draft,
- * else the run's own status. So the two reads that matter are "the newest
- * run of THIS campaign" ({@link latestByTemplates}, one query for a whole
- * manager page) and "is a run already scheduled or running" ({@link active},
- * the 409 behind a second Send).
+ * A campaign's status is DERIVED from its latest run: no run → Draft, else
+ * the run's own status. So the two reads that matter are "the newest run of
+ * THIS campaign" ({@link latestByTemplates}, one query for a whole manager
+ * page) and "is a run already scheduled or running" ({@link active}, the 409
+ * behind a second Send).
  *
  * Counts live on the run — `total`, `sent`, `failed`, `skipped` — with at
  * most a hundred `{ to, error }` records for diagnosis. There is no
- * per-recipient table (39 §5): "18,240 sent · 12 failed" is the question the
- * product answers, and a ledger of every address a campaign reached is PII the
- * product does not need to keep.
+ * per-recipient table: "18,240 sent · 12 failed" is the question the product
+ * answers, and a ledger of every address a campaign reached is PII the product
+ * does not need to keep.
  */
 
 import type { Selectable } from 'kysely';
@@ -72,7 +71,7 @@ export interface UpdateEmailRunInput {
   jobId?: string | null | undefined;
 }
 
-/** The statuses under which a campaign may not be sent again (39 §3.1: 409). */
+/** The statuses under which a campaign may not be sent again (409). */
 export const EMAIL_RUN_ACTIVE_STATUSES: readonly EmailRunStatus[] = ['scheduled', 'running'];
 
 function decode(row: Selectable<AdminiumEmailRunsTable>): EmailRun {
@@ -176,8 +175,8 @@ export function emailRunsRepo(meta: MetaDb) {
 
     /**
      * The latest run per campaign, for a whole list at once — the status
-     * derivation behind every card (39 D2). One query, newest first, first
-     * seen wins.
+     * derivation behind every card. One query, newest first, first seen
+     * wins.
      */
     async latestByTemplates(templateIds: readonly string[]): Promise<Map<string, EmailRun>> {
       const out = new Map<string, EmailRun>();

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Studio API client (M5-T01/T02/T03) — thin typed wrappers over the connect
- * flow endpoints. Shapes mirror the server Zod reply schemas
+ * Studio API client — thin typed wrappers over the connect flow endpoints. Shapes
+ * mirror the server Zod reply schemas
  * (`apps/server/src/routes/{connections,generate,schema,schema-import,jobs}/schema.ts`)
- * — the copied-mirror convention from app/bootstrap.ts applies: change both
- * together.
+ * — the copied-mirror convention from app/bootstrap.ts applies: change both together.
  */
 
 import { api, ApiError, csrfHeaders } from '../app/api.js';
@@ -45,14 +44,14 @@ export interface ConnectionDto {
   lastTestedAt: number | null;
   lastLatencyMs: number | null;
   lastError: string | null;
-  /** Remediation copy for `lastError`, from the adapter (05 §3). */
+  /** Remediation copy for `lastError`, from the adapter. */
   lastErrorHint: string | null;
   snapshot: { id: string; createdAt: number; checksum: string } | null;
   /**
-   * Tenant configuration (28-T34) — properties of the BUSINESS the database
-   * belongs to, not of any one front end. Carried on the connection because a
-   * hosted surface has no scope and no publishable key, so this is the only
-   * place it can read them from.
+   * Tenant configuration — properties of the BUSINESS the database belongs
+   * to, not of any one front end. Carried on the connection because a hosted
+   * surface has no scope and no publishable key, so this is the only place it
+   * can read them from.
    *
    * Both nullable. A null zone no longer stops a surface rendering — apps fall
    * back to UTC and say so on screen — but it is still the value every date
@@ -175,7 +174,7 @@ async function deleteJson<T>(path: string, payload: unknown): Promise<T> {
   const response = await fetch(path, {
     method: 'DELETE',
     credentials: 'same-origin',
-    // Hand-rolled fetch ⇒ hand-rolled CSRF header (08 §7 item 4). Without it
+    // Hand-rolled fetch ⇒ hand-rolled CSRF header. Without it
     // the delete-connection confirm 403s.
     headers: { accept: 'application/json', 'content-type': 'application/json', ...csrfHeaders() },
     body: JSON.stringify(payload),
@@ -206,11 +205,11 @@ async function deleteJson<T>(path: string, payload: unknown): Promise<T> {
 }
 
 export const studioApi = {
-  /** Capability probe only — never persists (§2.4). */
+  /** Capability probe only — never persists. */
   testDsn: (engine: ConnectionEngine, dsn: string) =>
     api.post<ConnectionTestResult>('/api/v1/connections/test', { engine, dsn }),
 
-  /** Hub list — health, snapshot age, table + generated-page counts (§2.4). */
+  /** Hub list — health, snapshot age, table + generated-page counts. */
   listConnections: async () =>
     (await api.get<{ connections: ConnectionDto[] }>('/api/v1/connections')).connections,
 
@@ -218,7 +217,7 @@ export const studioApi = {
   testConnection: (id: string) =>
     api.post<ConnectionTestResult>(`/api/v1/connections/${encodeURIComponent(id)}/test`),
 
-  /** Type-to-confirm delete — the server re-checks `confirmName` (§2.4). */
+  /** Type-to-confirm delete — the server re-checks `confirmName`. */
   deleteConnection: (id: string, confirmName: string) =>
     deleteJson<{ ok: true }>(`/api/v1/connections/${encodeURIComponent(id)}`, { confirmName }),
 
@@ -281,8 +280,8 @@ export const studioApi = {
    */
   /**
    * `park` renames the target's existing `adminium_` tables out of the way
-   * instead of refusing (45-T11). Only the first-run wizard sets it, and only
-   * after telling the operator which tables are there.
+   * instead of refusing. Only the first-run wizard sets it, and only after
+   * telling the operator which tables are there.
    */
   relocateMeta: async (dsn: string, opts: { park?: boolean } = {}): Promise<MetaRelocated> =>
     (
@@ -347,7 +346,7 @@ export async function waitForRestart(
 
 /*
  * `connectionHealthQuery` MOVED to `shell/connectionHealth.ts`
- * (38-files-library-and-attachments.md 38d, entry-budget attribution).
+ * (38d, entry-budget attribution).
  *
  * Its only consumer is `shell/RuntimeChipHost.tsx`, which renders on the FIRST
  * PAINT — so importing it from here put this whole module in the entry chunk

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Reserved-word lists per dialect — 35-schema-authoring.md 35-T32.
+ * Reserved-word lists per dialect.
  *
  * ─── Why this exists at all ────────────────────────────────────────────────
  *
@@ -21,7 +21,7 @@
  * premise is that the operator's tables stay THEIRS — legible and usable by
  * every other tool — so creating a name that only Adminium can address is a
  * trap Adminium set. Refuse at authoring time, when it is free to pick another
- * word (35 §4, `RESERVED_IDENTIFIER`).
+ * word (`RESERVED_IDENTIFIER`).
  *
  * An identifier that ALREADY exists is never checked against these lists: it
  * is in the snapshot, it works today, and refusing to rename a column on a
@@ -33,8 +33,8 @@
  * every dialect's keyword list is far longer than its reserved list and
  * includes words that are perfectly legal as identifiers (`name`, `value`,
  * `type`, `status`, `key`). Refusing those would make the designer unusable
- * for ordinary schemas, which is why the test in 35-T32 asserts `status` is
- * ACCEPTED on all three.
+ * for ordinary schemas, which is why the test asserts `status` is ACCEPTED
+ * on all three.
  *
  * Sources: PostgreSQL "SQL Key Words" appendix (reserved + reserved-can-be-
  * function-or-type), MySQL 8.0 "Keywords and Reserved Words" (the (R) rows),
@@ -67,7 +67,7 @@ const POSTGRES = [
 /**
  * MySQL 8.0 reserved words — the (R)-marked rows of "Keywords and Reserved
  * Words". Includes 8.0 additions (`rank`, `row_number`, `cume_dist`, …) that
- * were legal identifiers in 5.7, which is why 35-T32's test names `rank`.
+ * were legal identifiers in 5.7, which is why test names `rank`.
  */
 const MYSQL = [
   'accessible', 'add', 'all', 'alter', 'analyze', 'and', 'as', 'asc', 'asensitive',

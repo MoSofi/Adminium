@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Forecast geometry (`chart-forecast`, research/widget-registry.md §2): a pure
+ * Forecast geometry (`chart-forecast`, research/widget-registry.md): a pure
  * linear-projection model plus a closed confidence-polygon path builder. Both
- * are DOM-free and deterministic (04 §7.1). z-multipliers cover the common
- * confidence levels; anything else falls back to the 90% multiplier.
+ * are DOM-free and deterministic. z-multipliers cover the common confidence
+ * levels; anything else falls back to the 90% multiplier.
  */
 import type { XYPoint } from './lineArea.js';
 

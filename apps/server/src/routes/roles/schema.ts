@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the roles resource (08-server-api.md §2.3; naming per §1.5:
- * `<resource><Action><Part>` consts, PascalCase inferred types).
+ * Zod schemas for the roles resource (naming: `<resource><Action><Part>`
+ * consts, PascalCase inferred types).
  */
 import { z } from 'zod';
 
@@ -56,7 +56,7 @@ export const roleOkReply = z.object({ ok: z.literal(true) });
 
 export const rolePermissionsReply = z.object({
   roleId: z.string(),
-  /** §5.1 grant strings expanded from the matrix rows. */
+  /** Grant strings expanded from the matrix rows. */
   grants: z.array(z.string()),
 });
 export type RolePermissionsReply = z.infer<typeof rolePermissionsReply>;

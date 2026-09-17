@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `automation.run` job — the queue side of one rule execution
- * (42-automations-and-workflow-logs.md §3.4, D6, D8, 42-T11).
+ * The `automation.run` job — the queue side of one rule
+ * execution.
  *
  * The payload is `{ runId }` and, on a resume, where to pick up. Nothing
  * else: the run ROW is the source of truth for what to do, which is what
@@ -72,7 +72,7 @@ export function registerAutomationRunHandler(registry: JobRegistry, deps: Automa
 
       // A rule switched off while a run of it was waiting does not resume: the
       // operator turned it off, and finishing anyway is the opposite of what
-      // they asked (§8).
+      // they asked.
       if (!rule.enabled && payload.resume !== undefined) {
         const trace = run.trace ?? { version: 1 as const, steps: [], resume: null };
         await runs.finish(
@@ -93,7 +93,7 @@ export function registerAutomationRunHandler(registry: JobRegistry, deps: Automa
         {
           ...deps,
           // Live progress on `jobs:<id>` while a long run walks, so a future
-          // channel has something to carry (§3.4).
+          // channel has something to carry.
           progress: (pct, message) => {
             ctx.progress(pct, { step: 'run', message });
           },

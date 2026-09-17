@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * API-key lifecycle tests (08-server-api.md §2.16, M2-T06): one-time secret
- * reveal, hashed-at-rest storage, the bearer request-auth path (create →
- * authenticate → revoke → 401), role-scoped permissions, expiry, the
- * throttled `last_used_at` touch, and audit coverage of the mutations.
+ * API-key lifecycle tests: one-time secret reveal, hashed-at-rest storage,
+ * the bearer request-auth path (create → authenticate → revoke → 401),
+ * role-scoped permissions, expiry, the throttled `last_used_at` touch, and
+ * audit coverage of the mutations.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { apiKeysRepo, auditRepo, destroyMetaDb } from '@adminium/meta';

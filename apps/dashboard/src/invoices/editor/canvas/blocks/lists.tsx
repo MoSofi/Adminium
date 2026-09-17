@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The row-list blocks (comp 496-503, 558-566, 584-589, 594-599, 604-609;
- * 34-invoices-add-on.md Appendix F B9, B14, B16-B18): `attachments` —
- * surface-2 chips with the paperclip, the name and the mono size;
- * `multicurrency` — *Also payable in*, a bordered table of code · converted
- * amount and the *Converted from…* note; `discount` — code pill, label and
- * the amount off in the positive green; `taxbreak` — label · rate · amount;
- * `payhistory` — date, method, amount and the status badge.
+ * B9, B14, B16-B18): `attachments` — surface-2 chips with the paperclip,
+ * the name and the mono size; `multicurrency` — *Also payable in*, a
+ * bordered table of code · converted amount and the *Converted from…* note;
+ * `discount` — code pill, label and the amount off in the positive green;
+ * `taxbreak` — label · rate · amount; `payhistory` — date, method, amount
+ * and the status badge.
  *
  * Every amount is `money.ts`': the multi-currency figure is the
  * ladder's total times the typed rate (comp 1698, `fxMinor`) printed with

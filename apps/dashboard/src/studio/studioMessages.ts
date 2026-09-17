@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Studio's half of the deferred-namespace contract (10-T06).
+ * The Studio's half of the deferred-namespace contract.
  *
  * `studio` is the one namespace @adminium/i18n does not bundle or preload for
  * anybody — 975 messages, ~36 KiB of the en-US catalogue, for a console behind

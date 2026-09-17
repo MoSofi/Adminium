@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * WHAT ACTUALLY GETS WRITTEN — caller values, the scope's defaults, and the
- * claim, resolved into one row (28-public-surface.md §3.2; 33 §7.1).
+ * claim, resolved into one row.
  *
  * ── WHY IT IS A MODULE AND NOT A CLOSURE ────────────────────────────────────
  *
  * It lived inside the route plugin, which meant the one function in the public
  * surface that decides what a stranger may put in an operator's database could
  * only be exercised by standing up a server, a meta store, a connection and a
- * key. Nothing did, so it had no direct test at all — and 28 §1.1 is explicit
- * that this is "security-critical new code [that] needs property tests".
+ * key. Nothing did, so it had no direct test at all — and the review that
+ * found it was explicit: this is "security-critical new code [that] needs
+ * property tests".
  *
  * It captured nothing from the closure. Moving it out cost one import and
  * bought a test file; the behaviour is unchanged, line for line.
@@ -53,8 +54,8 @@ export const prepareValues = (
     if (!resource.writable.has(column)) return null;
   }
   /*
-   * `$generate` SENTINELS RESOLVE ON CREATE AND ARE DROPPED ON UPDATE
-   * (33 §7.1, D21).
+   * `$generate` SENTINELS RESOLVE ON CREATE AND ARE DROPPED ON
+   * UPDATE.
    *
    * `defaults` have always been applied on both paths, and for a literal that
    * is harmless — it rewrites the same constant. A MINTED default is not: run

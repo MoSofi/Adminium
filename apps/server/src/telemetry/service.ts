@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Telemetry client (M10-T04). OPT-IN: `telemetry.enabled` defaults to `false`
- * in the settings registry, so a fresh install reports nothing until someone
- * answers "yes" on the first-run consent screen (v0.5 exit criterion:
- * "Telemetry is opt-in (off by default)"). `ADMINIUM_TELEMETRY`, when set,
- * overrides that answer in both directions — see {@link TelemetryServiceDeps.envOverride}.
+ * Telemetry client. OPT-IN: `telemetry.enabled` defaults to `false` in the
+ * settings registry, so a fresh install reports nothing until someone answers
+ * "yes" on the first-run consent screen (v0.5 exit criterion: "Telemetry is
+ * opt-in (off by default)"). `ADMINIUM_TELEMETRY`, when set, overrides that
+ * answer in both directions — see {@link TelemetryServiceDeps.envOverride}.
  *
  * It is CONSTRUCTED in `../compose.ts`, the composition root, and reported on
  * the croner scheduler that every other periodic job uses. (For a while it was
@@ -38,9 +38,8 @@ export interface TelemetryServiceDeps {
   endpoint?: string | undefined;
   /**
    * `ADMINIUM_TELEMETRY`, tri-state. Set ⇒ the ENVIRONMENT WINS OUTRIGHT over
-   * the stored consent, in both directions (01 §7.2 "environment always wins");
-   * `undefined` (unset) ⇒ the `telemetry.enabled` setting decides, which is the
-   * normal self-host case.
+   * the stored consent, in both directions; `undefined` (unset) ⇒ the
+   * `telemetry.enabled` setting decides, which is the normal self-host case.
    *
    * The variable was documented as the kill-switch and read by nothing: an org
    * that set `ADMINIUM_TELEMETRY=off` to enforce a no-phone-home policy had no
@@ -100,7 +99,7 @@ export function createTelemetryService(deps: TelemetryServiceDeps): TelemetrySer
     // `engine` ONLY — deliberately not `connectionsRepo`, which would hand us
     // a DsnCrypto and rows carrying encrypted DSNs. Selecting the single
     // column makes it structurally impossible for connection material to reach
-    // the payload builder, rather than merely unlikely (07 §3.13).
+    // the payload builder, rather than merely unlikely.
     const rows = await meta.db.selectFrom('adminium_connections').select('engine').execute();
 
     return buildTelemetryPayload({

@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/settings/desktop` — the desktop settings panel (11-electron.md §2.3: "Everything
- * user-facing in [config.json] is also editable from the dashboard's desktop
- * settings panel (§8)").
+ * `/settings/desktop` — the desktop settings panel. Everything user-facing in
+ * the desktop `config.json` is also editable here.
  *
- * Two cards so far: §5's "Require login on this device" (11-T06) and §8.3's
- * "Share on local network" (11-T11). The panel is the shape the rest of §8 grows
- * into (updates, auto-backup, data dir), which is why it is a page with sections
+ * Two cards so far: "Require login on this device" and "Share on local
+ * network". The panel is the shape the rest of the desktop settings grow into
+ * (updates, auto-backup, data dir), which is why it is a page with sections
  * rather than a lone switch.
  *
  * The order is deliberate and it is not alphabetical: sign-in first, sharing
- * second. §8.3's toggle is the one that changes who can reach this machine, and
- * the question it raises — "wait, does it ask them for a password?" — is
- * answered by the card directly above it.
+ * second. The sharing toggle is the one that changes who can reach this
+ * machine, and the question it raises — "wait, does it ask them for a
+ * password?" — is answered by the card directly above it.
  *
  * DESKTOP ONLY. Without the preload bridge there is no `config.json` to write, so
  * the route renders the 404 state rather than a toggle that cannot do anything —
@@ -112,7 +111,7 @@ function RequireLoginCard(): ReactNode {
 export function DesktopSettingsPage(): ReactNode {
   if (!isDesktopRuntime()) {
     // Not a system state with an explanation: these settings do not exist for a
-    // browser at all, so the address is simply wrong here (§4 detection contract).
+    // browser at all, so the address is simply wrong here (detection contract).
     return <StatePage stateId="not-found" />;
   }
 

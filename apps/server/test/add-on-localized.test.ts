@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `pickLocalized` against the two key spaces it actually bridges
- * (40-add-on-browsing.md D2, §3.2).
+ * `pickLocalized` against the two key spaces it actually
+ * bridges.
  *
  * THE POINT OF THIS FILE IS THE PAIRING, NOT THE FUNCTION. A unit test that
  * invents its own record proves nothing here, because the defect it replaces

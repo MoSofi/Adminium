@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `stepper` (annex §10) — progress stepper, horizontal or vertical: numbered /
+ * `stepper` (annex) — progress stepper, horizontal or vertical: numbered /
  * spinner / check circles, connector lines filling accent on completion,
  * clickable navigation, label + sub per step. Evidence: Auth & Onboarding,
  * Connect Database, Import Wizard, Onboarding (vertical), Project Overview.
@@ -30,7 +30,7 @@ export interface StepDef {
 }
 
 /**
- * Project the §3 `record-list` payload onto step defs.
+ * Project the `record-list` payload onto step defs.
  *
  * A row's explicit `state` wins; where the payload carries none, the state is
  * DERIVED from the row's position relative to `activeIndex` — so a plain
@@ -88,7 +88,7 @@ export function StepperWidget({ config, data, onEvent }: WidgetProps<StepperConf
         {...(config.clickable && config.href !== undefined
           ? {
               // Step navigation is a host concern: the widget reports the intent
-              // and the host routes it (04 §2.1). Without an href there is
+              // and the host routes it. Without an href there is
               // nowhere to go, so the stepper stays read-only.
               onStepClick: (index: number) =>
                 onEvent({ type: 'drill-through', href: `${config.href as string}?step=${steps[index]?.key ?? index}` }),

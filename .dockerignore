@@ -1,4 +1,4 @@
-# Build context for the Dockerfile at the repo root (01-architecture.md §4.2).
+# Build context for the Dockerfile at the repo root.
 #
 # The build stage runs `pnpm install --frozen-lockfile` and a full workspace
 # build, so the context must carry the sources, every package.json, and the

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dark / RTL / density / accent axes are exercised via the Storybook globals
- * toolbar and the VRT profile matrix (03-component-library.md §8/§10) — they
- * are intentionally NOT separate stories. The slide-in mirrors in RTL
- * (`nb-toastin` → `nb-toastin-rtl`) and the stack anchors to the logical
- * inline-end.
+ * toolbar and the VRT profile matrix — they are intentionally NOT separate
+ * stories. The slide-in mirrors in RTL (`nb-toastin` → `nb-toastin-rtl`) and
+ * the stack anchors to the logical inline-end.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 

@@ -22,7 +22,7 @@
  * question that follows it — a source paused an hour ago during a migration
  * and one paused five weeks ago and forgotten are the same boolean and very
  * different situations. NULL means enabled; anything else is the epoch-ms
- * instant it was paused (07-meta-store.md §2.1: never a native datetime).
+ * instant it was paused (never a native datetime).
  *
  * WHO paused it is not stored here. The audit log already records the actor
  * for `connection.disable` / `connection.enable` alongside every other

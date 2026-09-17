@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Invoice money-fixture gate — every copy of the arithmetic law's table must
- * be byte-identical (34-invoices-add-on.md D20 as amended by O25; 34-T54).
+ * be byte-identical (as amended by O25).
  *
  * `money-fixture.json` is the table three trees assert against their own
  * copy of `money.ts`:

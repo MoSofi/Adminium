@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A campaign run's live progress (39 D12): while the latest run is scheduled
- * or running, subscribe to its job's realtime channel (`jobs:<jobId>`).
- * `progress` events carry the worker's `{ pct, step, message }`; anything
- * else on the channel (`completed`, `failed`, `cancelled`) means the run row
- * changed, and goes through the app's one invalidation map
- * (`api/realtime.ts`, which knows the `email-templates` key — 39 §8). A browser without a socket keeps
- * the refetch-on-focus path — nothing here is load-bearing for correctness.
+ * A campaign run's live progress: while the latest run is scheduled or running, subscribe to its
+ * job's realtime channel (`jobs:<jobId>`). `progress` events carry the worker's `{ pct, step,
+ * message }`; anything else on the channel (`completed`, `failed`, `cancelled`) means the run row
+ * changed, and goes through the app's one invalidation map (`api/realtime.ts`, which knows the
+ * `email-templates` key). A browser without a socket keeps the refetch-on-focus path — nothing here
+ * is load-bearing for correctness.
  */
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';

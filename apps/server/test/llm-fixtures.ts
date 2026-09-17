@@ -5,7 +5,7 @@
  * A scripted fake {@link ProviderClient} (injected, never a real network call),
  * small schema snapshots, and a `validate` closure over the real
  * `@adminium/llm` `validateResponse` pipeline — so the tests exercise the true
- * fatal/per-item classification the repair loop reacts to (06-llm-assist.md §7.5).
+ * fatal/per-item classification the repair loop reacts to.
  */
 import { parseDatabaseModel, type DatabaseModel, type StatsResult } from '@adminium/engine';
 import {

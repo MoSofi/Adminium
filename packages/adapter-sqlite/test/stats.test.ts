@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline unit tests for the SQLite statistics collector (06 §4.2). No
- * better-sqlite3 binding: a mock executor routes count/scan/sampling SQL by
- * shape so the estimate logic (exact count, scan fallback, capping) and the
- * privacy rules (sample-free default, PII never sampled) are asserted
+ * Offline unit tests for the SQLite statistics collector. No better-sqlite3
+ * binding: a mock executor routes count/scan/sampling SQL by shape so the
+ * estimate logic (exact count, scan fallback, capping) and the privacy
+ * rules (sample-free default, PII never sampled) are asserted
  * deterministically.
  */
 import { describe, expect, it } from 'vitest';
@@ -148,7 +148,7 @@ describe('collectSqliteStats — degrading instead of guessing', () => {
   });
 
   it('a count that is not a number is null, and no scan is attempted', async () => {
-    // "an unavailable estimate returns null, never a wrong number" (06 §4.2).
+    // "an unavailable estimate returns null, never a wrong number".
     const exec = sqliteMock({ count: Number.NaN });
     const stats = await collectSqliteStats(exec, table, { columns });
     expect(stats.rowCountEstimate).toBeNull();

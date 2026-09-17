@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * a11y-sweep — automated axe pass over every story in the built Storybook
- * (03-component-library.md §9, 15-quality.md §7.1).
+ * a11y-sweep — automated axe pass over every story in the built
+ * Storybook.
  *
  * Mechanics:
  *  1. Reuses `storybook-static/` if present (build with `pnpm build-storybook`,
@@ -13,7 +13,7 @@
  *     stamped by .storybook/preview.tsx, then runs @axe-core/playwright
  *     scoped to WCAG 2.x A/AA rules.
  *  4. Fails (exit 1) on any CRITICAL or SERIOUS violation; moderate/minor are
- *     reported but non-blocking, matching the 03 §3.5 definition of done.
+ * reported but non-blocking, matching the definition of done.
  *
  * Themes: sweeps light AND dark by default (color-contrast differs per theme).
  * Restrict with A11Y_THEMES=light. Filter stories with A11Y_GREP=<substring>.

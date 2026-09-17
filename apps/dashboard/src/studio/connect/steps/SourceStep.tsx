@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 2 — source (09 §8.2 step 1, M9-T04): three input modes behind a
- * SegmentedControl — DSN (mono connection-string field + provider quick-fill
- * chips + live scheme validation), individual fields (composing the DSN),
- * and schema file (dropzone → POST /api/v1/schema-import/parse → preview).
+ * Step 2 — source: three input modes behind a SegmentedControl — DSN (mono
+ * connection-string field + provider quick-fill chips + live scheme
+ * validation), individual fields (composing the DSN), and schema file
+ * (dropzone → POST /api/v1/schema-import/parse → preview).
  *
- * M9-T04 additions: an engine picker (postgres / mysql-mariadb / sqlite)
+ * Additions: an engine picker (postgres / mysql-mariadb / sqlite)
  * that stays in sync with the DSN scheme and swaps the fields form to a
- * file-path input for SQLite (05 §4.3 — file, not host/port); a schema-file
- * format picker over the 8 import formats with auto-detect default, showing
- * what was detected and re-parsing on override; parser warnings surfaced on
- * the preview card.
+ * file-path input for SQLite (file, not host/port); a schema-file format
+ * picker over the 8 import formats with auto-detect default, showing what
+ * was detected and re-parsing on override; parser warnings surfaced on the
+ * preview card.
  *
  * M7 Wave 4: the DSN field itself is no longer built here — it is
- * `@adminium/widgets`' `ConnectionStringField`, the annex §10
+ * `@adminium/widgets`' `ConnectionStringField`, the annex
  * `connection-string-field` widget's presentational half. This step used to own
  * a copy of the mono input, the provider quick-fill chips, the engine-aware
  * placeholder and the detected-engine tag; the widget registry needed the same
@@ -68,7 +68,7 @@ export interface SourceStepProps {
 
 const SSL_MODES: readonly SslMode[] = ['disable', 'require', 'verify-ca', 'verify-full'];
 
-/** Everything the 8 parsers read (05 §5.2) — plus .txt for pasted dumps. */
+/** Everything the 8 parsers read — plus.txt for pasted dumps. */
 const FILE_ACCEPT = '.sql,.prisma,.ts,.js,.mjs,.cjs,.rb,.py,.json,.txt';
 
 export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepProps) {

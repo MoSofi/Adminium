@@ -1,4 +1,4 @@
--- Northwind for SQLite — Adminium adapter fixture (M9/05-T14).
+-- Northwind for SQLite — Adminium adapter fixture (M9/).
 --
 -- The same 14 tables and FKs as the postgres reference fixture
 -- (packages/adapter-postgres/fixtures/northwind.sql) so the generated
@@ -7,7 +7,7 @@
 -- affinity mapping (smallint keys, varchar/char, real prices, blob images,
 -- date columns) and NO defaults. Data rows are the same representative
 -- subset. NO ANALYZE on purpose: the introspection tests exercise the
--- small-file exact-count path (05 §4.3); the stat1 path is tested separately.
+-- small-file exact-count path; the stat1 path is tested separately.
 
 BEGIN;
 

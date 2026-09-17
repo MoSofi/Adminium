@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/storage` — where the instance's bytes live
- * (37-files-and-storage.md §3.8, 37-T21).
+ * `/studio/storage` — where the instance's bytes live.
  *
  * Four things an operator does here, and one they must never be able to do by
  * accident:
  *
  *  1. **See where every byte already is.** The list opens with "This server's
  *     disk", which is not a row in any table: `destination_id IS NULL` is the
- *     implicit destination (37 D3). It cannot be edited, disabled or deleted,
- *     and it is the only place that can report how much room is left, because
- *     the local driver can call `statfs` and a bucket cannot. Every figure on
- *     this page is a bare fact — "N used", and for the disk "N available on
- *     this disk". Never a fraction of a capacity: the comp's "128.4 GB of
- *     200 GB" meter is a comp defect (37 D23, Appendix D), and a denominator
- *     is the first half of a sales pitch this product does not make.
+ * implicit destination. It cannot be edited, disabled or deleted, and it is
+ *     the only place that can report how much room is left, because the local
+ *     driver can call `statfs` and a bucket cannot. Every figure on this page
+ *     is a bare fact — "N used", and for the disk "N available on this disk".
+ *     Never a fraction of a capacity: the comp's "128.4 GB of 200 GB" meter
+ *     is a comp defect, and a denominator is the first half of a sales pitch
+ *     this product does not make.
  *
  *  2. **Add a destination** — a path on this machine, any S3-compatible
  *     bucket, any WebDAV server. The S3 presets fill endpoint, region and
@@ -311,7 +310,7 @@ export function StoragePage() {
   const usageFor = (id: string | null): StorageUsageEntry | undefined =>
     usageRows.find((entry) => entry.destinationId === id);
   const localUsage = usageFor(null);
-  /* No row is the default ⇒ the implicit destination is (37 D3). */
+  /* No row is the default ⇒ the implicit destination is. */
   const localIsDefault = !rows.some((row) => row.isDefault);
   const busy =
     save.isPending ||

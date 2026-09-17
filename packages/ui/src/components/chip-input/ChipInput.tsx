@@ -35,7 +35,7 @@ export interface ChipInputProps
 
 /**
  * ChipInput (MultiSelect/TagInput) — removable chips + inline text input
- * (research/design-system.md §3 Tier 2). Enter or `,` commits the pending
+ * (research/design-system.md Tier 2). Enter or `,` commits the pending
  * text, paste splits on commas/whitespace, Backspace on an empty input
  * removes the last chip, duplicates are ignored.
  */

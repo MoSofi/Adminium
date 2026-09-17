@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `shipping-carrier@1` (24 §5.5) — one delivery company, shaped so the second
- * one is a copy.
+ * `shipping-carrier@1` — one delivery company, shaped so the second one is a
+ * copy.
  *
  * The claim "each shipping company is its own add-on, and the next is this repo
  * with one file replaced" rests entirely on the conformance suite in

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family "bars & ranking" widgets (04-T09; annex §2): registry
- * wrappers mapping stored instance config + §3 envelopes onto the
- * @adminium/charts primitives. Accessible names come from `config.title`
- * (ChartSurface renders them as the SVG aria-label). Components render only the
- * loaded state — WidgetFrame owns skeleton/empty/error (04 §4).
+ * `charts` family "bars & ranking" widgets (annex): registry wrappers mapping
+ * stored instance config + envelopes onto the @adminium/charts primitives.
+ * Accessible names come from `config.title` (ChartSurface renders them as the
+ * SVG aria-label). Components render only the loaded state — WidgetFrame owns
+ * skeleton/empty/error.
  */
 import { useMaybeT } from '@adminium/i18n/react';
 import {

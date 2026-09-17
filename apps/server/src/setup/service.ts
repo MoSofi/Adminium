@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * First-run setup service (M10-T04, 16-milestones.md M10 + 01-architecture.md
- * §6). The ONE code path behind both front doors: the `/api/v1/setup/*` routes
- * the dashboard's first-run wizard drives, and the `adminium init` CLI wizard.
- * Neither reimplements any of this (M10 risk mitigation: "CLI subcommands share
- * the same server services as the Studio routes; one code path, two front
- * doors").
+ * First-run setup service (M10 +). The ONE code path behind both front doors:
+ * the `/api/v1/setup/*` routes the dashboard's first-run wizard drives, and the
+ * `adminium try` CLI wizard. Neither reimplements any of this (M10 risk
+ * mitigation: "CLI subcommands share the same server services as the Studio
+ * routes; one code path, two front doors").
  *
  * Framework-free on purpose — no Fastify types cross this boundary. It throws
  * domain errors (`SetupClosedError`, `WeakPasswordError`) that each front door

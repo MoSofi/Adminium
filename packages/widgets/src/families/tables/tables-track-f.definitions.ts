@@ -19,14 +19,14 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * Track F additions to the `tables` family (annex §3): master-list, log-table,
- * card-gallery, grouped-summary-table, schema-tree, toggle-matrix. Metadata
- * only — the @adminium/ui-heavy widget components load through the
+ * Track F additions to the `tables` family (annex): master-list, log-table,
+ * card-gallery, grouped-summary-table, schema-tree, toggle-matrix. Metadata only
+ * — the @adminium/ui-heavy widget components load through the
  * `tables-track-f-components` barrel via `lazy(() => import(...))`, so the
  * family stays in one lazy chunk and the registry metadata never eagerly pulls
- * the component code (04 §2.3; the kpi/charts convention). The GREEN LOOP
- * spreads `tablesTrackFDefinitions` into the existing `tablesWidgetDefinitions`.
- * Widget ids match the annex catalog exactly (acceptance #1).
+ * the component code (the kpi/charts convention). The GREEN LOOP spreads
+ * `tablesTrackFDefinitions` into the existing `tablesWidgetDefinitions`. Widget
+ * ids match the annex catalog exactly (acceptance #1).
  */
 
 export const masterListDefinition: WidgetDefinition = defineWidget({

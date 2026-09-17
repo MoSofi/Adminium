@@ -7,7 +7,7 @@ import { cn } from '../../lib/cn.js';
 
 /**
  * 1px `--border` rule, horizontal or vertical, with an optional centered
- * label ("or") — research/design-system.md §3 Tier 1.
+ * label ("or") — research/design-system.md Tier 1.
  */
 export const dividerVariants = cva('border-0 bg-border', {
   variants: {

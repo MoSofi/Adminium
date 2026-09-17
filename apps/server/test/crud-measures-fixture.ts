@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The invoices/invoice_items fixture the derived-column suites read
- * (36-derived-columns.md). Deliberately shaped like the schema the feature
- * was specified against: a parent carrying a 0-100 `tax_rate` percent, a
- * child carrying `qty`, `rate` and `discount_pct`, and a `line_total` that is
- * already NET of the discount — so the gross is never stored and the discount
- * total can only be reached by folding an EXPRESSION.
+ * The invoices/invoice_items fixture the derived-column suites read.
+ * Deliberately shaped like the schema the feature was specified against: a
+ * parent carrying a 0-100 `tax_rate` percent, a child carrying `qty`, `rate`
+ * and `discount_pct`, and a `line_total` that is already NET of the discount
+ * — so the gross is never stored and the discount total can only be reached
+ * by folding an EXPRESSION.
  *
  * COLUMN NAMES ARE LOAD-BEARING HERE. The server re-runs the classifier over
  * whatever an adapter introspects, so `semantics` written into a fixture model
  * are silently discarded — the only way to make a test column masked or secret
- * is to name it something the §7.1/§7.2 rules recognise. `contact_email` and
+ * is to name it something the rules recognise. `contact_email` and
  * `payer_account_number` are masked (PII), `legacy_token` is secret
  * (credential vocabulary). That is what lets one fixture exercise both refusal
  * polarities: a secret column is invisible (422 when named), a masked one

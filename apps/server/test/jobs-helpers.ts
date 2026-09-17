@@ -160,7 +160,7 @@ export function makeStubAuth(): StubAuth {
 // --- bare app ------------------------------------------------------------------------
 
 /**
- * Minimal Fastify instance with the zod compilers and an AppError → §1.4
+ * Minimal Fastify instance with the zod compilers and an AppError →
  * envelope handler (a scoped stand-in for `buildServer`, which currently
  * pulls in the auth agent's not-yet-installed native deps).
  */

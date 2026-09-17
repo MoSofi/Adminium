@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `me` routes (08-server-api.md §2.2), mounted under /api/v1 by app.ts:
- * GET/PATCH /me (profile) and GET/PATCH /me/prefs (preference axes, §7.2).
- * All of them require a live session and a configured meta store.
+ * `me` routes, mounted under /api/v1 by app.ts: GET/PATCH /me (profile)
+ * and GET/PATCH /me/prefs (preference axes). All of them require a live
+ * session and a configured meta store.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 

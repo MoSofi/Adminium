@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * automationRunsRepo — adminium_automation_runs (07-meta-store.md §3.23,
- * migration 0006 + 0028; 42-automations-and-workflow-logs.md §3.2, 42-T03).
+ * automationRunsRepo — adminium_automation_runs (migration 0006 + 0028).
  * One row per EXECUTION, and the only thing Workflow Logs reads.
  *
- * ─── `begin` is the exactly-once gate (42 D6) ──────────────────────────────
+ * ─── `begin` is the exactly-once gate ──────────────────────────────────────
  *
  * Four producers can decide the same occurrence happened: the route matcher,
  * the watch poller, the schedule scanner and a dry run. `begin` INSERTs the
@@ -406,9 +405,9 @@ export function automationRunsRepo(meta: MetaDb) {
 
     /**
      * Retention (D23): finished runs older than `days` go, and a FAILED run
-     * is kept twice as long (07 §8) — the run you want to read is the one
-     * that went wrong, and it is the one nobody looks at until later.
-     * `pending` and `waiting` are never swept: they are future work.
+     * is kept twice as long — the run you want to read is the one that went
+     * wrong, and it is the one nobody looks at until later. `pending` and
+     * `waiting` are never swept: they are future work.
      */
     async gc(at: number, days: number): Promise<number> {
       const dayMs = 86_400_000;

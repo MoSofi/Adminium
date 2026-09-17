@@ -22,7 +22,7 @@ export type DropdownMenuContentProps = Omit<
 
 /**
  * Menu panel — radius 14 (`rounded-lg`), `--shadow-menu`, `nb-pop` entrance
- * (research/design-system.md §3 Tier 3). Rendered in a portal; typeahead,
+ * (research/design-system.md Tier 3). Rendered in a portal; typeahead,
  * arrow-key roving and Esc/outside dismissal are Radix built-ins.
  */
 export function DropdownMenuContent({ className, sideOffset = 6, ref, ...props }: DropdownMenuContentProps) {

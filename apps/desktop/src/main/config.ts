@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Desktop config module (11-electron.md §2.3) — the `<userData>/config.json`
- * that the main process owns.
+ * Desktop config module — the `<userData>/config.json` that the main process
+ * owns.
  *
  * This file holds the values the server cannot own because they decide how the
- * server is *launched* (§2.3): the data directory, the master secret, the LAN
- * bind, the update mode. It is read at boot step 2 and the secret is resolved at
- * boot step 3, before `ServerManager.start()` has anything to fork with.
+ * server is *launched*: the data directory, the master secret, the LAN bind, the
+ * update mode. It is read at boot step 2 and the secret is resolved at boot step
+ * 3, before `ServerManager.start()` has anything to fork with.
  *
  * Three properties are load-bearing, and each one is a way the app bricks if it
  * is missing:
@@ -19,11 +19,11 @@
  * 2. **Explicit version handling.** An older file migrates forward; a file from
  *    a *newer* build is refused loudly rather than parsed leniently and written
  *    back with its unknown keys dropped — that would silently destroy settings
- *    on a downgrade. Same policy as the §9 backup rule ("a backup whose
+ * on a downgrade. Same policy as the backup rule ("a backup whose
  *    metaMigrationVersion is newer than the app is refused").
- * 3. **The secret is never logged.** Not in diagnostics (§13), not in the backup
- *    zip (§9 strips `secretEncrypted`/`secretPlain`), not on the crash screen.
- *    {@link redactConfig} is the only shape that may leave this module.
+ * 3. **The secret is never logged.** Not in diagnostics, not in the backup zip
+ * (strips `secretEncrypted`/`secretPlain`), not on the crash screen. {@link
+ * redactConfig} is the only shape that may leave this module.
  *
  * Everything external is injected — `safeStorage` ({@link SafeStorageLike}) and
  * the filesystem ({@link ConfigFs}) — so the whole module unit-tests without an
@@ -89,24 +89,24 @@ export class ConfigVersionError extends DesktopConfigError {
  * secret is the only key for every `enc:v1:` token in the meta-store; replacing
  * it converts "your keyring is missing" into "all your saved connections are
  * permanently corrupt". Boot fails loudly and the user restores from a backup
- * (§9) or reinstates the keyring.
+ * or reinstates the keyring.
  */
 export class SecretUnavailableError extends DesktopConfigError {
   override readonly name = 'SecretUnavailableError';
 }
 
-// ─── Schema (§2.3) ───────────────────────────────────────────────────────────
+// ─── Schema ──────────────────────────────────────────────────────────────────
 
 /** The `version` this build writes. Bump only alongside a migration. */
 export const CURRENT_CONFIG_VERSION = 1;
 
-/** §11 update modes. */
+/** Update modes. */
 export const updateModeSchema = z.enum(['notify', 'manual', 'disabled']);
 export type UpdateMode = z.infer<typeof updateModeSchema>;
 
 /**
- * Where `ADMINIUM_SECRET` lives (§2.2 step 3). `plain` drives the About-screen
- * warning banner (§13) and is surfaced through `getRuntimeInfo()` (§4).
+ * Where `ADMINIUM_SECRET` lives. `plain` drives the About-screen warning
+ * banner and is surfaced through `getRuntimeInfo()`.
  */
 export const secretStorageSchema = z.enum(['safeStorage', 'plain']);
 export type SecretStorage = z.infer<typeof secretStorageSchema>;
@@ -124,19 +124,19 @@ export const updatesSchema = z.strictObject({
 
 export const autoBackupSchema = z.strictObject({
   enabled: z.boolean(),
-  /** Rotation depth for `<dataDir>/backups/` (§9). At least one. */
+  /** Rotation depth for `<dataDir>/backups/`. At least one. */
   keep: z.number().int().min(1).max(365),
 });
 
 /**
- * Persisted window bounds (§14). `x`/`y` are optional: on first run there are
- * none and Electron centers the window.
+ * Persisted window bounds. `x`/`y` are optional: on first run there are none
+ * and Electron centers the window.
  *
  * Bounds are validated as positive integers only — deliberately NOT against the
- * §14 1024×700 minimum. This module's job is to keep the app bootable; a stale
- * or odd-scaled bound must not throw here and take `config.json` (and with it
- * the secret) out of reach. The window track clamps at apply time — see
- * {@link MIN_WINDOW_WIDTH} / {@link MIN_WINDOW_HEIGHT}.
+ * 1024×700 minimum. This module's job is to keep the app bootable; a stale or
+ * odd-scaled bound must not throw here and take `config.json` (and with it the
+ * secret) out of reach. The window track clamps at apply time — see {@link
+ * MIN_WINDOW_WIDTH} / {@link MIN_WINDOW_HEIGHT}.
  */
 export const windowStateSchema = z.strictObject({
   x: z.number().int().optional(),
@@ -146,33 +146,33 @@ export const windowStateSchema = z.strictObject({
   maximized: z.boolean(),
 });
 
-/** §14 minimum window size, for the window track's off-screen/clamp correction. */
+/** Minimum window size, for the window track's off-screen/clamp correction. */
 export const MIN_WINDOW_WIDTH = 1024;
 export const MIN_WINDOW_HEIGHT = 700;
 
 /**
- * `<userData>/config.json` (§2.3).
+ * `<userData>/config.json`.
  *
  * `strictObject`: an unknown key is a bug (a typo, a hand-edit) and not a
  * forward-compat channel — a genuinely newer file is caught earlier, by the
  * version gate, with a message the user can act on.
  *
- * `secretStorage` is not in the §2.3 example body but is mandated by §2.2 step 3
- * ("fall back to plaintext `config.secretPlain` and set `secretStorage: "plain"`
- * so the About screen can warn") and is read back by `getRuntimeInfo()` (§4), so
- * it is persisted here rather than recomputed by every reader.
+ * `secretStorage` is not in the example body but is mandated by ("fall back to
+ * plaintext `config.secretPlain` and set `secretStorage: "plain"` so the About
+ * screen can warn") and is read back by `getRuntimeInfo()`, so it is persisted
+ * here rather than recomputed by every reader.
  */
 export const desktopConfigSchema = z.strictObject({
   version: z.literal(CURRENT_CONFIG_VERSION),
   dataDir: z.string().min(1),
   /** base64 of the safeStorage-encrypted `ADMINIUM_SECRET`. */
   secretEncrypted: z.string().min(1).nullable(),
-  /** Only when safeStorage is unavailable (§2.2 step 3). */
+  /** Only when safeStorage is unavailable. */
   secretPlain: z.string().min(1).nullable(),
   secretStorage: secretStorageSchema,
-  /** §5 — "Skip login on this computer". */
+  /** "Skip login on this computer". */
   singleUser: z.boolean(),
-  /** §8.3 — off in Wave 1; the server binds 127.0.0.1. */
+  /** Off in Wave 1; the server binds 127.0.0.1. */
   lanShare: lanShareSchema,
   updates: updatesSchema,
   telemetryOptIn: z.boolean(),
@@ -182,21 +182,21 @@ export const desktopConfigSchema = z.strictObject({
 
 export type DesktopConfig = z.infer<typeof desktopConfigSchema>;
 
-/** `config.json` minus every secret — the only shape that may be logged (§9, §13). */
+/** `config.json` minus every secret — the only shape that may be logged. */
 export type RedactedDesktopConfig = Omit<DesktopConfig, 'secretEncrypted' | 'secretPlain'>;
 
-/** §8.3 default LAN port; matches the server's own default (`config/env.ts`). */
+/** The default LAN port; matches the server's own default (`config/env.ts`). */
 export const DEFAULT_LAN_PORT = 4600;
 
-/** §9 default backup rotation depth. */
+/** The default backup rotation depth. */
 export const DEFAULT_AUTO_BACKUP_KEEP = 7;
 
-/** `<userData>/config.json` (§2.3). */
+/** `<userData>/config.json`. */
 export function configPathFor(userDataDir: string): string {
   return join(userDataDir, 'config.json');
 }
 
-/** `<userData>/data` — the default data directory offered by the wizard (§6 step 1). */
+/** `<userData>/data` — the default data directory offered by the wizard. */
 export function defaultDataDirFor(userDataDir: string): string {
   return join(userDataDir, 'data');
 }
@@ -223,11 +223,10 @@ export function createDefaultConfig(dataDir: string): DesktopConfig {
 }
 
 /**
- * Strips `secretEncrypted` / `secretPlain` — the exact pair §9 requires the
- * backup zip to omit. Use this for any log line, diagnostic dump (§13), or
- * archived copy of the config. The keys are *removed*, not nulled, so a
- * downstream `JSON.stringify` cannot resurrect a placeholder that looks like a
- * value.
+ * Strips `secretEncrypted` / `secretPlain` — the exact pair requires the
+ * backup zip to omit. Use this for any log line, diagnostic dump, or archived
+ * copy of the config. The keys are *removed*, not nulled, so a downstream
+ * `JSON.stringify` cannot resurrect a placeholder that looks like a value.
  *
  * Built as an explicit allow-list rather than by spreading and deleting: with a
  * rest-spread, a secret-bearing field added to the schema later would leak by
@@ -323,7 +322,7 @@ const versionProbeSchema = z.looseObject({
 /**
  * Brings a raw body to {@link CURRENT_CONFIG_VERSION}, or throws
  * {@link ConfigVersionError}. Exported for the migration tests and for the
- * restore path (§9), which validates a backup's bundled `config.json`.
+ * restore path, which validates a backup's bundled `config.json`.
  */
 export function migrateConfig(
   raw: unknown,
@@ -379,7 +378,7 @@ export interface ConfigIoDeps {
 }
 
 export type LoadConfigResult =
-  /** No file ⇒ first-run mode (§2.2 step 2). */
+  /** No file ⇒ first-run mode. */
   | { status: 'missing' }
   | { status: 'loaded'; config: DesktopConfig; migratedFrom: number | null };
 
@@ -440,7 +439,7 @@ export async function loadConfig(path: string, deps: ConfigIoDeps = {}): Promise
 }
 
 /**
- * Atomic write (§2.3 "write temp + rename").
+ * Atomic write.
  *
  * Sequence: validate → write a uniquely named temp in the *same directory* (so
  * the rename is same-filesystem and therefore atomic) → `fsync` the file →
@@ -511,7 +510,7 @@ async function syncDirectory(fs: ConfigFs, dir: string): Promise<void> {
   }
 }
 
-// ─── Secret resolution (§2.2 step 3) ─────────────────────────────────────────
+// ─── Secret resolution ───────────────────────────────────────────────────────
 
 /** 32 bytes → 64 hex chars, comfortably over the server's 16-char minimum. */
 export const SECRET_BYTES = 32;
@@ -522,7 +521,7 @@ export function generateSecret(): string {
 }
 
 export interface ResolvedSecret {
-  /** The plaintext `ADMINIUM_SECRET` for the server's fork env (§2.2 step 5). */
+  /** The plaintext `ADMINIUM_SECRET` for the server's fork env. */
   secret: string;
   storage: SecretStorage;
   /** The config as it should now be persisted. */
@@ -548,7 +547,7 @@ export interface ResolveSecretDeps {
  * | available   | `secretEncrypted`  | decrypt; `safeStorage`                         |
  * | available   | `secretPlain`      | **upgrade**: encrypt, drop the plaintext       |
  * | available   | neither            | generate, encrypt; `safeStorage`               |
- * | unavailable | `secretPlain`      | use as-is; `plain` (About-screen warning, §13) |
+ * | unavailable | `secretPlain` | use as-is; `plain` (About-screen warning) |
  * | unavailable | `secretEncrypted`  | {@link SecretUnavailableError} — never regenerate |
  * | unavailable | neither            | generate, store plaintext; `plain`             |
  *
@@ -610,7 +609,7 @@ export function resolveSecret(
     };
   }
 
-  // safeStorage unavailable — Linux without a keyring (§2.2 step 3).
+  // safeStorage unavailable — Linux without a keyring.
   if (config.secretEncrypted !== null) {
     throw new SecretUnavailableError(
       'config.json holds a safeStorage-encrypted ADMINIUM_SECRET, but this system ' +
@@ -690,11 +689,11 @@ function decryptOrThrow(secretEncrypted: string, safeStorage: SafeStorageLike): 
   return secret;
 }
 
-// ─── Cloud-sync folder detection (§6 step 1, §9) ──────────────────────────────
+// ─── Cloud-sync folder detection ──────────────────────────────────────────────
 
 /**
- * The four providers §6 step 1 names. `googleDrive` covers Drive for Desktop's
- * several mount shapes.
+ * The four providers names. `googleDrive` covers Drive for Desktop's several
+ * mount shapes.
  */
 export type CloudSyncProvider = 'dropbox' | 'icloud' | 'onedrive' | 'googleDrive';
 
@@ -712,9 +711,9 @@ export interface CloudSyncWarning {
 }
 
 /**
- * The key the first-run wizard (11-T07, in `@adminium/dashboard`) renders with
- * `t(key, { provider: providerLabel })`. Lives here so the detector and the
- * warning cannot drift; the translations belong to the wizard's bundle.
+ * The key the first-run wizard (in `@adminium/dashboard`) renders with `t(key,
+ * { provider: providerLabel })`. Lives here so the detector and the warning
+ * cannot drift; the translations belong to the wizard's bundle.
  */
 export const CLOUD_SYNC_WARNING_I18N_KEY = 'desktop.setup.dataDir.cloudSyncWarning';
 
@@ -747,8 +746,8 @@ const CLOUD_STORAGE_DIR = /^cloudstorage$/i;
 
 /**
  * Matched per path *segment*, not by substring: `~/Projects/dropbox-clone/data`
- * is not a Dropbox folder, and this warning is blocking (§6 step 1), so a false
- * positive is a wall in front of a legitimate setup.
+ * is not a Dropbox folder, and this warning is blocking, so a false positive is
+ * a wall in front of a legitimate setup.
  *
  * Two scopes, and the split is what keeps the rule both complete and narrow.
  *
@@ -764,11 +763,11 @@ const CLOUD_STORAGE_DIR = /^cloudstorage$/i;
  * `~/Library/CloudStorage/GoogleDrive-ava@gmail.com`. A hyphen accepted in the
  * `any` scope would also match `~/Projects/dropbox-clone`,
  * `~/dropbox-backups`, and `~/onedrive-scripts` — ordinary folders no sync
- * client touches. Since this warning BLOCKS (§6 step 1), that false positive is
- * a wall in front of a legitimate setup; and since dropping the hyphen
- * ENTIRELY would stop flagging `OneDrive-Personal` — a false negative on a
- * SQLite-corruption warning, which is the worse failure of the two — the
- * separator is admitted exactly where the OS guarantees the meaning.
+ * client touches. Since this warning BLOCKS, that false positive is a wall in
+ * front of a legitimate setup; and since dropping the hyphen ENTIRELY would
+ * stop flagging `OneDrive-Personal` — a false negative on a SQLite-corruption
+ * warning, which is the worse failure of the two — the separator is admitted
+ * exactly where the OS guarantees the meaning.
  */
 const PROVIDER_MATCHERS: readonly ProviderMatcher[] = [
   // macOS: ~/Library/Mobile Documents/com~apple~CloudDocs; Windows: ~/iCloudDrive
@@ -808,7 +807,7 @@ function splitSegments(path: string): string[] {
 }
 
 /**
- * Is `dir` inside a known cloud-sync folder? (§6 step 1, §9)
+ * Is `dir` inside a known cloud-sync folder?
  *
  * SQLite in a file-sync folder corrupts: the provider copies the `.sqlite`,
  * `-wal`, and `-shm` files independently and at different moments, so it can

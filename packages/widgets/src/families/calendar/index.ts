@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `calendar` family public surface (annex §5) — the calendar/scheduling
- * components (calendar-month, day-agenda, schedule-matrix, capacity-board) plus
- * the TRACK CAL registry metadata. Component code is also reachable through each
- * definition's `lazy()` ref, so the registry still emits one chunk per family
- * (04 §2.3); this barrel is for direct template/story composition and tests.
- * Registry metadata lives in `calendar-track.definitions.ts`.
+ * `calendar` family public surface (annex) — the calendar/scheduling components
+ * (calendar-month, day-agenda, schedule-matrix, capacity-board) plus the TRACK
+ * CAL registry metadata. Component code is also reachable through each
+ * definition's `lazy()` ref, so the registry still emits one chunk per family;
+ * this barrel is for direct template/story composition and tests. Registry
+ * metadata lives in `calendar-track.definitions.ts`.
  */
 export {
   CalendarMonth,
@@ -42,7 +42,7 @@ export {
   type CapacityBoardConfig,
   type CapacityBoardProps,
 } from './CapacityBoard.js';
-// M7 Wave-4 TAIL — the four §5 widgets that complete the family.
+// M7 Wave-4 TAIL — the four widgets that complete the family.
 export {
   CalendarLegendFilter,
   CalendarLegendFilterWidget,

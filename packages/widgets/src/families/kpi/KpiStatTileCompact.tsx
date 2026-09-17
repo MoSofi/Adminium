@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `kpi-stat-tile-compact` (annex §1) — the slim tile variant of the workhorse
- * card, for dense "power" rows of 4–6: uppercase micro-label, mono value, a tiny
- * delta chip, and a 22px 6-bar sparkline. No icon tile (that is what separates it
- * from `kpi-stat-card`). Renders only the loaded state — skeleton/empty/error
- * are WidgetFrame's job.
+ * `kpi-stat-tile-compact` (annex) — the slim tile variant of the workhorse card,
+ * for dense "power" rows of 4–6: uppercase micro-label, mono value, a tiny delta
+ * chip, and a 22px 6-bar sparkline. No icon tile (that is what separates it from
+ * `kpi-stat-card`). Renders only the loaded state — skeleton/empty/error are
+ * WidgetFrame's job.
  */
 
 import { DeltaPill, MonoText } from '@adminium/ui';
@@ -17,7 +17,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { kpiStatTileCompactConfigSchema, kpiStatTileCompactDemoData } from './kpi-config.js';
 export type { KpiStatTileCompactConfig } from './kpi-config.js';
 

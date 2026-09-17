@@ -1,4 +1,4 @@
--- Northwind for PostgreSQL — Adminium adapter fixture (M3-T01).
+-- Northwind for PostgreSQL — Adminium adapter fixture.
 --
 -- A faithful port of the classic Northwind schema (the shared IR contract in
 -- packages/engine/test/fixtures/northwind.model.json is generated from this

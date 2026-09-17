@@ -8,7 +8,7 @@ import {
 } from '../src/page-config/index.js';
 
 /**
- * The derived-field evaluator (36-derived-columns.md §3.5).
+ * The derived-field evaluator.
  *
  * Two things are being tested and only one of them is arithmetic. The other is
  * the three-state lattice — value / absent / refused — which is the whole of

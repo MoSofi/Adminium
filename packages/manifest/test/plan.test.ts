@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `planInstall` (26-T01) — against the REAL shipped manifests, not fixtures.
+ * `planInstall` — against the REAL shipped manifests, not fixtures.
  *
  * The manifests are inlined here rather than read from `Adminiumjs/add-ons`,
  * because this package cannot depend on that repo and a fixture copied by hand

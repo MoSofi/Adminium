@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `applyInstall` — the DDL an add-on install actually runs (26-T02).
+ * `applyInstall` — the DDL an add-on install actually runs.
  *
  * Two kinds of assertion, and both are needed:
  *

@@ -77,7 +77,7 @@ export {
 };
 
 /**
- * TRACK BUILDER — the INVOICE/PAYMENT half of the annex §13 document-block
+ * TRACK BUILDER — the INVOICE/PAYMENT half of the annex document-block
  * vocabulary, grouped in one module because the annex specifies them as one
  * shared library and they share the money helpers (`computeTotals`,
  * `formatBlockMoney`) end to end:
@@ -87,9 +87,9 @@ export {
  *   `block-late-fees`, `block-qr-pay`.
  *
  * NEVER WRITES: `block-line-items`' qty/rate edits emit `mutate` intents through
- * `onEvent` and the host runs them through the CRUD API with undo + audit
- * (04 §2.1). An unbound (demo) block has no table to address, so it renders the
- * inputs but emits nothing.
+ * `onEvent` and the host runs them through the CRUD API with undo + audit. An
+ * unbound (demo) block has no table to address, so it renders the inputs but
+ * emits nothing.
  *
  * MONEY IS ALWAYS RECOMPUTED, never read from a stored column: the totals, the
  * tax lines and the QR amount all derive from the same `computeTotals`, so a
@@ -205,7 +205,7 @@ export function BlockTotalsSummaryWidget({ config, data }: WidgetProps<BlockTota
     return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockTotalsSummary.emptyTitle', 'No totals')} body={config.emptyBody ?? t('ui:widgets.domain.blockTotalsSummary.emptyBody', 'Totals appear once the document has line items.')} />;
   }
 
-  // The doc's items/rates live under CONFIG-NAMED keys (04 §5) — hardcoding
+  // The doc's items/rates live under CONFIG-NAMED keys — hardcoding
   // `payload.items` would read `undefined` off a doc whose line items are a
   // `lines` column and print a silent $0.00 invoice rather than an empty state.
   const rawItems = payload[config.itemsField];

@@ -24,11 +24,18 @@ import { Code } from '@astrojs/starlight/components';
 </div>
 
 <Code
-  code={`export ADMINIUM_SECRET=$(openssl rand -hex 32)
-npx @adminiumjs/adminium`}
+  code={`npx @adminiumjs/adminium new my-admin
+cd my-admin
+npm run dev`}
   lang="bash"
   title="One command, complete install"
 />
+
+That creates a folder you own — your pages as files, Adminium pinned to one
+exact version — and starts the admin on your database. Want a look first,
+with nothing to create? `npx @adminiumjs/adminium try` runs the setup wizard
+instead. On a server, [deploy the project](/projects/deploy/) or
+[run the package as a service](/self-hosting/vps/).
 
 <div class="docs-start">
   <p class="docs-start-label">Start here</p>
@@ -36,13 +43,21 @@ npx @adminiumjs/adminium`}
   <a class="docs-start-row" href="/getting-started/quickstart/">
     <span class="docs-start-num">01</span>
     <span class="docs-start-main">
-      <span class="docs-start-title">Quickstart with npx</span>
-      <span class="docs-start-desc">Install, answer the setup wizard, and have an admin panel on your own schema in a few minutes.</span>
+      <span class="docs-start-title">Quickstart</span>
+      <span class="docs-start-desc">Create a project, run it, and have an admin panel on your own schema in a few minutes.</span>
+    </span>
+  </a>
+
+  <a class="docs-start-row" href="/projects/">
+    <span class="docs-start-num">02</span>
+    <span class="docs-start-main">
+      <span class="docs-start-title">Work in a project</span>
+      <span class="docs-start-desc">Pages as files you commit, plus your own hooks, actions, React pages and table cells.</span>
     </span>
   </a>
 
   <a class="docs-start-row" href="/getting-started/docker/">
-    <span class="docs-start-num">02</span>
+    <span class="docs-start-num">03</span>
     <span class="docs-start-main">
       <span class="docs-start-title">Run with Docker</span>
       <span class="docs-start-desc">A single container, or Compose with a managed Postgres meta store.</span>
@@ -50,7 +65,7 @@ npx @adminiumjs/adminium`}
   </a>
 
   <a class="docs-start-row" href="/getting-started/first-connection/">
-    <span class="docs-start-num">03</span>
+    <span class="docs-start-num">04</span>
     <span class="docs-start-main">
       <span class="docs-start-title">Connect your first database</span>
       <span class="docs-start-desc">PostgreSQL, MySQL/MariaDB and SQLite — or import a schema file and connect nothing at all.</span>
@@ -58,7 +73,7 @@ npx @adminiumjs/adminium`}
   </a>
 
   <a class="docs-start-row" href="/self-hosting/">
-    <span class="docs-start-num">04</span>
+    <span class="docs-start-num">05</span>
     <span class="docs-start-main">
       <span class="docs-start-title">Self-host it properly</span>
       <span class="docs-start-desc">Meta-store placement, reverse proxies, secrets, upgrades and telemetry.</span>
@@ -75,8 +90,12 @@ roles, and an audit trail.
 
 Two things follow from "interprets at runtime", and both matter:
 
-- **It is not a code generator.** There is no `src/` directory to eject into and
-  maintain. Your schema changes; you re-introspect; the app follows.
+- **It is not a code generator.** There is no `src/` directory of generated code
+  to maintain. Your schema changes; you re-introspect; the app follows. In a
+  [project](/projects/) each page is a small JSON file of settings you can edit
+  and commit — settings, not code — and when a page needs code of your own,
+  `adminium eject` turns that one page into a React file that still draws its
+  settings.
 - **What you export is configuration, not source.** `adminium export-zip` gives
   you the server plus its config bundle so you can move or replay an instance —
   it does not hand you a generated codebase. See

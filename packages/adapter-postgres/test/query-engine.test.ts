@@ -118,7 +118,7 @@ describe('createQueryEngine pool error contract', () => {
   });
 
   describe('the statement budget on the pool that reads rows', () => {
-    // This pool was built bare while the adapter's carried 05 §4.1's rails since
+    // This pool was built bare while the adapter's carried rails since
     // M3, so a runaway CRUD query had no server-side bound at all.
     it('sends the data role’s session settings', () => {
       createQueryEngine({ role: 'data', dsn: DSN } as never);

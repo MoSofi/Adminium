@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The block panel (comp 377-428; 43-report-builder.md Appendix A I5–I9):
- * *Block title*, the kind's field group, a hairline, the Width segment
- * (Full / Half), the *Show in export* toggle and *Delete block*.
+ * The block panel (comp 377-428; I5–I9): *Block title*, the kind's field
+ * group, a hairline, the Width segment (Full / Half), the *Show in
+ * export* toggle and *Delete block*.
  *
  * *SHOW IN EXPORT* IS STORED AND HONOURED ON THE CANVAS, and nothing else
- * consumes it yet: this comp draws no export, print or download of a report
- * (43 §5 item 1). Off dims the card to 50 % (616) — it never removes the
- * block and never re-orders the stack.
+ * consumes it yet: this comp draws no export, print or download of a
+ * report. Off dims the card to 50 % (616) — it never removes the block and
+ * never re-orders the stack.
  */
 import { useId } from 'react';
 

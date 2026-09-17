@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the email-documents resource (39-email-templates-and-
- * campaigns.md §3.1). SYNC NOTE: the client-side mirror of these shapes is
+ * campaigns.md). SYNC NOTE: the client-side mirror of these shapes is
  * `apps/dashboard/src/email/api.ts` (type-only copy — the dashboard may not
  * import server runtime code). Change both together; the replies are
  * deliberately UN-enveloped (`{ items, counts }` / bare detail) because the
@@ -20,7 +20,7 @@ import {
 
 import { emailDocumentInputSchema, emailDocumentSchema } from '../../email/document.js';
 
-/** A campaign's latest run, as the manager shows it (39 D2, D12). */
+/** A campaign's latest run, as the manager shows it. */
 export const emailRunView = z.object({
   id: z.string(),
   status: emailRunStatusSchema,
@@ -38,7 +38,7 @@ export const emailRunView = z.object({
 });
 export type EmailRunView = z.infer<typeof emailRunView>;
 
-/** One card / row of the manager (39 §3.1 `EmailDocumentSummary`). */
+/** One card / row of the manager (`EmailDocumentSummary`). */
 export const emailDocumentSummary = z.object({
   id: z.string(),
   kind: emailDocumentKindSchema,
@@ -51,14 +51,16 @@ export const emailDocumentSummary = z.object({
   needsTranslation: z.boolean(),
   archivedAt: z.number().nullable(),
   updatedAt: z.number(),
-  /** A key the built-ins own — "Reset to built-in" instead of "Delete for good" (39 D4). */
+  /** A key the built-ins own — "Reset to built-in" instead of "Delete for
+   * good". */
   isBuiltin: z.boolean(),
   isBuiltinCopy: z.boolean(),
   starter: z.string().nullable(),
   brand: z.object({ accent: z.string(), mark: z.string() }).nullable(),
   /** The first heading block's text, for the mini preview. */
   heading: z.string(),
-  /** The family's label — the `en_US` sibling's name, else the first sibling's (39 D3). */
+  /** The family's label — the `en_US` sibling's name, else the first sibling's.
+   * */
   topicLabel: z.string(),
   run: emailRunView.optional(),
 });
@@ -75,7 +77,7 @@ export const emailDocumentsListReply = z.object({
   counts: z.object({ template: z.number(), campaign: z.number(), archived: z.number() }),
 });
 
-/** A language variation row of the editor's menu (39 D3). */
+/** A language variation row of the editor's menu. */
 export const emailLanguageView = z.object({
   id: z.string(),
   locale: z.string(),
@@ -84,7 +86,8 @@ export const emailLanguageView = z.object({
   archived: z.boolean(),
 });
 
-/** A fixed attachment as the inspector shows it — with the file's facts, or `missing` (39 D8). */
+/** A fixed attachment as the inspector shows it — with the file's facts, or
+ * `missing`. */
 export const emailAttachmentResolvedView = z.object({
   id: z.string(),
   fileId: z.string(),
@@ -106,7 +109,7 @@ export const emailIdParams = z.object({ id: z.string().min(1).max(36) });
 
 /**
  * `locale` is a canonical locale id. Widened from 5 to 35 chars alongside
- * migration 0012 (23-runtime-translations.md §3.5): an admin-created locale
+ * migration 0012: an admin-created locale
  * may carry a script subtag, and a 5-char cap would make a custom locale
  * unable to have an email variant at all.
  */
@@ -128,14 +131,14 @@ export const emailStartersReply = z.object({ starters: z.array(emailStarterCard)
 export const emailCreateBody = z.object({
   kind: emailDocumentKindSchema,
   name: z.string().trim().min(1).max(120).optional(),
-  /** A starter key, or null/absent for a blank document (39 D10). */
+  /** A starter key, or null/absent for a blank document. */
   starter: z.string().max(40).nullable().optional(),
   locale: z.string().min(2).max(35).optional(),
 });
 
 export const emailAddLanguageBody = z.object({ locale: z.string().min(2).max(35) });
 
-/** `:id` is the template; the campaign takes its name unless one is given (39 D21). */
+/** `:id` is the template; the campaign takes its name unless one is given. */
 export const emailFromTemplateBody = z.object({ name: z.string().trim().min(1).max(120).optional() });
 
 export const emailPutBody = z.object({
@@ -143,7 +146,8 @@ export const emailPutBody = z.object({
   category: emailCategorySchema,
   enabled: z.boolean(),
   document: emailDocumentInputSchema,
-  /** The session's structural edits, applied to every sibling in the same save (39 D1). */
+  /** The session's structural edits, applied to every sibling in the same save.
+   * */
   mirrorOps: emailMirrorOpsSchema.optional(),
 });
 export type EmailPutBody = z.infer<typeof emailPutBody>;
@@ -161,7 +165,7 @@ export const emailPatchBody = z
  * Addresses to send the sample to. Deliberately NOT `z.string().email()`: the
  * repo validates addresses the same loose way `POST /users` does, and the SMTP
  * relay is the real authority on what it will accept. The document is the
- * ON-SCREEN one — a test send never reads the stored row (39 D1).
+ * ON-SCREEN one — a test send never reads the stored row.
  */
 export const emailTestSendBody = z.object({
   to: z.array(z.string().trim().min(3).max(320)).min(1).max(10),
@@ -180,7 +184,7 @@ export const emailExportQuery = z.object({
   ids: z.string().max(4000).optional(),
 });
 
-/** Bundle v1 (39 D14). */
+/** Bundle v1. */
 export const emailBundleDocument = z.object({
   kind: emailDocumentKindSchema,
   key: z.string().min(1).max(80),
@@ -240,7 +244,8 @@ export const savedBlockCreateBody = z.object({
 });
 export const savedBlockDetailReply = z.object({ block: savedBlockView });
 
-// --- campaigns (39 D11) ------------------------------------------------------------------
+// --- campaigns
+// ------------------------------------------------------------------
 
 export const emailAudiencePreviewBody = z.object({ audience: emailAudienceSchema });
 export const emailAudiencePreviewReply = z.object({ total: z.number().int(), skipped: z.number().int() });

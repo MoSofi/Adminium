@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The report manager (43-report-builder.md 43-T05 done-when; Appendix A
- * M1–M17), rendered through the real router and shell so the topbar's
- * published actions, the toasts and the navigation are the product's own. The
- * API is a fetch stub keyed on the routes the manager calls; the fixtures are
- * the comp's seed (556-558): four templates and four reports.
+ * The report manager (M1–M17), rendered through the real router and shell so
+ * the topbar's published actions, the toasts and the navigation are the
+ * product's own. The API is a fetch stub keyed on the routes the manager
+ * calls; the fixtures are the comp's seed (556-558): four templates and four
+ * reports.
  *
  * The assertions that carry the wave: the tab badges NEVER respond to the
  * search box (580); the card's meta line differs by tab while the row's sub
- * does not (585); a rename never changes the card's glyph (43 D14, the comp's
+ * does not (585); a rename never changes the card's glyph (the comp's
  * `starterIconFor` defect); and the four empty states are the comp's copy.
  */
 import { QueryClientProvider } from '@tanstack/react-query';

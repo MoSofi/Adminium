@@ -12,29 +12,30 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * `media-track.definitions.ts`, which imports the config schemas and `demoData`
  * generators. Those must NOT drag the @adminium/ui-heavy components into the
  * eager registry chunk — the components load only through
- * `lazy(() => import('./media-track-components.js'))` (one lazy chunk per family,
- * 04 §2.3; the boards/kpi/charts `*-config` convention). The component files
- * re-export these symbols so barrel/story/test import points stay stable.
+ * `lazy(() => import('./media-track-components.js'))` (one lazy chunk per family;
+ * the boards/kpi/charts `*-config` convention). The component files re-export
+ * these symbols so barrel/story/test import points stay stable.
  *
- * FIELD-NAMING CONFIG (04 §5, annex §8): media widgets bind to a `record-list`
- * of rows from a real attachment/file table whose columns are named whatever the
- * source schema calls them. Every widget therefore takes `*Field` config naming
- * which column carries the name/size/mime/modified/url/parent — defaults match
- * the annex's canonical contract, and the auto-instantiation hook (annex §8)
- * fills them from the classifier's `file-ref`/`image-url`/`url` semantics.
+ * FIELD-NAMING CONFIG (annex): media widgets bind to a `record-list` of rows
+ * from a real attachment/file table whose columns are named whatever the source
+ * schema calls them. Every widget therefore takes `*Field` config naming which
+ * column carries the name/size/mime/modified/url/parent — defaults match the
+ * annex's canonical contract, and the auto-instantiation hook (annex) fills them
+ * from the classifier's `file-ref`/`image-url`/`url` semantics.
  *
- * LABELS: widgets are locale-agnostic (04 §2) — user-visible copy arrives as
+ * LABELS: widgets are locale-agnostic — user-visible copy arrives as
  * already-translated strings through config (`emptyTitle`, `browseLabel`, …),
  * with English developer fallbacks. The dashboard fills them from `t('…')`;
  * en-US entries live at `widgets.media.*` in the i18n bundles.
  */
 
-// ── file-browser (annex §8) ─────────────────────────────────────────────────
+// ── file-browser (annex) ────────────────────────────────────────────────────
 
 /**
- * A smart folder in the quick-access rail (annex §8 `smartFolders`). `filter`
+ * A smart folder in the quick-access rail (annex `smartFolders`). `filter`
  * selects rows the rail counts + shows; `folderId` jumps to a real folder.
- * Closed vocabulary — a rail entry can never smuggle arbitrary predicate code.
+ * Closed vocabulary — a rail entry can never smuggle arbitrary predicate
+ * code.
  */
 export const smartFolderSchema = z.object({
   key: z.string(),
@@ -50,15 +51,15 @@ export const fileBrowserConfigSchema = widgetSharedConfigSchema.extend({
   views: z.enum(['grid', 'list', 'both']).default('both'),
   /** Initial view when `views: 'both'`. */
   defaultView: z.enum(['grid', 'list']).default('grid'),
-  /** Remap a raw `type` value onto another kind's glyph (annex §8). */
+  /** Remap a raw `type` value onto another kind's glyph (annex). */
   typeIconMap: z.record(z.string(), z.string()).optional(),
-  /** Show the hover star toggle (annex §8 `starrable`). */
+  /** Show the hover star toggle (annex `starrable`). */
   starrable: z.boolean().default(true),
   /** Quick-access rail entries with live counts; omitted → no rail. */
   smartFolders: z.array(smartFolderSchema).optional(),
   /** Allow selecting rows/tiles (checkbox column + selection count). */
   selectable: z.boolean().default(false),
-  // Field naming — which column carries what (04 §5).
+  // Field naming — which column carries what.
   idField: z.string().default('id'),
   nameField: z.string().default('name'),
   typeField: z.string().default('type'),
@@ -108,9 +109,9 @@ function daysBeforeEpoch(days: number): string {
 
 /**
  * Deterministic `record-list` of file/folder rows with a self-FK hierarchy
- * (04 §7.7) — three root folders, each with a couple of children, plus root
- * files, so the breadcrumb walk and the folder-first sort both have something to
- * chew on. Canonical §3 `{ rows, total }` envelope.
+ * — three root folders, each with a couple of children, plus root files, so the
+ * breadcrumb walk and the folder-first sort both have something to chew on.
+ * Canonical `{ rows, total }` envelope.
  */
 export function fileBrowserDemoData(seed: number): { rows: Record<string, unknown>[]; total: number } {
   const random = mulberry32(seed || 1);
@@ -174,7 +175,7 @@ export function fileBrowserDemoData(seed: number): { rows: Record<string, unknow
   return { rows, total: rows.length };
 }
 
-// ── upload-dropzone (annex §8) ──────────────────────────────────────────────
+// ── upload-dropzone (annex) ─────────────────────────────────────────────────
 
 export const uploadDropzoneConfigSchema = widgetSharedConfigSchema.extend({
   /** Comma-separated `accept` for the file input (".pdf,.png" / "image/*"). */
@@ -191,7 +192,7 @@ export const uploadDropzoneConfigSchema = widgetSharedConfigSchema.extend({
 export type UploadDropzoneConfig = z.infer<typeof uploadDropzoneConfigSchema>;
 
 /**
- * `upload-dropzone` has NO data contract (annex §8: "none (emits files);
+ * `upload-dropzone` has NO data contract (annex: "none (emits files);
  * constraints from config") — it is a `static`-shape widget whose entire payload
  * is its config. `demoData` is therefore intentionally SEED-INVARIANT: there is
  * no sample to draw. Registered as such in `qa/determinism.test.ts`'s
@@ -203,20 +204,20 @@ export function uploadDropzoneDemoData(): { value: null } {
   return { value: null };
 }
 
-// ── upload-progress-list (annex §8) ─────────────────────────────────────────
+// ── upload-progress-list (annex) ────────────────────────────────────────────
 
-/** Job status vocabulary (annex §8: %, Done, Failed/Retry). */
+/** Job status vocabulary (annex: %, Done, Failed/Retry). */
 export const UPLOAD_STATUSES = ['queued', 'uploading', 'done', 'failed'] as const;
 export type UploadStatus = (typeof UPLOAD_STATUSES)[number];
 
 export const uploadProgressListConfigSchema = widgetSharedConfigSchema.extend({
-  /** Show a Retry action on failed rows (annex §8 `retryable`). */
+  /** Show a Retry action on failed rows (annex `retryable`). */
   retryable: z.boolean().default(true),
-  /** Show a Download action on done rows (annex §8 `downloadable`). */
+  /** Show a Download action on done rows (annex `downloadable`). */
   downloadable: z.boolean().default(false),
   /** Allow cancelling an in-flight row. */
   cancellable: z.boolean().default(false),
-  // Field naming (04 §5) — generalizes to export-queue jobs.
+  // Field naming — generalizes to export-queue jobs.
   idField: z.string().default('id'),
   nameField: z.string().default('name'),
   pctField: z.string().default('pct'),
@@ -248,8 +249,8 @@ const JOB_NAMES = [
 ] as const;
 
 /**
- * Deterministic job `record-list` (04 §7.7) covering every status branch so the
- * loaded state always exercises the done / in-flight / failed / queued rows.
+ * Deterministic job `record-list` covering every status branch so the loaded
+ * state always exercises the done / in-flight / failed / queued rows.
  */
 export function uploadProgressListDemoData(seed: number): { rows: Record<string, unknown>[]; total: number } {
   const random = mulberry32(seed || 1);
@@ -266,9 +267,9 @@ export function uploadProgressListDemoData(seed: number): { rows: Record<string,
   return { rows, total: rows.length };
 }
 
-// ── attachment-list (annex §8) ──────────────────────────────────────────────
+// ── attachment-list (annex) ─────────────────────────────────────────────────
 
-/** Row actions the list may reveal on hover (annex §8 `actions`). */
+/** Row actions the list may reveal on hover (annex `actions`). */
 export const ATTACHMENT_ACTIONS = ['download', 'delete'] as const;
 
 export const attachmentListConfigSchema = widgetSharedConfigSchema.extend({
@@ -298,7 +299,7 @@ const ATTACHMENT_FILES = [
   { name: 'Meeting Notes.md', type: 'doc', size: 6_200 },
 ] as const;
 
-/** Deterministic attachment `record-list` (04 §7.7). */
+/** Deterministic attachment `record-list`. */
 export function attachmentListDemoData(seed: number): { rows: Record<string, unknown>[]; total: number } {
   const random = mulberry32(seed || 1);
   const count = 4 + Math.floor(random() * 3);
@@ -315,7 +316,7 @@ export function attachmentListDemoData(seed: number): { rows: Record<string, unk
   return { rows, total: rows.length };
 }
 
-// ── image-board (annex §8) ──────────────────────────────────────────────────
+// ── image-board (annex) ─────────────────────────────────────────────────────
 
 export const imageBoardConfigSchema = widgetSharedConfigSchema.extend({
   columns: z.number().int().min(1).max(6).default(2),
@@ -343,9 +344,9 @@ const IMAGE_CAPTIONS = [
 ] as const;
 
 /**
- * Deterministic moodboard `record-list` (04 §7.7). Some slots are EMPTY (no
- * `imageUrl`) on purpose — the annex's droppable placeholder slot is a first-class
- * state, so demo/VRT captures must show it.
+ * Deterministic moodboard `record-list`. Some slots are EMPTY (no `imageUrl`) on
+ * purpose — the annex's droppable placeholder slot is a first-class state, so
+ * demo/VRT captures must show it.
  */
 export function imageBoardDemoData(seed: number): { rows: Record<string, unknown>[]; total: number } {
   const random = mulberry32(seed || 1);
@@ -362,10 +363,10 @@ export function imageBoardDemoData(seed: number): { rows: Record<string, unknown
   return { rows, total: rows.length };
 }
 
-// ── link-list (annex §8) ────────────────────────────────────────────────────
+// ── link-list (annex) ───────────────────────────────────────────────────────
 
 export const linkListConfigSchema = widgetSharedConfigSchema.extend({
-  /** Editable variant: inline add-composer + hover delete (annex §8). */
+  /** Editable variant: inline add-composer + hover delete (annex). */
   editable: z.boolean().default(false),
   idField: z.string().default('id'),
   titleField: z.string().default('title'),
@@ -390,7 +391,7 @@ const DEMO_LINKS = [
   { title: 'Colour reference board', url: 'https://refs.example.com/boards/palette' },
 ] as const;
 
-/** Deterministic reference-link `record-list` (04 §7.7). */
+/** Deterministic reference-link `record-list`. */
 export function linkListDemoData(seed: number): { rows: Record<string, unknown>[]; total: number } {
   const random = mulberry32(seed || 1);
   const count = 3 + Math.floor(random() * 3);

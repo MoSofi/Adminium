@@ -23,6 +23,9 @@ git pull && pnpm install && pnpm build
 adminium migrate
 ```
 
+For an npm install run by systemd, the same steps are in
+[A VPS without Docker](/self-hosting/vps/#upgrading).
+
 ## Back up first, and mean it
 
 Forward-only means the migration is the only direction that exists. If an
@@ -125,6 +128,17 @@ ADMINIUM_VERSION=0.5.1 docker compose up -d
 `latest` is for evaluation. In production, pin, and upgrade deliberately — an
 unattended `latest` means a `docker compose up` at an unrelated moment can
 migrate your meta store as a side effect.
+
+The same applies to npm. `npx @adminiumjs/adminium start` with no version in
+the spec installs any newer release it finds, without asking when no terminal is
+attached, and `start` then migrates the meta store. On a server, install an
+exact version into a fixed directory and move it yourself:
+[A VPS without Docker](/self-hosting/vps/#upgrading).
+
+A [project](/projects/) already pins one exact version, in its `package.json`
+and in its `Dockerfile`'s image tag. Move both together — `npm run check`
+compares them — and read
+[Upgrading Adminium](/projects/deploy/#upgrading-adminium).
 
 ## Rehearse it
 

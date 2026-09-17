@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Content sniffing over a closed allowlist (08-server-api.md §7 item 8,
- * 37-files-and-storage.md D8).
+ * Content sniffing over a closed allowlist.
  *
  * WHY A HAND-ROLLED TABLE AND NOT `file-type`. Fifteen signatures are fifteen
  * byte comparisons. The dependency is ~40 kB of tables covering hundreds of
@@ -23,7 +22,7 @@
  * reach by claiming an extension.
  */
 
-/** Bytes held back from the head of the stream for this module (37 D4). */
+/** Bytes held back from the head of the stream for this module. */
 export const SNIFF_HEAD_BYTES = 8192;
 
 /**

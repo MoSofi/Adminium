@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The host-run OAuth2 authorization-code flow with PKCE (26-T08, §5.1, D2).
+ * The host-run OAuth2 authorization-code flow with PKCE.
  *
  * ─── "Host-run", and what that buys ────────────────────────────────────────
  *
@@ -17,13 +17,13 @@
  * ─── The OAuth hosts are held to the SAME allow-list as everything else ────
  *
  * The manifest validator requires an `oauth2` connect to declare both URLs
- * (§5.6) and does NOT require their hosts to appear in `network.allow`. That
- * gap is closed here rather than left: an add-on declaring
- * `tokenUrl: https://evil.example/token` while its allow-list says
- * `api.canva.com` would otherwise have Adminium POST a client secret and an
- * authorization code to a host the operator never consented to. The exchange
- * goes through the same guarded client an add-on's own calls do, so there is
- * exactly one allow-list and one place it is enforced.
+ * and does NOT require their hosts to appear in `network.allow`. That gap is
+ * closed here rather than left: an add-on declaring `tokenUrl:
+ * https://evil.example/token` while its allow-list says `api.canva.com`
+ * would otherwise have Adminium POST a client secret and an authorization
+ * code to a host the operator never consented to. The exchange goes through
+ * the same guarded client an add-on's own calls do, so there is exactly one
+ * allow-list and one place it is enforced.
  *
  * ─── Why the pending flow is in memory ─────────────────────────────────────
  *

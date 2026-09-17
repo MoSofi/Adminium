@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SQL DDL / pg_dump / mysqldump / sqlite parser — 05-introspection-engine.md
- * §5.2 row 1. Hand-rolled tokenizer + statement splitter + per-statement
- * mini-parsers. Everything that is not schema DDL (INSERT, COPY, SET,
- * functions, grants, …) is skipped by design with aggregated warning counts,
- * which makes whole pg_dump files safe to feed in. Crucially, pg_dump
- * declares PKs and FKs via `ALTER TABLE ONLY … ADD CONSTRAINT`, so those are
- * first-class here.
+ * SQL DDL / pg_dump / mysqldump / sqlite parser. Hand-rolled tokenizer +
+ * statement splitter + per-statement mini-parsers. Everything that is not
+ * schema DDL (INSERT, COPY, SET, functions, grants, …) is skipped by design
+ * with aggregated warning counts, which makes whole pg_dump files safe to
+ * feed in. Crucially, pg_dump declares PKs and FKs via `ALTER TABLE ONLY …
+ * ADD CONSTRAINT`, so those are first-class here.
  *
  * Dialect sniff (documented contract): backticks / `ENGINE=` /
  * `AUTO_INCREMENT` → mysql; `AUTOINCREMENT` / `WITHOUT ROWID` → sqlite;

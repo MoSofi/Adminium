@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-stream` primitive (research/widget-registry.md §2): centered stacked
+ * `chart-stream` primitive (research/widget-registry.md): centered stacked
  * "stream" bands over time with a legend (traffic composition). Time x never
  * mirrors; categorical x mirrors in RTL, and the legend — HTML below the
- * surface, like the donut family — lays out in the reading direction (04 §7.4).
- * Colors strictly from the viz palette.
+ * surface, like the donut family — lays out in the reading direction. Colors
+ * strictly from the viz palette.
  */
 import type { ReactNode } from 'react';
 

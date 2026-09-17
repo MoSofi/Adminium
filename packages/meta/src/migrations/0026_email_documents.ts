@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0026 — email documents: the room the comp needs
- * (39-email-templates-and-campaigns.md §3.2, D2–D8, 39-T01).
+ * Wave 0026 — email documents: the room the comp needs.
  *
  * ─── One table, two kinds (D2) ─────────────────────────────────────────────
  *
@@ -17,7 +16,7 @@
  *
  * ─── Why `footer` and `attachments` are NULLABLE and default to nothing ────
  *
- * §3.2 spells them `text ''` and `json '[]'`. MySQL refuses a DEFAULT on TEXT,
+ * They were spelled `text ''` and `json '[]'`. MySQL refuses a DEFAULT on TEXT,
  * BLOB and JSON columns ("can't have a default value"), and no migration in
  * this directory has ever put one on `c.text`/`c.json` for that reason. So
  * both are nullable with NULL read as the empty value by the repo — the same
@@ -42,8 +41,8 @@
  *
  * `adminium_email_runs` — one row per campaign send (D11). Counts and the
  * first hundred failures live on the run, not one row per recipient: the
- * product needs "18,240 sent · 12 failed", not a per-address ledger (§5). The
- * FK to the template CASCADES: a campaign deleted for good takes its history
+ * product needs "18,240 sent · 12 failed", not a per-address ledger. The FK
+ * to the template CASCADES: a campaign deleted for good takes its history
  * with it — a run without its document answers no question.
  *
  * FKs are named and table-level (the 2026-07-20 lesson: MySQL parses an

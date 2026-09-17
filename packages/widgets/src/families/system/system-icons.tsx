@@ -26,10 +26,10 @@ import { STATE_HERO_VIEWS } from './system-lib.js';
 import type { StateHeroViewId } from './system-lib.js';
 
 /**
- * The `system` family's CLOSED glyph vocabulary (annex §12). Separated from
+ * The `system` family's CLOSED glyph vocabulary (annex). Separated from
  * `system-lib.ts` so that module stays JSX-free and the registry-metadata graph
- * (`system-config.ts`) never pulls `lucide-react` into the eager chunk
- * (04 §2.3; the `media/media-icons` + `feeds/feed-icons` convention).
+ * (`system-config.ts`) never pulls `lucide-react` into the eager chunk (the
+ * `media/media-icons` + `feeds/feed-icons` convention).
  *
  * WHY A CLOSED MAP: config carries an icon NAME (a string that survives JSON
  * round-trips into the page manifest), never a component. Resolving it through a
@@ -66,7 +66,7 @@ export function systemIcon(name: string | undefined): ReactNode | undefined {
   return SYSTEM_ICONS[name];
 }
 
-/** The built-in `state-hero` glyph per view id (annex §12 `stateMap` defaults). */
+/** The built-in `state-hero` glyph per view id (annex `stateMap` defaults). */
 const STATE_HERO_ICON: Record<StateHeroViewId, ReactNode> = {
   '404': <Compass />,
   '500': <ServerCrash />,

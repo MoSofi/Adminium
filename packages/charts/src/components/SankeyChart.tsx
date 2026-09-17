@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-sankey` primitive (research/widget-registry.md §2): SVG bezier ribbons
+ * `chart-sankey` primitive (research/widget-registry.md): SVG bezier ribbons
  * between layered node rects, source→target flows weighted by volume, per-flow
  * tooltips. Responsive via ChartSurface. Token-only colors, mount fade with
  * reduced-motion fallback, `data-export-node` raster marker (inherited from
- * ChartSurface). Renders as an LTR island — the flow never mirrors in RTL
- * (04 §7.4).
+ * ChartSurface). Renders as an LTR island — the flow never mirrors in RTL.
  */
 import type { ReactNode } from 'react';
 

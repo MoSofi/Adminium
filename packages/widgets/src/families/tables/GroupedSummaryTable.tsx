@@ -12,16 +12,16 @@ import type { AggColumn, GroupedSummaryData } from './tables-track-f-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `grouped-summary-table` (annex §3) — group-header rows with aggregate
- * columns (a usage progress bar, mono figures), expandable detail rows, and a
- * Σ totals footer. Binds to a `record-list` of GROUP rows plus per-group
+ * `grouped-summary-table` (annex) — group-header rows with aggregate columns
+ * (a usage progress bar, mono figures), expandable detail rows, and a Σ
+ * totals footer. Binds to a `record-list` of GROUP rows plus per-group
  * aggregates and grand totals.
  */
 
 // Config schema + deterministic demo payload live in the pure
 // `tables-track-f-config` module, and the aggregate shapes in
 // `tables-track-f-types`, so the registry metadata graph never reaches this
-// component file (04 §2.3). Re-exported here to keep existing import points
+// component file. Re-exported here to keep existing import points
 // stable.
 export { groupedSummaryTableConfigSchema, groupedSummaryTableDemoData } from './tables-track-f-config.js';
 export type { GroupedSummaryTableConfig } from './tables-track-f-config.js';

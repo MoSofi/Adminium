@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * emailBlocksRepo — adminium_email_blocks (39-email-templates-and-campaigns.md
- * §3.2): the editor's "Save as reusable block" shelf, workspace-wide.
+ * emailBlocksRepo — adminium_email_blocks: the editor's "Save as reusable
+ * block" shelf, workspace-wide.
  *
  * A saved block is one `{ id, block, data, style }` record, stored as the
  * open envelope `emailBlocksSchema` uses for a document's blocks — the repo

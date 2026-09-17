@@ -13,7 +13,7 @@ export { scheduledJobsListConfigSchema, scheduledJobsListDemoData };
 export type { ScheduledJobsListConfig, ScheduledJob };
 
 /**
- * `scheduled-jobs-list` (annex §5) — recurring-job rows: an icon tile, the name
+ * `scheduled-jobs-list` (annex) — recurring-job rows: an icon tile, the name
  * plus a format badge, a meta line ("target · human cadence"), a recipient
  * avatar stack, the "Next run" column, and an on/off switch; disabled rows dim
  * (Scheduled Reports, Data Exports, Adminium UI Kit's saved reports).
@@ -24,8 +24,8 @@ export type { ScheduledJobsListConfig, ScheduledJob };
  * cron parser to the browser.
  *
  * Toggling emits a `mutate` UPDATE intent — the widget never writes. The host
- * runs it through the CRUD API with undo + audit (04 §2), which is also why the
- * switch is optimistic-free: the row re-renders from the next payload.
+ * runs it through the CRUD API with undo + audit, which is also why the switch
+ * is optimistic-free: the row re-renders from the next payload.
  */
 
 export interface ScheduledJobsListProps {

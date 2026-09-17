@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The per-table file configuration a stored page carries — which columns hold
- * files, and whether the table takes sidecar attachments
- * (37-files-and-storage.md §3.5, §3.7, D6, 37-T13/T22).
+ * files, and whether the table takes sidecar attachments.
  *
- * A DEVIATION FROM THE PLAN, AND WHY. §3.7 says the reconcile hook reads the
+ * A DEVIATION FROM THE PLAN, AND WHY. The reconcile hook was to read the
  * `file` block "from the page config the request already resolved (the route
  * has `ctx.page`)". It does not: `DataContext` in `routes/data/index.ts`
  * carries a connection, a snapshot view, a resolved table, a db handle, a
@@ -41,10 +40,10 @@ import { pagesRepo, type MetaDb } from '@adminium/meta';
  * The server's OWN narrowing of the `file` block.
  *
  * `@adminium/widgets` owns the authoring shape (`columnFileSchema` on
- * `GridColumnSpec`) and the server may not import it — the 01 §2.3 import
- * matrix, enforced by `check-deps`. A stored page config is opaque JSON to this
- * process either way, so it narrows what it needs, exactly as
- * `pageSourceTable()` in the exports route narrows `config.source.table`.
+ * `GridColumnSpec`) and the server may not import it — the import matrix,
+ * enforced by `check-deps`. A stored page config is opaque JSON to this process
+ * either way, so it narrows what it needs, exactly as `pageSourceTable()` in
+ * the exports route narrows `config.source.table`.
  *
  * Deliberately NON-strict where the widgets schema is strict: a page written by
  * a NEWER dashboard may carry a field this server has never heard of, and
@@ -58,10 +57,10 @@ const columnFileSchema = z.object({
   maxBytes: z.number().int().min(1024).optional(),
   inline: z.boolean().optional(),
   /**
-   * The column stores a LIST of references rather than one (38 D1/D5) — the
-   * shape the Attachments card creates. The reconciler and the write-time
-   * validator both read this to decide whether a value is one reference or a
-   * JSON array of them.
+   * The column stores a LIST of references rather than one — the shape the
+   * Attachments card creates. The reconciler and the write-time validator
+   * both read this to decide whether a value is one reference or a JSON
+   * array of them.
    */
   multiple: z.boolean().optional(),
   /** Refuse a write that would put more than this many files on one record. */
@@ -90,7 +89,7 @@ const attachmentsSchema = z.object({
   maxBytes: z.number().int().min(1024).optional(),
   maxCount: z.number().int().min(1).max(500).optional(),
   /**
-   * The table's own column that holds this page's attachments (38 D14).
+   * The table's own column that holds this page's attachments.
    *
    * Present ⇒ COLUMN mode: the files live in the customer's own table, the
    * caps that matter are the column block's, and this page has no sidecar —
@@ -115,9 +114,9 @@ export interface ColumnFileBlocks {
    * First enabled page wins, by creation order — the same determinism the
    * column merge uses, and for the same reason.
    *
-   * A page in column mode (`attachments.column`, 38 D14) contributes nothing
-   * here: its files are a column value, and applying a sidecar's caps to it
-   * would enforce a limit against the wrong mode.
+   * A page in column mode (`attachments.column`) contributes nothing here:
+   * its files are a column value, and applying a sidecar's caps to it would
+   * enforce a limit against the wrong mode.
    */
   attachments: PageAttachments | null;
 }
@@ -202,7 +201,7 @@ export function createColumnBlockReader(meta: MetaDb, opts: { now?: () => number
           // `enabled: false` is how an operator turns the panel off without
           // losing the rest of the configuration — it is not an enabled block.
           //
-          // A block naming a `column` is COLUMN mode (38 D14): its files live
+          // A block naming a `column` is COLUMN mode: its files live
           // in the customer's table and its caps belong to the column block, so
           // it is not a sidecar and must not be reported as one.
           if (parsed.success && parsed.data.enabled && parsed.data.column === undefined) {

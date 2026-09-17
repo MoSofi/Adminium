@@ -12,7 +12,7 @@ import type { LogRow } from './tables-track-f-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `log-table` (annex §3) — an append-oriented event grid: mono timestamps with
+ * `log-table` (annex) — an append-oriented event grid: mono timestamps with
  * Today/Yesterday smart prefixes, actor avatar, category pill, an event
  * sentence with a bold mono resource, an HTTP status/code badge, an optional
  * mono IP/URL, a retry/download/inspect action column, live-tail styling, an
@@ -23,7 +23,7 @@ import type { WidgetProps } from '../../registry/types.js';
 // Config schema + deterministic demo payload live in the pure
 // `tables-track-f-config` module, and the row shape in
 // `tables-track-f-types`, so the registry metadata graph never reaches this
-// component file (04 §2.3). Re-exported here to keep existing import points
+// component file. Re-exported here to keep existing import points
 // stable.
 export { logTableConfigSchema, logTableDemoData } from './tables-track-f-config.js';
 export type { LogTableConfig } from './tables-track-f-config.js';
@@ -74,7 +74,7 @@ const ROW_ACTION_ICON = { retry: <RotateCcw size={14} />, download: <Download si
 /**
  * Literal bundle key per row action (`none` renders no button). Indexed rather
  * than assembled so the extractor sees all three and a new action in the config
- * enum is a compile error instead of a raw key on the icon button (10 §2.5).
+ * enum is a compile error instead of a raw key on the icon button.
  */
 const ROW_ACTION_KEY = {
   retry: 'ui:widgets.tables.logTable.action.retry',

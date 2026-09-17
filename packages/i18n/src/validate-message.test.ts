@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Write-time validation for admin-authored overrides (23 §6.3).
+ * Write-time validation for admin-authored overrides.
  *
  * These are the assertions that keep a runtime override from doing what the
  * build-time gates can no longer see: rendering raw ICU to users, dropping a
@@ -59,7 +59,7 @@ describe('validateMessage', () => {
     expect(codes('Hallo {name} {extra}', 'Hello {name}')).toContain('ARG_MISMATCH');
   });
 
-  // The literal-token guard (23 §4.6). 48 call sites do their own
+  // The literal-token guard. 48 call sites do their own
   // `.replace('{count}', …)` and pass NO ICU args, so `{count}` must stay a
   // plain placeholder — `{count, number}` passes every name-based check and
   // then renders raw ICU to the user.
@@ -112,7 +112,7 @@ describe('validateMessage', () => {
   });
 
   // A custom locale validates against its FROZEN categories, so the browser's
-  // ICU and Node's cannot disagree about what is acceptable (23 §5.6).
+  // ICU and Node's cannot disagree about what is acceptable.
   it('validates a custom locale against its frozen plural categories', () => {
     setRuntimeLocales([
       {

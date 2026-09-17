@@ -7,7 +7,7 @@ export type KbdProps = Omit<React.ComponentPropsWithRef<'kbd'>, 'style'>;
 
 /**
  * Keycap chip: JetBrains Mono, 1px border + 2px bottom border, radius 6px
- * (`rounded-sm`) — research/design-system.md §3 Tier 1.
+ * (`rounded-sm`) — research/design-system.md Tier 1.
  */
 export function Kbd({ className, ...props }: KbdProps) {
   return (

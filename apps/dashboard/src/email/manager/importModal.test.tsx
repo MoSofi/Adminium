@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Import modal (39-email-templates-and-campaigns.md 39-T10 done-when,
- * D14): a bundle's preview counts the kinds and the (key, locale) pairs that
- * already exist, and Replace posts `mode: 'replace'`.
+ * The Import modal: a bundle's preview counts the kinds and the (key,
+ * locale) pairs that already exist, and Replace posts `mode: 'replace'`.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';

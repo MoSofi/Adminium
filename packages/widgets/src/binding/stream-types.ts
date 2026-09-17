@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `stream` data-binding shape — client transport contracts (04-widget-registry.md
- * §3 `stream`, §5.3 realtime). Append-only event delivery for the live widgets
- * (`realtime-feed`, live `log-table` tails, `unread-badge`).
+ * `stream` data-binding shape — client transport contracts (`stream`, realtime).
+ * Append-only event delivery for the live widgets (`realtime-feed`, live
+ * `log-table` tails, `unread-badge`).
  *
  * A widget bound to a `stream` descriptor receives, from the widget-data query,
  * a `StreamShape` envelope `{ channel, snapshot }` (the server resolves the
@@ -47,9 +47,9 @@ export interface StreamTransport {
 }
 
 /**
- * Server→client `stream` envelope (04 §3 `StreamShape`). Returned by the
- * widget-data query for a `shape: 'stream'` descriptor: the resolved WS channel
- * plus the initial (PII-masked) snapshot rows the buffer seeds from.
+ * Server→client `stream` envelope (`StreamShape`). Returned by the widget-data
+ * query for a `shape: 'stream'` descriptor: the resolved WS channel plus the
+ * initial (PII-masked) snapshot rows the buffer seeds from.
  */
 export interface StreamShape {
   shape: 'stream';

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure radar geometry (`chart-radar`, research/widget-registry.md §2): N named
+ * Pure radar geometry (`chart-radar`, research/widget-registry.md): N named
  * axes arranged on a regular polygon, one polygon per series (current vs an
  * optional target overlay), normalized to a shared max. First axis points up
  * (12 o'clock); subsequent axes step clockwise (LTR) or counter-clockwise (RTL)
- * so the categorical axis order mirrors per §7.4. DOM-free + deterministic.
+ * so the categorical axis order mirrors. DOM-free + deterministic.
  */
 
 export interface RadarSeriesInput {

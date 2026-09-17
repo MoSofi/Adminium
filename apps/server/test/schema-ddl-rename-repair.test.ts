@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Rename repair — 35-schema-authoring.md D33, 35-T29.
+ * Rename repair.
  *
  * The assertion that matters: after a table is renamed, Adminium's OWN
  * references follow it, and the ones D33 deliberately leaves alone stay put.

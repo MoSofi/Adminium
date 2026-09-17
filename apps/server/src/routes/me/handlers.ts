@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `me` handlers (08-server-api.md §2.2): profile view/patch (email change
- * requires the current password) and per-user preference axes with the §7.2
- * server-side resolution. Prefs writes go through `userPrefsRepo`; `null`
- * clears an axis back to "inherit".
+ * `me` handlers: profile view/patch (email change requires the current
+ * password) and per-user preference axes with the server-side
+ * resolution. Prefs writes go through `userPrefsRepo`; `null` clears an
+ * axis back to "inherit".
  */
 import type { FastifyRequest } from 'fastify';
 import {
@@ -45,7 +45,7 @@ export async function patchMeHandler(
   if (body.email !== undefined) {
     const email = body.email.trim().toLowerCase();
     if (email !== user.email) {
-      // Email is a credential — re-authenticate before changing it (§2.2).
+      // Email is a credential — re-authenticate before changing it.
       const passwordOk =
         body.password !== undefined &&
         user.passwordHash !== null &&
@@ -111,7 +111,7 @@ export async function patchMePrefsHandler(
   const user = principal(request);
   const repo = userPrefsRepo(ctx.meta);
 
-  // Absent = unchanged; explicit `null` = clear back to inherit (§7.2).
+  // Absent = unchanged; explicit `null` = clear back to inherit.
   const patch: UserPrefsPatch = {
     ...(body.theme !== undefined ? { theme: body.theme } : {}),
     ...(body.accent !== undefined ? { accent: body.accent } : {}),

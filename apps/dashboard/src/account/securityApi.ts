@@ -12,9 +12,9 @@
  * `api-keys/apiKeysApi.ts`.
  *
  * SYNC NOTE: the reply shapes mirror `apps/server/src/routes/auth/schema.ts`.
- * Everything under `/auth` uses the §1.4 `{ data: … }` envelope (unlike
- * `/api-keys` and `/audit`, which return bare objects), so these unwrap `.data`
- * exactly where the auth schemas wrap it.
+ * Everything under `/auth` uses the `{ data: … }` envelope (unlike `/api-keys`
+ * and `/audit`, which return bare objects), so these unwrap `.data` exactly
+ * where the auth schemas wrap it.
  */
 import { queryOptions } from '@tanstack/react-query';
 

@@ -48,7 +48,7 @@ function migrateOnDist(dbPath: string): ChildReport {
   const sqliteEntry = require.resolve('better-sqlite3');
   // The store is opened through the package's OWN factory, not a hand-rolled
   // Kysely: `createSqliteMetaDb` installs the CamelCasePlugin that maps the
-  // ledger's `appliedAt` onto its `applied_at` column (connect.ts §2.2). A raw
+  // ledger's `appliedAt` onto its `applied_at` column (connect.ts). A raw
   // instance reads the ledger fine but throws on the INSERT — which stayed
   // invisible while every migration in the fixture was already applied.
   const script = `
@@ -110,7 +110,7 @@ describe('meta store upgrade from released 0.1.0', () => {
     }
 
     // Only migrations added AFTER the release may apply on top — the released
-    // set must never re-run. As of 0011/0012 (23-runtime-translations.md §3.5)
+    // set must never re-run. As of 0011/0012
     // this is no longer vacuous: it now asserts a real upgrade, and it is what
     // caught the plugin-less handle documented in `migrateOnDist`.
     expect(report.firstApplied.length).toBeGreaterThan(0);

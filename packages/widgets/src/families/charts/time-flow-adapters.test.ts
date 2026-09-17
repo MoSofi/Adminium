@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Tests for the pure §3-envelope → primitive-input adapters (04-T09). Exercised
- * against the deterministic demo payloads plus hand-built edge cases; null on
- * malformed input. Independent of the component barrel.
+ * Tests for the pure -envelope → primitive-input adapters. Exercised against
+ * the deterministic demo payloads plus hand-built edge cases; null on malformed
+ * input. Independent of the component barrel.
  */
 import { describe, expect, it } from 'vitest';
 

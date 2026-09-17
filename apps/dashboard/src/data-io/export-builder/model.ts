@@ -2,8 +2,8 @@
 /**
  * The Export Builder's DRAFT — the ordered column list, the measures the
  * folds and counts are, the calculated fields, the format and row-scope
- * settings — and the rules that shape it (41-export-builder.md §3.7, D1, D4,
- * D9–D11, D15). Pure TypeScript: the steps render it, this decides it.
+ * settings — and the rules that shape it. Pure TypeScript: the steps render
+ * it, this decides it.
  *
  * WHAT IS STORED (D1). `toSource` writes a page-config-shaped body: every
  * column as a `gridColumnSpec` INPUT (`name`, `label`, and `lookup` /
@@ -350,7 +350,7 @@ export function mkRule(
 // The draft's rules
 // ---------------------------------------------------------------------------
 
-/** Every stored name and alias the draft has claimed — one namespace (36 D26). */
+/** Every stored name and alias the draft has claimed — one namespace. */
 export function takenNames(draft: Draft): Set<string> {
   return new Set([
     ...draft.columns.map((column) => column.spec.name),

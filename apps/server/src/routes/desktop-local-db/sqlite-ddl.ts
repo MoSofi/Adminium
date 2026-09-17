@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `DatabaseModel` → SQLite DDL (11-electron.md §6 step 2 card 1, task 11-T07).
+ * `DatabaseModel` → SQLite DDL (card 1, task).
  *
- * §6: "*From a schema file* — upload `.sql`/`pg_dump`/Prisma/Drizzle/TypeORM/
+ * "*From a schema file* — upload `.sql`/`pg_dump`/Prisma/Drizzle/TypeORM/
  * Sequelize/`schema.rb`/Django/JSON via `@adminium/schema-import`, translated to
  * SQLite DDL and applied."
  *
  * `@adminium/schema-import` parses eight formats into ONE artifact — the engine's
- * `DatabaseModel` IR (05-introspection-engine.md §2.1). So this module has a
- * single input shape regardless of which of the eight the user dropped on the
- * wizard, and every format gets the same fidelity. It is pure: statements in,
- * statements out, no `better-sqlite3` — which is what makes the round-trip
- * assertable offline (emit → apply → introspect → compare) rather than by eye.
+ * `DatabaseModel` IR. So this module has a single input shape regardless of which
+ * of the eight the user dropped on the wizard, and every format gets the same
+ * fidelity. It is pure: statements in, statements out, no `better-sqlite3` —
+ * which is what makes the round-trip assertable offline (emit → apply →
+ * introspect → compare) rather than by eye.
  *
  * ─── WHY THIS EMITS `VARCHAR(n)` AND `CHECK (… IN (…))`, NOT `TEXT` ──────────
  *
@@ -21,14 +21,14 @@
  * single worst thing this module could do, because the DDL is not the product —
  * the PAGES generated from it are.
  *
- * 11-T08 found this the hard way while building the demo database: a
+ * This was found the hard way while building the demo database: a
  * `status TEXT` column introspects back with `maxLength: null`, which fails the
  * candidate rule r07's `maxLength <= 32` gate, so the kanban archetype never
  * scores and the table generates a plain CRUD grid instead of the board its
  * schema is describing. The declared length and the `CHECK (col IN (…))` are how
  * a status column stays recognisable across the emit→introspect round trip:
  * `adapter-sqlite`'s introspector reads the declared type text for `maxLength`
- * and lifts `CHECK … IN` into an `EnumDef` (§2.1's `source: 'check'`).
+ * and lifts `CHECK … IN` into an `EnumDef` (`source: 'check'`).
  *
  * So: the model's `maxLength` is preserved, and an `enum` column is emitted with
  * its values as a CHECK constraint. A user who imports a Prisma schema with
@@ -51,7 +51,7 @@
  *   engine's plan, not this one's.
  *
  * Everything dropped produces a {@link DdlWarning}, and the route hands the list
- * to the wizard. §8.2's rule — never hide, always explain — applies to a schema
+ * to the wizard. The rule — never hide, always explain — applies to a schema
  * translation as much as to a button.
  */
 
@@ -193,7 +193,7 @@ function columnDefault(column: TableModel['columns'][number]): string | null {
     case 'now':
       return 'DEFAULT CURRENT_TIMESTAMP';
     case 'uuid':
-      // SQLite has no uuid generator and no extension is loaded (§7 forbids
+      // SQLite has no uuid generator and no extension is loaded (forbids
       // downloading one). The column stays writable and the app supplies ids.
       return null;
     case 'autoincrement':
@@ -262,7 +262,7 @@ function emitTable(table: TableModel, model: DatabaseModel, nameOf: (id: string)
     if (column.logicalType === 'enum' && column.enumRef !== null) {
       const def = model.enums.find((candidate) => candidate.id === column.enumRef);
       if (def !== undefined && def.values.length > 0) {
-        // §2.1 `EnumDef.source: 'check'` is exactly this shape, so the
+        // `EnumDef.source: 'check'` is exactly this shape, so the
         // introspector lifts it straight back into an enum on the next pass.
         const values = def.values.map(quoteLiteral).join(', ');
         bits.push(`CHECK (${quoteIdent(column.name)} IN (${values}))`);

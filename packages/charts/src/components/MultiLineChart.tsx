@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-multiline` primitive (research/widget-registry.md §2): plain
+ * `chart-multiline` primitive (research/widget-registry.md): plain
  * multi-series polylines with gridlines, end dots and end labels (cohort LTV
  * curves, A/B conversion-over-time). Time x never mirrors; categorical x
- * mirrors in RTL (04 §7.4). Colors strictly from the viz palette; pure data +
- * config props — no fetching.
+ * mirrors in RTL. Colors strictly from the viz palette; pure data + config
+ * props — no fetching.
  */
 import type { ReactNode } from 'react';
 

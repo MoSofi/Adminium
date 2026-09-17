@@ -26,13 +26,13 @@ export { aiChatPanelConfigSchema, aiChatPanelDemoData } from './communication-co
 export type { AiChatPanelConfig };
 
 /**
- * `ai-chat-panel` (annex §9) — the assistant panel SHELL used for the LLM
- * schema-assist (04 §11) and in-dashboard AI querying (06 §10): sparkles-avatar
- * assistant bubbles, accent user bubbles, suggestion chips, and a send input.
+ * `ai-chat-panel` (annex) — the assistant panel SHELL used for the LLM
+ * schema-assist and in-dashboard AI querying: sparkles-avatar assistant
+ * bubbles, accent user bubbles, suggestion chips, and a send input.
  *
  * THIS WIDGET NEVER CALLS A PROVIDER. The M6 LLM layer is server-owned
  * (@adminium/llm behind `/api/v1/llm` — keys live server-side and never reach
- * the browser, 06 §4); this component is pure presentation wired to props and
+ * the browser); this component is pure presentation wired to props and
  * callbacks. `providerConfigured={false}` renders the configure-a-provider
  * empty state whose CTA drills through to Studio → Settings → AI, and `onSend`
  * hands the prompt to the host, which owns the run lifecycle.
@@ -137,7 +137,7 @@ export function AiChatPanel({
 
       {!providerConfigured ? (
         // No provider → the panel is inert by design: no composer, no callbacks
-        // that could imply a request is possible (06 §4 — the server owns keys).
+        // that could imply a request is possible (the server owns keys).
         <div data-part="configure-provider" className="flex-1">
           <EmptyState
             compact

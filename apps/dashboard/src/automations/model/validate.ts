@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Is this rule complete enough to switch on?" — the CLIENT's copy
- * (42-automations-and-workflow-logs.md D12, §3.5).
+ * "Is this rule complete enough to switch on?" — the CLIENT's
+ * copy.
  *
  * The server is the authority (`automations/validate.ts` there); this is the
  * courtesy. Without it the card's toggle would fire a PATCH, get a 422, and

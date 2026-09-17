@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Model catalog (06-llm-assist.md §3.1 matrix): static fallback lists plus the
- * live `listModels()` fetchers each client delegates to. Fetchers hit the
- * provider's model-list endpoint and fall back per the matrix:
+ * Model catalog (matrix): static fallback lists plus the live `listModels()`
+ * fetchers each client delegates to. Fetchers hit the provider's model-list
+ * endpoint and fall back per the matrix:
  *   - anthropic / openai → live, else the static list below
  *   - openai-compatible  → live, tolerate 404 → `[]` (user free-texts the model)
  *   - ollama             → live only (local models vary; no static fallback)
@@ -68,7 +68,7 @@ export function anthropicGeneration(model: string): [number, number] | null {
  * default is the load-bearing half of this function: the model list is fetched
  * live from the caller's own account, so ids we have never seen are routine,
  * and every Anthropic generation since 4.7 has dropped sampling. Omitting costs
- * the §3.1 determinism mandate — the API then samples at its own default — but
+ * the determinism mandate — the API then samples at its own default — but
  * sending costs the entire run, and no request we can make buys determinism
  * back on those models (see the note in the Anthropic client's `complete()`).
  */
@@ -123,11 +123,11 @@ interface OpenAiModelsResponse {
  * True for ids that name a chat/completions-capable OpenAI model usable for
  * enrichment. The o-series reasoning models (`o1`/`o3`/`o4-*`) are deliberately
  * EXCLUDED: the Chat Completions contract this client speaks (`max_tokens` +
- * `temperature: 0`, both fixed by §3.1) is rejected by those models — they
- * require `max_completion_tokens` and forbid `temperature ≠ 1`, so every
- * enrichment call on them 400s. Since temperature 0 is a non-negotiable
- * determinism mandate (`assertEnrichmentTemperature`), offering them would be a
- * guaranteed dead end; we filter them out of the catalog entirely.
+ * `temperature: 0`, both fixed here) is rejected by those models — they require
+ * `max_completion_tokens` and forbid `temperature ≠ 1`, so every enrichment
+ * call on them 400s. Since temperature 0 is a non-negotiable determinism
+ * mandate (`assertEnrichmentTemperature`), offering them would be a guaranteed
+ * dead end; we filter them out of the catalog entirely.
  */
 function isOpenAiChatModel(id: string): boolean {
   return /gpt|chatgpt/i.test(id);

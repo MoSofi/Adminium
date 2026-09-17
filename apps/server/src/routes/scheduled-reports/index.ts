@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Scheduled-reports routes (M7 reports track; 07-meta-store.md §3.24),
- * mounted under `/api/v1`:
+ * Scheduled-reports routes (M7 reports track), mounted under
+ * `/api/v1`:
  *
  * - `GET    /scheduled-reports`     — own schedules; everyone's with
  *   {@link REPORTS_MANAGE_PERMISSION} (fail-closed until the key lands).
- * - `POST   /scheduled-reports`     — create; `next_run_at` from croner over
- *   the §3.24 schedule fields (schedule/next-run.ts).
+ * - `POST /scheduled-reports` — create; `next_run_at` from croner over the
+ * schedule fields (schedule/next-run.ts).
  * - `PATCH  /scheduled-reports/:id` — update; schedule/enable changes
  *   recompute `next_run_at` (disable parks it at null).
  * - `DELETE /scheduled-reports/:id`
  *
  * All admin verbs require the manage grant. v1 runs deliver a CSV data
  * snapshot through the export pipeline (jobs/report-run.ts LOCKED SEMANTICS);
- * `format` stores the §3.24 `pdf | png` intent and the SPA labels delivery
- * "Data snapshot (PDF/PNG rendering arrives in a later release)".
+ * `format` stores the `pdf | png` intent and the SPA labels delivery "Data
+ * snapshot (PDF/PNG rendering arrives in a later release)".
  */
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -128,7 +128,7 @@ export function scheduledReportsRoutes(deps: ScheduledReportsRoutesDeps): Fastif
     }
   }
 
-  /** croner evaluation with the §1.4 422 on unusable time/timezone fields. */
+  /** croner evaluation with the 422 on unusable time/timezone fields. */
   function nextRunOrThrow(schedule: ScheduledReport['schedule'], from: number): number | null {
     try {
       return nextRunAtOf(schedule, from);

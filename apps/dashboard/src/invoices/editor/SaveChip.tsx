@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The header's save chip (comp 334-337, 1586-1588; 34-invoices-add-on.md
- * Appendix E §E3): *Saving…* · *Unsaved changes* · *All changes saved*, plus
- * *Couldn't save* when a PUT fails. The system's `AutosaveIndicator` pill,
- * driven by the explicit Save (O22 → 39 D1) — the same four states, announced
- * politely.
+ * The header's save chip (comp 334-337, 1586-1588): *Saving…* · *Unsaved
+ * changes* · *All changes saved*, plus *Couldn't save* when a PUT fails. The
+ * system's `AutosaveIndicator` pill, driven by the explicit Save (O22) —
+ * the same four states, announced politely.
  */
 import { AutosaveIndicator } from '@adminium/ui';
 

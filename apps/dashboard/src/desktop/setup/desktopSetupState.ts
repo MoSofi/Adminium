@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The first-run wizard's state + pure rules (11-electron.md §6, task 11-T07).
+ * The first-run wizard's state + pure rules.
  *
  * Everything decision-shaped lives here so the step components stay thin and the
  * rules are unit-testable without a DOM — the same split `studio/connect/
@@ -8,7 +8,7 @@
  *
  * ─── THE ORDERING CONSTRAINT THAT SHAPES THIS WHOLE FILE ─────────────────────
  *
- * §6 orders the steps: data location → first database → account → generate. But
+ * The steps are ordered: data location → first database → account → generate. But
  * every endpoint that could CREATE a database — `POST /desktop/local-database`,
  * `POST /desktop/demo-database`, `POST /connections`, even
  * `POST /connections/test` — is guarded by `system:connections:manage`, and at
@@ -18,10 +18,10 @@
  * So step 2 is a CHOICE and step 4 is the EXECUTION: {@link DesktopSetupState}
  * records what the user picked, `createSuperAdmin` (step 3) returns the session
  * cookie that authorizes it, and the generate step performs create →
- * introspect → generate in one go. This is not a workaround — §6's step 4 is
- * already "introspection + generation", and introspection needs a connection to
- * exist, so the source creation was always going to live at the front of it.
- * Writing it down because the alternative reading (create the database in step
+ * introspect → generate in one go. This is not a workaround — step 4 is already
+ * "introspection + generation", and introspection needs a connection to exist,
+ * so the source creation was always going to live at the front of it. Writing
+ * it down because the alternative reading (create the database in step
  * 2) compiles, looks right, and 401s on a fresh install every single time.
  *
  * ─── WHAT IS NOT PERSISTED ───────────────────────────────────────────────────
@@ -43,10 +43,10 @@ import type { ConnectionEngine, GenerateIntent } from '../../studio/api.js';
 import { ENRICH_SECTIONS, LOCKED_LOCALE, type EnrichIntent } from '../../studio/connect/enrichState.js';
 import type { LlmLocale, LlmSection } from '../../studio/ai/api.js';
 
-// ─── Cloud sync (§6 step 1) ──────────────────────────────────────────────────
+// ─── Cloud sync ──────────────────────────────────────────────────────────────
 
 /**
- * §6 step 1's blocking warning, as the wizard renders it.
+ * The blocking warning, as the wizard renders it.
  *
  * An alias rather than a re-declaration: `setDataDir` REFUSES an unacknowledged
  * sync path and hands this back (`api.d.ts`'s `SetDataDirResult`), so the shape
@@ -78,12 +78,12 @@ export function desktopSetupStepLabel(id: DesktopSetupStepId): string {
   }
 }
 
-// ─── Source cards (§6 step 2) ────────────────────────────────────────────────
+// ─── Source cards ────────────────────────────────────────────────────────────
 
 export const SOURCE_CARD_IDS = ['local', 'open-sqlite', 'remote', 'demo'] as const;
 export type SourceCardId = (typeof SOURCE_CARD_IDS)[number];
 
-/** §6 step 2 card 1's sub-choice. */
+/** The first card's sub-choice. */
 export type LocalSchemaChoice = 'blank' | 'file';
 
 /** The engines a "server database" can be. SQLite is cards 1 and 2's business. */
@@ -95,16 +95,16 @@ export interface DesktopSetupState {
   step: DesktopSetupStepId;
 
   /**
-   * §6 step 1. The directory the user picked but has not committed; `null` means
-   * "keep the one the app booted against". Committing happens on Continue, via
-   * the bridge's `setDataDir`, because committing RELAUNCHES the app (§2.2 step
-   * 5 froze `ADMINIUM_DATA_DIR` into the server fork) and doing that on every
-   * click of "Change…" would make the picker unusable.
+   * The directory the user picked but has not committed; `null` means "keep the
+   * one the app booted against". Committing happens on Continue, via the
+   * bridge's `setDataDir`, because committing RELAUNCHES the app (froze
+   * `ADMINIUM_DATA_DIR` into the server fork) and doing that on every click of
+   * "Change…" would make the picker unusable.
    */
   pendingDataDir: string | null;
   /**
-   * Whether the user has confirmed §6 step 1's blocking cloud-sync warning for
-   * {@link DesktopSetupState.pendingDataDir}.
+   * Whether the user has confirmed blocking cloud-sync warning for {@link
+   * DesktopSetupState.pendingDataDir}.
    *
    * A local echo of an answer the MAIN PROCESS enforces (`setDataDir` refuses an
    * unacknowledged sync path outright), not the gate itself. It exists so the
@@ -155,7 +155,7 @@ export const INITIAL_DESKTOP_SETUP_STATE: DesktopSetupState = {
   remoteName: '',
   remoteEngine: 'postgres',
   remoteDsn: '',
-  // §6 step 3: "Skip login on this computer" is CHECKED by default.
+  // "Skip login on this computer" is CHECKED by default.
   singleUser: true,
   locale: null,
   theme: null,
@@ -167,7 +167,7 @@ export const INITIAL_DESKTOP_SETUP_STATE: DesktopSetupState = {
   enrichSampling: false,
 };
 
-// ─── Slug (§6 step 2 card 1: "Name → slug") ──────────────────────────────────
+// ─── Slug (card 1: "Name → slug") ────────────────────────────────────────────
 
 /**
  * MIRROR of the server's `slugFor` (`routes/desktop-local-db/handlers.ts`). The
@@ -185,11 +185,11 @@ export function slugPreview(name: string): string {
     .slice(0, 48);
 }
 
-// ─── Network-share detection (§6 step 2 card 2: "Warn on network-share paths") ─
+// ─── Network-share detection (card 2: "Warn on network-share paths") ─
 
 /**
  * Is this SQLite file on a network share? A hit is a WARNING, never a block —
- * unlike §6 step 1's cloud-sync gate, which blocks.
+ * unlike cloud-sync gate, which blocks.
  *
  * The asymmetry is deliberate and worth stating: a cloud-sync folder is a
  * corruption near-certainty (the provider forks the file behind an open handle),
@@ -234,7 +234,7 @@ export function sourceCardValid(state: DesktopSetupState): boolean {
 }
 
 /**
- * The DSN card 2 registers: §6 says the file is "opened IN PLACE (no silent
+ * The DSN card 2 registers: the file is "opened IN PLACE (no silent
  * copy); registered in `adminium_connections` as `sqlite:<absolute path>`".
  */
 export function sqliteDsn(file: string): string {
@@ -291,8 +291,8 @@ function navigatorLocaleTag(): string {
 }
 
 /**
- * The OS locale, mapped onto a locale this build ships — §6 step 3's "Locale/
- * theme pickers pre-filled from OS locale".
+ * The OS locale, mapped onto a locale this build ships — "Locale/ theme
+ * pickers pre-filled from OS locale".
  *
  * Matched on the registry's `tag` (`en-US`), not its `id` (`en_US`): the id is
  * ours and the tag is BCP-47, which is what `navigator.language` speaks. Exact

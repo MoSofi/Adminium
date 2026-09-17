@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Meta-store Kysely factories (07-meta-store.md §1 connect.ts, §5.2).
+ * Meta-store Kysely factories (connect.ts).
  *
  * Database drivers are injected by the caller (apps/server or tests):
  * each factory accepts the corresponding Kysely dialect config carrying a
  * live driver instance/pool — this package declares no driver dependencies.
  *
- * The meta instance runs `CamelCasePlugin` (07-meta-store.md §2.2): TS models
- * are camelCase, physical columns snake_case. The dynamic source-DB instance
- * (owned by the server) keeps raw names and never touches adminium_* tables.
+ * The meta instance runs `CamelCasePlugin`: TS models are camelCase, physical
+ * columns snake_case. The dynamic source-DB instance (owned by the server)
+ * keeps raw names and never touches adminium_* tables.
  */
 
 import {
@@ -52,7 +52,7 @@ function build(dialect: MetaDialect, kyselyDialect: Dialect): MetaDb {
  * SQLite meta-store around an injected better-sqlite3-compatible database.
  * Call {@link initMetaDb} (or `applyMigrations`/`firstRun`, which do it for
  * you) before FK-dependent work — SQLite needs `PRAGMA foreign_keys = ON`
- * per connection (07-meta-store.md §2.2).
+ * per connection.
  */
 export function createSqliteMetaDb(config: SqliteDialectConfig): MetaDb {
   return build('sqlite', new SqliteDialect(config));
@@ -60,8 +60,8 @@ export function createSqliteMetaDb(config: SqliteDialectConfig): MetaDb {
 
 /**
  * PostgreSQL meta-store around an injected `pg` Pool. The pool must parse
- * int8 as JS number (all ts values < 2^53 — 07-meta-store.md §2.1); build it
- * with {@link postgresInt8AsNumber}.
+ * int8 as JS number (all ts values < 2^53); build it with {@link
+ * postgresInt8AsNumber}.
  */
 export function createPostgresMetaDb(config: PostgresDialectConfig): MetaDb {
   return build('postgres', new PostgresDialect(config));

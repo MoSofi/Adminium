@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Roles & permission-matrix routes (08-server-api.md §2.3, M2-T05/08-T08):
+ * Roles & permission-matrix routes:
  *
  * - `GET /roles` (list + member counts), `POST /roles` (custom roles, with
  *   optional clone), `PATCH /roles/:id`, `DELETE /roles/:id?reassignTo=`
- * - `GET|PUT /roles/:id/permissions` — full-matrix replace in §5.1 grant
- *   strings; the super-admin column is hard-locked (`Roles
- *   Permissions.dc.html`)
+ * - `GET|PUT /roles/:id/permissions` — full-matrix replace grant
+ * strings; the super-admin column is hard-locked (`Roles
+ * Permissions.dc.html`)
  * - `POST /users/:id/roles`, `DELETE /users/:id/roles/:roleId` — assign /
  *   unassign with the last-super-admin guard
  *
  * Built-ins cannot be renamed or deleted (409). Every mutation writes an
- * `rbac`-category audit entry (dotted verb + resource — 07 §3.11 anatomy).
+ * `rbac`-category audit entry (dotted verb + resource — anatomy).
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { permissionsRepo, rolesRepo, usersRepo, type Role } from '@adminium/meta';
@@ -244,7 +244,7 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const role = await mustFindRole(request.params.id);
       if (role.slug === SUPER_ADMIN_SLUG) {
-        // Hard-locked column per Roles Permissions.dc.html / 07 §3.8.
+        // Hard-locked column per Roles Permissions.dc.html /.
         throw new ConflictError('The Super Admin permission column is locked.', 'CONFLICT', {
           slug: role.slug,
         });

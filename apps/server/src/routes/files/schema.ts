@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the files resource (37-files-and-storage.md Appendix C,
- * 37-T11).
+ * Zod schemas for the files resource.
  *
  * The upload's metadata rides the QUERY STRING, not a JSON body, because the
  * body IS the file (D5). That is the same shape `POST /imports/upload` and
@@ -21,8 +20,8 @@ export const fileIdParams = z.object({ id: z.string().min(1) });
 
 /**
  * The upload's query. `filename` is REQUIRED and is the human name — the
- * storage key is minted by the driver and never taken from the client (§3.12,
- * "no user-controlled paths").
+ * storage key is minted by the driver and never taken from the client ("no
+ * user-controlled paths").
  */
 export const filesUploadQuery = z.object({
   filename: z.string().min(1).max(260),
@@ -30,11 +29,11 @@ export const filesUploadQuery = z.object({
   /**
    * What this upload belongs to.
    *
-   * `connectionId` is REQUIRED — a file always belongs to a connection (38 D4,
-   * which reverses 37 D11's "always a table"). `table` is what the grant is
-   * checked against when present, and `recordId` additionally attaches on
-   * upload; without a record id the row is an unattached upload — the
-   * create-form flow, where the record does not exist yet.
+   * `connectionId` is REQUIRED — a file always belongs to a connection (which
+   * reverses "always a table"). `table` is what the grant is checked against
+   * when present, and `recordId` additionally attaches on upload; without a
+   * record id the row is an unattached upload — the create-form flow, where
+   * the record does not exist yet.
    *
    * With NO table this is a library upload: authorised by `files.manage`,
    * stamped `attached_at` at creation so the unattached sweep leaves it, and
@@ -67,8 +66,8 @@ export const fileView = z.object({
   attachedAt: z.number().nullable(),
   deletedAt: z.number().nullable(),
   /**
-   * The connection this file belongs to — ALWAYS present after 38 D4, whether
-   * or not a record claims it. `entity` is the stronger fact and carries the
+   * The connection this file belongs to — ALWAYS present after, whether or
+   * not a record claims it. `entity` is the stronger fact and carries the
    * same connection; this is what a library file has instead.
    */
   connectionId: z.string().nullable(),
@@ -104,7 +103,7 @@ export const filesListQuery = z.object({
   mime: z.string().min(1).max(200).optional(),
   /**
    * Uploaded at or after this epoch-ms instant — the Files page's **Recent**
-   * preset (38 D9).
+   * preset.
    *
    * A server query, not a client-side slice of the first page: "recent" over
    * rows already fetched answers "which of these fifty are recent", which is
@@ -125,8 +124,8 @@ export const filesListReply = z.object({
 
 /**
  * Batch resolve, so a grid of 50 rows with a file column costs ONE request
- * rather than 50 (§3.5). A ref the caller may not read comes back `null`,
- * exactly like a ref that names nothing — the two are deliberately
+ * rather than 50. A ref the caller may not read comes back `null`, exactly
+ * like a ref that names nothing — the two are deliberately
  * indistinguishable, because saying "this exists but you cannot see it" is a
  * disclosure the grid has no use for.
  */

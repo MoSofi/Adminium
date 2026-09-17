@@ -6,10 +6,10 @@ import type { CellContext } from './cells.js';
 import type { GridColumnSpec, GridRow } from './column-spec.js';
 
 /**
- * `detail-key-value` (annex §3) — record fields as label/value rows driven by
+ * `detail-key-value` (annex) — record fields as label/value rows driven by
  * column specs: mono per-field, FK values as chips (via the shared cell
- * renderers), key-field emphasis (09 §8.3), optional column-type tags so the
- * generated UI explains itself (09 §7.1 form keeper, reused on detail).
+ * renderers), key-field emphasis, optional column-type tags so the generated
+ * UI explains itself (form keeper, reused on detail).
  */
 
 export interface DetailKeyValueProps {

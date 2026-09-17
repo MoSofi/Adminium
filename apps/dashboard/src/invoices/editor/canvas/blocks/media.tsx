@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The picture blocks (comp 522-531, 656-664; 34-invoices-add-on.md Appendix
- * F B11, B23): `qr` — *Pay by QR*, the uploaded code as a 96 px tile or the
- * comp's white placeholder tile with the 74 px glyph, the caption and
- * *Amount due · {total}*; `delivery` — the stepper: a 2 px rail behind 22 px
- * dots (done = accent + check, current = accent ring, todo = grey ring) with
- * their labels.
+ * The picture blocks (comp 522-531, 656-664; B11, B23): `qr` — *Pay by QR*,
+ * the uploaded code as a 96 px tile or the comp's white placeholder tile
+ * with the 74 px glyph, the caption and *Amount due · {total}*; `delivery` —
+ * the stepper: a 2 px rail behind 22 px dots (done = accent + check, current
+ * = accent ring, todo = grey ring) with their labels.
  *
  * The QR placeholder keeps the comp's literal white tile and near-black
  * glyph (528) on purpose: the sheet is always light (S6) and a QR needs

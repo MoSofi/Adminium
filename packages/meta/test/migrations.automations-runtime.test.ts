@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0028 (42-automations-and-workflow-logs.md §3.2, 42-T01): the two
- * tables migration 0006 created and nothing ever used gain the six runtime
- * columns an engine needs.
+ * Wave 0028: the two tables migration 0006 created and nothing ever used
+ * gain the six runtime columns an engine needs.
  *
  * Runs the real migration list split at 0027/0028 on every available dialect.
  * The interesting case is the pre-wave row: `adminium_automations` and

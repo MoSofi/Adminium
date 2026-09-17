@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * React-query keys for the report documents (43-report-builder.md §3.1).
- * Everything hangs off `['report-documents']` so one invalidation after a
- * mutation refreshes the manager's list, its counts and any open detail
- * together. NOT `['reports']` — that key belongs to Scheduled Reports.
+ * React-query keys for the report documents. Everything hangs off
+ * `['report-documents']` so one invalidation after a mutation refreshes
+ * the manager's list, its counts and any open detail together. NOT
+ * `['reports']` — that key belongs to Scheduled Reports.
  */
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
 

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Every label and seeded string the editor prints for a block
- * (43-report-builder.md Appendix B, Appendix E; the comp's `kindMeta` 473,
- * `newBlockContent` 536, `insHeadMeta` 632, `addArr`/`addRow` seeds 541-544,
- * 645-667), in one place so the palette, the canvas and the inspector never
- * disagree.
+ * (the comp's `kindMeta` 473, `newBlockContent` 536, `insHeadMeta` 632,
+ * `addArr`/`addRow` seeds 541-544, 645-667), in one place so the palette,
+ * the canvas and the inspector never disagree.
  *
  * Every string is a `reportBuilder:` key with the comp's English as its
  * inline fallback — byte-identical to `locales/en-US/reportBuilder.json` (the
@@ -100,13 +99,13 @@ export function blockSeed(kind: ReportBlockKind): BlockSeedText {
     poTerms: t('reportBuilder:seed.poTerms', 'This report is issued under the standard reporting agreement. Figures are provisional until finalised.'),
     legalText: t('reportBuilder:seed.legalText', 'This report is provided for informational purposes. Figures are unaudited and subject to revision.'),
     refText: t('reportBuilder:seed.refText', 'Full refunds are available within 30 days of purchase. Contact support to begin a return.'),
-    // Appendix D row 6: the comp seeds the company's own support desk (24 D12).
+    // Appendix D row 6: the comp seeds the company's own support desk.
     contact: {
       name: t('reportBuilder:seed.contactName', 'Orchard Lane Studio'),
       email: 'hello@orchardlane.example',
       phone: '+1 (555) 010-0100',
     },
-    // Appendix D row 5: the comp's own field name is a 17 §2 word.
+    // Appendix D row 5: the comp's own field name is a word.
     loyLevel: t('reportBuilder:seed.loyLevel', 'Gold'),
     delSteps: [
       [t('reportBuilder:seed.step.ordered', 'Ordered'), 'done'],

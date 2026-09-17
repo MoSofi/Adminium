@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `shortcuts-panel` (annex §11) — keyboard shortcuts cheat sheet: categorized
+ * `shortcuts-panel` (annex) — keyboard shortcuts cheat sheet: categorized
  * groups of label + keycap combos, modifier and sequential "then" chords.
  * Evidence: Shortcuts Panel, Metrics Dashboard.
  *
- * `static` by contract (annex §11: "static groups of {label, keys[],
+ * `static` by contract (annex: "static groups of {label, keys[],
  * isSequence}") — the HOST owns the live shortcut manager and passes the
  * registered set in as config, so the panel can never drift from a hardcoded
  * list of its own.
  *
  * The `MOD` key token is resolved to the platform glyph at render (`⌘` on macOS,
  * `Ctrl` elsewhere) from `config.modKey`, which the host sets — the widget does
- * not sniff the platform (annex §11 "Keycaps localize per platform").
+ * not sniff the platform (annex).
  */
 
 import { Kbd } from '@adminium/ui';

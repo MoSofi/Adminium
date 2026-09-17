@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Undo/redo over the unsaved document (43-report-builder.md E5; the comp's
+ * Undo/redo over the unsaved document (E5; the comp's
  * `pushHist`/`undo`/`redo`, 522, 527-528): a stack of SNAPSHOTS, sixty deep,
  * of whatever the editor holds — name, status and the body together, so one
  * undo step reverts one edit whatever it touched.
@@ -10,8 +10,8 @@
  * twice without typing costs nothing) and immune to a later in-place mutation
  * of the object that was snapshotted. The invoice and email surfaces'
  * `model/history.ts` are the same machine; kept separate so no tree imports
- * another (43 D7 — the third copy is where extraction starts paying, and that
- * is O7's 27 row, not this build's).
+ * another (the third copy is where extraction starts paying, and that is O7's
+ * 27 row, not this build's).
  *
  * Pure: every function returns a new history; the hook that owns the draft
  * decides when to push (the comp pushes on focus — `beginEdit`, 523 — and

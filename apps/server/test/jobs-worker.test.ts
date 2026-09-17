@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * JobWorker over the sqlite meta queue (M2-T07): claim → run → complete,
- * progress fan-out on `jobs:<id>`, exponential backoff → dead-letter, the
- * portable UPDATE-guard claim race, cooperative cancel, and graceful drain.
+ * JobWorker over the sqlite meta queue: claim → run → complete, progress
+ * fan-out on `jobs:<id>`, exponential backoff → dead-letter, the portable
+ * UPDATE-guard claim race, cooperative cancel, and graceful drain.
  */
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -38,7 +38,7 @@ describe('JobWorker — happy path', () => {
     // ts is ISO-8601 from the injected clock.
     expect(events[0]?.ts).toBe(new Date(ctx.clock.now()).toISOString());
 
-    // The route reads progress from the worker (01 §5 in-process model).
+    // The route reads progress from the worker (in-process model).
     expect(ctx.worker.getProgress(job.id)).toEqual({ pct: 100 });
   });
 

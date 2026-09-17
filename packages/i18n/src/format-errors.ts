@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Bounded ring of ICU format failures (23-runtime-translations.md §4.5, T12).
+ * Bounded ring of ICU format failures.
  *
  * When a message throws at format time, `IcuFormat` returns the RAW string —
  * so the user sees `{count, plural, one {…}}` sitting in the UI — and logs one

@@ -40,16 +40,16 @@ export { kanbanSwimlaneGridConfigSchema, kanbanSwimlaneGridDemoData } from './bo
 export type { KanbanSwimlaneGridConfig };
 
 /**
- * `kanban-swimlane-grid` (annex §6) — a lane × column matrix where each cell is
- * an independent drop target; dropping a card reassigns BOTH its lane and its
+ * `kanban-swimlane-grid` (annex) — a lane × column matrix where each cell is an
+ * independent drop target; dropping a card reassigns BOTH its lane and its
  * status. Binds to a `record-list` with two categorical fields (lane + status).
  * A committed move emits `onCardMove(cardId, {fromLane,fromColumn}, {toLane,
  * toColumn})`, fired by the binding as an optimistic two-field UPDATE (rolled
  * back on rejection). Keyboard: arrow-left/right change column, arrow-up/down
  * change lane, all logical under RTL.
  *
- * Ports Kanban Swimlanes.dc.html — closing the modal→grid wiring gap
- * (research/ia-mapping.md §5): a move mutates the grid in place.
+ * Ports Kanban Swimlanes.dc.html — closing the modal→grid wiring
+ * gap: a move mutates the grid in place.
  */
 
 const DOT_TONE: Record<Tone, string> = {
@@ -322,7 +322,7 @@ export function KanbanSwimlaneGridWidget({ config, data, onEvent }: WidgetProps<
       {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
       labels={labels}
       // Return the host's result so a rejected `mutate` promise rolls the
-      // optimistic move back and announces the failure (annex §6 a11y).
+      // optimistic move back and announces the failure (annex a11y).
       onCardMove={(cardId, _from, to) =>
         onEvent({
           type: 'mutate',

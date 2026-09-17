@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * DashboardGrid edit-mode tests (04-widget-registry.md §6.2). dnd-kit's pointer
- * sensor needs real layout rects (unavailable in happy-dom), so — exactly as the
- * boards family does — the drag-move behaviour is exercised through the widget's
- * own LOGICAL keyboard path, which funnels through the SAME `applyMove` +
- * `compactVertical` machinery a pointer drop uses. The pure recompaction /
- * findFirstFit / resize-floor invariants are proven directly in
- * layout-edit.test.ts.
+ * DashboardGrid edit-mode tests. dnd-kit's pointer sensor needs real layout
+ * rects (unavailable in happy-dom), so — exactly as the boards family does — the
+ * drag-move behaviour is exercised through the widget's own LOGICAL keyboard
+ * path, which funnels through the SAME `applyMove` + `compactVertical` machinery
+ * a pointer drop uses. The pure recompaction / findFirstFit / resize-floor
+ * invariants are proven directly in layout-edit.test.ts.
  */
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';

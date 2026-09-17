@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Every branch of the alter planner, the default validator and the forward
- * type map — 35-schema-authoring.md 35-T02, 35-T04.
+ * type map.
  *
  * These are the paths that decide what SQL runs against a customer's database,
  * so "it compiles" is not the bar. Each block below drives one class of change

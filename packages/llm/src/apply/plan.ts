@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The PURE apply-planner (06-llm-assist.md §8.3).
+ * The PURE apply-planner.
  *
  * Turns a reviewed {@link SuggestionDiff}[] plus the set of accepted suggestion
  * ids into an ordered, serializable {@link ApplyPlan} of WRITE DESCRIPTORS — one
- * per accepted suggestion, each mapped to its §8.3 apply target. A descriptor
- * names its target table/column/field + value; it is NOT SQL. The server-side
- * executor (T10b, `apps/server`) turns descriptors into transactional Kysely
- * writes against `adminium_schema_overrides` / `adminium_pages` and owns
- * upsert idempotency at write time.
+ * per accepted suggestion, each mapped to its apply target. A descriptor names
+ * its target table/column/field + value; it is NOT SQL. The server-side executor
+ * (T10b, `apps/server`) turns descriptors into transactional Kysely writes
+ * against `adminium_schema_overrides` / `adminium_pages` and owns upsert
+ * idempotency at write time.
  *
- * Browser-safe (01-architecture.md §2.3): this module imports only pure-TS types
- * from within `@adminium/llm`; it never touches `@adminium/meta` or a DB driver.
- * Provider network calls happen server-side only — the dashboard imports this
- * planner purely to preview the write set in the review confirmation modal.
+ * Browser-safe: this module imports only pure-TS types from within
+ * `@adminium/llm`; it never touches `@adminium/meta` or a DB driver. Provider
+ * network calls happen server-side only — the dashboard imports this planner
+ * purely to preview the write set in the review confirmation modal.
  *
- * Provenance (§8.3, user > llm > heuristic) is enforced IN THE PLAN:
+ * Provenance (user > llm > heuristic) is enforced IN THE PLAN:
  *  - suggestions whose diff row is `user-locked` (an existing `source: 'user'`
  *    override) are EXCLUDED — applying an LLM run never touches a user edit;
  *  - a `rejects-heuristic` acceptance produces the correct SUPPRESSION
@@ -32,12 +32,12 @@ import type { EnumSuggestion, InferredRelation, LocaleCode } from '../response/s
 import type { SuggestionCategory, SuggestionDiff, SuggestionStatus } from './diff.js';
 import { widgetId } from './suggestion-id.js';
 
-// ─── Write descriptor vocabulary (§8.3) ──────────────────────────────────────
+// ─── Write descriptor vocabulary ─────────────────────────────────────────────
 
 /**
  * The `adminium_schema_overrides` fields an accepted suggestion can target. The
  * table-`label` value bundles `label` + `description` + `icon` together (the
- * §8.1 accept unit "table label+description+icon bundle", mirroring the meta
+ * accept unit "table label+description+icon bundle", mirroring the meta
  * `table.label` op which stores the icon inline) — there is no standalone icon
  * descriptor. The executor maps each field onto a concrete override op.
  */
@@ -50,10 +50,10 @@ export type OverrideField =
   | 'virtual_relation'
   | 'relation_suppressed';
 
-/** A write against `adminium_schema_overrides` (§8.3). */
+/** A write against `adminium_schema_overrides`. */
 export interface OverrideWrite {
   target: 'override';
-  /** The originating §8.1 suggestion id (accept/reject trace + idempotency key). */
+  /** The originating suggestion id (accept/reject trace + idempotency key). */
   suggestionId: string;
   field: OverrideField;
   /** Qualified `"schema.table"`. */
@@ -70,15 +70,16 @@ export interface OverrideWrite {
   confidence: number;
 }
 
-/** One grid item on a planned dashboard page (04-widget-registry.md §6.1). */
+/** One grid item on a planned dashboard page. */
 export interface PlannedLayoutItem {
-  /** Deterministic instance id = the widget's §8.1 suggestion id. */
+  /** Deterministic instance id = the widget's suggestion id. */
   i: string;
   /** Registry widget id. */
   widget: string;
   x: number;
   y: number;
-  /** Width in grid columns — the §5 span heuristic (KPI 3, donut/funnel 4, bar/table 6, line/area 8). */
+  /** Width in grid columns — the span heuristic (KPI 3, donut/funnel 4,
+   * bar/table 6, line/area 8). */
   w: number;
   /** Height in half-row (40px) units — KPI 3, everything else 8. */
   h: number;
@@ -90,7 +91,7 @@ export interface PlannedLayoutItem {
   };
 }
 
-/** The subset of the annex §1 `format` vocabulary this planner can infer. */
+/** The subset of the annex `format` vocabulary this planner can infer. */
 type MetricFormat = 'plain' | 'compact';
 
 /** A planned dashboard grid (`config.layout`), matching `pageLayoutSchema`. */
@@ -100,8 +101,9 @@ export interface PlannedLayout {
 }
 
 /**
- * Assign `nav_group` + `nav_order` to each member table's page rows (§8.3
- * `group`). The executor stamps the group/order onto every table in `tables`.
+ * Assign `nav_group` + `nav_order` to each member table's page rows
+ * (`group`). The executor stamps the group/order onto every table in
+ * `tables`.
  */
 export interface NavGroupWrite {
   target: 'page';
@@ -120,7 +122,7 @@ export interface NavGroupWrite {
 }
 
 /**
- * A new template page row for a table (§8.3 `template`): `{ type: template,
+ * A new template page row for a table (`template`): `{ type: template,
  * table, config, enabled: true, source: 'llm' }`. The executor generates the
  * template body from the active snapshot and skips the write if an identical
  * page already exists — the planner does not dedupe against DB state.
@@ -143,7 +145,7 @@ export interface TemplatePageWrite {
 
 /**
  * A new `page-dashboard` row whose `config.layout.items[]` carry the accepted,
- * bound widgets (§8.3 `dashboard` + `widget`). Widgets are NOT standalone
+ * bound widgets (`dashboard` + `widget`). Widgets are NOT standalone
  * descriptors — each accepted widget folds into its dashboard's layout; an
  * accepted widget whose dashboard was not accepted produces nothing (a widget
  * cannot exist without its container page).
@@ -170,7 +172,7 @@ export interface DashboardPageWrite {
 export type PageWrite = NavGroupWrite | TemplatePageWrite | DashboardPageWrite;
 export type WriteDescriptor = OverrideWrite | PageWrite;
 
-/** An ordered, serializable plan of write descriptors (§8.3). */
+/** An ordered, serializable plan of write descriptors. */
 export interface ApplyPlan {
   /** The connection every write targets (also stamped into widget bindings). */
   connectionId: string;
@@ -189,7 +191,7 @@ export interface ApplyPlan {
 /**
  * Widget id → the data shapes that widget accepts. Supply
  * `LLM_WIDGET_DATA_CONTRACTS` from `@adminium/widgets`; it is injected as plain
- * data so this package never depends on the render layer (01 §2.3), exactly as
+ * data so this package never depends on the render layer, exactly as
  * `allowedWidgets` is injected into the referential checks.
  */
 export type WidgetContracts = Readonly<Record<string, readonly string[]>>;
@@ -208,7 +210,7 @@ export interface ApplyPlanOptions {
   widgetContracts?: WidgetContracts;
 }
 
-// ─── Span → grid heuristic (§5 / 04-widget-registry.md §6.1) ─────────────────
+// ─── Span → grid heuristic ───────────────────────────────────────────────────
 
 /** KPI cards are 3 half-rows (120px); every other widget is 8 (320px). */
 const KPI_HEIGHT = 3;
@@ -312,7 +314,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object';
 }
 
-// ─── Query-descriptor binding (04-widget-registry.md §5.1) ───────────────────
+// ─── Query-descriptor binding ────────────────────────────────────────────────
 
 /** Split a qualified `"schema.table"` into a query-descriptor `source` block. */
 function tableSource(qualified: string): { schema?: string; name: string; type: 'table' } {
@@ -462,9 +464,8 @@ function firstFreeSlot(placed: readonly GridRect[], width: number, height: numbe
 
 /**
  * Place accepted widgets on the 12-column grid in rank order, each at the
- * topmost-then-leftmost slot it fits (04-widget-registry.md §6.1). Pure and
- * deterministic — widths come from the §5 span heuristic, heights from
- * {@link widgetHeight}.
+ * topmost-then-leftmost slot it fits. Pure and deterministic — widths come
+ * from the span heuristic, heights from {@link widgetHeight}.
  *
  * This replaced a single-pass shelf packer that never backfilled: it advanced
  * `y` by the tallest item in the row, so mixed-height rows left holes and any
@@ -527,7 +528,7 @@ function labelWrite(row: SuggestionDiff): OverrideWrite | null {
   const column = body === row.table ? null : body.slice(row.table.length + 1) || null;
   const json: Record<string, unknown> = { label: bundle.label };
   if (bundle.description !== undefined) json['description'] = bundle.description;
-  // icon rides with the table-label bundle only (§8.1); columns carry no icon.
+  // icon rides with the table-label bundle only; columns carry no icon.
   if (column === null && bundle.icon !== undefined) json['icon'] = bundle.icon;
   return override(row, 'label', row.table, column, json);
 }
@@ -561,9 +562,9 @@ function enumWrite(row: SuggestionDiff): OverrideWrite | null {
  * FKs), and every relation override shares `field`+`table`+`column=null`, so
  * without this the upsert key `(connection, op, table, column)` collides and all
  * but the last relation is silently dropped. Encoding the full relation
- * coordinates (mirroring the §8.1 suggestion id) keeps each distinct relation on
- * its own row while staying deterministic — re-applying the same run upserts in
- * place (idempotent), it never inserts a duplicate.
+ * coordinates (mirroring the suggestion id) keeps each distinct relation on its
+ * own row while staying deterministic — re-applying the same run upserts in place
+ * (idempotent), it never inserts a duplicate.
  */
 function relationColumnKey(
   fromColumns: readonly string[],
@@ -591,7 +592,7 @@ function relationWrite(row: SuggestionDiff): OverrideWrite | null {
       },
     );
   }
-  // An inferred relation the engine should treat as a real FK (§8.3).
+  // An inferred relation the engine should treat as a real FK.
   const rel = value as unknown as InferredRelation;
   const json: Record<string, unknown> = {
     fromColumns: rel.fromColumns,
@@ -613,7 +614,7 @@ function piiWrite(row: SuggestionDiff): OverrideWrite | null {
   if (row.table === undefined) return null;
   const column = row.id.slice(`pii:${row.table}.`.length);
   if (row.status === 'rejects-heuristic') {
-    // Explicit `pii: null` over a heuristic flag → an explicit clear (§8.3).
+    // Explicit `pii: null` over a heuristic flag → an explicit clear.
     return override(row, 'pii', row.table, column, null);
   }
   const value = row.llmValue;
@@ -722,8 +723,8 @@ const NON_ACTIONABLE: ReadonlySet<SuggestionStatus> = new Set<SuggestionStatus>(
 ]);
 
 /**
- * Build the ordered {@link ApplyPlan} for the accepted subset of a reviewed diff
- * (§8.3). Emits one descriptor per accepted suggestion (widgets fold into their
+ * Build the ordered {@link ApplyPlan} for the accepted subset of a reviewed
+ * diff. Emits one descriptor per accepted suggestion (widgets fold into their
  * dashboard), excludes `user-locked` targets (provenance), and turns
  * `rejects-heuristic` acceptances into suppression descriptors.
  */
@@ -738,7 +739,7 @@ export function buildApplyPlan(
 
   for (const row of diff) {
     if (!accepted.has(row.id)) continue;
-    // Provenance user > llm > heuristic: never write over a user edit (§8.3).
+    // Provenance user > llm > heuristic: never write over a user edit.
     if (row.status === 'user-locked') {
       excludedUserLocked.push(row.id);
       continue;
@@ -785,7 +786,7 @@ function emit(
   }
 }
 
-// ─── Human summary for the review confirmation modal (§10.3) ─────────────────
+// ─── Human summary for the review confirmation modal ─────────────────────────
 
 export interface ApplyPlanSummary {
   totalWrites: number;
@@ -811,7 +812,7 @@ export interface ApplyPlanSummary {
   text: string;
 }
 
-/** Human counts for the review confirmation modal (§10.3, task step 3). */
+/** Human counts for the review confirmation modal (task step 3). */
 export function applyPlanSummary(plan: ApplyPlan): ApplyPlanSummary {
   const s = {
     totalWrites: plan.writes.length,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The email-documents API client (39-email-templates-and-campaigns.md §3.1).
+ * The email-documents API client.
  *
  * TYPE-ONLY MIRROR of `apps/server/src/routes/email-templates/schema.ts`: the
  * dashboard may not import server runtime code, so the reply shapes are
@@ -20,13 +20,14 @@ export type EmailDocumentKind = 'template' | 'campaign';
 export type EmailCategory = 'transactional' | 'lifecycle' | 'marketing';
 export type EmailRunStatus = 'scheduled' | 'running' | 'sent' | 'failed' | 'cancelled';
 
-/** Who a campaign goes to (39 D11). `users` is phase 1; a table audience joins in the next wave. */
+/** Who a campaign goes to. `users` is phase 1; a table audience joins in the
+ * next wave. */
 export interface EmailAudience {
   kind: 'users';
   roleIds?: string[] | undefined;
 }
 
-/** A campaign's latest run, as the manager shows it (39 D2, D12). */
+/** A campaign's latest run, as the manager shows it. */
 export interface EmailRunView {
   id: string;
   status: EmailRunStatus;
@@ -45,7 +46,7 @@ export interface EmailRunView {
 
 export interface EmailBrand {
   name: string;
-  /** One of the twelve shipped marks, or `logo` for the workspace's own (39 D6). */
+  /** One of the twelve shipped marks, or `logo` for the workspace's own. */
   mark: string;
   /** Six-digit hex. */
   accent: string;
@@ -76,7 +77,7 @@ export interface EmailBlockRecord {
   style: EmailBlockStyle;
 }
 
-/** The envelope the editor edits and the renderer reads (39 D5). */
+/** The envelope the editor edits and the renderer reads. */
 export interface EmailDocument {
   subject: string;
   preheader: string;
@@ -86,7 +87,7 @@ export interface EmailDocument {
   attachments: EmailAttachment[];
 }
 
-/** What `PUT` and test-send carry — the on-screen document (39 D1). */
+/** What `PUT` and test-send carry — the on-screen document. */
 export interface EmailDocumentInput {
   subject: string;
   preheader?: string | undefined;
@@ -109,14 +110,16 @@ export interface EmailDocumentSummary {
   needsTranslation: boolean;
   archivedAt: number | null;
   updatedAt: number;
-  /** A key the built-ins own — "Reset to built-in" instead of "Delete for good" (39 D4). */
+  /** A key the built-ins own — "Reset to built-in" instead of "Delete for
+   * good". */
   isBuiltin: boolean;
   isBuiltinCopy: boolean;
   starter: string | null;
   brand: { accent: string; mark: string } | null;
   /** The first heading block's text, for the mini preview. */
   heading: string;
-  /** The family's label — the `en_US` sibling's name, else the first sibling's (39 D3). */
+  /** The family's label — the `en_US` sibling's name, else the first sibling's.
+   * */
   topicLabel: string;
   run?: EmailRunView | undefined;
 }
@@ -132,7 +135,7 @@ export interface EmailDocumentsListReply {
   counts: EmailCounts;
 }
 
-/** A language variation row of the editor's menu (39 D3). */
+/** A language variation row of the editor's menu. */
 export interface EmailLanguageView {
   id: string;
   locale: string;
@@ -141,7 +144,8 @@ export interface EmailLanguageView {
   archived: boolean;
 }
 
-/** A fixed attachment as the inspector shows it — with the file's facts, or `missing` (39 D8). */
+/** A fixed attachment as the inspector shows it — with the file's facts, or
+ * `missing`. */
 export interface EmailAttachmentResolved {
   id: string;
   fileId: string;
@@ -188,7 +192,7 @@ export interface EmailListParams {
 export interface EmailCreateBody {
   kind: EmailDocumentKind;
   name?: string | undefined;
-  /** A starter key, or null/absent for a blank document (39 D10). */
+  /** A starter key, or null/absent for a blank document. */
   starter?: string | null | undefined;
   locale?: string | undefined;
 }
@@ -198,7 +202,8 @@ export interface EmailPutBody {
   category: EmailCategory;
   enabled: boolean;
   document: EmailDocumentInput;
-  /** The session's structural edits, applied to every sibling in the same save (39 D1). */
+  /** The session's structural edits, applied to every sibling in the same save.
+   * */
   mirrorOps?: EmailMirrorOp[] | undefined;
 }
 
@@ -239,7 +244,8 @@ export const emailApi = {
     api.put<EmailDocumentDetail>(`${BASE}/${encodeURIComponent(id)}`, body),
   patch: (id: string, body: EmailPatchBody) =>
     api.patch<EmailDocumentSummary>(`${BASE}/${encodeURIComponent(id)}`, body),
-  /** A built-in key resets to the shipped copy (200 + detail); anything else is gone (204 → null) (39 D4). */
+  /** A built-in key resets to the shipped copy (200 + detail); anything else is
+   * gone (204 → null). */
   remove: (id: string) => api.delete<EmailDocumentDetail | null>(`${BASE}/${encodeURIComponent(id)}`),
   duplicate: (id: string) => api.post<EmailDocumentDetail>(`${BASE}/${encodeURIComponent(id)}/duplicate`),
   addLanguage: (id: string, locale: string) =>
@@ -264,9 +270,9 @@ export const emailApi = {
 };
 
 /**
- * The export download's URL (39 D14). A plain navigation, not `fetch`: the
- * reply is a `content-disposition: attachment` JSON file the browser saves,
- * and the session cookie rides along on its own.
+ * The export download's URL. A plain navigation, not `fetch`: the reply is
+ * a `content-disposition: attachment` JSON file the browser saves, and the
+ * session cookie rides along on its own.
  */
 export function emailExportUrl(params: { kind?: EmailDocumentKind | undefined; ids?: readonly string[] | undefined } = {}): string {
   const query = new URLSearchParams();

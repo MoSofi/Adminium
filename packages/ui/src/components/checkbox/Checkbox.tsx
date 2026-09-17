@@ -13,7 +13,7 @@ export type CheckboxProps = Omit<
 /**
  * Checkbox — Radix checkbox, 18px square, radius 6 (`rounded-sm`), accent
  * fill + white check when checked, `Minus` glyph when `indeterminate`
- * (research/design-system.md §3 Tier 2).
+ * (research/design-system.md Tier 2).
  *
  * Indeterminate is the Radix contract: pass `checked="indeterminate"`
  * (controlled). Label + caption wiring belongs to `FormField` / `Label`.

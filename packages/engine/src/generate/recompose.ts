@@ -4,11 +4,11 @@
  * "change the data this page shows" write.
  *
  * `generatePages` composes the whole app from a snapshot and decides every
- * template itself. `composeRequestedArchetype` (06 §8.3) composes one page but
- * only for the nine §14 archetypes, because it delegates to
- * `buildArchetypeEnvelope`, which returns null for anything outside
- * `ARCHETYPE_NAV`. Neither serves an admin who picked `page-crud` for a table
- * by hand, which is the most common thing to pick.
+ * template itself. `composeRequestedArchetype` composes one page but only for
+ * the nine archetypes, because it delegates to `buildArchetypeEnvelope`,
+ * which returns null for anything outside `ARCHETYPE_NAV`. Neither serves an
+ * admin who picked `page-crud` for a table by hand, which is the most common
+ * thing to pick.
  *
  * This is the missing third entry point: same classify → candidates → compose
  * prelude those two share, dispatching to `buildCrudEnvelope` for `page-crud`
@@ -73,7 +73,7 @@ export function composeRequestedPage(
 
   const classified = new Map(classifyModel(model).tables.map((t) => [t.tableId, t]));
   // The same include rule `generatePages`' splitTables applies: system and
-  // join tables never earn a page (05 §8.2). Offering one in the picker and
+  // join tables never earn a page. Offering one in the picker and
   // then composing it anyway would produce a page the next generation run
   // deletes.
   const tables = [...model.tables]

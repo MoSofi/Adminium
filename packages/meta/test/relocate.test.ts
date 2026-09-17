@@ -258,9 +258,9 @@ async function seed2(meta: MetaDb): Promise<{
 
 /**
  * `probeAdminiumTables` answers the same question as `assertMetaStoreEmpty`
- * WITHOUT writing (45-T11): a first-run wizard has to ask it of a database the
- * operator has only typed a string for, and migrating that database to find out
- * would be the write the question exists to avoid.
+ * WITHOUT writing: a first-run wizard has to ask it of a database the operator
+ * has only typed a string for, and migrating that database to find out would be
+ * the write the question exists to avoid.
  */
 for (const dialect of available) {
   describe(`probeAdminiumTables [${dialect.name}]`, () => {
@@ -304,8 +304,8 @@ for (const dialect of available) {
 }
 
 /**
- * Parking (45-T11): the second answer offered to someone whose target database
- * already runs an Adminium — keep what is there, and start beside it.
+ * Parking: the second answer offered to someone whose target database already
+ * runs an Adminium — keep what is there, and start beside it.
  */
 for (const dialect of available) {
   describe(`parkAdminiumTables [${dialect.name}]`, () => {

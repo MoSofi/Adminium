@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The six-step order and what may be skipped (45-onboarding.md §2).
+ * The six-step order and what may be skipped.
  *
  * These are product decisions, not rendering: the account step is third so the
  * two before it can be answered with no instance to write to (45 R1), and it

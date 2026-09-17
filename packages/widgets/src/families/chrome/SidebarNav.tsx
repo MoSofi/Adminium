@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `sidebar-nav` (annex §11) — grouped data-driven nav: group labels, icon links,
+ * `sidebar-nav` (annex) — grouped data-driven nav: group labels, icon links,
  * active state, optional live count badges. The generator builds its payload
- * from the included tables + adminium pages (annex §11 auto-instantiation: "the
- * app shell always mounts `sidebar-nav`"), and tables with unread/pending
- * semantics push counts into `badgeField`.
+ * from the included tables + adminium pages (annex auto-instantiation: "the app
+ * shell always mounts `sidebar-nav`"), and tables with unread/pending semantics
+ * push counts into `badgeField`.
  *
  * Built fresh in the widgets package rather than lifted from
  * `apps/dashboard/src/shell/SidebarNav.tsx`: that one is bound to the app's
  * `BootstrapData`, its `@tanstack/react-router` `Link`, its `t()` and its
- * `navSections` module — a widget may never import an app (04 §2.1). The annex's
- * contract here is the generic groups/items payload. The app keeps its shell rail.
+ * `navSections` module — a widget may never import an app. The annex's contract
+ * here is the generic groups/items payload. The app keeps its shell rail.
  *
- * Navigation goes through `onEvent` (04 §2.1): the widget renders anchors so
+ * Navigation goes through `onEvent`: the widget renders anchors so
  * middle-click / "open in new tab" keep working, but a plain left-click is
  * intercepted and handed to the host's router.
  */

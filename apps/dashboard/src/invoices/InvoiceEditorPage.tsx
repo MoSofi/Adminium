@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/invoices/$id` — the editor's route (34-invoices-add-on.md §3.9, 34-T49).
- * Reads the document once and hands it to the editor, keyed by id so a
- * language switch mounts a fresh draft (O22 → 39 D1: the draft is the
- * editor's own from then on; a refetch never overwrites it).
+ * `/invoices/$id` — the editor's route. Reads the document once and hands it
+ * to the editor, keyed by id so a language switch mounts a fresh draft (O22
+ * →: the draft is the editor's own from then on; a refetch never overwrites
+ * it).
  */
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';

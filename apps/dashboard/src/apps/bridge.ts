@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The host half of the surface bridge (29-app-surfaces.md D6).
+ * The host half of the surface bridge.
  *
  * ── This file is a MIRROR, and knowingly so ────────────────────────────────
  * The child half lives in `embed.ts` inside each of the fifteen app repos,

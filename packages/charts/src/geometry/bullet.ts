@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure bullet-graph layout (`chart-bullet`, research/widget-registry.md §2):
- * per row a stack of qualitative bands + a measure bar + a target tick. DOM-free.
- * The horizontal value axis mirrors in RTL (annex §7.4): bands/measure anchor at
+ * Pure bullet-graph layout (`chart-bullet`, research/widget-registry.md): per row
+ * a stack of qualitative bands + a measure bar + a target tick. DOM-free. The
+ * horizontal value axis mirrors in RTL (annex): bands/measure anchor at
  * inline-start (the right edge under `rtl`) and grow toward inline-end.
  */
 

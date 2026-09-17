@@ -2,7 +2,7 @@
 /**
  * M7 wave-2 e2e — the archetype TEMPLATE PAGES on the seeded Northwind app.
  *
- * The generator emits §14 archetype pages next to each table's page-crud
+ * The generator emits archetype pages next to each table's page-crud
  * (packages/engine/src/generate/archetype.ts); Northwind's own triggers are
  * `employees.reports_to` → `page-directory` and `orders.order_date` + a title
  * column → `page-calendar` (pinned by generate-baseline.test.ts). Until this
@@ -43,13 +43,13 @@ test.describe('archetype template pages on the seeded Northwind connection', () 
       .click();
     await expect(page).toHaveURL(/\/p\/employees-directory/);
 
-    // The real renderer, not the unknown-template card (09 §3.1).
+    // The real renderer, not the unknown-template card.
     await expect(page.getByText('Unknown page template')).toHaveCount(0);
     const directory = page.locator('[data-part="page-directory"]');
     await expect(directory).toBeVisible();
 
     // Northwind employees carries the `reports_to` self-FK, so the hero slot
-    // composes `org-chart` (annex §13 domain.people-self-fk) — a real tree
+    // composes `org-chart` (annex domain.people-self-fk) — a real tree
     // with the seeded people in it, not a fallback silhouette.
     const tree = page.getByRole('tree');
     await expect(tree).toBeVisible();

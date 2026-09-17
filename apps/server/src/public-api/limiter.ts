@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The public namespace's own rate limiter (28-public-surface.md §3.6, D9).
+ * The public namespace's own rate limiter.
  *
  * ── WHY THIS IS NOT `RATE_BUCKETS` ─────────────────────────────────────────
  * `plugins/core.ts`'s `principalKey` cannot see a publishable key. Its own
@@ -25,11 +25,11 @@
  * ── WHAT THIS DOES NOT FIX ─────────────────────────────────────────────────
  * It is an in-process `Map`, exactly like the one in `plugins/core.ts`. N
  * replicas means N× every ceiling here. That is a stated non-goal of this wave
- * (§9) and it is recorded rather than papered over: an operator running two
+ * and it is recorded rather than papered over: an operator running two
  * instances behind a load balancer gets double the published numbers.
  */
 
-/** Fixed-window counters, per §3.6. */
+/** Fixed-window counters. */
 export const PUBLIC_LIMITS = {
   /** Reads. Generous — a page load fans out across several refs. */
   'public-read': { max: 120, windowMs: 60_000 },

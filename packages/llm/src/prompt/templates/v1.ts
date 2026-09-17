@@ -1,35 +1,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `PROMPT_V1` — the production schema-enrichment prompt (06-llm-assist.md §5).
+ * `PROMPT_V1` — the production schema-enrichment prompt.
  *
- * SHIP VERBATIM. The two exported template strings reproduce §5.1 (system) and
- * §5.2 (user); `{{DOUBLE_BRACE}}` tokens are replaced by the builder, everything
- * else is literal. One deliberate divergence from the spec text (v1.1): §5.2's
- * trigger taxonomy lists a `page-builder` row, but `page-builder` is a
- * non-recommendable tool surface (registry `recommendable: false` — no
- * `composeRequestedArchetype` materialization path) and is therefore absent from
- * `LLM_ALLOWED_TEMPLATES`; the row is omitted so the taxonomy is exactly the
- * injected allowed list and the "not listed here" disclaimer names `builder`
- * among the platform-owned surfaces. The spec table predates that registry
- * decision and awaits a sync (the internal plan is revised on a separate track).
+ * SHIP VERBATIM. The two exported template strings reproduce (system) (user);
+ * `{{DOUBLE_BRACE}}` tokens are replaced by the builder, everything else is
+ * literal. One deliberate divergence from the spec text (v1.1): the trigger
+ * taxonomy lists a `page-builder` row, but `page-builder` is a non-recommendable
+ * tool surface (registry `recommendable: false` — no `composeRequestedArchetype`
+ * materialization path) and is therefore absent from `LLM_ALLOWED_TEMPLATES`;
+ * the row is omitted so the taxonomy is exactly the injected allowed list and
+ * the "not listed here" disclaimer names `builder` among the platform-owned
+ * surfaces. The spec table predates that registry decision and awaits a sync
+ * (the internal plan is revised on a separate track).
  *
  * v1.1 → v1.2: labels must be DISTINCT across tables, nav groups and dashboards
  * (decisions 1 + 7). A model that named a table, its nav group AND its dashboard
  * "Knowledge Base" shipped two separately-routed pages with the same title —
  * `generate/crud.ts` titles the CRUD page from the table label, and
  * `llm/apply-service.ts#upsertDashboardPage` titles the dashboard from
- * `label.en_US`. Nothing in v1.1 forbade the reuse, and §7's "one per major
- * domain (aligned with your nav groups)" actively invited it.
- * Both paths (direct-API and BYO) send the identical text (§1 invariant 1) —
- * the BYO flattening joins them as `=== SYSTEM ===\n…\n\n=== USER ===\n…`
- * (see builder.ts / `flattenByo`).
+ * `label.en_US`. Nothing in v1.1 forbade the reuse, "one per major domain
+ * (aligned with your nav groups)" actively invited it. Both paths (direct-API
+ * and BYO) send the identical text — the BYO flattening joins them as `===
+ * SYSTEM ===\n…\n\n=== USER ===\n…` (see builder.ts / `flattenByo`).
  *
  * A snapshot test (`templates.test.ts`) pins these strings together with
  * {@link PROMPT_VERSION}: any edit to the template text fails the snapshot,
  * forcing a conscious `PROMPT_VERSION` bump (acceptance criterion 2).
  *
  * `PROMPT_VERSION` is imported from the response contract rather than redefined
- * here: §4.3 designates this module as the authoritative home, but T01 already
+ * here: this module is the authoritative home, but T01 already
  * shipped the constant in `response/schema.ts`; importing the single existing
  * definition guarantees the prompt and response contracts can never drift. It is
  * NOT re-exported from this subdir — `response/` already owns the public export,
@@ -38,9 +37,9 @@
 import { PROMPT_VERSION } from '../../response/schema.js';
 
 /**
- * §5.1 — the system section. Fixed policy text (no tokens); it frames the task,
- * the quality bar and the STRICT output rules. Reused verbatim by
- * {@link PROMPT_MERGE_V1} (§4.5).
+ * The system section. Fixed policy text (no tokens); it frames the task, the
+ * quality bar and the STRICT output rules. Reused verbatim by {@link
+ * PROMPT_MERGE_V1}.
  */
 export const PROMPT_V1_SYSTEM = `You are a senior data architect and admin-interface designer. You work for
 Adminium, an engine that introspects a relational database schema and
@@ -92,11 +91,11 @@ OUTPUT RULES — STRICT
    nothing else.`;
 
 /**
- * §5.2 — the user section template. Carries the `{{DOUBLE_BRACE}}` tokens the
+ * The user section template. Carries the `{{DOUBLE_BRACE}}` tokens the
  * builder fills: run id, chunk info, requested-sections list, the allowed
  * vocabularies, target locales, and the serialized schema IR / statistics /
  * (opt-in) sample-values blocks. The ten numbered decision blocks map 1:1 to
- * {@link RequestedSection} ids; the builder deletes deselected blocks (§4.4).
+ * {@link RequestedSection} ids; the builder deletes deselected blocks.
  */
 export const PROMPT_V1_USER = `=== CONTEXT ===
 Adminium generated an admin dashboard for the database described below. Your
@@ -303,7 +302,7 @@ export const PROMPT_V1 = {
 } as const;
 
 /**
- * §4.5 — the LLM reduce ("merge") user template, used only when a huge schema is
+ * The LLM reduce ("merge") user template, used only when a huge schema is
  * chunked and the global sections (`groups`, `widgets`) need consolidating. It
  * reuses {@link PROMPT_V1_SYSTEM} verbatim; the map/reduce orchestration itself
  * lives in `response/merge.ts` (a separate track). This is the ship-verbatim

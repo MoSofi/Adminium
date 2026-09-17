@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Portable column-type helpers (07-meta-store.md §2.1).
+ * Portable column-type helpers.
  *
  * Every migration receives a {@link ColumnHelpers} instance built for the
  * target dialect; this module is one of the few places allowed to branch on
- * dialect (07-meta-store.md acceptance #1).
+ * dialect (#1).
  *
  * | helper   | PostgreSQL   | MySQL/MariaDB | SQLite    |
  * |----------|--------------|---------------|-----------|
@@ -40,7 +40,7 @@ export interface ColumnHelpers {
   readonly int: PortableColumnType;
   /** Values always < 2^53; returned as JS number. */
   readonly bigint: PortableColumnType;
-  /** Epoch milliseconds UTC — never native datetime (07-meta-store.md §2.1). */
+  /** Epoch milliseconds UTC — never native datetime. */
   readonly ts: PortableColumnType;
   /** Dialect-correct boolean literal for DDL `DEFAULT` clauses. */
   boolDefault(value: boolean): RawBuilder<unknown>;
@@ -64,7 +64,7 @@ export function columnHelpers(dialect: MetaDialect): ColumnHelpers {
     // (bpchar) blank-pads to 36 on write and hands the padding back on every
     // read — 'view_…' comes back as 'view_…     ', breaking id round-trips.
     // MySQL strips CHAR pad spaces at retrieval and SQLite ignores the length
-    // entirely, so only Postgres deviates from the 07-meta-store.md §2.1 table.
+    // entirely, so only Postgres deviates from the table.
     //
     // DECISION (2026-07-20, pre-release): this change alters the DDL that the
     // already-written migrations 0001–0009 emit on postgres, with no

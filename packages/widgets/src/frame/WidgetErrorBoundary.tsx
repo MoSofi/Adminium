@@ -6,7 +6,7 @@ export interface WidgetErrorBoundaryProps {
   children: ReactNode;
   /** Render prop for the caught state; `reset` re-attempts the children. */
   fallback: (error: Error, reset: () => void) => ReactNode;
-  /** Render errors additionally log (audit-trail hookup lands with 04-T04). */
+  /** Render errors additionally log; the audit-trail hookup is not built yet. */
   onError?: ((error: Error, info: ErrorInfo) => void) | undefined;
 }
 
@@ -15,8 +15,8 @@ interface State {
 }
 
 /**
- * Error boundary around the lazy widget component (04 §4 loaded state). A
- * throwing widget — including a crashing marketplace code widget (04 §9) —
+ * Error boundary around the lazy widget component (loaded state). A
+ * throwing widget — including a crashing marketplace code widget —
  * degrades to the frame's error state and never breaks sibling widgets.
  */
 export class WidgetErrorBoundary extends Component<WidgetErrorBoundaryProps, State> {

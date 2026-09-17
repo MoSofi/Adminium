@@ -14,7 +14,7 @@
  * `lazy(() => import('./calendar-track-components.js'))` refs buying nothing.
  * Holding them here (the boards/domain/media `*-config` convention) lets the
  * definitions import metadata only, so the components stay reachable
- * exclusively through the lazy barrel (04 §2.3, acceptance #3; enforced by
+ * exclusively through the lazy barrel (acceptance #3; enforced by
  * `qa/chunk-budget.test.ts`).
  *
  * The component files re-export these symbols, so the family barrel,
@@ -50,7 +50,7 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 const toneEnum = z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']);
 
-// ── calendar-month (annex §5) ──────────────────────────────────────────────
+// ── calendar-month (annex) ─────────────────────────────────────────────────
 export const calendarMonthConfigSchema = widgetSharedConfigSchema.extend({
   /** Displayed year; inferred from the events (or the demo anchor) when unset. */
   year: z.number().int().min(1970).max(3000).optional(),
@@ -80,7 +80,7 @@ const EVENT_POOL = [
   { title: 'Data migration', category: 'deadline', time: '22:00' },
 ] as const;
 
-/** Deterministic `calendar-events` payload anchored to the demo month (04 §7.7). */
+/** Deterministic `calendar-events` payload anchored to the demo month. */
 export function calendarMonthDemoData(seed: number): { events: CalendarEvent[] } {
   const random = mulberry32(seed || 1);
   const events: CalendarEvent[] = [];
@@ -99,7 +99,7 @@ export function calendarMonthDemoData(seed: number): { events: CalendarEvent[] }
   return { events };
 }
 
-// ── day-agenda (annex §5) ──────────────────────────────────────────────────
+// ── day-agenda (annex) ─────────────────────────────────────────────────────
 export const dayAgendaConfigSchema = widgetSharedConfigSchema.extend({
   /** Selected ISO day; inferred from the events (or the demo anchor) when unset. */
   date: z.string().optional(),
@@ -149,7 +149,7 @@ export function dayAgendaDemoData(seed: number): { events: CalendarEvent[] } {
   return { events };
 }
 
-// ── schedule-matrix (annex §5) ─────────────────────────────────────────────
+// ── schedule-matrix (annex) ────────────────────────────────────────────────
 export const scheduleMatrixConfigSchema = widgetSharedConfigSchema.extend({
   /** Force the first weekday (ISO 1 = Mon … 7 = Sun); else locale-derived. */
   weekStart: z.number().int().min(1).max(7).optional(),
@@ -171,7 +171,7 @@ const SHIFT_TYPES: ScheduleShiftType[] = [
   { id: 'night', label: 'Night', start: '22:00', end: '06:00', hours: 8, tone: 'warn' },
 ];
 
-/** Deterministic resource-schedule `record-list` payload for the demo week (04 §7.7). */
+/** Deterministic resource-schedule `record-list` payload for the demo week. */
 export function scheduleMatrixDemoData(seed: number): ScheduleMatrixData {
   const random = mulberry32(seed || 1);
   const resources: ScheduleResource[] = PERSONA_NAMES.slice(0, 6).map((name, i) => ({
@@ -196,7 +196,7 @@ export function scheduleMatrixDemoData(seed: number): ScheduleMatrixData {
   return { rows: resources, total: resources.length, days, shiftTypes: SHIFT_TYPES, assignments };
 }
 
-// ── capacity-board (annex §5) ──────────────────────────────────────────────
+// ── capacity-board (annex) ─────────────────────────────────────────────────
 export const capacityBoardConfigSchema = widgetSharedConfigSchema.extend({
   /** Hours of capacity per period (the 100% mark). */
   capacity: z.number().int().min(1).max(400).default(40),
@@ -219,7 +219,7 @@ const PROJECTS = [
   { name: 'Redesign', tone: 'danger' },
 ] as const;
 
-/** Deterministic member-capacity `record-list` payload (04 §7.7). */
+/** Deterministic member-capacity `record-list` payload. */
 export function capacityBoardDemoData(seed: number): CapacityBoardData {
   const random = mulberry32(seed || 1);
   const rows: CapacityMember[] = PERSONA_NAMES.slice(0, 6).map((name, i) => {
@@ -243,7 +243,7 @@ export function capacityBoardDemoData(seed: number): CapacityBoardData {
   return { rows, total: rows.length };
 }
 
-// ── calendar-legend-filter (annex §5) ──────────────────────────────────────
+// ── calendar-legend-filter (annex) ─────────────────────────────────────────
 export const calendarLegendFilterConfigSchema = widgetSharedConfigSchema.extend({
   /** Toggling a category filters the sibling calendar (annex `toggleable`). */
   toggleable: z.boolean().default(true),
@@ -275,9 +275,9 @@ const LEGEND_POOL = [
 ] as const;
 
 /**
- * Deterministic `calendar-events` payload the legend aggregates (04 §7.7). Same
- * contract as `calendar-month` — the legend is a VIEW of the calendar's events,
- * not a second query, so it binds to the identical payload.
+ * Deterministic `calendar-events` payload the legend aggregates. Same contract
+ * as `calendar-month` — the legend is a VIEW of the calendar's events, not a
+ * second query, so it binds to the identical payload.
  */
 export function calendarLegendFilterDemoData(seed: number): { events: CalendarEvent[] } {
   const random = mulberry32(seed || 1);
@@ -296,7 +296,7 @@ export function calendarLegendFilterDemoData(seed: number): { events: CalendarEv
   return { events };
 }
 
-// ── upcoming-events-list (annex §5) ────────────────────────────────────────
+// ── upcoming-events-list (annex) ───────────────────────────────────────────
 export const upcomingEventsListConfigSchema = widgetSharedConfigSchema.extend({
   /** Next-N events (annex `n`). */
   n: z.number().int().min(1).max(50).default(6),
@@ -307,7 +307,7 @@ export const upcomingEventsListConfigSchema = widgetSharedConfigSchema.extend({
   /**
    * Reference day (`YYYY-MM-DD`) for the "date ≥ today" cutoff. Unset → the
    * shared `format.referenceTime` clock, else the wall clock. Pinning it is what
-   * makes a VRT capture of this widget byte-stable (04 §7.7).
+   * makes a VRT capture of this widget byte-stable.
    */
   fromDate: z.string().optional(),
   emptyTitle: z.string().optional(),
@@ -327,9 +327,9 @@ const RELEASE_POOL: readonly { title: string; category: string; status: string; 
 ];
 
 /**
- * Deterministic forward-looking `calendar-events` payload (04 §7.7). Every event
- * lands on or after the demo anchor day so the widget's "date ≥ today" cutoff
- * keeps rows on screen for a story/VRT capture pinned to the anchor.
+ * Deterministic forward-looking `calendar-events` payload. Every event lands on
+ * or after the demo anchor day so the widget's "date ≥ today" cutoff keeps rows
+ * on screen for a story/VRT capture pinned to the anchor.
  */
 export function upcomingEventsListDemoData(seed: number): { events: UpcomingEvent[] } {
   const random = mulberry32(seed || 1);
@@ -351,7 +351,7 @@ export function upcomingEventsListDemoData(seed: number): { events: UpcomingEven
   return { events };
 }
 
-// ── date-range-picker (annex §5) ───────────────────────────────────────────
+// ── date-range-picker (annex) ──────────────────────────────────────────────
 const rangePresetSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
@@ -378,10 +378,10 @@ export const dateRangePickerConfigSchema = widgetSharedConfigSchema.extend({
 export type DateRangePickerConfig = z.infer<typeof dateRangePickerConfigSchema>;
 
 /**
- * Deterministic `form-state` payload — a resolved day pair (04 §7.7). The seed
- * picks which default preset the demo lands on, so the payload threads its seed
- * (the determinism gate) while every value stays anchored to the fixed demo
- * epoch rather than a wall-clock read.
+ * Deterministic `form-state` payload — a resolved day pair. The seed picks
+ * which default preset the demo lands on, so the payload threads its seed (the
+ * determinism gate) while every value stays anchored to the fixed demo epoch
+ * rather than a wall-clock read.
  */
 export function dateRangePickerDemoData(seed: number): { value: DateRangeValue } {
   const random = mulberry32(seed || 1);
@@ -391,7 +391,7 @@ export function dateRangePickerDemoData(seed: number): { value: DateRangeValue }
   return { value: { start, end } };
 }
 
-// ── scheduled-jobs-list (annex §5) ─────────────────────────────────────────
+// ── scheduled-jobs-list (annex) ────────────────────────────────────────────
 export const scheduledJobsListConfigSchema = widgetSharedConfigSchema.extend({
   /** Row field driving the on/off switch (annex `toggleField`). */
   toggleField: z.string().default('enabled'),
@@ -421,7 +421,7 @@ const JOB_POOL: readonly { name: string; target: string; frequency: string; form
   { name: 'Inventory reconciliation', target: 'public.products', frequency: 'Every 6 hours', format: 'CSV' },
 ];
 
-/** Deterministic recurring-job `record-list` payload (04 §7.7). */
+/** Deterministic recurring-job `record-list` payload. */
 export function scheduledJobsListDemoData(seed: number): ScheduledJobsData {
   const random = mulberry32(seed || 1);
   const rows: ScheduledJob[] = JOB_POOL.map((job, index) => {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/settings` end-to-end (09 §8.1) — the screen where three sections
- * ride ONE Save button and one review modal, each writing its own section-put.
+ * `/studio/settings` end-to-end — the screen where three sections ride ONE
+ * Save button and one review modal, each writing its own section-put.
  *
  * Everything on that screen was unit-tested against a fetch stub and nothing
  * else: the stub answers whatever the test says it answers, so it can prove the
@@ -32,8 +32,8 @@ test.describe('workspace settings', () => {
   }) => {
     await signIn(page);
     // The harness seeds a relay at boot so the email specs can send into the
-    // sink (39-T19); this spec is about configuring one from nothing, so it
-    // starts from nothing. `smtp: null` is the route's own "clear" (39-T04).
+    // sink; this spec is about configuring one from nothing, so it
+    // starts from nothing. `smtp: null` is the route's own "clear".
     const cleared = await page.request.put('/api/v1/settings/email', { data: { smtp: null } });
     expect(cleared.status(), await cleared.text()).toBe(200);
     await page.goto(SETTINGS);

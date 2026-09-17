@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/apps` (29-app-surfaces.md 29-T17).
+ * `/studio/apps`.
  *
  * Router-mounted like its public-api sibling, because the things worth proving
  * exist only through the router: the route is LAZY (entry-budget law), it sits
@@ -9,7 +9,7 @@
  * What matters here:
  *
  *  1. a surface without `surface.json` says "rebuild", and offers NO placement
- *     control — a toggle that cannot take effect is worse than none (29 D7);
+ * control — a toggle that cannot take effect is worse than none;
  *  2. the placement select writes the D9 setting, nothing else;
  *  3. the domains editor saves the WHOLE map, and a refused save shows every
  *     issue the server named — the operator is the only person who can fix it;

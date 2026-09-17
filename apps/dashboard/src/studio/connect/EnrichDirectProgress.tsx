@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Direct-API enrichment progress screen (06-llm-assist.md §10.2 step 3). Runs
- * the `llm-run` job and narrates its realtime progress through the introspection
- * LogConsole pattern: "Building prompt → Sending to <provider>/<model> →
- * Validating → Repairing (1/2) → Done: N suggestions", with per-chunk progress.
- * Cancel aborts the job, which discards the run server-side (§7.5 / jobs/llm-run).
+ * Direct-API enrichment progress screen. Runs the `llm-run` job and narrates its
+ * realtime progress through the introspection LogConsole pattern: "Building
+ * prompt → Sending to <provider>/<model> → Validating → Repairing (1/2) → Done:
+ * N suggestions", with per-chunk progress. Cancel aborts the job, which discards
+ * the run server-side (/ jobs/llm-run).
  *
  * Progress rides the job's realtime channel (`jobs:<jobId>`, published by the
  * worker); this screen follows it via the same job-progress read the connect

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the import-wizard resource (M7-T07, 07-meta-store.md §3.26,
- * 09-generated-app.md §11.1). Mapping/options/stats vocabularies come from
- * meta's payload schemas — one authority, no drift.
+ * Zod schemas for the import-wizard resource. Mapping/options/stats
+ * vocabularies come from meta's payload schemas — one authority, no drift.
  */
 
 import { z } from 'zod';

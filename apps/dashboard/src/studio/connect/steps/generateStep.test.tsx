@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `GenerateStep` cancellation (09 §8.2 step 4 tail).
+ * `GenerateStep` cancellation (tail).
  *
  * The step narrates a click-started async chain — a staged delay, the generate
  * POST, another delay — so it can outlive the tree that started it. It now

@@ -24,12 +24,12 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `calendar-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { dayAgendaConfigSchema, dayAgendaDemoData } from './calendar-config.js';
 export type { DayAgendaConfig } from './calendar-config.js';
 
 /**
- * `day-agenda` (annex §5) — the selected-day (or week) event list: a colored
+ * `day-agenda` (annex) — the selected-day (or week) event list: a colored
  * inline-start bar, title, mono time (range), a category pill, and a pluralized
  * count header. Time flows top→bottom, so the lane list reads identically under
  * RTL while the side bar and metadata mirror via logical properties. Binds to

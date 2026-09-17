@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * documentSequencesRepo (34-invoices-add-on.md §3.3, D11; 34-T08).
+ * documentSequencesRepo.
  *
  * The whole file is about ONE claim: that two renders finishing at the same
  * moment cannot be given the same document number. A sequence that is only

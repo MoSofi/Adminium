@@ -3,19 +3,18 @@ import { getFormatters } from '@adminium/i18n';
 import type { Tone } from '@adminium/ui';
 
 /**
- * Shared helpers for the `media` family (annex §8) — a deterministic seeded PRNG
- * for `demoData`, the file-kind classifier every media widget colour-codes with,
- * the self-FK folder-hierarchy walk (`file-browser`'s breadcrumb + children), and
+ * Shared helpers for the `media` family (annex) — a deterministic seeded PRNG for
+ * `demoData`, the file-kind classifier every media widget colour-codes with, the
+ * self-FK folder-hierarchy walk (`file-browser`'s breadcrumb + children), and
  * Intl-routed size/date formatting.
  *
  * PURE module: no JSX, no @adminium/ui component imports — `media-config.ts` (the
  * registry-metadata graph) imports from here, so this file must never drag the
- * component code into the eager chunk (04 §2.3). Icon ELEMENTS live in
- * `media-icons.tsx`.
+ * component code into the eager chunk. Icon ELEMENTS live in `media-icons.tsx`.
  *
- * Numeral policy (10-i18n-theming.md §4.2): file sizes and modified dates are
- * *data-context* strings → Latin digits + gregorian, so the mono size/date
- * columns stay `tabular-nums`-aligned in every locale including `ar_EG`. That is
+ * Numeral policy: file sizes and modified dates are *data-context* strings →
+ * Latin digits + gregorian, so the mono size/date columns stay
+ * `tabular-nums`-aligned in every locale including `ar_EG`. That is
  * `getFormatters`' default `ctx: 'data'`, applied inside the layer — callers pass
  * the PLAIN tag (`latnDataTag` is only for hand-built `Intl.*` instances, and
  * double-applying it here would produce an invalid tag). Month names still
@@ -23,7 +22,7 @@ import type { Tone } from '@adminium/ui';
  *
  * Kept framework-light (no i18n provider dependency), like the `feeds`/`calendar`
  * families — widgets render in stories/tests without a wrapper and the dashboard
- * resolves label overrides through @adminium/i18n at the host boundary (04 §2).
+ * resolves label overrides through @adminium/i18n at the host boundary.
  */
 
 /** Mulberry32 — the repo's deterministic seeded PRNG (see feeds/calendar/boards). */
@@ -43,7 +42,7 @@ export function pickFrom<T>(random: () => number, items: readonly T[]): T {
   return items[Math.floor(random() * items.length) % items.length] as T;
 }
 
-/** Fixed demo epoch so `demoData(seed)` is byte-identical across runs (04 §7.7). */
+/** Fixed demo epoch so `demoData(seed)` is byte-identical across runs. */
 export const MEDIA_DEMO_EPOCH = Date.UTC(2026, 6, 14, 12, 0, 0);
 
 /**
@@ -86,8 +85,8 @@ export const FILE_KINDS = ['folder', 'pdf', 'sheet', 'image', 'archive', 'doc', 
 export type FileKind = (typeof FILE_KINDS)[number];
 
 /**
- * Smart-folder rail predicates (annex §8 `smartFolders`). Closed vocabulary —
- * a stored config can never smuggle arbitrary predicate code into the rail.
+ * Smart-folder rail predicates (annex `smartFolders`). Closed vocabulary — a
+ * stored config can never smuggle arbitrary predicate code into the rail.
  * `media-config.ts` mirrors this as its Zod enum.
  */
 export const SMART_FOLDER_FILTERS = ['all', 'starred', 'recent', 'folder'] as const;
@@ -212,7 +211,7 @@ export function kindOf(type?: unknown, mime?: unknown, name?: unknown): FileKind
 
 /**
  * A `record-list` envelope's rows. Tolerant of every shape the repo emits: the
- * §3 canonical `{ rows }`, the `{ data }` shorthand the boards/feeds tracks use,
+ * canonical `{ rows }`, the `{ data }` shorthand the boards/feeds tracks use,
  * and a bare array.
  */
 export function fileRowsOf(data: unknown): Record<string, unknown>[] {
@@ -310,7 +309,7 @@ export function breadcrumbTrail(nodes: readonly FileNode[], folderId: string): F
 
 /**
  * How many items a folder directly contains — the grid tile's "12 items" when
- * the bound table has no materialized count column (annex §8 marks `count`
+ * the bound table has no materialized count column (annex marks `count`
  * optional). Direct children only, matching the file-manager convention.
  */
 export function descendantCount(nodes: readonly FileNode[], folderId: string): number {

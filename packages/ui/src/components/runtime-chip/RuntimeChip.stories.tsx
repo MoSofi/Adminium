@@ -17,7 +17,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {};
 
-/** 11-electron.md §8.1's four rows, with the labels that table specifies. */
+/** The four rows, with the labels that table specifies. */
 export const Matrix: Story = {
   tags: ['vrt'],
   render: () => (

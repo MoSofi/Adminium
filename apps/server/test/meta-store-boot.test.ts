@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The composed server booted against a real POSTGRES and MYSQL meta store
- * (M15-T05 topology cell: "a MySQL meta store never boots a server").
+ * (topology cell: "a MySQL meta store never boots a server").
  *
  * The repos suites in packages/meta already exercise every meta table against
  * all three engines, but only at the repo layer. This suite closes the gap the

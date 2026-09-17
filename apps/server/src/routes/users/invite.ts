@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Invite minting (07-meta-store.md §3.6, 08-server-api.md §2.1).
+ * Invite minting.
  *
  * Minting is deliberately separate from DELIVERY. The token is returned to
  * the INVITER as a copyable activation link whether or not the invitation mail
@@ -18,10 +18,10 @@ import { passwordResetsRepo, type MetaDb } from '@adminium/meta';
 import { RESET_TOKEN_PREFIX, hashToken, mintToken } from '../../auth/sessions.js';
 
 /**
- * Invite links live 7 days (§3.6) — deliberately NOT `RESET_TOKEN_TTL_MS`.
- * That constant is 30 minutes because a forgot-password token is minted
- * seconds before the same person uses it; an invite is handed over
- * out-of-band and at 30 minutes would be dead on arrival.
+ * Invite links live 7 days — deliberately NOT `RESET_TOKEN_TTL_MS`. That
+ * constant is 30 minutes because a forgot-password token is minted seconds
+ * before the same person uses it; an invite is handed over out-of-band and
+ * at 30 minutes would be dead on arrival.
  */
 export const INVITE_TOKEN_TTL_MS = 7 * 86_400_000;
 

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Table-name prefix guard (07-meta-store.md §1, §4 "prefix safety").
- * All DDL and the migration runner go through {@link metaTable}, which asserts
- * the final physical name carries the `adminium_` prefix — the runner refuses
- * to touch any other table.
+ * Table-name prefix guard. All DDL and the migration runner go through {@link
+ * metaTable}, which asserts the final physical name carries the `adminium_`
+ * prefix — the runner refuses to touch any other table.
  */
 
 export const META_PREFIX = 'adminium_';

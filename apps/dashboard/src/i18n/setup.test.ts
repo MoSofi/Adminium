@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `resyncOverrides()` locale resolution (23-runtime-translations.md §4.4).
+ * `resyncOverrides()` locale resolution.
  *
  * Regression guard for the fix that made it read the locale off the LIVE i18n
  * instance instead of accepting one from the caller. Every call site had the

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `kpi` family stories (annex §1) — the complete 10-id slice: each widget's
+ * `kpi` family stories (annex) — the complete 10-id slice: each widget's
  * loaded variants, the four WidgetFrame states through WidgetHost (acceptance
  * #4), and light/dark × LTR/RTL matrices with REAL geometry mirroring
  * (acceptance #9). Widgets resolve through a LOCAL registry override so the
@@ -12,7 +12,7 @@
  * pill swap ends, the stat pair's `border-s` divider moves and the two metrics
  * change sides, the hero's goal caption and its progress fill reverse, the
  * gauges' captions/footers/cluster grid reorder, and the mono values stay
- * `tabular-nums`-aligned with Latin digits (data-context numerals, 10-i18n §4.2).
+ * `tabular-nums`-aligned with Latin digits (data-context numerals, 10-i).
  *
  * The gauge CANVASES deliberately do NOT mirror — a ring sweep and a speedometer
  * arc are rotational, not directional, exactly like the donut (see the policy
@@ -146,7 +146,7 @@ export const UsageMeterTones = {
   ),
 };
 
-// ── M7 Wave 4: the §1 tail ─────────────────────────────────────────────────
+// ── M7 Wave 4: the tail ────────────────────────────────────────────────────
 
 /** kpi-stat-tile-compact: the dense "power" row of 6 the annex describes. */
 export const StatTileCompactRow = {

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `option-cards` (annex §10) — single-select card grid: icon tile, title,
+ * `option-cards` (annex) — single-select card grid: icon tile, title,
  * description; the selected card gets a 2px accent border + accent-soft bg.
  * Powers deploy targets, data sources, templates, import sources and plan
- * selection. Evidence: Adminium Console, Onboarding, Import Wizard, Billing.
+ * selection. Evidence: Adminium Console, Onboarding, Import Wizard,
+ * Billing.
  *
  * Wraps @adminium/ui's `RadioGroup` + `RadioCard`, which own the selected
  * styling, the full-card click target and the arrow-key roving selection. The
@@ -32,7 +33,7 @@ export interface OptionCard {
   icon?: string | undefined;
 }
 
-/** Project the §3 `record-list` payload onto option cards. */
+/** Project the `record-list` payload onto option cards. */
 export function optionsOf(data: unknown, config: OptionCardsConfig): OptionCard[] {
   const rows = recordRowsOf(data);
   const out: OptionCard[] = [];

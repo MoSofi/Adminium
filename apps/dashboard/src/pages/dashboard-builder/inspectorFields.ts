@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Config-inspector field derivation (04-widget-registry.md §6.2 / task 04-T14):
- * a widget's config inspector is auto-generated from its Zod config schema.
- * This module walks the schema's top-level shape and classifies each field into
- * one of the primitive editor kinds the inspector renders — text / number /
- * boolean / enum — unwrapping `.optional()` / `.default()` / `.nullable()`
- * wrappers to reach the base type (Zod 4 `.def` introspection).
+ * Config-inspector field derivation: a widget's config inspector is
+ * auto-generated from its Zod config schema. This module walks the schema's
+ * top-level shape and classifies each field into one of the primitive editor
+ * kinds the inspector renders — text / number / boolean / enum — unwrapping
+ * `.optional()` / `.default()` / `.nullable()` wrappers to reach the base type
+ * (Zod 4 `.def` introspection).
  *
  * Composite fields (`binding`, `format`, `emptyState`, `permissions`) and
  * builder-internal meta keys are skipped. For `binding` that dedicated surface
@@ -17,8 +17,8 @@
  * say, a saved-query id string, this list is what keeps a raw text box for it
  * out of the auto-form, where editing it would corrupt the query silently.
  *
- * Fields named in `lockedPaths` (Tier A derived / LLM-locked config, 04 §9)
- * render read-only with a lock affordance.
+ * Fields named in `lockedPaths` (Tier A derived / LLM-locked config) render
+ * read-only with a lock affordance.
  */
 
 import type { WidgetDefinition } from '@adminium/widgets';

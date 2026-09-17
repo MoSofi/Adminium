@@ -1,32 +1,179 @@
 ---
-title: Quickstart from source
-description: Build and run Adminium from a source checkout. Generate a secret, run the setup wizard, and get an admin panel on your own schema.
+title: Quickstart
+description: Create a project with npx @adminiumjs/adminium new, run it with npm run dev, and have an admin panel on your own schema in a few minutes.
 sidebar:
   order: 2
 ---
 
-The `adminium` CLI bundles the server, the dashboard build, and the meta
-migrations.
+```bash
+npx @adminiumjs/adminium new my-admin
+cd my-admin
+npm run dev
+```
+
+That is the whole install. The first command creates a folder — a
+[project](/projects/) — with one config file and Adminium pinned to an exact
+version; the third starts the admin at `http://localhost:4600`, generates your
+pages from the database, and writes them into the folder as files you can edit
+and commit.
 
 :::caution[The npm package is `@adminiumjs/adminium`]
-When you install from npm, the spec is the **scoped** one —
-`npx @adminiumjs/adminium` — even though the binary it puts on your `PATH` is
-called `adminium`. The unscoped npm name `adminium` belongs to an unrelated
-project, so `npx adminium` installs someone else's package: never run it.
+Always the **scoped** name. The binary it puts on your `PATH` is called
+`adminium`, but the unscoped npm name belongs to an unrelated project, so
+`npx adminium` installs someone else's package: never run it.
 
-`@adminiumjs/adminium` is on the registry as of 0.1.0, so `npx
-@adminiumjs/adminium` is the fastest way to start. This page covers running
-from a **source checkout** instead — useful for contributing or for pinning to
-an unreleased commit. **[Docker](/getting-started/docker/)** is the third path.
+`new`, `dev` and `try` arrive in **0.2.10**. Earlier releases have no project
+mode; `npx @adminiumjs/adminium` started the setup wizard instead.
 :::
 
-## Requirements
+## What you need
 
-- **Node.js 22 or newer** (`node -v`) and **pnpm 10** (`corepack enable`).
-- A database you can reach, or a schema file. Neither is required to *start* —
-  the wizard will ask.
+- **Node.js 22.14 or newer** (`node -v`).
+- A database you can reach — PostgreSQL, MySQL/MariaDB or SQLite — or neither,
+  and take the sample database instead. You can also
+  [import a schema file](/guides/schema-import/) and connect nothing at all.
 
-## 1. Get the code
+## 1. Create the project
+
+```bash
+npx @adminiumjs/adminium new my-admin
+```
+
+It asks which database the admin should be built from — the sample one, your
+own URL, or one you add later — writes the folder, puts a fresh `ADMINIUM_SECRET` and your
+database URL in `.env`, starts a git repository and installs the dependencies:
+
+```
+Created my-admin.
+  Added:       package.json, adminium.config.ts, tsconfig.json, .env.example, …
+  Wrote:       .env (ADMINIUM_SECRET), .env (DATABASE_URL)
+
+Next:
+  cd my-admin
+  npm run dev
+```
+
+`--sample --yes` answers both questions up front. In a folder you already have,
+run `new` with no name and it adds itself to that folder without changing a
+file: [Create a project](/projects/).
+
+:::danger[Keep the secret]
+`ADMINIUM_SECRET` derives the key that encrypts every stored connection string
+and API key. Store it as you would a database password. If you lose it, those
+values cannot be decrypted and must be entered again; each server keeps its own.
+:::
+
+## 2. Run it
+
+```bash
+cd my-admin
+npm run dev
+```
+
+```
+Database "main": added (postgres://…).
+Database "main": generated 20 page(s).
+Wrote schema/main.json.
+Wrote pages/contacts.json.
+…
+Adminium is running at http://localhost:4600
+```
+
+Open that URL and create the first super admin. You now have list views with
+filters and inline edit, detail pages that follow your foreign keys, dashboards,
+roles and an audit log — and a folder that describes all of it.
+
+`npm run dev` watches the folder: a page file you save is applied at once, a
+change made in Studio is written back to its file, and your own code is rebuilt
+and reloaded without a restart. Ctrl-C stops it.
+
+## 3. Change something
+
+Rename a column in Studio, then look at `git diff`: the page's file changed, and
+only the lines you touched. Or edit the file yourself —
+
+```json title="pages/contacts.json"
+{ "name": "mrr_amount", "label": "MRR", "format": "currency" }
+```
+
+— and the open page follows. That round trip is the point of a project:
+[Page files](/projects/page-files/) explains all of it, including what happens
+when a page is edited on a live server.
+
+## 4. Then
+
+- [Connect another database](/getting-started/first-connection/), or
+  [edit your schema](/guides/schema/editing-your-schema/) — labels, masks,
+  hidden columns, relations the database never declared.
+- [Hooks and actions](/projects/hooks-and-actions/) — run your own code when a
+  record is saved, and put buttons on records.
+- [Pages and widgets](/projects/pages-and-widgets/) — write a page, a table cell
+  or a dashboard card in React.
+- [Deploy a project](/projects/deploy/) — Docker, Render, Fly.io, App Platform,
+  Railway or a plain VPS.
+
+## Try it without a project
+
+To look at Adminium with nothing to create first:
+
+```bash
+npx @adminiumjs/adminium try
+```
+
+`try` is the interactive setup wizard. It asks whether to continue in your
+browser (recommended) or in the terminal, and then walks through:
+
+1. **Meta placement** — where Adminium's own `adminium_*` tables live. Press
+   Enter for the embedded SQLite store under your data directory; it tells you
+   it did. See [Where to put the meta store](/self-hosting/meta-store/).
+2. **Source** — the engine and either a full DSN or host/port/user/password
+   fields.
+3. **Test** — a live probe reporting latency, server version, and whether your
+   role is read-only.
+4. **Tables** — which to include. Blank or `all` takes everything.
+5. **Intent** — full admin, read-only analytics, CRUD or support console. This
+   shapes what gets generated.
+
+Then it introspects, generates and starts the server. Its data goes to
+`~/.adminium`, and `adminium new --import ~/.adminium` turns it into a project
+later without losing anything.
+
+:::note[The wizard needs a TTY]
+`try` refuses to run non-interactively — there is nothing useful it could do
+with unanswerable questions. In CI, containers and systemd, configure through
+the environment and run [`adminium start`](#run-a-server-without-a-project).
+:::
+
+## Run a server without a project
+
+`start` boots against whatever the environment configures, applies pending meta
+migrations first, and asks nothing:
+
+```bash
+export ADMINIUM_SECRET=$(openssl rand -hex 32)
+export ADMINIUM_META_URL='postgres://adminium:secret@meta-db:5432/adminium_meta'
+export ADMINIUM_DATA_DIR=/var/lib/adminium
+export PORT=4600
+
+adminium migrate   # optional; start does this too
+adminium start
+```
+
+Connections are then added through Studio or the REST API. Every variable:
+[Environment variables](/self-hosting/env-vars/).
+
+**On a server, pin the version.** With no version in the spec, `npx` checks the
+registry on every run and installs any newer release it finds — and with no
+terminal attached it does so without asking. `start` then migrates the meta
+store to that release, and the version you meant to run refuses to start against
+it. Write the version into the command
+(`npx @adminiumjs/adminium@0.2.10 start`), or install it into a fixed directory
+as in [A VPS without Docker](/self-hosting/vps/). A project has this problem
+solved already: its `package.json` pins one exact version.
+
+## Run from a source checkout
+
+Useful for contributing, or to pin to an unreleased commit:
 
 ```bash
 git clone https://github.com/MoSofi/Adminium.git
@@ -42,108 +189,19 @@ The CLI entry point is `apps/server/dist/cli/index.js`. This page and the
 alias adminium="node $PWD/apps/server/dist/cli/index.js"
 ```
 
-## 2. Set a secret
-
-`ADMINIUM_SECRET` is **required**. It derives the key that encrypts every stored
-DSN and API key at rest, so Adminium refuses to start without it and prints a
-fail-fast table telling you so.
-
-```bash
-export ADMINIUM_SECRET=$(openssl rand -hex 32)
-```
-
-:::danger[Keep this value]
-Store it exactly as you would a database password. If you lose it, every stored
-connection string and provider key becomes undecryptable and must be re-entered.
-If you rotate it, do the same. It must be **at least 16 characters**.
-:::
-
-## 3. Run the wizard
-
-```bash
-adminium
-```
-
-Run with no command and Adminium starts the interactive setup wizard. It walks
-you through:
-
-1. **Meta placement** — where Adminium's own `adminium_*` tables live. Press
-   Enter to accept the embedded SQLite store under your data directory; it will
-   tell you it did. See [Where to put the meta store](/self-hosting/meta-store/).
-2. **Source** — the engine (PostgreSQL, MySQL, or SQLite) and either a full DSN
-   or host/port/user/password/database fields.
-3. **Test** — a live probe reporting latency, server version, and whether your
-   role is read-only.
-4. **Tables** — which tables to include. Blank or `all` takes everything;
-   otherwise a comma-separated list.
-5. **Intent** — full admin, read-only analytics, CRUD, or support console. This
-   shapes what gets generated.
-
-Then it introspects, generates, and starts the server:
-
-```
-Adminium is running at http://0.0.0.0:4600
-```
-
-Open it, create the first super admin, and you have an admin panel.
-
-:::note[The wizard needs a TTY]
-`adminium` with no arguments refuses to run non-interactively — there is nothing
-useful it could do with unanswerable questions. In CI, containers, and
-`systemd`, configure through the environment and run
-[`adminium start`](/reference/cli/#start) instead.
-:::
-
-## 4. Subsequent starts
-
-Once configured, skip the wizard:
-
-```bash
-adminium start
-```
-
-`start` applies any pending meta migrations, then boots. Useful flags:
-
-```bash
-adminium start --port 8080 --host 127.0.0.1
-adminium start --log-level debug
-```
-
-Full flag list: [CLI reference](/reference/cli/#start).
-
-## Non-interactive install
-
-For a scripted or containerized install, set the environment instead of
-answering questions:
-
-```bash
-export ADMINIUM_SECRET=$(openssl rand -hex 32)
-export ADMINIUM_META_URL='postgres://adminium:secret@meta-db:5432/adminium_meta'
-export ADMINIUM_DATA_DIR=/var/lib/adminium
-export PORT=4600
-
-adminium migrate   # apply meta migrations (idempotent)
-adminium start
-```
-
-Connections are then added through the Studio UI or the REST API rather than the
-wizard. Every environment variable:
-[Environment variables](/self-hosting/env-vars/).
+It needs **pnpm 10** (`corepack enable`) as well as Node 22.14+. Everything else
+on this page then works the same way. More:
+[Monorepo setup](/contributing/).
 
 ## Where things are stored
 
 | What | Where | Override |
 |---|---|---|
 | Adminium's own tables | The meta store | `ADMINIUM_META_URL`, or `--meta-url` |
-| Files, exports, the embedded SQLite meta store | `./data` inside a project, else `~/.adminium` | `ADMINIUM_DATA_DIR`, or `--data-dir` |
+| Files, exports, the embedded SQLite meta store | `data/` inside a project, else `~/.adminium` | `ADMINIUM_DATA_DIR`, or `--data-dir` |
+| Pages and schema customizations | The meta store — and, in a project, `pages/` and `schema/` | — |
 | The encrypted meta DSN, when you ask the wizard to remember it | `<data-dir>/adminium.json` | — |
 
 The meta DSN cannot live inside the meta store it points at, so when the wizard
 offers to remember your choice it writes it to `adminium.json`,
 AES-256-GCM-encrypted under `ADMINIUM_SECRET`.
-
-## Next
-
-- [Connect your first database](/getting-started/first-connection/)
-- [Run with Docker](/getting-started/docker/) instead
-- [Self-hosting overview](/self-hosting/) — before you put this in front of a team

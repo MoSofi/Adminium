@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `connection-string-field` (annex §10) — mono DSN input with a database icon, a
+ * `connection-string-field` (annex) — mono DSN input with a database icon, a
  * keyboard-shortcut badge, host parsing, provider quick-fill chips and an inline
- * success/status line ("14 tables detected").
- * Evidence: Adminium Console, Onboarding, See It In Action.
+ * success/status line ("14 tables detected"). Evidence: Adminium Console,
+ * Onboarding, See It In Action.
  *
  * TWO EXPORTS, ONE IMPLEMENTATION:
  *   · `ConnectionStringField` — the presentational field. The Studio connect
@@ -41,7 +41,7 @@ import type { WidgetProps } from '../../registry/types.js';
 export { connectionStringFieldConfigSchema, connectionStringFieldDemoData };
 export type { ConnectionStringFieldConfig };
 
-/** Status-line tone → text colour. Tokens only — never a raw hex (04 §7.1). */
+/** Status-line tone → text colour. Tokens only — never a raw hex. */
 const STATUS_TONE_CLASS: Record<FormTone, string> = {
   neutral: 'text-fg-muted',
   accent: 'text-accent',
@@ -59,7 +59,7 @@ export interface ConnectionStringFieldProps {
    * keystroke — see the widget below for why a DSN is committed and not streamed.
    */
   onCommit?: ((dsn: string) => void) | undefined;
-  /** Annex §10 `protocols` — the engines the host can actually connect to. */
+  /** Annex `protocols` — the engines the host can actually connect to. */
   protocols?: readonly DsnEngine[] | undefined;
   /** Whose example DSN to show until the value itself determines the engine. */
   placeholderEngine?: DsnEngine | undefined;
@@ -67,12 +67,12 @@ export interface ConnectionStringFieldProps {
   required?: boolean | undefined;
   /** Shown only while there is no error — an error replaces the hint. */
   helper?: ReactNode | undefined;
-  /** Translated copy per validation code. Widgets never translate (04 §2). */
+  /** Translated copy per validation code. Widgets never translate. */
   errorText?: Partial<Record<DsnValidationCode, string>> | undefined;
-  /** Inline success/status line under the field (annex §10 `statusLine`). */
+  /** Inline success/status line under the field (annex `statusLine`). */
   statusLine?: ReactNode | undefined;
   statusTone?: FormTone | undefined;
-  /** Keyboard-shortcut badge rendered inside the field chrome (annex §10). */
+  /** Keyboard-shortcut badge rendered inside the field chrome (annex). */
   shortcut?: string | undefined;
   showQuickFill?: boolean | undefined;
   quickFillLabel?: string | undefined;
@@ -210,7 +210,7 @@ export function ConnectionStringField({
 }
 
 /**
- * The registry binding (annex §10). Binds the §3 `form-state` shape — the DSN is
+ * The registry binding (annex). Binds the `form-state` shape — the DSN is
  * `values.dsn`, which is exactly "field defs + values" with one field.
  *
  * WRITE MODEL: the intent fires on COMMIT (Enter/blur), never per keystroke.
@@ -237,7 +237,7 @@ export function ConnectionStringFieldWidget({ config, data, onEvent }: WidgetPro
         onValueChange={setDsn}
         onCommit={(next) => {
           // Unbound (demo/story/palette): keep the local value, emit nothing —
-          // there is nowhere to send the intent (04 §5).
+          // there is nowhere to send the intent.
           if (target === null) return;
           onEvent({
             type: 'mutate',

@@ -1,6 +1,6 @@
 name: e2e
 
-# M9-T05 / 01-T10: Playwright against the BUILT server + dashboard on the
+# Playwright against the BUILT server + dashboard on the
 # 3-engine matrix — sqlite (plain), postgres:16 and mysql:8.4 as service
 # containers — seeded Northwind demo data, traces uploaded on failure only.
 # Three explicit jobs (not a matrix) because service containers cannot be

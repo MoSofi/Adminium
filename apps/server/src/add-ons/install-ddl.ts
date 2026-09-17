@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `applyInstall` — turning an add-on's `requiredSchema` into real tables
- * (26-add-on-runtime.md §3, 26-T02).
+ * `applyInstall` — turning an add-on's `requiredSchema` into real
+ * tables.
  *
  * ─── Why this is here and not in `@adminium/manifest` ──────────────────────
  *
- * §3 lists `planInstall` and `applyInstall` side by side, but they belong in
+ * `planInstall` and `applyInstall` are listed side by side, but they belong in
  * different packages. Planning is a PURE diff and lives in the manifest package
  * where the schema does. Applying needs a live connection, so it lives here —
  * `packages/manifest` may import only `add-on-contracts` and zod (the

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Schema-file import route (09-generated-app.md §8.2 source mode c, M5-T01):
+ * Schema-file import route (source mode c):
  *
  *   POST /api/v1/schema-import/parse   { format?, content, fileName? }
  *     → { model, format, warnings, summary }
@@ -113,11 +113,11 @@ function normalizeJsonFragment(content: string, fileName: string | undefined): s
 /**
  * The parser behind `POST /schema-import/parse`, as a plain function.
  *
- * Exported for `routes/desktop-local-db` (11-electron.md §6 step 2 card 1),
- * which applies an uploaded schema to a new SQLite file and must agree with this
- * route about what the eight formats mean. Two resolvers would be two answers to
- * "is this a valid Prisma schema": the wizard would preview a schema the creation
- * step then rejects, or — worse — the reverse.
+ * Exported for `routes/desktop-local-db` (card 1), which applies an uploaded
+ * schema to a new SQLite file and must agree with this route about what the eight
+ * formats mean. Two resolvers would be two answers to "is this a valid Prisma
+ * schema": the wizard would preview a schema the creation step then rejects, or —
+ * worse — the reverse.
  *
  * It is the FUNCTION and not the route that is shared, because the two callers
  * differ in everything else: this one replies with a preview and writes nothing;

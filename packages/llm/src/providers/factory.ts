@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dispatches a `ProviderConfig` to the matching client constructor (§3.1).
+ * Dispatches a `ProviderConfig` to the matching client constructor.
  * `adminium-managed` is intentionally unsupported here — that Cloud-relay client
  * ships in M12, not this wave — and requesting it is a `config` error.
  */

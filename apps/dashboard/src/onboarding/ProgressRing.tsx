@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Onboarding progress ring (M5-T06 keeper from Workspace
- * Onboarding.dc.html). A bespoke SVG data-viz — like the chart widgets it uses
- * token colors via `stroke="var(--…)"` and drives the arc with a numeric SVG
+ * Onboarding progress ring (keeper from Workspace Onboarding.dc.html). A
+ * bespoke SVG data-viz — like the chart widgets it uses token colors via
+ * `stroke="var(--…)"` and drives the arc with a numeric SVG
  * `stroke-dashoffset` (never the banned `style` prop / raw hex). The centre
  * label is `Intl`-formatted so ar_EG renders Arabic-Indic numerals.
  */
@@ -35,7 +35,7 @@ export function ProgressRing({ done, total, locale, size = 116, ariaLabel }: Pro
   const percentLabel = useMemo(() => {
     const tag = tagForLocale(locale ?? 'en_US');
     // Standalone sans-serif figure (not a mono/tabular cell) → prose context,
-    // so ar_EG renders Arabic-Indic numerals (§4.2), via the i18n format layer.
+    // so ar_EG renders Arabic-Indic numerals, via the i18n format layer.
     return getFormatters(tag).percent(fraction, { ctx: 'prose' });
   }, [fraction, locale]);
 

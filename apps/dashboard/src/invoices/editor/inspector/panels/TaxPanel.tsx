@@ -3,7 +3,7 @@
  * The Tax & totals panel (comp 843-853): the two rate fields with a `%`
  * suffix and the ladder card — Subtotal, Discount (only when there is one,
  * green with U+2212), Tax, and the bordered *Total* in accent mono (the comp
- * already says "Total" here, 851; the canvas ladder's "Total due" is 34 O25's).
+ * already says "Total" here, 851; the canvas ladder's "Total due" is).
  */
 import { t } from '../../../../i18n/t.js';
 import { formatMoney, parseDecimal } from '../../../model/money.js';

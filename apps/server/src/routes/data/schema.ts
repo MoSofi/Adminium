@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the generated CRUD API (`routes/data/`,
- * 08-server-api.md §2.7). Row payloads are dynamic per-table shapes and
- * pass through as open records — identifier validation happens against the
- * schema snapshot in the handlers, never here.
+ * Zod schemas for the generated CRUD API (`routes/data/`). Row payloads
+ * are dynamic per-table shapes and pass through as open records —
+ * identifier validation happens against the schema snapshot in the
+ * handlers, never here.
  */
 
 import { z } from 'zod';
@@ -16,12 +16,12 @@ export const rowSchema = z.record(z.string(), z.unknown());
 
 export const dataTableParams = z.object({
   connectionId: z.string().min(1),
-  /** URL-encoded qualified name, e.g. `public.customers` (§2.7). */
+  /** URL-encoded qualified name, e.g. `public.customers`. */
   table: z.string().min(1),
 });
 
 export const dataRecordParams = dataTableParams.extend({
-  /** Single PK value, or JSON tuple/object for composite PKs (§2.7.2). */
+  /** Single PK value, or JSON tuple/object for composite PKs. */
   recordId: z.string().min(1),
 });
 
@@ -56,10 +56,10 @@ const computeParam = z
 export const recordListQuery = z.object({
   select: z.string().optional(),
   /**
-   * URL-encoded JSON filter tree (§2.7.1 grammar). The byte cap is the
-   * grammar's own largest sendable filter (crud/filters.ts); `parseWhereParam`
-   * re-checks it — and scans nesting — before it parses, so the guard holds for
-   * every caller, not only the ones routed through this schema.
+   * URL-encoded JSON filter tree (grammar). The byte cap is the grammar's own
+   * largest sendable filter (crud/filters.ts); `parseWhereParam` re-checks it —
+   * and scans nesting — before it parses, so the guard holds for every caller,
+   * not only the ones routed through this schema.
    */
   where: z.string().max(MAX_WHERE_BYTES).optional(),
   q: z.string().optional(),
@@ -110,7 +110,7 @@ export const recordCreateBody = z.object({ values: rowSchema });
 export const recordUpdateBody = z.object({ values: rowSchema });
 
 export const recordDeleteQuery = z.object({
-  /** Referential consequences only — no write happens (§2.7.2). */
+  /** Referential consequences only — no write happens. */
   dryRun: boolFlag(),
   /** Required when inbound references exist (cascade modal confirm). */
   confirm: boolFlag(),
@@ -118,7 +118,7 @@ export const recordDeleteQuery = z.object({
 
 export const recordMutationReply = z.object({
   data: rowSchema.nullable(),
-  /** Single-use undo token (§2.7.3); null for non-undoable mutations. */
+  /** Single-use undo token; null for non-undoable mutations. */
   undoToken: z.string().nullable(),
 });
 

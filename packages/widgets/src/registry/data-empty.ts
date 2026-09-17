@@ -2,8 +2,8 @@
 import type { DataShape } from '../page-config/index.js';
 
 /**
- * Per-shape emptiness predicates (04 §3: "Per-shape isEmpty() predicates live
- * beside the schemas — WidgetFrame uses these to switch to the empty state").
+ * Per-shape emptiness predicates ("Per-shape isEmpty() predicates live beside
+ * the schemas — WidgetFrame uses these to switch to the empty state").
  *
  * `record-list` empty ⇔ total === 0 && no cursor; `timeseries` empty ⇔ no
  * points; scalar shapes (`single-metric`, `metric+delta`) and `form-state` /
@@ -58,7 +58,7 @@ export const isEmptyByShape: Record<DataShape, (data: unknown) => boolean> = {
  * Emptiness check for a widget's declared contract. `null`/`undefined` is
  * always empty; with multiple accepted shapes the payload is empty only if
  * every accepted shape reads it as empty (the true shape of a live payload is
- * whichever the server compiled — 04 §3 envelopes).
+ * whichever the server compiled — envelopes).
  */
 export function isEmptyData(data: unknown, contract: DataShape | DataShape[]): boolean {
   if (data === null || data === undefined) return true;

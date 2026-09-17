@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The connect wizard's Enrich step under 11-electron.md §6 step 4 / §8.2's LLM
- * row: on desktop "The LLM-assist step defaults to the BYO copy/paste
- * round-trip"; the API-credential mode stays "available but labeled".
+ * The connect wizard's Enrich step LLM row: on desktop "The LLM-assist step
+ * defaults to the BYO copy/paste round-trip"; the API-credential mode stays
+ * "available but labeled".
  *
  * In a wizard, FIRST is the default — it is the card the eye lands on and the
  * one a hurried admin picks — so these assert position, not just presence.
@@ -138,7 +138,7 @@ describe('Enrich step on an air-gapped install', () => {
  * intent intact. An earlier cut gated only the card, so the provider path still
  * rendered a live "Start enrichment" button underneath it and would POST a
  * provider run from an install that declares it has no outbound network —
- * breaking §7's zero-non-loopback promise through the very gate meant to keep it.
+ * breaking zero-non-loopback promise through the very gate meant to keep it.
  */
 describe('Enrich step — a persisted provider intent cannot outlive its gate', () => {
   /** A wizard reopened on a step where 'provider' was already chosen and saved. */
@@ -178,8 +178,8 @@ describe('Enrich step — a persisted provider intent cannot outlive its gate', 
 });
 
 /**
- * BYO is never gated — it makes zero network calls (§7's LLM row). No runtime,
- * and no flag, may take it away.
+ * BYO is never gated — it makes zero network calls (LLM row). No runtime, and
+ * no flag, may take it away.
  */
 describe('Enrich step — the BYO path is always offered', () => {
   it.each([

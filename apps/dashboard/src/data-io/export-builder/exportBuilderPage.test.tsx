@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Export Builder page through the real router at `/exports/new`
- * (41-export-builder.md T13–T16): the table list with its locked row, the
- * step gating and its hints, the no-access state, the columns step with its
- * suggested chip, the preview and the started card.
+ * The Export Builder page through the real router at `/exports/new`: the
+ * table list with its locked row, the step gating and its hints, the
+ * no-access state, the columns step with its suggested chip, the preview
+ * and the started card.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';

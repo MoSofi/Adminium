@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * publicScopesRepo + publicKeysRepo (28-public-surface.md §3.2–§3.3).
+ * publicScopesRepo + publicKeysRepo.
  *
  * Two behaviours here are policy rather than plumbing, and both have a comment
  * in the repo explaining why: `findByPrefix` returns EVERY candidate (the caller
@@ -84,7 +84,7 @@ for (const dialect of TEST_DIALECTS) {
       );
     }
 
-    /** A key bound to a hosted app surface (0017, 29 D10). */
+    /** A key bound to a hosted app surface (0017). */
     async function seedBoundKey(
       scopeId: string,
       opts: { prefix: string; appKey?: string; expiresAt?: number | null; at?: number },

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0031 — the document RENDER REGISTER and its machinery
- * (34-invoices-add-on.md §3.3, 34-T08).
+ * Wave 0031 — the document RENDER REGISTER and its
+ * machinery.
  *
  * ─── This is not the invoice editor's table, and the two must not merge ────
  *
@@ -15,25 +15,25 @@
  *
  * ─── THE MIGRATION NUMBER MOVED THREE TIMES, AND THAT IS THE LESSON ───────
  *
- * §3.3 called this 0023, then 0025, then 0026, each time because another wave
+ * This was called 0023, then 0025, then 0026, each time because another wave
  * merged first. It is 0031 because `ls packages/meta/src/migrations/` said so
- * on 2026-09-10 — disk is the authority, never the plan's line, and 37 D36
- * says the same from the other side. Every bare "0023"/"0025"/"0026" in that
- * document means THIS migration.
+ * on 2026-09-10 — disk is the authority, never the plan's line, says the same
+ * from the other side. Every bare "0023"/"0025"/"0026" in that document means
+ * THIS migration.
  *
  * ─── The uninstall rule, first, because it shapes every column ─────────────
  *
  * Nothing here has a foreign key to `adminium_manifests`. Uninstalling an
- * add-on deletes its manifest row, and documents must SURVIVE that (D5, and
- * 24 D16 — uninstall keeps data): a business that removes the add-on that
- * drew its invoices still has the invoices, and still has to be able to hand
- * one to an auditor two years later. So `add_on_key` is a SOFT string
- * reference throughout, the way `job_id` is, and the only cascade in the file
- * is `adminium_documents.profile_id → SET NULL`.
+ * add-on deletes its manifest row, and documents must SURVIVE that (D5, —
+ * uninstall keeps data): a business that removes the add-on that drew its
+ * invoices still has the invoices, and still has to be able to hand one to an
+ * auditor two years later. So `add_on_key` is a SOFT string reference
+ * throughout, the way `job_id` is, and the only cascade in the file is
+ * `adminium_documents.profile_id → SET NULL`.
  *
  * That is also why the register carries a frozen `subject` rather than
  * pointing at the row it came from. The source row can be edited, archived or
- * deleted; what was issued cannot change afterwards (25 D12). A register that
+ * deleted; what was issued cannot change afterwards. A register that
  * re-derived its content would be a register of what things look like NOW,
  * which is not what an issued document is.
  *

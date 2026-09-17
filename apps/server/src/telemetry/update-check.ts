@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Self-host update-available check (M10-T04): compares the running build
- * against the latest public release so a self-hoster learns a security fix
- * exists without subscribing to anything.
+ * Self-host update-available check: compares the running build against the
+ * latest public release so a self-hoster learns a security fix exists
+ * without subscribing to anything.
  *
  * GATING — the deliberate choice, per the track brief ("gate the check behind
  * the telemetry/update preference so an opted-out instance makes no outbound
@@ -27,7 +27,7 @@
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 /**
- * The public release feed for the AGPL repo (01-architecture.md §9).
+ * The public release feed for the AGPL repo.
  *
  * `MoSofi/Adminium` is where the source and the releases actually live; the
  * `adminium/adminium` slug is an unrelated third party's repository, and

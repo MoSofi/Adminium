@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `parseSchemaFile` — the single public entry point (05 §5). Detects the
- * format (unless forced via `opts.format`), dispatches to the right parser
- * and returns the validated DatabaseModel plus human-readable warnings.
+ * `parseSchemaFile` — the single public entry point. Detects the format
+ * (unless forced via `opts.format`), dispatches to the right parser and
+ * returns the validated DatabaseModel plus human-readable warnings.
  *
  * Contract: parsers never throw on unsupported constructs inside an
  * otherwise-parseable file — they warn. A `SchemaImportError` is thrown only

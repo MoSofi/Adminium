@@ -25,7 +25,7 @@ export { sparklineTableConfigSchema, sparklineTableDemoData };
 export type { SparklineTableConfig, SparkMetricRow };
 
 /**
- * `sparkline-table` (annex §3) — metric rows: name + an 8-bar sparkline + a mono
+ * `sparkline-table` (annex) — metric rows: name + an 8-bar sparkline + a mono
  * value + a good/bad-aware delta pill. The Analytics / Metrics Dashboard
  * "metrics at a glance" panel, and the auto-instantiation target for a metrics
  * table with a name column, a value column, and a period-over-period delta.
@@ -133,7 +133,7 @@ export function SparklineTable({
   );
 }
 
-/** Project an untrusted `record-list` onto `SparkMetricRow`s (04 §3). */
+/** Project an untrusted `record-list` onto `SparkMetricRow`s. */
 export function sparkRowsOf(data: unknown): SparkMetricRow[] {
   return tailRowsOf(data).map((row, index): SparkMetricRow => {
     const id = row.id;

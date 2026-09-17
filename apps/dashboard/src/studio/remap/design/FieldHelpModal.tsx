@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Plain-language help for the column switches — 35-schema-authoring.md §3.6.
+ * Plain-language help for the column switches.
  *
  * ─── Who this is for ───────────────────────────────────────────────────────
  *

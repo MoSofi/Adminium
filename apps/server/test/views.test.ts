@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Saved-views CRUD routes (M5-T06): create/list/rename/default/delete,
- * per-user ownership (a private view is invisible to other users), the
+ * Saved-views CRUD routes: create/list/rename/default/delete, per-user
+ * ownership (a private view is invisible to other users), the
  * unique-name 409, and audit trail on mutations.
  */
 import BetterSqlite3 from 'better-sqlite3';

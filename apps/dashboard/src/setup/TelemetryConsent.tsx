@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The first-run consent step (M10-T04). Two independent opt-ins, both rendered
- * OFF and both requiring a deliberate flip — nothing here is pre-checked, which
- * is the whole point of "opt-in, off by default" (v0.5 exit criterion).
+ * The first-run consent step. Two independent opt-ins, both rendered OFF and
+ * both requiring a deliberate flip — nothing here is pre-checked, which is the
+ * whole point of "opt-in, off by default" (v0.5 exit criterion).
  *
  * The copy states EXACTLY what leaves the instance, itemized, plus an explicit
  * "never sent" list — mirroring apps/server/src/telemetry/payload.ts, which is

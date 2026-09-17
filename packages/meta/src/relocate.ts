@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Whole-store copy, for moving a meta store from one database to another
- * (07-meta-store.md §1; 01-architecture.md §3.1 meta placement).
+ * (meta placement).
  *
  * ── WHY THIS IS NOT `export-zip` / `import-zip` ─────────────────────────────
  * The export bundle carries CONFIGURATION — settings, roles, rolePermissions,
@@ -30,7 +30,7 @@
  * every direction is handled by the same rule rather than by luck.
  *
  * `ts` columns need no handling at all, which removes the worst class of
- * cross-dialect bug before it starts: §2.1 pins every timestamp to epoch
+ * cross-dialect bug before it starts: every timestamp is pinned to epoch
  * milliseconds in an integer column, so nothing here ever touches a native
  * date.
  *
@@ -329,11 +329,11 @@ export async function probeAdminiumTables(
  * Rename every `adminium_` table out of the way, keeping its rows.
  *
  * The alternative offered to someone whose target database already runs an
- * Adminium: keep what is there and start beside it (45-onboarding.md 45-T11).
- * `adminium_users` becomes `adminium_users_old_<stamp>` and so on, which leaves
- * the target empty by the only definition that matters here — `probeAdminiumTables`
- * and `assertMetaStoreEmpty` both look for the `adminium_` names — while losing
- * nothing. Reversible by renaming back.
+ * Adminium: keep what is there and start beside it. `adminium_users` becomes
+ * `adminium_users_old_<stamp>` and so on, which leaves the target empty by the only
+ * definition that matters here — `probeAdminiumTables` and `assertMetaStoreEmpty`
+ * both look for the `adminium_` names — while losing nothing. Reversible by
+ * renaming back.
  *
  * THE LEDGER MOVES TOO. `adminium_migrations` is skipped by the copy and by the
  * emptiness check, but if it were left in place a fresh `applyMigrations` would

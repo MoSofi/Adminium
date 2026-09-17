@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Global keyboard manager (09-generated-app.md §5.3): components register
- * shortcut definitions; the shortcuts panel renders from the live
- * registration set — never a hardcoded list.
+ * Global keyboard manager: components register shortcut definitions; the
+ * shortcuts panel renders from the live registration set — never a
+ * hardcoded list.
  *
  * - Vocabulary format: display keys like `['⌘','K']`, `['G','then','O']`,
  *   `['?']`, `['⌘','⇧','L']`. `⌘` binds (and renders) as `Ctrl` on non-mac
@@ -116,7 +116,7 @@ export interface ShortcutManager {
   register(def: ShortcutDef): () => void;
   /** Feed a keydown; returns true when a shortcut consumed it. */
   handleKeydown(event: KeyboardEvent): boolean;
-  /** Live registration set, grouped in canonical §5.3 order (for the panel). */
+  /** Live registration set, grouped in canonical order (for the panel). */
   list(): Array<{ group: ShortcutGroup; items: ShortcutDef[] }>;
   /** Chord-pending indicator ("G…"); `null` clears it. */
   onChordPending(listener: (pending: string | null) => void): () => void;
@@ -229,13 +229,13 @@ export function createShortcutManager(
 }
 
 /**
- * Data-driven G-chord targets (§5.3): first ≤8 items whose labels yield
- * unique first letters; on collision the item takes its next distinct letter.
+ * Data-driven G-chord targets: first ≤8 items whose labels yield unique
+ * first letters; on collision the item takes its next distinct letter.
  *
- * `reserved` pre-claims letters owned by static chords (e.g. `s` for Studio,
- * 09 §8) so a tenant page whose label happens to start with one cannot shadow
- * them — the caller passes it only when that static chord is actually
- * registered, leaving the letter available to nav items otherwise.
+ * `reserved` pre-claims letters owned by static chords (e.g. `s` for Studio)
+ * so a tenant page whose label happens to start with one cannot shadow them —
+ * the caller passes it only when that static chord is actually registered,
+ * leaving the letter available to nav items otherwise.
  */
 export function gChordTargets<T extends { fallback: string }>(
   items: readonly T[],

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure Pareto layout (`chart-pareto`, research/widget-registry.md §2): sorted
- * bars + a cumulative-% line, with an optional cutline (default 80%). DOM-free.
+ * Pure Pareto layout (`chart-pareto`, research/widget-registry.md): sorted bars
+ * + a cumulative-% line, with an optional cutline (default 80%). DOM-free.
  * Categorical x mirrors in RTL (band-scale range flip); the cumulative line is
  * built in the same visual order so it tracks the mirrored bars. Y for bars is
- * value-scaled (left axis); the line uses the 0..1 cumulative axis (right).
+ * value-scaled (left axis); the line uses the 0.1 cumulative axis (right).
  */
 import { categoricalBandScale } from './scales.js';
 import { linePath } from './lineArea.js';

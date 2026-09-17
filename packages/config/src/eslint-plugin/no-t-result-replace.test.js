@@ -24,7 +24,7 @@ ruleTester.run('no-t-result-replace', rule, {
     "t('k', 'Nothing to do');",
     // `.replace` on a value that is not a translator call. The widgets
     // contract: the template is a caller-supplied prop and interpolating it is
-    // the documented i18n-agnostic component behaviour (10 §2.4).
+    // the documented i18n-agnostic component behaviour.
     "labels.shiftCount.replace('{n}', String(count));",
     "template.replace('{name}', user.name);",
     "'{n} items'.replace('{n}', String(n));",

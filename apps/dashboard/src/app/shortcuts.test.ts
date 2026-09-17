@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Keyboard manager (09-generated-app.md §5.3): platform mapping, typing
- * suppression with the Esc/⌘Enter/⌘S allowlist, chord window + timeout, and
- * the data-driven G-chord letter assignment.
+ * Keyboard manager: platform mapping, typing suppression with the
+ * Esc/⌘Enter/⌘S allowlist, chord window + timeout, and the data-driven
+ * G-chord letter assignment.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

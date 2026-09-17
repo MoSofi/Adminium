@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * Render tests for the part-to-whole & hierarchy chart primitives (04-T09):
- * labelled SVG + export marker, one mark per datum, token-only colors, the
- * categorical RTL mirroring policy, and the reduced-motion path (final state,
- * no fade gate). Storybook stories live in the @adminium/widgets wrappers.
+ * Render tests for the part-to-whole & hierarchy chart primitives: labelled
+ * SVG + export marker, one mark per datum, token-only colors, the categorical
+ * RTL mirroring policy, and the reduced-motion path (final state, no fade
+ * gate). Storybook stories live in the @adminium/widgets wrappers.
  */
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

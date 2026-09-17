@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-user preference API client (10-i18n-theming.md §7.2):
- * `GET /api/v1/me/prefs` → raw nullable overrides + server-resolved axes;
- * `PATCH /api/v1/me/prefs` with explicit `null` clearing an axis back to
- * "inherit the workspace default". Shapes mirror apps/server
- * src/routes/me/schema.ts (copied per the 01-architecture.md §2.3 matrix).
+ * Per-user preference API client: `GET /api/v1/me/prefs` → raw nullable
+ * overrides + server-resolved axes; `PATCH /api/v1/me/prefs` with
+ * explicit `null` clearing an axis back to "inherit the workspace
+ * default". Shapes mirror apps/server src/routes/me/schema.ts (copied per
+ * the matrix).
  */
 import { queryOptions } from '@tanstack/react-query';
 import type { Accent, Density, Dir, ThemePref } from '@adminium/tokens';
@@ -27,7 +27,7 @@ export interface MePrefsData {
   resolved: ResolvedPrefs;
 }
 
-/** Absent = unchanged; explicit `null` = reset to workspace default (§7.2). */
+/** Absent = unchanged; explicit `null` = reset to workspace default. */
 export type MePrefsPatch = Partial<{
   theme: ThemePref | null;
   accent: Accent | null;

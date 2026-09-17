@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The inspector (43-report-builder.md 43-T07; Appendix A I1–I10, Appendix B's
- * *Inspector* column), rendered on its own over a full draft and a mocked
- * `DocumentEdits`: every one of the 25 field groups shows its controls under
- * their accessible names, every discrete choice reaches its `hist…` setter
- * with the right value, and the three parts every kind shares — Width, *Show
- * in export*, *Delete block* — are on every panel.
+ * The inspector (I1–I10, Appendix B's *Inspector* column), rendered on its
+ * own over a full draft and a mocked `DocumentEdits`: every one of the 25
+ * field groups shows its controls under their accessible names, every
+ * discrete choice reaches its `hist…` setter with the right value, and the
+ * three parts every kind shares — Width, *Show in export*, *Delete block* —
+ * are on every panel.
  *
  * THE ASSERTION WITH TEETH IS THE TABLE-DRIVEN ONE: it walks all 25 kinds and
  * requires each panel to name at least one control of its own, so a kind
@@ -240,7 +240,7 @@ describe('the eight repeaters (I10) and the fills', () => {
   });
 
   it('the two Appendix D renames are at the source (34 DEP-3/DEP-4)', () => {
-    // The words the comp uses here are the ones 17 §2's sweep catches; they are
+    // The words the comp uses here are the ones sweep catches; they are
     // built from character codes so this file does not carry them as literals
     // and muffle a future grep over the tree.
     const slashMo = `% / ${String.fromCharCode(109, 111)}`;

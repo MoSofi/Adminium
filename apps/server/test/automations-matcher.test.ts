@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The event seam and the matcher (42-automations-and-workflow-logs.md
- * 42-T04, 42-T05) over the real HTTP path: a write through `routes/data`, the
- * bulk route and the public surface, and what the rule engine hears.
+ * The event seam and the matcher over the real HTTP path: a write through
+ * `routes/data`, the bulk route and the public surface, and what the rule
+ * engine hears.
  *
  * These are the assertions that would go quiet without noticing anything is
  * wrong, which is why they are here rather than as unit tests over the class:

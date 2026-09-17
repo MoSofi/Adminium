@@ -125,7 +125,7 @@ export async function dropTestDatabase(db: string): Promise<void> {
 /**
  * A `CatalogExecutor` backed by psql: wraps each catalog query in
  * `json_agg` so rows come back as JSON. Counts statements so budget tests
- * (≤ 12 statements — 05 §10) can assert on `count`.
+ * (≤ 12 statements) can assert on `count`.
  */
 export function psqlExecutor(db: string, user?: string): CatalogExecutor & { count(): number } {
   let statements = 0;
@@ -160,7 +160,7 @@ const byString = (key: string) => (a: AnyRecord, b: AnyRecord) => {
 
 /**
  * Scrub the volatile fields (the same set the canonical snapshot hash strips
- * — 05 §9: introspectedAt/stats.durationMs/warnings/rowCountEstimate/
+ * —: introspectedAt/stats.durationMs/warnings/rowCountEstimate/
  * activity/sizeBytes) plus the run-specific identity fields, and order every
  * array deterministically. Applied to BOTH the live model and the shared
  * engine fixture before deep-equality.

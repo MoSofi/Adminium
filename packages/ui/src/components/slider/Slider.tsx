@@ -15,7 +15,7 @@ export interface SliderProps
 
 /**
  * Slider — Radix slider with an accent range on a `--surface-3` track
- * (research/design-system.md §3 Tier 2). Arrow keys step (RTL-mirrored),
+ * (research/design-system.md Tier 2). Arrow keys step (RTL-mirrored),
  * PageUp/Down large-step, Home/End clamp. Pass a two-element `value`/
  * `defaultValue` for a range slider.
  */

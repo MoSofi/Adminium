@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Keeping `adminium_files` honest about what a customer's own columns say
- * (37-files-and-storage.md §3.7, D12, D27, 37-T13).
+ * Keeping `adminium_files` honest about what a customer's own columns
+ * say.
  *
  * THE PROBLEM THIS SOLVES. A column-bound file is a plain text value in the
  * customer's table — that is the whole point of D6/D7, and it is why the
@@ -58,7 +58,7 @@ export interface ReconcileResult {
 }
 
 /**
- * Why a write to a file column cannot be accepted (38 D5).
+ * Why a write to a file column cannot be accepted.
  *
  * Returned rather than thrown, for two reasons. The status code belongs to the
  * route — this module has no opinion about HTTP — and, more importantly, this
@@ -127,12 +127,12 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
   /**
    * Resolve a stored value to the file rows it names — none, one, or many.
    *
-   * ONE FUNCTION FOR BOTH SHAPES (38 D5). A single-value column yields a
-   * one-element list and a `multiple` column yields its array, so every caller
-   * below works in sets and nothing has to branch on the column's block. That
-   * also means a column switched to `multiple` after it already held one plain
-   * reference keeps working with no migration: `parseRefList` reads the old
-   * value as a list of one.
+   * ONE FUNCTION FOR BOTH SHAPES. A single-value column yields a one-element
+   * list and a `multiple` column yields its array, so every caller below works
+   * in sets and nothing has to branch on the column's block. That also means a
+   * column switched to `multiple` after it already held one plain reference
+   * keeps working with no migration: `parseRefList` reads the old value as a
+   * list of one.
    *
    * Anything that is not ours — a foreign URL, a mistyped id — is dropped
    * here, which is what makes "never touch a file you did not recognise" a
@@ -252,7 +252,7 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
           const [previous, next] = await Promise.all([filesFor(beforeValue), filesFor(afterValue)]);
 
           /*
-           * A SET DIFFERENCE, not a pairwise compare (38 D5).
+           * A SET DIFFERENCE, not a pairwise compare.
            *
            * With one file per column the two were single values and `previous
            * !== next` said everything. With a list, the same file can move

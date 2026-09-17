@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * WHICH RULES DOES THIS WRITE FIRE? (42-automations-and-workflow-logs.md
- * §3.3, D6, D7, 42-T05.)
+ * WHICH RULES DOES THIS WRITE FIRE?
  *
  * Every single-row write in the product now ends in one event, and this is
  * what listens. It has to be cheap — it runs inside the request, before the
@@ -28,10 +27,10 @@
  * --- Why this awaits before the route replies ------------------------------
  *
  * The run ROW is created inline; the run itself is a queued job. That split
- * is deliberate (34 D7): "the rule fired for that sign-up" becomes true
- * before the caller gets its 201, so a UI that refetches immediately sees the
- * run, while the actual work — which may send mail and wait two days — never
- * sits in a request.
+ * is deliberate: "the rule fired for that sign-up" becomes true before the
+ * caller gets its 201, so a UI that refetches immediately sees the run, while
+ * the actual work — which may send mail and wait two days — never sits in a
+ * request.
  */
 
 import {
@@ -55,7 +54,7 @@ import { recordOccurrenceKey } from './events.js';
 import { AUTOMATION_RUN_KIND } from './kinds.js';
 import { changeStampColumn } from './watch-columns.js';
 
-/** Past this many automation-caused hops an event is refused (§3.3). */
+/** Past this many automation-caused hops an event is refused. */
 export const MAX_AUTOMATION_HOPS = 3;
 
 export interface MatcherDeps {
@@ -298,7 +297,7 @@ export function triggerEventFor(
     record: event.entity,
     // The trace is read by admins in Workflow Logs, so what is STORED about
     // the row is masked here at the boundary. The run itself re-reads the
-    // record unmasked — it has to address the email (§0.3).
+    // record unmasked — it has to address the email.
     snapshot: maskRow(image, event.table, false),
     occurredAt: event.occurredAt ?? Date.now(),
   };

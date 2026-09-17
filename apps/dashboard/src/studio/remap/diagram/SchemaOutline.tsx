@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The text equivalent — 35-schema-authoring.md D16, 35-T24.
+ * The text equivalent.
  *
  * ─── Why this is a real view and not `aria-hidden` on the canvas ───────────
  *

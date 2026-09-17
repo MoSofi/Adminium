@@ -26,7 +26,7 @@ describe('semantic override', () => {
     renderEditor();
     await openColumn(/Orders/, /Total/);
 
-    // Classifier hint (05 §7 output surfaced in the inspector).
+    // Classifier hint (output surfaced in the inspector).
     expect(screen.getByText('Classifier: money · 80% confidence · source: heuristic')).toBeDefined();
 
     const select = screen.getByLabelText('Semantic type');

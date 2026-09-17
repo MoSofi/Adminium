@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Token → scope resolution (28-public-surface.md §3.2–§3.3).
+ * Token → scope resolution.
  *
  * The theme is that EVERY failure returns `null`. Unknown prefix, wrong hash,
  * revoked, expired, missing scope, uncompilable scope — one outcome, because a

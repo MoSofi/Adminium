@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The desktop capability grant table (11-electron.md §12), over `adminium_settings`.
+ * The desktop capability grant table, over `adminium_settings`.
  *
- * §1 principle 2 puts the meta store on the server's side of the process
+ * The meta store sits on the server's side of the process
  * boundary, so grant reads and writes live here and the main-process
  * `CapabilityHost` reaches them over the loopback REST API (`routes/
  * desktop-capabilities`). Grants are a SET keyed by `{ manifestId, capabilityId }`:
@@ -23,7 +23,8 @@
 
 import { settingsRepo, type CapabilityGrant, type MetaDb } from '@adminium/meta';
 
-/** The `adminium_settings` key; camelCased per the registry convention (§12 note). */
+/** The `adminium_settings` key; camelCased per the registry convention (note).
+ * */
 const GRANTS_KEY = 'desktop.capabilityGrants' as const;
 
 /** The identity of a grant — everything but its timestamp. */

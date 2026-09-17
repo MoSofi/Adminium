@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SchemaBadges vocabulary (research/ia-mapping.md §4, UI Kit schema
- * explorer): PK accent · FK info · UNIQUE neutral · PII warn (+ Masked warn),
- * with the mono type chip alongside. Tints always derive from tones.
+ * SchemaBadges vocabulary (UI Kit schema explorer): PK accent · FK info ·
+ * UNIQUE neutral · PII warn (+ Masked warn), with the mono type chip
+ * alongside. Tints always derive from tones.
  */
 import { Badge, Tag } from '@adminium/ui';
 

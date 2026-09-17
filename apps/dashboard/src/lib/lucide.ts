@@ -2,7 +2,7 @@
 /**
  * Nav rows carry lucide icon names in kebab-case (`bar-chart-3`); resolve them
  * to components, falling back to a neutral file glyph so an unknown name can
- * never crash the sidebar (09-generated-app.md §2.2).
+ * never crash the sidebar.
  *
  * WHY THIS IS NOT `icons[name]` ANY MORE. It was, and because this module is on
  * the boot path (SidebarNav renders every nav row), that single map import put

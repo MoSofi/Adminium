@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Manifest spec v1 (13-marketplace.md §2), frozen at `manifestVersion: 1` for
- * all of Adminium 1.x. Pure Zod v4 + types — no `node:` imports — so the
- * storefront and the Electron shell can validate a manifest in the browser
- * (01-architecture.md §3, the `@adminium/manifest` package row).
+ * Manifest spec v1, frozen at `manifestVersion: 1` for all of Adminium 1.x.
+ * Pure Zod v4 + types — no `node:` imports — so the storefront and the
+ * Electron shell can validate a manifest in the browser (the
+ * `@adminium/manifest` package row).
  *
  * This module is the envelope: every block's shape and the cross-block rules.
  * The install PLANNER (planInstall / requiredSchema → create-or-map diff) and
@@ -18,15 +18,15 @@ import {
 } from '@adminium/add-on-contracts';
 import { z } from 'zod';
 
-/** Integer spec version, frozen at 1 for Adminium 1.x (§2, 01 §8). */
+/** Integer spec version, frozen at 1 for Adminium 1.x. */
 export const MANIFEST_VERSION = 1;
 
 /**
- * What kind of thing this manifest describes (24 §5.2). OPTIONAL, defaulting to
- * `"app"` — which is the whole reason `manifestVersion` does not move: every
- * manifest written before wave 4 stays valid unchanged, and an additive
- * optional field with a back-compatible default is how a frozen spec grows
- * without lying about its version.
+ * What kind of thing this manifest describes. OPTIONAL, defaulting to `"app"` —
+ * which is the whole reason `manifestVersion` does not move: every manifest
+ * written before wave 4 stays valid unchanged, and an additive optional field
+ * with a back-compatible default is how a frozen spec grows without lying about
+ * its version.
  */
 export const MANIFEST_KINDS = ['app', 'add-on'] as const;
 export const manifestKindSchema = z.enum(MANIFEST_KINDS);
@@ -46,9 +46,9 @@ export const i18nMessageSchema = z
   .strict();
 export type I18nMessage = z.infer<typeof i18nMessageSchema>;
 
-// ── §2.3 identity ────────────────────────────────────────────────────────────
+// ── identity ─────────────────────────────────────────────────────────────────
 
-/** Closed v1 storefront facet set (§2.3). */
+/** Closed v1 storefront facet set. */
 export const MANIFEST_CATEGORIES = [
   'commerce',
   'hospitality',
@@ -58,7 +58,7 @@ export const MANIFEST_CATEGORIES = [
 ] as const;
 export const categorySchema = z.enum(MANIFEST_CATEGORIES);
 
-/** The one publisher id v1 accepts unless `third-party-publishers` is on (§2.3/§9). */
+/** The one publisher id v1 accepts unless `third-party-publishers` is on. */
 export const FIRST_PARTY_PUBLISHER_ID = 'adminium';
 
 export const publisherSchema = z
@@ -95,13 +95,12 @@ export const identitySchema = z
  * Keys no app or add-on may ever take, because they would shadow a storefront
  * route or a data file (D17). Apps and add-ons share one key namespace.
  *
- * `dashboard` joined them for a different reason (34 O10/D23): it is the HOST
- * KEY a stock Adminium deployment attaches an add-on under, so an add-on
- * `attaches: [{app: '*'}]` resolves against it and the consent dialog has
- * something to enable and disable. Treating an empty `attachTo` as "the
- * dashboard" was the alternative and leaves nothing to switch off. Reserving
- * the literal means no app can also be called `dashboard` and make an
- * attachment ambiguous.
+ * `dashboard` joined them for a different reason: it is the HOST KEY a stock
+ * Adminium deployment attaches an add-on under, so an add-on `attaches:
+ * [{app: '*'}]` resolves against it and the consent dialog has something to
+ * enable and disable. Treating an empty `attachTo` as "the dashboard" was the
+ * alternative and leaves nothing to switch off. Reserving the literal means
+ * no app can also be called `dashboard` and make an attachment ambiguous.
  */
 export const RESERVED_KEYS = [
   'apps',
@@ -113,7 +112,7 @@ export const RESERVED_KEYS = [
   'search',
 ] as const;
 
-// ── §2.11 capabilities ───────────────────────────────────────────────────────
+// ── capabilities ─────────────────────────────────────────────────────────────
 
 export const MANIFEST_CAPABILITIES = [
   'hosted-only',
@@ -124,7 +123,7 @@ export const MANIFEST_CAPABILITIES = [
   'file-storage',
   'email-delivery',
   'realtime',
-  // Added by wave 4 (24 D3). Adding a capability key is a THREE-place change
+  // Added by wave 4. Adding a capability key is a THREE-place change
   // and all three land together: here, `CAP_ICONS` in the website's
   // marketplace data (note `CAP_META` derives from it), and a
   // `marketplaceData.cap.<key>` label in all eight locales.
@@ -136,9 +135,9 @@ export const MANIFEST_CAPABILITIES = [
 export const capabilitySchema = z.enum(MANIFEST_CAPABILITIES);
 export type Capability = z.infer<typeof capabilitySchema>;
 
-// ── §2.4 compatibility ───────────────────────────────────────────────────────
+// ── compatibility ────────────────────────────────────────────────────────────
 
-/** The three meta/data engines Adminium can talk to (01-architecture.md §2.3). */
+/** The three meta/data engines Adminium can talk to. */
 export const MANIFEST_ENGINES = ['postgres', 'mysql', 'sqlite'] as const;
 
 export const compatibilitySchema = z
@@ -148,12 +147,12 @@ export const compatibilitySchema = z
     /**
      * Which data engines this app's `requiredSchema` actually works on.
      *
-     * ADDED rather than dropped from the manifests (28-T21). Thirteen shipped
-     * manifests already carried `engines` and this `.strict()` schema rejected
-     * every one — it is a spec field (13 §2.4) that never reached the code. The
-     * information is real: an app whose schema uses Postgres-only DDL cannot be
-     * installed against SQLite, and deleting the field to satisfy the validator
-     * would have thrown away the only place that is written down.
+     * ADDED rather than dropped from the manifests. Thirteen shipped manifests
+     * already carried `engines` and this `.strict()` schema rejected every one
+     * — it is a spec field that never reached the code. The information is
+     * real: an app whose schema uses Postgres-only DDL cannot be installed
+     * against SQLite, and deleting the field to satisfy the validator would
+     * have thrown away the only place that is written down.
      *
      * Optional and additive, so nothing that validated before stops.
      */
@@ -162,9 +161,9 @@ export const compatibilitySchema = z
   })
   .strict();
 
-// ── §2.5 requiredSchema (create-or-map) ──────────────────────────────────────
+// ── requiredSchema (create-or-map) ───────────────────────────────────────────
 
-/** Abstract column types the introspection engine emits (§2.5, research §15.2). */
+/** Abstract column types the introspection engine emits (research). */
 export const COLUMN_TYPES = [
   'id',
   'text',
@@ -183,7 +182,7 @@ export const COLUMN_TYPES = [
   'blob',
 ] as const;
 
-/** Optional semantic pre-seed so widgets auto-instantiate (§2.5). */
+/** Optional semantic pre-seed so widgets auto-instantiate. */
 export const COLUMN_SEMANTICS = [
   'name',
   'money',
@@ -194,7 +193,7 @@ export const COLUMN_SEMANTICS = [
   'geo-lng',
 ] as const;
 
-/** Structural role markers (§2.5). */
+/** Structural role markers. */
 export const COLUMN_ROLES = ['pk', 'created_at', 'updated_at'] as const;
 
 export const requiredColumnSchema = z
@@ -239,7 +238,7 @@ export const requiredSchemaSchema = z
     path: ['tables'],
   });
 
-// ── §2.6 pages ───────────────────────────────────────────────────────────────
+// ── pages ────────────────────────────────────────────────────────────────────
 
 export const pageNavSchema = z
   .object({
@@ -261,7 +260,7 @@ export const pageSchema = z
   })
   .strict();
 
-// ── §2.7 roles ───────────────────────────────────────────────────────────────
+// ── roles ────────────────────────────────────────────────────────────────────
 
 export const roleSchema = z
   .object({
@@ -273,7 +272,7 @@ export const roleSchema = z
   })
   .strict();
 
-// ── §2.8 settings ────────────────────────────────────────────────────────────
+// ── settings ─────────────────────────────────────────────────────────────────
 
 const settingBase = {
   key: z.string().regex(/^[a-z][a-z0-9_]*$/, 'setting key must be snake_case'),
@@ -281,11 +280,11 @@ const settingBase = {
   secret: z.boolean().optional(),
   label: i18nMessageSchema.optional(),
   /*
-   * The sentence UNDER the field, where a label alone cannot carry the answer
-   * (34 §7.9, Appendix C). Every variant below is `.strict()`, so a manifest
-   * that wrote `help` without this line was rejected rather than ignored —
-   * which is why it rides the same release as `RESERVED_KEYS` above rather
-   * than waiting for a settings form to need it.
+   * The sentence UNDER the field, where a label alone cannot carry the
+   * answer. Every variant below is `.strict()`, so a manifest that wrote
+   * `help` without this line was rejected rather than ignored — which is why
+   * it rides the same release as `RESERVED_KEYS` above rather than waiting
+   * for a settings form to need it.
    */
   help: i18nMessageSchema.optional(),
 };
@@ -321,12 +320,12 @@ export const settingSchema = z.discriminatedUnion('type', [
   z.object({ ...settingBase, type: z.literal('json'), default: z.unknown().optional() }).strict(),
 ]);
 
-// ── §2.9 seeds ───────────────────────────────────────────────────────────────
+// ── seeds ────────────────────────────────────────────────────────────────────
 
 export const seedSchema = z
   .object({
     table: z.string().min(1),
-    // inline rows, or a reference to a bundled seeds/<file> dataset (§2.9).
+    // inline rows, or a reference to a bundled seeds/<file> dataset.
     rows: z.array(z.record(z.string(), z.unknown())).optional(),
     file: z.string().min(1).optional(),
   })
@@ -335,7 +334,7 @@ export const seedSchema = z
     message: 'a seed provides exactly one of `rows` or `file`',
   });
 
-// ── §2.10 widgets (optional custom bundles) ──────────────────────────────────
+// ── widgets (optional custom bundles) ────────────────────────────────────────
 
 export const manifestWidgetSchema = z
   .object({
@@ -344,7 +343,7 @@ export const manifestWidgetSchema = z
   })
   .strict();
 
-// ── §2.12 frontend ───────────────────────────────────────────────────────────
+// ── frontend ─────────────────────────────────────────────────────────────────
 
 export const FRONTEND_KINDS = ['spa', 'electron', 'none'] as const;
 
@@ -356,7 +355,7 @@ export const frontendEnvVarSchema = z
   .strict();
 
 /**
- * Which of the three sides a frontend is (28-public-surface.md §4).
+ * Which of the three sides a frontend is.
  *
  * The product rule this exists to make CHECKABLE: a micro-SaaS is the Adminium
  * dashboard (mandatory, and never declared here — it comes from introspection)
@@ -369,7 +368,7 @@ export const frontendSchema = z
   .object({
     /**
      * REQUIRED, and the whole point of the array form. Without it the split
-     * lives only in prose and nothing can enforce §4's rule.
+     * lives only in prose and nothing can enforce rule.
      */
     side: z.enum(FRONTEND_SIDES),
     kind: z.enum(FRONTEND_KINDS),
@@ -380,9 +379,9 @@ export const frontendSchema = z
      *
      * RE-ADMITTED, not newly invented. Eleven shipped manifests already carry
      * this key and the `.strict()` schema rejected every one of them — while
-     * being, per the 28-T33 fleet audit, "the only machine-readable record of
-     * the staff/customer split anywhere in the fleet". Deleting it during
-     * normalization was the tempting move and would have made §4's rule
+     * being, per the fleet audit, "the only machine-readable record of the
+     * staff/customer split anywhere in the fleet". Deleting it during
+     * normalization was the tempting move and would have made rule
      * permanently uncheckable.
      */
     routes: z.record(z.string(), z.string()).optional(),
@@ -396,14 +395,14 @@ export const frontendSchema = z
  * share. They are attached to EACH BRANCH below rather than to the union: a
  * `.refine()` on a `z.discriminatedUnion` would run against the union type and
  * lose the narrowing, and moving them up there is how they get silently dropped
- * (24 §5.2's first implementer note).
+ * (first implementer note).
  */
 interface SharedEnvelope {
   capabilities?: Capability[] | undefined;
   compatibility: z.infer<typeof compatibilitySchema>;
 }
 
-/** §2.11 — hosted-only and offline-required are mutually exclusive. */
+/** Hosted-only and offline-required are mutually exclusive. */
 const capabilitiesNotContradictory = (m: SharedEnvelope): boolean =>
   !(
     (m.capabilities?.includes('hosted-only') ?? false) &&
@@ -460,7 +459,7 @@ export const appManifestSchema = z
     widgets: z.array(manifestWidgetSchema).optional(),
     capabilities: z.array(capabilitySchema).optional(),
     /**
-     * ONE OR MORE SIDES (28 §4, D12). Replaces the singular `frontend`.
+     * ONE OR MORE SIDES. Replaces the singular `frontend`.
      *
      * `minItems: 1` is the gate: a manifest declaring no side does not validate,
      * which is what turns "dashboard mandatory, staff optional, customer
@@ -476,9 +475,9 @@ export const appManifestSchema = z
   .refine(sidesAreDistinct, { ...SIDES_MESSAGE, path: [...SIDES_MESSAGE.path] });
 
 /**
- * `pages` and `frontend` are absent from this branch on purpose (24 §5.7 item
- * 6): an add-on cannot install pages, roles or a frontend, and leaving the
- * fields off the schema entirely is a stronger guarantee than a lint rule.
+ * `pages` and `frontend` are absent from this branch on purpose: an add-on
+ * cannot install pages, roles or a frontend, and leaving the fields off the
+ * schema entirely is a stronger guarantee than a lint rule.
  */
 export const addOnManifestSchema = z
   .object({
@@ -513,7 +512,7 @@ export const manifestSchema = z.preprocess(
 export type AppManifest = z.infer<typeof appManifestSchema>;
 export type AddOnManifest = z.infer<typeof addOnManifestSchema>;
 
-/** One table an add-on declares under `requiredSchema` (26 §3). */
+/** One table an add-on declares under `requiredSchema`. */
 export type RequiredTable = z.infer<typeof requiredTableSchema>;
 /** One column of a {@link RequiredTable}. */
 export type RequiredColumn = z.infer<typeof requiredColumnSchema>;
@@ -527,8 +526,8 @@ export function isAddOnManifest(m: Manifest): m is AddOnManifest {
 }
 
 /**
- * Cross-block rules the envelope cannot express, each with its issue code
- * (24 §5.3). Runs only for `kind: "add-on"`; returns [] for an app.
+ * Cross-block rules the envelope cannot express, each with its issue
+ * code. Runs only for `kind: "add-on"`; returns [] for an app.
  */
 export function addOnIssues(
   m: Manifest,
@@ -630,7 +629,7 @@ export function addOnIssues(
 /**
  * Numeric semver compare on the release triple (pre-release/build ignored —
  * enough for the compatibility-window and upgrade ordering checks). Returns
- * <0, 0, >0. Exported for the installer's upgrade rule (§4.3).
+ * <0, 0, >0. Exported for the installer's upgrade rule.
  */
 export function compareSemver(a: string, b: string): number {
   const triple = (v: string): number[] =>

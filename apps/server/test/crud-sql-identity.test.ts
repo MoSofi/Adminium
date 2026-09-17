@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 36-T12 — THE BYTE-IDENTITY CONTRACT.
+ * THE BYTE-IDENTITY CONTRACT.
  *
  * Derived columns arrive as a NEW query parameter, and the promise that buys
  * is that a read which does not carry it is unchanged. Not "behaves the

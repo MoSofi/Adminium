@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The New modal (34-invoices-add-on.md Appendix E §M15; comp 108-141, props
- * 1406-1413): a dashed *Blank invoice* tile and the twelve starters in a
- * four-column grid, each starter a miniature sheet in its own accent. On the
- * invoices tab a *Your templates* section follows (34 O20): an invoice can
- * begin as a copy of one of the workspace's templates, which
- * `POST /:id/from-template` makes server-side, recording the origin.
+ * The New modal (comp 108-141, props 1406-1413): a dashed *Blank
+ * invoice* tile and the twelve starters in a four-column grid, each starter
+ * a miniature sheet in its own accent. On the invoices tab a *Your
+ * templates* section follows: an invoice can begin as a copy of one of the
+ * workspace's templates, which `POST /:id/from-template` makes server-side,
+ * recording the origin.
  *
  * Picking creates the row at once and hands the reply up — the manager opens
  * the editor on it. There is no name step: the starter's name is the name
@@ -73,7 +73,7 @@ function StarterTile({ starter, disabled, onPick }: { starter: InvoiceStarterCar
 export function NewDocumentModal({ kind, onClose, onCreated }: NewDocumentModalProps) {
   const toasts = useAppToasts();
   const starters = useQuery(invoiceStartersQuery());
-  // 34 O20: an invoice may start from one of the workspace's templates.
+  // An invoice may start from one of the workspace's templates.
   const templates = useQuery({ ...invoicesQuery({ kind: 'template' }), enabled: kind === 'invoice' });
   const [picking, setPicking] = useState<string | null>(null);
 

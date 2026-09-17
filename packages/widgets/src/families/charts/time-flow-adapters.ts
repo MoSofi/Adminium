@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure §3-envelope → chart-primitive-input adapters for the M7 "time, forecast
- * & flow" charts group. Structural output types (compatible with the
+ * Pure -envelope → chart-primitive-input adapters for the M7 "time, forecast &
+ * flow" charts group. Structural output types (compatible with the
  * @adminium/charts primitive props by shape) keep this module free of the
  * primitive components, so the conversion logic is unit-testable independently
  * of the green-loop-assembled barrel. A malformed payload returns null and the

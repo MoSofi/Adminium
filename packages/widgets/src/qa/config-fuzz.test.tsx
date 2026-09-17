@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * Config-schema fuzz gate — 04-widget-registry.md acceptance #4/#17 spirit /
- * 04-T17 (3): for every registered widget, generate N random VALID configs from
- * its Zod schema and assert that rendering the loaded widget with each never
- * crashes.
+ * Config-schema fuzz gate — #4/#17 spirit / (3): for every registered widget,
+ * generate N random VALID configs from its Zod schema and assert that rendering
+ * the loaded widget with each never crashes.
  *
  * Rendering goes through the shared `probeLoaded` classifier so a crash surfaces
  * as a GENUINE defect (fails the test, logs the replayable config) while a

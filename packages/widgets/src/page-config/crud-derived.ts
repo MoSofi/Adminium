@@ -7,7 +7,6 @@ import { WORKING_SCALE } from './decimal.js';
  * The `config.derived` vocabulary of a `page-crud` body — page-level named
  * MEASURES (folds over a child table) and DERIVED FIELDS (arithmetic and
  * conditionals over those folds, this row's own columns, and literals).
- * 36-derived-columns.md §3.3.
  *
  * WHY PAGE-LEVEL AND NAMED, rather than a block per column: the numbers an
  * operator actually wants form a chain — subtotal → discount → tax → total →
@@ -136,9 +135,9 @@ export const MAX_FIELD_NODES = 24;
 /** Output rounding cannot ask for more digits than the arithmetic carries. */
 export const MAX_FIELD_SCALE = WORKING_SCALE;
 /**
- * A conditional field's TEXT outcome (41-export-builder.md D5) — the word a
- * rule answers with: "Waived", "Standard". Bounded because it becomes a cell
- * and a file value, never a paragraph.
+ * A conditional field's TEXT outcome — the word a rule answers with:
+ * "Waived", "Standard". Bounded because it becomes a cell and a file value,
+ * never a paragraph.
  */
 export const MAX_TEXT_OUTCOME_LENGTH = 64;
 
@@ -210,11 +209,11 @@ export interface FieldCase {
  * distinct in the AST so validation can say which namespace an author meant,
  * and so the Studio can offer two different pickers.
  *
- * `{ text }` is the one non-numeric leaf (41-export-builder.md D5): a word a
- * conditional answers with. It is legal ONLY as a `cases[].then` / `else`
- * outcome of a field declared `result: 'text'` — never an operand of `op` or
- * of a comparison, so the arithmetic stays closed over decimals at parse time
- * and the evaluator's decimal path never meets one.
+ * `{ text }` is the one non-numeric leaf: a word a conditional answers with.
+ * It is legal ONLY as a `cases[].then` / `else` outcome of a field declared
+ * `result: 'text'` — never an operand of `op` or of a comparison, so the
+ * arithmetic stays closed over decimals at parse time and the evaluator's
+ * decimal path never meets one.
  */
 export type FieldExpr =
   | { measure: string }
@@ -264,9 +263,9 @@ export const derivedFieldSchema = z.strictObject({
   /**
    * What the field answers with. `decimal` (the default) is the arithmetic
    * everything above describes; `text` is a conditional whose outcomes are
-   * `{ text }` leaves (41 D5). Declared rather than inferred so a reader of
-   * the stored block knows the column's type without walking the tree, and
-   * so the parser can refuse a text leaf in a decimal field by name.
+   * `{ text }` leaves. Declared rather than inferred so a reader of the
+   * stored block knows the column's type without walking the tree, and so
+   * the parser can refuse a text leaf in a decimal field by name.
    */
   result: z.enum(['decimal', 'text']).optional(),
 });

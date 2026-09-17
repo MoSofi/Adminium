@@ -3,7 +3,7 @@
  * Realtime client transport (apps/server/src/realtime/ws.ts + sse.ts protocol):
  * dynamic channel subscribe/unsubscribe frames over an open WS, and the WS→SSE
  * fallback after repeated connection failures — including re-opening the SSE
- * stream when the channel set changes (04-widget-registry.md §5.3).
+ * stream when the channel set changes.
  */
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

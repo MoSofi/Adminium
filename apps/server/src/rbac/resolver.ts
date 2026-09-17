@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Effective-permission resolution (08-server-api.md §5.1): principal →
- * roles (`adminium_user_roles`, or the API key's single role) → union of the
- * roles' matrix rows as grant strings. `super-admin` short-circuits to
- * allow-all; everything else is deny-by-default via {@link isGranted}.
+ * Effective-permission resolution: principal → roles (`adminium_user_roles`,
+ * or the API key's single role) → union of the roles' matrix rows as grant
+ * strings. `super-admin` short-circuits to allow-all; everything else is
+ * deny-by-default via {@link isGranted}.
  */
 
 import { permissionsRepo, rolesRepo, type MetaDb, type Role } from '@adminium/meta';
@@ -11,7 +11,7 @@ import { permissionsRepo, rolesRepo, type MetaDb, type Role } from '@adminium/me
 import { grantsFromMatrixRows, isGranted } from './permissions.js';
 import type { RbacPrincipal } from './principal.js';
 
-/** Built-in slug whose members bypass every check (07-meta-store.md §3.8). */
+/** Built-in slug whose members bypass every check. */
 export const SUPER_ADMIN_SLUG = 'super-admin';
 
 export interface PermissionSet {

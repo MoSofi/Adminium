@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-dashboard` binding (09-generated-app.md §4.1, §7.2): projects the
- * page envelope onto the real `PageDashboard` template from
- * `@adminium/widgets`.
+ * `page-dashboard` binding: projects the page envelope onto the real
+ * `PageDashboard` template from `@adminium/widgets`.
  *
  * Data flow: the host's `useDashboardData` (src/api/widgetData.ts) already
  * runs the ONE deduped `POST /api/v1/widget-data/batch` per page mount under
@@ -11,14 +10,14 @@
  * binding materializes those per-instance `WidgetDataState`s and hands them
  * to the template through its `states` prop (per-instance resolution:
  * `states` → adapter → demo), leaving the template's `adapter` unset so
- * unbound instances keep the deterministic demo-data path (04 §5.3).
+ * unbound instances keep the deterministic demo-data path.
  *
  * Widget events re-enter the host sink (`adapters.onEvent`): record-open →
  * hrefForRecord navigation, drill-through → href push, mutate → CRUD + undo
  * toast (PageRenderer.usePageAdapters).
  *
  * The binding hands the resolved page + per-instance data states to the
- * `DashboardBuilder` shell (04-T14): in view mode it renders the same live
+ * `DashboardBuilder` shell: in view mode it renders the same live
  * `PageDashboard`; in edit mode it swaps in the builder (palette, inspector,
  * add/duplicate/remove, save/reset) over a demo-data working draft.
  */

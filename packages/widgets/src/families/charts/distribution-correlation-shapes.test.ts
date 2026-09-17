@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Distribution & correlation group — metadata + data layer (04-T09). Verifies
- * the pieces that don't need the family component chunk: §3 envelope narrowing,
+ * Distribution & correlation group — metadata + data layer. Verifies the pieces
+ * that don't need the family component chunk: envelope narrowing,
  * config-schema defaults, deterministic demo payloads, per-shape emptiness, and
  * the registry definitions (annex ids, half-unit sizing, contracts). Wrapper
  * render behaviour lives in distribution-correlation-widgets.test.tsx.

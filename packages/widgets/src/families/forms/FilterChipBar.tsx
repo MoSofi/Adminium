@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `filter-chip-bar` (annex §10) — toggle chips with live mono count pills
+ * `filter-chip-bar` (annex) — toggle chips with live mono count pills
  * computed from the SIBLING list ("All 24 · Running 3 · Completed 21"); a
  * single-select drives client/server filtering, with optional end-aligned
  * "N of M" meta. Evidence: ~17 comps (AB Experiments, Payments, Audit Log,
@@ -13,7 +13,7 @@
  * selects, RTL-mirrored).
  *
  * The counts are DERIVED from the bound `record-list` rather than configured —
- * that is the whole point of the widget (annex §10: "live mono count pills
+ * that is the whole point of the widget (annex: "live mono count pills
  * computed from the sibling list"): a hard-coded count goes stale the moment a
  * row changes.
  */
@@ -94,7 +94,7 @@ export function FilterChipBarWidget({ config, data, onEvent }: WidgetProps<Filte
     setSelected(next);
     // Filtering is a HOST concern: the sibling list re-queries. The widget
     // reports the choice through a drill-through on its own href, which is the
-    // only event channel a read-only control has (04 §2.1).
+    // only event channel a read-only control has.
     if (config.href === undefined) return;
     const href = next === null ? config.href : `${config.href}?${config.facetField}=${encodeURIComponent(next)}`;
     onEvent({ type: 'drill-through', href });

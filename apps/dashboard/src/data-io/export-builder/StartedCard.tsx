@@ -2,8 +2,8 @@
 /**
  * The started state (comp 580-604, 1138-1150): the file name, the progress
  * pill and bar, the note in its two variants, and the download / "Back to
- * Data exports" / "Export another" actions. Progress is the job's `pct`
- * (41-export-builder.md D17), polled the way the Data Exports page polls.
+ * Data exports" / "Export another" actions. Progress is the job's `pct`,
+ * polled the way the Data Exports page polls.
  */
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';

@@ -1,38 +1,36 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Global search (`routes/search/`, 08-server-api.md §2.9, M4-T06 — the ⌘K
- * palette's server half):
+ * Global search (`routes/search/`, — the ⌘K palette's server half):
  *
  *   GET /api/v1/search?q=&types=&connectionId=&tables=&limit=
  *
- * Two group kinds in v1. The §2.9 meta-entity groups (users, files,
- * automations, views) are a KNOWN, tracked pre-v1 gap: their features have
- * shipped, but the Kysely-over-meta-store search groups (with the
- * system:users:read-style RBAC filters) have not been built yet — adding them
- * means new SEARCH_TYPES entries plus per-group schemas here and in the
- * palette client:
+ * Two group kinds in v1. The meta-entity groups (users, files, automations,
+ * views) are a KNOWN, tracked pre-v1 gap: their features have shipped, but
+ * the Kysely-over-meta-store search groups (with the system:users:read-style
+ * RBAC filters) have not been built yet — adding them means new SEARCH_TYPES
+ * entries plus per-group schemas here and in the palette client:
  *
  *  - `page`: enabled nav rows matched by TITLE, filtered by the SAME
- *    `page:<id>:view` grant the bootstrap nav applies (09 §2.1) — search can
- *    never surface a page the sidebar would hide.
+ * `page:<id>:view` grant the bootstrap nav applies — search can never
+ *    surface a page the sidebar would hide.
  *  - `record`: one group per searchable table the caller holds
  *    `table:<conn>:<table>:read` on. A table is searched only when an enabled,
  *    view-permitted page renders it (its envelope `source.table`) — that page's
  *    slug is what makes a hit navigable (`/p/:slug/r/:recordId`). Matching is
  *    the crud quick-search compiler (`compileQuickSearch` → dialect-aware
  *    ILIKE: postgres `ILIKE`, mysql/sqlite `LOWER(...) LIKE LOWER(...)`), so
- *    identifiers are snapshot strings and values bind as parameters (§7 item 1).
+ * identifiers are snapshot strings and values bind as parameters.
  *
- * PII (§5.3): the search context pins `canReadPii: false` for EVERY caller —
- * masked columns neither match nor surface as labels, even for callers who
- * hold the unmask grant, because labels outlive the request (the palette's
+ * PII: the search context pins `canReadPii: false` for EVERY caller — masked
+ * columns neither match nor surface as labels, even for callers who hold the
+ * unmask grant, because labels outlive the request (the palette's
  * localStorage Recent list). Labels come from the classifier's displayColumn
  * (engine `classifyTable`) when it is a clean text column, else the first
  * unmasked text column, else the PK label.
  *
- * Budgets (§2.9): per-table searches run in parallel with a 2 s per-table
- * timeout inside a 5 s total budget; a timed-out (or failing) table degrades
- * to `{ partial: true }` on its group instead of failing the request.
+ * Budgets: per-table searches run in parallel with a 2 s per-table timeout
+ * inside a 5 s total budget; a timed-out (or failing) table degrades to `{
+ * partial: true }` on its group instead of failing the request.
  */
 
 import type { FastifyRequest } from 'fastify';
@@ -96,7 +94,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | type
 /**
  * The label column for record hits: classifier displayColumn when it is a
  * readable (text-ish, unmasked, non-secret) column, else the first such
- * column, else null (→ PK label). Masked columns NEVER label a hit (§5.3).
+ * column, else null (→ PK label). Masked columns NEVER label a hit.
  */
 export function labelColumnFor(view: SnapshotView, table: ResolvedTable): string | null {
   const usable = (name: string): boolean => {
@@ -113,7 +111,7 @@ export function labelColumnFor(view: SnapshotView, table: ResolvedTable): string
   return [...table.columns.values()].find((c) => usable(c.name))?.name ?? null;
 }
 
-/** Number of columns a hit's §2.9 context string draws from. */
+/** Number of columns a hit's context string draws from. */
 export const CONTEXT_COLUMN_CAP = 2;
 /** Each context value is clipped so one long text column can't flood the palette row. */
 const CONTEXT_VALUE_MAX = 40;
@@ -133,12 +131,11 @@ const CONTEXT_SCALAR_TYPES = new Set([
 ]);
 
 /**
- * The columns a record hit's `context` string draws from (§2.9 "record hits
- * show row context", e.g. `budget £150,000 · status active`): the first
- * `CONTEXT_COLUMN_CAP` readable text/number columns beyond the label and the
- * PK. Masked/secret columns never appear — the same §5.3 rule that governs
- * matching and labels, because context strings outlive the request in the
- * palette's Recent list too.
+ * The columns a record hit's `context` string draws from (e.g. `budget
+ * £150,000 · status active`): the first `CONTEXT_COLUMN_CAP` readable
+ * text/number columns beyond the label and the PK. Masked/secret columns
+ * never appear — the same rule that governs matching and labels, because
+ * context strings outlive the request in the palette's Recent list too.
  */
 export function contextColumnsFor(table: ResolvedTable, labelColumn: string | null): string[] {
   const out: string[] = [];
@@ -188,8 +185,8 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
     app.get(
       '/search',
       {
-        // §6 row 5: 60/min — each request fans out parallel per-table ILIKE
-        // queries, so it gets its own bucket (limits live in RATE_BUCKETS).
+        // 60/min — each request fans out parallel per-table ILIKE queries,
+        // so it gets its own bucket (limits live in RATE_BUCKETS).
         config: { rateLimitBucket: 'search' },
         schema: { querystring: searchQuery, response: { 200: searchReply } },
       },
@@ -200,7 +197,7 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
         }
 
         const q = request.query.q.trim();
-        // Zod enforces ≥ 2 raw chars; re-check after trimming (§2.9).
+        // Zod enforces ≥ 2 raw chars; re-check after trimming.
         if (q.length < 2) return { data: { groups: [] } };
         const qLower = q.toLowerCase();
         const limit = request.query.limit ?? SEARCH_LIMIT_DEFAULT;
@@ -250,7 +247,7 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
                   'search: per-table query failed — degrading to partial',
                 );
               }
-              // Timed out / failed: degraded group, not a failed request (§2.9).
+              // Timed out / failed: degraded group, not a failed request.
               return {
                 type: 'record',
                 connectionId: candidate.connectionId,
@@ -292,7 +289,7 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
              * A PAUSED connection contributes no candidates at all (meta wave
              * 0019) — dropped here rather than left to fail downstream.
              *
-             * `manager.data` would refuse it anyway, but §2.9 turns a failed
+             * `manager.data` would refuse it anyway, but turns a failed
              * per-table query into a `partial: true` group, so every table of a
              * paused source came back as an empty-but-present result: a row of
              * "no matches" headings for a database nobody is querying, once per
@@ -335,14 +332,14 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
               } catch {
                 continue; // stale page vs. re-introspected snapshot
               }
-              // Record hits need a navigable record route → a PK (§2.7.2).
+              // Record hits need a navigable record route → a PK.
               if (table.primaryKey.length === 0) continue;
-              // Searchable = at least one unmasked text column (§2.9 + §5.3).
+              // Searchable = at least one unmasked text column.
               const searchable = [...table.columns.values()].some(
                 (c) => c.textish && !c.secret && !c.masked,
               );
               if (!searchable) continue;
-              // RBAC: the same table-read grant the data routes enforce (§5.2),
+              // RBAC: the same table-read grant the data routes enforce,
               // plus the page-view grant so a hit never navigates into a 403.
               if (!(await can(req, `table:${connectionId}:${table.id}:read`))) continue;
               if (!(await can(req, `page:${page.id}:view`))) continue;

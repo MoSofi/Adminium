@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for storage destinations (37-files-and-storage.md Appendix C,
- * D2, D16, 37-T12).
+ * Zod schemas for storage destinations.
  *
  * THE SECRET IS ASYMMETRIC AND THAT IS THE POINT. It goes IN on create and on
  * an explicit replace; it never comes back out. Reads carry `hasSecret: true`

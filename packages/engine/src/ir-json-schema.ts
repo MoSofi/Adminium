@@ -24,7 +24,7 @@ export const IR_SCHEMA_URL = 'https://docs.adminium.dev/schemas/ir-v1.json';
  *
  * `io: 'input'` is deliberate: the model defaults nearly everything, and an
  * author needs to know what they MAY omit. The output schema would mark every
- * defaulted field required and reject the minimal IR §2.3 promises works.
+ * defaulted field required and reject the minimal IR promises works.
  *
  * `$schema` is added to the root as an allowed property. The generated document
  * is `additionalProperties: false` throughout (every IR object is a Zod

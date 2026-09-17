@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A real CRUD round-trip through the embedded stack, driven from the
- * authenticated renderer (11-electron.md §6/§9, 11-T20).
+ * authenticated renderer.
  *
  * WHY THROUGH THE API AND NOT THE GENERATED FORM. The demo domain's tables carry
  * many NOT NULL columns (employees: full_name, job_title, email, department,
@@ -15,7 +15,7 @@
  * (SameSite=Lax, same-origin). This is the same door the generated app's grid
  * uses to save an edit.
  *
- * ─── AND THE SAME CSRF TOKEN (08-server-api.md §7 item 4) ────────────────────
+ * ─── AND THE SAME CSRF TOKEN ─────────────────────────────────────────────────
  *
  * A session cookie is no longer sufficient for a mutation. `security/csrf.ts`
  * requires the session-bound token from any non-GET that carries a session AND
@@ -53,7 +53,7 @@ export async function editEmployeeTitle(page: Page, marker: string): Promise<Edi
       return response.json();
     };
 
-    // The §7-item-4 token for this renderer's session — the PATCH below is
+    // The -item-4 token for this renderer's session — the PATCH below is
     // refused without it. Same issuer the SPA reads it from.
     const boot = (await readJson(
       await fetch('/api/v1/bootstrap', { credentials: 'same-origin' }),

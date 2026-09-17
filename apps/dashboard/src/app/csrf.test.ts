@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The client half of §7 item 4 (08-server-api.md): the CSRF token
- * `GET /bootstrap` issues has to reach EVERY mutating request, and this app
- * has five mutating fetch call sites of which four bypass `app/api.ts`
- * entirely. Patching only the shared client would ship a dashboard that 403s
- * on schema-override saves, logo uploads, CSV imports and one delete path —
- * so each of the five is pinned here by name.
+ * The client half of: the CSRF token `GET /bootstrap` issues has to reach
+ * EVERY mutating request, and this app has five mutating fetch call sites of
+ * which four bypass `app/api.ts` entirely. Patching only the shared client
+ * would ship a dashboard that 403s on schema-override saves, logo uploads,
+ * CSV imports and one delete path — so each of the five is pinned here by
+ * name.
  *
  * It also pins WHO writes the holder, which turned out to be the harder half:
  * `/bootstrap` is not the only route that hands this app a session, and the one

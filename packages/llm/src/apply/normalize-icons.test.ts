@@ -5,11 +5,11 @@
  *
  * `normalize.ts`'s `SHAPE_ICONS` is a hand-copied mirror of the engine's
  * (`@adminium/engine` `generate/index.ts`), duplicated because this package must
- * not import engine RUNTIME — the dashboard consumes it (01 §2.3). A mirror kept
- * by hand needs a test or it is a coincidence, and this one was neither: both
- * copies said `kanban-square`, which lucide renamed to `square-kanban` and kept
- * only as a deprecated export. It is not a key of the `icons` map, and that map
- * is what the dashboard resolves a stored table icon through — so the icon this
+ * not import engine RUNTIME — the dashboard consumes it. A mirror kept by hand
+ * needs a test or it is a coincidence, and this one was neither: both copies
+ * said `kanban-square`, which lucide renamed to `square-kanban` and kept only as
+ * a deprecated export. It is not a key of the `icons` map, and that map is what
+ * the dashboard resolves a stored table icon through — so the icon this
  * normalizer writes onto a workflow-shaped table drew the neutral fallback and
  * made the sidebar's first paint fetch the whole 133.6 KiB catalogue.
  *

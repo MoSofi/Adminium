@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-builder` binding (09-generated-app.md §4.1, §7.11, M7-T06): projects
- * the page envelope onto the `PageBuilder` template renderer and wires
- * persistence through the EXISTING pages APIs — no new server surface:
+ * `page-builder` binding: projects the page envelope onto the `PageBuilder`
+ * template renderer and wires persistence through the EXISTING pages APIs —
+ * no new server surface:
  *
- *  - SAVE (autosave, 900 ms choreography per §7.10): the authored doc rides in
- *    the canvas layout item's `config.doc` (docState.ts), so a save is the
- *    layout write path the dashboard builder already uses —
- *    `useSaveSharedLayout` (PATCH /pages/:id/layout) when the caller holds
- *    `page:<id>:edit`, else `useSavePersonalLayout` (PUT /me/views/:id/layout)
- *    for a personal draft. Same capability routing as PageDashboardBinding.
+ * - SAVE (autosave, 900 ms choreography): the authored doc rides in the canvas
+ *  layout item's `config.doc` (docState.ts), so a save is the layout write
+ *  path the dashboard builder already uses — `useSaveSharedLayout` (PATCH
+ *  /pages/:id/layout) when the caller holds `page:<id>:edit`, else
+ *  `useSavePersonalLayout` (PUT /me/views/:id/layout) for a personal draft.
+ *  Same capability routing as PageDashboardBinding.
  *  - SAVE-AS-VERSION / LIST / RESTORE: saved-views rows carrying a
  *    `{ v: 1, builderDoc }` marker (`POST/GET /pages/:id/views`) — grid-state
  *    views coexist untouched (builderVersionsOf filters).
@@ -53,7 +53,7 @@ import {
 } from './docState.js';
 import type { PageTemplateProps } from '../template-types.js';
 
-/** §7.10 autosave choreography: dirty → (900 ms) → saving → saved pill. */
+/** Autosave choreography: dirty → (900 ms) → saving → saved pill. */
 export const BUILDER_AUTOSAVE_DEBOUNCE_MS = 900;
 
 export function PageBuilderBinding({ page, adapters, canEditLayout }: PageTemplateProps) {
@@ -78,7 +78,7 @@ export function PageBuilderBinding({ page, adapters, canEditLayout }: PageTempla
     (next: DocRecord): void => {
       if (alive.current) setAutosave('saving');
       // `save` arms the hook's own 800 ms trailing timer and `flush` immediately
-      // clears it and fires the request (04 §6.3), so this leaves nothing
+      // clears it and fires the request, so this leaves nothing
       // pending even though the hook's unmount cleanup has already run — its
       // effect is declared before ours, so it is cancelled by the time we call.
       target.save(layoutWithDoc(state, next));

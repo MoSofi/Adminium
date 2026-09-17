@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The New modal (39-email-templates-and-campaigns.md 39-T10 done-when): the
- * grid is Blank + the twelve starters, plus *Your templates* in the campaign
- * tray (D21); a pick creates through the API and hands the reply up.
+ * The New modal: the grid is Blank + the twelve starters, plus *Your
+ * templates* in the campaign tray (D21); a pick creates through the API and
+ * hands the reply up.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';

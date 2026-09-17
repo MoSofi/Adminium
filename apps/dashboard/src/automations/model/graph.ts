@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The rule document, as the CLIENT sees it (42-automations-and-workflow-
- * logs.md §3.5).
+ * logs.md).
  *
  * Re-declared rather than imported: the dashboard may not depend on
  * `@adminium/meta` (the dep-cruiser rule `dashboard-no-meta-adapters-llm`),

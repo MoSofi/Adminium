@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The block vocabulary (34-invoices-add-on.md 34-T47, O19): the gate filters
- * and keeps pre-filter indexes, the Add-section modal lists exactly the off
- * blocks, and the vocabulary the CI gate compares is 27 kinds long.
+ * The block vocabulary: the gate filters and keeps pre-filter indexes, the
+ * Add-section modal lists exactly the off blocks, and the vocabulary the CI
+ * gate compares is 27 kinds long.
  */
 import { describe, expect, it } from 'vitest';
 

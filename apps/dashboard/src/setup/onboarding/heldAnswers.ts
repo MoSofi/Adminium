@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What the first two steps collect before there is anything to save it to
- * (45-onboarding.md §4, ruling R1).
+ * (ruling R1).
  *
  * `start` and `connect` are answered while the instance still has no account,
  * and therefore no session, and therefore no endpoint that would accept them.
  * The answers wait here — in React state, for the lifetime of the wizard —
- * until `POST /setup/super-admin` mints the session (45 §0.1), and are
- * submitted immediately after.
+ * until `POST /setup/super-admin` mints the session, and are submitted
+ * immediately after.
  *
  * NOT localStorage, and not sessionStorage. A reload restarts the wizard, which
  * is the correct behaviour rather than a limitation: an instance with no
@@ -37,8 +37,8 @@ export type OnboardingStart = 'blank' | GenerateIntent;
 export const ONBOARDING_ENGINES: readonly DsnEngine[] = ['postgres', 'mysql', 'sqlite'];
 
 /**
- * What `POST /setup/probe` found in the database the connect step was given
- * (45-T11). `null` until a DSN has been probed; `occupied` empty means the
+ * What `POST /setup/probe` found in the database the connect step was
+ * given. `null` until a DSN has been probed; `occupied` empty means the
  * database is either clean or holds only the husk of an abandoned attempt.
  */
 export interface ExistingStore {

@@ -4,7 +4,7 @@
  * to every send — a library file (name + size · type, or *File missing*) or
  * a generated file (label + token, resolved per recipient) — each removable;
  * *Add generated file*; and the *Workspace documents* list the caller
- * supplies (39-T14 fills it from `GET /files`).
+ * supplies (fills it from `GET /files`).
  */
 import { FileCog, FileText, Minus } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -20,7 +20,7 @@ export interface AttachmentsPanelProps {
   onGeneratedChange: (id: string, patch: { label?: string; token?: string }) => void;
   onRemove: (id: string) => void;
   onAddGenerated: () => void;
-  /** The workspace documents list (39-T14). */
+  /** The workspace documents list. */
   documents?: ReactNode;
 }
 

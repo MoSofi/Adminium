@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/a/$appKey/$` — a hosted app's screens, inside this dashboard
- * (29-app-surfaces.md D5/D6).
+ * `/a/$appKey/$` — a hosted app's screens, inside this
+ * dashboard.
  *
  * ── Why `/a/` and not a bare `/pos/kitchen` ────────────────────────────────
  * The naked URL was the nicer one and is the one deviation this wave records

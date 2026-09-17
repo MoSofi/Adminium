@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The files transport (37-files-and-storage.md D5, §3.9, 37-T20).
+ * The files transport.
  *
  * WHY `XMLHttpRequest` AND NOT `fetch`. `fetch` has no upload-progress event —
  * it has never had one, and the streams-based request bodies that would
@@ -37,8 +37,8 @@ export interface FileDto {
   deletedAt: number | null;
   /**
    * The connection this file belongs to — present whether or not a record
-   * claims it (38 D4). `entity` below repeats it when there IS a record; this
-   * is what a library file carries instead.
+   * claims it. `entity` below repeats it when there IS a record; this is what
+   * a library file carries instead.
    */
   connectionId: string | null;
   entity: { connectionId: string; table: string; recordId: string } | null;
@@ -52,10 +52,10 @@ export interface UploadFileInput {
   /**
    * The table this file is for, when it is for one.
    *
-   * OMITTED = a LIBRARY upload (38 D4): the file belongs to the connection and
-   * to no record, is authorised by `files.manage` rather than by a table
-   * grant, and is claimed at creation so the unattached sweep leaves it alone.
-   * Named = 37's rules, unchanged.
+   * OMITTED = a LIBRARY upload: the file belongs to the connection and to no
+   * record, is authorised by `files.manage` rather than by a table grant, and
+   * is claimed at creation so the unattached sweep leaves it alone. Named =
+   * 37's rules, unchanged.
    */
   table?: string | undefined;
   /** Attaches on upload; omit for the create form, where the record is not there yet. */
@@ -92,7 +92,7 @@ export class UploadAbortedError extends Error {
   }
 }
 
-/** `{error: {code, message, requestId}}` → `ApiError`, the envelope §1.4 defines. */
+/** `{error: {code, message, requestId}}` → `ApiError`, the envelope defines. */
 function toApiError(status: number, body: string): ApiError {
   let code = 'INTERNAL';
   let message = `Request failed with status ${String(status)}`;
@@ -178,7 +178,7 @@ export function uploadFile(input: UploadFileInput): Promise<UploadFileResult> {
 // mocked this module still passed. (Caught by the 37e review.)
 
 /**
- * Resolve a page of stored values in ONE call (§3.5).
+ * Resolve a page of stored values in ONE call.
  *
  * Batched deliberately: a grid of fifty rows with a file column would
  * otherwise be fifty requests, and the whole reason the reply is keyed by the
@@ -202,7 +202,7 @@ export async function resolveFiles(refs: readonly string[]): Promise<Map<string,
   return out;
 }
 
-/** Files attached to one record — the Attachments panel's list (§3.5). */
+/** Files attached to one record — the Attachments panel's list. */
 export async function listRecordFiles(input: {
   connectionId: string;
   table: string;

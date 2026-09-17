@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0023 — schema authoring: the applied-change ledger, and two columns on
- * the connection (35-schema-authoring.md §3.5, D3, D21, 35-T09).
+ * the connection.
  *
  * ─── Why a ledger, and why it is written BEFORE the first statement ────────
  *
@@ -13,11 +13,11 @@
  * third did not.
  *
  * So the row is inserted as `running` before the first statement leaves the
- * process (35-T36), and each step's outcome is recorded as it lands. If the
- * worker is killed mid-apply the row stays `running` — which is exactly the
- * truth, and is what lets the next plan tell the operator "a previous apply
- * did not finish" instead of silently planning against a schema that is half
- * way between two shapes.
+ * process, and each step's outcome is recorded as it lands. If the worker is
+ * killed mid-apply the row stays `running` — which is exactly the truth, and
+ * is what lets the next plan tell the operator "a previous apply did not
+ * finish" instead of silently planning against a schema that is half way
+ * between two shapes.
  *
  * ─── `steps` is one JSON column, not a child table ─────────────────────────
  *
@@ -37,11 +37,11 @@
  * a same-database meta store, and nothing persists it. The connections table
  * has `read_only` and no companion.
  *
- * Persisting it makes the Studio's honest-absence rule (D5, 35-T15) cheap: the
- * Design mode is hidden without a round trip. It is emphatically **not** the
+ * Persisting it makes the Studio's honest-absence rule (D5) cheap: the Design
+ * mode is hidden without a round trip. It is emphatically **not** the
  * authority for whether a step may run — that is the per-target preflight at
- * plan time (D17, 35-T34), because a role can own table A and not table B, and
- * one boolean on a connection cannot say so. This column is a UI hint, and the
+ * plan time (D17), because a role can own table A and not table B, and one
+ * boolean on a connection cannot say so. This column is a UI hint, and the
  * comment is here so nobody later mistakes it for a guard.
  *
  * NULL means "never probed", which every pre-0023 row is. Deliberately not

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SourceStep (M9-T04) focused regression: in schema-file mode the format Select
- * must be disabled while a parse is in flight — same as the Dropzone — so a
- * format change cannot fire a second /schema-import/parse whose stale response
- * could clobber the newer one's preview/captured tables.
+ * SourceStep focused regression: in schema-file mode the format Select must be
+ * disabled while a parse is in flight — same as the Dropzone — so a format
+ * change cannot fire a second /schema-import/parse whose stale response could
+ * clobber the newer one's preview/captured tables.
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';

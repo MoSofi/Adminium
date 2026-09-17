@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * ThemeProvider — runtime for the four theming axes (theme/accent/density/locale→dir),
- * per 02-design-system.md §4 and 03-component-library.md §3.6.
+ * ThemeProvider — runtime for the four theming axes (theme/accent/density/locale→dir).
  *
  * Responsibilities:
- * 1. Resolve effective prefs per-axis (§4.2): baseline ← localStorage pre-paint
- *    cache ← `globalDefaults` (adminium_settings) ← `userPrefs`
- *    (adminium_user_prefs) ← in-session `setPref` calls. localStorage is a
- *    cache, not a preference source: it only fills axes the server props do
- *    not supply (pre-auth surfaces), and server-resolved values always win.
- *    The `setPref` layer (`sessionPrefs`) is optimistic and transient: an entry
- *    is reconciled away once the server-resolved props catch up to it (same
- *    value), and can be dropped explicitly via `clearSessionPref` when the
- *    caller resets an axis server-side (M8 reset-to-default) — otherwise a
- *    stale optimistic value would keep masking the refetched default until a
- *    reload. Entries whose value still differs from the props are treated as
- *    in flight and keep winning (§4 behavior 4).
+ * 1. Resolve effective prefs per-axis: baseline ← localStorage pre-paint cache
+ * ← `globalDefaults` (adminium_settings) ← `userPrefs` (adminium_user_prefs) ←
+ * in-session `setPref` calls. localStorage is a cache, not a preference source:
+ * it only fills axes the server props do not supply (pre-auth surfaces), and
+ * server-resolved values always win. The `setPref` layer (`sessionPrefs`) is
+ * optimistic and transient: an entry is reconciled away once the
+ * server-resolved props catch up to it (same value), and can be dropped
+ * explicitly via `clearSessionPref` when the caller resets an axis server-side
+ * (M8 reset-to-default) — otherwise a stale optimistic value would keep masking
+ * the refetched default until a reload. Entries whose value still differs from
+ * the props are treated as in flight and keep winning (behavior 4).
  * 2. Stamp `THEME_ATTRIBUTES` on `document.documentElement` (`data-theme` with
  *    the RESOLVED light/dark, `data-accent`, `data-density`, `dir`, `lang`).
  *    This is the only place theming attributes are set after pre-hydration.
@@ -79,11 +77,10 @@ export interface ThemeProviderProps {
   /** Persistence hook for `setPref` (M8 wires `PATCH /api/v1/me/prefs` here). */
   onPrefChange?: ThemePrefChangeHandler;
   /**
-   * Direction resolver for locales this package cannot know about
-   * (23 §5.4). The app injects one backed by `@adminium/i18n`'s runtime
-   * registry; return `null` to defer to the compiled table and the cached
-   * axis. Absent in Storybook and in tests, where only the eight compiled
-   * locales exist.
+   * Direction resolver for locales this package cannot know about. The
+   * app injects one backed by `@adminium/i18n`'s runtime registry; return
+   * `null` to defer to the compiled table and the cached axis. Absent in
+   * Storybook and in tests, where only the eight compiled locales exist.
    */
   resolveDir?: (locale: Locale) => Dir | null;
   children: ReactNode;
@@ -104,7 +101,7 @@ function readStorageCache(): Partial<ThemePrefs> {
     if (density !== null && (DENSITIES as readonly string[]).includes(density)) {
       cache.density = density as Density;
     }
-    // SHAPE check, not membership (23 §5.2): a cached preference may name an
+    // SHAPE check, not membership: a cached preference may name an
     // admin-created locale this build does not compile in, and dropping it
     // would strand that user on en-US on every cold load.
     const locale = window.localStorage.getItem(STORAGE_KEYS.locale);
@@ -122,7 +119,7 @@ const LOCALE_ID_SHAPE = /^[a-z]{2,3}(_[A-Za-z0-9]{2,8}){0,2}$/;
 
 /**
  * The `dir` the last resolved paint cached — an INDEPENDENT axis, not
- * re-derived from the locale (23 §5.4).
+ * re-derived from the locale.
  *
  * Without this, a custom RTL locale paints `rtl` from the pre-hydration
  * script and snaps to `ltr` at hydration on every signed-out screen: this
@@ -183,7 +180,7 @@ export function ThemeProvider(props: ThemeProviderProps): ReactNode {
   const [prefersDark, setPrefersDark] = useState<boolean>(systemPrefersDark);
 
   // Everything resolvable from the server props (+ pre-paint cache), WITHOUT the
-  // optimistic session layer. `sessionPrefs` rides on top of this (§4.2).
+  // optimistic session layer. `sessionPrefs` rides on top of this.
   const propsResolved: ThemePrefs = useMemo(
     () => ({
       ...BASELINE_PREFS,
@@ -210,7 +207,8 @@ export function ThemeProvider(props: ThemeProviderProps): ReactNode {
     [propsResolved, sessionPrefs],
   );
 
-  // Live system-theme tracking, attached only while the pref is `system` (§4 behavior 2).
+  // Live system-theme tracking, attached only while the pref is `system`
+  // (behavior 2).
   useEffect(() => {
     if (prefs.theme !== 'system') return;
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
@@ -236,7 +234,8 @@ export function ThemeProvider(props: ThemeProviderProps): ReactNode {
     [prefs, prefersDark, resolveDir, cachedDir],
   );
 
-  // Stamp <html>, write the cache back, then notify listeners (§4 behaviors 1/3/5).
+  // Stamp <html>, write the cache back, then notify listeners (behaviors
+  // 1/3/5).
   useLayoutEffect(() => {
     const el = document.documentElement;
     el.setAttribute(THEME_ATTRIBUTES.theme, resolved.theme);

@@ -14,7 +14,7 @@ import {
 } from '../src/page-config/index.js';
 
 /**
- * The `config.derived` vocabulary (36-derived-columns.md §3.3).
+ * The `config.derived` vocabulary.
  *
  * Every refusal below is asserted BY NAME rather than by "it failed": a page
  * author whose measure is rejected has to be told which measure and which

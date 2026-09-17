@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * reportDocumentsRepo — the 43-T02 verbs (43-report-builder.md §3.2; wave
- * 0030).
+ * reportDocumentsRepo — the verbs (wave 0030).
  *
  * The assertions that carry the wave are the two placements, because the
  * manager's order IS the comp's array order and the comp never sorts: a new

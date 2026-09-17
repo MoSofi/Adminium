@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Desktop logging (11-electron.md §9 "Logs"): "server stdout/stderr piped to
+ * Desktop logging: "server stdout/stderr piped to
  * `<userData>/logs/adminium-server.log`, main-process log alongside; 5 MB × 5
  * rotation. Help → 'Show logs' reveals the folder."
  *
@@ -9,12 +9,12 @@
  * Every write is `appendFileSync`. That is a deliberate trade, not an oversight.
  * The single most valuable line this file will ever carry is the last one a
  * crashing server printed, and a buffered/async writer loses exactly that line:
- * the child dies, its stream never flushes, and the crash screen (§2.2 step 9)
- * offers the user a log path pointing at a file that stops one line short of the
- * reason. The volume is a few lines per second from a local pino, on the main
- * process of a desktop app that is otherwise idle — the cost of `fsync`-less
- * appends here is not measurable, and the failure it prevents is the one thing
- * "Show logs" exists for.
+ * the child dies, its stream never flushes, and the crash screen offers the user
+ * a log path pointing at a file that stops one line short of the reason. The
+ * volume is a few lines per second from a local pino, on the main process of a
+ * desktop app that is otherwise idle — the cost of `fsync`-less appends here is
+ * not measurable, and the failure it prevents is the one thing "Show logs"
+ * exists for.
  *
  * ─── No Electron ─────────────────────────────────────────────────────────────
  *
@@ -33,11 +33,11 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-/** §9: "5 MB × 5 rotation". */
+/** "5 MB × 5 rotation". */
 export const DEFAULT_MAX_BYTES = 5 * 1024 * 1024;
 /** Total files kept: the live one plus `DEFAULT_MAX_FILES - 1` archives. */
 export const DEFAULT_MAX_FILES = 5;
-/** Lines kept in memory for the crash screen's log excerpt (§2.2 step 7). */
+/** Lines kept in memory for the crash screen's log excerpt. */
 export const DEFAULT_TAIL_LINES = 200;
 
 /**
@@ -226,14 +226,14 @@ export const MAIN_LOG_FILENAME = 'adminium-main.log';
 export interface DesktopLogging {
   /** Main-process events: boot, restarts, update checks. */
   main: RotatingFileLog;
-  /** §9: the child's stdout/stderr, verbatim. */
+  /** The child's stdout/stderr, verbatim. */
   server: RotatingFileLog;
   /** What "Show logs" reveals. */
   logsDir: string;
 }
 
 /**
- * Both logs, in `logsDir` (the caller passes `app.getPath('logs')` — §9's
+ * Both logs, in `logsDir` (the caller passes `app.getPath('logs')` —
  * `<userData>/logs`). Split in two because the server's pino output and the
  * main process's own narration have different formats and different volumes;
  * interleaving them makes both harder to read.

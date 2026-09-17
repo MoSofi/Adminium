@@ -5,11 +5,11 @@
  * the rows that came back.
  *
  * Two tests need this and both are about SQL that must not change:
- * 36-derived-columns.md 36-T12 (a read carrying no `compute=` emits
- * byte-identical SQL to the pre-wave build) and 36-T07 (the golden fold
- * fragment is parenthesized — the defect being guarded is kysely's
- * `eb(ref, op, ref)` dropping parentheses and binding a reference as a
- * parameter, which produces a wrong NUMBER, not a wrong query shape).
+ * The byte-identity contract (a read carrying no `compute=` emits
+ * byte-identical SQL to the pre-wave build) (the golden fold fragment
+ * is parenthesized — the defect being guarded is kysely's `eb(ref, op,
+ * ref)` dropping parentheses and binding a reference as a parameter,
+ * which produces a wrong NUMBER, not a wrong query shape).
  *
  * There is no `log` hook to use instead: the server builds its Kysely
  * instance inside `ConnectionManager` from whatever dialect the adapter

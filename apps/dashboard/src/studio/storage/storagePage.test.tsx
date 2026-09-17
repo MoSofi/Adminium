@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/storage` (37-files-and-storage.md §3.8, 37-T21).
+ * `/studio/storage`.
  *
  * Mounted BARE rather than through the router, unlike its Studio siblings, for
  * one reason: this page's route is registered separately, so a router harness
@@ -405,7 +405,7 @@ describe('StoragePage', () => {
 
     const started = await screen.findByTestId('studio-storage-move-started');
     expect(started.textContent).toContain('background');
-    // `null` on the wire is how "this server's disk" is said (37 D3).
+    // `null` on the wire is how "this server's disk" is said.
     expect(lastBody(calls, 'POST', '/storage/migrate')).toEqual({ from: null, to: 'dst_1' });
   });
 });

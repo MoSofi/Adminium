@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/public-api` — the Studio surface for the scoped public API
- * (28-public-surface.md §3, 28-T13).
+ * `/studio/public-api` — the Studio surface for the scoped public
+ * API.
  *
  * Three things an operator does here, in the order the page presents them
  * because it is the order they matter:
@@ -16,10 +16,10 @@
  *     and compiled server-side BEFORE it is stored, so a mistake is caught here
  *     by the person who made it rather than by a visitor who cannot read it.
  *     Compile issues are shown in full; the anonymous surface still says
- *     nothing at all (§3.2), and that asymmetry is the point.
- *  3. **Mint keys.** Unlike `adm_sk_`, a publishable secret is RE-READABLE
- *     (§3.3): it lives in a public bundle and has to survive a rebuild months
- *     later. Every reveal is audited server-side.
+ * nothing at all, and that asymmetry is the point.
+ * 3. **Mint keys.** Unlike `adm_sk_`, a publishable secret is RE-READABLE: it
+ *  lives in a public bundle and has to survive a rebuild months later. Every
+ *  reveal is audited server-side.
  *
  * ── WHAT THIS PAGE DELIBERATELY DOES NOT DO ────────────────────────────────
  * It does not offer a scope BUILDER. A scope is an authorization document, and
@@ -108,8 +108,8 @@ export function PublicApiPage() {
   const now = Date.now();
 
   /*
-   * Hosted customer surfaces, for the optional app binding on the mint form
-   * (29 D10). NOT part of the suspense set: the surfaces namespace sits behind
+   * Hosted customer surfaces, for the optional app binding on the mint form.
+   * NOT part of the suspense set: the surfaces namespace sits behind
    * `system:settings:manage`, and a caller who can manage keys but not
    * settings must still get this whole page — with the binding select simply
    * absent, which is also the state of an instance serving no surfaces.
@@ -642,8 +642,8 @@ function KeysCard({
           * REMOVED: a banner telling the operator to grant table permissions
           * under Team → Roles.
           *
-          * It was wrong. A publishable key is never an RbacPrincipal (28 D3), so
-          * the public routes never consult RBAC at all — the SCOPE is the
+          * It was wrong. A publishable key is never an RbacPrincipal, so the
+          * public routes never consult RBAC at all — the SCOPE is the
           * authorization, and it is the only thing that is. Verified by reading
           * the route (its single mention of `request.can()` is a comment) and
           * empirically: the acceptance run read four tables through a

@@ -18,12 +18,12 @@ import type { WidgetProps } from '../../registry/types.js';
  * Registry-facing widget components for the `tables` family — thin adapters
  * binding `WidgetProps` (config + data + onEvent) onto the standalone
  * components, which the `page-crud` template also composes directly with
- * richer host wiring. One module so Vite emits a single family chunk
- * (04 §2.3); `definitions.ts` lazy-imports it per widget.
+ * richer host wiring. One module so Vite emits a single family chunk;
+ * `definitions.ts` lazy-imports it per widget.
  */
 
 // Config schemas live in the pure `tables-config` module so the registry
-// metadata graph never reaches this component file (04 §2.3). Re-exported here
+// metadata graph never reaches this component file. Re-exported here
 // to keep existing import points stable.
 export {
   bulkActionToolbarConfigSchema,
@@ -78,7 +78,7 @@ function formatContext(config: { format?: { locale?: string | undefined; currenc
   return { locale: config.format?.locale, currency: config.format?.currency };
 }
 
-/** Qualified table name from a shared-config binding (query descriptor §5.1). */
+/** Qualified table name from a shared-config binding (query descriptor). */
 function bindingTable(config: {
   binding?: { connectionId: string; source: { schema?: string | undefined; name: string } } | undefined;
 }): { table: string; connectionId: string } | undefined {

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Argument parsing for the `adminium` CLI (01-architecture.md §4.1).
+ * Argument parsing for the `adminium` CLI.
  *
- * WHY NO CLI FRAMEWORK. `npx adminium` is advertised as "a complete install"
+ * WHY NO CLI FRAMEWORK. `npx @adminiumjs/adminium` is advertised as "a complete install"
  * — the published tarball already carries the server, the dashboard build, and
  * the meta migrations, so every extra runtime dependency is weight on the very
  * first thing a new user does. Node 22's built-in `node:util` `parseArgs`
@@ -82,7 +82,7 @@ export function parseFlags(argv: readonly string[], specs: FlagSpecs, command: s
 }
 
 /**
- * Split a repeatable-or-CSV flag into items. 06-llm-assist.md §10.4 writes
+ * Split a repeatable-or-CSV flag into items. The CLI writes
  * `--sections labels,enums,…` and `--locales en_US,de_DE`; supporting the
  * repeated form too costs nothing and is what people reflexively try.
  * `--sections a,b --sections c` → `['a','b','c']`.

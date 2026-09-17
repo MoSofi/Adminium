@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two time-driven producers (42-automations-and-workflow-logs.md 42-T06,
- * 42-T07): the watch poller that sees rows Adminium did not write, and the
- * schedule scanner that asks "which rows match right now?".
+ * The two time-driven producers: the watch poller that sees rows Adminium
+ * did not write, and the schedule scanner that asks "which rows match right
+ * now?".
  *
  * The assertions that matter are the ones about NOT firing twice and NOT
  * missing a row, because both failures are silent: a duplicate welcome email

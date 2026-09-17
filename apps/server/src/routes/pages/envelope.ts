@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Envelope construction for user-authored pages (08-server-api.md §2.6).
+ * Envelope construction for user-authored pages.
  *
  * The Engine's builders — `buildCrudEnvelope`, `buildDashboardEnvelope`,
  * `composeRequestedArchetype` — all compose FROM a schema snapshot: they need a
@@ -16,12 +16,12 @@
  *    one, and "create a blank dashboard" must not be gated on a snapshot
  *    existing.
  *
- * So this builds the §6.1 FRAME — the fields the envelope schema requires — and
- * an empty per-template body the renderers already tolerate (every layout-
- * bearing template parses `config.layout` through `parseTemplateBody`, whose
- * failure mode is an empty layout, and `PageCrud` renders an empty grid from
- * `columns: []`). The admin then fills it via the dashboard builder or the
- * column editor, which is the same path a generated page's edits take.
+ * So this builds the FRAME — the fields the envelope schema requires — and an
+ * empty per-template body the renderers already tolerate (every layout- bearing
+ * template parses `config.layout` through `parseTemplateBody`, whose failure
+ * mode is an empty layout, and `PageCrud` renders an empty grid from `columns:
+ * []`). The admin then fills it via the dashboard builder or the column editor,
+ * which is the same path a generated page's edits take.
  *
  * Deliberately NOT stamped: `config.generatedHash`. It is the generator's
  * marker, and `upsertGenerated` reads its absence as "freely overwritable"
@@ -83,8 +83,8 @@ export interface BuildUserPageInput {
  * `parseTemplateBody` reads.
  *
  * `templateVersion` is stamped as 1 rather than read from the template
- * manifest: it is advisory-only until per-template migrations land (04-T15),
- * and a hand-built page has not been composed against any manifest version.
+ * manifest: it is advisory-only until per-template migrations land, and a
+ * hand-built page has not been composed against any manifest version.
  */
 function emptyBodyFor(template: string): Record<string, unknown> {
   if (template === 'page-crud') {
@@ -114,14 +114,13 @@ export class InvalidPageEnvelopeError extends Error {
 }
 
 /**
- * Build and validate a §6.1 envelope for a new user-authored page.
+ * Build and validate a envelope for a new user-authored page.
  *
  * Validated here rather than trusted: this is the one place a document enters
  * `adminium_pages` without having gone through the Engine's own
  * `pageEnvelopeSchema.parse`, and the client never sees the envelope on
  * create — it sends fields. Throwing on a malformed frame keeps the
- * never-crash renderer contract (09 §3.1) an invariant of the store rather
- * than a hope.
+ * never-crash renderer contract an invariant of the store rather than a hope.
  */
 export function buildUserPageEnvelope(input: BuildUserPageInput): Record<string, unknown> {
   const envelope: Record<string, unknown> = {

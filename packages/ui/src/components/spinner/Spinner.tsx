@@ -8,7 +8,7 @@ import { cn } from '../../lib/cn.js';
 /**
  * Rotating ring: currentColor top segment on a 25%-alpha ring, `nb-spin`
  * keyframe from @adminium/tokens. Sizes 14/18/24px
- * (research/design-system.md §3 Tier 1). Inherits its color, so it adapts to
+ * (research/design-system.md Tier 1). Inherits its color, so it adapts to
  * `text-accent-fg` inside primary buttons; set `text-accent` (default) via
  * className on standalone usage.
  */

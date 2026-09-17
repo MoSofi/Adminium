@@ -6,20 +6,19 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * `domain` family registry metadata (annex §13; M7 Wave 3) — the two widgets
+ * `domain` family registry metadata (annex; M7 Wave 3) — the two widgets
  * named directly in M7's exit criteria ("an org chart for a self-FK people
  * table, a gantt for start/end/progress").
  *
  * Metadata only — the components load through the `domain-track-components`
  * barrel via `lazy(() => import(...))`, so the family stays in ONE lazy chunk
  * and the registry metadata never eagerly pulls component code into a sibling
- * family's bundle (04 §2.3). The GREEN LOOP spreads `domainTrackDefinitions`
- * into the registry map. Widget ids match the annex catalog exactly
- * (acceptance #1).
+ * family's bundle. The GREEN LOOP spreads `domainTrackDefinitions` into the
+ * registry map. Widget ids match the annex catalog exactly (acceptance #1).
  *
- * SIZING — annex "Grid: 12×6" for both. Heights are 40px HALF-units (04 §6.1),
- * so `defaultH = round(6 × 2) = 12`. The mins are the smallest cell at which
- * each stays legible: a gantt needs its label gutter + a readable axis, an org
+ * SIZING — annex "Grid: 12×6" for both. Heights are 40px HALF-units, so
+ * `defaultH = round(6 × 2) = 12`. The mins are the smallest cell at which each
+ * stays legible: a gantt needs its label gutter + a readable axis, an org
  * chart needs at least a root + one report band.
  */
 
@@ -58,7 +57,7 @@ export const ganttChartDefinition: WidgetDefinition = defineWidget({
   ),
   configSchema: ganttChartConfigSchema,
   /**
-   * §3 has no gantt-specific envelope; the annex derives the chart "from
+   * There is no gantt-specific envelope; the annex derives the chart "from
    * start/end date columns + progress + phase FK", which is a `record-list`
    * projection. Empty ⇔ `total === 0 && !cursor` (the shared predicate).
    */

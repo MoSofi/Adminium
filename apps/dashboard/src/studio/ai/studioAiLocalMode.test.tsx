@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Settings → AI under 11-electron.md §8.2's LLM row: "Available, labeled; BYO
- * round-trip is the default and is highlighted first in desktop."
+ * Settings → AI LLM row: "Available, labeled; BYO round-trip is the default
+ * and is highlighted first in desktop."
  *
  * Rendered against the REAL page, because the claim being made is about what an
  * admin SEES — the order of two cards and the words on them. `capabilities.test.ts`

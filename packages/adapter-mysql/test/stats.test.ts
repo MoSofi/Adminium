@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Offline unit tests for the MySQL statistics collector (06 §4.2). No `mysql2`
- * driver: a mock executor routes information_schema/scan/sampling SQL by shape
- * so the estimate logic (TABLE_ROWS-vs-exact, scan fallback, capping) and the
- * privacy rules (sample-free default, PII never sampled) are asserted
+ * Offline unit tests for the MySQL statistics collector. No `mysql2` driver: a
+ * mock executor routes information_schema/scan/sampling SQL by shape so the
+ * estimate logic (TABLE_ROWS-vs-exact, scan fallback, capping) and the privacy
+ * rules (sample-free default, PII never sampled) are asserted
  * deterministically.
  */
 import { describe, expect, it } from 'vitest';

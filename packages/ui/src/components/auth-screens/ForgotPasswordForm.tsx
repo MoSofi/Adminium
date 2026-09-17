@@ -44,12 +44,11 @@ export interface ForgotPasswordFormProps
   /** Request in flight. */
   loading?: boolean | undefined;
   /**
-   * The instance cannot send this mail at all — 11-electron.md §8.2's email row
-   * ("Enabled only when SMTP is configured in settings; otherwise buttons
-   * disabled"). Distinct from `loading`, which means "wait"; this means "not
-   * from here". Pair it with {@link ForgotPasswordFormProps.notice} — a disabled
-   * button with no explanation is the exact thing `Empty States.dc.html`
-   * forbids.
+   * The instance cannot send this mail at all — email row ("Enabled only when
+   * SMTP is configured in settings; otherwise buttons disabled"). Distinct from
+   * `loading`, which means "wait"; this means "not from here". Pair it with
+   * {@link ForgotPasswordFormProps.notice} — a disabled button with no
+   * explanation is the exact thing `Empty States.dc.html` forbids.
    */
   disabled?: boolean | undefined;
   /**

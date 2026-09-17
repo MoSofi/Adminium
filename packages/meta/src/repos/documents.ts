@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * documentsRepo — adminium_documents (34-invoices-add-on.md §3.3; wave 0031).
+ * documentsRepo — adminium_documents (wave 0031).
  *
  * THE REGISTER: what was issued, frozen. Not `adminium_invoice_documents`,
  * which holds what a person typed and can edit again. A row here carries the
  * whole `subject` it was rendered from, so the document stays what it was
  * after the source row is edited, archived or deleted — which is the only
- * behaviour an issued document can have (25 D12).
+ * behaviour an issued document can have.
  *
  * ─── REDACTION IS A READ MODE, NOT A SECOND QUERY ──────────────────────────
  *
@@ -315,7 +315,7 @@ export function documentsRepo(meta: MetaDb) {
   }
 
   /**
-   * Bind a drawn document to the claim that asked for it (34 §7.6).
+   * Bind a drawn document to the claim that asked for it.
    *
    * SEPARATE from `create`, and called last, because a document that failed to
    * draw must not be claimable: a `failed` row a customer can list turns "your

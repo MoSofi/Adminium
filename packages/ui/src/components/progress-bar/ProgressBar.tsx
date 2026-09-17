@@ -8,7 +8,7 @@ import type { Tone } from '../badge/Badge.js';
 
 /**
  * Pill progress track (surface-3) — 4/6/10px heights
- * (research/design-system.md §3 Tier 1).
+ * (research/design-system.md Tier 1).
  */
 export const progressBarVariants = cva('w-full overflow-hidden rounded-full bg-surface-3', {
   variants: {
@@ -77,7 +77,7 @@ export function ProgressBar({
           animated &&
             'origin-[0%_50%] animate-[nb-grow_0.85s_cubic-bezier(.2,.7,.3,1)] [--nb-grow-x:0] [--nb-grow-y:1] rtl:origin-[100%_50%]',
         )}
-        // Sanctioned escape hatch: CSS custom properties only (02-design-system.md §8).
+        // Sanctioned escape hatch: CSS custom properties only.
         style={{ '--adm-progress': `${pct}%` }}
       />
     </div>

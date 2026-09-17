@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CrudApi implementation — the typed client for
- * `/api/v1/data/:connectionId/:table` (08-server-api.md §2.7; exact shapes
- * from apps/server/src/routes/data/schema.ts) implementing the `CrudApi`
- * adapter contract the `page-crud` template defines
+ * `/api/v1/data/:connectionId/:table` (exact shapes from
+ * apps/server/src/routes/data/schema.ts) implementing the `CrudApi` adapter
+ * contract the `page-crud` template defines
  * (packages/widgets/src/templates/page-crud/crud-api.ts): list (filter tree +
  * `q` + keyset/offset), get (+ inbound counts), references preflight,
  * create/update/delete (+ cascade dry-run preview), bulk, single-use undo
  * tokens, FK combobox lookup via the referenced table's list endpoint with
  * `q=`, and related-record tabs via a `where column = value` list.
  *
- * TanStack Query binding lives here too (`crudListQuery`, 09-generated-app.md
- * §4 cache discipline) — the template itself stays fetch- and query-free.
+ * TanStack Query binding lives here too (`crudListQuery`, cache discipline) —
+ * the template itself stays fetch- and query-free.
  */
 import { keepPreviousData, queryOptions } from '@tanstack/react-query';
 import type {
@@ -57,7 +57,7 @@ function listSearch(params: CrudListParams): string {
   if (params.order !== undefined && params.order.length > 0) {
     search.set('order', params.order.map((sort) => `${sort.column}.${sort.dir}`).join(','));
   }
-  // Repeatable — one `lookup=` per cross-table alias (08 §2.7.1), one
+  // Repeatable — one `lookup=` per cross-table alias, one
   // `agg=` per reverse-link aggregate alias.
   for (const lookup of params.lookup ?? []) search.append('lookup', lookup);
   for (const agg of params.agg ?? []) search.append('agg', agg);
@@ -171,9 +171,8 @@ export function createCrudApi(connectionId: string, table: string): BoundCrudApi
 }
 
 /**
- * List binding (09 §4 cache discipline): key
- * `['data', connectionId, table, params]`, staleTime 0, previous page held
- * while the next one loads.
+ * List binding (cache discipline): key `['data', connectionId, table,
+ * params]`, staleTime 0, previous page held while the next one loads.
  */
 export function crudListQuery(crud: BoundCrudApi, params: CrudListParams = {}) {
   return queryOptions({

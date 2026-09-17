@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The Design buffer — the desired-state document the user is editing.
- * 35-schema-authoring.md §3.1, D1.
  *
  * ─── Why this is a SEPARATE buffer from the remap one ──────────────────────
  *
@@ -9,7 +8,7 @@
  * full-document `PUT` that replaces them all. This holds a desired SCHEMA:
  * irreversible structure, applied through plan → review → confirm.
  *
- * §0.3's first trap is exactly the failure of merging them — one Save button
+ * The first trap is exactly the failure of merging them — one Save button
  * that silently mixes "call this Customers" with "drop this column". Two
  * buffers, two verbs, two confirmations. They share a page and nothing else.
  */
@@ -189,7 +188,7 @@ export function blankColumn(name = ''): DesiredColumn {
 }
 
 /**
- * An existing table, as the designer needs it — 35-schema-authoring.md 35-T12.
+ * An existing table, as the designer needs it.
  *
  * ─── The bug this replaces ─────────────────────────────────────────────────
  *

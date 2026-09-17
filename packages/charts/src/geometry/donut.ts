@@ -46,8 +46,8 @@ export interface DonutArcsOptions {
 /**
  * Donut arcs in input order (no value sort — legend order matches data).
  * Rotation is always clockwise from 12 o'clock; per the RTL rules
- * (10-i18n-theming.md §5.5) rotation direction does NOT change in RTL — only
- * the surrounding legend/center layout mirrors, which is plain flex/logical CSS.
+ * rotation direction does NOT change in RTL — only the surrounding
+ * legend/center layout mirrors, which is plain flex/logical CSS.
  */
 export function donutArcs(slices: readonly DonutSliceInput[], options: DonutArcsOptions): DonutArcDatum[] {
   const { outerRadius, thickness, padAngle = 0.02, cornerRadius = 2, maxSlices = Infinity, otherLabel } = options;

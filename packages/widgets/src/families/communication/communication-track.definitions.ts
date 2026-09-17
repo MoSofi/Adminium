@@ -17,19 +17,19 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * Track COMM contribution to the `communication` family (annex §9) — the
+ * Track COMM contribution to the `communication` family (annex) — the
  * conversation+message pair that closes the M7 Wave-3 exit criterion "a chat for
  * conversation+message pairs", plus the LLM assist panel shell.
  *
  * Metadata only — the @adminium/ui-heavy widget components load through the
  * `communication-track-components` barrel via `lazy(() => import(...))`, so the
  * family stays in one lazy chunk and the registry metadata never eagerly pulls
- * component code (04 §2.3; the kpi/charts/feeds/boards convention). The GREEN
- * LOOP spreads `communicationTrackDefinitions` into the registry map. Widget ids
+ * component code (the kpi/charts/feeds/boards convention). The GREEN LOOP
+ * spreads `communicationTrackDefinitions` into the registry map. Widget ids
  * match the annex catalog exactly (acceptance #1).
  *
  * Sizing converts the annex's row counts to the grid's 40px HALF-row units
- * (04 §6.1 — `minH = round(annexRows × 2)`).
+ * (`minH = round(annexRows × 2)`).
  */
 
 export const conversationInboxDefinition: WidgetDefinition = defineWidget({
@@ -84,7 +84,7 @@ export const typingIndicatorDefinition: WidgetDefinition = defineWidget({
     import('./communication-track-components.js').then((m) => ({ default: m.TypingIndicatorWidget })),
   ),
   configSchema: typingIndicatorConfigSchema,
-  // annex §9: "boolean per conversation" — the §3 `boolean-map` shape, keyed by
+  // annex: "boolean per conversation" — the `boolean-map` shape, keyed by
   // conversation id (`isEmptyByShape` reads `entries`, so an unbound instance
   // routes to the empty state rather than sitting silently idle).
   dataContract: 'boolean-map',
@@ -100,7 +100,7 @@ export const callWidgetDefinition: WidgetDefinition = defineWidget({
   family: 'communication',
   component: lazy(() => import('./communication-track-components.js').then((m) => ({ default: m.CallWidgetWidget }))),
   configSchema: callWidgetConfigSchema,
-  // annex §9: "{kind, peer, state}" — one row, i.e. the §3 `record` shape.
+  // annex: "{kind, peer, state}" — one row, i.e. the `record` shape.
   dataContract: 'record',
   // annex "modal overlay"; the sizing is what `page-chat`'s optional `call`
   // slot (3×6) reserves, so a host that grid-places it instead still fits.

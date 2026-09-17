@@ -12,8 +12,8 @@
  * Every hop is a single-column outbound FK of the table reached so far,
  * resolved against the effective model's relations (declared FKs, accepted
  * overrides, inferred relations — composite FKs are refused). Identifiers that
- * reach SQL are the snapshot's own, per the §7 item-1 rule the rest of the
- * CRUD surface follows; the client's strings only ever select from allowlisted
+ * reach SQL are the snapshot's own, per the item-1 rule the rest of the CRUD
+ * surface follows; the client's strings only ever select from allowlisted
  * maps.
  *
  * Compilation is a correlated scalar subquery per lookup (nested per hop), not

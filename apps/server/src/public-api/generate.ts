@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SERVER-GENERATED DEFAULTS ON THE PUBLIC SURFACE
- * (33-live-chat-add-on.md §7.1, D14 / O5 ruled 2026-09-01 as D21).
+ * (ruled 2026-09-01 as D21).
  *
  * ── THE HOLE THIS FILLS ─────────────────────────────────────────────────────
  *
@@ -16,9 +16,9 @@
  *
  *   · make the primary key `writable` — `compileScope` refuses it, and rightly:
  *     a caller who picks their own id picks somebody else's id.
- *   · mint the id in the browser — add-on code may not touch `crypto` (24 D7),
- *     and even where it could, a client-chosen key is the same hazard wearing
- *     a different hat.
+ * · mint the id in the browser — add-on code may not touch `crypto`, and even
+ *   where it could, a client-chosen key is the same hazard wearing a different
+ *   hat.
  *
  * The primitive that closes it is one sentinel: a `defaults` VALUE may be
  * `{ "$generate": "uuid" }` or `{ "$generate": "now" }`, and the server resolves
@@ -29,10 +29,10 @@
  * ── WHY NOT DIALECT `DEFAULT` EXPRESSIONS IN THE DDL ────────────────────────
  *
  * `gen_random_uuid()`, `(UUID())`, `lower(hex(randomblob(16)))` were the
- * alternative and are recorded as declined (O5, 33 D21). Two reasons: they
- * reach only tables Adminium itself created, so an app-owned table — which is
- * most of them — is no better off; and they apply only to FUTURE installs,
- * leaving every table already in an operator's database exactly where it was.
+ * alternative and are recorded as declined (O5). Two reasons: they reach only
+ * tables Adminium itself created, so an app-owned table — which is most of
+ * them — is no better off; and they apply only to FUTURE installs, leaving
+ * every table already in an operator's database exactly where it was.
  *
  * ── WHERE THE VALUE COMES FROM, AND WHY THE DIALECT IS AN ARGUMENT ──────────
  *

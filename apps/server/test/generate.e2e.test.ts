@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * M4-T08 end-to-end: live-PG Northwind → create connection → POST
+ * End-to-end: live-PG Northwind → create connection → POST
  * /connections/:id/generate (introspects on demand) → adminium_pages rows
  * (crud pages with sane columns + one dashboard with 4 KPIs, line, donut) →
  * bootstrap nav populated → idempotent re-run.

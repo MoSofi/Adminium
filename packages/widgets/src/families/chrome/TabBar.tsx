@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `tab-bar` (annex §11) — icon+label underline or pill tabs driving panel
+ * `tab-bar` (annex) — icon+label underline or pill tabs driving panel
  * visibility; supports count pills in labels and cross-page link tabs. Evidence:
  * Workspace Settings, CRUD Admin (tab count pills), Ticket Queue.
  *
@@ -33,7 +33,7 @@ export interface TabDef {
   href?: string | undefined;
 }
 
-/** Project the §3 `record-list` payload onto tab defs. */
+/** Project the `record-list` payload onto tab defs. */
 export function tabsOf(data: unknown, config: TabBarConfig): TabDef[] {
   const rows = recordRowsOf(data);
   const out: TabDef[] = [];
@@ -69,7 +69,7 @@ export function TabBarWidget({ config, data, onEvent }: WidgetProps<TabBarConfig
         value={active}
         onValueChange={(key) => {
           // A link tab navigates; a filter tab just reports the change and the
-          // host re-queries its siblings. Both go through onEvent (04 §2.1).
+          // host re-queries its siblings. Both go through onEvent.
           const href = tabs.find((tab) => tab.key === key)?.href;
           if (href !== undefined) onEvent({ type: 'drill-through', href });
         }}

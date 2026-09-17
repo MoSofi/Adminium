@@ -2,10 +2,10 @@
 /**
  * `adminium migrate` — run the meta migrations against the configured store.
  *
- * Delegates wholesale to `@adminium/meta`'s migrator (07-meta-store.md §4): the
- * ledger, checksum-drift detection, and the unknown-migration guard are its
- * rules, not this command's. Idempotence is therefore inherited, not
- * reimplemented — a second run applies nothing because the ledger says so.
+ * Delegates wholesale to `@adminium/meta`'s migrator: the ledger,
+ * checksum-drift detection, and the unknown-migration guard are its rules, not
+ * this command's. Idempotence is therefore inherited, not reimplemented — a
+ * second run applies nothing because the ledger says so.
  *
  * The one thing it does NOT delegate is what happens BEFORE the first statement.
  * `backup/pre-migration.ts` snapshots the store when there is pending work and

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The sheet's shared pieces (comp CSS 47-53; 34-invoices-add-on.md Appendix
- * E §C1–C3): the selectable region (`.nb-sec`), the borderless inline input
- * and textarea (`.nb-in`), the kicker, the status pill, and the image-file
- * reader every upload label shares.
+ * The sheet's shared pieces (comp CSS 47-53): the selectable region
+ * (`.nb-sec`), the borderless inline input and textarea (`.nb-in`), the
+ * kicker, the status pill, and the image-file reader every upload label
+ * shares.
  *
  * THE SHEET IS ALWAYS LIGHT (S6): the paper has one palette whatever the
  * theme, so the greys here are light literals like the email `MailShell`'s

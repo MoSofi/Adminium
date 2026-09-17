@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Review-diff model (06-llm-assist.md §8.2, §10.3) — the pure logic behind the
- * `/studio/llm-runs/:id/review` screen: it maps the server's per-suggestion
- * diff categories into the ten §10.3 display groups, derives the default
- * accept/reject selection from each row's status + confidence, computes the
- * confidence-gated "Accept all ≥ threshold" set, and summarizes the accepted
- * writes for the apply-confirmation modal.
+ * Review-diff model — the pure logic behind the `/studio/llm-runs/:id/review`
+ * screen: it maps the server's per-suggestion diff categories into the ten
+ * display groups, derives the default accept/reject selection from each row's
+ * status + confidence, computes the confidence-gated "Accept all ≥ threshold"
+ * set, and summarizes the accepted writes for the apply-confirmation modal.
  *
  * Kept framework-free (no React, no DOM) so acceptance criterion 12 — "'Accept
  * all ≥ 0.8' never selects rejects-heuristic or user-locked rows" — is pinned
  * by a fast unit test rather than a rendered one. The dashboard cannot import
- * `@adminium/llm` (01 §2.3), so the selection semantics of `apply/diff.ts`
+ * `@adminium/llm`, so the selection semantics of `apply/diff.ts`
  * (`CONFIDENCE_SELECTABLE_STATUSES`, `isBulkAcceptable`) are re-stated here
  * structurally against the mirrored `SuggestionDiff` DTO.
  */
 import type { SuggestionDiff, SuggestionStatus } from '../ai/api.js';
 
-/** The confidence at/above which conflict + llm-new rows pre-check (§8.2). */
+/** The confidence at/above which conflict + llm-new rows pre-check. */
 export const DEFAULT_ACCEPT_THRESHOLD = 0.8;
 
-// ─── Display groups (§10.3) ──────────────────────────────────────────────────
+// ─── Display groups ──────────────────────────────────────────────────────────
 
 export type ReviewGroupId =
   | 'labels'
@@ -35,7 +34,7 @@ export type ReviewGroupId =
 
 export interface ReviewGroupDef {
   id: ReviewGroupId;
-  /** Server diff `category` tokens (§8.1 id prefixes) folded into this group. */
+  /** Server diff `category` tokens (id prefixes) folded into this group. */
   categories: readonly string[];
   /** Kebab-case lucide icon (resolved via `lucideByName`). */
   icon: string;
@@ -44,10 +43,10 @@ export interface ReviewGroupDef {
 }
 
 /**
- * The ten review groups in §10.3 order. `dashboard` + `widget` diff rows share
- * one group; `icon` has no dedicated diff category today (the table label
- * bundle carries the icon), so that group renders only if the server ever emits
- * one — grouping is data-driven and skips empty groups.
+ * The ten review groups order. `dashboard` + `widget` diff rows share one
+ * group; `icon` has no dedicated diff category today (the table label bundle
+ * carries the icon), so that group renders only if the server ever emits one —
+ * grouping is data-driven and skips empty groups.
  */
 export const REVIEW_GROUPS: readonly ReviewGroupDef[] = [
   {
@@ -136,7 +135,7 @@ export interface ReviewGroup {
 }
 
 /**
- * Bucket the diff rows into the §10.3 display groups, preserving the server's
+ * Bucket the diff rows into the display groups, preserving the server's
  * stable row order within each group and dropping empty groups. Rows whose
  * category maps to no group are collected under a trailing `labels`-like
  * fallback so nothing is silently lost.
@@ -158,7 +157,7 @@ export function groupDiffs(diffs: readonly SuggestionDiff[]): ReviewGroup[] {
   return groups;
 }
 
-// ─── Selection semantics (§8.2, acceptance criterion 12) ─────────────────────
+// ─── Selection semantics (acceptance criterion 12) ───────────────────────────
 
 /**
  * A row the human can toggle. `heuristic-only` has nothing to accept and
@@ -185,7 +184,7 @@ function isBulkEligible(status: SuggestionStatus): boolean {
   return status === 'conflict' || status === 'llm-new';
 }
 
-/** Whether a row is pre-checked at `threshold` (§8.2 "Review default"). */
+/** Whether a row is pre-checked at `threshold`. */
 export function isDefaultChecked(diff: SuggestionDiff, threshold = DEFAULT_ACCEPT_THRESHOLD): boolean {
   if (diff.status === 'agree') return true; // pre-accepted, collapsed
   if (isBulkEligible(diff.status)) return diff.confidence >= threshold;
@@ -232,7 +231,7 @@ export function selectAllState(rows: readonly SuggestionDiff[], selected: Readon
   return checked === ids.length ? 'all' : 'some';
 }
 
-// ─── Header counts (§10.3: agree / conflict / new / rejects) ─────────────────
+// ─── Header counts (agree / conflict / new / rejects) ────────────────────────
 
 export interface StatusCounts {
   agree: number;
@@ -279,7 +278,7 @@ export function countStatuses(diffs: readonly SuggestionDiff[]): StatusCounts {
   return counts;
 }
 
-// ─── Apply-write summary (§10.3 confirmation modal) ──────────────────────────
+// ─── Apply-write summary (confirmation modal) ────────────────────────────────
 
 /**
  * Counts of the writes an apply would perform, derived on the client from the
@@ -369,7 +368,7 @@ export function acceptedCount(diffs: readonly SuggestionDiff[], accepted: Readon
 }
 
 /**
- * A compact human identifier for a row's target, derived from its §8.1
+ * A compact human identifier for a row's target, derived from its
  * suggestion id (`label:public.orders.total_cents` → `orders.total_cents`),
  * with the `public.` schema qualifier stripped for readability.
  */

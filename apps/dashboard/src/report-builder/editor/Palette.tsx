@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The palette (comp 273-284; 43-report-builder.md Appendix A P1–P2): a 216 px
- * left column with an *ADD BLOCK* eyebrow and the 25 kinds in `palDefs` order
- * (608), each an accent-soft 30 px icon tile, a label and a trailing `plus`.
- * A click appends the block and selects it (535).
+ * The palette (comp 273-284; P1–P2): a 216 px left column with an *ADD BLOCK*
+ * eyebrow and the 25 kinds in `palDefs` order (608), each an accent-soft 30
+ * px icon tile, a label and a trailing `plus`. A click appends the block and
+ * selects it (535).
  *
  * BELOW `lg` (D18) the column is not drawn: the editor shows an *Add block*
  * button that opens {@link PaletteSheet} — the same 25 rows in a modal — so
@@ -12,7 +12,7 @@
  *
  * Every label and glyph comes from `blockText`/`BLOCK_KIND_META`, never from
  * an `icon:` literal: `gen-icon-core.mjs` sweeps those into the ENTRY chunk's
- * core set and this surface is lazy (43 §0.3 trap 4).
+ * core set and this surface is lazy (trap 4).
  */
 import { Modal, ModalBody, ModalHeader } from '@adminium/ui';
 

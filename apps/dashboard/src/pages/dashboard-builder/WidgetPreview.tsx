@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Deterministic demo-data preview of a registry widget (04-widget-registry.md
- * §5.3 "Demo mode"): renders the widget through `WidgetHost` fed by its own
- * seeded `demoData`, framed at a compact size for the palette. Non-interactive
- * (`aria-hidden` + `pointer-events-none`) — the surrounding palette entry owns
- * the accessible name and the click/keyboard affordance.
+ * Deterministic demo-data preview of a registry widget: renders the widget
+ * through `WidgetHost` fed by its own seeded `demoData`, framed at a compact
+ * size for the palette. Non-interactive (`aria-hidden` +
+ * `pointer-events-none`) — the surrounding palette entry owns the accessible
+ * name and the click/keyboard affordance.
  */
 
 import { useMemo } from 'react';
@@ -17,7 +17,7 @@ import {
   type WidgetDefinition,
 } from '@adminium/widgets';
 
-/** FNV-1a 32-bit hash → stable seed per widget id (04 §7.7). */
+/** FNV-1a 32-bit hash → stable seed per widget id. */
 export function seedFromString(value: string): number {
   let hash = 0x811c9dc5;
   for (let index = 0; index < value.length; index += 1) {
@@ -33,7 +33,7 @@ export interface WidgetPreviewProps {
 }
 
 export function WidgetPreview({ definition, className }: WidgetPreviewProps) {
-  // §7's offline policy: `WidgetHost` below mounts the RESOLVED id, so the demo
+  // The offline policy: `WidgetHost` below mounts the RESOLVED id, so the demo
   // data must come from the resolved definition. Passing `definition.demoData`
   // straight through fed map-bubble points to the choropleth tilegram on
   // desktop — the palette advertised the fallback with a blank map.

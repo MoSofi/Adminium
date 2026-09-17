@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Workflow Logs, part by part (`designs/Workflow Logs.dc.html` 73-128,
- * 189-228; 42-automations-and-workflow-logs.md §4.2, 42-T24).
+ * Workflow Logs, part by part (73-128, 189-228).
  *
  * Four pieces, each mapped to its lines of the comp: the KPI strip (73-80),
  * the four filter pills (84-86), the run list (87-98) and the detail with its

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Determinism gate — 04-widget-registry.md acceptance #11 / 04-T17 (4):
- * `demoData(seed)` is byte-identical across runs and platforms for every
- * registered widget. Runs over the full delivered Wave-1 set.
+ * Determinism gate — #11 / (4): `demoData(seed)` is byte-identical
+ * across runs and platforms for every registered widget. Runs over the
+ * full delivered Wave-1 set.
  *
  * "Byte-identical" is checked via a stable JSON serialization (sorted keys) so a
  * reordered-but-equal object still counts as drift — the raster/screenshot
@@ -27,14 +27,14 @@ const SEED_INVARIANT_IDS: ReadonlySet<string> = new Set([
   'bulk-action-toolbar', // demoData: () => ['1','2','3']
   'card-gallery', // fixed INTEGRATIONS catalog
   'schema-tree', // fixed introspection tree
-  // annex §8: "none (emits files); constraints from config" — a `static`-shape
+  // annex: "none (emits files); constraints from config" — a `static`-shape
   // widget whose whole payload IS its config, so there is no sample to seed.
   'upload-dropzone',
-  // annex §12: "static per context (or derived boolean isEmpty from a filtered
+  // annex: "static per context (or derived boolean isEmpty from a filtered
   // list)" — same `static`-shape case as `upload-dropzone`: the copy, glyph and
   // actions all come from config, so there is nothing for a seed to vary.
   'empty-state',
-  // annex §11: "static groups of {label, keys[], isSequence}" — the host's
+  // annex: "static groups of {label, keys[], isSequence}" — the host's
   // shortcut manager passes the registered set in as config, so (like the other
   // `static` widgets above) the payload is config and there is nothing to seed.
   'shortcuts-panel',

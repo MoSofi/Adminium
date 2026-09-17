@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for `routes/surfaces-admin` (29-app-surfaces.md §3.1, 29-T17).
- * Mirrored client-side by `studio/apps/hostedAppsApi.ts` — the copied-mirror
- * convention: change both together.
+ * Zod schemas for `routes/surfaces-admin`. Mirrored client-side by
+ * `studio/apps/hostedAppsApi.ts` — the copied-mirror convention: change both
+ * together.
  */
 import { z } from 'zod';
 
@@ -19,7 +19,7 @@ export type StaffPlacementDto = z.infer<typeof staffPlacement>;
 export const surfaceDomainTarget = z.object({
   appKey: z.string().min(1).max(64),
   side: surfaceSide,
-  /** Which instance this host serves; absent is the app's own mount (29 D9). */
+  /** Which instance this host serves; absent is the app's own mount. */
   instance: z.string().min(1).max(32).optional(),
 });
 export type SurfaceDomainTargetDto = z.infer<typeof surfaceDomainTarget>;
@@ -30,14 +30,14 @@ export const surfaceSummary = z.object({
   /** URL prefix the surface serves under, e.g. `/apps/clients/staff`. */
   prefix: z.string(),
   /**
-   * Whether the build emitted a usable `surface.json` nav contract (29 D7).
-   * False means "this surface predates the toolkit; internal placement
+   * Whether the build emitted a usable `surface.json` nav contract. False
+   * means "this surface predates the toolkit; internal placement
    * unavailable" — Studio says exactly that, never an empty section.
    */
   navAvailable: z.boolean(),
   /** Items in the emitted nav, 0 when unavailable. */
   navItems: z.number().int().nonnegative(),
-  /** Staff surfaces only: where the surface appears (29 D9). Null on customer. */
+  /** Staff surfaces only: where the surface appears. Null on customer. */
   staffPlacement: staffPlacement.nullable(),
   /**
    * Customer surfaces only: the newest LIVE key bound to this app — what
@@ -48,9 +48,9 @@ export const surfaceSummary = z.object({
     .object({ id: z.string(), name: z.string(), prefix: z.string() })
     .nullable(),
   /**
-   * Staff surfaces only: which connection this surface reads (29 D9). Null
-   * means unbound — the app infers "the only connection serving", which is
-   * right on a single-connection instance and a guess on any other.
+   * Staff surfaces only: which connection this surface reads. Null means
+   * unbound — the app infers "the only connection serving", which is right
+   * on a single-connection instance and a guess on any other.
    */
   connectionId: z.string().nullable(),
   /** Hosts currently mapped to this surface, normalized. */

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Read-only, virtualized monospace viewer for a BYO enrichment prompt
- * (06-llm-assist.md §10.2 step 4). The flattened prompt (`=== SYSTEM ===` /
- * `=== USER ===`) can run to thousands of lines on large schemas, so only the
- * visible line window renders; copy/download operate on the full text upstream.
+ * Read-only, virtualized monospace viewer for a BYO enrichment prompt. The
+ * flattened prompt (`=== SYSTEM ===` / `=== USER ===`) can run to thousands
+ * of lines on large schemas, so only the visible line window renders;
+ * copy/download operate on the full text upstream.
  *
  * Prompt/JSON content is always LTR (`dir="ltr"`) even under an RTL locale so
- * the code reads correctly in ar_EG (14 §14 RTL correctness).
+ * the code reads correctly in ar_EG (RTL correctness).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 

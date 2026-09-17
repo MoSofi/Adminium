@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Write-time validation for admin-authored messages
- * (23-runtime-translations.md §6.3).
+ * Write-time validation for admin-authored messages.
  *
  * This is the ONLY thing standing between an admin's typing and every user's
  * screen, because once a message comes from the meta store the build-time
- * gates cannot see it (23 §10). It runs in the browser (live editor feedback)
- * and on the server (the real boundary) from this one module, so the two can
- * never disagree about what is acceptable.
+ * gates cannot see it. It runs in the browser (live editor feedback) and on
+ * the server (the real boundary) from this one module, so the two can never
+ * disagree about what is acceptable.
  *
  * It parses with `IntlMessageFormat(...).getAst()` — the exact mechanism both
  * `IcuFormat` and the parity gate use — rather than a second parser that
@@ -138,8 +137,9 @@ export interface ValidateMessageOptions {
   /** Locale the candidate is for — supplies the Intl tag and plural categories. */
   locale: LocaleId;
   /**
-   * Allow an empty candidate (the "render nothing" state, 23 §3.3). The
-   * a11y-critical key check is the CALLER's — it needs the key, not the text.
+   * Allow an empty candidate (the "render nothing" state). The
+   * a11y-critical key check is the CALLER's — it needs the key, not the
+   * text.
    */
   allowEmpty?: boolean | undefined;
 }

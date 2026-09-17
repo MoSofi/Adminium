@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * axe over the Export Builder's states (41-export-builder.md T20): step 1,
- * step 2 with its browser, step 3 with the sample, and the phone-width
- * column sheet. Same rules and the same blocking set as `a11y.spec.ts`.
+ * axe over the Export Builder's states: step 1, step 2 with its browser,
+ * step 3 with the sample, and the phone-width column sheet. Same rules and
+ * the same blocking set as `a11y.spec.ts`.
  */
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';

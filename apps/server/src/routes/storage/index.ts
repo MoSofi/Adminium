@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Storage-destination routes (37-files-and-storage.md Appendix C, D2, D16,
- * D20, 37-T12), mounted under `/api/v1`.
+ * Storage-destination routes, mounted under `/api/v1`.
  *
  * ONE GRANT GUARDS THE WHOLE GROUP: `storage.manage`. A destination carries a
  * credential and decides where every byte on the instance lands, so it is not

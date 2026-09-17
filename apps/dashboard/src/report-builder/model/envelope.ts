@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The report document envelope in the dashboard (43-report-builder.md §3.3,
- * Appendix B; the comp's `blk()` / `newBlockContent()` / `fromStarter()`,
- * `designs/Report Builder.dc.html` 474, 536, 494).
+ * The report document envelope in the dashboard (the comp's `blk()` /
+ * `newBlockContent()` / `fromStarter()`, 474, 536, 494).
  *
  * A DELIBERATE COPY of `apps/server/src/report-documents/document.ts`. The
  * two trees may not import each other (01 2.3), so the types and the
@@ -15,7 +14,7 @@
  * a kind REPEATS, every block carries its own `title`, `w` and `show`, and
  * `show: false` DIMS a block — it never removes it and never re-orders. None
  * of `invoices/model/ops.ts`'s pre-filter-index arithmetic applies here
- * (43 §0.3 trap 2).
+ * (trap 2).
  */
 
 /** The comp's three-value vocabulary, shared by both kinds (`statusMeta` 563). */
@@ -79,7 +78,7 @@ export interface KpiEntry {
 
 export interface SeriesPoint {
   label: string;
-  /** Chart geometry — a number, the one place a float is right (43 D11). */
+  /** Chart geometry — a number, the one place a float is right. */
   value: number;
 }
 
@@ -182,7 +181,8 @@ export const DEFAULT_ACCENT = '#4f46e5';
 /** The comp's five swatches (633); a starter may carry its own (`health` is `#12805c`). */
 export const ACCENT_SWATCHES: readonly string[] = ['#4f46e5', '#0d9488', '#e5484d', '#ea580c', '#111111'];
 
-/** The two 34 O18 caps, inherited unchanged (43 D26 puts the second image behind the same one). */
+/** The two caps, inherited unchanged (puts the second image behind the same
+ * one). */
 export const IMAGE_DATA_URL_MAX = 512 * 1024;
 export const BODY_BYTES_MAX = 4 * 1024 * 1024;
 /** The comp's slider range (363): 0 – 95 %. */

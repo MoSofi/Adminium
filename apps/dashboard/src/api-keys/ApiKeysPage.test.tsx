@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/api-keys` (M10-T06). The tests that matter here are the security ones:
+ * `/api-keys`. The tests that matter here are the security ones:
  *
  *  1. the one-time secret is shown once at creation — and is NOT recoverable by
  *     re-rendering, re-fetching, or reading the query cache;

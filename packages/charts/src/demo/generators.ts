@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Deterministic demo-data generators (04-widget-registry.md §7.7).
- * Same seed → identical payload, across processes and reloads: the time base
- * is a fixed epoch, never `Date.now()`. Plausible ranges + weekday
- * seasonality for timeseries.
+ * Deterministic demo-data generators. Same seed → identical payload, across
+ * processes and reloads: the time base is a fixed epoch, never `Date.now()`.
+ * Plausible ranges + weekday seasonality for timeseries.
  */
 import { mulberry32 } from './mulberry32.js';
 

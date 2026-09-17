@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 1 — what will you build first? (45-onboarding.md §2, comp step
- * "Choose a starting point", renamed by the owner.)
+ * Step 1 — what will you build first? (comp step "Choose a starting
+ * point", renamed by the owner.)
  *
  * WHY THESE FIVE. The comp draws Ops dashboard / CRM / Analytics / Blank
  * canvas. Three of those describe a starter-template system that exists nowhere
- * in this product (45 §0.4, DEP-3). What does exist is the connect wizard's
- * generation intent, which really does change the pages you end up with — so
- * the four real intents are the four cards, with Blank canvas first and
- * selected, per the owner's ruling (45 R3).
+ * in this product (DEP-3). What does exist is the connect wizard's generation
+ * intent, which really does change the pages you end up with — so the four real
+ * intents are the four cards, with Blank canvas first and selected, per the
+ * owner's ruling (45 R3).
  *
  * The copy is written fresh rather than imported from `studio:intent.*`: that
  * namespace is lazily loaded for the Studio, and nothing outside `src/studio`

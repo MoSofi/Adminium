@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Test animation (`designs/Automation Rules.dc.html` 451-462;
- * 42-automations-and-workflow-logs.md D14, 42-T23).
+ * The Test animation (451-462).
  *
  * The comp's cadence exactly: one node lit at a time for 620 ms, a green
  * check accumulating behind it, everything else at .5 opacity, and the whole

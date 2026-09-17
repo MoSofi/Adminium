@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/files` (37-files-and-storage.md §3.8, 37-T25). Four things are worth a
- * test here, and only one of them is "does it render":
+ * `/files`. Four things are worth a test here, and only one of them is
+ * "does it render":
  *
  *  1. **The presets are SERVER queries.** Every rail entry has to change the
  *     `GET /files` query string, not filter rows already on screen. The
@@ -41,7 +41,7 @@ function makeFile(overrides: Partial<FileDto> = {}): FileDto {
     sha256: 'a'.repeat(64),
     kind: 'upload',
     destinationId: null,
-    // Every upload records its connection after 38 D4, record-bound or not.
+    // Every upload records its connection after, record-bound or not.
     connectionId: 'conn_1',
     uploadedBy: 'usr_test',
     createdAt: 1_700_000_000_000,
@@ -64,10 +64,10 @@ const LIVE_FILES: FileDto[] = [
     entity: { connectionId: 'conn_1', table: 'public.projects', recordId: '7' },
   }),
   /*
-   * A LIBRARY file (38 D4): uploaded from this page, so it belongs to a
-   * connection and to no record. `attachedAt` is set all the same — it means
-   * CLAIMED, and the workspace is what claims this one; an unstamped row is
-   * what the daily sweep collects.
+   * A LIBRARY file: uploaded from this page, so it belongs to a connection
+   * and to no record. `attachedAt` is set all the same — it means CLAIMED,
+   * and the workspace is what claims this one; an unstamped row is what the
+   * daily sweep collects.
    */
   makeFile({
     id: 'file_4',
@@ -190,10 +190,10 @@ function renderPage() {
 /**
  * Render and switch to the LIST view.
  *
- * The page opens on tiles (38 D9, as the comp does), so every assertion about
- * table rows — delete, restore, the per-table counts, the "Attached to" cell —
- * has to say so. Switching is a view change and asks the server for nothing,
- * which the toggle's own test pins.
+ * The page opens on tiles (as the comp does), so every assertion about table
+ * rows — delete, restore, the per-table counts, the "Attached to" cell — has
+ * to say so. Switching is a view change and asks the server for nothing, which
+ * the toggle's own test pins.
  */
 async function renderListView(): Promise<ReturnType<typeof userEvent.setup>> {
   const user = userEvent.setup();
@@ -226,7 +226,7 @@ describe('FilesPage', () => {
     await renderListView();
 
     expect(await screen.findByTestId('files-table')).toBeTruthy();
-    // Three: two attached to records and one library file (38 D4).
+    // Three: two attached to records and one library file.
     expect(screen.getAllByTestId('files-row')).toHaveLength(LIVE_FILES.length);
     expect(screen.getByText('contract.pdf')).toBeTruthy();
 
@@ -234,7 +234,7 @@ describe('FilesPage', () => {
     expect(within(strip).getByText("This server's disk")).toBeTruthy();
     expect(within(strip).getByText('128 GB used')).toBeTruthy();
     // A LOCAL disk has a real capacity, so it gets the comp's meter and the
-    // one honest fraction on this page (38 D10). A bucket has none and gets
+    // one honest fraction on this page. A bucket has none and gets
     // neither — `available` is absent for it, so there is nothing to divide by.
     expect(within(strip).getByText('128 GB of 169 GB on this disk')).toBeTruthy();
     expect(within(strip).getAllByTestId('files-usage-meter')).toHaveLength(1);
@@ -247,7 +247,7 @@ describe('FilesPage', () => {
     const text = (document.body.textContent ?? '').replace(/\s+/g, ' ');
 
     /*
-     * The gate, NARROWED by 38 D10 and not lifted.
+     * The gate, NARROWED by and not lifted.
      *
      * 37 Appendix D banned every "N of M" because a bucket has no capacity, so
      * the denominator would be a number with nothing behind it. A local disk
@@ -420,7 +420,7 @@ describe('FilesPage', () => {
 });
 
 /**
- * The comp port (38-files-library-and-attachments.md D9, D10, D18; 38-T09).
+ * The comp port.
  *
  * Everything here is about the RAIL and the STRIP being what they claim: a
  * preset that filters client-side would answer "of the fifty rows loaded,
@@ -437,7 +437,7 @@ describe('FilesPage — the File Manager comp', () => {
     const { calls } = stubFetch({ connections: CONNECTIONS });
     const user = await renderListView();
 
-    // Every upload records its connection since 38 D4, so this is a real
+    // Every upload records its connection since, so this is a real
     // server query and the only preset that finds a LIBRARY file.
     await user.click(await screen.findByTestId('files-preset-connection-conn_2'));
     await waitFor(() => {

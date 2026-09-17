@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A mapping's trigger, as a rule (34-invoices-add-on.md §3.7, D55).
+ * A mapping's trigger, as a rule.
  *
  * The lifecycle is the whole of it, because every state change has a wrong
  * version that looks fine until somebody imports ten thousand rows:
@@ -110,7 +110,7 @@ describe('a mapping’s trigger becomes a rule', () => {
   it('NEVER polls, because the editor promises it does not', async () => {
     /*
      * 42's record trigger can also poll, so rows written straight into the
-     * database are noticed. A document mapping must not: §3.7 step 5's note
+     * database are noticed. A document mapping must not: the step-5 note
      * tells the operator, in eight languages, that an import draws nothing
      * (D10). Leaving the poller on would make that sentence false and mint
      * invoices for a bulk import nobody meant to invoice.

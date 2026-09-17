@@ -2,7 +2,7 @@
 /**
  * An export DEFINITION — the builder's ordered column list with its headers,
  * linked values, counts, folds and calculated columns — resolved against the
- * snapshot under one caller's grants (41-export-builder.md §3.3, D1, D2).
+ * snapshot under one caller's grants.
  *
  * ONE resolver, THREE callers: `POST /exports` validates a definition here
  * before a row exists (a page-author mistake is a 422 on the request, never a
@@ -24,7 +24,7 @@
  * LEGACY. A source with no `columns` (every row written before this plan, and
  * every scheduled report) resolves to the pre-definition shape: every
  * selectable column under its own name. The job keeps threading the page's
- * derived block for those through `pageId`, exactly as 36 D28 built it.
+ * derived block for those through `pageId`, exactly built it.
  */
 
 import type { DerivedField } from '@adminium/engine/config';

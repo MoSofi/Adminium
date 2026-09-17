@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GET /api/v1/settings/workspace + PUT /settings/branding (M5-T05, 08 §2.16
- * sectioned puts): registry-backed defaults, a persisted write with audit
- * before/after images, Zod bounds → 422, and the super-admin guard. Mirrors
- * the settings-defaults suite's harness.
+ * GET /api/v1/settings/workspace + PUT /settings/branding (sectioned puts):
+ * registry-backed defaults, a persisted write with audit before/after
+ * images, Zod bounds → 422, and the super-admin guard. Mirrors the
+ * settings-defaults suite's harness.
  *
  * `PUT /settings/security` joins them now that the three keys it writes are
  * enforced (auth/sessions.ts + routes/auth/handlers.ts, exercised end to end

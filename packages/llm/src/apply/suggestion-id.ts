@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Stable suggestion identity (06-llm-assist.md §8.1).
+ * Stable suggestion identity.
  *
  * Every atomic suggestion gets a deterministic id so accept/reject state
  * survives a reload and re-application is idempotent. Ids are pure functions of
@@ -8,18 +8,13 @@
  * the same suggestion always maps to the same id regardless of when or in what
  * order it is produced.
  *
- * Scheme (§8.1):
- *   label:public.orders                  table label+description+icon bundle
- *   label:public.orders.total_cents      column label+description bundle
- *   key:public.orders                    displayColumn + naturalKey
- *   enum:public.orders.status
- *   relation:public.orders.product_id->public.products.id
- *   pii:public.customers.email
- *   template:public.orders:page-queue-inbox
- *   group:sales
- *   dashboard:revenue
- *   widget:revenue:chart-line-area:3     dashboardId:widgetId:rank
- *   copy:public.orders                   microcopy bundle
+ * Scheme: label:public.orders table label+description+icon bundle
+ * label:public.orders.total_cents column label+description bundle
+ * key:public.orders displayColumn + naturalKey enum:public.orders.status
+ * relation:public.orders.product_id->public.products.id
+ * pii:public.customers.email template:public.orders:page-queue-inbox
+ * group:sales dashboard:revenue widget:revenue:chart-line-area:3
+ * dashboardId:widgetId:rank copy:public.orders microcopy bundle
  */
 
 /** The id-prefix vocabulary. `label` is shared by table- and column-label ids. */
@@ -108,8 +103,8 @@ export function copyId(table: string): string {
 
 /**
  * A reference to any atomic suggestion. `suggestionId(ref)` turns it into the
- * stable §8.1 id — the single entry point diff.ts / apply.ts use so the id
- * scheme lives in exactly one place.
+ * stable id — the single entry point diff.ts / apply.ts use so the id scheme
+ * lives in exactly one place.
  */
 export type SuggestionRef =
   | { readonly kind: 'table-label'; readonly table: string }

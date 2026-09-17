@@ -1,4 +1,4 @@
--- Northwind for MySQL/MariaDB — Adminium adapter fixture (M9/05-T13).
+-- Northwind for MySQL/MariaDB — Adminium adapter fixture (M9/).
 --
 -- The same 14 tables and FKs as the postgres reference fixture
 -- (packages/adapter-postgres/fixtures/northwind.sql) so the generated

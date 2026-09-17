@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Table-label channel through generation (06-llm-assist.md §8.3 provenance
- * user > llm > heuristic): a `TableModel.label` overlaid by the server
- * (apps/server generate/run.ts — user `table.label` / accepted `llm.label`
- * override rows) must reach the generated page titles, because
+ * Table-label channel through generation (provenance user > llm >
+ * heuristic): a `TableModel.label` overlaid by the server (apps/server
+ * generate/run.ts — user `table.label` / accepted `llm.label` override
+ * rows) must reach the generated page titles, because
  * `adminium_pages.title` is what the bootstrap nav serves. Before M11 the
  * fallbacks hardcoded `humanize(table.name)` and renames never surfaced.
  *

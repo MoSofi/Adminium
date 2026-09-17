@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the audit resource (08-server-api.md §2.14). The API
- * returns structured rows — the verb + bold-resource sentence anatomy is a
- * client concern (`Audit Log.dc.html`).
+ * Zod schemas for the audit resource. The API returns structured rows —
+ * the verb + bold-resource sentence anatomy is a client concern (`Audit
+ * Log.dc.html`).
  */
 import { z } from 'zod';
 import { actorKindSchema, auditCategorySchema } from '@adminium/meta';
@@ -14,7 +14,7 @@ export const auditEntryDto = z.object({
   actorId: z.string().nullable(),
   actorLabel: z.string(),
   category: auditCategorySchema,
-  /** Dotted verb, e.g. `role.permission.change` (07 §3.11). */
+  /** Dotted verb, e.g. `role.permission.change`. */
   action: z.string(),
   connectionId: z.string().nullable(),
   entity: z.record(z.string(), z.unknown()).nullable(),
@@ -31,11 +31,11 @@ export const auditListQuery = z.object({
   /** Resource-type filter matched against the dotted action verb prefix. */
   resource: z.string().max(80).optional(),
   /**
-   * Per-record entity filter (30-record-pages.md WS-A): the ref's owning
-   * connection, qualified table, and canonical record-id string — matched
-   * against the denormalized indexed columns the write path maintains.
-   * `entityId` requires `entityTable` (an id alone is meaningless across
-   * tables); each part is clamped exactly as the write side clamps it.
+   * Per-record entity filter (WS-A): the ref's owning connection,
+   * qualified table, and canonical record-id string — matched against the
+   * denormalized indexed columns the write path maintains. `entityId`
+   * requires `entityTable` (an id alone is meaningless across tables);
+   * each part is clamped exactly as the write side clamps it.
    */
   connectionId: z.string().max(64).optional(),
   entityTable: z.string().min(1).max(512).optional(),

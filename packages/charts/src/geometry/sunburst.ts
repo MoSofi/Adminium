@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure sunburst geometry (`chart-sunburst`, research/widget-registry.md §2): two
+ * Pure sunburst geometry (`chart-sunburst`, research/widget-registry.md): two
  * nested rings from a 2-level hierarchy — inner ring = parents (angle ∝ subtree
  * total), outer ring = children (angle ∝ child value within the parent span).
  * Arcs sweep clockwise from 12 o'clock and do NOT mirror in RTL (rotation is
- * direction-neutral, §7.4). DOM-free + deterministic (04 §7.1).
+ * direction-neutral). DOM-free + deterministic.
  */
 import { arc } from 'd3-shape';
 

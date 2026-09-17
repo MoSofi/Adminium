@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `manifestsRepo` — the writer `adminium_manifests` never had (26 §4).
+ * `manifestsRepo` — the writer `adminium_manifests` never had.
  *
- * The lifecycle these assert is the one 24 D16 / 26 D5 turn on, so it is worth
- * stating plainly: install writes a manifest and its attachments, connect
- * writes a credential, DISCONNECT deletes only the credential, and uninstall
- * deletes the manifest and lets the FKs take the rest. Every step of that is
- * checked here by observing the other tables, not by trusting the method name.
+ * The lifecycle these assert is the one turn on, so it is worth stating
+ * plainly: install writes a manifest and its attachments, connect writes a
+ * credential, DISCONNECT deletes only the credential, and uninstall deletes
+ * the manifest and lets the FKs take the rest. Every step of that is checked
+ * here by observing the other tables, not by trusting the method name.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -172,8 +172,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('upgrades version and document in place, keeping attachments and keys', async () => {
-      // 26-T17: an upgrade is not a reinstall — the hosts it is mounted on and
-      // the credential it was given both survive it.
+      // An upgrade is not a reinstall — the hosts it is mounted on and the
+      // credential it was given both survive it.
       const installed = await repo.install({ ...DHL, attachTo: ['printing'] }, T0);
       await repo.setCredential(installed.row.id, { kind: 'api-key', secret: { apiKey: 'k' } }, T0);
 

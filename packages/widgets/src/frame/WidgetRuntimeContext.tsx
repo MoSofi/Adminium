@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * React context carrying the host app's {@link WidgetRuntimeEnv} to WidgetHost —
- * the input to §7's offline asset policy (11-electron.md §7, 11-T09).
+ * the input to offline asset policy.
  *
  * Mirrors `binding/StreamTransportContext.tsx`: the host app (`apps/dashboard`)
  * decides once and provides here; the widgets package reads. It stays a context
@@ -48,7 +48,7 @@ export function useWidgetRuntimeEnv(): WidgetRuntimeEnv {
 }
 
 /**
- * §7's offline asset policy applied to a stored widget id — the id that will
+ * The offline asset policy applied to a stored widget id — the id that will
  * actually MOUNT in this runtime.
  *
  * ─── ANYTHING THAT LOOKS A WIDGET UP MUST GO THROUGH THIS ───────────────────
@@ -66,7 +66,7 @@ export function useWidgetRuntimeEnv(): WidgetRuntimeEnv {
  * placed — while `points.length` of 10 kept `isEmptyData` reporting 'loaded', so
  * no empty state intervened either. The user saw a blank US map captioned with a
  * top-5 list of world cities (Tokyo, London, New York, Berlin, Cairo) instead of
- * §7's "designed fallback".
+ * "designed fallback".
  *
  * Resolve FIRST, then look up. The identity case (any online runtime) costs
  * nothing.

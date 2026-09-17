@@ -42,8 +42,7 @@ export interface SmtpConfig {
 /**
  * One attachment or inline image, as BYTES. Never a path, never a URL: the
  * transport runs with `disableFileAccess` and `disableUrlAccess`, so this is
- * the only shape it can send — and the only shape it must ever be handed
- * (39-email-templates-and-campaigns.md D8, D9).
+ * the only shape it can send — and the only shape it must ever be handed.
  */
 export interface OutboundAttachment {
   filename: string;
@@ -62,7 +61,7 @@ export interface OutboundEmail {
   text: string;
   /** Extra headers (e.g. `Auto-Submitted`, `List-Unsubscribe`). */
   headers?: Record<string, string>;
-  /** Overrides the transport's `email.smtp.from` — a configured sender (39 D7). */
+  /** Overrides the transport's `email.smtp.from` — a configured sender. */
   from?: string | undefined;
   attachments?: OutboundAttachment[] | undefined;
 }
@@ -79,7 +78,7 @@ export interface OutboundEmail {
  * What the relay said. Void from a transport that does not report it (every
  * test recorder); the SMTP transport returns the reply line, because Workflow
  * Logs draws it as an automation step's log — "250 OK · delivered to …"
- * (42 D15) — and a discarded reply cannot be shown later.
+ * — and a discarded reply cannot be shown later.
  */
 export interface EmailSendResult {
   /** e.g. `250 2.0.0 Ok: queued as 4B1C2`. */
@@ -91,7 +90,7 @@ export interface EmailTransport {
   send(msg: OutboundEmail): Promise<EmailSendResult | void>;
 }
 
-// --- the document, as every half of the pipeline sees it (39 §3.3) -------------------
+// --- the document, as every half of the pipeline sees it -------------------
 
 import type { EmailAttachment, EmailBlockStyle, EmailBrand } from '@adminium/meta';
 
@@ -113,9 +112,9 @@ export interface EmailDocument {
   /** ≤300; the inbox preview line. */
   preheader: string;
   blocks: EmailBlock[];
-  /** ≤2000, pre-wrap; the fixed footer (39 D5). */
+  /** ≤2000, pre-wrap; the fixed footer. */
   footer: string;
-  /** null = the workspace defaults (39 D6). */
+  /** null = the workspace defaults. */
   brand: EmailBrand | null;
   attachments: EmailAttachment[];
 }
@@ -130,7 +129,7 @@ export type EmailRenderSource = {
   attachments: readonly EmailAttachment[];
 };
 
-// --- what a queued message references (39 D8, D9) ---------------------------------------
+// --- what a queued message references ---------------------------------------
 
 /** A fixed attachment: the library file whose bytes travel with the message. */
 export interface EmailSendAttachmentRef {

@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0014 — the public surface (28-public-surface.md §3).
+ * Wave 0014 — the public surface.
  *
  * Four tables behind the scoped, off-by-default `/api/v1/public` namespace:
  * the browser-safe key kind, the scope document that says what a key may reach,
  * the end-customer session a `claim` mints, and the one-time challenge the
  * `email-code` claim tier needs.
  *
- * WHY THESE ARE NOT `adminium_api_keys` ROWS WITH A `kind` COLUMN (28 §3.3).
- * Two properties diverge and both are load-bearing:
+ * WHY THESE ARE NOT `adminium_api_keys` ROWS WITH A `kind` COLUMN. Two
+ * properties diverge and both are load-bearing:
  *
  *  1. The secret is RE-READABLE by an admin. `adminium_api_keys` reveals once
  *     and never again, which is right for a server-side credential a human
  *     copies into a deployment. An `adm_pub_` secret lives in a public bundle
  *     and has to survive a rebuild months later, so the row keeps a reversible
  *     copy alongside the hash.
- *  2. A publishable key is NEVER an `RbacPrincipal` (28 D3). `parseBearerApiKey`
- *     gates on the `adm_sk_` prefix, so a token from this table cannot resolve
- *     through the rbac plugin at all — which is what makes it inert on every
- *     other route BY CONSTRUCTION rather than by an allow-list somebody has to
- *     maintain. Sharing a table would invite exactly the `kind`-check-per-route
- *     that property exists to avoid.
+ * 2. A publishable key is NEVER an `RbacPrincipal`. `parseBearerApiKey` gates on
+ *  the `adm_sk_` prefix, so a token from this table cannot resolve through the
+ *  rbac plugin at all — which is what makes it inert on every other route BY
+ *  CONSTRUCTION rather than by an allow-list somebody has to maintain. Sharing a
+ *  table would invite exactly the `kind`-check-per-route that property exists to
+ *  avoid.
  *
- * NO SETTINGS TABLE HERE, deliberately (28 D20). Tenant configuration is
- * hybrid: the only key Adminium must own is the `timezone` it needs to
- * interpret its own `timestamptz` values, and that rides on the SCOPE document
- * below — already per-connection, already operator-authored, already served on
+ * NO SETTINGS TABLE HERE, deliberately. Tenant configuration is hybrid: the
+ * only key Adminium must own is the `timezone` it needs to interpret its own
+ * `timestamptz` values, and that rides on the SCOPE document below — already
+ * per-connection, already operator-authored, already served on
  * `/public/config`. A global settings key would be one line cheaper and wrong
  * the moment an instance holds two connections for businesses in different
  * zones. Everything else an app needs (tax rates, tip presets, opening hours)

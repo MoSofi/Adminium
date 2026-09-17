@@ -35,7 +35,7 @@ export interface TooltipProps extends ContentPassthrough {
 /**
  * Tooltip — Radix tooltip on the inverted dark surface (`--fg` background,
  * `--bg` text), radius 8, 12px text, 300ms delay
- * (research/design-system.md §3 Tier 3). Opens on hover and on keyboard
+ * (research/design-system.md Tier 3). Opens on hover and on keyboard
  * focus; Esc dismisses (Radix built-ins).
  */
 export function Tooltip({

@@ -3,9 +3,9 @@
  * The conformance suites, run against reference implementations.
  *
  * `@adminium/add-on-contracts/testing` is the package's own product: every
- * provider in the fleet runs it, and 24 §5.5 D9 makes it "part of the contract,
- * not a courtesy". It was nonetheless the one thing here nothing executed. That
- * is not merely an untested file — it inverts the signal. `ab6314e` added two
+ * provider in the fleet runs it, makes it "part of the contract, not a
+ * courtesy". It was nonetheless the one thing here nothing executed. That is
+ * not merely an untested file — it inverts the signal. `ab6314e` added two
  * cases to `describeShippingCarrier` and DROPPED measured coverage from 70% to
  * 65.85%, below this package's own floor: writing more conformance made the
  * package look worse, and the only way to make the number go up was to write
@@ -346,11 +346,11 @@ describeDocumentRenderer(new ReferenceDocumentRenderer(), REFERENCE_DOCUMENT_FIX
  * they reach the provider.
  *
  * Run only without them, neither path executes here: `body` is how a provider
- * that renders an authored composition is fed one (34 D54, the invoices
- * add-on), and `textSlot` is how a provider whose first text slot is not the
- * one it prints points the escaping and coverage cases elsewhere
- * (`barcode-labels`, 34-T06). A hook that stopped arriving would otherwise
- * pass unnoticed in this repo and fail in the one that relies on it.
+ * that renders an authored composition is fed one (the invoices add-on), and
+ * `textSlot` is how a provider whose first text slot is not the one it prints
+ * points the escaping and coverage cases elsewhere (`barcode-labels`). A hook
+ * that stopped arriving would otherwise pass unnoticed in this repo and fail
+ * in the one that relies on it.
  */
 class RecordingDocumentRenderer extends ReferenceDocumentRenderer {
   readonly renders: { kind: string; body: RenderInput['body'] }[] = [];
@@ -383,11 +383,11 @@ describe('document-render@1 — through the body and textSlot hooks', () => {
 
 describe('document-render@1 — the suite fails what it promises to fail', () => {
   /*
-   * 34-T04's done-when: green against a conforming provider AND RED against
-   * one missing a locale. A conformance suite nobody has watched fail is a
-   * suite whose assertions might all be vacuous — `describeShippingCarrier`
-   * spent a release in exactly that state (`ab6314e`, see this file's header).
-   * So the negative case is executed here rather than asserted in prose: the
+   * The done-when: green against a conforming provider AND RED against one
+   * missing a locale. A conformance suite nobody has watched fail is a suite
+   * whose assertions might all be vacuous — `describeShippingCarrier` spent a
+   * release in exactly that state (`ab6314e`, see this file's header). So the
+   * negative case is executed here rather than asserted in prose: the
    * eight-locale rule is exercised against a label with seven.
    */
   it('rejects a kind label missing one of the eight locales', () => {

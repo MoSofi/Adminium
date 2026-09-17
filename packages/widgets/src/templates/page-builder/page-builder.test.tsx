@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * page-builder template tests (M7-T06, 09-generated-app.md §7.11):
+ * page-builder template tests:
  *
  *  - the block-kind meta registry has the CORRECT [label, icon] orientation
  *    for every entry — the Report Builder comp shipped four entries swapped
- *    (`['life-buoy', 'Contact']`, …), and 15-quality.md §comp-defects demands
- *    a unit test on the registry order;
+ *    (`['life-buoy', 'Contact']`, …), so the registry order is asserted here;
  *  - the survey publish summary derives every count LIVE from the current
- *    question list (ia-mapping §5: the comp hard-coded "12 questions");
+ *    question list (the comp hard-coded "12 questions");
  *  - the invoice flavor composes palette → `document-canvas` → inspector, a
  *    palette add lands on the canvas and in `onDocChange`, canvas reorders
  *    echo back onto the doc;
@@ -48,7 +47,7 @@ import {
 beforeAll(() => configure({ asyncUtilTimeout: 8000 }));
 afterAll(() => configure({ asyncUtilTimeout: 1000 }));
 
-// ── the Report Builder kindMeta fix (M7-T06; 15-quality comp-defect list) ────
+// ── the Report Builder kindMeta fix (15-quality comp-defect list) ────────────
 
 describe('BLOCK_KIND_META (kindMeta swap regression)', () => {
   const KEBAB_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -115,7 +114,7 @@ describe('BLOCK_KIND_META (kindMeta swap regression)', () => {
   });
 });
 
-// ── survey live counts (ia-mapping §5 static-counts fix) ─────────────────────
+// ── survey live counts (ia-mapping static-counts fix) ────────────────────────
 
 describe('surveySummaryOf', () => {
   it('derives counts from the question list, never a constant', () => {
@@ -217,7 +216,7 @@ describe('doc algebra', () => {
     expect(doc.title).toBe('Donation receipt (Tax ID)');
     expect(doc.rates?.taxRate).toBe(0);
     expect(doc.blockOrder?.some((instance) => instance.block === 'block-highlight-box')).toBe(true);
-    // Deterministic: same starter, same doc (04 §7.7).
+    // Deterministic: same starter, same doc.
     expect(starterDocOf('st-donation', 'invoice')).toEqual(doc);
   });
 });

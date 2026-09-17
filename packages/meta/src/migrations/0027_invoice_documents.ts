@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0027 — invoice documents: the AUTHORED source behind `/invoices`
- * (34-invoices-add-on.md §3.9, Appendix G; 34-T46).
+ * Wave 0027 — invoice documents: the AUTHORED source behind
+ * `/invoices`.
  *
  * ─── Two tables with confusable names; this is the authored one ────────────
  *
  * `adminium_invoice_documents` holds what a person typed and can edit again:
  * a template (a reusable design) or an invoice (a document built from one,
  * or from scratch), both the same ~70-field envelope in `body`. It is NOT a
- * register. `adminium_documents` (34 §3.3, the render register — a frozen
- * subject, a minted number, file ids, one row per RENDERING) is a later
- * wave's table and is not created here; when it lands, a rendering points
- * back at the authored row it was made from, and deleting a template never
- * unmakes a document that was issued from it.
+ * register. `adminium_documents` (the render register — a frozen subject, a
+ * minted number, file ids, one row per RENDERING) is a later wave's table
+ * and is not created here; when it lands, a rendering points back at the
+ * authored row it was made from, and deleting a template never unmakes a
+ * document that was issued from it.
  *
- * ─── One table, two kinds (§3.9) ───────────────────────────────────────────
+ * ─── One table, two kinds ──────────────────────────────────────────────────
  *
  * The comp holds templates and invoices in one object model behind
  * `arrName(kind)`, so `kind` is a column rather than a second table: one
@@ -34,10 +34,10 @@
  *
  * ─── Why `origin_id` has no foreign key ─────────────────────────────────────
  *
- * An invoice remembers the template it was built from (34 O20). That is a
- * SOFT reference on purpose: deleting a template must not unmake, cascade
- * into, or null out an invoice an operator already issued — the invoice is
- * its own document from the moment it exists. `created_by` keeps the named
+ * An invoice remembers the template it was built from. That is a SOFT
+ * reference on purpose: deleting a template must not unmake, cascade into,
+ * or null out an invoice an operator already issued — the invoice is its
+ * own document from the moment it exists. `created_by` keeps the named
  * table-level FK to users (0026's spelling), because a deleted user leaving
  * a dangling id is exactly the row the SET NULL exists for.
  *

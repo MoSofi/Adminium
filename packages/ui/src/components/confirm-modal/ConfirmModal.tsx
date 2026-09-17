@@ -33,12 +33,12 @@ export interface ConfirmModalProps extends Omit<ModalProps, 'children' | 'size'>
   /** Label above the type-to-confirm input, e.g. `Type "acme-prod" to confirm`. */
   promptLabel: ReactNode;
   /**
-   * A second, independent type-to-confirm field (35-schema-authoring.md D18:
-   * the Super-Admin door over the row ceiling asks for a second, differently
-   * derived token in the same confirm). Both fields must match before the
-   * danger button enables, so this is an authorisation to ask for, never a
-   * decoration — a caller that renders it without meaning it deadlocks its own
-   * dialog. When absent, no second field reaches the DOM at all.
+   * A second, independent type-to-confirm field (the Super-Admin door over the
+   * row ceiling asks for a second, differently derived token in the same
+   * confirm). Both fields must match before the danger button enables, so this
+   * is an authorisation to ask for, never a decoration — a caller that renders
+   * it without meaning it deadlocks its own dialog. When absent, no second
+   * field reaches the DOM at all.
    */
   secondPrompt?:
     | {
@@ -70,7 +70,7 @@ export interface ConfirmModalProps extends Omit<ModalProps, 'children' | 'size'>
 
 /**
  * ConfirmModal — destructive confirmation with a type-to-confirm input gating
- * the danger button (research/design-system.md §3 Tier 3), optionally a second
+ * the danger button (research/design-system.md Tier 3), optionally a second
  * one (`secondPrompt`, D18). Typed values reset whenever the modal closes.
  */
 export function ConfirmModal({

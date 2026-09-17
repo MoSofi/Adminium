@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A group's heading (34-invoices-add-on.md Appendix E §M9, §M11). The gallery
- * draws it above its grid (comp 233-239): a 26 px accent-soft icon tile, the
- * label, the sub-line and a hairline that takes the rest of the width. The
- * list draws it as a dense row INSIDE the table (comp 290-294): the glyph in
- * accent with no tile, on a surface-2 band.
+ * A group's heading. The gallery draws it above its grid (comp
+ * 233-239): a 26 px accent-soft icon tile, the label, the sub-line and a
+ * hairline that takes the rest of the width. The list draws it as a dense row
+ * INSIDE the table (comp 290-294): the glyph in accent with no tile, on a
+ * surface-2 band.
  */
 import { invoiceIcon } from '../icons.js';
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Generated QA stories — 04-widget-registry.md 04-T17 (2). For every registered
- * Wave-1 widget, a story renders its four WidgetFrame states (skeleton · empty ·
- * error · loaded) from the widget's own deterministic `demoData(seed)`, through
- * the real WidgetHost so the frame chrome, skeleton silhouette, per-widget empty
- * copy and error Retry are all exercised exactly as in production.
+ * Generated QA stories — (2). For every registered Wave-1 widget, a story
+ * renders its four WidgetFrame states (skeleton · empty · error · loaded) from
+ * the widget's own deterministic `demoData(seed)`, through the real WidgetHost
+ * so the frame chrome, skeleton silhouette, per-widget empty copy and error
+ * Retry are all exercised exactly as in production.
  *
  * Wiring into the harnesses:
  *   - a11y: the workspace Storybook loads `@storybook/addon-a11y` (axe) globally,

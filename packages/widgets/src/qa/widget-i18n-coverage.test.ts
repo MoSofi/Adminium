@@ -47,7 +47,7 @@ const CONFIG_SUGGESTION_KEYS = new Set<string>([
   'widgets.forms.connectionStringField.helper',
   'widgets.forms.connectionStringField.quickFill',
   'widgets.forms.connectionStringField.host',
-  // The frame owns these widgets' empty states (04-T06).
+  // The frame owns these widgets' empty states.
   'widgets.forms.columnMappingTable.emptyTitle',
   'widgets.forms.columnMappingTable.emptyBody',
   // Enter/blur commit and Escape cancel by design; no buttons render.

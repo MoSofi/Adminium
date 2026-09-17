@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Add-on credential encryption closures (26-add-on-runtime.md §4, 26-T04).
+ * Add-on credential encryption closures.
  *
  * The exact shape `connections/crypto.ts` uses for DSNs, and for the same
  * reason: `@adminium/meta` stays crypto-agnostic and receives only closures, so
- * no key material crosses into the store layer (01-architecture.md §3/§7.1).
+ * no key material crosses into the store layer.
  *
  * ─── Its own salt, and why that is not a formality ─────────────────────────
  *

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The desktop boot-token mechanics (11-electron.md §5, §2.2 step 4).
+ * The desktop boot-token mechanics.
  *
  * Three primitives, deliberately framework-free so they can be tested as what
  * they are — security decisions — rather than through a route:
@@ -14,22 +14,21 @@
  * `request.ip` is Fastify's PROXY-AWARE address: with `trustProxy` on it is
  * whatever `X-Forwarded-For` said. That header is a claim by the client, and
  * this is the one route in the product where a client's claim about its own
- * address would be an authentication bypass — a LAN peer (§8.3 binds `0.0.0.0`)
- * could send `X-Forwarded-For: 127.0.0.1` and become the super admin without a
+ * address would be an authentication bypass — a LAN peer (binds `0.0.0.0`) could
+ * send `X-Forwarded-For: 127.0.0.1` and become the super admin without a
  * password. So the check reads `socket.remoteAddress`: the kernel's view of who
- * actually opened the connection, which no header can move. §2.4 states the rule
+ * actually opened the connection, which no header can move. The rule is stated
  * without qualification — "rejects non-loopback peers unconditionally" — and
  * unconditional means "not even for a proxy we would otherwise trust".
  *
  * ─── Why one-shot lives in memory ────────────────────────────────────────────
  *
- * "One success per boot token" (§5) and "never persisted" (§2.2) are the same
- * requirement seen twice: the token's lifetime IS this process's lifetime. A
- * replay table in the meta store would outlive the token it guards, and give the
- * next boot a row to be confused by. The guard is therefore a closure over a
- * boolean, and a restarted server is a new boot with a new token — which is
- * exactly why "a token from a previous boot" fails: nothing in this process ever
- * heard of it.
+ * "One success per boot token" and "never persisted" are the same requirement
+ * seen twice: the token's lifetime IS this process's lifetime. A replay table in
+ * the meta store would outlive the token it guards, and give the next boot a row
+ * to be confused by. The guard is therefore a closure over a boolean, and a
+ * restarted server is a new boot with a new token — which is exactly why "a
+ * token from a previous boot" fails: nothing in this process ever heard of it.
  */
 import { createHash, timingSafeEqual } from 'node:crypto';
 
@@ -70,15 +69,15 @@ export interface PeerSocketLike {
 }
 
 /**
- * The §2.4 peer check. Takes the SOCKET, never the request, so a caller cannot
- * pass the proxy-aware `request.ip` by accident — the type will not allow it.
+ * The peer check. Takes the SOCKET, never the request, so a caller cannot pass
+ * the proxy-aware `request.ip` by accident — the type will not allow it.
  */
 export function isLoopbackPeer(socket: PeerSocketLike | undefined | null): boolean {
   return isLoopbackAddress(socket?.remoteAddress);
 }
 
 /**
- * Constant-time equality for the boot token (§5: "compares against
+ * Constant-time equality for the boot token ("compares against
  * `ADMINIUM_BOOT_TOKEN` (constant-time)").
  *
  * Both sides are hashed first. `timingSafeEqual` THROWS on a length mismatch,
@@ -100,7 +99,7 @@ export interface BootTokenGuard {
   /**
    * Verify and CONSUME. Exactly one call in this process's lifetime can return
    * `ok`; every later call returns `used`, including a second call with the
-   * correct token (that is the §5 replay case, not a retry).
+   * correct token (that is the replay case, not a retry).
    */
   claim(candidate: string): BootTokenClaim;
   /** Introspection for tests/diagnostics — never gates anything. */

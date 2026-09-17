@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * importsRepo — adminium_imports (07-meta-store.md §3.26): the import wizard's
- * server-side state machine
- * (`validating → ready → running → succeeded | failed | cancelled`).
+ * importsRepo — adminium_imports: the import wizard's server-side state
+ * machine (`validating → ready → running → succeeded | failed | cancelled`).
  *
- * `mapping`/`options` are validated against the §3.26 payload schemas on every
- * write; `stats` carries the invariant the SPA asserts (09 §11.1):
- * total = inserted + updated + skipped.
+ * `mapping`/`options` are validated against the payload schemas on every
+ * write; `stats` carries the invariant the SPA asserts: total = inserted +
+ * updated + skipped.
  */
 
 import type { Selectable } from 'kysely';

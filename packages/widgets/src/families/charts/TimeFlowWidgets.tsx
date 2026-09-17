@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family "time, forecast & flow" widgets (04-T09; annex §2 ids
- * chart-multiline, chart-stream, chart-forecast, chart-anomaly,
- * chart-candlestick, chart-bump, chart-timeline-lanes): registry wrappers
- * mapping stored instance config + §3 envelopes onto the @adminium/charts
- * primitives via the pure `time-flow-adapters` narrowers. Accessible names come
- * from `config.title` (ChartSurface renders them as the SVG aria-label).
- * Components render only the loaded state — WidgetFrame owns skeleton/empty/
- * error (04 §4); a malformed payload renders an inline fallback rather than
- * throwing into the error boundary. RTL mirroring is read from
- * ChartDirectionContext by the primitives, so no `dir` prop is threaded here.
+ * `charts` family "time, forecast & flow" widgets (annex ids chart-multiline,
+ * chart-stream, chart-forecast, chart-anomaly, chart-candlestick, chart-bump,
+ * chart-timeline-lanes): registry wrappers mapping stored instance config +
+ * envelopes onto the @adminium/charts primitives via the pure
+ * `time-flow-adapters` narrowers. Accessible names come from `config.title`
+ * (ChartSurface renders them as the SVG aria-label). Components render only the
+ * loaded state — WidgetFrame owns skeleton/empty/ error; a malformed payload
+ * renders an inline fallback rather than throwing into the error boundary. RTL
+ * mirroring is read from ChartDirectionContext by the primitives, so no `dir`
+ * prop is threaded here.
  */
 import { useMaybeT } from '@adminium/i18n/react';
 import {

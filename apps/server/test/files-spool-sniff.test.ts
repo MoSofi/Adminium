@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The spool and the sniffing gate (37-files-and-storage.md D4/D8, 37-T03).
+ * The spool and the sniffing gate.
  *
  * The sniff table is exercised from real byte heads rather than from mime
  * strings, because the whole point of the gate is that the client's claim is

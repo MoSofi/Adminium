@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The egress decision itself — "may this add-on reach this URL?"
- * (24 D14, 26 §5.5).
+ * The egress decision itself — "may this add-on reach this
+ * URL?".
  *
  * Split from `egress.ts` because it is a PURE predicate over a URL and a list,
  * and the thing most worth exhaustive adversarial testing in the whole add-on

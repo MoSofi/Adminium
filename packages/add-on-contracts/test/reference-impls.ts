@@ -5,11 +5,11 @@
  *
  * These exist so `@adminium/add-on-contracts/testing` is EXECUTED somewhere.
  * The conformance suites are the load-bearing half of the "the next carrier is
- * this repo with one file replaced" claim (24 §5.5, D9), and until now nothing
- * in this repo ever ran them: `ab6314e` added two cases to
- * `describeShippingCarrier` that no test anywhere had executed. A suite that is
- * only ever run in fleet repos is a suite whose own bugs surface fifteen repos
- * away from the commit that wrote them.
+ * this repo with one file replaced" claim, and until now nothing in this repo
+ * ever ran them: `ab6314e` added two cases to `describeShippingCarrier` that no
+ * test anywhere had executed. A suite that is only ever run in fleet repos is a
+ * suite whose own bugs surface fifteen repos away from the commit that wrote
+ * them.
  *
  * They are REFERENCE implementations, not stubs shaped to the assertions. Each
  * one earns its passes honestly:
@@ -61,7 +61,7 @@ import {
  * calling it twice and comparing — with a live clock that assertion passes
  * every day of the year except across a midnight boundary, which is the worst
  * kind of flake because it is the kind CI finds and a dev box never does
- * (15-quality.md §1, "Determinism").
+ * ("Determinism").
  */
 const BASE_DAY_UTC = Date.UTC(2026, 0, 5);
 const DAY_MS = 86_400_000;
@@ -76,9 +76,9 @@ function isoTimePlus(hours: number): string {
 
 /**
  * FNV-1a. A hand-rolled hash rather than `node:crypto` so this file stays as
- * portable as the half of the package that forbids `node:` imports (01 §3) — an
- * add-on author copying it as a starting point should not inherit a Node
- * dependency the storefront cannot load.
+ * portable as the half of the package that forbids `node:` imports — an add-on
+ * author copying it as a starting point should not inherit a Node dependency
+ * the storefront cannot load.
  */
 function digestOf(input: string): string {
   let hash = 0x811c9dc5;
@@ -173,7 +173,7 @@ export class ReferenceArtworkSource implements ArtworkSource {
 
 /**
  * The countries this carrier flies to. `quote` refuses anything else at EITHER
- * end of the route, which is the rule 31 O4 made executable: a label needs a
+ * end of the route, which is the rule made executable: a label needs a
  * resolvable address at both ends, so an address refused as a recipient is
  * refused as a sender.
  */
@@ -437,21 +437,21 @@ export class ReferenceProductPersonalizer implements ProductPersonalizer {
  *     drawing branch for `é ß ø €` and the refusal branch for Arabic and Han;
  *   · `ticket` is `ascii` and PDF-only, so it exercises the refusal branch for
  *     `é ß ø €` — the case a WinAnsi-only reference could never reach, and the
- *     one `barcode-labels` actually is (34-T06);
- *   · `receipt` is HTML-only with no free-text slot and every required slot
- *     defaulted, so the PDF, glyph and missing-slot cases have nothing to
- *     assert — and a line it carries has an empty cell, and a collection it
- *     declares arrives with no rows, which the money law has to step over;
- *   · `badge` is PDF-only with no free-text slot, so the escaping and coverage
- *     cases skip it while its cross-reference table is still walked.
+ * one `barcode-labels` actually is; · `receipt` is HTML-only with no free-text
+ *     slot and every required slot defaulted, so the PDF, glyph and
+ *     missing-slot cases have nothing to assert — and a line it carries has an
+ *     empty cell, and a collection it declares arrives with no rows, which the
+ *     money law has to step over; · `badge` is PDF-only with no free-text
+ *     slot, so the escaping and coverage cases skip it while its
+ *     cross-reference table is still walked.
  *
  * It earns its passes the way the other three references do. The PDF is built
  * over BYTE buffers with the cross-reference offsets collected from the buffer
  * itself, so `parseXrefBack` walking to each object is a property of the
  * writer rather than of a recorded answer — and a writer that computed offsets
- * from `String.length` (34 §0.3 trap 8) fails it on the first accented
- * character. Coverage is checked BEFORE the writer runs, so a glyph it cannot
- * draw is a typed refusal and never a hole in the page.
+ * from `String.length` (trap 8) fails it on the first accented character.
+ * Coverage is checked BEFORE the writer runs, so a glyph it cannot draw is a
+ * typed refusal and never a hole in the page.
  */
 
 const WINANSI_HIGH: Readonly<Record<string, number>> = {

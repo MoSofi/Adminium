@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Onboarding-state routes (M5-T06, 09-generated-app.md):
+ * Onboarding-state routes:
  *
  *   GET  /api/v1/onboarding          → { data: { checklist, dismissed } }
  *   POST /api/v1/onboarding/dismiss  → persist the per-user dismissal, then
  *                                       return the fresh state.
  *
  * The checklist is derived from live workspace state on every request
- * (see ./derive.ts) — never from click-time booleans. Guarded by
+ * (see./derive.ts) — never from click-time booleans. Guarded by
  * `system:connections:manage` (the admin built-in role has it; viewers/editors
  * do not), so the surface is admin-only. Dismissal is a per-user UI preference
  * stored in `adminium_user_prefs.uiState` — the same per-user pref store the
- * theme axes use (07-meta-store.md §3.4) — so it is not audit-logged, matching
- * the sibling `me/prefs` writes.
+ * theme axes use — so it is not audit-logged, matching the sibling `me/prefs`
+ * writes.
  */
 
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -36,7 +36,7 @@ export const ONBOARDING_VIEW = 'system:connections:manage';
 /** uiState key holding the per-user dismissal flag. */
 export const ONBOARDING_DISMISSED_KEY = 'onboardingDismissed';
 
-/** Workspace-default axes an admin explicitly saved (07-meta-store.md §7.1). */
+/** Workspace-default axes an admin explicitly saved. */
 const WORKSPACE_DEFAULT_KEYS: readonly SettingKey[] = [
   'appearance.theme',
   'appearance.accent',

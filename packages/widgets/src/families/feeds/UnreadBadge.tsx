@@ -6,14 +6,14 @@ import type { UnreadBadgeConfig } from './feeds-config.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `unread-badge` (annex §4) — a count pill on nav items / tabs / page titles,
+ * `unread-badge` (annex) — a count pill on nav items / tabs / page titles,
  * live-synced with feed state ("{n} new"). Binds to a single derived integer
  * (`single-metric`). Overflows to "{max}+"; optionally hides at zero.
  */
 
 // Config schema + deterministic demo payload live in the pure `feeds-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { unreadBadgeConfigSchema, unreadBadgeDemoData } from './feeds-config.js';
 export type { UnreadBadgeConfig } from './feeds-config.js';
 

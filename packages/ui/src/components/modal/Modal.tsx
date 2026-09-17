@@ -8,7 +8,8 @@ import { IconTile, type Tone } from '../icon-tile/index.js';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
-/** Size → max inline size (~410/480/720/940, research/design-system.md §3 Tier 3). */
+/** Size → max inline size (~410/480/720/940, research/design-system.md Tier 3).
+ * */
 const modalSizeClasses: Record<ModalSize, string> = {
   sm: 'max-w-[410px]',
   md: 'max-w-[480px]',
@@ -34,7 +35,7 @@ export interface ModalProps extends ComponentPropsWithRef<typeof DialogPrimitive
 /**
  * Modal — Radix dialog: radius 20, `--shadow-lg` (shadow-modal), `--scrim` +
  * 3px backdrop blur, `nb-modal` entrance; focus trap, Esc and overlay close
- * are Radix built-ins (research/design-system.md §3 Tier 3). Compose with
+ * are Radix built-ins (research/design-system.md Tier 3). Compose with
  * `ModalHeader` / `ModalBody` / `ModalFooter`. Pass `modal={false}` +
  * `defaultOpen` in VRT stories to render inline.
  */

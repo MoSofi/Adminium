@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The structural edits (34-invoices-add-on.md 34-T47; Appendix F "Ordering
- * rules the port must keep"): the three comp behaviours by line —
- * `reorderBlk` 1359, `addBuiltin` 1300-1305, `hideSec` 1361 vs `delCustom`
- * 1320 — plus the item, line and row helpers.
+ * The structural edits: the three comp behaviours by line — `reorderBlk`
+ * 1359, `addBuiltin` 1300-1305, `hideSec` 1361 vs `delCustom` 1320 — plus
+ * the item, line and row helpers.
  */
 import { describe, expect, it } from 'vitest';
 

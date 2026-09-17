@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * §4's detection contract, from the SPA's side.
+ * The detection contract, from the SPA's side.
  *
  * The absence case is the one that matters: this same bundle is what self-host
  * and Cloud serve, where `window.adminiumDesktop` genuinely does not exist. A
@@ -14,7 +14,7 @@ import type { AdminiumDesktopApi } from '@adminium/desktop/api';
 
 import { desktopErrorCode, getDesktopApi, isDesktopRuntime } from './desktop-runtime.js';
 
-/** Enough of the §4 bridge to be recognised as one. */
+/** Enough of the bridge to be recognised as one. */
 const fakeBridge = (): AdminiumDesktopApi =>
   ({ platform: 'darwin', versions: { app: '1.0.0' } }) as unknown as AdminiumDesktopApi;
 

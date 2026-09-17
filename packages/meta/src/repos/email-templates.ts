@@ -1,26 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * emailTemplatesRepo — adminium_email_templates (07-meta-store.md §3.28;
- * 39-email-templates-and-campaigns.md §3.2). One table, two kinds: a
+ * emailTemplatesRepo — adminium_email_templates. One table, two kinds: a
  * `template` is a document the product sends (a password reset, an invite,
  * a notification) or an operator's reusable design; a `campaign` is a
- * send-out — the same envelope with a run history (39 D2).
+ * send-out — the same envelope with a run history.
  *
  * `is_builtin_copy` marks rows the server seeded verbatim from a built-in
  * (true) versus rows a human has touched (false — every editor write clears
- * it, §3.28). A `(key, locale)` pair is one language variation of one topic
- * (39 D3): siblings share the `key`.
+ * it). A `(key, locale)` pair is one language variation of one topic:
+ * siblings share the `key`.
  *
  * `blocks` is the ordered open-record array (`emailBlocksSchema`); the
  * concrete per-kind shapes are owned by `apps/server/src/email/document.ts`
  * — the repo validates the envelope, never the block bodies, so an unknown
  * kind round-trips byte-identical.
  *
- * THE FOOTER IS LIFTED ON DECODE (39 D5). The comp's footer is a fixed
- * envelope field, but every seeded row and every install's edits hold a
- * trailing `email.footer` BLOCK. When a row's `footer` column is empty and
- * its last block is a footer, {@link liftLegacyFooter} moves the text onto
- * the envelope and drops the block from what the caller sees. Nothing is
+ * THE FOOTER IS LIFTED ON DECODE. The comp's footer is a fixed envelope
+ * field, but every seeded row and every install's edits hold a trailing
+ * `email.footer` BLOCK. When a row's `footer` column is empty and its last
+ * block is a footer, {@link liftLegacyFooter} moves the text onto the
+ * envelope and drops the block from what the caller sees. Nothing is
  * rewritten in place: the next explicit save stores `footer` as a field, and
  * a row that is never saved keeps its block forever — which the renderer
  * still renders. The seed's change detection compares the lifted shape
@@ -63,15 +62,15 @@ export interface EmailTemplate {
   updatedAt: number;
   kind: EmailDocumentKind;
   category: EmailCategory;
-  /** Which starter minted the family; null for blank and built-in documents (39 D3/D10). */
+  /** Which starter minted the family; null for blank and built-in documents. */
   starter: string | null;
   needsTranslation: boolean;
-  /** Delete is archive (39 D4); null = live in the manager. */
+  /** Delete is archive; null = live in the manager. */
   archivedAt: number | null;
   preheader: string;
-  /** The fixed footer (39 D5) — lifted from a trailing legacy footer block on read. */
+  /** The fixed footer — lifted from a trailing legacy footer block on read. */
   footer: string;
-  /** Per-document brand & sender; null = workspace defaults (39 D6). */
+  /** Per-document brand & sender; null = workspace defaults. */
   brand: EmailBrand | null;
   attachments: EmailAttachment[];
   createdBy: string | null;
@@ -95,7 +94,7 @@ export interface UpsertEmailTemplateInput extends EmailEnvelopeInput {
   enabled: boolean;
   /** The editing user; null for system seeds. */
   updatedBy?: string | null | undefined;
-  /** Seed writes pass true; editor writes default false (§3.28). */
+  /** Seed writes pass true; editor writes default false. */
   isBuiltinCopy?: boolean | undefined;
 }
 
@@ -124,13 +123,13 @@ export interface PatchEmailTemplateInput extends EmailEnvelopeInput {
 
 export interface ListEmailTemplatesFilter {
   kind?: EmailDocumentKind | undefined;
-  /** Default false: the live documents. True lists the Archived view (39 D4). */
+  /** Default false: the live documents. True lists the Archived view. */
   archived?: boolean | undefined;
   /** Case-insensitive substring over name, subject, category and key. */
   q?: string | undefined;
 }
 
-/** The manager's tab badges and the Archived count (39 §3.1 `counts`). */
+/** The manager's tab badges and the Archived count (`counts`). */
 export interface EmailTemplateCounts {
   /** Documents of each kind in the requested archived state. */
   template: number;
@@ -155,7 +154,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * The read-side half of 39 D5: a trailing `email.footer` block becomes the
+ * The read-side half of: a trailing `email.footer` block becomes the
  * envelope's `footer` when the column is empty. Exported so the server can
  * apply the same rule to a document arriving on the wire (an old export, a
  * hand-written bundle) before validating it.
@@ -184,10 +183,10 @@ function cloneBlock(block: Record<string, unknown>): Record<string, unknown> {
 
 /**
  * The comp's `applyOp` (comp 1317-1323), with every index clamped to the list
- * it is applied to: the same op runs against siblings of different lengths
- * (39 §3.3), so an index past the end inserts at the end, deletes nothing, and
- * a move that names a missing block is a no-op. `cloneIds` mints fresh ids on
- * inserted blocks — a mirrored insert must not share an id with the original.
+ * it is applied to: the same op runs against siblings of different lengths, so
+ * an index past the end inserts at the end, deletes nothing, and a move that
+ * names a missing block is a no-op. `cloneIds` mints fresh ids on inserted
+ * blocks — a mirrored insert must not share an id with the original.
  */
 export function applyEmailBlockOps(
   blocks: readonly Record<string, unknown>[],
@@ -259,10 +258,11 @@ function escapeLike(value: string): string {
 
 /**
  * `en_US` first — ALWAYS, it is the source language every family starts in
- * and the fallback every send resolves to (39 D3) — then the caller's order
- * when one is given (the registry's picker order, which ties on `sortOrder`
- * and would otherwise put `ar_EG` ahead of everything), then the rest by id.
- * Deterministic without the i18n registry, which this package may not import.
+ * and the fallback every send resolves to — then the caller's order when one
+ * is given (the registry's picker order, which ties on `sortOrder` and would
+ * otherwise put `ar_EG` ahead of everything), then the rest by id.
+ * Deterministic without the i18n registry, which this package may not
+ * import.
  */
 export function compareLocales(a: string, b: string, localeOrder?: readonly string[]): number {
   if (a === b) return 0;
@@ -414,7 +414,7 @@ export function emailTemplatesRepo(meta: MetaDb) {
     /**
      * Every variation of a topic, archived ones included (callers filter on
      * `archivedAt`), in locale order — the registry's picker order when the
-     * caller passes it, else `en_US` first (39 D3).
+     * caller passes it, else `en_US` first.
      */
     async siblings(key: string, opts: { localeOrder?: readonly string[] | undefined } = {}): Promise<EmailTemplate[]> {
       const rows = await db
@@ -428,8 +428,8 @@ export function emailTemplatesRepo(meta: MetaDb) {
     /**
      * Keys that would collide with a minted `base` — the key itself and every
      * `base-N` — so the server can pick the next free suffix in one query
-     * (39 §3.1: `weekly-digest`, `weekly-digest-2`). Archived rows count:
-     * their `(key, locale)` still occupies the unique index.
+     * (`weekly-digest`, `weekly-digest-2`). Archived rows count: their `(key,
+     * locale)` still occupies the unique index.
      */
     async keysLike(base: string): Promise<string[]> {
       const rows = await db
@@ -480,7 +480,7 @@ export function emailTemplatesRepo(meta: MetaDb) {
 
     patch,
 
-    /** Delete is archive (39 D4). Returns the row, or null when it does not exist. */
+    /** Delete is archive. Returns the row, or null when it does not exist. */
     async archive(id: string, at: number = Date.now()): Promise<EmailTemplate | null> {
       const res = await db
         .updateTable('adminium_email_templates')
@@ -502,7 +502,7 @@ export function emailTemplatesRepo(meta: MetaDb) {
       return await findById(id);
     },
 
-    /** Delete for good (39 D4); runs cascade with the row. */
+    /** Delete for good; runs cascade with the row. */
     async removeById(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_email_templates').where('id', '=', id).executeTakeFirst();
       return affected(res.numDeletedRows as bigint | undefined) === 1;
@@ -511,8 +511,8 @@ export function emailTemplatesRepo(meta: MetaDb) {
     /**
      * Apply the session's structural ops to every LIVE sibling of `id` — not
      * to `id` itself, whose document the same save writes verbatim — inside
-     * one transaction, cloning inserted blocks with fresh ids (39 D1, §3.3).
-     * Returns the siblings it changed.
+     * one transaction, cloning inserted blocks with fresh ids. Returns the
+     * siblings it changed.
      */
     async applyMirrorOps(
       id: string,
@@ -561,7 +561,7 @@ export function emailTemplatesRepo(meta: MetaDb) {
      * rows (no cross-dialect ON CONFLICT — repos/util.ts convention). The seed's
      * verb; it never touches `kind` (a seeded key is always a template) and
      * leaves `archived_at` alone — an archived row is human-owned, and the seed
-     * checks that before calling (39 D4).
+     * checks that before calling.
      */
     async upsert(
       key: string,

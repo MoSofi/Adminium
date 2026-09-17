@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family — distribution & correlation group (04-T09). Metadata-only
- * definitions for the seven annex §2 ids `chart-boxplot`, `chart-violin`,
+ * `charts` family — distribution & correlation group. Metadata-only
+ * definitions for the seven annex ids `chart-boxplot`, `chart-violin`,
  * `chart-ridgeline`, `chart-scatter-bubble`, `chart-hexbin`,
  * `chart-correlation-matrix`, `chart-parallel-coordinates`. Component code
- * loads lazily so the family ships as one Vite chunk (04 §2.3). Grid sizing
- * follows the annex → half-unit conversion (04 §6.1: annex `4×3` → h 6).
- * Demo payloads are the deterministic §3-envelope generators (04 §7.7).
+ * loads lazily so the family ships as one Vite chunk. Grid sizing follows
+ * the annex → half-unit conversion (annex `4×3` → h 6). Demo payloads are
+ * the deterministic -envelope generators.
  *
  * These are exported as a discrete array so the GREEN LOOP can concatenate the
  * group into the family `definitions.ts` + registry map without a concurrent

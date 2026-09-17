@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Application errors + the one non-2xx envelope (08-server-api.md §1.4).
+ * Application errors + the one non-2xx envelope.
  *
  * Every non-2xx response has the shape
  * `{ error: { code, message, requestId, details? } }` with a SCREAMING_SNAKE
@@ -8,7 +8,7 @@
  * global error handler in `app.ts` serializes them.
  */
 
-/** Canonical error codes relevant to the M2 skeleton (08-server-api.md §1.4). */
+/** Canonical error codes relevant to the M2 skeleton. */
 export type ErrorCode =
   | 'VALIDATION_FAILED'
   | 'UNAUTHENTICATED'
@@ -35,7 +35,7 @@ export type ErrorCode =
    * that failed to answer; this one never dialled.
    */
   | 'CONNECTION_DISABLED'
-  // The two meta-store placement refusals (01-architecture.md §3.1). Both are
+  // The two meta-store placement refusals. Both are
   // thrown by `connections/dsn.ts` subclasses and both were missing from this
   // union while already travelling the wire — `META_PLACEMENT_INVALID` has been
   // served by `POST /connections` since M3 and asserted by name in
@@ -55,7 +55,7 @@ export interface ErrorEnvelope {
 }
 
 /**
- * Builds the §1.4 envelope. `details` is included only when defined so
+ * Builds the envelope. `details` is included only when defined so
  * successful `JSON.stringify` output never carries a `"details": undefined`
  * hole (and `exactOptionalPropertyTypes` stays happy).
  */
@@ -119,7 +119,7 @@ export class UnauthorizedError extends AppError {
   }
 }
 
-/** 403 — RBAC/CSRF denial; `code` narrows the flavor (08-server-api.md §1.4). */
+/** 403 — RBAC/CSRF denial; `code` narrows the flavor. */
 export class ForbiddenError extends AppError {
   override readonly name = 'ForbiddenError';
 
@@ -148,10 +148,10 @@ export class ConflictError extends AppError {
       | 'CONFLICT'
       | 'UNIQUE_VIOLATION'
       | 'FK_VIOLATION'
-      // 35-schema-authoring.md D2: the plan was built against a schema that has
-      // since moved — either the snapshot (another admin applied a plan) or the
-      // database itself (somebody ran DDL outside Adminium). Both mean the same
-      // thing to the caller: re-plan and look at it again.
+      // The plan was built against a schema that has since moved — either the
+      // snapshot (another admin applied a plan) or the database itself
+      // (somebody ran DDL outside Adminium). Both mean the same thing to the
+      // caller: re-plan and look at it again.
       | 'SCHEMA_DRIFT' = 'CONFLICT',
     details?: unknown,
   ) {
@@ -183,10 +183,10 @@ export class ConnectionDisabledError extends AppError {
 }
 
 /**
- * 429 — thrown by the §6 limiter in `plugins/core.ts` when a bucket is
- * exhausted (08-server-api.md §6); the plugin sets `Retry-After` on the reply
- * before the global handler serializes this envelope. `details` carries
- * `{ bucket, limit, resetAt }` when known.
+ * 429 — thrown by the limiter in `plugins/core.ts` when a bucket is
+ * exhausted; the plugin sets `Retry-After` on the reply before the global
+ * handler serializes this envelope. `details` carries `{ bucket, limit,
+ * resetAt }` when known.
  */
 export class RateLimitedError extends AppError {
   override readonly name = 'RateLimitedError';

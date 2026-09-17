@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Deterministic domain-shaped demo generators for the "bars & ranking" chart
- * group (04-T09; 04-widget-registry.md §7.7). Same seed → identical
- * payload across runs and platforms — seeded PRNG only, never Date.now()/
- * Math.random(). These feed the chart-primitive tests and stories; the
- * @adminium/widgets defs wrap the same numbers into §3 envelopes.
+ * group. Same seed → identical payload across runs and platforms — seeded
+ * PRNG only, never Date.now()/ Math.random(). These feed the chart-primitive
+ * tests and stories; the @adminium/widgets defs wrap the same numbers into
+ * envelopes.
  */
 import { mulberry32 } from './mulberry32.js';
 import type { RankingInput } from '../geometry/ranking.js';

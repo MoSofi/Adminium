@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The 12 system states (09-generated-app.md §6.1). Eleven variants carry the
- * copy verbatim from System States.dc.html; `suspended` is the new
- * cloud-dunning state specced in §6.1 (ia-mapping §2D gap).
+ * The 12 system states. Eleven variants carry the copy verbatim from System
+ * States.dc.html; `suspended` is the new cloud-dunning state specced
+ * (ia-mapping D gap).
  */
 import {
   Activity,
@@ -99,7 +99,7 @@ export const SYSTEM_STATES: Record<SystemStateId, SystemStateSpec> = {
     },
     primary: { label: { key: 'states.error.primary', en: 'Try again' }, icon: RefreshCw },
     // NO secondary. The comp's "Status page" assumed a hosted product; v1 ships
-    // self-hosted (17-deferred-monetization.md), where the instance IS the
+    // self-hosted, where the instance IS the
     // reader's own server and there is no status page to send them to. It was
     // wired to nothing and could not honestly be wired to anything, so the CTA
     // row is one button and the reference below it carries the recovery path.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Claims and the predicate they buy (28-public-surface.md §3.4, 28-T19).
+ * Claims and the predicate they buy.
  *
  * The interesting tests are all refusals. A claim endpoint is an identity
  * check, and every way of making one slightly more helpful — telling the caller

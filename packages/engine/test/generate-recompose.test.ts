@@ -12,7 +12,7 @@ import { ARCHETYPE_CONNECTION, archetypeModel } from './fixtures/archetypes-mode
  *
  * The two sibling entry points do not cover it: `generatePages` composes a
  * whole app and picks templates itself, and `composeRequestedArchetype` refuses
- * every template outside the nine §14 archetypes — including `page-crud`, the
+ * every template outside the nine archetypes — including `page-crud`, the
  * single most likely thing an admin picks by hand. Without this an admin could
  * create a CRUD page and never give it data.
  */
@@ -73,7 +73,7 @@ describe('composeRequestedPage', () => {
   });
 
   it('composes an archetype the table actually supports', () => {
-    // Every §14 archetype the fixture model earns should compose when asked for
+    // Every archetype the fixture model earns should compose when asked for
     // by name; the ones it cannot back return a reason, never a throw.
     const outcomes = [
       'page-board',

@@ -10,14 +10,14 @@
 
 ### Patch Changes
 
-- ab6314e: `describeShippingCarrier` names the inbound direction (31 O4): quote is
+- ab6314e: `describeShippingCarrier` names the inbound direction: quote is
   direction-symmetric — the same route reversed still quotes — and the refusal is
-  end-symmetric, so a carrier that would refuse an address as a recipient refuses
-  it as a sender. No interface member changes shape; a return is the same
-  contract with the route reversed, and the suite now says so executably.
-- 8fb86bf: The contract registry gains a fourth entry: `document-render@1` (34 D1, bought
-  2026-09-02), with two implementations in the same wave — `invoices` and
-  `barcode-labels` — which is what 25 D4's gate asks of a new contract.
+  end-symmetric, so a carrier that would refuse an address as a recipient refuses it
+  as a sender. No interface member changes shape; a return is the same contract with
+  the route reversed, and the suite now says so executably.
+- 8fb86bf: The contract registry gains a fourth entry: `document-render@1` (bought
+  2026-09-02), with two implementations in the same wave — `invoices` and `barcode-labels`
+  — which is what gate asks of a new contract.
   
   It is the first contract an add-on uses to hand Adminium **bytes**. Every other
   one describes a conversation with a service: a carrier quotes and books, a
@@ -54,9 +54,8 @@
   
   **No new slots.** `document-render@1` is drawn through the two ids that already
   existed, `record.actions` and `settings.add-on.panel`.
-- ce438a0: The closed slot registry gains a thirteenth id: `shell.overlay` (33 O1 → D17,
-  bought 2026-09-01). Surface `customer`, fill `multi`, payload
-  `ShellOverlayPayload`.
+- ce438a0: The closed slot registry gains a thirteenth id: `shell.overlay` (bought
+  2026-09-01). Surface `customer`, fill `multi`, payload `ShellOverlayPayload`.
   
   It is the first slot on a **customer shell** rather than inside one of its
   flows. Every other customer id in the registry is a place inside something — a
@@ -124,3 +123,13 @@
   `@adminium/i18n` gains a runtime override layer (`createI18nWithOverrides`, `mergeOverrides`, `rebuildWithOverrides`, `overrideTag`) alongside runtime locale registration (`setRuntimeLocales`, `resetRuntimeLocales`, `availableLocales`) and format-failure reporting. The compiled bundle and the override tree are held separately and merged in userland, with the instance rebuilt on each revision bump rather than the i18next resource store being mutated: i18next 25 cannot delete a key from a bundle, so the store has no way to express "reset this key to the built-in" — the most common admin operation.
 
   `@adminium/add-on-contracts` is a new package carrying the add-on slot and provider-contract registries, their types, and conformance suites. `@adminium/manifest` grows the matching vocabulary — `addOnManifestSchema`, `manifestKindSchema`, `isAddOnManifest`, `addOnIssues` and the `AddOnBlock` type — so an add-on manifest is validated by the same path as an app manifest.
+
+---
+
+*A note on the entries above.* Some of them cited the internal work plan this
+repository was built from — a document filename, a section, or a task id. That
+plan was never published, so those citations were dead ends for every reader but
+their author, and they were reworded on 2026-09-17. No entry's substance
+changed: only the references went. The reasoning they pointed at is public now,
+one short page per decision, at
+<https://docs.adminium.dev/anatomy/decisions/>.

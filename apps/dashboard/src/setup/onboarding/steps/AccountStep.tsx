@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 3 — create your account (45-onboarding.md §2).
+ * Step 3 — create your account.
  *
  * The same four fields `FirstRunWizard` has always asked for, moved into the
  * six-step wizard. Two differences, both structural:

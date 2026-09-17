@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * filesRepo / exportsRepo / importsRepo (07-meta-store.md §3.25–§3.27) —
- * M7-T07 data-io wave. Same dialect-parameterized harness as the sibling
- * repo suites.
+ * filesRepo / exportsRepo / importsRepo — data-io wave. Same
+ * dialect-parameterized harness as the sibling repo suites.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -186,7 +185,7 @@ for (const dialect of TEST_DIALECTS) {
       ).toBe(true);
       const done = await imports.findById(row.id);
       expect(done?.status).toBe('succeeded');
-      // The 09 §11.1 invariant: total = inserted + updated + skipped.
+      // The invariant: total = inserted + updated + skipped.
       expect(done?.stats?.total).toBe(
         (done?.stats?.inserted ?? 0) + (done?.stats?.updated ?? 0) + (done?.stats?.skipped ?? 0),
       );

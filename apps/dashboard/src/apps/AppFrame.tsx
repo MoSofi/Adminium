@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A hosted app surface, blended into the dashboard (29-app-surfaces.md D6).
+ * A hosted app surface, blended into the dashboard.
  *
  * ── Why an iframe, and why that is not a cop-out ───────────────────────────
  * The alternative considered and rejected was DOM-level merging — mounting the
@@ -16,7 +16,7 @@
  * `allow-same-origin allow-scripts allow-forms` — is equivalent to no sandbox
  * while READING as protection. What actually had to be checked was the other
  * direction: helmet shipped `frame-ancestors 'none'`, which would have rendered
- * this blank, and 29-T09 narrowed it to `'self'`.
+ * this blank, narrowed it to `'self'`.
  *
  * ── The two things that make it feel blended rather than framed ────────────
  *
@@ -160,10 +160,10 @@ export function AppFrame({ appKey, path, persona, title, onNavigate }: AppFrameP
    * within one app is not.
    */
   /*
-   * `<appKey>~<instance>` selects an extra tenant of the app (29 D9): the same
-   * bundle mounted at `/apps/<appKey>/<instance>/staff/`, reading its own
-   * database. Without the split the frame would load the app's own mount and
-   * quietly show the wrong business's data.
+   * `<appKey>~<instance>` selects an extra tenant of the app: the same bundle
+   * mounted at `/apps/<appKey>/<instance>/staff/`, reading its own database.
+   * Without the split the frame would load the app's own mount and quietly
+   * show the wrong business's data.
    */
   const { appKey: mountKey, instance } = splitAppKeyParam(appKey);
   const mountPrefix =

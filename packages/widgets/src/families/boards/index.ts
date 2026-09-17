@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `boards` family public surface (annex §6) — the kanban board + swimlane grid
+ * `boards` family public surface (annex) — the kanban board + swimlane grid
  * components plus their registry metadata. Component code is also reachable
  * through each definition's `lazy()` ref, so the registry still emits one chunk
- * per family (04 §2.3); this barrel is for direct template/story composition and
- * tests. Registry metadata lives in `boards-track.definitions.ts`.
+ * per family; this barrel is for direct template/story composition and tests.
+ * Registry metadata lives in `boards-track.definitions.ts`.
  */
 export {
   KanbanBoard,

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Data-io API client (M7-T07, 09-generated-app.md §11) — thin typed wrappers
- * over `/api/v1/imports` + `/api/v1/exports`. Shapes mirror the server Zod
- * reply schemas (`apps/server/src/routes/{imports,exports}/schema.ts`) — the
- * copied-mirror convention from studio/api.ts applies: change both together.
+ * Data-io API client — thin typed wrappers over `/api/v1/imports` +
+ * `/api/v1/exports`. Shapes mirror the server Zod reply schemas
+ * (`apps/server/src/routes/{imports,exports}/schema.ts`) — the copied-mirror
+ * convention from studio/api.ts applies: change both together.
  */
 
 import { queryOptions } from '@tanstack/react-query';
@@ -77,7 +77,7 @@ export interface ValidationReportDto {
 export type ExportFormat = 'csv' | 'json' | 'xlsx';
 export type ExportStatus = 'processing' | 'ready' | 'failed' | 'cancelled' | 'expired';
 
-/** One column of an export definition (41-export-builder.md D1) — mirrors meta's `exportColumnSchema`. */
+/** One column of an export definition — mirrors meta's `exportColumnSchema`. */
 export interface ExportColumnDef {
   name: string;
   label: string;
@@ -103,7 +103,7 @@ export interface ExportSource {
   options?: ExportOptions;
 }
 
-// --- the builder's reads (41 §3.1) ---------------------------------------------
+// --- the builder's reads ---------------------------------------------
 
 export interface ExportSourcePage {
   id: string;
@@ -194,7 +194,7 @@ async function uploadImportFile(file: File): Promise<UploadPreview> {
     {
       method: 'POST',
       credentials: 'same-origin',
-      // Hand-rolled fetch ⇒ hand-rolled CSRF header (08 §7 item 4). Without it
+      // Hand-rolled fetch ⇒ hand-rolled CSRF header. Without it
       // every CSV import 403s at the upload step.
       headers: { accept: 'application/json', 'content-type': 'text/csv', ...csrfHeaders() },
       body: file,

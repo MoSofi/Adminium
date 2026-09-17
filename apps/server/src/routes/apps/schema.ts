@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wire shapes for `/api/v1/apps` (47-app-installation.md §1 step 1).
+ * Wire shapes for `/api/v1/apps`.
  *
  * Mirrors `routes/add-ons/schema.ts` deliberately: the two surfaces acquire
  * bytes the same way, so an operator tool that can drive one can drive the
@@ -35,11 +35,10 @@ export const appKeyParams = z.object({ key: appKey });
  * different from the manifest, the upload is refused before anything is
  * written.
  *
- * `expectedSha512` is the uploader's own hash of the file they are sending, and
- * 32 D4's honesty about what that is worth applies here unchanged: for a
- * tarball of unknown origin it is self-referential, which is exactly why the
- * hardened unpack runs unconditionally rather than being skippable for a
- * trusted source.
+ * `expectedSha512` is the uploader's own hash of the file they are sending,
+ * honesty about what that is worth applies here unchanged: for a tarball of
+ * unknown origin it is self-referential, which is exactly why the hardened
+ * unpack runs unconditionally rather than being skippable for a trusted source.
  */
 export const uploadAppQuery = z.object({
   key: appKey.optional(),
@@ -60,7 +59,7 @@ export const stagedAppReply = z.object({
 });
 
 /**
- * The plan preview (47-app-installation.md O2).
+ * The plan preview.
  *
  * `connectionId` is required and is NOT inferred. An add-on can infer its
  * database from the host it attaches to; an app has no host, and guessing "the
@@ -126,7 +125,7 @@ export const installAppBody = z.object({
   version: z.string().min(1).max(64),
   /**
    * The database the app's tables are created in, and the one its staff surface
-   * reads afterwards (29 D9).
+   * reads afterwards.
    *
    * OPTIONAL IN THE SHAPE, REQUIRED IN PRACTICE. `requiredSchema.tables` is
    * `min(1)` on the app branch, so every valid app manifest declares at least
@@ -145,8 +144,8 @@ const installedSide = z.object({
   prefix: z.string(),
   /**
    * False = the bundle carries no `surface.json`, so the blended placement is
-   * unavailable and Studio says "rebuild" rather than showing an empty section
-   * (29 D7).
+   * unavailable and Studio says "rebuild" rather than showing an empty
+   * section.
    */
   navAvailable: z.boolean(),
 });
@@ -162,7 +161,7 @@ export const installedAppReply = z.object({
   version: z.string(),
   /** Absent when the app declares no tables and none were touched. */
   schema: appliedSchema.optional(),
-  /** `file` (uploaded) — `marketplace` joins it when the feed ships (47 §1). */
+  /** `file` (uploaded) — `marketplace` joins it when the feed ships. */
   source: z.string(),
   installedAt: z.number(),
   connectionId: z.string().nullable(),
@@ -184,10 +183,10 @@ export const appListReply = z.object({
  *
  * Everything here is read off DISK — the packages in the app store (the bundled
  * set staged at boot, uploads, downloads) plus the app catalog the last refresh
- * cached there (48 §6b G8-D3). Browsing never reaches the network, which is
- * what makes the page work identically on an air-gapped install (40 §4.3,
- * restated for apps in 47 step 4) and what stops a page load becoming an
- * outbound call nobody asked for.
+ * cached there (b G8-D3). Browsing never reaches the network, which is what
+ * makes the page work identically on an air-gapped install (restated for apps
+ * in 47 step 4) and what stops a page load becoming an outbound call nobody
+ * asked for.
  */
 export const appCatalogEntry = z.object({
   key: appKey,
@@ -255,8 +254,8 @@ export const appCatalogReply = z.object({
  * `apps.catalogEnabled`, beside the add-on one and never the same.
  *
  * On `manifests.manage` rather than under `/settings/*` for the add-on switch's
- * reason (26 D3): whether this deployment talks to adminium.dev is not the
- * authority to rename a workspace.
+ * reason: whether this deployment talks to adminium.dev is not the authority to
+ * rename a workspace.
  */
 export const appCatalogSettingsBody = z.object({ enabled: z.boolean() });
 

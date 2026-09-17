@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * notificationsRepo / notificationPrefsRepo / scheduledReportsRepo /
- * emailTemplatesRepo (07-meta-store.md §3.20/§3.21/§3.24/§3.28) — M7
- * reports & notifications wave. Same dialect-parameterized harness as the
- * sibling repo suites (repos.files-exports-imports.test.ts).
+ * emailTemplatesRepo — M7 reports & notifications wave. Same
+ * dialect-parameterized harness as the sibling repo suites
+ * (repos.files-exports-imports.test.ts).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -201,7 +201,7 @@ for (const dialect of TEST_DIALECTS) {
         enabled: true,
       });
       const listed = await repo.list();
-      // Topic first, then `en_US` ahead of the other locales (39 D3).
+      // Topic first, then `en_US` ahead of the other locales.
       expect(listed.map((row) => `${row.key}/${row.locale}`)).toEqual([
         'welcome/en_US',
         'welcome/de_DE',

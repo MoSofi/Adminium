@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The manager's toolbar row (34-invoices-add-on.md Appendix E §M4–M7; comp
- * 195-216): the Templates/Invoices tray with count badges, the *Group*
- * eyebrow and its None · Topic · Language segment, the search field and the
- * gallery/list segment. The counts are the reply's, unfiltered — the comp's
- * badges never respond to the search box (1423).
+ * The manager's toolbar row (comp 195-216): the Templates/Invoices
+ * tray with count badges, the *Group* eyebrow and its None · Topic ·
+ * Language segment, the search field and the gallery/list segment. The
+ * counts are the reply's, unfiltered — the comp's badges never respond to
+ * the search box (1423).
  */
 import { Files, FolderTree, Languages, LayoutGrid, LayoutTemplate, List } from 'lucide-react';
 import { SearchInput, SegmentedControl, TabsList, TabsTrigger } from '@adminium/ui';

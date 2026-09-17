@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Prisma schema parser — 05-introspection-engine.md §5.2 row 2. Hand-rolled
- * block parser (the grammar is small and stable): `datasource` provider →
- * dialect, `model` / `enum` blocks, field attributes, `///` doc comments →
- * comments. Relation fields with `fields:`/`references:` become declared FKs;
- * back-relations (model-typed fields without `fields:`) are skipped.
+ * Prisma schema parser. Hand-rolled block parser (the grammar is small and
+ * stable): `datasource` provider → dialect, `model` / `enum` blocks, field
+ * attributes, `///` doc comments → comments. Relation fields with
+ * `fields:`/`references:` become declared FKs; back-relations (model-typed
+ * fields without `fields:`) are skipped.
  */
 import type { ColumnDefault, DatabaseModel, Dialect, FkAction, LogicalType } from '@adminium/engine';
 

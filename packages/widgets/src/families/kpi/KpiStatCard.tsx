@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `kpi-stat-card` — the workhorse metric card (annex §1, 04 §11): tinted
- * icon tile, label, large mono value, optional delta pill (pos/danger tone
- * with the "down-is-good" inversion flag), optional 7–8 bar mini sparkline
- * with the last bar at full accent. Renders only the loaded state —
+ * `kpi-stat-card` — the workhorse metric card (annex): tinted icon tile,
+ * label, large mono value, optional delta pill (pos/danger tone with the
+ * "down-is-good" inversion flag), optional 7–8 bar mini sparkline with the
+ * last bar at full accent. Renders only the loaded state —
  * skeleton/empty/error are WidgetFrame's job.
  */
 
@@ -28,7 +28,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { kpiStatCardConfigSchema, kpiStatCardDemoData } from './kpi-config.js';
 export type { KpiStatCardConfig } from './kpi-config.js';
 

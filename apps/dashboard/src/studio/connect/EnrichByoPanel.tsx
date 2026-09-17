@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * BYO round-trip panel (06-llm-assist.md §10.2 step 4, §9). For each prompt
- * chunk: a read-only virtualized prompt viewer with a token-estimate chip,
- * Copy-prompt and Download-.md, then a paste textarea + `.json` drop zone and a
- * per-chunk Validate that POSTs `/runs/:id/response`. Fatal validation renders
- * the precise per-path error list with "Copy errors for your AI tool"; once
- * every chunk validates, the deterministic merge unlocks "Continue to review".
+ * BYO round-trip panel. For each prompt chunk: a read-only virtualized prompt
+ * viewer with a token-estimate chip, Copy-prompt and Download-.md, then a paste
+ * textarea + `.json` drop zone and a per-chunk Validate that POSTs
+ * `/runs/:id/response`. Fatal validation renders the precise per-path error
+ * list with "Copy errors for your AI tool"; once every chunk validates, the
+ * deterministic merge unlocks "Continue to review".
  *
  * Zero network I/O beyond the validation POST (which runs in-process on the
- * server); copy and download stay entirely local (§9 telemetry-free guarantee).
+ * server); copy and download stay entirely local (telemetry-free
+ * guarantee).
  */
 import { getFormatters } from '@adminium/i18n';
 import { CheckCircle2, Download } from 'lucide-react';

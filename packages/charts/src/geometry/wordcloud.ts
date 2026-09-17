@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure word-cloud geometry (`chart-wordcloud`, research/widget-registry.md §2):
+ * Pure word-cloud geometry (`chart-wordcloud`, research/widget-registry.md):
  * terms sized by frequency and flowed into wrapped rows within a fixed width.
  * Widths are estimated from character count (no DOM text metrics) so the layout
- * is byte-identical in a report worker and the browser (04 §7.1). Terms flow
- * start→end; RTL mirrors each row's x per §7.4.
+ * is byte-identical in a report worker and the browser. Terms flow start→end;
+ * RTL mirrors each row's x.
  */
 
 export interface WordInput {

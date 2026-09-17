@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * jobsRepo — adminium_jobs (07-meta-store.md §3.12), the table-backed queue.
+ * jobsRepo — adminium_jobs, the table-backed queue.
  *
- * Portable claim (§3.12): a candidate SELECT followed by
- * `UPDATE … WHERE id = ? AND status = 'pending'` — affected-rows 0 means
- * another worker won; try the next candidate. No `SELECT … FOR UPDATE SKIP
- * LOCKED` (not on SQLite), no `UPDATE … LIMIT` (not portable).
+ * Portable claim: a candidate SELECT followed by `UPDATE … WHERE id = ?
+ * AND status = 'pending'` — affected-rows 0 means another worker won; try
+ * the next candidate. No `SELECT … FOR UPDATE SKIP LOCKED` (not on
+ * SQLite), no `UPDATE … LIMIT` (not portable).
  */
 
 import type { Selectable } from 'kysely';
@@ -16,7 +16,7 @@ import { jobPayloadSchema, jobStatusSchema, type JobStatus } from '../schema/jso
 import type { AdminiumJobsTable } from '../schema/tables.js';
 import { DAY_MS, packJson, readJson } from './util.js';
 
-/** A running job whose lock is older than this is reclaimable (§3.12). */
+/** A running job whose lock is older than this is reclaimable. */
 export const JOB_STALE_LOCK_MS = 5 * 60_000;
 
 /** First-retry delay; retry n waits `backoffBaseMs * 2^(n-1)` (server backoff spec). */
@@ -169,7 +169,7 @@ export function jobsRepo(meta: MetaDb) {
       return null;
     },
 
-    /** Success: terminal state; dedupe key released for reuse (§3.12). */
+    /** Success: terminal state; dedupe key released for reuse. */
     async complete(id: string, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_jobs')
@@ -222,7 +222,7 @@ export function jobsRepo(meta: MetaDb) {
     },
 
     /**
-     * Retention §8 `jobs` policy: succeeded/cancelled past `retentionDays`,
+     * Retention `jobs` policy: succeeded/cancelled past `retentionDays`,
      * failed kept twice as long.
      */
     async gc(at: number = Date.now(), retentionDays = 30): Promise<number> {

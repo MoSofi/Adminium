@@ -18,8 +18,8 @@
  * both page templates a fresh install generates, a modal, and a form.
  *
  * WHAT BLOCKS. Critical and serious only, matching the Storybook sweep's
- * definition of done (03 §3.5) — moderate/minor are reported in the failure
- * message when a blocking one is found, but do not fail on their own.
+ * definition of done — moderate/minor are reported in the failure message
+ * when a blocking one is found, but do not fail on their own.
  *
  * NO BASELINE HERE, deliberately. The Storybook sweep needs a fingerprint
  * ratchet because it inherited 162 known violations; this suite starts clean and

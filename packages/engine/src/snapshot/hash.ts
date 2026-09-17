@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Canonical model JSON + sha256 — 05-introspection-engine.md §9.
+ * Canonical model JSON + sha256.
  *
  * `model_hash` in `adminium_schema_snapshots` is "sha256 over canonical
  * JSON: sorted keys, stripped volatile fields
@@ -15,9 +15,9 @@
 import type { DatabaseModel } from '../schema-model.js';
 import { sha256Hex } from './sha256.js';
 
-/** Top-level fields stripped before hashing (§9). */
+/** Top-level fields stripped before hashing. */
 const VOLATILE_MODEL_FIELDS = ['introspectedAt', 'stats', 'warnings'] as const;
-/** Per-table fields stripped before hashing (§9). */
+/** Per-table fields stripped before hashing. */
 const VOLATILE_TABLE_FIELDS = ['rowCountEstimate', 'activity', 'sizeBytes'] as const;
 
 function sortKeysDeep(value: unknown): unknown {

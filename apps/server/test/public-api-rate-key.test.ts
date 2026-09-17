@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The public limiter's bucket key behind a proxy (28-public-surface.md D18/O8).
+ * The public limiter's bucket key behind a proxy.
  *
  * ── WHY THIS EXISTS SEPARATELY FROM `rate-limit.test.ts` ───────────────────
  * That suite proves the same property for the LOGIN bucket, which is a
@@ -22,11 +22,15 @@
  * front and turned the flag on, and this is the assertion that the combination
  * actually buys what it claims.
  *
- * The mechanism under test is `trustProxy: 1` in `app.ts` — a hop COUNT, never
- * a bare `true`. With `true`, proxy-addr returns the left-most, fully
- * client-supplied `X-Forwarded-For` entry, and rotating the header hands out a
- * fresh bucket per request. With `1`, `request.ip` is the right-most entry, the
- * one Caddy itself appended, which no client can move.
+ * The mechanism under test is `app.ts`'s `trustProxy` (`security/trust-proxy.ts`):
+ * the connecting peer is trusted when its address is a listed proxy, and
+ * nothing further along the header is. Never a bare `true`: then proxy-addr
+ * returns the left-most, fully client-supplied `X-Forwarded-For` entry, and
+ * rotating the header hands out a fresh bucket per request. Here `request.ip`
+ * is the right-most entry, the one Caddy itself appended, which no client can
+ * move. (It was a hop count, `1`, until Fastify 5.12.1 made a number trust
+ * nobody. The second case below is the one that caught that: every caller
+ * then shares the proxy's bucket.)
  *
  * The limiter runs BEFORE the key is resolved (`routes/public/index.ts`), so an
  * unverified key is enough to drive it — which is deliberate there, and
@@ -149,8 +153,8 @@ describe('the public bucket keys on the address the proxy wrote', () => {
   });
 
   it('a genuinely different peer still gets its own allowance', async () => {
-    // The converse, and the reason this is a hop count rather than "ignore the
-    // header": a limiter that collapsed every caller into one bucket would pass
+    // The converse, and the reason the proxy is trusted rather than the header
+    // ignored: a limiter that collapsed every caller into one bucket would pass
     // the test above while starving every real customer.
     const app = await serving();
 

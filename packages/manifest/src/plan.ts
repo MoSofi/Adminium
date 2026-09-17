@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `planInstall` — what installing an add-on would DO to a connected database,
- * decided before anything is done (26-add-on-runtime.md §3, D1, 26-T01).
+ * decided before anything is done.
  *
  * ─── The plan is a user-facing document, not an internal step ───────────────
  *
- * §7's consent dialog is "the security surface, not decoration: it is where a
+ * The consent dialog is "the security surface, not decoration: it is where a
  * user sees what an add-on may reach before it can reach it". The thing it
  * shows is this plan. So the output is shaped to be READ — every table says
  * whether it will be created or reused, every reused table says which of its
@@ -15,13 +15,13 @@
  * That is also why nothing here writes: a plan that could not be computed
  * without side effects could not be shown before consent.
  *
- * ─── One field, both kinds (47-app-installation.md O2) ─────────────────────
+ * ─── One field, both kinds ─────────────────────────────────────────────────
  *
  * This planner reads exactly ONE field of a manifest — `requiredSchema` — and
  * that field is on the shared envelope, so an app's tables diff the same way an
  * add-on's do. Installing an APP now runs through here too; what stays outside
  * it is the rest of the app envelope (`pages`, `roles`, `settings`, `seeds`),
- * which 13-T03/T04 still own and which no install path creates yet.
+ * which still own and which no install path creates yet.
  *
  * Three of the six shipped add-ons declare `requiredSchema`; `import-canva`,
  * `barcode-labels` and `holiday-calendars` declare none and plan to nothing,

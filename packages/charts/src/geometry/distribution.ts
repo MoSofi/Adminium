@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure, DOM-free layout for the distribution charts (research/widget-registry.md
- * §2): `chart-boxplot`, `chart-violin`, `chart-ridgeline`. Server-safe so
- * scheduled-report workers reuse the exact path strings the browser renders
- * (04 §7.1). Categorical group axes mirror in RTL via the shared band scale;
- * the value axis stays pixel-down. d3-scale/d3-shape math only.
+ * Pure, DOM-free layout for the distribution charts
+ * (research/widget-registry.md): `chart-boxplot`, `chart-violin`,
+ * `chart-ridgeline`. Server-safe so scheduled-report workers reuse the exact
+ * path strings the browser renders. Categorical group axes mirror in RTL via the
+ * shared band scale; the value axis stays pixel-down. d3-scale/d3-shape math
+ * only.
  */
 import { categoricalBandScale } from './scales.js';
 import { linePath } from './lineArea.js';

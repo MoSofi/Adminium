@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * AWS Signature Version 4 — header signing and query presigning, zero
- * dependencies (37-files-and-storage.md D32/O2, §3.10).
+ * dependencies.
  *
  * WHY NOT `@aws-sdk/client-s3`. It is the heavy choice, not the safe one:
  * dozens of packages into the Docker image and the Electron bundle for four

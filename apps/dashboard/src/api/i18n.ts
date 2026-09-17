@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Client for `/api/v1/i18n` (23-runtime-translations.md §6.1).
+ * Client for `/api/v1/i18n`.
  *
  * SYNC NOTE: these types mirror `apps/server/src/routes/i18n/schema.ts`
  * (type-only copy — the dashboard may not import server runtime code, per the
- * 01-architecture.md §2.3 matrix). Change both together.
+ * matrix). Change both together.
  */
 import type { Namespace } from '@adminium/i18n';
 

@@ -1,14 +1,15 @@
 # syntax=docker/dockerfile:1.7
 #
-# The Adminium image (01-architecture.md §4.2) — `ghcr.io/mosofi/adminium`.
+# The Adminium image — `ghcr.io/mosofi/adminium`.
 #
 # Multi-stage (build → node:22-slim runtime), non-root, `dumb-init` as PID 1,
 # multi-arch (linux/amd64 + linux/arm64 via buildx). It runs the SAME CLI the
-# npm package exposes (§4.1) — `adminium start` — so the container and
-# `npx adminium` are one code path with two front doors, not two boot paths.
+# npm package exposes — `adminium start` — so the container and `npx
+# @adminiumjs/adminium` are one code path with two front doors, not two boot
+# paths.
 #
 # NO SECRET IS BAKED IN: `ADMINIUM_SECRET` arrives via the environment at run
-# time (§7.1). The image ships only code.
+# time. The image ships only code.
 #
 # Both stages are Debian bookworm, and node:22-slim is bookworm-slim. The reason
 # used to be an ABI one: `better-sqlite3` and `argon2` were native modules
@@ -75,7 +76,7 @@ RUN pnpm install --frozen-lockfile
 # is not a server dependency (it is a separate SPA build) so it is named too.
 RUN pnpm turbo run build --filter=@adminium/server... --filter=@adminium/dashboard...
 
-# §4.1: the distributable "bundles the server, the dashboard `dist/`, and the
+# The distributable bundles the server, the dashboard `dist/`, and the
 # meta migrations". This copies apps/dashboard/dist → apps/server/dashboard,
 # which is on the server package's `files` allow-list. It MUST run before
 # `pnpm deploy` below, which honours that allow-list — skip it and the image
@@ -98,16 +99,15 @@ RUN node apps/server/scripts/bundle-allowlists.mjs \
 # single `COPY --from=build` below sufficient.
 RUN pnpm deploy --filter=@adminium/server --prod --legacy /app
 
-# The bundled add-on set (32 D3, 32-T12): the six first-party add-on tarballs
-# plus their `.integrity` sidecars, fetched from downloads.adminium.dev and verified
-# against the exact sha512 pins in scripts/release/add-ons-bundle.json before a
-# byte lands. Parked at /app/add-ons-bundle because the runtime stage keeps
-# WORKDIR /app, so the server's CWD-relative default `./add-ons-bundle`
-# (compose.ts BUNDLED_ADD_ONS_DIR) finds it with no env var, and the single
-# `COPY --from=build /app /app` below carries it. The layer is keyed by this
-# script + pin file like any other build input, so a pin bump — the per-release
-# refresh — invalidates it; the boot seed re-verifies every hash again on the
-# way into the store, copy-if-absent.
+# The bundled add-on set: the six first-party add-on tarballs plus their
+# `.integrity` sidecars, fetched from downloads.adminium.dev and verified against
+# the exact sha512 pins in scripts/release/add-ons-bundle.json before a byte lands.
+# Parked at /app/add-ons-bundle because the runtime stage keeps WORKDIR /app, so the
+# server's CWD-relative default `./add-ons-bundle` (compose.ts BUNDLED_ADD_ONS_DIR)
+# finds it with no env var, and the single `COPY --from=build /app /app` below
+# carries it. The layer is keyed by this script + pin file like any other build
+# input, so a pin bump — the per-release refresh — invalidates it; the boot seed
+# re-verifies every hash again on the way into the store, copy-if-absent.
 RUN node scripts/release/fetch-add-ons-bundle.mjs /app/add-ons-bundle
 
 # ────────────────────────── runtime ──────────────────────────
@@ -134,7 +134,7 @@ COPY --from=build --chown=node:node /app /app
 RUN chmod +x /app/dist/cli/index.js \
     && ln -s /app/dist/cli/index.js /usr/local/bin/adminium
 
-# §4.2: the adminium-data volume mounts here; ADMINIUM_DATA_DIR points at it.
+# The adminium-data volume mounts here; ADMINIUM_DATA_DIR points at it.
 # Created and owned before USER drops, because a non-root process cannot chown
 # its own mount point.
 RUN mkdir -p /data && chown -R node:node /data

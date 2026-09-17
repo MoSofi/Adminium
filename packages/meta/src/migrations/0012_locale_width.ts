@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0012 — widen the locale columns (23-runtime-translations.md §3.5).
+ * Wave 0012 — widen the locale columns.
  *
  * `adminium_user_prefs.locale` (0001) and `adminium_email_templates.locale`
  * (0006) were sized `str(5)` for `en_US`. An admin-created locale id may carry

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Which table a rule is about (42-automations-and-workflow-logs.md D25's
- * residual): resolved inside the rule's OWN connection. A flat search across
- * every connection returns whichever holds that `schema.table` first, so the
- * inspector showed one connection's columns for the other's rows.
+ * Which table a rule is about (residual): resolved inside the rule's OWN
+ * connection. A flat search across every connection returns whichever holds
+ * that `schema.table` first, so the inspector showed one connection's
+ * columns for the other's rows.
  */
 import { describe, expect, it } from 'vitest';
 

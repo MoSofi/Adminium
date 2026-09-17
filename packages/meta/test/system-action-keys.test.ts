@@ -20,7 +20,7 @@ import {
 
 describe('system action key reservation', () => {
   it('reserves exactly the three remaining deferred-feature keys', () => {
-    // `manifests.manage` left this list on 2026-08-29 (26-T05) in the same
+    // `manifests.manage` left this list on 2026-08-29 in the same
     // change that landed the `/api/v1/add-ons` routes enforcing it — which is
     // the rule the list's own docblock states.
     expect([...RESERVED_SYSTEM_ACTION_KEYS].sort()).toEqual(
@@ -71,8 +71,7 @@ describe('system action key reservation', () => {
 });
 
 /**
- * The dashboard's `RESERVED_GRANTS` mirror, checked — 35-schema-authoring.md
- * D6, 35-T08.
+ * The dashboard's `RESERVED_GRANTS` mirror, checked.
  *
  * `apps/dashboard/src/team/rolesApi.ts` keeps a hand-copied mirror of
  * {@link RESERVED_SYSTEM_ACTION_KEYS} and its own header says nothing detects

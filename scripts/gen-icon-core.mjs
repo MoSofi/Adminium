@@ -20,7 +20,7 @@
  * import that only an icon outside this set pulls in (`icon-resolver.ts`).
  *
  * `icon-names.ts` is the other half of the same idea: the validators that need
- * to know whether a string IS an icon (the LLM referential check, §7.3) need the
+ * to know whether a string IS an icon (the LLM referential check) need the
  * NAMES, never the components. Emitting them as data keeps that question
  * answerable without a single icon module being reachable from the importer.
  *
@@ -183,7 +183,7 @@ const STRICT_SOURCES = [
     /ICON_SUBSET[\s\S]*?\n\];/,
     /'([a-z][a-z0-9-]*)'/g,
   ],
-  // The generated app's nav icon per table shape (09 §2.2) — first paint.
+  // The generated app's nav icon per table shape — first paint.
   [
     'packages/engine/src/generate/index.ts',
     /const SHAPE_ICONS[\s\S]*?\n\};/,
@@ -196,7 +196,7 @@ const STRICT_SOURCES = [
     /const SHAPE_ICONS[\s\S]*?\n\};/,
     /:\s*'([a-z][a-z0-9-]*)'/g,
   ],
-  // The §14 archetype nav placements.
+  // The archetype nav placements.
   [
     'packages/engine/src/generate/archetype.ts',
     /const ARCHETYPE_NAV[\s\S]*?\n\};/,
@@ -374,7 +374,7 @@ const real = [...names].filter(isIcon).sort();
 const dropped = [...names].filter((name) => !isIcon(name)).sort();
 
 // Every catalogue name in kebab — the form every runtime vocabulary in the
-// product stores (09 §2.2) and the form the LLM contract validates. Taken from
+// product stores, and the form the LLM contract validates. Taken from
 // lucide's own `iconNames` rather than back-derived from the PascalCase keys,
 // because a name like `grid-2x2` is not recoverable by any casing rule.
 //
@@ -458,9 +458,9 @@ const serializedNames = `// SPDX-License-Identifier: AGPL-3.0-only
 // Every lucide icon name, kebab-cased — DATA, with no import of lucide at all,
 // so asking "is this string an icon?" costs a string array and never reaches an
 // icon module. That question has one production caller today: the LLM response
-// validator (06-llm-assist.md §7.3), which warns and falls back to \`table\` when
-// a model invents a name. It reaches the server as a snapshot of this list,
-// because the server tree may not import @adminium/ui (01 §2.3).
+// validator, which warns and falls back to \`table\` when a model invents a
+// name. It reaches the server as a snapshot of this list, because the server
+// tree may not import @adminium/ui.
 //
 // Deprecated lucide aliases are deliberately absent (${String(iconNames.length - allKebab.length)} of lucide's ${String(iconNames.length)}
 // names — \`kanban-square\`, \`bar-chart-3\`, \`sort-desc\`, …). They are legal named

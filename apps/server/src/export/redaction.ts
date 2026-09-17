@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The export's secret policy (M10-T03; BRIEF §3).
+ * The export's secret policy (BRIEF).
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * THE RULE: **a plaintext secret must never reach the bundle.** Adminium keeps

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Waves 0020 + 0021 (the add-on runtime's meta surface, 26 §4).
+ * Waves 0020 + 0021 (the add-on runtime's meta surface).
  *
  * What these actually have to prove, beyond "the columns appeared":
  *

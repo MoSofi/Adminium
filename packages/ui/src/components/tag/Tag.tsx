@@ -10,7 +10,7 @@ import { cn } from '../../lib/cn.js';
 /**
  * Mini chip, 10px/700, radius 6px (`rounded-sm`); tones as soft-bg +
  * strong-fg; `mono` variant for schema/type chips (`varchar`, `int8`, PK/FK,
- * HTTP methods, PDF/CSV/XLSX) — research/design-system.md §3 Tier 1.
+ * HTTP methods, PDF/CSV/XLSX) — research/design-system.md Tier 1.
  */
 export const tagVariants = cva('inline-flex items-center gap-1 whitespace-nowrap rounded-sm px-1.5 py-[3px] text-[10px] font-bold leading-none', {
   variants: {

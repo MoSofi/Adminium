@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Track BOARDS `boards` family stories (annex §6): the kanban board + swimlane
- * grid loaded variants, the four WidgetFrame states through WidgetHost
- * (acceptance #4), light/dark × LTR/RTL matrices with REAL column mirroring
- * (acceptance #9 — the RTL frames set `dir="rtl"` so the logical flex genuinely
- * reverses the column order, not a bare attribute), and a keyboard drag
- * interaction story. Widgets resolve through a LOCAL registry override so the
- * stories work before the green loop merges the definitions into the global map.
- * Payloads are the same seeded generators `demoData` uses.
+ * Track BOARDS `boards` family stories (annex): the kanban board + swimlane grid
+ * loaded variants, the four WidgetFrame states through WidgetHost (acceptance
+ * #4), light/dark × LTR/RTL matrices with REAL column mirroring (acceptance #9 —
+ * the RTL frames set `dir="rtl"` so the logical flex genuinely reverses the
+ * column order, not a bare attribute), and a keyboard drag interaction story.
+ * Widgets resolve through a LOCAL registry override so the stories work before
+ * the green loop merges the definitions into the global map. Payloads are the
+ * same seeded generators `demoData` uses.
  */
 import type { ReactNode } from 'react';
 

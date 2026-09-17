@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the widget-data routes (04-widget-registry.md §5.2).
- * The descriptor schema is the shared pure-Zod leaf re-exported through
- * `@adminium/engine/config` — one validation authority for client bindings,
- * stored page configs, and this API surface.
+ * Zod schemas for the widget-data routes. The descriptor schema is the
+ * shared pure-Zod leaf re-exported through `@adminium/engine/config` — one
+ * validation authority for client bindings, stored page configs, and this
+ * API surface.
  */
 
 import { z } from 'zod';

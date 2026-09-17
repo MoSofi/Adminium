@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `stream` binding demo (04-widget-registry.md §5.3). Drives the existing
- * `log-table` shell as a LIVE tail from `useWidgetStream` + the deterministic
- * demo transport — the same pipeline a bound `realtime-feed` / live log-table
- * uses over the real WS transport. Shows the unread-badge count, pause/resume
- * (events held while paused, flushed on resume), mark-read, and the connection
- * flag. Track F owns the production widget shells; this story exercises the
- * transport + hook + buffer this track delivers.
+ * `stream` binding demo. Drives the existing `log-table` shell as a LIVE tail
+ * from `useWidgetStream` + the deterministic demo transport — the same
+ * pipeline a bound `realtime-feed` / live log-table uses over the real WS
+ * transport. Shows the unread-badge count, pause/resume (events held while
+ * paused, flushed on resume), mark-read, and the connection flag. Track F owns
+ * the production widget shells; this story exercises the transport + hook +
+ * buffer this track delivers.
  */
 import { Badge } from '@adminium/ui';
 

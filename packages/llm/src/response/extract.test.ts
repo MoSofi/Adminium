@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Stage 1 — tolerant JSON extraction (06-llm-assist.md §7.2).
+ * Stage 1 — tolerant JSON extraction.
  *
  * Locks: fences and prose are stripped; braces inside strings never close the
  * object early; an unclosed object is `LLM_TRUNCATED`; no object at all is

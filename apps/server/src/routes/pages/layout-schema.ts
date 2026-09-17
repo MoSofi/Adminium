@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Server-side dashboard grid layout schema (04-widget-registry.md §6.1).
+ * Server-side dashboard grid layout schema.
  *
  * The canonical `layoutItemSchema` / `pageLayoutSchema` Zod definitions live in
  * the pure-Zod `@adminium/widgets/page-config` leaf (which `grid/layout-schema.ts`

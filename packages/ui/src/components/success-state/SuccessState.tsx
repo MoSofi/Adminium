@@ -28,8 +28,7 @@ export interface SuccessStateProps extends Omit<ComponentPropsWithRef<'div'>, 't
 
 /**
  * SuccessState — 56px pos-soft check tile + heading + copy + Done button;
- * modal phase 2 everywhere and wizard terminal step
- * (03-component-library.md §5.3, §7.1).
+ * modal phase 2 everywhere and wizard terminal step.
  */
 export function SuccessState({
   title,

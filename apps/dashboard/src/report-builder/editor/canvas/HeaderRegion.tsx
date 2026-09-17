@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The document header on the sheet (comp 292-298, `headerSel` 689;
- * 43-report-builder.md Appendix A C2): three borderless inputs — the kicker
- * (11 px / 700, uppercase, .06em, in the document's accent), the report title
- * (26 px / 800, −.02em) and the subtitle (13 px muted) — under an 18 px-padded
- * hairline. Clicking anywhere selects `header` and draws a 1.5 px accent
- * outline at 6 px offset.
+ * C2): three borderless inputs — the kicker (11 px / 700, uppercase.06em, in
+ * the document's accent), the report title (26 px / 800, −.02em) and the
+ * subtitle (13 px muted) — under an 18 px-padded hairline. Clicking anywhere
+ * selects `header` and draws a 1.5 px accent outline at 6 px offset.
  *
  * The kicker is UPPERCASED by CSS and stored as typed (the comp's own rule):
  * `text-transform` never reaches the value.

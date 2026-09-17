@@ -60,7 +60,7 @@ const FILLS = new Set([
  */
 const WIDTHS: Record<string, PageSurfaceWidth> = {
   'page-crud': 'wide',
-  // The crud page's record route (30 D4) — same column as the list it is a
+  // The crud page's record route — same column as the list it is a
   // child of, so list ↔ record navigation does not reflow the content box.
   'page-record': 'wide',
   // Widest column in the app: a 12-column widget grid at `--container-page`

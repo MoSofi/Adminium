@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `feeds` family public surface (annex §4) — standalone feed/list components
- * plus the Track-F registry metadata. Component code is also reachable through
- * each definition's `lazy()` ref, so the registry still emits one chunk per
- * family (04 §2.3); this barrel is for direct template/story composition and
- * tests. Registry metadata lives in `feeds-track-f.definitions.ts`.
+ * `feeds` family public surface (annex) — standalone feed/list components plus
+ * the Track-F registry metadata. Component code is also reachable through each
+ * definition's `lazy()` ref, so the registry still emits one chunk per family;
+ * this barrel is for direct template/story composition and tests. Registry
+ * metadata lives in `feeds-track-f.definitions.ts`.
  */
 export {
   ActivityFeed,

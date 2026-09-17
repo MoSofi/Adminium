@@ -2,7 +2,7 @@
 /**
  * The row writer an export is written through — ONE implementation shared by
  * the `export-run` job and `POST /exports/preview`, so the preview's "Raw
- * file" tab is literally the file's first lines (41-export-builder.md §3.3).
+ * file" tab is literally the file's first lines.
  *
  * Two modes, and the split is the whole point:
  *

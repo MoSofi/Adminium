@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two figures this surface computes and the three it formats
- * (43-report-builder.md D11).
+ * The two figures this surface computes and the three it
+ * formats.
  *
  * THIS IS NOT AN INVOICE'S MONEY LAW. There is no ladder here — no subtotal,
- * no discount, no tax base, no total (43 §5 item 4). One multiply exists: the
- * multi-currency row's `sym + amount × rate` (comp 618). It is done in
- * INTEGER MINOR UNITS with one half-away-from-zero rounding, copied from
- * `invoices/model/money.ts`'s `parseMinor`/`roundHalfAway`, because
- * `48200 × 0.92` in floats is `44344.000000000007` and a document of record
- * must not drift between a save and a reload.
+ * no discount, no tax base, no total. One multiply exists: the multi-currency
+ * row's `sym + amount × rate` (comp 618). It is done in INTEGER MINOR UNITS
+ * with one half-away-from-zero rounding, copied from
+ * `invoices/model/money.ts`'s `parseMinor`/`roundHalfAway`, because `48200 ×
+ * 0.92` in floats is `44344.000000000007` and a document of record must not
+ * drift between a save and a reload.
  *
  * THE COMP'S `toLocaleString('en-US')` (618) BECOMES THE VIEWER'S LOCALE.
- * That is the porting checklist's step (16 §5 step 2), not a departure: the
- * comp hard-codes one locale because it has no viewer.
+ * That is the porting checklist's step, not a departure: the comp
+ * hard-codes one locale because it has no viewer.
  */
 
 /** Half away from zero — `Math.round` alone sends −0.5 to −0. */

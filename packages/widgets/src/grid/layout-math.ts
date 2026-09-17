@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Static layout math for the dashboard grid (04-widget-registry.md §6.1).
- * M4 renders layouts read-only — the dnd-kit editing pipeline (applyMove,
- * drag compaction, findFirstFit) is 04-T12/M7. What the static renderer
- * needs: geometry constants, stacking order, and the deterministic
- * top-gravity compaction used to normalize stored layouts before render.
+ * Static layout math for the dashboard grid. M4 renders layouts read-only
+ * — the dnd-kit editing pipeline (applyMove, drag compaction,
+ * findFirstFit) is /M7. What the static renderer needs: geometry
+ * constants, stacking order, and the deterministic top-gravity compaction
+ * used to normalize stored layouts before render.
  */
 
 import type { LayoutItem } from '../page-config/index.js';
 
-/** 12 fluid columns (04 §6.1). */
+/** 12 fluid columns. */
 export const GRID_COLUMNS = 12;
 /** Heights persist in half-row units of 40 px (annex row unit ≈ 80 px). */
 export const ROW_UNIT_PX = 40;
-/** Grid gap (04 §6.1). 14px is the comp's gutter on every dashboard grid.
- *  Load-bearing beyond looks: it feeds the pointer-drag cell-step measurement in
- *  DashboardGrid, so it must stay in lockstep with the `gap-*` utility there. */
+/** Grid gap. 14px is the comp's gutter on every dashboard grid. Load-bearing
+ * beyond looks: it feeds the pointer-drag cell-step measurement in
+ * DashboardGrid, so it must stay in lockstep with the `gap-*` utility there. */
 export const GRID_GAP_PX = 14;
 
 /**
  * Reading order for breakpoint stacking: below `lg` the grid reflows to a
- * single column ordered by `(y, x)` (04 §6.1) — the renderer sorts the DOM
- * so source order matches.
+ * single column ordered by `(y, x)` — the renderer sorts the DOM so source
+ * order matches.
  */
 export function sortByPosition(items: readonly LayoutItem[]): LayoutItem[] {
   return [...items].sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y));
@@ -32,10 +32,10 @@ function overlaps(a: LayoutItem, b: LayoutItem): boolean {
 }
 
 /**
- * Deterministic top-gravity compaction (04 §6.2): every item floats up
- * until it hits another placed item or row 0. Idempotent; never produces
- * overlaps or negative coordinates. Stored layouts normalize through this
- * before render so gaps left by removed/failed widgets close up.
+ * Deterministic top-gravity compaction: every item floats up until it
+ * hits another placed item or row 0. Idempotent; never produces overlaps
+ * or negative coordinates. Stored layouts normalize through this before
+ * render so gaps left by removed/failed widgets close up.
  */
 export function compactVertical(items: readonly LayoutItem[]): LayoutItem[] {
   const placed: LayoutItem[] = [];

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-log-viewer` template stories (09 §7.8): the demo-mode composition
- * (KPI pair + log-table + trace timeline), a bound run over audit-shaped rows
- * with the toolbar filters live, the loading/error states through the `states`
+ * `page-log-viewer` template stories: the demo-mode composition (KPI pair +
+ * log-table + trace timeline), a bound run over audit-shaped rows with the
+ * toolbar filters live, the loading/error states through the `states`
  * override, and a live-tail run driven by the deterministic demo stream
  * transport — four states, matching the template-story idiom
  * (PageDashboard.stories.tsx).
@@ -30,7 +30,7 @@ const AUDIT_ROWS = Array.from({ length: 14 }, (_, index) => ({
   ip: '10.0.4.21',
 }));
 
-/** Demo mode (04 §5.3): no adapter — every widget seeds from its instance id. */
+/** Demo mode: no adapter — every widget seeds from its instance id. */
 export const DemoMode = {
   render: () => <PageLogViewer layout={demoLogViewerLayout} now={NOW} />,
 };
@@ -63,7 +63,7 @@ export const LoadingAndError = {
   ),
 };
 
-/** Live tail over the deterministic demo stream transport (04 §5.3). */
+/** Live tail over the deterministic demo stream transport. */
 export const LiveTail = {
   render: () => (
     <PageLogViewer

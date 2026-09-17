@@ -3,17 +3,17 @@
  * The two picture blocks (comp 321, 327): the image placeholder and the
  * payment QR.
  *
- * THE IMAGE BLOCK TAKES AN IMAGE (43 D26/O4). The comp draws a dashed striped
- * placeholder with a mono caption and offers no upload anywhere for it, while
- * the SAME comp draws Upload / Replace / Remove for the document background
- * (360-367). The fill uses that pattern: with a picture the block draws it
+ * THE IMAGE BLOCK TAKES AN IMAGE. The comp draws a dashed striped placeholder
+ * with a mono caption and offers no upload anywhere for it, while the SAME
+ * comp draws Upload / Replace / Remove for the document background (360-367).
+ * The fill uses that pattern: with a picture the block draws it
  * `object-cover` at the placeholder's 150 px height with the caption beneath;
  * without one the comp's placeholder stays, unchanged.
  *
- * THE QR BLOCK ENCODES NOTHING (43 §5 item 2). The comp draws a `qr-code`
- * glyph in a white tile plus two lines of text, and the second line promises a
- * live version no route serves. It ships verbatim and is flagged in Appendix
- * E so the owner can strike it in one edit; no encoder is added.
+ * THE QR BLOCK ENCODES NOTHING. The comp draws a `qr-code` glyph in a white
+ * tile plus two lines of text, and the second line promises a live version no
+ * route serves. It ships verbatim and is flagged in Appendix E so the owner
+ * can strike it in one edit; no encoder is added.
  */
 import { cn } from '@adminium/ui';
 

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The rules column and the flow header (`designs/Automation Rules.dc.html`
- * 195-248, 470-500, 601-616; 42-automations-and-workflow-logs.md §4.1,
- * 42-T19, 42-T22).
+ * The rules column and the flow header (195-248, 470-500, 601-616).
  *
  * The KPI strip, the three filter pills, the rule cards and the flow's own
  * header, in the comp's geometry. Three things the comp draws that need a

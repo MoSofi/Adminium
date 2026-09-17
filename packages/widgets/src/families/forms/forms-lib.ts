@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `forms` family shared helpers (annex §10) — PURE module (no React, no
+ * `forms` family shared helpers (annex) — PURE module (no React, no
  * @adminium/ui, no lucide). Imported by both the family's config module and its
  * components, so the registry metadata graph can reach the schemas + demo
- * generators without dragging component code into the eager chunk (04 §2.3).
+ * generators without dragging component code into the eager chunk.
  */
 
 import { getFormatters } from '@adminium/i18n';
 
-/** Fall back to `en-US` when a widget's config carries no locale override (04 §2). */
+/** Fall back to `en-US` when a widget's config carries no locale override. */
 export function resolveLocale(locale: string | undefined): string {
   return locale !== undefined && locale.trim() !== '' ? locale : 'en-US';
 }
@@ -28,11 +28,11 @@ export function uiToneOf(tone: string | undefined, fallback: FormTone = 'neutral
   return (FORM_TONES as readonly string[]).includes(tone) ? (tone as FormTone) : fallback;
 }
 
-/** `stepper` per-step states (annex §10; mirrors @adminium/ui `StepState`). */
+/** `stepper` per-step states (annex; mirrors @adminium/ui `StepState`). */
 export const STEP_STATES = ['pending', 'active', 'loading', 'done', 'error'] as const;
 export type StepState = (typeof STEP_STATES)[number];
 
-/** `validation-issues-list` severities (annex §10 `severityMap`). */
+/** `validation-issues-list` severities (annex `severityMap`). */
 export const ISSUE_SEVERITIES = ['info', 'warn', 'error'] as const;
 export type IssueSeverity = (typeof ISSUE_SEVERITIES)[number];
 
@@ -52,7 +52,7 @@ function rec(value: unknown): Rec | null {
 }
 
 /**
- * Read the rows out of a §3 `record-list` envelope (or a bare array). Non-object
+ * Read the rows out of a `record-list` envelope (or a bare array). Non-object
  * elements are DROPPED rather than cast — see the identical note in
  * `system-lib.recordRowsOf`.
  */
@@ -78,8 +78,8 @@ function pickRowArray(data: unknown): unknown[] {
 }
 
 /**
- * Read the single row out of a §3 `record` envelope (`{ row: {...} }`), or
- * `null`. A bare object is accepted so template/story composition can hand a row
+ * Read the single row out of a `record` envelope (`{ row: {...} }`), or `null`.
+ * A bare object is accepted so template/story composition can hand a row
  * directly — the same latitude `formValuesOf` gives `form-state`.
  */
 export function recordRowOf(data: unknown): Rec | null {
@@ -90,7 +90,7 @@ export function recordRowOf(data: unknown): Rec | null {
 }
 
 /**
- * Read the `entries` map out of a §3 `boolean-map` envelope. Non-boolean values
+ * Read the `entries` map out of a `boolean-map` envelope. Non-boolean values
  * are dropped: a `boolean-map` whose values are strings is a server bug, and
  * silently coercing `"false"` to `true` would flip a user's setting.
  */
@@ -147,7 +147,7 @@ export function clampPct(value: number | undefined): number {
 
 /**
  * Facet counts over a `record-list`, keyed by one field — the live count pills
- * in `filter-chip-bar` (annex §10: "live mono count pills computed from the
+ * in `filter-chip-bar` (annex: "live mono count pills computed from the
  * sibling list"). Insertion order follows first appearance, so the bar's chip
  * order is stable across renders of the same payload.
  */
@@ -174,7 +174,7 @@ export function formatRows(count: number | undefined, locale: string | undefined
 }
 
 /**
- * The password-strength score (annex §10: "4-segment bar filled by score").
+ * The password-strength score (annex: "4-segment bar filled by score").
  * Re-exported from the widget rather than reimplemented — @adminium/ui owns
  * `defaultPasswordScore`, and a second scoring rule would drift from the one the
  * auth screens already use.

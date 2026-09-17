@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `toggle-switch-list` (annex §10) — a card of rows: label + description
- * (+ optional tone-tinted icon tile) + a switch bound to a `boolean-map`;
+ * `toggle-switch-list` (annex) — a card of rows: label + description (+
+ * optional tone-tinted icon tile) + a switch bound to a `boolean-map`;
  * instant-persist or dirty-tracking. Evidence: Settings, Profile Settings,
  * Workspace Settings, Notification Settings, Survey Builder, Integrations.
  *
- * Binds the §3 `boolean-map` shape (annex §10: "boolean-map keyed by setting id
- * + row metadata") — the VALUES come from the payload, the row LABELS from
+ * Binds the `boolean-map` shape (annex: "boolean-map keyed by setting id +
+ * row metadata") — the VALUES come from the payload, the row LABELS from
  * config, joined on the setting id.
  *
- * WRITE MODEL (04 §2.1): `optimistic` emits an `update` intent per toggle and
- * rolls the switch back if the host rejects it; `save-bar` batches into one
- * intent behind an explicit Save. Either way the widget never persists.
+ * WRITE MODEL: `optimistic` emits an `update` intent per toggle and rolls the
+ * switch back if the host rejects it; `save-bar` batches into one intent
+ * behind an explicit Save. Either way the widget never persists.
  */
 
 import { Button, EmptyState, IconTile, Switch, cn } from '@adminium/ui';

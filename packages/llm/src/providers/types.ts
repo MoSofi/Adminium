@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Provider client contracts (06-llm-assist.md §3.1). The `ProviderClient`
- * interface below is reproduced VERBATIM from the doc — it is the wire-layer
- * boundary every direct-API path speaks through. Everything here is browser-safe
- * (pure TS + global `fetch`/`AbortController`); no provider SDKs, no `node:*`.
+ * Provider client contracts. The `ProviderClient` interface below is reproduced
+ * VERBATIM from the doc — it is the wire-layer boundary every direct-API path
+ * speaks through. Everything here is browser-safe (pure TS + global
+ * `fetch`/`AbortController`); no provider SDKs, no `node:*`.
  */
 import type { ProviderId } from '../types.js';
 
 export type { ProviderId } from '../types.js';
 
-// ─── ProviderClient (§3.1 — reproduced verbatim) ─────────────────────────────
+// ─── ProviderClient (reproduced verbatim) ────────────────────────────────────
 
 export interface ProviderClient {
   readonly id: ProviderId;
@@ -27,10 +27,10 @@ export interface ProviderClient {
 // ─── Config + convenience aliases ────────────────────────────────────────────
 
 /**
- * Resolved provider configuration a client is constructed from (§3.2). The
- * `apiKey` is the DECRYPTED value: the server decrypts `llm.apiKey` (AES-256-GCM,
- * see `crypto.ts`) before building a client, and the client keeps it only in the
- * request header — never in a log, error, or thrown value (acceptance §10).
+ * Resolved provider configuration a client is constructed from. The `apiKey` is
+ * the DECRYPTED value: the server decrypts `llm.apiKey` (AES-256-GCM, see
+ * `crypto.ts`) before building a client, and the client keeps it only in the
+ * request header — never in a log, error, or thrown value (acceptance).
  */
 export interface ProviderConfig {
   provider: ProviderId;
@@ -70,7 +70,7 @@ export interface ModelInfo {
 export const DEFAULT_MAX_OUTPUT_TOKENS = 16_000 as const;
 export const DEFAULT_TIMEOUT_MS = 60_000 as const;
 
-// ─── Typed provider error (§3, acceptance §10) ───────────────────────────────
+// ─── Typed provider error (acceptance) ───────────────────────────────────────
 
 /**
  * Every non-2xx response and network/timeout failure is mapped to this. It is
@@ -114,9 +114,9 @@ export class ProviderError extends Error {
 // ─── Guards ──────────────────────────────────────────────────────────────────
 
 /**
- * Enrichment runs are deterministic: temperature is fixed at 0, non-negotiable
- * (§3.1). This asserts it at the client boundary so a misconfigured caller fails
- * loudly rather than producing non-reproducible diffs.
+ * Enrichment runs are deterministic: temperature is fixed at 0, non-negotiable.
+ * This asserts it at the client boundary so a misconfigured caller fails loudly
+ * rather than producing non-reproducible diffs.
  */
 export function assertEnrichmentTemperature(temperature: number, provider: ProviderId): void {
   if (temperature !== 0) {

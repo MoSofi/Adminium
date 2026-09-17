@@ -16,7 +16,7 @@ export interface SelectProps extends Omit<React.ComponentPropsWithRef<'select'>,
 
 /**
  * Native `<select>` in the Input chrome with a chevron-down affordance
- * (research/design-system.md §3 Tier 2). Kept native for plain forms —
+ * (research/design-system.md Tier 2). Kept native for plain forms —
  * searchable/rich cases (avatar rows, empty state) are `Combobox`.
  * Children are regular `<option>`/`<optgroup>` elements.
  */

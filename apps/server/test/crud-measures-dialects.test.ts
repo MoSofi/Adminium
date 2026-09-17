@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 36-T21 / criterion 2 — THE SAME NUMBERS ON EVERY DIALECT.
+ * THE SAME NUMBERS ON EVERY DIALECT.
  *
  * A derived money value is only trustworthy if it does not depend on which
  * database it came out of, and the measurements this wave was designed against

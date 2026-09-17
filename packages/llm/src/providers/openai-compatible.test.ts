@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * OpenAI-compatible client — mocked-fetch wire tests (06-llm-assist.md §3.1):
- * user-supplied baseUrl + /chat/completions, optional Bearer, and the key
- * behaviour — a 404 on the model-list endpoint is tolerated → free-text model.
+ * OpenAI-compatible client — mocked-fetch wire tests: user-supplied baseUrl +
+ * /chat/completions, optional Bearer, and the key behaviour — a 404 on the
+ * model-list endpoint is tolerated → free-text model.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 

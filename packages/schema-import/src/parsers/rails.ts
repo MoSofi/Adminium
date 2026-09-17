@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Rails `schema.rb` parser — 05-introspection-engine.md §5.2 row 6. Pure
+ * Rails `schema.rb` parser. Pure
  * line grammar, no Ruby runtime: `create_table "name", id:, force: do |t|`
  * blocks with `t.<type> "col", null:, default:, limit:, precision:, scale:,
  * comment:` lines, `t.references`/`t.belongs_to` (→ `<name>_id` + FK by the

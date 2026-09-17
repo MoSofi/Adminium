@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Automation rules (`/api/v1/automations`, 42-automations-and-workflow-
- * logs.md §3.1, 42-T14). Every route is behind
- * `system:automations:manage` — one key this wave, gating reads and writes
- * alike (D1).
+ * logs.md). Every route is behind `system:automations:manage` — one key
+ * this wave, gating reads and writes alike (D1).
  *
  * --- The save is where authority is checked (D2) --------------------------
  *
@@ -15,7 +14,7 @@
  * refuses with a 403 that names the table. A rule can never make its author
  * more powerful than they were when they saved it.
  *
- * (Re-validating on a later role change is a residual, §10. Today, revoking
+ * (Re-validating on a later role change is a residual. Today, revoking
  * somebody's table access does not disarm the rules they already wrote —
  * which is why the key is seeded to super-admin only.)
  *
@@ -78,7 +77,7 @@ export interface AutomationsRoutesDeps {
   manager: ConnectionManager;
   secret: string;
   enqueue(input: EnqueueJobInput): Promise<Job>;
-  /** Rebuild the matcher's index after every rule write (§3.3). */
+  /** Rebuild the matcher's index after every rule write. */
   onRulesChanged?: (() => Promise<void> | void) | undefined;
   now?: (() => number) | undefined;
   blockLoopback?: boolean | undefined;
@@ -95,7 +94,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
   const rules = automationsRepo(meta);
   const runs = automationRunsRepo(meta);
 
-  /** Live template keys — an archived one may not be named by a step (39 D4). */
+  /** Live template keys — an archived one may not be named by a step. */
   async function liveTemplateKeys(): Promise<Set<string>> {
     const rows = await emailTemplatesRepo(meta).list({ kind: 'template', archived: false });
     return new Set(rows.filter((row) => row.enabled).map((row) => row.key));
@@ -247,7 +246,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
                     .pii === 'email',
                 dateLike: isDateColumn(column),
               })),
-              // 34 §3.7 step 3's picker seed — only edges a mapping can store.
+              // The picker seed — only edges a mapping can store.
               children: childTablesFor(view.model, resolved.id, offered),
               pageSlug: page?.slug ?? null,
             });

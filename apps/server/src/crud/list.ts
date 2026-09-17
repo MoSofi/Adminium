@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * List pipeline for `GET /data/:connectionId/:table` (08-server-api.md
- * §2.7.1): select allowlisting, filter DSL, `q=` quick search, ≤ 3 sort
- * keys with a PK tiebreaker, offset pagination with exact counts, and
- * opaque keyset cursors (mutually exclusive with `offset`).
+ * List pipeline for `GET /data/:connectionId/:table`: select
+ * allowlisting, filter DSL, `q=` quick search, ≤ 3 sort keys with a PK
+ * tiebreaker, offset pagination with exact counts, and opaque keyset
+ * cursors (mutually exclusive with `offset`).
  */
 
 import { sql, type Kysely, type SelectQueryBuilder } from 'kysely';
@@ -66,7 +66,7 @@ export function parseOrder(
       if (name === undefined || name.length === 0 || (dir !== 'asc' && dir !== 'desc')) {
         throw new ValidationFailedError('`order` must be `col.asc` / `col.desc` pairs.', { part });
       }
-      // Masked columns are rejected in `order` (§5.3 rule 2).
+      // Masked columns are rejected in `order`.
       const column = view.readableColumn(table, name, canReadPii);
       keys.push({ column: column.name, dir });
     }
@@ -102,13 +102,13 @@ type Qb = SelectQueryBuilder<SourceDatabase, string, Record<string, unknown>>;
 
 /**
  * Statistics-backed row-count estimate for `count=estimated`, mirroring the
- * adapters' collectTableStats policy (05 §10): the catalog figure is used only
- * when it clears STATS_EXACT_COUNT_THRESHOLD — below that, exact COUNT(*) is
- * cheap and estimates are embarrassingly wrong; null / negative (never
- * analyzed) also refuses. SQLite keeps no catalog statistics without ANALYZE,
- * so it always refuses. Table identifiers travel as bind parameters, never
- * spliced into SQL. Returns null when the caller should run the exact count;
- * a failed probe degrades the same way rather than failing the list.
+ * adapters' collectTableStats policy: the catalog figure is used only when it
+ * clears STATS_EXACT_COUNT_THRESHOLD — below that, exact COUNT(*) is cheap and
+ * estimates are embarrassingly wrong; null / negative (never analyzed) also
+ * refuses. SQLite keeps no catalog statistics without ANALYZE, so it always
+ * refuses. Table identifiers travel as bind parameters, never spliced into
+ * SQL. Returns null when the caller should run the exact count; a failed probe
+ * degrades the same way rather than failing the list.
  */
 export async function estimatedTotal(
   db: Kysely<SourceDatabase>,
@@ -156,7 +156,7 @@ export interface RunListOptions {
   canReadPii: boolean;
   dialect: Dialect;
   /**
-   * A predicate the CALLER CANNOT SEE OR REMOVE (28-public-surface.md §3.2).
+   * A predicate the CALLER CANNOT SEE OR REMOVE.
    *
    * ANDed first and unconditionally, before the caller's own `where` and before
    * quick search, so no combination of query parameters can widen the row set
@@ -166,7 +166,7 @@ export interface RunListOptions {
   mandatory?: RecordFilter | undefined;
   /**
    * The COMPLETE column set to return, replacing both `params.select` and the
-   * default (28 D5 a / a′).
+   * default (a / a′).
    *
    * Two things this does that a `select` string cannot. It is not a validator
    * the caller can sidestep by OMITTING `select` — which defaults to every
@@ -176,7 +176,7 @@ export interface RunListOptions {
    * integer PKs these schemas use is an enumeration aid.
    */
   exposeColumns?: readonly string[] | undefined;
-  /** Columns `q=` may search; see `compileQuickSearch` (28 D5 b). */
+  /** Columns `q=` may search; see `compileQuickSearch` (b). */
   searchColumns?: readonly string[] | undefined;
   /**
    * Resolved cross-table lookups (`crud/lookups.ts`) — each compiles to a
@@ -196,8 +196,8 @@ export interface RunListOptions {
    */
   measures?: readonly ResolvedMeasure[] | undefined;
   /**
-   * Base columns a derived field reads, merged into the projection
-   * (36-derived-columns.md §3.5).
+   * Base columns a derived field reads, merged into the
+   * projection.
    *
    * Merged into `selected` rather than routed through `params.select`, and
    * the difference decides what a low-privilege reader sees: `select=`
@@ -233,8 +233,8 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   }
 
   // SELECT list: default = every non-secret column — masked ones serialize
-  // as null + `_masked` marker (§5.3 rule 1); explicitly selecting a masked
-  // column without the grant → 403 COLUMN_FORBIDDEN (§2.7.1).
+  // as null + `_masked` marker; explicitly selecting a masked
+  // column without the grant → 403 COLUMN_FORBIDDEN.
   let selected: ResolvedColumn[];
   if (exposeColumns !== undefined) {
     // Fixed by the caller's policy, not by the request. `params.select` is

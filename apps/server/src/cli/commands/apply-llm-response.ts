@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `adminium apply-llm-response` — 06-llm-assist.md §10.4, verbatim:
+ * `adminium apply-llm-response`, verbatim:
  *
  *   adminium apply-llm-response --run <runId> --file ./response.json
  *       [--chunk 2] [--yes-above 0.8] [--dry-run]
@@ -40,9 +40,9 @@ import { renderTable } from '../io.js';
 import { loadCliEnv } from '../runtime.js';
 
 /**
- * The review screen's default bulk-accept threshold ("Accept all ≥ 0.8",
- * §10.3). Same number, same meaning, so a headless apply and a reviewed apply
- * of the same run land on the same set.
+ * The review screen's default bulk-accept threshold ("Accept all ≥ 0.8").
+ * Same number, same meaning, so a headless apply and a reviewed apply of the
+ * same run land on the same set.
  */
 export const DEFAULT_YES_ABOVE = 0.8;
 
@@ -54,7 +54,7 @@ function preview(value: unknown): string {
   return JSON.stringify(value);
 }
 
-/** The §10.3 review rows, as the table §10.4 says to print. */
+/** The review rows, as the table says to print. */
 function printDiffTable(
   io: CliIo,
   diff: readonly SuggestionDiff[],
@@ -175,7 +175,7 @@ export const applyLlmResponseCommand: Command = {
           snapshot: model,
           allowedTemplates: allowed.templates,
           allowedWidgets: allowed.widgets,
-          // §7.3 unknown-icon check — present whenever the loaded vocabulary
+          // The unknown-icon check — present whenever the loaded vocabulary
           // carries the icon manifest (`cli/allowlist.ts`), absent when it does
           // not, which is exactly how the check is specified to degrade.
           ...(allowed.icons === undefined ? {} : { allowedIcons: allowed.icons }),
@@ -259,7 +259,7 @@ export const applyLlmResponseCommand: Command = {
   },
 };
 
-/** Re-exported for the test — the §10.4 contract is worth asserting by name. */
+/** Re-exported for the test — the contract is worth asserting by name. */
 export const EXIT_CODES: Readonly<Record<'applied' | 'validationFailed' | 'nothingAccepted', ExitCode>> = {
   applied: EXIT_OK,
   validationFailed: EXIT_VALIDATION_FAILED,

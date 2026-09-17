@@ -94,10 +94,10 @@ export function PageActionsSlot({ className }: { className?: string }) {
 }
 
 /**
- * The mount point BESIDE the topbar h1 (41-export-builder.md D14): a chip a
- * page pins to its own name — "Based on invoices-2026-08-30.csv" — travels by
- * portal like the actions do, and for the same reason. `empty:hidden` so a
- * page that pins nothing costs the title row no gap.
+ * The mount point BESIDE the topbar h1: a chip a page pins to its own name —
+ * "Based on invoices-2026-08-30.csv" — travels by portal like the actions do,
+ * and for the same reason. `empty:hidden` so a page that pins nothing costs
+ * the title row no gap.
  */
 export function PageTitleAdornmentSlot({ className }: { className?: string }) {
   const channel = useContext(PageActionsContext);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Exact fixed-point decimal arithmetic over BigInt — the money law for derived
- * columns (36-derived-columns.md D7).
+ * columns.
  *
  * WHY THIS EXISTS AT ALL. Every aggregate Postgres and MySQL return arrives as
  * a JS **string**, `count` included, and no dialect in this tree configures a
@@ -33,9 +33,9 @@
  *
  * WHAT THIS IS NOT. It is a DISPLAY arithmetic with one declared rounding, not
  * the ledger arithmetic of a document of record: `packages/invoices/src/money.ts`
- * stays authoritative there (34-invoices-add-on.md D20), and the two numbers may
- * legitimately differ by cents on a many-line invoice because a stored
- * `line_total` rounds per line while a fold over the gross does not.
+ * stays authoritative there, and the two numbers may legitimately differ by cents
+ * on a many-line invoice because a stored `line_total` rounds per line while a
+ * fold over the gross does not.
  *
  * Pure: imports nothing, touches no locale, allocates no `Intl` object. Lives
  * in the page-config leaf so the server (through `@adminium/engine/config`),

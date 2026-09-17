@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-crud` envelope generation — one per included table (research/
- * widget-registry.md §14: "Every included table"; 01-architecture.md §6.1
- * fixes the config body shape: `columns[]`, `defaultSort`, `pageSize`,
- * `detail`).
+ * widget-registry.md: "Every included table"; fixes the config body
+ * shape: `columns[]`, `defaultSort`, `pageSize`, `detail`).
  *
  * The body vocabulary — column selection, tones, form-field mapping — lives in
- * `@adminium/widgets/generate` (`composeCrudBody`; 04 §8: the Registry owns
- * what a generated page contains). This module keeps only what the leaf cannot
- * know: slug/id allocation, nav placement, and the §6.1 envelope wrap. Inputs
- * arrive pre-adapted through `./archetype.ts`'s `toCandidateModel` — the single
- * place the engine and registry vocabularies meet.
+ * `@adminium/widgets/generate` (`composeCrudBody`;: the Registry owns what a
+ * generated page contains). This module keeps only what the leaf cannot know:
+ * slug/id allocation, nav placement, and the envelope wrap. Inputs arrive
+ * pre-adapted through `./archetype.ts`'s `toCandidateModel` — the single place
+ * the engine and registry vocabularies meet.
  */
 
 import {
@@ -22,7 +21,7 @@ import {
 import { humanize, pageIdFor } from './util.js';
 
 /**
- * The §7.1 rule-7 tone map moved into the leaf with the rest of the body
+ * The rule-7 tone map moved into the leaf with the rest of the body
  * vocabulary; re-exported because the generate surface is public API of the
  * self-host package (`@adminium/engine` root re-exports this module).
  */

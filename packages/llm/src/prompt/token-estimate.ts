@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `chars / 3.6` heuristic token estimator (06-llm-assist.md §2, §4.5).
+ * The `chars / 3.6` heuristic token estimator.
  *
  * Deliberately provider-agnostic and conservative: it slightly over-counts for
  * typical English + JSON so a prompt that "fits" the budget fits every supported
@@ -8,7 +8,7 @@
  * download, no network, no `Date.now`/`Math.random`.
  */
 
-/** Characters-per-token divisor (§4.5: `tokens ≈ ceil(chars / 3.6)`). */
+/** Characters-per-token divisor (`tokens ≈ ceil(chars / 3.6)`). */
 export const CHARS_PER_TOKEN = 3.6;
 
 /**

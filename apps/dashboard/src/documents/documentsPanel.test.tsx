@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * The Documents panel and Make button (34-invoices-add-on.md §7.8; 34-T15,
- * 34-T17's a11y half).
+ * The Documents panel and Make button (a11y half).
  *
  * ─── Accessibility is asserted HERE because nothing else can see this ──────
  *
@@ -141,7 +140,7 @@ describe('the Make button', () => {
 
   it('renders NOTHING when no mapping covers this table', () => {
     // An affordance that cannot do anything invites a click and then explains
-    // itself (24 D6).
+    // itself.
     const { container } = renderButton([]);
     expect(container.querySelector('button')).toBeNull();
   });

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the report-documents resource (43-report-builder.md §3.1;
- * 43-T03). SYNC NOTE: the client-side mirror of these shapes is
- * `apps/dashboard/src/report-builder/api.ts` (type-only copy — the dashboard
- * may not import server runtime code). Change both together; the replies are
- * deliberately UN-enveloped (`{ items, counts }` / bare detail), the
- * email/invoice client's style.
+ * Zod schemas for the report-documents resource. SYNC NOTE: the client-side
+ * mirror of these shapes is `apps/dashboard/src/report-builder/api.ts`
+ * (type-only copy — the dashboard may not import server runtime code).
+ * Change both together; the replies are deliberately UN-enveloped (`{ items,
+ * counts }` / bare detail), the email/invoice client's style.
  */
 import { z } from 'zod';
 import { reportDocumentKindSchema, reportStatusSchema, reportSummarySchema } from '@adminium/meta';
@@ -18,9 +17,9 @@ export const reportSummaryView = z.object({
   kind: reportDocumentKindSchema,
   name: z.string(),
   status: reportStatusSchema,
-  /** Which starter minted it; null for blank documents (43 D14). */
+  /** Which starter minted it; null for blank documents. */
   starter: z.string().nullable(),
-  /** The template a report was built from (43 D6); null otherwise. */
+  /** The template a report was built from; null otherwise. */
   originId: z.string().nullable(),
   createdAt: z.number(),
   updatedAt: z.number(),
@@ -77,5 +76,5 @@ export const reportPatchBody = z
   .object({ name: z.string().trim().min(1).max(120).optional() })
   .refine((body) => Object.keys(body).length > 0, 'nothing to change');
 
-/** `:id` is the template; the report takes its name unless one is given (43 D6/O3). */
+/** `:id` is the template; the report takes its name unless one is given. */
 export const reportFromTemplateBody = z.object({ name: z.string().trim().min(1).max(120).optional() });

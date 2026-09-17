@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The email editor (39-email-templates-and-campaigns.md §3.6 `editor/`,
- * Appendix A §E1–E5): the header, the canvas and the inspector over ONE
- * draft that only `save()` sends (D1).
+ * The email editor (`editor/`): the header, the
+ * canvas and the inspector over ONE draft that only `save()` sends
+ * (D1).
  *
  * THE GUARD (D1). A router blocker asks before any navigation away from a
  * dirty draft — the topbar's Back, the sidebar, a language switch, the
@@ -356,7 +356,7 @@ export function Editor({ detail }: EditorProps) {
       });
       openDocument(created.id);
     } catch (error) {
-      // It exists after all (created meanwhile, or archived): open it instead (39 §3.1).
+      // It exists after all (created meanwhile, or archived): open it instead.
       const existingId = error instanceof ApiError && error.status === 409 ? readExistingId(error) : null;
       if (existingId !== null) openDocument(existingId);
       else failToast(t('email:editor.languages.addFailed', 'Could not add that language'), error);

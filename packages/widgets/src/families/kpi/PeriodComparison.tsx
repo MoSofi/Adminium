@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `period-comparison` (annex §1) — two labeled progress bars (this period vs
- * last) with a computed diff footer ("+$13.1k (37.3%) higher"). Renders only the
+ * `period-comparison` (annex) — two labeled progress bars (this period vs last)
+ * with a computed diff footer ("+$13.1k (37.3%) higher"). Renders only the
  * loaded state — skeleton/empty/error are WidgetFrame's job.
  *
  * SHAPE: the annex's "two `single-metric` values for adjacent windows" IS the
@@ -24,7 +24,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { periodComparisonConfigSchema, periodComparisonDemoData } from './kpi-config.js';
 export type { PeriodComparisonConfig } from './kpi-config.js';
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The desktop capability grant table over REST (11-electron.md §12) — the route's
- * gates, its persistence, and its idempotency.
+ * The desktop capability grant table over REST — the route's gates, its
+ * persistence, and its idempotency.
  *
  * The pipeline this route is half of — manifest → consent → grant → IPC →
  * provider — is only as trustworthy as the grant it writes, so each gate is
@@ -131,7 +131,7 @@ afterEach(async () => {
   t = null;
 });
 
-// ─── Gate 2: the peer (§2.4) ─────────────────────────────────────────────────
+// ─── Gate 2: the peer ────────────────────────────────────────────────────────
 
 describe('gate 2 — the peer', () => {
   it('refuses a LAN peer on every verb even with a super-admin session', async () => {
@@ -199,7 +199,7 @@ describe('the request body', () => {
   });
 });
 
-// ─── Persistence + idempotency (§12) ─────────────────────────────────────────
+// ─── Persistence + idempotency ───────────────────────────────────────────────
 
 describe('grant persistence', () => {
   it('POST writes a grant that GET then returns, stamped with grantedAt', async () => {
@@ -247,7 +247,7 @@ describe('grant persistence', () => {
   });
 });
 
-// ─── Audit (§12 — a grant is a settings-category act) ────────────────────────
+// ─── Audit (a grant is a settings-category act) ──────────────────────────────
 
 describe('audit', () => {
   it('audits a grant and a revoke under the settings category, but not a no-op revoke', async () => {

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/api/v1/i18n` client (23-runtime-translations.md §6.1). Everything here is a
- * URL, and every one of them addresses a row identified by a locale id and a
- * dotted key — values that go in a query string or a path segment and must be
- * encoded to get there intact.
+ * `/api/v1/i18n` client. Everything here is a URL, and every one of them
+ * addresses a row identified by a locale id and a dotted key — values that go
+ * in a query string or a path segment and must be encoded to get there intact.
  *
  * The one behavioural rule worth stating: resetting a key is a DELETE, not a
  * write of `''`. An override of the empty string is a legitimate translation

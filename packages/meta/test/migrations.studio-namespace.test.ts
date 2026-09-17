@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0022 (10-T06): the Studio's messages became their own namespace, so
- * every override an admin wrote against the old `common:studio.*` address has
- * to be re-filed or it silently stops resolving — the string reverts to
- * compiled English on the one surface whose users did the rewording.
+ * Wave 0022: the Studio's messages became their own namespace, so every
+ * override an admin wrote against the old `common:studio.*` address has to be
+ * re-filed or it silently stops resolving — the string reverts to compiled
+ * English on the one surface whose users did the rewording.
  *
  * Runs the real migration list split at 0021/0022 on every available dialect,
  * because the move is a JS loop over rows precisely so it does not depend on

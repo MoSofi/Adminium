@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `document.render` job handler (34-invoices-add-on.md §7.3, D8; 34-T11).
+ * `document.render` job handler.
  *
  * ─── WHY THERE IS A JOB AT ALL, GIVEN D55 ──────────────────────────────────
  *
@@ -9,8 +9,7 @@
  * asked for:
  *
  *   · `POST /documents/render` — an operator pressing Make on a record page;
- *   · a public request-shaped intent (§7.6);
- *   · a retry of either.
+ * · a public request-shaped intent; · a retry of either.
  *
  * None of those may render inline in the request. A render reads a row and
  * its children, calls into an add-on's bundle, writes one or two files and

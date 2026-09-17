@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The manager's toolbar row (43-report-builder.md Appendix A M4–M7; comp
- * 151-163): the Templates/Reports tray with count badges, the search field
- * and the gallery/list segment. The counts are the reply's, unfiltered — the
- * comp's badges never respond to the search box (580).
+ * The manager's toolbar row (M4–M7; comp 151-163): the Templates/Reports
+ * tray with count badges, the search field and the gallery/list segment. The
+ * counts are the reply's, unfiltered — the comp's badges never respond to
+ * the search box (580).
  *
  * NO GROUP SEGMENT and no actions menu: this comp draws neither (M7).
  */

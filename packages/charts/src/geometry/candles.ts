@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * OHLC candlestick geometry (`chart-candlestick`, research/widget-registry.md
- * §2). Pure + DOM-free. The price axis is a fixed LTR-island convention
- * (04 §7.4 exceptions: candlestick price axis never mirrors), so this layout
- * takes no `rtl` flag — candles are index-ordered left→right regardless of
- * page direction.
+ * OHLC candlestick geometry (`chart-candlestick`,
+ * research/widget-registry.md). Pure + DOM-free. The price axis is a fixed
+ * LTR-island convention (exceptions: candlestick price axis never mirrors),
+ * so this layout takes no `rtl` flag — candles are index-ordered left→right
+ * regardless of page direction.
  */
 import { extent, niceTicks } from '../utils/stats.js';
 

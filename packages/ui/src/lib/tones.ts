@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * lib/tones.ts — the canonical home of the semantic tone vocabulary and the
- * status→tone registry (03-component-library.md §3.3, §7.6).
+ * status→tone registry.
  *
  * The SINGLE source of truth: components/icon-tile, components/badge and
  * components/status-pill re-export from here (their wave-1 local copies are
@@ -69,7 +69,8 @@ export const toneSolidClasses: Record<Tone, string> = {
 
 /**
  * Tone → `color-mix` border utilities used by Alert/Banner callouts
- * (tone-soft bg + 30%-mixed tone border, research/design-system.md §3 Tier 3).
+ * (tone-soft bg + 30%-mixed tone border, research/design-system.md
+ * Tier 3).
  */
 export const toneMixBorderClasses: Record<Tone, string> = {
   neutral: 'border-border',
@@ -81,18 +82,18 @@ export const toneMixBorderClasses: Record<Tone, string> = {
 };
 
 /**
- * Sticky translucent bar recipe (03-component-library.md §7.5) —
- * used by `Topbar`, `WizardLayout` footer and sticky table headers. Exported
- * from here so the color-mix recipe lives in exactly one place.
+ * Sticky translucent bar recipe — used by `Topbar`, `WizardLayout` footer
+ * and sticky table headers. Exported from here so the color-mix recipe lives
+ * in exactly one place.
  */
 export const glassBar =
   'sticky top-0 z-40 border-b border-border bg-[color-mix(in_srgb,var(--surface)_82%,transparent)] backdrop-blur-[8px]';
 
 /**
- * Default status→tone registry (03-component-library.md §7.6).
- * Extended at runtime via `registerStatusTones` (widgets/manifests register
- * domain statuses); tints always derive from the tone — never hardcoded per
- * feature (the "Ticket Queue hardcoded priority tint" defect fix).
+ * Default status→tone registry. Extended at runtime via
+ * `registerStatusTones` (widgets/manifests register domain statuses); tints
+ * always derive from the tone — never hardcoded per feature (the "Ticket
+ * Queue hardcoded priority tint" defect fix).
  */
 export const DEFAULT_STATUS_TONES: Readonly<Record<string, Tone>> = Object.freeze({
   paid: 'pos',

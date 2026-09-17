@@ -1,35 +1,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Connect-wizard state + pure rules (09-generated-app.md §8.2,
- * M5-T01/02/03 + M9-T04).
+ * Connect-wizard state + pure rules (/02/03 +).
  *
  * Everything decision-shaped lives here so the step components stay thin and
  * the rules are unit-testable without a DOM:
- * - engine picker rules (M9-T04): DSN scheme ↔ picker sync, scheme rewrite
- *   on engine switch, per-engine default ports, SQLite file-path form,
+ * - engine picker rules: DSN scheme ↔ picker sync, scheme rewrite on
+ * engine switch, per-engine default ports, SQLite file-path form,
  * - DSN scheme validation / engine inference and the fields→DSN composer,
- * - provider quick-fill chips (ia-mapping §4 Surface B keepers), filtered
- *   per engine — the postgres row stays postgres-relevant only,
- * - schema-file format choice (8 formats + auto-detect, M9-T03/T04),
+ * - provider quick-fill chips (ia-mapping Surface B keepers), filtered
+ * per engine — the postgres row stays postgres-relevant only,
+ * - schema-file format choice (8 formats + auto-detect),
  * - table-inclusion defaults (high-volume > 100k unchecked; join/system
- *   pre-hidden — 09 §8.2 step 3),
- * - meta-placement gating (read-only or DDL-less source ⇒ same-DB disabled,
- *   01-architecture.md §3.1),
+ * pre-hidden),
+ * - meta-placement gating (read-only or DDL-less source ⇒ same-DB
+ * disabled),
  * - AdapterError code → remediation copy mapping,
- * - sessionStorage persistence (refresh-safe wizard, §8.2).
+ * - sessionStorage persistence (refresh-safe wizard).
  *
  * WHERE THE SHARED RULES LIVE NOW (M7 Wave 4): the DSN grammar (scheme→engine,
  * validation, placeholders, quick-fill chips, scheme rewrite) and the
  * table-inclusion defaults moved to `@adminium/widgets`, where they back the
- * annex §10 `connection-string-field` and `table-inclusion-checklist` widgets.
- * They were BORN here, and this module now consumes them: `@adminium/widgets`
- * may never import `apps/*`, and a second copy of "what is a valid DSN" or "how
- * big is too big" would drift — the wizard and the widget would disagree about
- * the same database. What stays here is what is genuinely wizard-only: the
- * 3-engine vocabulary this build can connect to, the host/port FIELDS form (the
- * inverse of the DSN grammar), the `SchemaTable` → `InclusionTable` mapping, and
- * the translated copy. The thin wrappers below keep every existing call site —
- * and this module's unit tests — pointed at the same names as before.
+ * annex `connection-string-field` and `table-inclusion-checklist` widgets. They
+ * were BORN here, and this module now consumes them: `@adminium/widgets` may
+ * never import `apps/*`, and a second copy of "what is a valid DSN" or "how big
+ * is too big" would drift — the wizard and the widget would disagree about the
+ * same database. What stays here is what is genuinely wizard-only: the 3-engine
+ * vocabulary this build can connect to, the host/port FIELDS form (the inverse
+ * of the DSN grammar), the `SchemaTable` → `InclusionTable` mapping, and the
+ * translated copy. The thin wrappers below keep every existing call site — and
+ * this module's unit tests — pointed at the same names as before.
  */
 import { isPreHiddenTable } from '@adminium/engine';
 import { getFormatters } from '@adminium/i18n';
@@ -82,7 +81,7 @@ export function wizardStepLabel(id: WizardStepId): string {
 export type SourceMode = 'dsn' | 'fields' | 'file';
 export type SslMode = 'disable' | 'require' | 'verify-ca' | 'verify-full';
 
-/** Live engines the picker offers (M9-T04, gap-analysis §2.1). */
+/** Live engines the picker offers (gap-analysis). */
 export const SOURCE_ENGINES: readonly ConnectionEngine[] = ['postgres', 'mysql', 'sqlite'];
 
 export function engineLabel(engine: ConnectionEngine): string {
@@ -96,7 +95,7 @@ export function engineLabel(engine: ConnectionEngine): string {
   }
 }
 
-/** Network engines only — SQLite is file-path based (05 §4.3). */
+/** Network engines only — SQLite is file-path based. */
 export const DEFAULT_PORTS: Readonly<Record<ConnectionEngine, string>> = {
   postgres: '5432',
   mysql: '3306',
@@ -133,7 +132,7 @@ export interface FieldsInput {
   user: string;
   password: string;
   ssl: SslMode;
-  /** SQLite only — absolute database file path (05 §4.3). */
+  /** SQLite only — absolute database file path. */
   file: string;
 }
 
@@ -209,16 +208,16 @@ export interface ProviderChip extends Omit<DsnProviderChip, 'engine'> {
 
 /**
  * Quick-fill provider chips (Console + Connect Database comps), shown only for
- * the engine they belong to — the postgres row stays postgres-relevant only
- * (M9-T04). `providerChipsForEngine` filters on `chip.engine === engine`, so
- * re-stamping `engine` here is a re-type of a value that is already exactly
- * that, not a coercion.
+ * the engine they belong to — the postgres row stays postgres-relevant only.
+ * `providerChipsForEngine` filters on `chip.engine === engine`, so re-stamping
+ * `engine` here is a re-type of a value that is already exactly that, not a
+ * coercion.
  */
 export function providerChipsFor(engine: ConnectionEngine): ProviderChip[] {
   return providerChipsForEngine(engine, SOURCE_ENGINES).map((chip) => ({ ...chip, engine }));
 }
 
-// --- schema-file format choice (M9-T03/T04) -----------------------------------
+// --- schema-file format choice -----------------------------------
 
 /**
  * Wizard-facing format vocabulary — MIRROR of `@adminium/schema-import`'s
@@ -267,7 +266,7 @@ export function fileFormatLabel(format: FileFormat): string {
   }
 }
 
-// --- table inclusion (M5-T02) --------------------------------------------------
+// --- table inclusion --------------------------------------------------
 
 /**
  * The inclusion RULES (>100k unchecked, join/system pre-hidden) and the shape
@@ -281,8 +280,8 @@ export type WizardTable = InclusionTable;
 /**
  * Reduce `@adminium/engine`'s introspected tables to what the inclusion rules
  * read. This mapping stays wizard-side: `SchemaTable` is the app's own
- * dependency, and the widget binds a §3 `record-list` instead — `InclusionTable`
- * is where the two meet.
+ * dependency, and the widget binds a `record-list` instead — `InclusionTable` is
+ * where the two meet.
  */
 export function summarizeTables(tables: readonly SchemaTable[]): WizardTable[] {
   return tables.map((table) => {
@@ -305,8 +304,8 @@ export type RowEstimateQuality = 'estimate' | 'approximate' | 'none';
 
 /**
  * `1,234,567` in mono; `≈ 1,234,567` where the engine only estimates
- * approximately (MySQL TABLE_ROWS — 05 §4.2); `—` when the source cannot
- * provide counts at all (never wrong data — M9-T04).
+ * approximately (MySQL TABLE_ROWS); `—` when the source cannot provide
+ * counts at all (never wrong data).
  */
 export function formatRowEstimate(estimate: number | null, quality: RowEstimateQuality = 'estimate'): string {
   if (estimate === null || quality === 'none') return '—';
@@ -315,12 +314,12 @@ export function formatRowEstimate(estimate: number | null, quality: RowEstimateQ
   return quality === 'approximate' ? `≈ ${formatted}` : formatted;
 }
 
-// --- meta placement (M5-T03) ----------------------------------------------------
+// --- meta placement ----------------------------------------------------
 
 export type MetaPlacement = 'same-db' | 'separate-db';
 
 /**
- * 01 §3.1 decision tree, wizard-side mirror of
+ * The decision tree, wizard-side mirror of
  * `ConnectionManager.enforceMetaPlacement` (the server independently
  * re-validates — 409 META_PLACEMENT_INVALID on bypass).
  */
@@ -329,7 +328,7 @@ export function sameDbDisabledReason(input: {
   privileges: DsnPrivileges | null;
   sourceIsFile: boolean;
 }): string | null {
-  // The RULE moved to `metaPlacementRule.ts` (45-T05): first-run onboarding
+  // The RULE moved to `metaPlacementRule.ts`: first-run onboarding
   // asks the same question and cannot read a `studio:` key. What stays here is
   // this wizard's wording for each answer.
   switch (sameDbDisabledCode(input)) {
@@ -355,7 +354,7 @@ export function sameDbDisabledReason(input: {
 
 // --- adapter error remediation ---------------------------------------------------
 
-/** AdapterError code (05 §3) → remediation copy for the wizard error state. */
+/** AdapterError code → remediation copy for the wizard error state. */
 export function hintForErrorCode(code: string): string {
   switch (code) {
     case 'AUTH':
@@ -393,7 +392,7 @@ export interface WizardState {
   step: WizardStepId;
   intent: GenerateIntent;
   mode: SourceMode;
-  /** Picked engine (M9-T04); DSN mode keeps this in sync with the scheme. */
+  /** Picked engine; DSN mode keeps this in sync with the scheme. */
   engine: ConnectionEngine;
   name: string;
   dsn: string;
@@ -420,13 +419,13 @@ export interface WizardState {
   separateMetaDsn: string;
   separateMetaTested: boolean;
   /**
-   * Enrich-with-AI step (06-llm-assist.md §10.2): the chosen intent and the
-   * shared options. The created run + prompt artifact stay in component memory
-   * (too heavy for sessionStorage) — only these lightweight choices persist.
+   * Enrich-with-AI step: the chosen intent and the shared options. The created
+   * run + prompt artifact stay in component memory (too heavy for
+   * sessionStorage) — only these lightweight choices persist.
    */
   enrichIntent: EnrichIntent | null;
   enrichSections: LlmSection[];
-  /** Always contains `en_US` (locked on — §5.1 rule 5). */
+  /** Always contains `en_US` (locked on). */
   enrichLocales: LlmLocale[];
   enrichSampling: boolean;
 }
@@ -490,7 +489,7 @@ export function clearWizardState(): void {
   }
 }
 
-// --- engine picker rules (M9-T04) -----------------------------------------------------
+// --- engine picker rules -----------------------------------------------------
 
 /**
  * Patch for a DSN keystroke: the scheme is the source of truth in DSN mode,

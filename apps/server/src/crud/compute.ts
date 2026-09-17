@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `compute=` query parameter — derived columns on the CRUD read endpoints
- * (36-derived-columns.md §3.1, §3.5).
+ * The `compute=` query parameter — derived columns on the CRUD read
+ * endpoints.
  *
  * Wire shape: ONE optional param carrying URL-encoded JSON that mirrors the
  * page's stored `config.derived` block byte for byte:
@@ -208,7 +208,7 @@ export function parseComputeParam(raw: string, opts: ParseComputeOptions): Parse
   }
 
   // 422 for an unknown or secret column — an author mistake, named. Resolved
-  // to the snapshot's own string, which is what reaches SQL (§7 item 1).
+  // to the snapshot's own string, which is what reaches SQL.
   const requiredColumns = collectFieldColumns(fields).map(
     (name) => view.column(table, name).name,
   );

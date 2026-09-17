@@ -7,7 +7,7 @@ import { Spinner } from '../spinner/Spinner.js';
 
 /**
  * The autosave phases. `dirty` is the annex's "Unsaved changes" pill
- * (research/widget-registry.md §12 `autosave-indicator`: warn dot "Unsaved
+ * (research/widget-registry.md `autosave-indicator`: warn dot "Unsaved
  * changes" → spinner "Saving…" → green check "All changes saved"), shown while
  * edits sit inside the host's debounce window. `idle` remains the no-edits-yet
  * phase and still renders nothing.
@@ -29,7 +29,7 @@ export interface AutosaveIndicatorProps extends ComponentPropsWithRef<'div'> {
 /**
  * AutosaveIndicator — "Unsaved changes / Saving… / All changes saved" pill with
  * a fade transition between states, announced politely via `aria-live`
- * (research/design-system.md §3 Tier 3). `idle` renders an empty live region
+ * (research/design-system.md Tier 3). `idle` renders an empty live region
  * (layout kept stable).
  */
 export function AutosaveIndicator({

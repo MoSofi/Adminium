@@ -93,7 +93,7 @@ export { documentCanvasConfigSchema, documentCanvasDemoData };
 export type { DocumentCanvasConfig };
 
 /**
- * `document-canvas` (annex §13) — the WYSIWYG paper-styled document editor
+ * `document-canvas` (annex) — the WYSIWYG paper-styled document editor
  * (invoice/report/email) behind the Invoice Builder, Report Builder and Email
  * Templates comps: an ordered list of block instances on a paper surface, each
  * click-to-select with an accent outline, each reorderable and removable, with
@@ -102,8 +102,8 @@ export type { DocumentCanvasConfig };
  * REORDER IS BUTTON-DRIVEN, NOT POINTER-DRAGGED. The annex describes the blocks
  * as "drag-reorderable", and the obvious reach is the dnd-kit layer the boards
  * family already uses — but the chunk-budget gate CONFINES that dependency to
- * `families/boards` so it never lands in a sibling family's chunk (04 §2.3), and
- * a document canvas is not worth breaking that boundary for. Move up/down
+ * `families/boards` so it never lands in a sibling family's chunk, and a
+ * document canvas is not worth breaking that boundary for. Move up/down
  * IconButtons are also strictly better here on the merits: they are keyboard-
  * reachable and screen-reader-announceable with no drag sensor, no live region
  * and no keyboard-coordinate emulation. The ordering itself is the pure
@@ -162,7 +162,7 @@ function blockRenderer<C>(
   };
 }
 
-/** Block registry id → the component that renders it (one lazy chunk, 04 §2.3). */
+/** Block registry id → the component that renders it (one lazy chunk). */
 const BLOCK_COMPONENTS: Record<BlockId, (props: BlockRenderProps) => ReactElement> = {
   'block-totals-summary': blockRenderer(BlockTotalsSummaryWidget, blockTotalsSummaryConfigSchema),
   'block-line-items': blockRenderer(BlockLineItemsWidget, blockLineItemsConfigSchema),

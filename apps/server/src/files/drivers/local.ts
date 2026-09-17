@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `local` driver (37-files-and-storage.md D3, §3.10) — this server's disk.
+ * The `local` driver — this server's disk.
  *
  * Two roles, one implementation:
  *

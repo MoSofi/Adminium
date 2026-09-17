@@ -32,7 +32,7 @@ export { fileBrowserConfigSchema, fileBrowserDemoData };
 export type { FileBrowserConfig };
 
 /**
- * `file-browser` (annex §8) — the dual-view file explorer: a responsive tile grid
+ * `file-browser` (annex) — the dual-view file explorer: a responsive tile grid
  * (type-coloured icon chips, hover star toggle, folder-first sort, click-to-open)
  * and a list-table view (Name/Size/Modified/star, mono sizes, em-dash for
  * folders), with a breadcrumb trail walked from the self-FK parent pointers and a
@@ -324,7 +324,7 @@ export function FileBrowser({
 
 /**
  * The hover star toggle. Optimistic-free: the widget renders `node.starred` and
- * reports the intent — the host owns the write (04 §2, `capabilities.editsData`).
+ * reports the intent — the host owns the write (`capabilities.editsData`).
  */
 function StarToggle({
   node,
@@ -356,8 +356,8 @@ function StarToggle({
 /**
  * Tile sub-label: "12 items" for a folder, "2.4 MB · Sep 12" for a file.
  *
- * `count` is OPTIONAL in the annex §8 contract — a real file table (name + size
- * + parent self-FK) has no materialized count column — so a folder with no
+ * `count` is OPTIONAL in the annex contract — a real file table (name + size +
+ * parent self-FK) has no materialized count column — so a folder with no
  * `countField` binding falls back to counting its children in the payload's own
  * self-FK hierarchy rather than asserting a false "0 items".
  */

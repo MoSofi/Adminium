@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `product-personalizer@1` (24 §5.5, added 2026-08-05 with `personalizer`) —
- * the one contract whose implementation spans three surfaces (shopper, staff,
+ * `product-personalizer@1` (added 2026-08-05 with `personalizer`) — the one
+ * contract whose implementation spans three surfaces (shopper, staff,
  * dashboard), which is why it is a contract at all rather than a screen.
  *
  * Landed here with wave 4a even though its implementation ships in 4b: the
  * registry is frozen once, before anything ships, rather than widened after a
- * release (§1.1's sequencing note).
+ * release (sequencing note).
  */
 
 import { z } from 'zod';

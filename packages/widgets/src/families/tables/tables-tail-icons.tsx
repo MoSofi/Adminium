@@ -3,11 +3,10 @@ import { Braces, Database, Hash, LayoutDashboard, Table2, Tag as TagIcon } from 
 import type { ReactNode } from 'react';
 
 /**
- * The `chip-cloud` icon vocabulary (annex §3: "string array (+ optional icon per
+ * The `chip-cloud` icon vocabulary (annex: "string array (+ optional icon per
  * chip)"). Separated from `tables-tail-lib.ts` so that module stays JSX-free and
  * the registry-metadata graph (`tables-tail-config.ts`) never pulls
- * `lucide-react` into the eager chunk (04 §2.3; the `media/media-icons`
- * convention).
+ * `lucide-react` into the eager chunk (the `media/media-icons` convention).
  *
  * The map is CLOSED on purpose: a chip's `icon` is data (a discovered table
  * name's kind, a merge variable's type), and data must never be able to name an

@@ -77,7 +77,7 @@ describe('PageSettingsBinding', () => {
 
     expect(screen.getByText('Notification Settings')).toBeTruthy();
     expect(screen.getByText('Scheduled report ready')).toBeTruthy();
-    // §8.2: server reason verbatim, column present + tagged.
+    // Server reason verbatim, column present + tagged.
     expect(screen.getByText(/No email transport \(SMTP\) is configured\./)).toBeTruthy();
     expect(screen.getByText(/Email · Not available yet/)).toBeTruthy();
   });

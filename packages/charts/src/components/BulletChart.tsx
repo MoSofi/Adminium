@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-bullet` primitive (research/widget-registry.md §2): rows of qualitative
+ * `chart-bullet` primitive (research/widget-registry.md): rows of qualitative
  * bands + a measure bar + a target tick, with an inline-start label gutter and
  * an inline-end value. Composed from ChartSurface + pure `layoutBullet` geometry
  * (identical SVG in Node and browser). Colors resolve from viz/semantic tokens

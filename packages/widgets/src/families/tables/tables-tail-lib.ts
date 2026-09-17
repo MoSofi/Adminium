@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared, framework-light helpers for the `tables` family M7 Wave-4 TAIL slice
- * (annex §3) — envelope extraction, tone coercion, the good/bad delta polarity
+ * (annex) — envelope extraction, tone coercion, the good/bad delta polarity
  * the metric widgets share, Intl-routed value formatting, and the proportional
  * bar maths for `ranked-entity-list`.
  *
  * JSX-free and provider-free (the feeds/calendar convention): widgets render in
  * stories and tests without a wrapper, and the dashboard resolves label
- * overrides through @adminium/i18n at the host boundary (04 §2).
+ * overrides through @adminium/i18n at the host boundary.
  *
- * Numeral policy (10-i18n-theming.md §4.2): every value here is *data context*,
- * so it goes through `getFormatters(tag)` — which already applies the
- * latn-digit/gregorian data policy internally. Callers must NOT also wrap the
- * tag in `latnDataTag`, which would double-apply the `-u-` extension.
+ * Numeral policy: every value here is *data context*, so it goes through
+ * `getFormatters(tag)` — which already applies the latn-digit/gregorian data
+ * policy internally. Callers must NOT also wrap the tag in `latnDataTag`, which
+ * would double-apply the `-u-` extension.
  */
 import { getFormatters } from '@adminium/i18n';
 import type { Tone } from '@adminium/ui';
@@ -82,7 +82,7 @@ export type GoodDirection = 'up' | 'down';
 
 /**
  * The good direction for a metric: an explicit per-metric config override wins,
- * then the row's own `goodDirection`, else `up` (annex §3: the delta pills are
+ * then the row's own `goodDirection`, else `up` (annex: the delta pills are
  * "good/bad aware", and `top-movers-list` takes a `goodDirectionByMetric` map).
  */
 export function goodDirectionFor(
@@ -120,7 +120,7 @@ export function moverTone(tone: unknown, delta: number, good: GoodDirection): To
 // --- Intl-routed value formatting ---------------------------------------------
 
 export interface MetricValueOptions {
-  /** Currency code from column metadata — never from the viewer's locale (§4.4). */
+  /** Currency code from column metadata — never from the viewer's locale. */
   currency?: string | undefined;
   /** Unit suffix appended to a bare number ("ms", "req/s"); `%` uses percent. */
   unit?: string | undefined;

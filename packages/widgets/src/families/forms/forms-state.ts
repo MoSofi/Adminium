@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `form-state` payload readers + the write target (annex §10; 04 §3) — PURE
- * module. Split from `forms-lib.ts` because these two concerns are what every
- * INPUT widget in the family shares, and keeping them together makes the write
- * model reviewable in one place.
+ * `form-state` payload readers + the write target (annex) — PURE module. Split
+ * from `forms-lib.ts` because these two concerns are what every INPUT widget
+ * in the family shares, and keeping them together makes the write model
+ * reviewable in one place.
  *
- * THE WRITE MODEL (04 §2.1): forms widgets are controlled by local state and
- * report changes as `mutate` INTENTS — they never persist. The host runs the
- * intent through the CRUD API (with undo + audit). An UNBOUND instance (demo
- * data, a story, the widget palette) has no target, so `bindingTargetOf` returns
- * `null` and callers skip the intent rather than emitting one into the void.
+ * THE WRITE MODEL: forms widgets are controlled by local state and report
+ * changes as `mutate` INTENTS — they never persist. The host runs the intent
+ * through the CRUD API (with undo + audit). An UNBOUND instance (demo data, a
+ * story, the widget palette) has no target, so `bindingTargetOf` returns `null`
+ * and callers skip the intent rather than emitting one into the void.
  */
 
 import type { FormFieldConfig } from './forms-config.js';
@@ -29,7 +29,7 @@ export interface BindingTarget {
 /**
  * The write target for a bound widget, or `null` when the widget is running on
  * `demoData`. An unbound widget must not offer a write affordance — there is
- * nowhere to send the intent (04 §5).
+ * nowhere to send the intent.
  */
 export function bindingTargetOf(
   binding: { connectionId: string; source: { schema?: string | undefined; name: string } } | undefined,
@@ -40,9 +40,9 @@ export function bindingTargetOf(
 }
 
 /**
- * Read the `values` map out of a §3 `form-state` envelope
- * (`{ fields: FieldDef[]; values: Record<string, unknown> }`). Also accepts a
- * bare values object so template/story composition can hand values directly.
+ * Read the `values` map out of a `form-state` envelope (`{ fields:
+ * FieldDef[]; values: Record<string, unknown> }`). Also accepts a bare values
+ * object so template/story composition can hand values directly.
  */
 export function formValuesOf(data: unknown): Rec {
   const envelope = rec(data);
@@ -54,7 +54,7 @@ export function formValuesOf(data: unknown): Rec {
 }
 
 /**
- * Read the `fields` defs out of a §3 `form-state` envelope. Entries without a
+ * Read the `fields` defs out of a `form-state` envelope. Entries without a
  * `name` are dropped: a field with no name has nothing to write to, and
  * rendering it would produce an input whose value goes nowhere.
  */
@@ -75,7 +75,7 @@ export function formFieldsOf(data: unknown): FormFieldConfig[] {
  * The field defs a form widget should render: config wins over the payload.
  *
  * Config is the GENERATED contract (the Engine derived it from column types at
- * generation time, annex §10) and is what the manifest stores; a payload's
+ * generation time, annex) and is what the manifest stores; a payload's
  * `fields` is only the server echoing the same shape back. Preferring config
  * keeps the rendered form stable even if a query returns an empty envelope.
  */

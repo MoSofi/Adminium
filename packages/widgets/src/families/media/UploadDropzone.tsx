@@ -14,17 +14,17 @@ export { uploadDropzoneConfigSchema, uploadDropzoneDemoData };
 export type { UploadDropzoneConfig };
 
 /**
- * `upload-dropzone` (annex §8) — the dashed-border drag-and-drop target: icon
- * tile, "Drop files to upload", a format/size hint, an "or browse" micro-CTA, and
- * an accent hover/drag-over state. Generalises the Studio-local
- * `apps/dashboard/src/studio/connect/Dropzone.tsx` (09 §8.2 mode c) into the
- * reusable registry widget.
+ * `upload-dropzone` (annex) — the dashed-border drag-and-drop target: icon tile,
+ * "Drop files to upload", a format/size hint, an "or browse" micro-CTA, and an
+ * accent hover/drag-over state. Generalises the Studio-local
+ * `apps/dashboard/src/studio/connect/Dropzone.tsx` (mode c) into the reusable
+ * registry widget.
  *
  * NO TRANSPORT: this widget renders state and EMITS files through `onFiles` — it
- * never uploads. There are no files routes yet (08 §2.11), so the host owns the
- * transport; when they land, the dashboard wires `onFiles` to them and pipes the
- * resulting job rows into `upload-progress-list`. Data contract is `static`
- * (annex §8: "none (emits files); constraints from config").
+ * never uploads. There are no files routes yet, so the host owns the transport;
+ * when they land, the dashboard wires `onFiles` to them and pipes the resulting
+ * job rows into `upload-progress-list`. Data contract is `static` (annex: "none
+ * (emits files); constraints from config").
  *
  * The `maxSize` constraint is enforced here (oversize files are reported through
  * `onReject`, never silently dropped) because it is the one check that needs no
@@ -142,11 +142,11 @@ export function UploadDropzone({
 }
 
 export function UploadDropzoneWidget({ config }: WidgetProps<UploadDropzoneConfig>) {
-  // No `onFiles` sink: `WidgetEvent` (04 §2.1) models drill-through/record-open/
+  // No `onFiles` sink: `WidgetEvent` models drill-through/record-open/
   // mutate — it has no "here are some File handles" case, and inventing one is a
   // registry-contract change, not a widget decision. The dashboard composes the
   // exported <UploadDropzone> directly (import pages: dropzone +
-  // column-mapping-table + validation-issues-list, annex §10) where it can hold
+  // column-mapping-table + validation-issues-list, annex) where it can hold
   // the File objects. Registry-placed, this instance is the visual affordance.
   return (
     <UploadDropzone

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TOTP two-factor auth (08-server-api.md §2.1): RFC 6238 via `otpauth`,
- * 6 digits / 30 s / SHA-1 / ±1 step verify window. Secrets are encrypted at
- * rest (AES-256-GCM, HKDF-derived key from ADMINIUM_SECRET); recovery codes
- * are 10 single-use strings stored as argon2id hashes (07-meta-store.md §3.3).
+ * TOTP two-factor auth: RFC 6238 via `otpauth`, 6 digits / 30 s / SHA-1 /
+ * ±1 step verify window. Secrets are encrypted at rest (AES-256-GCM,
+ * HKDF-derived key from ADMINIUM_SECRET); recovery codes are 10 single-use
+ * strings stored as argon2id hashes.
  */
 import { randomBytes } from 'node:crypto';
 
@@ -16,7 +16,7 @@ import { ARGON2_OPTIONS } from './passwords.js';
 export const TOTP_ISSUER = 'Adminium';
 export const TOTP_DIGITS = 6;
 export const TOTP_PERIOD_S = 30;
-/** ±1 time-step tolerance (§2.1). */
+/** ±1 time-step tolerance. */
 export const TOTP_WINDOW = 1;
 export const RECOVERY_CODE_COUNT = 10;
 

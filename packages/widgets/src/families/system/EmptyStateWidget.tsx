@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `empty-state` (annex §12) — centred card content: 56px tone-soft icon tile,
- * bold title, muted body ≤36ch, primary/secondary actions. Variants: plain, CTA,
+ * `empty-state` (annex) — centred card content: 56px tone-soft icon tile, bold
+ * title, muted body ≤36ch, primary/secondary actions. Variants: plain, CTA,
  * upload drop-zone.
  *
  * Registered as a widget in its own right because the annex lists it once and
  * page templates place it directly (a hub page's "nothing here yet" body). Note
  * this is DISTINCT from `WidgetFrame`'s built-in empty state, which every other
- * widget gets automatically from its `isEmpty` predicate (04 §4) — that one is
- * frame chrome, this one is placeable content.
+ * widget gets automatically from its `isEmpty` predicate — that one is frame
+ * chrome, this one is placeable content.
  *
  * Wraps @adminium/ui's `EmptyState`; this file adds the registry config surface
  * (variant, glyph name, action hrefs) and routes the CTAs through `onEvent` so
- * the widget never navigates itself (04 §2.1).
+ * the widget never navigates itself.
  */
 
 import { Button, EmptyState, IconTile } from '@adminium/ui';
@@ -72,8 +72,8 @@ export function EmptyStateWidget({ config, onEvent }: WidgetProps<EmptyStateConf
   if (!isDropzone) return <div className="flex h-full items-center justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]">{body}</div>;
 
   // Drop-zone variant: the annex's dashed-border target framing around the same
-  // centred content. The zone is presentational here — `upload-dropzone` (annex
-  // §8, media family) owns real file intake.
+  // centred content. The zone is presentational here — `upload-dropzone`
+  // (annex, media family) owns real file intake.
   return (
     <div className="flex h-full items-center justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]">
       <div className="flex h-full w-full items-center justify-center rounded-xl border-2 border-dashed border-border-strong">

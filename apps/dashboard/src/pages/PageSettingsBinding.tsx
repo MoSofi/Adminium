@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-settings` binding (09-generated-app.md §4.1; comp: Notification
- * Settings) — projects the PageSettings template onto the LIVE
- * `/me/notification-prefs` matrix with per-cell autosave:
+ * `page-settings` binding (comp: Notification Settings) — projects the
+ * PageSettings template onto the LIVE `/me/notification-prefs` matrix
+ * with per-cell autosave:
  *
  *   toggle → optimistic cache flip + dirty dot + "Saving…"
  *          → PUT one event row
  *          → server truth back into the cache + "Saved"
  *          → (failure) rollback the flip + explain in the indicator.
  *
- * Channel availability is SERVER truth passed through verbatim (§8.2): email
+ * Channel availability is SERVER truth passed through verbatim: email
  * arrives `available: false` with the no-SMTP reason and renders as a
  * togglable-but-explained column — the intent is stored either way.
  */

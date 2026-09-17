@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Server-side translator wiring (23-runtime-translations.md §9).
+ * Server-side translator wiring.
  *
  * `@adminium/i18n/server` builds the instance; this module is what reaches
  * the meta store for the override rows and resolves a recipient's locale.
@@ -38,7 +38,7 @@ export async function loadOverrideMap(meta: MetaDb, locale: string): Promise<Ove
 
 /**
  * The locale a message to `userId` should render in: their own preference,
- * else the workspace default, else `en_US` (10 §7.6).
+ * else the workspace default, else `en_US`.
  */
 export async function recipientLocale(meta: MetaDb, userId: string | null): Promise<string> {
   const resolved = await userPrefsRepo(meta).resolve(userId);

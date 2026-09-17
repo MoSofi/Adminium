@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard i18n boot (10-i18n-theming.md §7.5): build the shared i18next
- * instance BEFORE the first render, from the pre-hydration locale cache
- * (`STORAGE_KEYS.locale`), with a 2 s cap — on timeout the app renders en-US
- * and hot-swaps when the locale's chunks land (degraded network beats a
- * blank screen). Locale changes flow from ThemeProvider (the single owner of
- * the locale axis): `subscribeTheme` → preload target bundles →
- * `changeLanguage` (§7.4 — no half-translated frame), while ThemeProvider
- * itself stamps `dir`/`lang` on <html>.
+ * Dashboard i18n boot: build the shared i18next instance BEFORE the first
+ * render, from the pre-hydration locale cache (`STORAGE_KEYS.locale`), with
+ * a 2 s cap — on timeout the app renders en-US and hot-swaps when the
+ * locale's chunks land (degraded network beats a blank screen). Locale
+ * changes flow from ThemeProvider (the single owner of the locale axis):
+ * `subscribeTheme` → preload target bundles → `changeLanguage` (no
+ * half-translated frame), while ThemeProvider itself stamps `dir`/`lang` on
+ * <html>.
  */
 import {
   bumpI18nRevision,
@@ -36,7 +36,7 @@ function cachedLocale(): LocaleId {
   } catch {
     // Private mode / storage disabled.
   }
-  // Cold first visit: nearest supported locale from the browser (§7.2).
+  // Cold first visit: nearest supported locale from the browser.
   return localeFromTag(navigator.language ?? 'en-US');
 }
 
@@ -52,7 +52,7 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
   // WARM boot: overrides from the versioned localStorage cache are available
   // synchronously, so the first paint already carries the admin's copy. COLD
   // boot: `null`, and the paint carries compiled text until the post-boot
-  // resync swaps it — the acknowledged amendment to 10 §7.5 (23 §4.7).
+  // resync swaps it — the acknowledged amendment to.
   const warmOverrides = cachedOverrides(locale);
 
   const ready = createI18nWithOverrides({
@@ -66,7 +66,7 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
     ...(import.meta.env.DEV
       ? {
           onMissingKey: (lng: string, ns: string, key: string) => {
-            // Dev missing-key overlay stand-in (§8.2) — the Playwright guard
+            // Dev missing-key overlay stand-in — the Playwright guard
             // fails any e2e test that triggers one of these.
             console.warn(`[i18n] missing key ${ns}:${key} (${lng})`);
           },
@@ -74,7 +74,7 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
       : {}),
   });
 
-  // §7.5 step 2: cap the first paint on slow locale chunks, hot-swap later.
+  // Cap the first paint on slow locale chunks, hot-swap later.
   const i18n = await Promise.race([
     ready,
     new Promise<I18nInstance | null>((resolve) => {
@@ -91,13 +91,13 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
   });
 
   setI18nInstance(i18n);
-  // §14 (Electron): the native menu is localized by the SPA — resolve the labels
+  // On Electron the native menu is localized by the SPA — resolve the labels
   // now that i18n is ready and push them to the shell. No-op off the desktop
   // shell (`getDesktopApi()` is null on self-host/Cloud), so this same one bundle
   // stays runtime-agnostic.
   pushDesktopMenuLabels();
 
-  // ThemeProvider owns the locale axis; follow its resolution live (§7.4).
+  // ThemeProvider owns the locale axis; follow its resolution live.
   //
   // Resolve the instance through `getI18nInstance()` on every tick rather than
   // closing over `i18n`: the override layer REPLACES the instance rather than
@@ -114,7 +114,7 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
     if (tagForLocale(resolved.locale) === current.language) return;
     // Rebuild the native menu once the new locale's strings have actually loaded
     // (`switchLocale` awaits the bundle), never before — pushing mid-switch would
-    // carry the OUTGOING locale (§7.4's "no half-translated frame" applies to the
+    // carry the OUTGOING locale ("no half-translated frame" applies to the
     // menu bar too).
     void switchLocale(current, resolved.locale).then(() => {
       pushDesktopMenuLabels();
@@ -122,7 +122,7 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
   });
 
   // Post-boot: reconcile against the server WITHOUT blocking the first paint
-  // (23 §4.7). On a cold boot this is what turns compiled text into the
+  // . On a cold boot this is what turns compiled text into the
   // admin's copy; on a warm one it is a cheap no-op when the version matches.
   void refreshOverrides(locale);
 
@@ -136,12 +136,12 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
  * `addResourceBundle` cannot remove a key (its `deepExtend` only writes keys
  * present in the source), so a store-mutation design cannot express "reset to
  * built-in" — the most common admin operation — and `removeResourceBundle`
- * would splice the namespace out of the instance entirely (23 §4.2).
+ * would splice the namespace out of the instance entirely.
  */
 export async function refreshOverrides(locale: LocaleId): Promise<void> {
   try {
     // DYNAMIC import: everything network-facing in the override layer is
-    // post-boot, so keeping it out of the entry chunk is free (23 §4.7 and
+    // post-boot, so keeping it out of the entry chunk is free (and
     // ./overrideCache.ts).
     const { loadOverrides } = await import('./overrides.js');
     const { overrides } = await loadOverrides(locale);
@@ -160,7 +160,7 @@ export async function refreshOverrides(locale: LocaleId): Promise<void> {
 }
 
 /**
- * Re-check the server's version and rebuild only when it moved (23 §4.4).
+ * Re-check the server's version and rebuild only when it moved.
  *
  * The locale is resolved from the LIVE instance rather than accepted from the
  * caller. The shell's only handle on it is `bootstrap.prefs.locale` — the value

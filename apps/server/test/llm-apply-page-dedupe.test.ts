@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * One page per (table, template), one nav group per table — the §8.3 apply and
- * the heuristic generator meeting on the same coordinate (06-llm-assist.md §8.3).
+ * One page per (table, template), one nav group per table — the apply and the
+ * heuristic generator meeting on the same coordinate.
  *
  * Regression. The two producers keyed their pages on different schemes — the
  * generator on `page_<scope>_<table-slug>-<suffix>` (`orders-board`), the apply
@@ -69,7 +69,7 @@ const ALL_IDS = diffEnrichment(
 ).map((d) => d.id);
 
 /**
- * The overlap this test turns on: the generator's §14 archetype pass gives
+ * The overlap this test turns on: the generator's archetype pass gives
  * `public.orders` a `page-board`, and the valid-demo response recommends
  * `page-board` for `public.orders` too (its other two — a queue for orders, a
  * directory for customers — are LLM-only, so the run still adds pages).
@@ -200,7 +200,7 @@ describe('llm apply × generation — one page per (table, template)', () => {
   it('reuses a HAND-EDITED generated page instead of duplicating it', async () => {
     // The sharp edge of "the existing page wins": a human laid this board out,
     // so the regeneration guard keeps the row whatever the new set says (user
-    // delta wins, 04 §6.3). Dropping it from the generated set alone would then
+    // delta wins). Dropping it from the generated set alone would then
     // leave BOTH pages standing — only declining to insert the llm twin in the
     // first place keeps it at one, with the edit intact.
     await runGeneration({ manager, meta, connectionId });
@@ -244,9 +244,9 @@ describe('llm apply × generation — one page per (table, template)', () => {
   });
 
   it('leaves every generated page in a group the nav rail can render', async () => {
-    // The §8.3 `group` write stamps the LLM's domain slugs (`sales`,
+    // The `group` write stamps the LLM's domain slugs (`sales`,
     // `catalog`) onto every page of a member table, and the regeneration that
-    // follows rewrites the GENERATED rows back to their heuristic 09 §2.2
+    // follows rewrites the GENERATED rows back to their heuristic
     // group. That reversion is load-bearing, not a bug to fix in isolation:
     // `buildNavTree` (routes/bootstrap) drops any row whose group is not one
     // of NAV_GROUP_KEYS, so a generated page that kept `sales` would vanish

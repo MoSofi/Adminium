@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 1 — the starting point (45-onboarding.md §2, R3).
+ * Step 1 — the starting point (R3).
  *
  * The ruling this pins: Blank canvas is FIRST and is what a person gets by
  * pressing Continue without touching anything. The other four are the

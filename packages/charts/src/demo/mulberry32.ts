@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Deterministic seeded PRNG + hash per 04-widget-registry.md §7.7:
- * seed = FNV-1a hash of the widget instance id → previews are stable across
- * reloads and screenshot tests are reproducible.
+ * Deterministic seeded PRNG + hash: seed = FNV-1a hash of the widget
+ * instance id → previews are stable across reloads and screenshot tests are
+ * reproducible.
  */
 
 /** Mulberry32 — tiny, fast, deterministic PRNG. Returns floats in [0, 1). */

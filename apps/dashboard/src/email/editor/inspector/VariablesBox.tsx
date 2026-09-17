@@ -2,7 +2,7 @@
 /**
  * *Insert variable* (comp 654, 741; D18): dashed accent chips that APPEND
  * the token to the last-focused field, under the comp's hint. Insertion at
- * the caret is a refinement recorded in §5, not built.
+ * the caret is a refinement recorded, not built.
  */
 import { t } from '../../../i18n/t.js';
 import { PanelLabel } from './parts.js';

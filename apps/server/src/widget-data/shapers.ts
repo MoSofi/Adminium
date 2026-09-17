@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Row → data-contract envelope shapers (04-widget-registry.md §5.2 step 5).
+ * Row → data-contract envelope shapers.
  *
- * The server returns payloads in exactly the §3 canonical envelopes, with a
+ * The server returns payloads in exactly the canonical envelopes, with a
  * `shape` discriminant so client narrowing is a tagged union: single-metric
- * `{ value }`, metric+delta `{ value, prior?, deltaPct? }`, timeseries
- * `{ points: [{ t, v }], compare? }`, multi-timeseries `{ series }`,
+ * `{ value }`, metric+delta `{ value, prior?, deltaPct? }`, timeseries `{
+ * points: [{ t, v }], compare? }`, multi-timeseries `{ series }`,
  * categorical `{ items, total }`, matrix `{ rowKeys, colKeys, cells }`,
- * hierarchy/tree `{ roots }`, distribution `{ groups }`, calendar-events
- * `{ events }`, geo-points `{ points }`, flows `{ nodes, links }`, ohlc
- * `{ candles }`, boolean-map `{ entries }`, record `{ row, columns }` and
+ * hierarchy/tree `{ roots }`, distribution `{ groups }`, calendar-events `{
+ * events }`, geo-points `{ points }`, flows `{ nodes, links }`, ohlc `{
+ * candles }`, boolean-map `{ entries }`, record `{ row, columns }` and
  * record-list `{ rows, columns, total }`.
  *
  * PII lives HERE, not in SQL: the compiler refuses a masked column the caller
@@ -76,7 +76,7 @@ export interface ShapedMatrix {
   cells: (number | null)[][];
 }
 
-/** One `hierarchy/tree` node (04 §3 `TreeNode { id, label, meta?, children[] }`). */
+/** One `hierarchy/tree` node (`TreeNode { id, label, meta?, children[] }`). */
 export interface TreeNode {
   id: string;
   label: string;
@@ -92,7 +92,7 @@ export interface ShapedTree {
   roots: TreeNode[];
 }
 
-/** One `geo-points` place (04 §3) — coordinates, a region code, or both. */
+/** One `geo-points` place — coordinates, a region code, or both. */
 export interface GeoPoint {
   name: string;
   code?: string;
@@ -147,7 +147,7 @@ export interface ShapedDistribution {
   groups: DistributionGroup[];
 }
 
-/** One `calendar-events` entry (04 §3 `{date, title, category?, time?, end?}`). */
+/** One `calendar-events` entry (`{date, title, category?, time?, end?}`). */
 export interface CalendarEvent {
   id?: string | number;
   /** `YYYY-MM-DD`, or the full ISO instant when the column carries a time. */
@@ -187,7 +187,7 @@ export interface ShapedRecord {
 
 export interface ShapedStream {
   shape: 'stream';
-  /** Authoritative WS channel the client subscribes to (04 §5.3). */
+  /** Authoritative WS channel the client subscribes to. */
   channel: string;
   /** Initial (PII-masked) rows, newest-first. */
   snapshot: Row[];
@@ -801,7 +801,7 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
       const groupAlias = compiled.groupAlias ?? '__group';
       const items = rows.map((row) => ({ ...keyOf(row[groupAlias]), value: toNumber(row[alias]) }));
       // Cardinality cap: rows arrive ordered by value desc (compiler); fold
-      // the tail into `__other` (04 §5.2 guardrails — fold is over fetched
+      // the tail into `__other` (guardrails — fold is over fetched
       // rows, themselves bounded by the hard LIMIT).
       let capped = items;
       if (items.length > GROUP_BUCKET_CAP) {
@@ -834,7 +834,7 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
 
     case 'stream': {
       // Server-authoritative channel from the RESOLVED table id — the client
-      // subscribes to exactly what the CRUD/job publisher fans out on (04 §5.3).
+      // subscribes to exactly what the CRUD/job publisher fans out on.
       if (input.connectionId === undefined) {
         throw new Error('shaper: stream shape requires connectionId (route bug)');
       }

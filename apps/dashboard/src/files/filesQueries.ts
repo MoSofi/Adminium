@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `/files` workspace page's read layer (37-files-and-storage.md §3.8 last
- * bullet, Appendix C, 37-T25) over `GET /api/v1/files` and
- * `GET /api/v1/files/usage`.
+ * The `/files` workspace page's read layer (last bullet, Appendix C) over
+ * `GET /api/v1/files` and `GET /api/v1/files/usage`.
  *
  * WHY THIS IS NOT IN `./api.ts`. That module is the 37c TRANSPORT: the upload
  * XHR, the batch resolver, and the three record-panel calls, all of which are
@@ -28,7 +27,7 @@
  * `apps/server/src/routes/files/schema.ts`; `FilesState` mirrors that file's
  * `state` enum. Hand mirrors rather than imports, because the dashboard must
  * not pull `@adminium/meta` (and its database machinery) into a browser chunk
- * — the 01-architecture.md §2.3 matrix. Change them together.
+ * — the matrix. Change them together.
  */
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { getFormatters } from '@adminium/i18n';
@@ -41,7 +40,7 @@ import type { FileDto } from './api.js';
 export type FilesState = 'live' | 'trash' | 'unattached';
 
 /**
- * How "this server's disk" is named on the wire (37 D3).
+ * How "this server's disk" is named on the wire.
  *
  * `destination_id IS NULL` is the implicit destination — it has no row and so
  * no id — and the route maps this sentinel back to `null`. The same constant
@@ -68,7 +67,7 @@ export interface FilesFilters {
   /**
    * `null` = every connection.
    *
-   * Usable ON ITS OWN since 38 D4: every upload records the connection it
+   * Usable ON ITS OWN since: every upload records the connection it
    * belongs to, whether or not a record claims it, so "everything for this
    * source" is one query rather than a table-by-table sweep.
    */
@@ -77,7 +76,7 @@ export interface FilesFilters {
   /** `null` = every destination; {@link LOCAL_DESTINATION_VALUE} = this server's disk. */
   destinationId: string | null;
   /**
-   * Uploaded at or after this instant — the **Recent** preset (38 D9).
+   * Uploaded at or after this instant — the **Recent** preset.
    *
    * A server-side filter like every other entry on the rail. Slicing the first
    * page client-side would answer "which of these fifty are recent", which is
@@ -147,13 +146,13 @@ export function filesQuery(filters: FilesFilters) {
 
 /** Mirrors one row of `filesUsageReply`. */
 export interface StorageUsageEntry {
-  /** `null` = this server's disk, which has no destination row (37 D3). */
+  /** `null` = this server's disk, which has no destination row. */
   destinationId: string | null;
   name: string;
   driver: string;
   files: number;
   bytes: number;
-  /** Local destinations only — a bucket cannot know (37 D23). NEVER a denominator. */
+  /** Local destinations only — a bucket cannot know. NEVER a denominator. */
   available?: number;
 }
 
@@ -245,13 +244,13 @@ export interface FilesConnection {
 }
 
 /**
- * Every connection, for the **By connection** rail group (38 D9).
+ * Every connection, for the **By connection** rail group.
  *
- * NOT derived from the rows on screen, unlike {@link tablePresets}. Since 38 D4
- * every upload records its connection, so the server can answer "everything
- * for this source" directly — and an operator opening the page to find the
- * files they just uploaded to a quiet connection should see that connection in
- * the rail whether or not its files happen to be on the first page.
+ * NOT derived from the rows on screen, unlike {@link tablePresets}. Since every
+ * upload records its connection, so the server can answer "everything for this
+ * source" directly — and an operator opening the page to find the files they
+ * just uploaded to a quiet connection should see that connection in the rail
+ * whether or not its files happen to be on the first page.
  *
  * A DUPLICATE of the Studio hub's `connectionsQuery`, deliberately: that one
  * lives in a lazily loaded Studio chunk, and this page has no business pulling
@@ -274,11 +273,11 @@ export function filesConnectionsQuery() {
 }
 
 /**
- * Local disks report what is left on them; buckets cannot (37 D23).
+ * Local disks report what is left on them; buckets cannot.
  *
  * Used capacity for a LOCAL destination is `bytes + available` — both figures
  * the server already returns — and it is the only place this feature draws a
- * fraction. 37 Appendix D banned "N of M" outright; 38 D10 narrows that to
+ * fraction. "N of M" was banned outright, then narrowed to
  * "never for something with no capacity", which is every remote driver. A disk
  * genuinely has a size, and hiding it does not make the disk bigger.
  */

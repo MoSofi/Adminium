@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the first-run setup resource (M10-T04; naming per
- * 08-server-api.md §1.5: `<resource><Action><Part>` consts, `z.infer`
- * PascalCase types).
+ * Zod schemas for the first-run setup resource (naming:
+ * `<resource><Action><Part>` consts, `z.infer` PascalCase types).
  *
  * These are the only UNAUTHENTICATED write-capable schemas in the API — there
  * is no session to authorize against on a fresh install — so the bodies are
@@ -52,16 +51,16 @@ export type SetupSuperAdminBody = z.infer<typeof setupSuperAdminBody>;
 /**
  * 201 — the super admin exists and the response carries their session cookie.
  *
- * `csrfToken` is that session's §7-item-4 token, the same value
- * `GET /bootstrap` issues for it. It is here because this reply MINTS the
- * ambient credential the CSRF check exists to protect, and the client that
- * receives it may keep mutating without ever reaching `/bootstrap`: the desktop
- * first-run wizard (11-electron.md §6) creates the account at step 3 and then
- * creates a database, introspects it and generates pages at step 4, all on the
- * `/desktop/setup` route — which is a child of the router ROOT precisely
- * because it cannot bootstrap (there is no account to bootstrap as when it
- * loads). Without the token in this reply, every one of those step-4 calls is a
- * session-authenticated, browser-provenanced, tokenless mutation: a 403.
+ * `csrfToken` is that session's -item-4 token, the same value `GET /bootstrap`
+ * issues for it. It is here because this reply MINTS the ambient credential the
+ * CSRF check exists to protect, and the client that receives it may keep
+ * mutating without ever reaching `/bootstrap`: the desktop first-run wizard
+ * creates the account at step 3 and then creates a database, introspects it and
+ * generates pages at step 4, all on the `/desktop/setup` route — which is a
+ * child of the router ROOT precisely because it cannot bootstrap (there is no
+ * account to bootstrap as when it loads). Without the token in this reply,
+ * every one of those step-4 calls is a session-authenticated,
+ * browser-provenanced, tokenless mutation: a 403.
  *
  * Handing it back here leaks nothing. Reading this response body cross-origin
  * requires CORS, which is off unless an operator opts an origin in
@@ -75,10 +74,10 @@ export type SetupSuperAdminReply = z.infer<typeof setupSuperAdminReply>;
 /**
  * `POST /setup/probe` — does this database already hold an Adminium instance?
  *
- * The wizard asks BEFORE it asks for a password (45-onboarding.md 45-T11), so
- * a person who points a second install at a database that already runs one is
- * told while they can still change their mind, rather than after an account
- * exists and a relocation has failed.
+ * The wizard asks BEFORE it asks for a password, so a person who points a
+ * second install at a database that already runs one is told while they can
+ * still change their mind, rather than after an account exists and a
+ * relocation has failed.
  *
  * Narrow on purpose: it takes a DSN and answers about `adminium_` tables only.
  * It reports no row counts, no schema, no server version — nothing an
@@ -119,10 +118,10 @@ export type SetupProbeReply = z.infer<typeof setupProbeReply>;
  * `POST /setup/adopt` — point this instance at an Adminium store that already
  * exists, instead of creating a second one beside it.
  *
- * Writes the §7.2 bootstrap file and restarts onto the named store; the reply
- * is the health path to wait on, exactly as `/meta/relocate` answers. Nothing
- * is copied and nothing is dropped — the local store this instance booted on
- * is left on disk, and the wizard sends the operator to `/login`, where their
+ * Writes the bootstrap file and restarts onto the named store; the reply is
+ * the health path to wait on, exactly as `/meta/relocate` answers. Nothing is
+ * copied and nothing is dropped — the local store this instance booted on is
+ * left on disk, and the wizard sends the operator to `/login`, where their
  * existing account is.
  */
 export const setupAdoptBody = setupProbeBody;

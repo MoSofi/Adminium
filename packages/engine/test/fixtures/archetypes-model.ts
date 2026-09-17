@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A synthetic schema built to exercise every §14 auto-trigger the runtime can
- * compose (research/widget-registry.md §14, M7 exit criteria). One table per
- * trigger, each shaped exactly as the annex describes it — nothing here is
- * tuned to the *rules*, only to the annex's own words, so the test that reads it
+ * A synthetic schema built to exercise every auto-trigger the runtime can
+ * compose (research/widget-registry.md, M7 exit criteria). One table per
+ * trigger, each shaped exactly as the annex describes it — nothing here is tuned
+ * to the *rules*, only to the annex's own words, so the test that reads it
  * proves the pipeline rather than restating it.
  *
  * Northwind (`northwind.model.json`) stays the realism fixture; it happens to
@@ -69,7 +69,7 @@ const raw = {
     { id: 'public.channel', name: 'channel', values: ['email', 'chat'] },
   ],
   tables: [
-    // §14 page-board — "Status enum classified as workflow; optional lane dimension"
+    // page-board — "Status enum classified as workflow; optional lane dimension"
     table('tasks', [
       pk,
       { name: 'title', logicalType: 'varchar', maxLength: 200, nullable: false },
@@ -78,14 +78,14 @@ const raw = {
       createdAt,
     ]),
 
-    // §14 page-calendar — "Date column + title column"
+    // page-calendar — "Date column + title column"
     table('releases', [
       pk,
       { name: 'title', logicalType: 'varchar', maxLength: 200, nullable: false },
       { name: 'released_at', logicalType: 'timestamptz', nullable: false },
     ]),
 
-    // §14 page-directory — "People-shaped table (name/email/role/avatar)" + org-chart tree
+    // page-directory — "People-shaped table (name/email/role/avatar)" + org-chart tree
     table('employees', [
       pk,
       { name: 'full_name', logicalType: 'varchar', maxLength: 120, nullable: false },
@@ -94,7 +94,7 @@ const raw = {
       { name: 'manager_id', logicalType: 'integer', references: { tableId: 'public.employees', column: 'id' } },
     ]),
 
-    // §14 page-scheduler — "Person FK × date × shift-type"
+    // page-scheduler — "Person FK × date × shift-type"
     table('shifts', [
       pk,
       { name: 'employee_id', logicalType: 'integer', nullable: false, references: { tableId: 'public.employees', column: 'id' } },
@@ -102,7 +102,7 @@ const raw = {
       { name: 'shift_type', logicalType: 'enum', enumRef: 'public.shift_type', nullable: false },
     ]),
 
-    // §13/§14 gantt — "start+end dates + phase FK → gantt-chart" (page-master-detail's domain card)
+    // gantt — "start+end dates + phase FK → gantt-chart" (page-master-detail's domain card)
     table('phases', [pk, { name: 'name', logicalType: 'varchar', maxLength: 80, nullable: false }], 12),
     table('project_tasks', [
       pk,
@@ -113,7 +113,7 @@ const raw = {
       { name: 'phase_id', logicalType: 'integer', references: { tableId: 'public.phases', column: 'id' } },
     ]),
 
-    // §14 page-log-viewer — "Audit/event/webhook/log tables"
+    // page-log-viewer — "Audit/event/webhook/log tables"
     table('order_audit', [
       pk,
       { name: 'action', logicalType: 'varchar', maxLength: 40, nullable: false },
@@ -121,7 +121,7 @@ const raw = {
       createdAt,
     ]),
 
-    // §14 page-files — "File/attachment-shaped tables"
+    // page-files — "File/attachment-shaped tables"
     table('attachments', [
       pk,
       { name: 'file_name', logicalType: 'varchar', maxLength: 255, nullable: false },
@@ -130,7 +130,7 @@ const raw = {
       { name: 'parent_id', logicalType: 'integer', references: { tableId: 'public.attachments', column: 'id' } },
     ]),
 
-    // §14 page-chat — "Conversation+message table pair"
+    // page-chat — "Conversation+message table pair"
     table('conversations', [
       pk,
       { name: 'subject', logicalType: 'varchar', maxLength: 200, nullable: false },
@@ -144,7 +144,7 @@ const raw = {
       createdAt,
     ]),
 
-    // §14 page-queue-inbox — "pending/approved-style workflow enums"
+    // page-queue-inbox — "pending/approved-style workflow enums"
     table('approvals', [
       pk,
       { name: 'subject', logicalType: 'varchar', maxLength: 200, nullable: false },
@@ -152,7 +152,7 @@ const raw = {
       createdAt,
     ]),
 
-    // §14 page-master-detail — "Enum-heavy tables with rich per-record detail"
+    // page-master-detail — "Enum-heavy tables with rich per-record detail"
     table('tickets', [
       pk,
       { name: 'subject', logicalType: 'varchar', maxLength: 200, nullable: false },
@@ -162,7 +162,7 @@ const raw = {
       createdAt,
     ]),
 
-    // No §14 trigger — a plain lookup table keeps just its page-crud.
+    // No trigger — a plain lookup table keeps just its page-crud.
     table('regions', [pk, { name: 'region_name', logicalType: 'varchar', maxLength: 60, nullable: false }], 8),
   ],
 };

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-board` binding (09-generated-app.md §4.1, §7.5): projects the page
- * envelope onto the real `PageBoard` template from `@adminium/widgets`.
+ * `page-board` binding: projects the page envelope onto the real
+ * `PageBoard` template from `@adminium/widgets`.
  *
  * Data flow: archetype pages are `kind: 'page'`, so the dashboard batch hook
  * never sees them — `usePlanningStates` extracts the layout's descriptors,
  * runs the ONE deduped `POST /api/v1/widget-data/batch`, and hands the
  * per-instance states to the template (unbound items keep deterministic demo
- * data, 04 §5.3). WS `widget-data:*`/`table:*` invalidations refetch — which
- * is what confirms (or unwinds) the board's optimistic card moves.
+ * data). WS `widget-data:*`/`table:*` invalidations refetch — which is what
+ * confirms (or unwinds) the board's optimistic card moves.
  *
  * Events re-enter the host sink: drops → `mutate` update (status, or
  * lane+status) with the CRUD promise returned for rollback; card click →

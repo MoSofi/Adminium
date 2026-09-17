@@ -3,7 +3,7 @@
  * `system` family component barrel — the single lazy-import target for this
  * family's definitions, so the registry metadata graph reaches the
  * @adminium/ui-heavy system components only through a dynamic `import()`
- * boundary (one lazy chunk for the family, 04 §2.3). Mirrors the
+ * boundary (one lazy chunk for the family). Mirrors the
  * kpi/charts/feeds/boards/media `*-components.ts` convention.
  */
 export { AlertBannerWidget } from './AlertBanner.js';

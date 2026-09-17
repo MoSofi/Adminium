@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CONDITION EVALUATION (42-automations-and-workflow-logs.md D18, 42-T08).
+ * CONDITION EVALUATION.
  *
  * The comp draws one row — Field · operator · Value (Automation Rules
  * 124-137) — and that is what most conditions are. Two things are added
@@ -27,9 +27,9 @@
  * ─── Missing is not empty is not false ─────────────────────────────────────
  *
  * A condition on a record that is GONE never evaluates here: the runner ends
- * such a run `skipped` before it asks (§0.3, "re-read the record at every
- * step"). What this module does see is a column whose value is NULL or '',
- * and `is empty` is the only operator that treats them alike.
+ * such a run `skipped` before it asks ("re-read the record at every step").
+ * What this module does see is a column whose value is NULL or '', and `is
+ * empty` is the only operator that treats them alike.
  */
 
 import type {
@@ -82,7 +82,7 @@ function asText(value: unknown): string {
  * mysql2), an epoch number, or a string (SQLite text, and pg `date`).
  * Returns null for anything that is not a date — which is how a relative
  * operator on a non-date column evaluates false instead of throwing. The
- * SAVE path refuses that combination outright (§5); this is the belt.
+ * SAVE path refuses that combination outright; this is the belt.
  */
 export function asInstant(value: unknown): number | null {
   if (value === null || value === undefined) return null;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The i18n revision counter (23-runtime-translations.md §4.4).
+ * The i18n revision counter.
  *
  * A language switch is observable — i18next emits `languageChanged` and the
  * provider re-renders. An OVERRIDE change is not: the language is identical,

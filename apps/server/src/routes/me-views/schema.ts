@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the per-user dashboard layout override routes
- * (04-widget-registry.md §6.3): `PUT`/`DELETE /api/v1/me/views/:pageId/layout`.
- * The body is a full `pageLayout` document — the same schema the shared-default
- * PATCH validates — so the two write paths never diverge on geometry rules.
+ * Zod schemas for the per-user dashboard layout override routes: `PUT`/`DELETE
+ * /api/v1/me/views/:pageId/layout`. The body is a full `pageLayout` document —
+ * the same schema the shared-default PATCH validates — so the two write paths
+ * never diverge on geometry rules.
  */
 
 import { z } from 'zod';

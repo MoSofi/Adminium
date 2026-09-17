@@ -39,8 +39,8 @@ import { type FileStore } from '../src/files/store.js';
 import { createTestFileStore } from './helpers/file-store.js';
 
 /**
- * The implicit destination's root (37 D3). These assertions are the
- * byte-identity proof: with no destination configured, a logo still lands at
+ * The implicit destination's root. These assertions are the byte-identity
+ * proof: with no destination configured, a logo still lands at
  * `<dataDir>/files/<file_ULID>` exactly as it did before wave 0024.
  */
 function filesRoot(t: { dataDir: string }): string {

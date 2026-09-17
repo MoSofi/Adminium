@@ -6,10 +6,9 @@
  *
  * TWO APPENDIX D REPLACEMENTS LIVE HERE. The late-fee suffix reads *% per
  * month* and the loyalty field is *Level*; the comp's own words for both are
- * ones the 17 §2 sweep catches, so Appendix D names them and this file does
- * not repeat them (34 DEP-3/DEP-4). Both are renamed at the SOURCE — the
- * stored field is `loyLevel` — so the built-bytes sweep finds nothing
- * (43-T12/T15).
+ * ones the sweep catches, so Appendix D names them and this file does not
+ * repeat them (34 DEP-3/DEP-4). Both are renamed at the SOURCE — the stored
+ * field is `loyLevel` — so the built-bytes sweep finds nothing.
  */
 import { cn } from '@adminium/ui';
 
@@ -27,7 +26,7 @@ export function LateFeesFields({ block, edits }: FieldsProps<'latefees'>) {
     <div className="flex flex-col gap-4">
       <SuffixField
         label={t('reportBuilder:inspector.lateRate', 'Late fee rate')}
-        // Appendix D row 4: the comp's own suffix is a 17 §2 word.
+        // Appendix D row 4: the comp's own suffix is a word.
         suffix={t('reportBuilder:inspector.lateRateUnit', '% per month')}
         value={block.lateRate}
         onFocus={edits.beginEdit}
@@ -308,7 +307,7 @@ export function LoyaltyFields({ block, edits }: FieldsProps<'loyalty'>) {
         testId="report-field-loyEarned"
       />
       <TextField
-        // Appendix D row 5: the comp's own label and field name are 17 §2 words.
+        // Appendix D row 5: the comp's own label and field name are words.
         label={t('reportBuilder:inspector.level', 'Level')}
         value={block.loyLevel}
         onFocus={edits.beginEdit}

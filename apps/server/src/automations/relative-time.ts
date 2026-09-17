@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * AUTOMATION CONDITIONS → THE LIST FILTER DSL (42-automations-and-workflow-
- * logs.md D5, 42-T07).
+ * logs.md D5).
  *
  * A schedule scan asks the database a question — "which appointments start
  * within the next two hours and are still `scheduled`?" — so its conditions

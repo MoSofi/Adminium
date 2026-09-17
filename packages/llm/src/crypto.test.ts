@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LLM key-crypto contract tests (06-llm-assist.md §3.2). The concrete AES-256-GCM
- * primitives live in the server tree (see the blocker); here we inject a fake to
- * prove the wiring: the LLM purpose salt is used and encrypt/decrypt round-trips.
+ * LLM key-crypto contract tests. The concrete AES-256-GCM primitives live in the
+ * server tree (see the blocker); here we inject a fake to prove the wiring: the
+ * LLM purpose salt is used and encrypt/decrypt round-trips.
  */
 import { describe, expect, it, vi } from 'vitest';
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Provider-contract helpers (06-llm-assist.md §3.1–§3.2): the config guards and
- * `stripTrailingSlash`, which every base-URL-taking client funnels through and
- * which had no direct coverage before.
+ * Provider-contract helpers: the config guards and `stripTrailingSlash`, which
+ * every base-URL-taking client funnels through and which had no direct coverage
+ * before.
  */
 import { describe, expect, it } from 'vitest';
 

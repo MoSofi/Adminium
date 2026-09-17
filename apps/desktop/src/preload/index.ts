@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The preload bridge (11-electron.md §4).
+ * The preload bridge.
  *
  * COMPILED TO CommonJS, deliberately (see electron.vite.config.ts's `preload`
- * block): §2.4 mandates `sandbox: true`, and a sandboxed preload is loaded by
+ * block): the shell mandates `sandbox: true`, and a sandboxed preload is loaded by
  * Electron's own limited `require` shim rather than by Node's module loader — it
  * cannot be an ES module. The bundle is emitted as `out/preload/index.cjs`.
  *
  * ─── What may cross, and why the list is closed ──────────────────────────────
  *
- * §2.4 makes the renderer the untrusted side of this boundary
+ * The renderer is the untrusted side of this boundary
  * (`contextIsolation` on, `sandbox` on, `nodeIntegration` off), which makes this
  * file the only door out of it that runs with main-process authority. So what
  * `contextBridge` receives is an object literal of explicitly listed,
@@ -26,13 +26,13 @@
  *
  * ─── The detection contract is an ACT, not a value ───────────────────────────
  *
- * §4: the SPA treats `window.adminiumDesktop !== undefined` as "running in the
+ * The SPA treats `window.adminiumDesktop !== undefined` as "running in the
  * desktop shell", while the server independently reports `runtime: "desktop"` in
  * `GET /api/v1/system/info`, and "both must agree". Exposing this object is
  * therefore a claim about the runtime — it must happen exactly when this really
  * is the desktop shell, which is what {@link isElectronPreload} guards, and it
  * must not happen half-way (see {@link readBootstrap}). The key must not be
- * renamed without 08-server-api.md.
+ * renamed without.
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
@@ -83,19 +83,19 @@ export interface IpcRendererLike {
 
 export interface PreloadDeps {
   ipc: IpcRendererLike;
-  /** §4's `platform` + `versions`, read once — see {@link readBootstrap}. */
+  /** `platform` + `versions`, read once — see {@link readBootstrap}. */
   bootstrap: BridgeBootstrap;
   /** `contextBridge.exposeInMainWorld`, injectable so the expose is assertable. */
   expose: (key: string, api: AdminiumDesktopApi) => void;
 }
 
 /**
- * A bridge rejection (§4's error contract; `DesktopBridgeErrorLike` in api.d.ts).
+ * A bridge rejection (error contract; `DesktopBridgeErrorLike` in api.d.ts).
  *
  * The code goes in the message as well as on the property, because
  * `contextBridge` copies errors between two V8 contexts with only the standard
  * fields guaranteed — a custom `code` may not survive the crossing, while the
- * message always does. §12 already relies on exactly this shape
+ * message always does. The capability contract already relies on exactly this shape
  * (`printer-escpos.ts` rejects with `` `${CAPABILITY_STUB}: …` ``).
  */
 export class DesktopBridgeError extends Error implements DesktopBridgeErrorLike {
@@ -147,17 +147,17 @@ async function unwrap<T>(pending: Promise<unknown>): Promise<T> {
 }
 
 /**
- * Read §4's two synchronous properties before any page script runs.
+ * Read two synchronous properties before any page script runs.
  *
  * THROWS rather than degrading, and the reason is the detection contract: a
  * bridge exposed with a made-up app version would be a `window.adminiumDesktop`
- * that exists and lies — §13's About screen would render the lie, and §4's "both
- * must agree" would not catch it, because the bridge is present. A bridge that
- * fails to build instead surfaces as Electron's "Unable to load preload script"
- * in the main log, and the SPA correctly reports "not the desktop shell".
- * Reaching that state at all means `registerIpcHandlers()` did not run before
- * the window was created — a wiring bug in the boot sequence, not a condition a
- * user can produce.
+ * that exists and lies — the About screen would render the lie, "both must
+ * agree" would not catch it, because the bridge is present. A bridge that fails
+ * to build instead surfaces as Electron's "Unable to load preload script" in the
+ * main log, and the SPA correctly reports "not the desktop shell". Reaching that
+ * state at all means `registerIpcHandlers()` did not run before the window was
+ * created — a wiring bug in the boot sequence, not a condition a user can
+ * produce.
  */
 export function readBootstrap(ipc: IpcRendererLike): BridgeBootstrap {
   const raw = ipc.sendSync(IPC_CHANNELS.bootstrap);
@@ -182,7 +182,7 @@ export function readBootstrap(ipc: IpcRendererLike): BridgeBootstrap {
 }
 
 /**
- * §4's `AdminiumDesktopApi`, over `ipcRenderer` — the whole bridge.
+ * `AdminiumDesktopApi`, over `ipcRenderer` — the whole bridge.
  *
  * The return type is the contract itself, so `api.d.ts` is what typechecks this
  * function: a method the SPA can see and this file lacks is a compile error, and
@@ -225,10 +225,10 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
     quitAndInstall: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.quitAndInstall)),
 
     /**
-     * The only subscription in §4, and the only place a renderer function is
-     * held by the preload. It is CALLED, never forwarded to `ipcMain` — the main
-     * process pushes to a channel, it does not take a callback, so no renderer
-     * function ever reaches the main process.
+     * The only subscription, and the only place a renderer function is held by
+     * the preload. It is CALLED, never forwarded to `ipcMain` — the main process
+     * pushes to a channel, it does not take a callback, so no renderer function
+     * ever reaches the main process.
      */
     onUpdateEvent(cb: (e: DesktopUpdateEvent) => void): Unsubscribe {
       const listener = (_event: unknown, payload: unknown): void => {
@@ -243,7 +243,7 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
     capabilities: {
       list: (): Promise<CapabilityDescriptor[]> => unwrap(ipc.invoke(IPC_CHANNELS.capabilitiesList)),
       /**
-       * §12's payload is `unknown` by contract — the capability decides its own
+       * The payload is `unknown` by contract — the capability decides its own
        * shape. It stays `unknown` all the way to the provider: this bridge does
        * not know what a receipt printer's `print` takes, and a schema here would
        * be a second, and eventually wrong, copy of the provider's.
@@ -267,7 +267,7 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
   };
 }
 
-/** §4, the one exposure: one key, one object, nothing else. */
+/** The one exposure: one key, one object, nothing else. */
 export function exposeBridge(deps: PreloadDeps): void {
   deps.expose(BRIDGE_KEY, createDesktopApi(deps));
 }

@@ -1,24 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LLM-assist routes (06-llm-assist.md §10.5) — the HTTP surface over the T07 run
- * service, the T08 `llm-run` job, and the T10b apply executor.
+ * LLM-assist routes — the HTTP surface over the T07 run service, the T08
+ * `llm-run` job, and the T10b apply executor.
  *
- * The full §10.5 table, all guarded by `system:llm:run` (Admin + Super-Admin;
+ * The full table, all guarded by `system:llm:run` (Admin + Super-Admin;
  * Editor/Viewer → 403, acceptance #13):
  *
- *   GET  /llm/config              provider config (key WRITE-ONLY, §3.2)
- *   PUT  /llm/config              store provider/model/baseUrl/maxOutputTokens
- *                                 + AES-256-GCM-encrypt the api key (acceptance #10)
- *   POST /llm/config/test         provider `test()` ping (never the key)
- *   GET  /llm/models              active-provider model list (+ static fallback)
- *   POST /llm/runs                create a run → run + prompt artifact
- *   POST /llm/runs/:id/execute    direct path: enqueue the `llm-run` job (202)
- *   POST /llm/runs/:id/response   BYO paste: chunk text → validation result
- *   GET  /llm/runs                history (per connection)
- *   GET  /llm/runs/:id            run detail (incl. validation errors + review)
- *   GET  /llm/runs/:id/prompt     re-download the prompt file(s)
- *   GET  /llm/runs/:id/diff       SuggestionDiff[] against the heuristic baseline
- *   POST /llm/runs/:id/apply      apply the accepted suggestion ids (§8.3)
+ * GET /llm/config provider config (key WRITE-ONLY) PUT /llm/config store
+ *   provider/model/baseUrl/maxOutputTokens + AES-256-GCM-encrypt the api key
+ *   (acceptance #10) POST /llm/config/test provider `test()` ping (never the key)
+ *   GET /llm/models active-provider model list (+ static fallback) POST /llm/runs
+ *   create a run → run + prompt artifact POST /llm/runs/:id/execute direct path:
+ *   enqueue the `llm-run` job (202) POST /llm/runs/:id/response BYO paste: chunk
+ *   text → validation result GET /llm/runs history (per connection) GET
+ *   /llm/runs/:id run detail (incl. validation errors + review) GET
+ *   /llm/runs/:id/prompt re-download the prompt file(s) GET /llm/runs/:id/diff
+ *   SuggestionDiff[] against the heuristic baseline POST /llm/runs/:id/apply apply
+ *   the accepted suggestion ids
  *
  * The api key never appears in any reply or log: `PUT` encrypts before storage,
  * `GET` returns `apiKeySet` + last-4 only, and every provider error is scrubbed
@@ -95,11 +93,12 @@ import {
   type LlmValidationErrorDto,
 } from './schema.js';
 
-/** Every `/api/v1/llm/*` route requires this grant — Admin + Super-Admin only (§10.1). */
+/** Every `/api/v1/llm/*` route requires this grant — Admin + Super-Admin only.
+ * */
 export const LLM_RUN_PERMISSION = 'system:llm:run';
 
 /**
- * The §4.2 stats collector contract now lives with the prompt service — the CLI
+ * The stats collector contract now lives with the prompt service — the CLI
  * injects the same shape. Re-exported here so existing importers of
  * `routes/llm/index.js` keep resolving.
  */
@@ -111,7 +110,7 @@ export interface LlmRoutesDeps {
   runService: RunService;
   /** T10b — transactional apply executor + diff/plan builder. */
   applyService: ApplyService;
-  /** AES-256-GCM closures for the `llm.apiKey` setting at rest (§3.2). */
+  /** AES-256-GCM closures for the `llm.apiKey` setting at rest. */
   keyCrypto: LlmKeyCrypto;
   /**
    * `LLM_ALLOWED_TEMPLATES` / `LLM_ALLOWED_WIDGETS` from `@adminium/widgets` —
@@ -120,7 +119,7 @@ export interface LlmRoutesDeps {
   allowed: AllowedVocabularies;
   /** Bundled lucide manifest for the icon-fallback warning (optional). */
   allowedIcons?: ReadonlySet<string> | readonly string[];
-  /** §4.2 stats collector (default: none — sample-free, statistics omitted). */
+  /** Stats collector (default: none — sample-free, statistics omitted). */
   collectStats?: CollectRunStats;
   /** Test seam — construct a provider client (default: the real client). */
   createClient?: CreateClient;
@@ -195,7 +194,7 @@ function toRunDetailDto(run: LlmRun): LlmRunDetailDto {
   };
 }
 
-/** Split a persisted `prompt_text` blob into its per-chunk BYO documents (§10.2). */
+/** Split a persisted `prompt_text` blob into its per-chunk BYO documents. */
 function splitPromptChunks(promptText: string): { index: number; total: number; byo: string }[] {
   const parts = promptText.split(CHUNK_SEPARATOR);
   return parts.map((byo, index) => ({ index: index + 1, total: parts.length, byo }));
@@ -217,7 +216,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
   const allowedWidgets = allowed.widgets;
   // The icon manifest travels WITH the other vocabularies (`AllowedVocabularies`)
   // because it reaches the server the same way — as data, since neither
-  // `@adminium/widgets` nor `@adminium/ui` may be imported here (01 §2.3). The
+  // `@adminium/widgets` nor `@adminium/ui` may be imported here. The
   // explicit dep stays as the test seam it always was, and now wins over it.
   const allowedIcons = deps.allowedIcons ?? allowed.icons;
 
@@ -234,7 +233,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
   return async (app) => {
     const guard = app.rbac.require(LLM_RUN_PERMISSION);
 
-    // ── Config (§3.2) ─────────────────────────────────────────────────────────
+    // ── Config ────────────────────────────────────────────────────────────────
 
     app.get(
       '/llm/config',
@@ -328,7 +327,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
         const body = request.body;
 
         // The orchestration lives in the prompt service so `adminium
-        // generate-prompt` runs the identical path (06 §10.4 CLI parity).
+        // generate-prompt` runs the identical path (CLI parity).
         let created;
         try {
           created = await promptService.createRunForConnection({
@@ -430,11 +429,11 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
         const run = await runService.getRun(request.params.id);
         if (run === null) throw new NotFoundError('LLM run not found.', { runId: request.params.id });
         const model = await loadModelForRun(run);
-        // NO stats collection here (§9 zero-network guarantee): pasting a BYO
+        // NO stats collection here (zero-network guarantee): pasting a BYO
         // response must be fully in-process against the stored snapshot —
         // `collectStats` opens the SOURCE database (up to 200 table scans) and
         // would 500 the paste when it is unreachable. Stats enrich the PROMPT
-        // at run creation (prompt-service.ts §4.2); validation without them
+        // at run creation (prompt-service.ts); validation without them
         // matches the direct path exactly (jobs/llm-run.ts passes none).
 
         try {
@@ -551,7 +550,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
             appliedBy: actor,
           });
           // Park the before-image so the success toast's Undo action can revert this
-          // exact apply within the toast window (§10.3). Only issue a token when the
+          // exact apply within the toast window. Only issue a token when the
           // apply actually wrote something revertible.
           const revertible =
             result.undo.insertedOverrideIds.length > 0 ||

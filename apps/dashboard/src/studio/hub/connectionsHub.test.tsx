@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Connections hub component tests (M5-T05): card rendering (engine badge,
- * health pill, counts, relative snapshot age), the header/empty CTAs, the
+ * Connections hub component tests: card rendering (engine badge, health
+ * pill, counts, relative snapshot age), the header/empty CTAs, the
  * per-card test + re-introspect actions with their toast feedback (noop vs
  * diff), the pause/resume flow (meta wave 0019), and the type-to-confirm
- * delete gating with the DELETE payload.
- * Fetch mocked like the sibling remap/connect suites (no msw).
+ * delete gating with the DELETE payload. Fetch mocked like the sibling
+ * remap/connect suites (no msw).
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
@@ -473,10 +473,10 @@ describe('ConnectionsHub', () => {
   });
 
   /*
-   * Regional settings (28-T34). These exist because the server has carried
-   * `timezone` since migration 0015 and a hosted app surface refuses to boot
-   * without it, while nothing rendered the field — so the only proof the UI
-   * really writes it is the PATCH body asserted below.
+   * Regional settings. These exist because the server has carried `timezone`
+   * since migration 0015 and a hosted app surface refuses to boot without
+   * it, while nothing rendered the field — so the only proof the UI really
+   * writes it is the PATCH body asserted below.
    */
   it('shows the connection timezone on the card, and an em dash when unset', async () => {
     installFetch(() => [

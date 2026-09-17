@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Config schemas for the "bars & ranking" chart group (04-T09): chart-bullet,
+ * Config schemas for the "bars & ranking" chart group: chart-bullet,
  * chart-ranking-bars, chart-pareto, chart-waterfall, chart-marimekko,
  * chart-stacked-bar-100, chart-slope. Each extends `widgetSharedConfigSchema`
  * and ships a per-widget empty-state default so WidgetFrame renders tailored
- * empty copy (04 §4). Pure module — no chart-primitive imports — so it is
- * validated independently of the @adminium/charts build.
+ * empty copy. Pure module — no chart-primitive imports — so it is validated
+ * independently of the @adminium/charts build.
  */
 import { z } from 'zod';
 
 import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
-/** Per-widget empty-state copy default (04 §4). Values are `ui` bundle key
- * paths — WidgetFrame's empty-state translator resolves key-shaped values via
+/** Per-widget empty-state copy default. Values are `ui` bundle key paths —
+ * WidgetFrame's empty-state translator resolves key-shaped values via
  * `t('ui:'+key)` and renders non-key copy verbatim, so host overrides with
  * plain text keep working. Static full-key literals on purpose: the i18n
  * coverage guard only counts statically visible `widgets.*` refs. */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * WHICH database an add-on's tables go into (26-T02).
+ * WHICH database an add-on's tables go into.
  *
  * `install-ddl.test.ts` proves the DDL is right. This proves it is aimed at the
  * right database — a distinction with no visible difference when it goes wrong.

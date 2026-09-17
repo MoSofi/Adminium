@@ -2,7 +2,6 @@
 /**
  * `validateSchemaEdit` — the rules that fire BEFORE a table's own shape is
  * examined, plus the one literal form `literalMatchesType` waves through.
- * 35-schema-authoring.md §4, D30, D32.
  *
  * Four rules live here, and each one could be deleted today without reddening
  * `ddl-edit.test.ts`:

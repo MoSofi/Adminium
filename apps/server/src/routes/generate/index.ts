@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Generation route (M4-T08 — "the zero manual config default"):
+ * Generation route ("the zero manual config default"):
  *
  *   POST /api/v1/connections/:id/generate
  *
@@ -8,8 +8,7 @@
  * connection has none), computes the v1 page set (`page-crud` per included
  * table + one `page-dashboard` per FK-cluster domain), persists it
  * idempotently to `adminium_pages`, audits the run, and publishes a
- * `config-changed` realtime event so open dashboards re-bootstrap
- * (09-generated-app.md §2.1 step 5).
+ * `config-changed` realtime event so open dashboards re-bootstrap.
  *
  * Guarded by `system:connections:manage` like the sibling connection routes.
  */
@@ -75,7 +74,7 @@ export function generateRoutes(deps: GenerateRoutesDeps): FastifyPluginAsyncZod 
           },
         });
 
-        // Open dashboards drop stale caches on config-changed (09 §2.1).
+        // Open dashboards drop stale caches on config-changed.
         if (app.hasDecorator('realtime')) {
           app.realtime.publish('config-changed', 'config-changed', {
             connectionId: connection.id,

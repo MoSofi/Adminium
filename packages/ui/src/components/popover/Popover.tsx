@@ -24,7 +24,7 @@ export type PopoverContentProps = Omit<
 
 /**
  * Popover — anchored panel on `--surface`, radius 14 (`rounded-lg`),
- * `--shadow-menu`, `nb-pop` entrance (research/design-system.md §3 Tier 3).
+ * `--shadow-menu`, `nb-pop` entrance (research/design-system.md Tier 3).
  * Focus is moved into the panel and trapped by Radix; Esc/outside-click
  * dismiss and return focus to the trigger.
  */

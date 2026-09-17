@@ -24,11 +24,11 @@ import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import type { ResolvedFile } from '../../families/tables/cells.js';
 
 /**
- * RecordForm — the create/edit form generated from column specs (09 §7.1):
- * one `FormField` per editable column with a mono type tag (`varchar`,
- * `enum`, `→ public.team_members` — the UI explains its own generation),
- * control by `fieldKindFor`, FK → async avatar `Combobox` fed by
- * `CrudApi.lookup` (debounced 200 ms), server field errors inline.
+ * RecordForm — the create/edit form generated from column specs: one
+ * `FormField` per editable column with a mono type tag (`varchar`, `enum`,
+ * `→ public.team_members` — the UI explains its own generation), control
+ * by `fieldKindFor`, FK → async avatar `Combobox` fed by `CrudApi.lookup`
+ * (debounced 200 ms), server field errors inline.
  */
 
 export const FK_LOOKUP_DEBOUNCE_MS = 200;
@@ -50,9 +50,9 @@ export interface RecordFormProps {
   /** Action row rendered INSIDE the form element (submit buttons). */
   footer?: ReactNode | undefined;
   /**
-   * Uploads a file and resolves to the reference to store (37 §3.9). Absent ⇒
-   * every `file` column renders the plain text input it had before its block
-   * was configured — this package has no transport of its own.
+   * Uploads a file and resolves to the reference to store. Absent ⇒ every
+   * `file` column renders the plain text input it had before its block was
+   * configured — this package has no transport of its own.
    */
   uploadFile?: FileFieldUpload | undefined;
   /** What the current values already name, keyed by the stored value. */
@@ -117,7 +117,7 @@ function FkField({
       onValueChange={(next) => onChange(next)}
       emptyText={t('ui:combobox.noMatches', 'No matches')}
       placeholder={t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: fk.table })}
-      // Debounced server-side search on the display column (09 §7.1) —
+      // Debounced server-side search on the display column
       // Combobox filters locally as well, so this only widens the option set.
       filter={(option, query) => {
         if (timer.current !== null) clearTimeout(timer.current);

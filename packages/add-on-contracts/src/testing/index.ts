@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Conformance suites — part of the contract, not a courtesy (24 §5.5, D9).
+ * Conformance suites — part of the contract, not a courtesy.
  *
  * Every provider implementation runs the suite for the contract it claims, in
  * its own repo, against its own transport. The claim "the next carrier is a
@@ -10,7 +10,7 @@
  *
  * This is the ONLY entry point in the package that may import vitest — the
  * types-and-validators half stays free of test and `node:` imports so the
- * storefront, the SPAs and Electron can all use it (01 §3).
+ * storefront, the SPAs and Electron can all use it.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -162,7 +162,7 @@ export function describeShippingCarrier(
     });
 
     /*
-     * ── THE INBOUND DIRECTION (31 O4, ruled 2026-09-01) ─────────────────────
+     * ── THE INBOUND DIRECTION (ruled 2026-09-01) ────────────────────────────
      *
      * The contract is direction-agnostic and these two cases are what that
      * sentence means executably. A RETURN — a customer sending a parcel back to
@@ -330,7 +330,7 @@ export interface DocumentRendererFixtures {
   settings: Readonly<Record<string, unknown>>;
   /** One subject the provider renders happily, per kind. */
   subject: (kind: DocumentKind) => DocumentSubject;
-  /** The authored composition, for a provider that takes one (34 D54). */
+  /** The authored composition, for a provider that takes one. */
   body?: (kind: DocumentKind) => Readonly<Record<string, unknown>> | undefined;
   /**
    * The id of a slot whose value the renderer DRAWS VERBATIM — where the suite
@@ -348,7 +348,7 @@ export interface DocumentRendererFixtures {
    *     is the row key, which is a lookup and appears nowhere on the sheet, so
    *     the accented subject rendered perfectly happily and the coverage
    *     assertion failed with the provider being entirely correct (found
-   *     2026-09-10, 34-T06).
+   * 2026-09-10).
    *
    * A provider with no drawn free-text slot at all returns `undefined` and the
    * escaping and coverage assertions skip — loudly, in the name.
@@ -418,8 +418,8 @@ function expectRefused(
  * the table is a BYTE offset, so a writer that computed them from
  * `String.length` over a stream containing one multi-byte character produces a
  * file every viewer opens and every parser mis-seeks — the exact failure 34's
- * §0.3 trap 8 sends the invoices writer over byte buffers to avoid. Seeking to
- * each offset and requiring `<n> 0 obj` there catches it on the first render.
+ * trap 8 sends the invoices writer over byte buffers to avoid. Seeking to each
+ * offset and requiring `<n> 0 obj` there catches it on the first render.
  *
  * Exported so a writer's own tests can walk its table with the same rules the
  * suite applies, rather than re-deriving a second walker that drifts from
@@ -584,7 +584,7 @@ export function describeDocumentRenderer(
       // The wire law, asserted on the FIXTURE — the provider never sees a
       // decimal, so a fixture carrying 12.5 would be testing a shape the
       // engine does not produce. The invoice rounding law is NOT here: it is
-      // the invoices package's own (34 D20), because it is arithmetic a
+      // the invoices package's own, because it is arithmetic a
       // label-sheet renderer has no opinion about.
       for (const kind of kinds) {
         const outline = impl.describe(kind.id);
@@ -633,7 +633,7 @@ export function describeDocumentRenderer(
     });
 
     it('renders one subject to the same bytes twice — and so reads no clock of its own', async () => {
-      // 25 D12. Two renders separated by real time: identical bytes are the
+      // Two renders separated by real time: identical bytes are the
       // proof that `Date.now()` is not in the code path, which is why this one
       // assertion carries the whole "byte-identical from a pinned clock" claim.
       for (const kind of kinds) {
@@ -681,7 +681,7 @@ export function describeDocumentRenderer(
          * Two subjects, and the SECOND one is the assertion that has teeth.
          *
          * A writer that collects its cross-reference offsets from
-         * `String.length` over the document text — 34 §0.3 trap 8, and the
+         * `String.length` over the document text — a known trap, and the
          * shape `barcode-labels`' scaffold is written in (`sheet.ts:441-449`)
          * — produces a perfectly valid file for as long as every character is
          * ASCII, because there one character is one byte. It breaks the first

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/schema-import — schema-file parsers producing the engine's
- * DatabaseModel IR (05-introspection-engine.md §5): SQL DDL / pg_dump /
- * mysqldump, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django
- * models.py, and the public JSON IR (which is simply the DatabaseModel
- * schema itself). Setup never reads rows — these parsers see schema text
- * only.
+ * DatabaseModel IR: SQL DDL / pg_dump / mysqldump, Prisma, Drizzle,
+ * TypeORM, Sequelize, Rails schema.rb, Django models.py, and the public
+ * JSON IR (which is simply the DatabaseModel schema itself). Setup never
+ * reads rows — these parsers see schema text only.
  */
 export const PACKAGE_NAME = '@adminium/schema-import';
 

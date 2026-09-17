@@ -35,7 +35,7 @@ const laneDefSchema = z.object({
 });
 
 /**
- * Localized dnd aria-live announcement TEMPLATES (annex §6 a11y). Widgets are
+ * Localized dnd aria-live announcement TEMPLATES (annex a11y). Widgets are
  * locale-agnostic and receive already-translated strings through config (the
  * `emptyTitle`/`addLabel` convention); the host fills these from `t('…')`.
  * Placeholders: `{title}` (card title) and `{cell}` (target column/lane label).
@@ -52,7 +52,7 @@ export const boardAnnouncementConfigSchema = z
   .partial();
 export type BoardAnnouncementConfig = z.infer<typeof boardAnnouncementConfigSchema>;
 
-// ── kanban-board (annex §6) ────────────────────────────────────────────────
+// ── kanban-board (annex) ───────────────────────────────────────────────────
 export const kanbanBoardConfigSchema = widgetSharedConfigSchema.extend({
   columnField: z.string().default('status'),
   titleField: z.string().default('title'),
@@ -88,7 +88,7 @@ const BOARD_DEMO_TAGS = ['Feature', 'Bug', 'Chore', 'Spike'] as const;
 const BOARD_DEMO_PRIORITIES = ['High', 'Medium', 'Low'] as const;
 const BOARD_DEMO_CLIENTS = ['Acme Holdings', 'Globex', 'Initech', 'Umbrella'] as const;
 
-/** Deterministic `record-list` of board rows (04 §7.7). */
+/** Deterministic `record-list` of board rows. */
 export function kanbanBoardDemoData(seed: number): { data: Record<string, unknown>[]; total: number } {
   const random = mulberry32(seed || 1);
   const data = Array.from({ length: 11 }, (_, index) => {
@@ -111,7 +111,7 @@ export function kanbanBoardDemoData(seed: number): { data: Record<string, unknow
   return { data, total: data.length };
 }
 
-// ── kanban-swimlane-grid (annex §6) ────────────────────────────────────────
+// ── kanban-swimlane-grid (annex) ───────────────────────────────────────────
 export const kanbanSwimlaneGridConfigSchema = widgetSharedConfigSchema.extend({
   columnField: z.string().default('status'),
   laneField: z.string().default('lane'),
@@ -153,7 +153,7 @@ const SWIM_DEMO_TITLES = [
 ] as const;
 const SWIM_DEMO_TAGS = ['Feature', 'Bug', 'Chore'] as const;
 
-/** Deterministic `record-list` with two categorical fields (04 §7.7). */
+/** Deterministic `record-list` with two categorical fields. */
 export function kanbanSwimlaneGridDemoData(seed: number): { data: Record<string, unknown>[]; total: number } {
   const random = mulberry32(seed || 1);
   const data = Array.from({ length: 14 }, (_, index) => {
@@ -175,7 +175,7 @@ export function kanbanSwimlaneGridDemoData(seed: number): { data: Record<string,
   return { data, total: data.length };
 }
 
-// ── board-card (annex §6) ──────────────────────────────────────────────────
+// ── board-card (annex) ─────────────────────────────────────────────────────
 /**
  * The card is registered in its OWN right, not only as the boards' child: the
  * annex gives it an id, and the detail/preview surfaces (a linked card in a
@@ -197,10 +197,10 @@ export const boardCardConfigSchema = widgetSharedConfigSchema.extend({
 export type BoardCardConfig = z.infer<typeof boardCardConfigSchema>;
 
 /**
- * Deterministic single-`record` payload (04 §7.7). The `record` shape's envelope
- * is `{ row }` — that is what the host's shared `isEmptyByShape['record']`
- * predicate reads, so an unbound/missing card empty-states instead of rendering
- * a blank frame.
+ * Deterministic single-`record` payload. The `record` shape's envelope is `{ row
+ * }` — that is what the host's shared `isEmptyByShape['record']` predicate
+ * reads, so an unbound/missing card empty-states instead of rendering a blank
+ * frame.
  */
 export function boardCardDemoData(seed: number): { row: Record<string, unknown> } {
   const random = mulberry32(seed || 1);
@@ -224,7 +224,7 @@ export function boardCardDemoData(seed: number): { row: Record<string, unknown> 
   };
 }
 
-// ── inline-compose-card (annex §6) ─────────────────────────────────────────
+// ── inline-compose-card (annex) ────────────────────────────────────────────
 export const inlineComposeCardConfigSchema = widgetSharedConfigSchema.extend({
   /**
    * Column defaults stamped onto the new record (annex `defaults`). Values are
@@ -245,9 +245,9 @@ export const inlineComposeCardConfigSchema = widgetSharedConfigSchema.extend({
 export type InlineComposeCardConfig = z.infer<typeof inlineComposeCardConfigSchema>;
 
 /**
- * Deterministic `form-state` payload (04 §7.7) — the transient draft. The seed
- * picks the placeholder-ish suggestion the demo shows, so the payload threads
- * its seed while staying wall-clock free.
+ * Deterministic `form-state` payload — the transient draft. The seed picks the
+ * placeholder-ish suggestion the demo shows, so the payload threads its seed
+ * while staying wall-clock free.
  */
 export function inlineComposeCardDemoData(seed: number): { value: { title: string } } {
   const random = mulberry32(seed || 1);

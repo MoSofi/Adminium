@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Value renderers for the review-diff rows (§10.3 "row anatomy"): each diff
- * category carries a differently-shaped `llmValue`/`heuristicValue` (the
- * projections in `@adminium/llm` `apply/diff.ts`), and these helpers turn one
- * side of a row into a compact, localized React node — a label bundle, an
- * ordered enum with tone chips, an `orders.product_id → products.id` relation,
- * a PII masking pair, a dashboard-widget binding preview, and so on.
+ * Value renderers for the review-diff rows: each diff category carries a
+ * differently-shaped `llmValue`/`heuristicValue` (the projections in
+ * `@adminium/llm` `apply/diff.ts`), and these helpers turn one side of a row
+ * into a compact, localized React node — a label bundle, an ordered enum with
+ * tone chips, an `orders.product_id → products.id` relation, a PII masking
+ * pair, a dashboard-widget binding preview, and so on.
  *
  * Every reader narrows defensively from `unknown`: a chattier model or a future
  * schema tweak must degrade to a readable fallback, never crash the reviewer.
@@ -172,7 +172,7 @@ function EnumSummary({ value }: { value: unknown }) {
   );
 }
 
-/** Relation identifier chips: `orders.product_id → products.id` (§10.3). */
+/** Relation identifier chips: `orders.product_id → products.id`. */
 export function RelationChips({ value }: { value: unknown }) {
   const record = asRecord(value);
   if (record === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
@@ -269,7 +269,7 @@ function DashboardSummary({ value }: { value: unknown }) {
   );
 }
 
-/** Dashboard-widget preview: name + span + column binding (§10.3). */
+/** Dashboard-widget preview: name + span + column binding. */
 export function WidgetPreview({ value }: { value: unknown }) {
   const record = asRecord(value);
   if (record === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;

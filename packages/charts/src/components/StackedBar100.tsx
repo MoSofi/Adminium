@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-stacked-bar-100` primitive (research/widget-registry.md §2): a single
+ * `chart-stacked-bar-100` primitive (research/widget-registry.md): a single
  * horizontal 100% bar of gapped segments + a multi-column legend. Composed from
  * ChartSurface (the bar) + pure `layoutStacked100` geometry; the legend is HTML
  * (logical properties, mirrors under dir). Token-only colors; segment order

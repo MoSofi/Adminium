@@ -81,7 +81,7 @@ export function dsnFor(db: string): string {
 
 /**
  * A statement-counting `CatalogExecutor` over a dedicated connection, so
- * budget tests can assert on `count` (≤ 10 statements — 05 §10).
+ * budget tests can assert on `count` (≤ 10 statements).
  */
 export async function countingExecutor(db: string): Promise<{
   exec: (sql: string) => Promise<Record<string, unknown>[]>;

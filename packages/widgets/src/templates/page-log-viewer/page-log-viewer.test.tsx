@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * page-log-viewer template tests (09 §7.8): renders the stored layout (KPI
- * hosts + log-table + trace slot), projects raw audit rows onto the LogRow
- * anatomy by column-vocabulary detection, drives the toolbar level/time
- * filters, swaps the trace pane to a selection's related events, folds live
- * stream events into the tail (pause holds them), and degrades on
+ * page-log-viewer template tests: renders the stored layout (KPI hosts +
+ * log-table + trace slot), projects raw audit rows onto the LogRow anatomy
+ * by column-vocabulary detection, drives the toolbar level/time filters,
+ * swaps the trace pane to a selection's related events, folds live stream
+ * events into the tail (pause holds them), and degrades on
  * loading/error/invalid layouts — never a crash.
  */
 import { cleanup, render, screen, waitFor, within, act } from '@testing-library/react';

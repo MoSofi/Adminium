@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Auto-generate placeholder entries" (11-electron.md §6 step 2 card 1;
- * the toggle is `Connect Database.dc.html`'s, task 11-T07).
+ * "Auto-generate placeholder entries" (card 1; the toggle is `Connect
+ * Database.dc.html`'s, task).
  *
  * The comp states the whole requirement in its own helper text:
  *
@@ -35,7 +35,7 @@
  *
  * ─── THIS IS NOT THE DEMO DATABASE ───────────────────────────────────────────
  *
- * 11-T08's `demo-seed.mjs` (§6 card 4) is a hand-authored domain: nine tables
+ * `demo-seed.mjs` (card 4) is a hand-authored domain: nine tables
  * written so each one's intended archetype outscores its runners-up, with the
  * margins recorded per table. It can do that because it owns its schema. This
  * generator owns nothing — the schema is whatever the user dropped on the
@@ -104,7 +104,7 @@ function pick<T>(items: readonly T[], seed: number): T {
  * Name vocabularies. Deliberately generic and deliberately not localized: this
  * is ROW DATA in a database the user is about to own and edit, not UI copy —
  * translating it would put `t()` output inside their `users` table, where it
- * would then be exported, backed up (§9) and read back as data forever.
+ * would then be exported, backed up and read back as data forever.
  */
 const FIRST_NAMES = ['Ava', 'Noah', 'Mia', 'Liam', 'Zoe', 'Kai', 'Iris', 'Omar', 'Lena', 'Theo', 'Nadia', 'Ruben'];
 const LAST_NAMES = ['Reyes', 'Okafor', 'Lindqvist', 'Haddad', 'Novak', 'Tanaka', 'Silva', 'Dubois', 'Kowalski', 'Ferrari', 'Ali', 'Nguyen'];
@@ -122,10 +122,10 @@ const SENTENCES = [
 /**
  * Column-name heuristics.
  *
- * A conscious duplication of a slice of the classifier's §7.1 vocabulary, and
- * the duplication is the honest choice rather than the lazy one: the classifier
- * runs on an INTROSPECTED model to decide how to RENDER a column, and reaching
- * into it from here would couple "what does this column mean" to "what should we
+ * A conscious duplication of a slice of the classifier's vocabulary, and the
+ * duplication is the honest choice rather than the lazy one: the classifier runs
+ * on an INTROSPECTED model to decide how to RENDER a column, and reaching into
+ * it from here would couple "what does this column mean" to "what should we
  * write into it" — two questions with different failure modes. It is also not
  * available at this point in the flow: the model here came from a schema FILE
  * and has `semantics: null` throughout (nothing has classified it; that happens

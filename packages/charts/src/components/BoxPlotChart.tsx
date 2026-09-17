@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-boxplot` primitive (research/widget-registry.md §2): whisker/box/median
+ * `chart-boxplot` primitive (research/widget-registry.md): whisker/box/median
  * per category with a y-axis tick scale. Categorical x mirrors in RTL (band
  * range flip); the value axis stays pixel-down. Token-only colors; fade-in on
  * mount with the reduced-motion fallback baked into `useMountAnimation`.

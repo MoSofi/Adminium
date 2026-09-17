@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The manager's view-model helpers (34-invoices-add-on.md Appendix E
- * §M4–M11): the status pill's tone and label, the topic and language labels,
- * the comp's search and grouping rules, and the two text lines a card and a
- * row print.
+ * The manager's view-model helpers: the status pill's tone and
+ * label, the topic and language labels, the comp's search and grouping
+ * rules, and the two text lines a card and a row print.
  *
- * STATUS IS A COLUMN, shared by both kinds (comp 1393, 1579; §0.4.6 item 4):
- * the pill maps the five stored values straight to tones — draft neutral ·
- * live pos · sent accent · paid pos · overdue danger — and never derives.
+ * STATUS IS A COLUMN, shared by both kinds (comp 1393, 1579): the pill maps
+ * the five stored values straight to tones — draft neutral · live pos · sent
+ * accent · paid pos · overdue danger — and never derives.
  *
  * TOPIC GLYPHS are returned by a switch, not stored under an `icon:` key:
  * `scripts/gen-icon-core.mjs` sweeps `icon:` literals into the ENTRY chunk's

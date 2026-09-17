@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * Render tests for the "bars & ranking" chart primitives (04-T09): each mounts
- * on deterministic demo data without crashing, emits the expected SVG structure
+ * Render tests for the "bars & ranking" chart primitives: each mounts on
+ * deterministic demo data without crashing, emits the expected SVG structure
  * (bars/segments/paths), mirrors under dir="rtl", and honors reduced motion
  * (final-state entrance, no gated opacity). Stories live in @adminium/widgets.
  */

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/automations` — the rule list and the flow builder
- * (`designs/Automation Rules.dc.html`; 42-automations-and-workflow-logs.md
- * §4.1, 42-T19).
+ * `/automations` — the rule list and the flow builder.
  *
  * The comp's layout: four KPIs, then a `360px minmax(0,1fr)` grid with the
  * filtered rule cards on the left and the selected rule's flow on the right
@@ -12,9 +10,9 @@
  * --- D11: an explicit draft, and an explicit save -------------------------
  *
  * The comp writes state on every keystroke. The owner ruled explicit save for
- * every authored document (39 D1), so the flow on screen is a DRAFT: every
- * insert, move, rename and inspector edit changes it and nothing else, the
- * save chip says so, ⌘S saves, and navigating away while dirty asks first.
+ * every authored document, so the flow on screen is a DRAFT: every insert,
+ * move, rename and inspector edit changes it and nothing else, the save chip
+ * says so, ⌘S saves, and navigating away while dirty asks first.
  *
  * The two exceptions are the comp's own: the Active/Paused toggle and Test
  * act on the graph in front of the person, so neither needs a save first —

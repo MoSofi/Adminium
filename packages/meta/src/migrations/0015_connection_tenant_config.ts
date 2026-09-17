@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0015 — `adminium_connections.timezone` / `.currency` (28-T34, D20).
+ * Wave 0015 — `adminium_connections.timezone` / `.currency`.
  *
  * ─── Why these are connection columns and not a settings table ──────────────
  *

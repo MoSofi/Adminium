@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `micro-kpi-subtitle` (annex §1) — the inline header micro-KPI line recomputed
- * from live state ("3 unread · 10 total", "24 members · 8 online", "N connected ·
- * 12 available"). `placement: 'inline'`, so it renders in a page-header slot
- * rather than a grid cell and never carries WidgetFrame chrome.
+ * `micro-kpi-subtitle` (annex) — the inline header micro-KPI line recomputed from
+ * live state ("3 unread · 10 total", "24 members · 8 online", "N connected · 12
+ * available"). `placement: 'inline'`, so it renders in a page-header slot rather
+ * than a grid cell and never carries WidgetFrame chrome.
  *
  * The sentence is a stored TEMPLATE with `{placeholder}` tokens resolved against
  * the bound scalars — see `interpolateTemplate` in `kpi-lib` for why an unknown
@@ -20,7 +20,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { microKpiSubtitleConfigSchema, microKpiSubtitleDemoData } from './kpi-config.js';
 export type { MicroKpiSubtitleConfig } from './kpi-config.js';
 

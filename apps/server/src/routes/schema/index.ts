@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Schema routes (08-server-api.md §2.5, 05 §11, M3-T05/T06):
+ * Schema routes:
  *
  * - `GET /connections/:id/schema` — active snapshot with overrides APPLIED
  *   (`?raw=true` returns the untouched introspection result),
  * - `GET /connections/:id/schema/snapshots[/:snapshotId]` — history,
  * - `GET /connections/:id/schema/diff` — previous vs latest (or `from`/`to`),
- * - `GET/PUT /connections/:id/schema/overrides` (+ the 05 §11
- *   `/connections/:id/overrides` alias) — validated against the active
- *   snapshot; unknown identifiers → 422.
+ * - `GET/PUT /connections/:id/schema/overrides` (+ the
+ * `/connections/:id/overrides` alias) — validated against the active
+ * snapshot; unknown identifiers → 422.
  *
  * Reads require an authenticated principal (the v1 closed grant set has no
  * `schema.read`); override writes require `system:schema:remap`.
@@ -76,7 +76,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       raw: boolean,
       locale?: string | undefined,
     ) {
-      // 35-T15. `mustLatest` already loaded the connection, but only to prove
+      // `mustLatest` already loaded the connection, but only to prove
       // it exists; the authorability answer needs the row itself.
       const connection = await manager.mustFind(connectionId);
       const refusal = unauthorableReason(connection);
@@ -233,7 +233,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       const tables = new Map(model.tables.map((t) => [t.id, t]));
 
       // Validate every op against the vocabulary AND the active snapshot
-      // (unknown identifiers → 422, §2.5) before any write.
+      // (unknown identifiers → 422) before any write.
       for (const item of body.overrides) {
         try {
           validateOverrideInput({ connectionId, ...item, columnName: item.columnName ?? null });

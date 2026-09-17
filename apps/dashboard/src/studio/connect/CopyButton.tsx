@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Copy-to-clipboard button used across the BYO enrichment screens
- * (06-llm-assist.md §10.2 step 4): "Copy prompt" and "Copy errors for your AI
- * tool". Flips to a check + announces the copied state via `aria-live`, mirror-
- * ing the @adminium/ui SecretInput copy affordance.
+ * Copy-to-clipboard button used across the BYO enrichment screens: "Copy
+ * prompt" and "Copy errors for your AI tool". Flips to a check + announces the
+ * copied state via `aria-live`, mirror- ing the @adminium/ui SecretInput copy
+ * affordance.
  */
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';

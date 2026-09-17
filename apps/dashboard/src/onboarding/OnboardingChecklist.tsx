@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * /welcome — the first-run workspace-onboarding surface (M5-T06; ports
- * Onboarding.dc.html + Workspace Onboarding.dc.html). Keepers:
- * the REACTIVE checklist (each step's ✓ comes from real workspace state, server
- * -derived) and the progress ring. Personalized welcome + per-task minute
- * estimates are the sample-domain microcopy keepers (research/ia-mapping.md §4).
+ * /welcome — the first-run workspace-onboarding surface (ports
+ * Onboarding.dc.html + Workspace Onboarding.dc.html). Keepers: the REACTIVE
+ * checklist (each step's ✓ comes from real workspace state, server -derived)
+ * and the progress ring. Personalized welcome + per-task minute estimates are
+ * the sample-domain microcopy keepers.
  *
  * Admin-only: the server guards the state with `system:connections:manage`;
  * this mirrors that client-side and renders the 403 state for anyone else.

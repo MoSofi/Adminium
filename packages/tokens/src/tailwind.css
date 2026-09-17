@@ -1,4 +1,4 @@
-/* @adminium/tokens — Tailwind v4 theme mapping. See 02-design-system.md §3.1.
+/* @adminium/tokens — Tailwind v4 theme mapping.
    Import order in each app's entry CSS:
      @import "tailwindcss";
      @import "@adminium/tokens/index.css";
@@ -54,7 +54,7 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --font-arabic: "IBM Plex Sans Arabic", "Manrope", system-ui, sans-serif;
 
-  /* type scale (§1.4) → text-display, text-title, … */
+ /* type scale → text-display, text-title, … */
   --text-display: 30px;   --text-display--font-weight: 800; --text-display--letter-spacing: -0.03em;
   --text-title: 20px;     --text-title--font-weight: 800;   --text-title--letter-spacing: -0.02em;
   --text-modal: 16.5px;   --text-modal--font-weight: 800;
@@ -73,7 +73,7 @@
   --spacing-sidebar: 256px;
   --container-form: 640px; --container-narrow: 720px; --container-page: 1080px;
   --container-marketing: 1160px; --container-wide: 1200px; --container-max: 1360px; --container-widest: 1800px;
-  /* The email editor's canvas column (39-email-templates-and-campaigns.md D15): the comp's 680. */
+ /* The email editor's canvas column: the comp's 680. */
   --container-email: 680px;
   /* A reading column for a short stack of controls rather than a grid. Wide
      enough for a two-up field row, narrow enough that a lone label does not run

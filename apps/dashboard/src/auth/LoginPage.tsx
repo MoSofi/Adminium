@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/login` — SignInForm wired to POST /api/v1/auth/login (09 §2.3 route map):
- * 200 → into the app (honoring `?returnTo`), 202 → stash the challenge token
- * and hand off to `/otp` (TwoFactorForm), 401/429 → inline error banner.
+ * `/login` — SignInForm wired to POST /api/v1/auth/login (route map): 200 →
+ * into the app (honoring `?returnTo`), 202 → stash the challenge token and
+ * hand off to `/otp` (TwoFactorForm), 401/429 → inline error banner.
  */
 import { useRouter, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -23,8 +23,8 @@ export function LoginPage() {
     // A new session means every cached query is another principal's data.
     router.options.context.queryClient.clear();
     /*
-     * `next` is the SURFACE gate's target (29 D4): on a mapped staff domain
-     * every non-reserved path is served by the SERVER as the app surface, so
+     * `next` is the SURFACE gate's target: on a mapped staff domain every
+     * non-reserved path is served by the SERVER as the app surface, so
      * re-entering it must be a document navigation — a client-side push would
      * paint this SPA's shell over a URL it does not own. The router's
      * validateSearch already pinned it to a path (never `//host`).

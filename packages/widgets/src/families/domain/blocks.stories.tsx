@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK BUILDER stories (annex §13) — `document-canvas` + the 22 `block-*`
+ * TRACK BUILDER stories (annex) — `document-canvas` + the 22 `block-*`
  * document-vocabulary widgets: the canvas's four WidgetFrame states through
  * WidgetHost (acceptance #4), a light/dark × LTR/RTL matrix (acceptance #9), and
  * a grouped gallery per block module so all 22 blocks are captured without 22

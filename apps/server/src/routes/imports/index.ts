@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Import-wizard routes (M7-T07, 09-generated-app.md §11.1), mounted under
- * `/api/v1`:
+ * Import-wizard routes, mounted under `/api/v1`:
  *
  * - `POST /imports/upload`       — raw `text/csv` body → files storage (kind
  *   `import`) + header/sample/row-count preview for the mapping step. The
  *   content-type parser is registered INSIDE this plugin, so the raw-body
  *   handling is encapsulated (Fastify parser scoping).
- * - `POST /imports`              — create + VALIDATE: type-coerce every mapped
- *   cell against the effective schema, collect per-row issues into the
- *   validation report (§11.1 "non-blocking"), land the row in `ready`.
- *   Guard: per-table `table:<conn>:<table>:import` AFTER identifier
- *   resolution (08 §5.2).
+ * - `POST /imports` — create + VALIDATE: type-coerce every mapped cell against
+ * the effective schema, collect per-row issues into the validation report,
+ * land the row in `ready`. Guard: per-table `table:<conn>:<table>:import`
+ * AFTER identifier resolution.
  * - `POST /imports/:id/run`      — enqueue the `import-run` job (owner only,
  *   grant re-checked at enqueue time).
  * - `GET  /imports` / `GET /imports/:id` — mine (or all with
@@ -100,7 +98,7 @@ function toView(row: DataImport): ImportView {
   };
 }
 
-/** The VALIDATE stage (§11.1 step 3) — pure, also exercised directly in tests. */
+/** The VALIDATE stage — pure, also exercised directly in tests. */
 export function validateRows(
   rows: string[][],
   header: string[],
@@ -252,7 +250,7 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
 
         const connection = await manager.mustFind(connectionId);
         const view = await loadSnapshotView(meta, connectionId);
-        // Identifier resolution FIRST, then RBAC on the resolved name (§5.2).
+        // Identifier resolution FIRST, then RBAC on the resolved name.
         const table = view.table(tableParam);
         const permission = `table:${connectionId}:${table.id}:import`;
         if (!(await request.can(permission))) {
@@ -302,7 +300,7 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
           throw new ForbiddenError('You can only import files you uploaded.', 'FORBIDDEN', {});
         }
 
-        // --- VALIDATE stage (§11.1): parse + coerce, collect per-row issues ----
+        // --- VALIDATE stage: parse + coerce, collect per-row issues ----
         const rows = parseCsv(await readStoredCsv(upload));
         const header = rows[0];
         if (header === undefined) throw new ValidationFailedError('The file is empty.', {});

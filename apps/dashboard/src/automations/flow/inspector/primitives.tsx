@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The inspector's two shapes, in a leaf module: a labelled field, and the
- * Condition card's panel (`designs/Automation Rules.dc.html` 117-136).
+ * Condition card's panel (117-136).
  *
  * They live here rather than beside the inspector because every settings
  * card imports them AND the inspector imports every settings card — the two

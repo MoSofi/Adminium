@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Export Builder (41-export-builder.md; comp `designs/Export Builder.dc.html`):
- * three steps — Source, Columns, Preview & export — behind the Data Exports
- * page's "New export", plus the no-access state, the started card and the
- * "Based on <file>" prefill from a finished export (`?basedOn=`).
+ * The Export Builder (comp): three steps — Source, Columns, Preview & export —
+ * behind the Data Exports page's "New export", plus the no-access state, the
+ * started card and the "Based on <file>" prefill from a finished export
+ * (`?basedOn=`).
  *
  * The page owns the draft and the step; the steps render it. The step gating
  * is the comp's `goStep` (762-767): step 2 needs a table, step 3 needs at

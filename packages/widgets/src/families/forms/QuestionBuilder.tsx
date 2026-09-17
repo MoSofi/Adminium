@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `question-builder` (annex §10) — the survey editor pair: a palette rail of the
- * 8 addable question types beside reorderable question cards with type-specific
+ * `question-builder` (annex) — the survey editor pair: a palette rail of the 8
+ * addable question types beside reorderable question cards with type-specific
  * answer previews (radio/checkbox rows, dropdown stub, short/long text, star
- * rating, NPS 0–10 chips, date stub) and a required toggle.
- * Evidence: Survey Builder.
+ * rating, NPS 0–10 chips, date stub) and a required toggle. Evidence: Survey
+ * Builder.
  *
  * PRESENTATIONAL: the question list lives in local state; every change is a
- * `mutate` intent (04 §2.1). The widget never persists a survey.
+ * `mutate` intent. The widget never persists a survey.
  *
- * Binds §3 `form-state` — like the other builders, an empty canvas is a builder
+ * Binds `form-state` — like the other builders, an empty canvas is a builder
  * awaiting its first question, not an empty widget.
  *
  * REORDERING IS BUTTONS, NOT DRAG. `@dnd-kit` is confined to the `boards` family
- * by the chunk-budget gate (04 §2.3), so a drag layer here would ship a drag
- * engine to every page with a settings toggle. Move-up/move-down is also the
- * affordance a pointer-only drag never has: it works from the keyboard.
+ * by the chunk-budget gate, so a drag layer here would ship a drag engine to
+ * every page with a settings toggle. Move-up/move-down is also the affordance a
+ * pointer-only drag never has: it works from the keyboard.
  */
 
 import { EmptyState, IconTile, Input, MonoText, Switch, cn } from '@adminium/ui';
@@ -53,8 +53,7 @@ type Rec = Record<string, unknown>;
 /**
  * Literal bundle key per question kind. Indexed rather than assembled so the
  * extractor sees all 8 and a 9th `QUESTION_KINDS` member is a compile error
- * instead of a raw `widgets.forms.questionBuilder.kind.…` in the palette
- * (10 §2.5).
+ * instead of a raw `widgets.forms.questionBuilder.kind.…` in the palette.
  */
 const KIND_KEY = {
   'single-choice': 'ui:widgets.forms.questionBuilder.kind.single-choice',
@@ -67,7 +66,7 @@ const KIND_KEY = {
   date: 'ui:widgets.forms.questionBuilder.kind.date',
 } as const satisfies Record<QuestionKind, string>;
 
-/** Project the §3 `form-state` payload onto survey questions. */
+/** Project the `form-state` payload onto survey questions. */
 export function questionsOf(data: unknown, config: QuestionBuilderConfig): SurveyQuestion[] {
   const values = formValuesOf(data);
   const raw = values['questions'];
@@ -306,9 +305,10 @@ function RailButton({
 }
 
 /**
- * The type-specific answer preview (annex §10). Inert by design: these are the
+ * The type-specific answer preview (annex). Inert by design: these are the
  * SHAPES the respondent will see, rendered for the author to recognise — a
- * working radio group here would invite the author to "answer" their own draft.
+ * working radio group here would invite the author to "answer" their own
+ * draft.
  */
 function AnswerPreview({ kind, opts }: { kind: QuestionKind; opts: readonly string[] }) {
   const t = useMaybeT();

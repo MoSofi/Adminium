@@ -19,9 +19,9 @@ import {
  * (`page-directory`, `page-master-detail`, `page-queue-inbox`, …).
  *
  * These templates receive the STORED page config body the Engine persisted —
- * `{ templateVersion, toolbar, overlays, archetype, layout }` (01 §6.1 wrap of
- * `composeTemplate`'s output, 04 §10) — and re-compose existing family widgets
- * from it. Everything here is pure parsing/derivation over that document:
+ * `{ templateVersion, toolbar, overlays, archetype, layout }` (wrap of
+ * `composeTemplate`'s output) — and re-compose existing family widgets from
+ * it. Everything here is pure parsing/derivation over that document:
  *
  * - `parseTemplateBody` — tolerant envelope-body parse (invalid → never crash,
  *   the caller renders the page-dashboard-style invalid notice);
@@ -34,10 +34,10 @@ import {
  * - `specForColumn` — minimal `GridColumnSpec`s derived client-side from live
  *   rows so `detail-key-value` can render archetype pages that (unlike
  *   `page-crud`) store no `columns[]` body, with `enumTones` flowing through
- *   config instead of hardcoded tints (M7-T04 / 09 §7.3).
+ * config instead of hardcoded tints.
  */
 
-/** The stored config body of an archetype page (04 §10 envelope wrap). */
+/** The stored config body of an archetype page (envelope wrap). */
 export interface TemplateBody {
   layout: PageLayout;
   toolbar: readonly string[];
@@ -54,7 +54,7 @@ const bodySchema = z.object({
   overlays: z.array(z.string()).default([]),
 });
 
-/** Parse a stored config body; never throws (09 §3.1 never-crash rules). */
+/** Parse a stored config body; never throws (never-crash rules). */
 export function parseTemplateBody(config: unknown): TemplateBody {
   const parsed = bodySchema.safeParse(config);
   if (!parsed.success) return { layout: EMPTY_LAYOUT, toolbar: [], overlays: [], valid: false };
@@ -151,7 +151,7 @@ export function configString(config: Record<string, unknown>, ...keys: string[])
 /**
  * First candidate field present on ANY loaded row. Generated candidate
  * configs rarely carry full field maps, so the renderers fall back to the
- * classifier-adjacent name conventions (05 §7 vocabulary) over live rows —
+ * classifier-adjacent name conventions (vocabulary) over live rows —
  * scanning every row because sparse columns (an expense `amount`, a leave
  * request's `days`) may be absent from the first row.
  */
@@ -188,7 +188,7 @@ export const UPDATED_FIELD_CANDIDATES = ['updated_at', 'created_at', 'submitted_
 
 export const AMOUNT_FIELD_CANDIDATES = ['amount', 'total', 'total_amount', 'cost', 'price', 'value'] as const;
 
-/** Stored `enumTones` maps (01 §6.1) — value → tone, validated leniently. */
+/** Stored `enumTones` maps — value → tone, validated leniently. */
 export function enumTonesOf(config: Record<string, unknown>): Record<string, GridTone> | undefined {
   const raw = config['enumTones'];
   const parsed = z.record(z.string(), gridToneSchema).safeParse(raw);

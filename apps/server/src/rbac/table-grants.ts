@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-table read checks for code that runs OUTSIDE a request
- * (36-derived-columns.md 36-T20 / D28).
+ * Per-table read checks for code that runs OUTSIDE a
+ * request.
  *
  * A derived column is a fold over ANOTHER table, so computing one in a
  * background job asks the same question the read path asks on every request:

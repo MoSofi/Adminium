@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Add a step" (`designs/Automation Rules.dc.html` 75-102, 546-570;
- * 42-automations-and-workflow-logs.md D10, 42-T21).
+ * "Add a step" (75-102, 546-570).
  *
  * The comp's dialog exactly: 560 px, two uppercase group labels, a two-column
  * grid of tiles, each a 30 px kind-tinted icon with a bold label and a muted

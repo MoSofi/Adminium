@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The DDL authoring half of the engine — 35-schema-authoring.md.
+ * The DDL authoring half of the engine.
  *
  * Everything here is PURE: a desired-state document, its validator, the
  * definition-level diff, the rename pre-application, and the planner. No
  * connection, no Kysely, no SQL string. That is deliberate and it is what
  * makes all three dialects' plans golden-testable from one fixture set with no
- * database in sight (§3.2).
+ * database in sight.
  *
  * The executor — the half that compiles a step into a `CompiledQuery` and runs
  * it — lives in `apps/server/src/schema-ddl/`, for the same reason

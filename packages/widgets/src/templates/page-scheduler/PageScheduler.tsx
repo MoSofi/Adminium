@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-scheduler` template renderer (09-generated-app.md §7.6, 04 §10
- * manifest `page-scheduler.json`, annex §14 "person FK × date × shift-type").
+ * `page-scheduler` template renderer (manifest `page-scheduler.json`,
+ * annex).
  *
  * The required `schedule` slot mounts either:
  * - `schedule-matrix` → the interactive `ShiftMatrix` (click-to-cycle writes
- *   — the M7-T03 modal→grid wiring fix), with the week window navigated in
- *   the header driving the host binding's `dateRange.*` params; or
+ * — the modal→grid wiring fix), with the week window navigated in the header
+ *   driving the host binding's `dateRange.*` params; or
  * - `capacity-board` → the family's `CapacityBoard` with a week/month ×4
- *   rescale toggle (09 §7.6 "Team Workload").
+ * rescale toggle.
  *
  * Stored item configs carry the candidate vocabulary
  * (`personColumn`/`dateColumn`/`typeColumn`, `projectColumn`/`hoursColumn` —
@@ -72,11 +72,11 @@ export interface PageSchedulerLabels {
 export interface PageSchedulerProps {
   /** The stored page config body: `{ templateVersion, toolbar, overlays, layout }`. */
   config: unknown;
-  /** Per-instance data states from the host binding; absent → demo data (04 §5.3). */
+  /** Per-instance data states from the host binding; absent → demo data. */
   states?: TemplateDataStates | undefined;
   onEvent?: ((instanceId: string, event: WidgetEvent) => void | Promise<unknown>) | undefined;
   /** Published page-control params — the visible week window as
-   *  `dateRange.start`/`dateRange.end` (04 §5.1 late-bound filters). */
+   * `dateRange.start`/`dateRange.end` (late-bound filters). */
   onParamsChange?: ((params: Record<string, unknown>) => void) | undefined;
   /** Deterministic "today" (`YYYY-MM-DD`) for stories/tests; defaults to the wall clock. */
   referenceDate?: string | undefined;
@@ -294,7 +294,7 @@ function MatrixSlot({
     return weekOffset === 0 ? base : base.map((day) => addDays(day, weekOffset * 7));
   }, [model.providedDays, referenceDate, firstJs, weekOffset]);
 
-  // Week nav drives the host binding's window (04 §5.1 dateRange.* params).
+  // Week nav drives the host binding's window (dateRange.* params).
   // Skipped on first render: the initial fetch already covers the default
   // window, and a mount-time params flip would refetch the page twice.
   const mounted = useRef(false);
@@ -448,7 +448,7 @@ function CapacitySlot({
         <div className="min-h-0 flex-1">
           <CapacityBoard
             data={model}
-            // Week/month ×4 rescale (09 §7.6 Team Workload).
+            // Week/month ×4 rescale (Team Workload).
             capacity={period === 'month' ? cfg.capacity * 4 : cfg.capacity}
             period={period}
             availableBelow={cfg.availableBelow}

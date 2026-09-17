@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-calendar` binding (09-generated-app.md §4.1, §7.6): projects the page
- * envelope onto the real `PageCalendar` template from `@adminium/widgets`.
+ * `page-calendar` binding: projects the page envelope onto the real
+ * `PageCalendar` template from `@adminium/widgets`.
  *
  * Data flow: `usePlanningStates` runs the page's ONE widget-data batch. The
  * engine persists `calendar-events`-shaped descriptors; planningData rewrites
@@ -9,7 +9,7 @@
  * rows → events via the stored `startColumn`/`titleColumn` vocabulary. The
  * toolbar date-range picker publishes `dateRange.*` params, which re-window
  * the batch through the late-bound filters `withDateWindow` appended to the
- * calendar item's descriptor (04 §5.1).
+ * calendar item's descriptor.
  *
  * Events re-enter the host sink: the agenda composer → insert intent (undo
  * toast from the host), agenda/upcoming row click → `record-open` →

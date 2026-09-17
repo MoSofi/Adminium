@@ -15,13 +15,12 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * `boards` family registry metadata (annex §6; M7-T03 / 04-T10). Metadata only —
- * the dnd-kit-heavy widget components load through the `boards-track-components`
- * barrel via `lazy(() => import(...))`, so the family stays in ONE lazy chunk and
- * the registry metadata never eagerly pulls dnd-kit into a sibling family's
- * bundle (04 §2.3; chunk-budget gate). The GREEN LOOP spreads
- * `boardsTrackDefinitions` into the registry map. Widget ids match the annex
- * catalog exactly (acceptance #1).
+ * `boards` family registry metadata (annex). Metadata only — the dnd-kit-heavy
+ * widget components load through the `boards-track-components` barrel via
+ * `lazy(() => import(...))`, so the family stays in ONE lazy chunk and the
+ * registry metadata never eagerly pulls dnd-kit into a sibling family's bundle
+ * (chunk-budget gate). The GREEN LOOP spreads `boardsTrackDefinitions` into the
+ * registry map. Widget ids match the annex catalog exactly (acceptance #1).
  *
  * `placement: 'page'` — both kanban widgets fill the page body (annex "full page
  * body"). `capabilities.editsData` — a committed card move is an UPDATE mutation
@@ -60,14 +59,14 @@ export const kanbanSwimlaneGridDefinition: WidgetDefinition = defineWidget({
   descriptionKey: 'widgets.boards.kanbanSwimlaneGrid.description',
 });
 
-// ── M7 Wave-4 TAIL — the two §6 widgets that complete the family ───────────
+// ── M7 Wave-4 TAIL — the two widgets that complete the family ──────────────
 
 export const boardCardDefinition: WidgetDefinition = defineWidget({
   id: 'board-card',
   family: 'boards',
   component: lazy(() => import('./boards-track-components.js').then((m) => ({ default: m.BoardCardWidget }))),
   configSchema: boardCardConfigSchema,
-  // annex §6: "single record {title, tag, pct?, points?, priority?, owner, due?,
+  // annex: "single record {title, tag, pct?, points?, priority?, owner, due?,
   // budget?}" — the `record` shape, whose envelope is `{ row }`.
   dataContract: 'record',
   sizing: { minW: 3, minH: 4, defaultW: 3, defaultH: 4 }, // annex "child of board"
@@ -82,7 +81,7 @@ export const inlineComposeCardDefinition: WidgetDefinition = defineWidget({
   family: 'boards',
   component: lazy(() => import('./boards-track-components.js').then((m) => ({ default: m.InlineComposeCardWidget }))),
   configSchema: inlineComposeCardConfigSchema,
-  // annex §6: "transient draft → INSERT with defaults" — a draft IS `form-state`.
+  // annex: "transient draft → INSERT with defaults" — a draft IS `form-state`.
   dataContract: 'form-state',
   sizing: { minW: 3, minH: 3, defaultW: 4, defaultH: 4 }, // annex "child of column"
   placement: 'inline',

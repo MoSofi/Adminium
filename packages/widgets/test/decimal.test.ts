@@ -14,7 +14,7 @@ import {
 } from '../src/page-config/index.js';
 
 /**
- * The money law for derived columns (36-derived-columns.md D7).
+ * The money law for derived columns.
  *
  * The operands below are REAL DRIVER STRINGS, read from the `rec30_outline`
  * Postgres on 2026-09-03 — `'10036.50'` is `sum(line_total)` over the whole

@@ -49,7 +49,7 @@ export interface SchemaReply {
   model: EffectiveModel;
   appliedOverrides: number;
   /**
-   * Whether this connection's schema can be authored, and why not (35-T15).
+   * Whether this connection's schema can be authored, and why not.
    *
    * Optional on the client because a server one release behind does not send
    * it. Absent is treated as authorable — the routes refuse what they refuse

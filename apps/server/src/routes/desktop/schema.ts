@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wire schemas for `POST /api/v1/desktop/backup` (11-electron.md §9).
+ * Wire schemas for `POST /api/v1/desktop/backup`.
  *
  * The reply carries the whole manifest rather than a summary, because the two
  * callers both need it and neither can re-derive it: the Electron main process
@@ -14,7 +14,7 @@ import { backupManifestSchema } from '../../backup/format.js';
 import { DEFAULT_AUTO_BACKUP_KEEP } from '../../backup/backup-service.js';
 
 /**
- * §9's two trigger paths, as the one thing that actually differs between them:
+ * The two trigger paths, as the one thing that actually differs between them:
  * where the archive lands and what happens afterwards.
  *
  *  - `staged`: File → "Back up now…" and Settings → Desktop → Backups. The
@@ -22,8 +22,8 @@ import { DEFAULT_AUTO_BACKUP_KEEP } from '../../backup/backup-service.js';
  *    path the user picked in the save dialog. Not rotated (it is leaving the
  *    data dir) and not notified (main reveals it in the file manager, which is
  *    a better answer than a notification about a file already on screen).
- *  - `auto`: the §9 scheduler. Lands in `<dataDir>/backups/`, rotates to
- *    `keep`, and raises the notification — because nobody is watching.
+ * - `auto`: the scheduler. Lands in `<dataDir>/backups/`, rotates to
+ *  `keep`, and raises the notification — because nobody is watching.
  *
  * NOTE WHAT IS NOT IN THIS BODY: a destination path. The save dialog's result
  * never reaches the server. See the route header — this is the same rule
@@ -32,10 +32,10 @@ import { DEFAULT_AUTO_BACKUP_KEEP } from '../../backup/backup-service.js';
  */
 export const desktopBackupBody = z.strictObject({
   destination: z.enum(['staged', 'auto']),
-  /** §9's `autoBackup.keep`. Ignored for `staged`. Bounds match `config.json`. */
+  /** `autoBackup.keep`. Ignored for `staged`. Bounds match `config.json`. */
   keep: z.number().int().min(1).max(365).default(DEFAULT_AUTO_BACKUP_KEEP),
   /**
-   * The desktop `config.json`, ALREADY REDACTED by its owner (§2.3: the main
+   * The desktop `config.json`, ALREADY REDACTED by its owner (the main
    * process is that file's only reader). Passed in rather than read here
    * because this process cannot see `<userData>` — it only knows `dataDir`.
    *

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The accessible name of one cell of one repeater row (43-report-builder.md
- * Appendix A I10).
+ * The accessible name of one cell of one repeater row (I10).
  *
  * The comp gives these inputs no label at all — its Metrics rows are two bare
  * boxes under one *Metrics* eyebrow (383). Naming them all *Label* and

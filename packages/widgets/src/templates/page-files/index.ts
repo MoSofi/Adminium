@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-files` template (09-generated-app.md §7.9; 04 §10) — the component the
- * dashboard PageRenderer mounts for `template: 'page-files'` envelopes, plus
- * the pure config-projection helpers its binding and tests share.
+ * `page-files` template — the component the dashboard PageRenderer mounts for
+ * `template: 'page-files'` envelopes, plus the pure config-projection helpers
+ * its binding and tests share.
  */
 export {
   PAGE_FILES_TEMPLATE_ID,

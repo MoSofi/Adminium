@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Normalization to the shared `EnrichmentSet` (06-llm-assist.md §7.1).
+ * Normalization to the shared `EnrichmentSet`.
  *
  * Two producers reduce to the SAME normalized shape so they can be diffed
- * field-by-field (§8.2):
+ * field-by-field:
  *
  *  - {@link normalizeLlmResponse}   — a validated `LlmResponseV1` → `EnrichmentSet`.
  *  - {@link normalizeHeuristicBaseline} — the engine's classified model
  *    (`ClassifiedModel` + `DatabaseModel`) → `EnrichmentSet`. This is the
- *    baseline the LLM refines; it always exists (05-introspection-engine.md).
+ * baseline the LLM refines; it always exists.
  *
- * Browser-safety (01-architecture.md §2.3): `@adminium/llm` is consumed by
- * `@adminium/dashboard`, so this module imports only pure-TS engine *types*
- * (`import type`) — never engine runtime, which would risk pulling non-browser
- * code into the client bundle. The two tiny heuristics the baseline needs but
- * the classifier does not persist — identifier humanization and enum-tone
- * keyword mapping — are mirrored here from the `@adminium/widgets/generate`
- * leaf (`registry/candidates.ts#humanize`, `generate/crud-body.ts#enumTones`)
- * so no runtime edge is created. Everything is pure and deterministic (no
- * Date.now / Math.random) — the diff UI and golden tests depend on it (§3.1
- * temperature 0).
+ * Browser-safety: `@adminium/llm` is consumed by `@adminium/dashboard`, so
+ * this module imports only pure-TS engine *types* (`import type`) — never
+ * engine runtime, which would risk pulling non-browser code into the client
+ * bundle. The two tiny heuristics the baseline needs but the classifier does
+ * not persist — identifier humanization and enum-tone keyword mapping — are
+ * mirrored here from the `@adminium/widgets/generate` leaf
+ * (`registry/candidates.ts#humanize`, `generate/crud-body.ts#enumTones`) so no
+ * runtime edge is created. Everything is pure and deterministic (no Date.now /
+ * Math.random) — the diff UI and golden tests depend on it (temperature 0).
  */
 import type {
   ClassifiedModel,
@@ -40,7 +39,7 @@ import type {
 import type { LlmResponseV1 } from '../response/schema.js';
 import type { EnrichmentSet, EnrichmentTable } from '../types.js';
 
-/** §7.1: "heuristic entries use fixed 0.5." Shared with the diff engine. */
+/** "heuristic entries use fixed 0.5." Shared with the diff engine. */
 export const HEURISTIC_CONFIDENCE = 0.5;
 
 // ─── LLM response → EnrichmentSet ────────────────────────────────────────────
@@ -51,13 +50,13 @@ export interface NormalizeLlmOptions {
 }
 
 /**
- * Reduce a validated `LlmResponseV1` to the normalized `EnrichmentSet` (§7.1).
+ * Reduce a validated `LlmResponseV1` to the normalized `EnrichmentSet`.
  *
  * `tables` is keyed by `"schema.table"`, `enums` by `"schema.table.column"`.
  * Confirmed relations that AFFIRM a declared FK (`correct: true`) re-state an
- * existing relation and are handled at apply time (§8.3), not in the refinement
- * diff. Confirmed relations the model REJECTS (`correct: false`) are a different
- * matter: §8.2 lists them as `rejects-heuristic` rows a human must confirm and
+ * existing relation and are handled at apply time, not in the refinement diff.
+ * Confirmed relations the model REJECTS (`correct: false`) are a different
+ * matter: they are `rejects-heuristic` rows a human must confirm and
  * "Accept all ≥ 0.8" must never auto-select, so they are lifted into
  * `suppressedRelations` for the diff to surface (finding: without this a
  * `correct: false` suppression produced no diff row at all and bypassed the
@@ -119,11 +118,12 @@ export function normalizeLlmResponse(
 
 /**
  * Reduce the engine's heuristic classification to the same `EnrichmentSet`
- * shape (§7.1). Consumes both the classifier output (`ClassifiedModel` — shape,
+ * shape. Consumes both the classifier output (`ClassifiedModel` — shape,
  * display/natural key, per-column semantics + PII flags) and the source
  * `DatabaseModel` (identifier names for humanization, declared enum values,
  * inferred relations). Emitting only pure-Zod/pure-TS engine data keeps the
- * heuristic→EnrichmentSet mapping inside `@adminium/llm` with no engine→llm edge.
+ * heuristic→EnrichmentSet mapping inside `@adminium/llm` with no engine→llm
+ * edge.
  */
 export function normalizeHeuristicBaseline(
   model: DatabaseModel,
@@ -219,8 +219,8 @@ function humanize(name: string): string {
 
 /**
  * Mirror of `@adminium/widgets/generate` `generate/crud-body.ts#enumTones`
- * (§7.1 rule-7 tone map), narrowed to the `Tone` union. The generator map
- * never emits `accent`.
+ * (rule-7 tone map), narrowed to the `Tone` union. The generator map never
+ * emits `accent`.
  */
 const TONE_POS = /^(active|paid|done|completed?|closed|approved|healthy|shipped|delivered)$/i;
 const TONE_WARN = /^(pending|trial|review|in_review|draft|queued|on_hold|paused|open|new)$/i;
@@ -238,7 +238,7 @@ function enumTones(values: readonly string[]): Record<string, Tone> {
 }
 
 /**
- * Mirror of the generator's nav-icon-per-shape map (09 §2.2 / generate/index.ts).
+ * Mirror of the generator's nav-icon-per-shape map (/ generate/index.ts).
  *
  * Exported so `normalize-icons.test.ts` can hold it against BOTH lucide's real
  * catalogue and the engine map it claims to mirror. It was neither, and the two
@@ -259,10 +259,10 @@ export const SHAPE_ICONS: Readonly<Record<string, string>> = {
 };
 
 /**
- * Map the engine's PII kind (§7.2) onto the LLM contract's PII vocabulary (§6.1)
- * with a sensible default masking, so a heuristic PII flag normalizes into the
- * same `PiiSuggestion` shape the LLM emits. Masking is a display default; the
- * diff treats a heuristic flag as "considers this PII" and compares confirm vs
+ * Map the engine's PII kind onto the LLM contract's PII vocabulary with a
+ * sensible default masking, so a heuristic PII flag normalizes into the same
+ * `PiiSuggestion` shape the LLM emits. Masking is a display default; the diff
+ * treats a heuristic flag as "considers this PII" and compares confirm vs
  * reject, not masking strategy.
  */
 const PII_KIND_MAP: Record<EnginePiiKind, { kind: PiiKind; masking: Masking }> = {

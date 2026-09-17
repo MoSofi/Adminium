@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure 100%-stacked horizontal bar layout (`chart-stacked-bar-100`,
- * research/widget-registry.md §2): one bar split into shares with small gaps.
+ * research/widget-registry.md): one bar split into shares with small gaps.
  * DOM-free. Segment order mirrors in RTL (first share at inline-start = the
  * right edge under `rtl`).
  */

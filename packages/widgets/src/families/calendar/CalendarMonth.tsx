@@ -26,12 +26,12 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `calendar-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { calendarMonthConfigSchema, calendarMonthDemoData } from './calendar-config.js';
 export type { CalendarMonthConfig } from './calendar-config.js';
 
 /**
- * `calendar-month` (annex §5) — a 42-cell month grid: day numbers, up to N
+ * `calendar-month` (annex) — a 42-cell month grid: day numbers, up to N
  * color-coded event chips per day + a "+N more" overflow, a today ring, a
  * selected-day tint, and month navigation. The 7-column CSS grid mirrors under
  * `dir="rtl"` (columns run right→left) and the week starts on the locale's

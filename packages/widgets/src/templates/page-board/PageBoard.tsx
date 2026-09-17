@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-board` template renderer (09-generated-app.md §7.5, 04 §10 manifest
- * `page-board.json`, annex §14 "workflow enum → board").
+ * `page-board` template renderer (manifest `page-board.json`, annex).
  *
  * Renders the stored archetype config body on the 12-col grid: the required
  * `board` slot composes the boards family's REAL components
@@ -10,7 +9,7 @@
  * (`statusColumn`/`laneColumn`/`titleColumn`/`progressColumn`/`columns[]` —
  * registry/candidates.ts `boards.workflow-enum`) to the components' props.
  *
- * Behaviors (09 §7.5):
+ * Behaviors:
  * - drop issues ONE update intent through `onEvent` — status only on the
  *   kanban, lane+status atomically on swimlanes; the mutate promise is
  *   returned so a rejected write rolls the optimistic move back;
@@ -73,7 +72,7 @@ export interface PageBoardLabels {
 export interface PageBoardProps {
   /** The stored page config body: `{ templateVersion, toolbar, overlays, layout }`. */
   config: unknown;
-  /** Per-instance data states from the host binding; absent → demo data (04 §5.3). */
+  /** Per-instance data states from the host binding; absent → demo data. */
   states?: TemplateDataStates | undefined;
   /** Widget event sink. `mutate` handlers may return the CRUD promise so the
    *  boards' optimistic machinery can roll a rejected move back. */
@@ -318,7 +317,7 @@ function ComposeSlot({
           intent: 'insert',
           connectionId: source.connectionId,
           table: source.table,
-          // Column defaults first (annex §6) — the typed title and the board's
+          // Column defaults first (annex) — the typed title and the board's
           // first-column status can never be clobbered by stale defaults.
           values: {
             ...(firstColumn === undefined ? {} : { [boardCfg.statusColumn]: String(firstColumn) }),

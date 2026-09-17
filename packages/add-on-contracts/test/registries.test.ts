@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The registries are CLOSED (24 §5.4, §5.5). These tests are the thing that
- * makes "closed" mean something: adding a slot or a contract without also
- * moving the count here is a failing build, not a quiet widening.
+ * The registries are CLOSED. These tests are the thing that makes "closed"
+ * mean something: adding a slot or a contract without also moving the count
+ * here is a failing build, not a quiet widening.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -21,8 +21,8 @@ import {
 
 describe('slot registry', () => {
   it('holds exactly thirteen slots', () => {
-    // Eleven from wave 4, plus `record.actions` bought on 2026-08-28 (31 O1)
-    // and `shell.overlay` bought on 2026-09-01 (33 O1 → D17). Moving this
+    // Eleven from wave 4, plus `record.actions` bought on 2026-08-28
+    // and `shell.overlay` bought on 2026-09-01. Moving this
     // number is the deliberate act; a slot appearing without it is the
     // accident the ratchet exists to catch.
     expect(SLOT_REGISTRY).toHaveLength(13);
@@ -116,7 +116,7 @@ describe('contract registry', () => {
   });
 
   it('carries the three wave-4 contracts, the one wave 6 bought, and nothing else', () => {
-    // `document-render` is 34-invoices-add-on.md's purchase (Appendix A, seven
+    // `document-render` is purchase (Appendix A, seven
     // exhibits). The count above and this list move together on purpose: a
     // contract that arrives without its name being written down here arrived
     // without anybody deciding it should.

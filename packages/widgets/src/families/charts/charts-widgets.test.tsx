@@ -2,7 +2,7 @@
 // @vitest-environment happy-dom
 /**
  * Charts family wrapper tests: config→chart prop mapping (aria labels from
- * config.title, axis/legend/highlight toggles), §3 envelope narrowing
+ * config.title, axis/legend/highlight toggles), envelope narrowing
  * (timeseries vs categorical bar inputs), tone mapping, and deterministic
  * demo payloads matching the declared data contracts.
  */

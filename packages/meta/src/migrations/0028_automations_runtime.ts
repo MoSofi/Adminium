@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0028 — the runtime columns automations need to actually run
- * (42-automations-and-workflow-logs.md §3.2, 42-T01).
+ * Wave 0028 — the runtime columns automations need to actually
+ * run.
  *
  * ─── Why 0006's tables were not enough ─────────────────────────────────────
  *
  * `adminium_automations` and `adminium_automation_runs` have existed since
- * migration 0006 as DDL with no code behind them (27-T13). They hold WHAT a
- * rule is (`trigger`, `graph`) and WHAT a run did (`trigger_event`, `trace`).
- * What they never held is the bookkeeping a running engine needs: when the
- * next schedule tick is due, how far a watch poller has read, whether an
+ * migration 0006 as DDL with no code behind them. They hold WHAT a rule is
+ * (`trigger`, `graph`) and WHAT a run did (`trigger_event`, `trace`). What
+ * they never held is the bookkeeping a running engine needs: when the next
+ * schedule tick is due, how far a watch poller has read, whether an
  * occurrence has already fired, and when a suspended run wakes up. Those are
  * the six columns below.
  *
@@ -46,7 +46,7 @@
  * It IS also in the `trigger_event` json, and that copy is the record of what
  * happened. This one exists because the undo mapping has to find "every
  * pending dashboard-origin run for these records" in a WHERE clause, and json
- * columns in this store are opaque by design (07 §3: never queried with JSON
+ * columns in this store are opaque by design (never queried with JSON
  * operators). `str(12)` fits the longest value, `dashboard` (9).
  *
  * ─── `duration_ms` excludes waits ──────────────────────────────────────────
@@ -61,7 +61,7 @@
  * A poller over `created_at` has to survive ties: ten rows written in the
  * same millisecond must not lose nine. The cursor is therefore a KEYSET —
  * `{ value, frontierPk }`, the column value plus the primary key of the last
- * row consumed at that value — rather than a scalar (§3.3).
+ * row consumed at that value — rather than a scalar.
  */
 
 import type { Kysely } from 'kysely';

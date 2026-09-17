@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Client side of the runtime override layer (23-runtime-translations.md §4.4,
- * §4.7).
+ * Client side of the runtime override layer.
  *
  * Two jobs:
  *
@@ -12,7 +11,7 @@
  *     existing 2 s race instead, and cached in localStorage keyed by version:
  *     a WARM boot paints overridden text immediately, a COLD one may paint
  *     compiled text for up to the cap before swapping. That is a real,
- *     acknowledged amendment to 10 §7.5 rather than a silent regression.
+ * acknowledged amendment to rather than a silent regression.
  *  2. Keep them fresh afterwards, without pretending the delivery is stronger
  *     than it is. The realtime hub is in-process with no cross-node fan-out
  *     and the socket client invalidates nothing on reconnect, so a WS event is

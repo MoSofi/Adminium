@@ -47,7 +47,7 @@ function installMatchMedia(): void {
 
 /**
  * The four browser APIs React Flow measures with, which happy-dom does not
- * implement (35-schema-authoring.md §8.1, 35-T20).
+ * implement.
  *
  * Without them the canvas MOUNTS AND RENDERS NOTHING: React Flow sizes nodes
  * through `ResizeObserver` and routes edges from the boxes it measures, so a
@@ -88,7 +88,7 @@ if (typeof Element !== 'undefined') {
 }
 
 /**
- * Stop happy-dom from actually FETCHING an `<iframe src>` (29-T10).
+ * Stop happy-dom from actually FETCHING an `<iframe src>`.
  *
  * happy-dom does not stub iframe loading the way jsdom does — it issues a real
  * request. `AppFrame` renders `<iframe src="/apps/<key>/staff/…">`, which

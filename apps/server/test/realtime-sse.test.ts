@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * SSE fallback `GET /api/v1/events` (08-server-api.md §3, M2-T07): auth +
- * channel authorization via inject, and a real-HTTP streaming test that
- * watches a noop-progress job end-to-end (worker → hub → SSE frames).
+ * SSE fallback `GET /api/v1/events`: auth + channel authorization via
+ * inject, and a real-HTTP streaming test that watches a noop-progress job
+ * end-to-end (worker → hub → SSE frames).
  */
 import type { AddressInfo } from 'node:net';
 

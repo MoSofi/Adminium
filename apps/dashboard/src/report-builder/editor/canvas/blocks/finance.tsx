@@ -5,11 +5,11 @@
  * and loyalty points.
  *
  * NONE OF THEM COMPUTES A TOTAL. Four of the seven look like the invoice
- * surface's blocks of the same name and differ in the fields themselves (43
- * §0.3 trap 3): the multi-currency block has its OWN base amount where the
- * invoice's converts the ladder total; the discount and tax amounts are free
- * text where the invoice computes them; the recurring banner prints no amount
- * at all. One multiply exists — `sym + amount × rate` — and it goes through
+ * surface's blocks of the same name and differ in the fields themselves (trap
+ * 3): the multi-currency block has its OWN base amount where the invoice's
+ * converts the ladder total; the discount and tax amounts are free text where
+ * the invoice computes them; the recurring banner prints no amount at all.
+ * One multiply exists — `sym + amount × rate` — and it goes through
  * `model/numbers.ts` in integer minor units (D11).
  */
 import { cn } from '@adminium/ui';
@@ -91,7 +91,8 @@ export function MultiCurrencyBlock({ block, locale }: BlockBodyProps<'multicurre
   );
 }
 
-/** 331: an accent-soft banner — *Recurring — {freq}* over *Next on {next} · {count}*. No amount (§0.3 trap 3). */
+/** 331: an accent-soft banner — *Recurring — {freq}* over *Next on {next} ·
+ * {count}*. No amount (trap 3). */
 export function RecurringBlock({ block }: BlockBodyProps<'recurring'>) {
   const Glyph = reportIcon('repeat');
   return (

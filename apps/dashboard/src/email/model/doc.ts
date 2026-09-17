@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The editor's draft (39-email-templates-and-campaigns.md §3.6 `model/doc.ts`):
- * the four things a save carries — name, category, status and the envelope —
- * as one value, so history snapshots and the dirty check cover all of them.
+ * The editor's draft (`model/doc.ts`): the four things a save carries — name,
+ * category, status and the envelope — as one value, so history snapshots and
+ * the dirty check cover all of them.
  *
  * The draft is read from the detail reply once, when the editor opens, and
  * from then on it is the editor's own (D1): a refetch never overwrites what is

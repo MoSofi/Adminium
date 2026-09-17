@@ -23,21 +23,21 @@ import { OpsEmpty } from './OpsEmpty.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `uptime-segment-bar` (annex §13) — the statuspage-style day strip: n flex
+ * `uptime-segment-bar` (annex) — the statuspage-style day strip: n flex
  * segments toned pos/warn/danger with per-day tooltips and a hover scaleY, an
  * axis reading "{n} days ago / uptime % / Today", and a 30/90-day toggle.
  * Evidence: Status Page.
  *
- * DIRECTION (10-i18n-theming.md §5.5) — this one MIRRORS, and that is a
- * deliberate call against the gantt's fixed-LTR-island rule, not an oversight.
- * The island rule exists for a DATED canvas: the gantt has a calendar header and
- * a label gutter that must align to a time ORIGIN, so flipping it would put day
- * 0 under a header that says otherwise. A statuspage strip has neither. It has
- * exactly two anchors — an "N days ago" caption at one end and "Today" at the
- * other — and both are text that mirrors with the reader. Pinning the strip LTR
- * while its own captions flipped would put "Today" at the end the newest segment
- * is NOT at: a caption that lies. So the strip is a plain `flex` row and the
- * whole thing reverses under `dir="rtl"`, captions and segments together.
+ * DIRECTION — this one MIRRORS, and that is a deliberate call against the
+ * gantt's fixed-LTR-island rule, not an oversight. The island rule exists for a
+ * DATED canvas: the gantt has a calendar header and a label gutter that must
+ * align to a time ORIGIN, so flipping it would put day 0 under a header that
+ * says otherwise. A statuspage strip has neither. It has exactly two anchors —
+ * an "N days ago" caption at one end and "Today" at the other — and both are
+ * text that mirrors with the reader. Pinning the strip LTR while its own
+ * captions flipped would put "Today" at the end the newest segment is NOT at: a
+ * caption that lies. So the strip is a plain `flex` row and the whole thing
+ * reverses under `dir="rtl"`, captions and segments together.
  *
  * The array itself is never reversed in JS — rows arrive oldest → newest and are
  * rendered in that order in both directions, so LTR and RTL consume byte-
@@ -75,7 +75,7 @@ const STATUS_FALLBACK: Record<UptimeState, string> = {
 
 /**
  * Literal bundle key per state — indexed, never assembled, so the extractor
- * sees all four and a new `UptimeState` fails the build (10 §2.5).
+ * sees all four and a new `UptimeState` fails the build.
  */
 const STATUS_KEY = {
   operational: 'ui:widgets.domain.uptimeSegmentBar.status.operational',

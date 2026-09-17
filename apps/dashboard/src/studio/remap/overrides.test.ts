@@ -4,7 +4,7 @@
  * listing, and the EXACT `PUT /connections/:id/overrides` document shape.
  * The literals asserted here are re-validated against the real server Zod
  * schemas in `apps/server/test/remap-payload-contract.test.ts` — keep the
- * two in sync when the §3.15 vocabulary changes.
+ * two in sync when the vocabulary changes.
  */
 import { describe, expect, it } from 'vitest';
 

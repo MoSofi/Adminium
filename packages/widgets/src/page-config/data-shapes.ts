@@ -2,8 +2,8 @@
 import { z } from 'zod';
 
 /**
- * The eighteen canonical data-contract shapes (04-widget-registry.md §3).
- * Server payloads and widget data contracts discriminate on these keys.
+ * The eighteen canonical data-contract shapes. Server payloads and widget
+ * data contracts discriminate on these keys.
  */
 export const DATA_SHAPES = [
   'single-metric',
@@ -32,8 +32,8 @@ export type DataShape = z.infer<typeof dataShapeSchema>;
 
 /**
  * The subset of {@link DATA_SHAPES} the widget-data query compiler can actually
- * produce today (04 §5.2); the rest reject with 422. SINGLE SOURCE OF TRUTH for
- * that boundary:
+ * produce today; the rest reject with 422. SINGLE SOURCE OF TRUTH for that
+ * boundary:
  *
  *  - `apps/server/src/widget-data/compiler.ts` validates requested shapes
  *    against it, and
@@ -46,8 +46,8 @@ export type DataShape = z.infer<typeof dataShapeSchema>;
  * vocabulary automatically — add the shape here in the same change.
  *
  * Two of the eighteen are NOT compiler gaps and must never be listed here:
- * `static` is config-only with no server round trip (04 §3), and `form-state`
- * is fed by the CRUD form path, not by a query descriptor. With the last five
+ * `static` is config-only with no server round trip, and `form-state` is fed
+ * by the CRUD form path, not by a query descriptor. With the last five
  * (`hierarchy/tree`, `geo-points`, `flows`, `boolean-map`, `ohlc`) compiled,
  * those two are all that remain outside — the list below is the whole backlog,
  * closed.

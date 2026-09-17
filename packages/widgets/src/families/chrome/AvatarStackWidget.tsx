@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `avatar-stack` (annex §11) — overlapping gradient-initials avatars with a
+ * `avatar-stack` (annex) — overlapping gradient-initials avatars with a
  * "+N" overflow bubble; presence variant adds online dots + an online-count
  * caption. Evidence: Adminium Dashboard (team presence), Scheduled Reports,
  * Project Board, Vision Board, Auth & Onboarding (social proof).
@@ -35,7 +35,7 @@ export interface Person {
   online?: boolean | undefined;
 }
 
-/** Project the §3 `record-list` payload onto people. */
+/** Project the `record-list` payload onto people. */
 export function peopleOf(data: unknown, config: AvatarStackConfig): Person[] {
   const rows = recordRowsOf(data);
   const out: Person[] = [];

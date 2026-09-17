@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `report-run` job handler (M7 reports track; 07-meta-store.md §3.24,
- * 09-generated-app.md §5.4).
+ * `report-run` job handler (M7 reports track).
  *
  * LOCKED v1 SEMANTICS: a run resolves the report's page, produces a **CSV
- * data snapshot THROUGH the M7-T07 export pipeline** (the export-run handler
- * is invoked in-process via the shared registry — reuse, not a fork), stamps
+ * data snapshot THROUGH the export pipeline** (the export-run handler is
+ * invoked in-process via the shared registry — reuse, not a fork), stamps
  * `last_run_at`/`next_run_at`, and delivers an in-app notification linking
- * page + export. The stored `format` stays `pdf | png` (§3.24 vocabulary):
- * that is the user's rendering INTENT, preserved for the release where a
- * renderer exists; the UI labels delivery "Data snapshot (PDF/PNG rendering
- * arrives in a later release)".
+ * page + export. The stored `format` stays `pdf | png` (vocabulary): that is
+ * the user's rendering INTENT, preserved for the release where a renderer
+ * exists; the UI labels delivery "Data snapshot (PDF/PNG rendering arrives
+ * in a later release)".
  *
  * Grants: the snapshot always runs MASKED (`unmasked: false`). An export
  * request captures the caller's live PII capability at request time; a
@@ -66,7 +65,7 @@ export interface ReportRunDeps {
   now?: (() => number) | undefined;
 }
 
-/** The page-envelope slice a report needs (01-architecture.md §6.1). */
+/** The page-envelope slice a report needs. */
 const envelopeSourceSchema = z.object({
   source: z.object({ connectionId: z.string().nullable(), table: z.string().nullable() }),
 });
@@ -226,7 +225,7 @@ async function executeReportRun(
           exportId: finished.id,
           rowCount: finished.rowCount,
           // The stored intent vs. what this build delivers — the client copy
-          // explains the degradation (§8.2), it is never hidden.
+          // explains the degradation, it is never hidden.
           requestedFormat: report.format,
           delivered: 'csv-snapshot',
         },

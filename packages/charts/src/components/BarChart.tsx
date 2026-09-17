@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-bar` primitive (research/widget-registry.md §2): categorical columns
+ * `chart-bar` primitive (research/widget-registry.md): categorical columns
  * with highlight max|current|none, grouped 2-series mode, RTL category
  * mirroring (band-scale range flip), nb-grow-style mount animation.
  */

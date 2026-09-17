@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The editor's state (43-report-builder.md D4/O6, inheriting 34 O22 → 39 D1's
- * model): the draft, its history, the last saved draft, and the one way
- * anything reaches the server — `save()`.
+ * The editor's state (inheriting model): the draft, its history, the last
+ * saved draft, and the one way anything reaches the server — `save()`.
  *
  * NOTHING HERE WRITES ON INPUT. The comp autosaves 900 ms after a keystroke
  * and stamps *Just now* 520 ms later (`markDirty`, 524); that choreography is
@@ -15,9 +14,9 @@
  * saved baseline. The chip's four states fall out of `dirty` (derived),
  * `saving` and the last error.
  *
- * If the owner ever reverses 34 O22, this file is where the debounce goes —
- * one `setTimeout` around `mutate`, and this surface flips with the invoice
- * one in the same commit (D4).
+ * If the owner ever reverses, this file is where the debounce goes — one
+ * `setTimeout` around `mutate`, and this surface flips with the invoice one
+ * in the same commit (D4).
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';

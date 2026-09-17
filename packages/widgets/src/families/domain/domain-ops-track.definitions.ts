@@ -43,7 +43,7 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * TRACK OPS — registry metadata for the eighteen §13 ops / billing / API /
+ * TRACK OPS — registry metadata for the eighteen ops / billing / API /
  * marketing cards: the slice that CLOSES the annex. With these registered,
  * `ANNEX_PENDING` reaches all-empty and the catalog is delivered 176/176.
  *
@@ -52,13 +52,12 @@ import type { WidgetDefinition } from '../../registry/types.js';
  * the PURE `domain-ops-config.ts` — so this module's transitive STATIC import
  * graph never reaches a `.tsx`, the family stays in one lazy chunk, and the
  * registry never eagerly pulls eighteen @adminium/ui-heavy cards into a sibling
- * family's bundle (04 §2.3). `qa/chunk-budget.test.ts` walks exactly this graph
- * and fails on a static component import, which is why the barrel indirection
- * exists.
+ * family's bundle. `qa/chunk-budget.test.ts` walks exactly this graph and fails
+ * on a static component import, which is why the barrel indirection exists.
  *
- * SIZING — the annex's per-widget grid note, converted to 40px HALF-UNITS
- * (04 §6.1): `h = round(annexRows × 2)`. So "min 6×2" → `minW: 6, minH: 4`.
- * Widths are already 12-col units and carry over unchanged.
+ * SIZING — the annex's per-widget grid note, converted to 40px HALF-UNITS:
+ * `h = round(annexRows × 2)`. So "min 6×2" → `minW: 6, minH: 4`. Widths are
+ * already 12-col units and carry over unchanged.
  *
  * CONTRACTS — `['<shape>', 'static']` is not hedging; it is load-bearing. Four of
  * these widgets are legitimately CONFIG-ONLY instances (a starter picker driven
@@ -72,9 +71,9 @@ import type { WidgetDefinition } from '../../registry/types.js';
  * `capabilities.editsData` marks the ten that emit `mutate` intents (key roll/
  * revoke, a card set-default, a webhook/policy toggle, the stopwatch's entry, a
  * sync-now, a starter selection, a checklist tick). The host runs them through
- * the CRUD API with undo + audit; widgets never write (04 §2.1). The read-only
- * eight — including `plan-pricing-cards`, whose CTA only drill-throughs — carry
- * no capability.
+ * the CRUD API with undo + audit; widgets never write. The read-only eight —
+ * including `plan-pricing-cards`, whose CTA only drill-throughs — carry no
+ * capability.
  */
 
 // ── monitoring / status ─────────────────────────────────────────────────────
@@ -88,7 +87,7 @@ export const sloMonitorCardDefinition: WidgetDefinition = defineWidget({
   configSchema: sloMonitorCardConfigSchema,
   /**
    * annex "monitor record {name, endpoint, target, current, status, budget, p95}
-   * + 30-day status array" — one row, so the §3 `record` envelope; the shared
+   * + 30-day status array" — one row, so the `record` envelope; the shared
    * `isEmptyByShape.record` predicate (`row == null`) routes a monitor-less card
    * to the empty state.
    */
@@ -429,7 +428,7 @@ export const onboardingChecklistDefinition: WidgetDefinition = defineWidget({
    *
    * This is the REUSABLE WIDGET FORM of the reactive checklist in
    * apps/dashboard/src/onboarding — built from the data contract, sharing no code
-   * with it, because packages must never import apps (01 §2.3).
+   * with it, because packages must never import apps.
    */
   dataContract: ['record-list', 'static'],
   // annex "8×5"
@@ -442,7 +441,7 @@ export const onboardingChecklistDefinition: WidgetDefinition = defineWidget({
   descriptionKey: 'widgets.domain.onboardingChecklist.description',
 });
 
-/** The eighteen §13 ops ids — the slice that closes the annex catalog. */
+/** The eighteen ops ids — the slice that closes the annex catalog. */
 export const domainOpsTrackDefinitions: readonly WidgetDefinition[] = [
   starterTemplatePickerDefinition,
   sloMonitorCardDefinition,

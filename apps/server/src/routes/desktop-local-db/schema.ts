@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the desktop local-database resource
- * (11-electron.md §6 step 2 card 1, task 11-T07).
+ * (card 1, task).
  */
 
 import { z } from 'zod';
@@ -9,11 +9,11 @@ import { z } from 'zod';
 import { parseRequestFormat } from '../schema-import/schema.js';
 
 export const desktopLocalDbBody = z.object({
-  /** §6: "Name → slug → creates `<dataDir>/databases/<slug>.sqlite`". */
+  /** "Name → slug → creates `<dataDir>/databases/<slug>.sqlite`". */
   name: z.string().min(1).max(80),
   /**
-   * §6's sub-choice. Absent ⇒ *Blank* ("empty DB; Studio's table designer per
-   * 09-generated-app.md"); present ⇒ *From a schema file*.
+   * The sub-choice. Absent ⇒ *Blank* ("empty DB; Studio's table designer ");
+   * present ⇒ *From a schema file*.
    *
    * The FILE is sent, not a parsed model, and that is a size decision as much as
    * a trust one: `POST /schema-import/parse` replies with a `DatabaseModel` whose
@@ -60,7 +60,7 @@ export const desktopLocalDbReply = z.object({
      * The absolute `<dataDir>/databases/<slug>.sqlite` path — unmasked for the
      * reasons `desktop-demo/schema.ts` gives: a SQLite DSN carries no
      * credentials, and the wizard's "Show in folder" needs a path to hand the
-     * §4 bridge.
+     * bridge.
      */
     file: z.string(),
     /** Tables created, in creation order. Empty for a blank database. */
@@ -69,7 +69,7 @@ export const desktopLocalDbReply = z.object({
     rows: z.record(z.string(), z.number().int().min(0)),
     /**
      * What the translation could not carry across (views, expression indexes,
-     * generated columns…). §8.2's rule — never hide, always explain — is why
+     * generated columns…). The rule — never hide, always explain — is why
      * these are on the reply rather than in a server log.
      */
     warnings: z.array(desktopLocalDbWarning),

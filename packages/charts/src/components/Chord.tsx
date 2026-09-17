@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-chord` primitive (research/widget-registry.md §2): nodes on a ring
+ * `chart-chord` primitive (research/widget-registry.md): nodes on a ring
  * sized by total pairwise volume, connected by quadratic-bezier ribbons whose
  * opacity encodes pair weight, plus a legend of node dots. Node order steps
- * clockwise (LTR) / CCW (RTL) to mirror per §7.4. Colors are tokens only;
- * geometry is pure (04 §7.1).
+ * clockwise (LTR) / CCW (RTL) to mirror. Colors are tokens only; geometry is
+ * pure.
  */
 import type { ReactNode } from 'react';
 

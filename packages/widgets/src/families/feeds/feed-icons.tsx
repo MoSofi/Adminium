@@ -20,7 +20,7 @@ import {
 import type { ReactNode } from 'react';
 
 /**
- * Curated Lucide glyphs for feed event categories (annex §4 tone-tinted icon
+ * Curated Lucide glyphs for feed event categories (annex tone-tinted icon
  * tiles). Data carries a category/verb string; unknown values fall back to the
  * generic activity dot so a novel event type never crashes a row.
  */

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Icon — thin wrapper over lucide-react (research/design-system.md §3 "Icons"):
- * Lucide exclusively, `stroke-width: 2`, inline sizes 12–18px (12/13/14/15
- * common) and up to 26px inside icon tiles, always `currentColor` so the
- * surrounding token color (`text-fg-muted`, tone colors) flows in.
+ * Icon — thin wrapper over lucide-react (research/design-system.md): Lucide
+ * exclusively, `stroke-width: 2`, inline sizes 12–18px (12/13/14/15 common) and
+ * up to 26px inside icon tiles, always `currentColor` so the surrounding token
+ * color (`text-fg-muted`, tone colors) flows in.
  *
  * Directional icons (chevrons, arrows, corner-*) must mirror in RTL — pass
  * `rtlMirror` and the icon flips via the `rtl:-scale-x-100` utility.
  *
  * Accessibility: decorative by default (`aria-hidden`); pass `aria-label` to
  * make it an image with an accessible name (icon-only buttons label the
- * BUTTON, not the icon — see 03-component-library.md §9).
+ * BUTTON, not the icon).
  */
 import type { LucideProps, icons } from 'lucide-react';
 
@@ -28,7 +28,7 @@ import { useLucideIcon } from './icon-resolver.js';
  */
 export type IconName = keyof typeof icons;
 
-/** Sanctioned icon sizes (px) per research/design-system.md §3. */
+/** Sanctioned icon sizes (px) per research/design-system.md. */
 export const ICON_SIZES = [12, 13, 14, 15, 16, 18, 26] as const;
 export type IconSize = (typeof ICON_SIZES)[number];
 

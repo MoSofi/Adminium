@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The runtime-translation version stamp (23-runtime-translations.md §3.4).
+ * The runtime-translation version stamp.
  *
  * Clients key their bundle cache — and the server its ETag — on this counter,
  * so it must move on EVERY mutation of `adminium_locales` /

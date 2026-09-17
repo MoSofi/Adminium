@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * userPrefsRepo — adminium_user_prefs (07-meta-store.md §3.4) plus the
- * BRIEF §7 preference resolution (§7.2): system default → global settings
- * override → non-NULL user axis, with `dir` derived from locale unless
- * explicitly overridden. Clearing an axis = writing NULL, not deleting the row.
+ * userPrefsRepo — adminium_user_prefs plus the BRIEF preference
+ * resolution: system default → global settings override → non-NULL user
+ * axis, with `dir` derived from locale unless explicitly overridden.
+ * Clearing an axis = writing NULL, not deleting the row.
  */
 
 import { z } from 'zod';
@@ -53,7 +53,7 @@ const AXES = {
   dir: dirSchema,
 } as const;
 
-/** BRIEF §7 baseline — a fresh install without a single settings row. */
+/** BRIEF baseline — a fresh install without a single settings row. */
 export const SYSTEM_PREF_DEFAULTS = {
   theme: 'system',
   accent: 'indigo',
@@ -65,10 +65,10 @@ export const SYSTEM_PREF_DEFAULTS = {
 const BUILTIN_RTL: ReadonlySet<string> = new Set(['ar_EG']);
 
 /**
- * Direction for a locale (23 §5.4). A bare `locale === 'ar_EG'` test cannot
- * answer for an admin-created RTL locale, so callers that may see one pass
- * the `dir` from its `adminium_locales` row. Built-ins always win, which is
- * the same field lock the registry enforces: a row can never make `ar_EG`
+ * Direction for a locale. A bare `locale === 'ar_EG'` test cannot answer
+ * for an admin-created RTL locale, so callers that may see one pass the
+ * `dir` from its `adminium_locales` row. Built-ins always win, which is the
+ * same field lock the registry enforces: a row can never make `ar_EG`
  * render `ltr`.
  */
 export function dirForLocale(locale: string, customDir?: 'ltr' | 'rtl' | null): 'ltr' | 'rtl' {
@@ -155,7 +155,7 @@ export function userPrefsRepo(meta: MetaDb) {
       return row;
     },
 
-    /** §7.2 merge, implemented exactly once, server-side. */
+    /** The merge, implemented exactly once, server-side. */
     async resolve(userId: string | null): Promise<ResolvedPrefs> {
       const glob = {
         theme: await settings.get('appearance.theme'),
@@ -189,7 +189,7 @@ export function userPrefsRepo(meta: MetaDb) {
       const density = pick('density');
       const locale = pick('locale');
       // A custom locale's direction lives in its registry row; built-ins never
-      // read it (the field lock in 23 §3.1), so this is skipped for them.
+      // read it (the field lock), so this is skipped for them.
       const customDir = BUILTIN_RTL.has(locale.value)
         ? null
         : ((

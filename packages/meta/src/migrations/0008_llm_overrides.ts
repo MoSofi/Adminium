@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0008 — LLM apply overrides (06-llm-assist.md §8.3, T10b).
+ * Wave 0008 — LLM apply overrides (b).
  *
  * The apply-EXECUTOR persists each accepted suggestion as an
- * `adminium_schema_overrides` row (`origin: 'llm'`, `llm_run_id`) whose §8.3
- * shape also carries a per-suggestion `confidence`. The base table (0003) has no
+ * `adminium_schema_overrides` row (`origin: 'llm'`, `llm_run_id`) whose shape
+ * also carries a per-suggestion `confidence`. The base table (0003) has no
  * confidence column, so this migration ADDS one (never edits a shipped
  * migration).
  *

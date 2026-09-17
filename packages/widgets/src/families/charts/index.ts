@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family public surface (annex §2) — metadata only. Component code for
+ * `charts` family public surface (annex) — metadata only. Component code for
  * every chart widget loads through each definition's `lazy()` ref (one Vite
- * chunk per family, 04 §2.3), so this barrel deliberately re-exports the
- * per-track *definition arrays* rather than the widget components, keeping the
- * family's eager surface empty. The GREEN LOOP spreads these same arrays into
- * the central `widgetRegistry` (registry/index.ts).
+ * chunk per family), so this barrel deliberately re-exports the per-track
+ * *definition arrays* rather than the widget components, keeping the family's
+ * eager surface empty. The GREEN LOOP spreads these same arrays into the
+ * central `widgetRegistry` (registry/index.ts).
  */
 import type { WidgetDefinition } from '../../registry/types.js';
 
@@ -23,7 +23,8 @@ export {
   matrixGeoChartDefinitions,
 };
 
-/** Every `charts`-family widget definition delivered so far (M4 slice + 04-T09 waves). */
+/** Every `charts`-family widget definition delivered so far (M4 slice + waves).
+ * */
 export const chartsFamilyDefinitions: readonly WidgetDefinition[] = [
   ...chartsWidgetDefinitions,
   ...barsRankingChartDefinitions,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Binding editor + the inspector row that opens it (04-widget-registry.md §5.1).
+ * Binding editor + the inspector row that opens it.
  *
  * The pure translation layer is covered by `bindingDraft.test.ts`, including the
  * acceptance path (inserted widget → authored binding → `extractBindings`).

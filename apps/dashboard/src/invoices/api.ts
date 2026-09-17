@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The invoices API client (34-invoices-add-on.md §3.9, 34-T46).
+ * The invoices API client.
  *
  * TYPE-ONLY MIRROR of `apps/server/src/routes/invoices/schema.ts`: the
  * dashboard may not import server runtime code, so the reply shapes are
@@ -22,8 +22,8 @@ export type { InvoiceBody, InvoiceDocumentKind, InvoiceStatus, InvoiceTopic } fr
 export type { InvoiceLang } from './model/languages.js';
 
 /**
- * What the manager's card and row read without decoding the body (34 §3.9
- * "denormalised columns"): written by the server on every save.
+ * What the manager's card and row read without decoding the body: written
+ * by the server on every save.
  */
 export interface InvoiceSummaryFacts {
   number: string;
@@ -35,7 +35,7 @@ export interface InvoiceSummaryFacts {
   accent: string;
   currency: string;
   cents: boolean;
-  /** The ladder's total in integer minor units (the money law, 34 D20/O25). */
+  /** The ladder's total in integer minor units (the money law). */
   totalMinor: number;
   /** How many line items — the thumbnail draws up to three rows (comp 1432). */
   itemCount: number;
@@ -51,7 +51,7 @@ export interface InvoiceSummary {
   lang: InvoiceLang;
   /** Which starter minted it; null for blank documents. */
   starter: string | null;
-  /** The template an invoice was built from (34 O20); null otherwise. */
+  /** The template an invoice was built from; null otherwise. */
   originId: string | null;
   createdAt: number;
   updatedAt: number;
@@ -136,7 +136,7 @@ export const invoicesApi = {
   duplicate: (id: string) => api.post<InvoiceDetail>(`${BASE}/${encodeURIComponent(id)}/duplicate`),
   /** A linked copy under the same topic; 409 with `existingId` when that language already exists (comp 1242-1243). */
   addLanguage: (id: string, lang: InvoiceLang) => api.post<InvoiceDetail>(`${BASE}/${encodeURIComponent(id)}/languages`, { lang }),
-  /** `id` is the TEMPLATE; the invoice records it as `originId` (34 O20). */
+  /** `id` is the TEMPLATE; the invoice records it as `originId`. */
   fromTemplate: (id: string, name?: string) =>
     api.post<InvoiceDetail>(`${BASE}/${encodeURIComponent(id)}/from-template`, name === undefined ? {} : { name }),
 };

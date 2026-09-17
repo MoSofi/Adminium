@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Data-contract shapes for the `feeds` family (annex §4). Types only — erased
- * at compile time, so both the pure `feeds-config` module (which the registry's
+ * Data-contract shapes for the `feeds` family (annex). Types only — erased at
+ * compile time, so both the pure `feeds-config` module (which the registry's
  * eager metadata graph reaches) and the widget components can name them without
  * either one importing the other. That keeps `feeds-config` free of component
- * code (04 §2.3, acceptance #3) AND keeps the module graph acyclic, which
- * `pnpm check-deps` enforces with `tsPreCompilationDeps`.
+ * code (acceptance #3) AND keeps the module graph acyclic, which `pnpm
+ * check-deps` enforces with `tsPreCompilationDeps`.
  *
  * The component files re-export these, so existing import points stay stable.
  */
@@ -71,11 +71,11 @@ export interface StreamEvent {
 }
 
 /**
- * One `toast-stack` toast (annex §4: ephemeral `{message, icon, onUndo?}`).
+ * One `toast-stack` toast (annex: ephemeral `{message, icon, onUndo?}`).
  * `undoToken` is an OPAQUE handle the host round-trips back to its own undo
  * stack — the widget never carries a callback across the data boundary and never
  * performs the undo itself: it emits the intent through `onEvent` and the host's
- * CRUD layer runs it with audit (04 §2.1, "widgets never write").
+ * CRUD layer runs it with audit ("widgets never write").
  */
 export interface ToastEntry {
   id: string;

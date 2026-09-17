@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * progress-log-console (09 §8.2 step 2) — mono introspection log with the
- * comps' storytelling lines; tones per line kind. The comp left several
- * template bindings unbound (ia-mapping §5) — every line here is bound data.
+ * progress-log-console — mono introspection log with the comps'
+ * storytelling lines; tones per line kind. The comp left several template
+ * bindings unbound (ia-mapping) — every line here is bound data.
  */
 import { Check, CircleAlert, Loader2, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef } from 'react';

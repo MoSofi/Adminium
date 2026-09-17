@@ -403,7 +403,7 @@ describe('ColumnManager', () => {
 
     const browser = await openBrowser(user);
     // The relation is named by the ROW; the Count button is one affordance on
-    // it, beside the fold sub-picker (36-derived-columns.md 36-T17).
+    // it, beside the fold sub-picker.
     const row = within(browser).getByTestId('studio-pages-inbound-line_items-invoice_id');
     expect(row.textContent).toContain('line_items');
     expect(row.textContent).toContain('invoice_id');
@@ -626,9 +626,9 @@ describe('ColumnManager', () => {
 
 
 /**
- * The inbound sub-picker (36-derived-columns.md 36-T17). Two properties that
- * are the whole reason this wave exists: a relation stays reachable after
- * someone counts it, and the editor never authors a page the server refuses.
+ * The inbound sub-picker. Two properties that are the whole reason this wave
+ * exists: a relation stays reachable after someone counts it, and the editor
+ * never authors a page the server refuses.
  */
 describe('ColumnManager — folds over an inbound relation', () => {
   it('still offers a sum of a relation that already has a count', async () => {
@@ -726,14 +726,14 @@ describe('ColumnManager — folds over an inbound relation', () => {
 });
 
 /**
- * The File section (37-files-and-storage.md §3.8, 37-T22).
+ * The File section.
  *
  * Two properties carry the rest: a page that was toggled on and off again is
- * the page it was (37 D14 — the whole reason the block is opt-in), and the
- * editor refuses a reference shape the physical column cannot hold, with the
- * number that does not fit. Everything else here is that the block's other
- * fields say "whatever the workspace says" by being ABSENT, never by being
- * present and empty.
+ * the page it was (the whole reason the block is opt-in), and the editor
+ * refuses a reference shape the physical column cannot hold, with the number
+ * that does not fit. Everything else here is that the block's other fields
+ * say "whatever the workspace says" by being ABSENT, never by being present
+ * and empty.
  */
 describe('ColumnManager — the File section', () => {
   /** The `<option>` elements of a `<select>`, as the DOM has them. */
@@ -939,7 +939,7 @@ describe('ColumnManager — the File section', () => {
     expect(savedColumns(calls).slice(1)).toEqual(config.columns.slice(1));
   });
 
-  // --- a column that holds many files (38 D1/D5, 38-T08) ---------------------
+  // --- a column that holds many files ---------------------
 
   it('turns one column into a list and clears the flag back to absent', async () => {
     const user = userEvent.setup();

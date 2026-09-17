@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * auditRepo — adminium_audit_log (07-meta-store.md §3.11). Append-only;
- * actor label denormalized so entries survive principal deletion; `changes`
- * capped at 16 KB serialized (replaced by `{ "_truncated": true }` beyond it).
+ * auditRepo — adminium_audit_log. Append-only; actor label denormalized so
+ * entries survive principal deletion; `changes` capped at 16 KB serialized
+ * (replaced by `{ "_truncated": true }` beyond it).
  */
 
 import type { Selectable } from 'kysely';
@@ -71,7 +71,7 @@ function mapEntry(row: Selectable<AdminiumAuditLogTable>): AuditEntry {
   };
 }
 
-/** Serialize `changes` under the 16 KB cap (§3.11). */
+/** Serialize `changes` under the 16 KB cap. */
 function packChanges(changes: AuditEntryInput['changes']): string | null {
   if (changes === null || changes === undefined) return null;
   const serialized = packJson(changes);
@@ -84,7 +84,7 @@ export function auditRepo(meta: MetaDb) {
   return {
     async append(input: AuditEntryInput, at: number = Date.now()): Promise<AuditEntry> {
       const entity = input.entity === null || input.entity === undefined ? null : recordRefSchema.parse(input.entity);
-      // Denormalized per-record lookup keys (30-record-pages.md WS-A): the
+      // Denormalized per-record lookup keys (WS-A): the
       // indexed columns the activity feed filters on, derived once at write.
       const entityKeys = entity === null ? null : auditEntityKeyOf(entity);
       const row = {
@@ -122,7 +122,8 @@ export function auditRepo(meta: MetaDb) {
       return rows.map(mapEntry);
     },
 
-    /** Retention §8 `audit-log` policy (archive handling lives in the server GC job). */
+    /** Retention `audit-log` policy (archive handling lives in the server GC
+     * job). */
     async gc(at: number, retentionDays: number): Promise<number> {
       const cutoff = at - retentionDays * 86_400_000;
       const res = await db.deleteFrom('adminium_audit_log').where('createdAt', '<', cutoff).executeTakeFirst();

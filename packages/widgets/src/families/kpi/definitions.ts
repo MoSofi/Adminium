@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `kpi` family definitions — the COMPLETE annex §1 slice (10 ids). The M4-T06
- * wave landed `kpi-stat-card` + `usage-meter`; M7 Wave 4 (TRACK KPI-FEEDS)
- * closes the family out with the remaining eight.
+ * `kpi` family definitions — the COMPLETE annex slice (10 ids). The wave
+ * landed `kpi-stat-card` + `usage-meter`; M7 Wave 4 (TRACK KPI-FEEDS) closes
+ * the family out with the remaining eight.
  *
  * Metadata only in this file: the config schemas and demo generators come from
  * the pure `kpi-config` module, and component code lives in sibling files
  * reached through the `components.ts` barrel via `lazy()`, so Vite emits one
- * chunk for the whole family (04 §2.3) and the registry's static graph never
- * pulls the components in (enforced by `qa/chunk-budget.test.ts`).
+ * chunk for the whole family and the registry's static graph never pulls the
+ * components in (enforced by `qa/chunk-budget.test.ts`).
  *
- * Grid sizing per the annex, stored in half-row units (04 §6.1:
- * `h = round(annexRows × 2)`) — annex "3×1.5" ⇒ `defaultH: 3`. Widths map 1:1.
+ * Grid sizing per the annex, stored in half-row units (`h =
+ * round(annexRows × 2)`) — annex "3×1.5" ⇒ `defaultH: 3`.
+ * Widths map 1:1.
  *
  * `capabilities.exportPng` marks the widgets whose loaded body is a raster-able
- * canvas (the stat card's spark, the hero, the two SVG gauges) — §7.6's export
+ * canvas (the stat card's spark, the hero, the two SVG gauges) — the export
  * pipeline picks them up via their `data-export-node` roots.
  */
 
@@ -142,9 +143,9 @@ export const kpiWidgetDefinitions: readonly WidgetDefinition[] = [
     family: 'kpi',
     component: lazy(async () => ({ default: (await import('./components.js')).GaugeArc })),
     configSchema: gaugeArcConfigSchema,
-    // annex §1: `single-metric` score for the speedometer; `categorical` list of
+    // annex: `single-metric` score for the speedometer; `categorical` list of
     // {label, pct, tone} in cluster mode. `cluster` is config, so both are
-    // accepted and the component reads whichever it is configured for (04 §3).
+    // accepted and the component reads whichever it is configured for.
     dataContract: ['single-metric', 'categorical'],
     sizing: { minW: 3, minH: 4, defaultW: 6, defaultH: 4 }, // annex "single min 3×2; cluster min 4×2, default 6×2"
     placement: 'grid',

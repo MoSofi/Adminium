@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK FCS `system` family stories (annex §12): each widget's loaded variant,
- * the four WidgetFrame states through WidgetHost (acceptance #4), and
- * light/dark × LTR/RTL matrices with REAL geometry mirroring (acceptance #9 —
- * the RTL frames set `dir="rtl"` so the icon-then-copy rows, the alert's
- * dismiss corner (`end-6`), the diagnostics label→value rhythm, and the status
- * hero's end-aligned KPI trio genuinely flip; a bare attribute would prove
- * nothing). Widgets resolve through a LOCAL registry override so the stories
- * work before the green loop merges the definitions into the global map.
- * Payloads are the same seeded generators `demoData` uses.
+ * TRACK FCS `system` family stories (annex): each widget's loaded variant, the
+ * four WidgetFrame states through WidgetHost (acceptance #4), and light/dark ×
+ * LTR/RTL matrices with REAL geometry mirroring (acceptance #9 — the RTL
+ * frames set `dir="rtl"` so the icon-then-copy rows, the alert's dismiss
+ * corner (`end-6`), the diagnostics label→value rhythm, and the status hero's
+ * end-aligned KPI trio genuinely flip; a bare attribute would prove nothing).
+ * Widgets resolve through a LOCAL registry override so the stories work before
+ * the green loop merges the definitions into the global map. Payloads are the
+ * same seeded generators `demoData` uses.
  */
 import type { ReactNode } from 'react';
 
@@ -193,7 +193,7 @@ export const DiagnosticsStates = {
  */
 function matrixCells(key: string) {
   // Instance ids are derived from the cell key, never randomised: VRT captures
-  // must be byte-identical across runs (04 §7.7), and a random id would also
+  // must be byte-identical across runs, and a random id would also
   // remount the host on every render.
   return (
     <div className="grid gap-4">

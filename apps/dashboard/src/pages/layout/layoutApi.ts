@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard layout-persistence client (04-widget-registry.md §6.3) — typed
- * wrappers over the two write surfaces the builder saves through:
+ * Dashboard layout-persistence client — typed wrappers over the two write
+ * surfaces the builder saves through:
  *
  *   PATCH  /api/v1/pages/:pageId/layout        → the SHARED default (page-edit)
  *   PUT    /api/v1/me/views/:pageId/layout      → the caller's PERSONAL override

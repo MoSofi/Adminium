@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `@adminium/engine` classification entry point — 05-introspection-engine.md
- * §§6–8 (05-T07 column semantics + PII layer, 05-T08 table shapes).
+ * `@adminium/engine` classification entry point — column semantics, the PII
+ * layer and table shapes.
  *
  * Everything here is pure and deterministic: same model in, same
- * classification out — a requirement inherited by `generate()` (05 §9).
+ * classification out — a requirement inherited by `generate()`.
  */
 import type { DatabaseModel } from '../schema-model.js';
 import { classifyTable, type ClassifiedTable } from './tables.js';
@@ -56,7 +56,7 @@ export function classifyModel(model: DatabaseModel): ClassifiedModel {
  * Return a NEW model with `ColumnModel.semantics` / `TableModel.semantics`
  * filled from the classifier. Existing non-heuristic semantics (LLM or
  * Studio overrides — `source: 'llm' | 'override'`) are preserved: overrides
- * always win (05 §7).
+ * always win.
  */
 export function applyClassification(model: DatabaseModel): DatabaseModel {
   const classified = new Map(classifyModel(model).tables.map((t) => [t.tableId, t]));

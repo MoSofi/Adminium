@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `alert-banner` (annex §12) — inline callout: severity tint, bold stat lead or
+ * `alert-banner` (annex) — inline callout: severity tint, bold stat lead or
  * icon, explanatory copy, optional CTA. Variants observed in the comps:
  * over-limit warning, deploy-freeze note, recurring-schedule info, rebalance
  * suggestion. The annex's auto-instantiation hook emits one of these per quota

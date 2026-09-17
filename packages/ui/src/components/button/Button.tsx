@@ -8,9 +8,9 @@ import { cn } from '../../lib/cn.js';
 import { Spinner } from '../spinner/Spinner.js';
 
 /**
- * Button CVA map per 03-component-library.md §3.1 and
- * research/design-system.md §3 Tier 1. `size` is declared before `variant` so
- * the `link` variant's `h-auto p-0` wins the tailwind-merge conflict.
+ * Button CVA map and research/design-system.md Tier 1. `size` is declared
+ * before `variant` so the `link` variant's `h-auto p-0` wins the
+ * tailwind-merge conflict.
  */
 export const buttonVariants = cva(
   'nb-press inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-semibold ' +

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `document-render@1` (34-invoices-add-on.md §4, Appendices A and B) — the
- * fourth contract, and the first one Adminium ITSELF consumes.
+ * `document-render@1` (Appendices A and B) — the fourth contract, and the
+ * first one Adminium ITSELF consumes.
  *
  * It provides KINDS OF DOCUMENT an add-on can describe — an outline of slots,
  * every label written in all eight compiled locales — and render to BYTES. The
@@ -14,9 +14,9 @@
  *
  * A provider receives VALUES and returns BYTES. It gets no database handle, no
  * network, and — the one that gets forgotten — no clock: `subject.now` is the
- * only time it may read, which is what makes 25 D12's byte-identical claim
- * testable rather than aspirational. `describeDocumentRenderer` renders twice
- * and compares every byte.
+ * only time it may read, which is what makes byte-identical claim testable
+ * rather than aspirational. `describeDocumentRenderer` renders twice and
+ * compares every byte.
  *
  * ── BYTES, NOT A `FileRef` ─────────────────────────────────────────────────
  *
@@ -33,11 +33,11 @@
  * cannot draw Arabic or Han — so a kind declares the glyphs it covers and
  * REFUSES what it cannot draw, typed, as {@link DocumentError} `LATIN_ONLY`
  * carrying the offending glyphs. A silent drop would ship an invoice with a
- * customer's name missing letters (34 D6, O11, O12).
+ * customer's name missing letters.
  *
  * ── THE `body` CHANNEL IS A ONE-WAY DOOR, AND IT IS OPEN ───────────────────
  *
- * §4.3 ships this module verbatim into eighteen repos before the first
+ * This module ships verbatim into eighteen repos before the first
  * provider exists, so a field added later is a second eighteen-repo ceremony
  * plus a second contract release. {@link RenderInput.body} is therefore here in
  * the first release. Its shape is O28(a2) — ruled 2026-09-07 as **D54**: an
@@ -87,7 +87,7 @@ export type DocumentLocaleId = (typeof DOCUMENT_LOCALE_IDS)[number];
  * (0.3 trap 19), because the Studio profile editor renders these labels
  * directly and a hole in one language becomes a raw slot id on somebody's
  * screen. The server half of an add-on carries its own strings — the engine
- * needs no bundle from it (34 D14).
+ * needs no bundle from it.
  */
 export type LocalizedText = Readonly<Record<DocumentLocaleId, string>>;
 
@@ -157,10 +157,10 @@ export type OutlineSlotType = (typeof OUTLINE_SLOT_TYPES)[number];
 /**
  * Where an unmapped slot's value comes from, if anywhere.
  *
- * `sequence` — the engine's CAS document number, minted after render (34 D11).
- * `connection` — the connection's currency.
- * `setting` — one of the add-on's own non-secret settings.
- * `now` — `subject.now.iso`, never the provider's own clock.
+ * `sequence` — the engine's CAS document number, minted after render.
+ * `connection` — the connection's currency. `setting` — one of the add-on's
+ * own non-secret settings. `now` — `subject.now.iso`, never the provider's own
+ * clock.
  */
 export const OUTLINE_SLOT_DEFAULTS = ['sequence', 'connection', 'setting', 'now'] as const;
 export type OutlineSlotDefault = (typeof OUTLINE_SLOT_DEFAULTS)[number];
@@ -217,7 +217,7 @@ export const documentOutlineSchema = z
  * Structurally the same object as `@adminium/meta`'s `recordRefSchema`
  * (`json-payloads.ts:17-25`), which is the AUTHORITY for the shape; it is
  * restated here because this package has no `node:` and no meta dependency by
- * design (01 §3). A file that imports both should alias one — they are two
+ * design. A file that imports both should alias one — they are two
  * declarations of one shape, not two shapes.
  */
 export interface RecordRef {
@@ -231,9 +231,9 @@ export interface RecordRef {
 }
 
 /**
- * What a PUBLIC caller may send (34 D15): values, and nothing that decides
- * anything. The server stamps `business`, `now`, `currency`, `entity: null`
- * and `number: null` itself — a request that carries one of them is refused
+ * What a PUBLIC caller may send: values, and nothing that decides anything.
+ * The server stamps `business`, `now`, `currency`, `entity: null` and
+ * `number: null` itself — a request that carries one of them is refused
  * `INVALID_REQUEST` rather than quietly overwritten, so a customer cannot
  * post a document that claims to come from a different business or to have
  * been issued last year.
@@ -271,7 +271,7 @@ export interface DocumentSubject {
   /** ISO-4217. */
   currency: string;
   business: { name: string; lines: readonly string[]; logoDataUrl?: string };
-  /** `null` for request-shaped intents (34 D15). */
+  /** `null` for request-shaped intents. */
   entity: RecordRef | null;
   /** `null` until minted; a re-render carries the number it already has. */
   number: string | null;

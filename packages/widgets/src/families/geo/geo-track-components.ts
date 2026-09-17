@@ -3,7 +3,7 @@
  * `geo` family component barrel — the single lazy-import target for this
  * family's definitions, so the registry metadata graph reaches the
  * @adminium/ui-heavy map components only through a dynamic `import()` boundary
- * (one lazy chunk for the family, 04 §2.3). Mirrors the media/communication
+ * (one lazy chunk for the family). Mirrors the media/communication
  * `*-components.ts` convention.
  *
  * Leaflet is NOT reachable from here either: `MapBubble.tsx` imports it

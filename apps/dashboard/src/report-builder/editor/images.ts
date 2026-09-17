@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Reading an uploaded image into the document (43-report-builder.md D26/O4,
- * over 34 O18's caps inherited unchanged; the comp's `readBg`, 534): a
- * `FileReader` data URL, capped so a single letterhead never makes a body
- * nobody sized for. Two slots use it — the document background (comp 360-367)
- * and the `image` block's own picture. The caller shows the reason on refusal.
+ * Reading an uploaded image into the document (over caps inherited unchanged;
+ * the comp's `readBg`, 534): a `FileReader` data URL, capped so a single
+ * letterhead never makes a body nobody sized for. Two slots use it — the
+ * document background (comp 360-367) and the `image` block's own picture. The
+ * caller shows the reason on refusal.
  */
 import { IMAGE_DATA_URL_MAX } from '../model/envelope.js';
 

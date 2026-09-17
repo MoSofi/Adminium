@@ -9,14 +9,14 @@
 /** The job kind that walks a rule's graph. INTERNAL: never enqueued by `POST /jobs`. */
 export const AUTOMATION_RUN_KIND = 'automation.run';
 
-/** Croner schedule names (08 §2 jobs plugin; both tick every minute). */
+/** Croner schedule names (jobs plugin; both tick every minute). */
 export const AUTOMATION_WATCH_SCHEDULE_NAME = 'automation-watch';
 export const AUTOMATION_SCHEDULE_SCAN_NAME = 'automation-schedule';
 export const AUTOMATION_POLL_CRON = '* * * * *';
 
 /**
  * Jitter, so the two pollers and the scheduled-reports poll — all three on
- * `* * * * *` — do not land on the same second of every minute (§8).
+ * `* * * * *` — do not land on the same second of every minute.
  */
 export const AUTOMATION_WATCH_JITTER_MS = 5_000;
 export const AUTOMATION_SCHEDULE_JITTER_MS = 10_000;

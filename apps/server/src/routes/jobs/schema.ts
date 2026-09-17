@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the jobs resource (08-server-api.md §1.5 naming, §2.17
- * routes). Success envelope `{ data }`; the cursor list adds
- * `cursor: { next }` per §1.5.
+ * Zod schemas for the jobs resource (naming, routes). Success envelope
+ * `{ data }`; the cursor list adds `cursor: { next }`.
  */
 import { z } from 'zod';
 
@@ -45,7 +44,7 @@ export const jobsCreateBody = z.object({
 });
 export type JobsCreateBody = z.infer<typeof jobsCreateBody>;
 
-/** 202 accepted envelope (§2 `jobAcceptedReply`). */
+/** 202 accepted envelope (`jobAcceptedReply`). */
 export const jobsCreateReply = z.object({
   data: z.object({ jobId: z.string(), status: jobStatus }),
 });

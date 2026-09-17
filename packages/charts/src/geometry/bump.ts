@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Bump-chart geometry (`chart-bump`, research/widget-registry.md §2): rank
+ * Bump-chart geometry (`chart-bump`, research/widget-registry.md): rank
  * over ordered periods, rank 1 pinned to the top. Ranks are a discrete
- * categorical/ordinal axis, so the period axis MIRRORS in RTL (04 §7.4 —
- * "rankings mirror"). Pure + DOM-free.
+ * categorical/ordinal axis, so the period axis MIRRORS in RTL ("rankings
+ * mirror"). Pure + DOM-free.
  */
 import type { XYPoint } from './lineArea.js';
 

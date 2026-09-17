@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The shared in-app notification writer (07-meta-store.md §3.20,
- * 08-server-api.md §3 `notifications:<userId>`): every producer inserts
- * through `notificationsRepo` and, when it has the hub, publishes the row on
- * the recipient's channel so an open session's bell/badge updates without a
- * refetch cycle.
+ * The shared in-app notification writer (`notifications:<userId>`): every
+ * producer inserts through `notificationsRepo` and, when it has the hub,
+ * publishes the row on the recipient's channel so an open session's
+ * bell/badge updates without a refetch cycle.
  *
  * Channel-preference gating lives HERE, not in the repo: a producer names its
- * `kind` (which doubles as the §3.21 `event_key`) and the writer consults
+ * `kind` (which doubles as the `event_key`) and the writer consults
  * `notificationPrefsRepo.channelsFor(...)`. `inApp` decides whether a row is
  * written; `email` queues a message through `email/send.ts`. The two are
  * INDEPENDENT — a user who wants mail but no bell badge gets exactly that, so
@@ -50,7 +49,7 @@ export const NOTIFICATION_CREATED_EVENT = 'notification.created';
 /** Event type published when rows flip to read (badge sync across tabs). */
 export const NOTIFICATION_READ_EVENT = 'notification.read';
 
-/** The §3 channel name for one user's notification stream. */
+/** The channel name for one user's notification stream. */
 export function notificationsChannel(userId: string): string {
   return `notifications:${userId}`;
 }
@@ -64,7 +63,7 @@ export interface NotifyOptions {
   /** When present, the row is fanned out on `notifications:<userId>`. */
   hub?: NotificationPublisher | undefined;
   /**
-   * Consult the user's §3.21 prefs for `kind` before inserting; default true.
+   * Consult the user's prefs for `kind` before inserting; default true.
    * Producers of rows the user cannot opt out of (none today) pass false.
    */
   respectPrefs?: boolean | undefined;
@@ -72,8 +71,9 @@ export interface NotifyOptions {
   /**
    * Absolute origin (`https://admin.example.com`) used to turn the row's
    * `actionUrl` into a clickable link in the email. Producers that run inside
-   * a request pass `requestOrigin(request)`; background producers (the report
-   * scheduler) have none, and the email then carries the path as stored.
+   * a request pass `await linkOrigin(meta, request)`, never anything read off
+   * the request directly (security/public-origin.ts); background producers (the
+   * report scheduler) have none, and the email then carries the path as stored.
    */
   origin?: string | undefined;
   /** Skip the email leg entirely (tests, and producers that mail their own). */

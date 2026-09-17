@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/apps` and the install wizard under axe (47-app-installation.md
- * step 3): the page with nothing installed, the page with an app on it, the
- * uninstall dialog, and each of the wizard's steps — including the plan step
- * with its DDL preview open, which is the one state that paints a dark code
- * block on a themed page. Each in light and dark. Zero serious/critical
- * violations is the gate; lesser counts are annotated per state so a
- * regression in them is visible in the report.
+ * `/studio/apps` and the install wizard under axe: the page with nothing
+ * installed, the page with an app on it, the uninstall dialog, and each of
+ * the wizard's steps — including the plan step with its DDL preview open,
+ * which is the one state that paints a dark code block on a themed page.
+ * Each in light and dark. Zero serious/critical violations is the gate;
+ * lesser counts are annotated per state so a regression in them is visible
+ * in the report.
  *
- * The online app catalogue adds two more (48 §6b G8-D7): the shelf with
- * catalogue rows on it — a switch, a warn-toned "needs a newer Adminium" line
- * and a disabled Install, none of which the offline shelf paints — and the
- * update consent dialog, which is a second DDL block inside a modal. Both are
- * reached WITHOUT the network: the cached catalogue document is written into
- * the store by hand and the update is to a version already on disk, exactly as
+ * The online app catalogue adds two more (b G8-D7): the shelf with catalogue
+ * rows on it — a switch, a warn-toned "needs a newer Adminium" line and a
+ * disabled Install, none of which the offline shelf paints — and the update
+ * consent dialog, which is a second DDL block inside a modal. Both are reached
+ * WITHOUT the network: the cached catalogue document is written into the store
+ * by hand and the update is to a version already on disk, exactly as
  * `app-catalogue.spec.ts` does it.
  *
  * THE SWEEP ASSERTS IT ANALYSED SOMETHING. An `AxeBuilder` pointed at a
@@ -25,8 +25,8 @@
  * AN OPEN LAYER IS ANALYSED WITHIN ITSELF. Radix marks everything outside a
  * modal `aria-hidden` and traps focus inside it; axe's `aria-hidden-focus` rule
  * reads the trapped-out background as "hidden but focusable" and fails every
- * overlay in the product. That conflict is recorded in 39 §6.1 and is not
- * masked here — page-level states still run over the whole document.
+ * overlay in the product. That conflict is recorded and is not masked here —
+ * page-level states still run over the whole document.
  *
  * Theme is the signed-in user's own pref, restored afterwards, because the
  * suite shares one seeded account and runs serially.

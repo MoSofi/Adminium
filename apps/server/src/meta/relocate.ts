@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Moving a live meta store to a different database (01-architecture.md §3.1
- * meta placement; §7.2 bootstrap precedence).
+ * Moving a live meta store to a different database (meta placement;
+ * bootstrap precedence).
  *
  * ── WHY THIS EXISTS ─────────────────────────────────────────────────────────
  * Meta placement used to be answerable only before the store existed, which the
@@ -68,8 +68,8 @@ export class MetaAlreadyThereError extends MetaRelocateError {
 }
 
 /**
- * `ADMINIUM_META_URL` is set, so §7.2 precedence would override the bootstrap
- * file this writes and the instance would return to the old store on restart.
+ * `ADMINIUM_META_URL` is set, so precedence would override the bootstrap file
+ * this writes and the instance would return to the old store on restart.
  *
  * Refusing is the only honest answer: performing the copy would produce a
  * populated new database, a bootstrap file nobody reads, and an instance still
@@ -161,9 +161,9 @@ export interface RelocateMetaStoreOptions {
   onProgress?: ((table: string, rows: number) => void) | undefined;
   /**
    * Rename the target's existing `adminium_` tables out of the way instead of
-   * refusing (45-onboarding.md 45-T11). The operator asked for this on the
-   * connect step, having been told what is already in there; the default is
-   * still to refuse, because merging two stores is not a thing this can do.
+   * refusing. The operator asked for this on the connect step, having been
+   * told what is already in there; the default is still to refuse, because
+   * merging two stores is not a thing this can do.
    */
   park?: boolean | undefined;
 }
@@ -218,7 +218,7 @@ export async function relocateMetaStore(
     // create nothing — and the copy would then land on that instance's rows.
     if (opts.park === true) await parkAdminiumTables(target.meta);
 
-    // The migration run IS the write + DDL probe (01 §3.1's rule for same-db
+    // The migration run IS the write + DDL probe (rule for same-db
     // placement): a read-only or DDL-less role cannot get past it, and saying so
     // in those terms beats surfacing a raw driver permission error.
     try {
@@ -285,9 +285,9 @@ export type RetireResult = { renamedTo: string; moved: string[] } | { error: Err
  * RENAMED, NOT DELETED: this file is the only copy of everything the instance
  * knew a moment ago, and the minutes after a migration are exactly when someone
  * wants it back. Renaming also disarms it — if the bootstrap file is ever lost
- * (a changed `ADMINIUM_SECRET` is the documented way that happens), §7.2's third
- * rung would otherwise reopen this stale store and present the pre-move
- * instance as the real one.
+ * (a changed `ADMINIUM_SECRET` is the documented way that happens), third rung
+ * would otherwise reopen this stale store and present the pre-move instance as
+ * the real one.
  *
  * ALL OR NOTHING, for the reason `backup-archive.ts` learned the hard way: a
  * run that moved `meta.db` but failed on `meta.db-wal` leaves the exact

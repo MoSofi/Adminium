@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Property + unit tests for the edit-mode layout math (04-widget-registry.md
- * §6.2): applyMove/applyResize compose with the reused `compactVertical` to a
- * layout that never overlaps, never goes negative, is idempotent, respects the
- * registry `minW × minH` floor, and inserts new widgets at the first free cell.
+ * Property + unit tests for the edit-mode layout math: applyMove/applyResize
+ * compose with the reused `compactVertical` to a layout that never overlaps,
+ * never goes negative, is idempotent, respects the registry `minW × minH`
+ * floor, and inserts new widgets at the first free cell.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -55,7 +55,7 @@ function assertInBounds(items: readonly LayoutItem[]): void {
   }
 }
 
-/** Deterministic PRNG (04 §7.7 convention) — no Math.random in tests. */
+/** Deterministic PRNG (convention) — no Math.random in tests. */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The public-scope consequence — 35-schema-authoring.md §6, 35-T07, §10
- * criterion 16.
+ * The public-scope consequence — criterion 16.
  *
  * ─── The bug this file exists to keep fixed ────────────────────────────────
  *
@@ -17,7 +16,7 @@
  * publishable key read a table, the operator planned a drop, and the review
  * pane said nothing at all about the key going dark.
  *
- * Found by running §10 criterion 16 in a browser against a real key.
+ * Found by running criterion 16 in a browser against a real key.
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -123,7 +122,7 @@ describe('dropping a table a public scope reads', () => {
     // storefront taken down without anyone reading it.
     expect(headline.message).toContain('STOP');
     expect(headline.message).toContain('Storefront');
-    // §6: the delay is per-instance and the operator has to plan around it.
+    // The delay is per-instance and the operator has to plan around it.
     expect(headline.message).toContain('30 seconds');
     // The WHOLE key stops, not just the resource that named this table.
     expect(headline.message).toContain('WHOLE key');

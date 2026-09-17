@@ -1,29 +1,28 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `GET /api/v1/system/info` — the deployment's capability flags, and the §8.2
- * gating matrix built on them (11-electron.md §8.1, §8.2).
+ * `GET /api/v1/system/info` — the deployment's capability flags, and the
+ * gating matrix built on them.
  *
  * THE RULE THIS FILE EXISTS TO ENFORCE, from `Empty States.dc.html` and
- * quoted in §8.2: **never hide, always explain** — icon + headline + one line of
+ * quoted: **never hide, always explain** — icon + headline + one line of
  * guidance + (when possible) an action. So the helpers below never answer a bare
  * boolean for a feature the user can see. They return a {@link FeatureGate}: is
  * it enabled, and if not, WHAT DO WE SAY. A boolean would let a caller render a
  * greyed-out button with no explanation, which is the exact failure the rule
  * names.
  *
- * The one exception is `hosted-plan` surfaces (§8.2 row 1: billing, usage
- * meters, AI credits), which are "not rendered at all" — they are Cloud portal
- * pages (12-cloud-platform.md), so there is no user here to explain anything to.
- * See {@link isHostedPlanSurface}.
+ * The one exception is `hosted-plan` surfaces (row 1: billing, usage meters, AI
+ * credits), which are "not rendered at all" — they are Cloud portal pages, so
+ * there is no user here to explain anything to. See {@link isHostedPlanSurface}.
  *
- * WHAT IS DELIBERATELY ABSENT: §8.2 has six rows; this module has helpers for
+ * WHAT IS DELIBERATELY ABSENT: the gating table has six rows; this module has helpers for
  * the three whose surfaces exist (hosted-plan, email sends, LLM). The other
  * three have no page, no route and no server resource in this build — scheduled
  * reports ("delivery = email if SMTP configured, else snapshot into
  * `adminium_exports`") and webhooks/integrations ("rows show a 'Requires
  * internet' hint") have meta tables and nothing else; the marketplace
  * ("'Install from file' always works; browsing the storefront opens the system
- * browser") is 13-marketplace.md's, unbuilt.
+ * browser") is, unbuilt.
  *
  * A helper written now for a caller that does not exist is a gate that gates
  * nothing while looking like coverage, and this codebase has shipped that
@@ -31,7 +30,7 @@
  * builds the surface, against `smtpConfigured` / `networkFeaturesAllowed` —
  * which this task's whole job was to make available and true.
  *
- * WHY THE SERVER AND NOT `window.adminiumDesktop`: §4 — "the SPA trusts the
+ * WHY THE SERVER AND NOT `window.adminiumDesktop`: "the SPA trusts the
  * server for feature gating and the bridge only for native affordances". See
  * `lib/desktop-runtime.ts`, which says the same thing from the other side.
  *
@@ -49,38 +48,37 @@ export interface SystemInfo {
   version: string;
   node: string;
   dialect: 'postgres' | 'mysql' | 'sqlite' | null;
-  /** Which wrapper booted the server (§4 detection contract). */
+  /** Which wrapper booted the server (detection contract). */
   runtime: Runtime;
   /** `email.smtp` is set. NOT "email will succeed" — see the server schema. */
   smtpConfigured: boolean;
   /**
    * Operator POLICY for outbound features (`ADMINIUM_NETWORK_FEATURES`), NOT a
    * reachability claim. Nothing in the product may render this as "the internet
-   * is up": §8.2's webhooks row says "rows show a 'Requires internet' HINT",
+   * is up": the webhooks row says "rows show a 'Requires internet' HINT",
    * and a hint is all anyone here is entitled to.
    */
   networkFeaturesAllowed: boolean;
   /**
-   * §6 step 2 card 4: can this build seed the demo database?
+   * The wizard's demo card: can this build seed the demo database?
    *
    * `false` means `POST /desktop/demo-database` is not mounted — either this is
    * not the desktop runtime, or it is a desktop build with no
    * `ADMINIUM_DEMO_SEED_SCRIPT`. The first-run wizard renders the card either
-   * way and explains itself when this is false (§8.2: "never hide, always
-   * explain"), which is why the flag is a fact rather than a reason to omit a
-   * card.
+   * way and explains itself when this is false ("never hide, always explain"),
+   * which is why the flag is a fact rather than a reason to omit a card.
    */
   desktopDemo: boolean;
   /**
-   * §8.3: is this desktop process bound to every interface, i.e. reachable from
-   * the LAN right now?
+   * Is this desktop process bound to every interface, i.e. reachable from the
+   * LAN right now?
    *
    * THE BIND, NOT THE TOGGLE. `config.json`'s `lanShare.enabled` is an intent
    * the user can change at any moment; this is the state of the server's own
    * socket, which is what `desktop/lan-share.ts` derives it from. The two
    * disagree for a whole server lifetime whenever a rebind has failed or has not
-   * happened yet — precisely the window in which §8.1's chip must not claim
-   * "Sharing on LAN" over a loopback-only server, or the reverse.
+   * happened yet — precisely the window in which chip must not claim "Sharing on
+   * LAN" over a loopback-only server, or the reverse.
    *
    * Always `false` on self-host: binding `0.0.0.0` behind a reverse proxy is the
    * normal, correct configuration there and is not this feature.
@@ -185,7 +183,7 @@ export function useCapabilities(): Capabilities {
   };
 }
 
-// ── The §8.2 matrix ──────────────────────────────────────────────────────────
+// ── The matrix ───────────────────────────────────────────────────────────────
 
 /**
  * A gated feature and the copy that explains it. `reason` is a CODE, not a
@@ -199,7 +197,7 @@ export interface FeatureGate {
 }
 
 export type GateReason =
-  /** §8.2 email row: "Configure SMTP to send email" + link. */
+  /** The email row: "Configure SMTP to send email" + link. */
   | 'smtp-not-configured'
   /** The operator declared this install air-gapped (`ADMINIUM_NETWORK_FEATURES=off`). */
   | 'network-disabled';
@@ -209,14 +207,14 @@ const ENABLED: FeatureGate = { enabled: true, reason: null };
 type Flags = Pick<SystemInfo, 'smtpConfigured' | 'networkFeaturesAllowed'>;
 
 /**
- * §8.2, "Email sends (templates, dunning-style lifecycle mails, invites)":
- * "Enabled only when SMTP is configured in settings; otherwise buttons disabled
- * with 'Configure SMTP to send email' + link".
+ * "Email sends (templates, dunning-style lifecycle mails, invites)": "Enabled
+ * only when SMTP is configured in settings; otherwise buttons disabled with
+ * 'Configure SMTP to send email' + link".
  *
  * Note what is NOT consulted: `networkFeaturesAllowed`. An air-gapped install
- * with an SMTP relay on its own LAN sends mail perfectly well — §7's email row
- * says "actual sending requires user-configured SMTP", and says nothing about
- * the internet. Folding the two flags together would break exactly that
+ * with an SMTP relay on its own LAN sends mail perfectly well — email row says
+ * "actual sending requires user-configured SMTP", and says nothing about the
+ * internet. Folding the two flags together would break exactly that
  * deployment.
  */
 export function emailSendGate(flags: Flags): FeatureGate {
@@ -231,7 +229,7 @@ export function emailSendGate(flags: Flags): FeatureGate {
  * case with a "requires internet" hint and let failures use the standard retry
  * UI.
  *
- * NOT EXPORTED. §8.2's webhooks/integrations row is the obvious caller and it
+ * NOT EXPORTED. The webhooks/integrations row is the obvious caller and it
  * does not exist yet — there is no webhooks page, no integrations page, and no
  * `/api/v1/webhooks` route in this build. Exporting this for that future caller
  * would ship a gate nothing gates, which reads as coverage and is not; when the
@@ -243,19 +241,19 @@ function networkFeatureGate(flags: Flags): FeatureGate {
 }
 
 /**
- * §8.2, "LLM provider-API mode": "Available, labeled; BYO round-trip is the
+ * "LLM provider-API mode": "Available, labeled; BYO round-trip is the
  * default and is highlighted first in desktop".
  *
  * Two separate answers, and conflating them is the trap:
  *
  *  - `providerApi` — the direct-API path. It needs the internet, so an
  *    air-gapped install gets the explained-disabled state rather than a card
- *    that times out. On a normal install it is enabled AND labeled: §6 step 4's
+ *    that times out. On a normal install it is enabled AND labeled: the wizard's
  *    "API-credential mode is available but labeled 'Requires internet & an API
  *    key'".
  *  - `byoFirst` — presentation only. Desktop leads with the copy/paste
- *    round-trip (§6 step 4, §7's LLM row, 06-llm-assist.md). It is NOT gated:
- *    BYO makes zero network calls and works in every runtime.
+ * round-trip (LLM row). It is NOT gated: BYO makes zero network calls and
+ *    works in every runtime.
  */
 export interface LlmAffordances {
   providerApi: FeatureGate;
@@ -270,15 +268,16 @@ export function llmAffordances(
     providerApi: networkFeatureGate({ smtpConfigured: false, ...info }),
     // Air-gapped self-hosts get the same lead as desktop: on an install where
     // the direct path cannot work, showing it first is an invitation to a dead
-    // end. §7 makes the desktop case contractual; this makes it coherent.
+    // end. The offline contract makes the desktop case contractual; this
+    // makes it coherent.
     byoFirst: info.runtime === 'desktop' || !info.networkFeaturesAllowed,
   };
 }
 
 /**
- * §8.2 row 1 — "Hosted-plan surfaces (billing, usage meters, AI credits): Not
- * rendered at all — these are Cloud portal pages (12-cloud-platform.md), absent
- * from self-host/desktop nav".
+ * Row 1 — "Hosted-plan surfaces (billing, usage meters, AI credits): Not
+ * rendered at all — these are Cloud portal pages, absent from self-host/desktop
+ * nav".
  *
  * "Not rendered at all" is a stronger promise than a gate, and the codebase
  * mostly keeps it BY CONSTRUCTION rather than by checking: there is no billing
@@ -289,12 +288,11 @@ export function llmAffordances(
  * This predicate covers the one surface that is NOT absent: `/state/$stateId`
  * addresses every system state by id (`states/stateMap.ts`), including
  * `suspended` — the 402 workspace-suspended screen. That state can only ever be
- * produced by a managed/hosted instance (deferred — 17-deferred-monetization.md),
- * so on self-host and desktop it is a screen a user can navigate to in a product
- * that can never produce it. The `/state/$stateId` route (`app/router.tsx`) asks this before
- * rendering — not `StatePage` itself, which also serves the legitimate inline
- * states (`StudioGuard`'s forbidden, and the error boundaries') that have
- * nothing to do with billing.
+ * produced by a managed/hosted instance (deferred), so on self-host and desktop it is a
+ * screen a user can navigate to in a product that can never produce it. The
+ * `/state/$stateId` route (`app/router.tsx`) asks this before rendering — not `StatePage`
+ * itself, which also serves the legitimate inline states (`StudioGuard`'s forbidden, and the
+ * error boundaries') that have nothing to do with billing.
  */
 const HOSTED_PLAN_STATE_IDS: readonly string[] = ['suspended'];
 
@@ -302,9 +300,8 @@ const HOSTED_PLAN_STATE_IDS: readonly string[] = ['suspended'];
  * NO `runtime` PARAMETER, deliberately. Both members of {@link Runtime} —
  * `self-host` and `desktop` — are billing-free, so a runtime argument could not
  * change this answer; it would read as a live gate while being an always-true
- * comparison, which is worse than no gate at all. When `cloud` joins the enum
- * (12-cloud-platform.md), THIS is the function that gets the carve-out, and its
- * callers do not change.
+ * comparison, which is worse than no gate at all. When `cloud` joins the enum,
+ * THIS is the function that gets the carve-out, and its callers do not change.
  */
 export function isHostedPlanSurface(stateId: string): boolean {
   return HOSTED_PLAN_STATE_IDS.includes(stateId);

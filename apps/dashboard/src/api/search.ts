@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Global-search client (`GET /api/v1/search`, 08-server-api.md §2.9; exact
- * shapes from apps/server/src/routes/search/schema.ts). The ⌘K palette calls
- * with `limit=3` (§2.9) and `types=record` — its Actions/Navigate/Recent
- * groups are client-side (registry + localStorage), never server concerns.
+ * Global-search client (`GET /api/v1/search`; exact shapes from
+ * apps/server/src/routes/search/schema.ts). The ⌘K palette calls with
+ * `limit=3` and `types=record` — its Actions/Navigate/Recent groups are
+ * client-side (registry + localStorage), never server concerns.
  */
 import { api } from '../app/api.js';
 
@@ -21,7 +21,7 @@ export interface SearchRecordHit {
   /** `:recordId` segment for `hrefForRecord(pageSlug, recordId)`. */
   recordId: string;
   label: string;
-  /** §2.9 row context, e.g. `unit_price 18 · status active` (may be absent). */
+  /** Row context, e.g. `unit_price 18 · status active` (may be absent). */
   context?: string | undefined;
   pageSlug: string;
 }
@@ -43,7 +43,7 @@ export interface SearchReply {
   data: { groups: SearchGroup[] };
 }
 
-/** Per-group cap the palette asks for (08 §2.9). */
+/** Per-group cap the palette asks for. */
 export const PALETTE_SEARCH_LIMIT = 3;
 
 export interface SearchOptions {

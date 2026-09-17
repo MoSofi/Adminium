@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-target privilege preflight — 35-schema-authoring.md D17, 35-T34.
+ * Per-target privilege preflight.
  *
  * ─── Why the probe on the connection is not the answer ─────────────────────
  *

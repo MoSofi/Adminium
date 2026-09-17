@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Structural edits over the envelope (34-invoices-add-on.md Appendix F
- * "Ordering rules the port must keep"; 34-T47). Every function is pure and
- * returns a new body; the editor's `useDocumentEdits` decides which of them
- * record a history step.
+ * Structural edits over the envelope. Every function is pure and returns a
+ * new body; the editor's `useDocumentEdits` decides which of them record a
+ * history step.
  *
  * THREE COMP BEHAVIOURS, BY LINE:
  *

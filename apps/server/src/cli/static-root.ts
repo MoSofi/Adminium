@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Locating the dashboard build (01-architecture.md §4.1: the published package
- * "bundles the server, the dashboard `dist/`, and the meta migrations").
+ * Locating the dashboard build (the published package "bundles the server, the
+ * dashboard `dist/`, and the meta migrations").
  *
  * `buildServer({ staticRoot })` wants a directory containing `index.html`; the
  * static plugin no-ops cleanly when the directory is absent, so a miss here

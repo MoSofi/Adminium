@@ -16,21 +16,21 @@ export { callWidgetConfigSchema, callWidgetDemoData } from './communication-conf
 export type { CallWidgetConfig };
 
 /**
- * `call-widget` (annex §9) — the ringing state: a large avatar wrapped in an
+ * `call-widget` (annex) — the ringing state: a large avatar wrapped in an
  * expanding accent ring, the voice/video kind label, and accept/decline
  * controls. The annex flags it as niche and says why it is kept: marketplace
  * apps (a POS support line, a telehealth micro-SaaS).
  *
  * A SHELL, NOT A CALL STACK: it renders `{kind, peer, state}` and emits accept /
  * decline / hang-up as `mutate` intents through `onEvent` (the host runs them
- * through the CRUD API with audit + undo, 04 §2.1). It never opens a media
- * device or a peer connection — a marketplace app that wants real WebRTC owns
- * that and drives this widget's `state` column.
+ * through the CRUD API with audit + undo). It never opens a media device or a
+ * peer connection — a marketplace app that wants real WebRTC owns that and
+ * drives this widget's `state` column.
  *
  * MOTION: the expanding ring is `motion-safe:animate-ping`, so it is inert under
- * `prefers-reduced-motion` (02 §6) — the static ring still reads as "ringing",
- * and the state label carries the meaning for anyone who never sees the
- * animation at all.
+ * `prefers-reduced-motion` — the static ring still reads as "ringing", and the
+ * state label carries the meaning for anyone who never sees the animation at
+ * all.
  *
  * RTL: centered column flow with logical gaps only; nothing to mirror.
  */

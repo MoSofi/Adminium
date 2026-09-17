@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for `routes/schema/` (08-server-api.md §2.5).
- * Model payloads are engine-owned JSON and pass through opaquely.
+ * Zod schemas for `routes/schema/`. Model payloads are
+ * engine-owned JSON and pass through opaquely.
  */
 
 import { z } from 'zod';
@@ -12,14 +12,13 @@ export const schemaConnParams = z.object({ id: z.string().min(1) });
 export const snapshotParams = z.object({ id: z.string().min(1), snapshotId: z.string().min(1) });
 
 export const schemaGetQuery = z.object({
-  /** `raw=true` returns the untouched introspection result (§2.5). */
+  /** `raw=true` returns the untouched introspection result. */
   raw: boolFlag(),
   /**
-   * Locale the effective LABELS resolve to (10-i18n-theming.md §6.4,
-   * 23-runtime-translations.md §8). The client sends its resolved preference;
-   * absent means `en_US`, which is exactly the pre-23 behaviour. Being an
-   * explicit parameter rather than an implicit per-user lookup is what lets
-   * the response be cached per locale instead of per user.
+   * Locale the effective LABELS resolve to. The client sends its resolved
+   * preference; absent means `en_US`, which is exactly the pre-23 behaviour.
+   * Being an explicit parameter rather than an implicit per-user lookup is
+   * what lets the response be cached per locale instead of per user.
    */
   locale: z
     .string()
@@ -40,7 +39,7 @@ export const schemaReply = z.object({
   /** Number of active override ops applied (0 when raw). */
   appliedOverrides: z.number(),
   /**
-   * Whether this connection's schema can be AUTHORED, and why not (35-T15).
+   * Whether this connection's schema can be AUTHORED, and why not.
    *
    * On this reply rather than on the connection DTO because Studio's remap page
    * already reads this endpoint under the grant it already has: reading
@@ -72,7 +71,7 @@ export const snapshotListReply = z.object({
 });
 
 export const schemaDiffQuery = z.object({
-  /** Defaults: previous vs latest (§2.5). */
+  /** Defaults: previous vs latest. */
   from: z.string().optional(),
   to: z.string().optional(),
 });

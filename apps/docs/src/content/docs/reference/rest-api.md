@@ -113,6 +113,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/pages/*` | 13 | Pages and dashboards — layout, config, nav order, shared views |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
+| `/api/v1/project/*` | 7 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
 | `/api/v1/public/*` | 11 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 2 | Turn the public API on or off, and see whether this instance opted in |
 | `/api/v1/public-keys/*` | 5 | Issue, reveal, rotate and revoke the browser-safe keys your pages use |
@@ -522,6 +523,18 @@ DELETE /api/v1/pages/{pageId}/views/{viewId}
 
 ```http
 GET /api/v1/permissions/catalog
+```
+
+### `/project`
+
+```http
+GET /api/v1/project/status
+POST /api/v1/project/resolve
+GET /api/v1/project/export
+GET /api/v1/project/actions
+POST /api/v1/project/actions/{id}
+GET /api/v1/project/overview
+GET /api/v1/project/client/{*}
 ```
 
 ### `/public`

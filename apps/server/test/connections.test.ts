@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Live connections-manager suite (M3-T04/T05/T06) against a real local
- * PostgreSQL — skipped entirely when psql, the Northwind fixture, or the
- * postgres adapter provider is unavailable (CI-without-PG stays green).
+ * Live connections-manager suite against a real local PostgreSQL —
+ * skipped entirely when psql, the Northwind fixture, or the postgres
+ * adapter provider is unavailable (CI-without-PG stays green).
  *
  * Covers: create via API with encrypted-DSN round-trip, pre-create test,
  * introspection → classified snapshot + auto-proposed PII masks, overrides
  * write path + APPLIED read path, snapshot history + diff, type-to-confirm
- * delete, read-only-role detection, and the 01 §3.1 meta-placement refusal.
+ * delete, read-only-role detection, and the meta-placement refusal.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -189,7 +189,7 @@ describe.skipIf(!AVAILABLE)('connections manager (live PG)', () => {
     expect(tableIds).toContain('public.customers');
     expect(tableIds).toContain('public.orders');
     const customers = payload.model.tables.find((table) => table.id === 'public.customers')!;
-    // Classifier ran (05 §7): semantics are filled in.
+    // Classifier ran: semantics are filled in.
     expect(customers.columns.every((column) => column.semantics !== null)).toBe(true);
     const phone = customers.columns.find((column) => column.name === 'phone')!;
     expect(phone.semantics?.primary).toBe('phone');
@@ -212,7 +212,7 @@ describe.skipIf(!AVAILABLE)('connections manager (live PG)', () => {
   it('PUT overrides validates against the snapshot and the read path applies them', async () => {
     const id = (await t.manager.connections.list())[0]!.id;
 
-    // Unknown identifiers → 422 (§2.5).
+    // Unknown identifiers → 422.
     const badColumn = await t.app.inject({
       method: 'PUT',
       url: `/api/v1/connections/${id}/overrides`,

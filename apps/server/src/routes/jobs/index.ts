@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Jobs routes (08-server-api.md §2.17, M2-T07), mounted under `/api/v1`:
+ * Jobs routes, mounted under `/api/v1`:
  *
  * - `POST /jobs`            — enqueue by kind (`system:jobs:manage`)
  * - `GET  /jobs/:id`        — status + progress (owner or `system:jobs:read`)
@@ -8,7 +8,7 @@
  * - `POST /jobs/:id/cancel` — cooperative cancel (owner or `system:jobs:manage`)
  *
  * "Owner" is the `payload.userId` convention; `POST /jobs` stamps it with the
- * enqueuing user. Progress comes from the in-process worker (01 §5 model).
+ * enqueuing user. Progress comes from the in-process worker (model).
  *
  * Both mutations write an `automation`-category audit row (`job.enqueue`,
  * `job.cancel`) through `app.rbac.audit`. The routes take their own injected
@@ -250,7 +250,7 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
             ]),
           );
         }
-        // Keyset order: newest first, id as the tiebreaker (§1.5 cursor lists).
+        // Keyset order: newest first, id as the tiebreaker (cursor lists).
         const rows = await query
           .orderBy('createdAt', 'desc')
           .orderBy('id', 'desc')
@@ -282,7 +282,7 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
             hub.publish(jobChannel(job.id), 'cancelled', { jobId: job.id, kind: job.kind });
           }
         } else if (job.status === 'running') {
-          // Cooperative (§2.17): the in-process worker aborts the run's
+          // Cooperative: the in-process worker aborts the run's
           // signal; the handler notices between batches and the worker
           // records the terminal state.
           worker.requestCancel(job.id);

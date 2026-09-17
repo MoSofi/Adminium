@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Postgres dbType → portable LogicalType mapping — 05-introspection-engine.md
- * §2.2 ("canonical table — extend, never fork"), Postgres column.
+ * Postgres dbType → portable LogicalType mapping — ("canonical table —
+ * extend, never fork"), Postgres column.
  *
  * Input is the verbatim `pg_catalog.format_type(atttypid, atttypmod)` string
  * (e.g. `character varying(120)`, `timestamp with time zone`, `numeric(10,2)`)
@@ -64,7 +64,7 @@ const BASE_TYPE_MAP: Readonly<Record<string, LogicalType>> = {
   bytea: 'binary',
   inet: 'inet',
   cidr: 'inet',
-  // PostGIS (flag; rendered read-only as text in v1 — 05 §2.2)
+  // PostGIS (flag; rendered read-only as text in v1)
   geometry: 'geometry',
   geography: 'geometry',
 };
@@ -103,7 +103,7 @@ function modifiers(dbType: string): number[] {
 /**
  * Map a verbatim Postgres type string to its portable shape. Unmappable
  * types become `'unknown'` with the verbatim `dbType` preserved by the
- * caller (rendered read-only as text — 05 §2.2).
+ * caller (rendered read-only as text).
  */
 export function mapPostgresType(dbType: string): MappedType {
   const base = baseTypeName(dbType);
@@ -136,8 +136,8 @@ const LITERAL_DEFAULT =
   /^('(?:[^']|'')*'(?:::[a-z_"][\w ."[\]]*(?:\(\d+(?:,\s*\d+)?\))?)?|-?\d+(\.\d+)?|true|false|NULL(?:::[a-z_"][\w ."[\]]*)?)$/i;
 
 /**
- * Classify a column default — 05 §4.1: `serial`/`nextval` and identity
- * columns → `autoincrement`; `now()`/`CURRENT_TIMESTAMP` → `now`;
+ * Classify a column default: `serial`/`nextval` and identity columns →
+ * `autoincrement`; `now()`/`CURRENT_TIMESTAMP` → `now`;
  * `gen_random_uuid()`/`uuid_generate_v4()` → `uuid`.
  *
  * @param defaultExpr `pg_get_expr(adbin, adrelid)` output, or null.

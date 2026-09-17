@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Studio half of the deferred-namespace contract (10-T06).
+ * The Studio half of the deferred-namespace contract.
  *
  * `@adminium/i18n`'s own tests prove what `loadNamespaces('studio')` does to
  * an instance. What only this side can prove is the wiring around it: that a

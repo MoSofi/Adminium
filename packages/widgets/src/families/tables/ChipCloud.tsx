@@ -14,7 +14,7 @@ export { chipCloudConfigSchema, chipCloudDemoData };
 export type { ChipCloudConfig, CloudChip };
 
 /**
- * `chip-cloud` (annex §3) — wrapped mono chips: discovered table names, merge
+ * `chip-cloud` (annex) — wrapped mono chips: discovered table names, merge
  * variables, suggested dashboards (Adminium Console, Connect Database, Email
  * Templates, Workspace Settings). Optional staggered pop-in, optional
  * click-to-insert.
@@ -24,9 +24,9 @@ export type { ChipCloudConfig, CloudChip };
  * ship focusable, clickable-looking dead controls.
  *
  * The stagger is a CSS custom property per chip (`--chip-i`), the sanctioned
- * escape hatch for a per-item dynamic value (02 §8). It is opt-in and the
- * animation utility itself is `motion-safe:`, so `prefers-reduced-motion`
- * viewers get the cloud with no pop-in at all.
+ * escape hatch for a per-item dynamic value. It is opt-in and the animation
+ * utility itself is `motion-safe:`, so `prefers-reduced-motion` viewers get
+ * the cloud with no pop-in at all.
  */
 
 export interface ChipCloudProps {
@@ -44,7 +44,7 @@ export interface ChipCloudProps {
   testId?: string | undefined;
 }
 
-/** The staggered pop-in, opt-in and `motion-safe`-gated (02 §8, 10 §6). */
+/** The staggered pop-in, opt-in and `motion-safe`-gated. */
 const STAGGER_CLASS =
   'motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:[animation-delay:calc(var(--chip-i)*40ms)] motion-safe:[animation-fill-mode:backwards]';
 

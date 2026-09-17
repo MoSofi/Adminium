@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `boards` family (annex §6, Track BOARDS): render + interaction tests for
+ * `boards` family (annex, Track BOARDS): render + interaction tests for
  * kanban-board and kanban-swimlane-grid. dnd-kit's pointer sensor needs real
  * layout rects (unavailable in happy-dom), so the drag-move behaviour is
  * exercised through the widget's own logical keyboard path — which funnels

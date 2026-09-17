@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The en-US bundles that ship SYNCHRONOUSLY (10-i18n-theming.md §2.3).
+ * The en-US bundles that ship SYNCHRONOUSLY.
  *
  * Separate from ./index.ts because that module also exports the complete
  * catalogue for edit-time consumers (the key index, the parity gate, the

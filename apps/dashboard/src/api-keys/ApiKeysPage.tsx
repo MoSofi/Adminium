@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/api-keys` — API keys & tokens (M10-T06; ports `API Keys.dc.html`).
+ * `/api-keys` — API keys & tokens (ports `API Keys.dc.html`).
  *
  * THE ONE-TIME SECRET is the page's whole reason for existing. The server hands
  * back a plaintext key exactly once, at creation, and stores only a SHA-256 hash
@@ -8,21 +8,20 @@
  * shows the secret in a banner that lives in COMPONENT STATE, never in the query
  * cache, and the list below renders `prefix` + metadata only.
  *
- * PORT NOTES (16-milestones §5 checklist).
+ * PORT NOTES (16-milestones checklist).
  *
- * §5.1 keepers kept: the one-time banner and its exact microcopy ("Copy it now
+ * Keepers kept: the one-time banner and its exact microcopy ("Copy it now
  * — you won't be able to see it again."), the key table with a masked value +
  * scope chips + last-used stamp, per-row revoke, and the quick-start auth
  * snippet.
  *
- * §5.5 known defects NOT copied:
- *   - **The fake-reveal** (`ia-mapping.md` §4 names it outright: "One-time
- *     secret banner; fake-reveal"). The comp's eye toggle swaps bullets for
- *     UNDERSCORES — it performs a reveal that cannot happen, because the
- *     plaintext is hashed at rest. We pass `kind: 'publishable'` so the widget
- *     renders no eye and no mask: the stored prefix is genuinely public, there
- *     is nothing to hide and nothing to reveal. The affordance is removed
- *     rather than faked.
+ * Known defects NOT copied:
+ * - **The fake-reveal** (names it outright: "One-time secret banner;
+ *   fake-reveal"). The comp's eye toggle swaps bullets for UNDERSCORES — it
+ *   performs a reveal that cannot happen, because the plaintext is hashed at
+ *   rest. We pass `kind: 'publishable'` so the widget renders no eye and no
+ *   mask: the stored prefix is genuinely public, there is nothing to hide and
+ *   nothing to reveal. The affordance is removed rather than faked.
  *   - **The invented metrics.** The comp's "Requests · 24h — 128k" and "Rate
  *     limit — 5k/min" stat cards have no counterpart in the product; rendering
  *     them would be decoration claiming to be telemetry. The honest stat — how
@@ -34,7 +33,7 @@
  *     badge shows the role, and the highest-privilege role is danger-toned.
  *
  * Composed from the registered `api-keys-panel` + `code-snippet-block` views
- * (annex §14 `page-api`) over @adminium/ui — no comp markup, no inline styles.
+ * (annex `page-api`) over @adminium/ui — no comp markup, no inline styles.
  */
 import { useMutation, useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
@@ -79,7 +78,7 @@ import {
   type RoleListItem,
 } from './apiKeysApi.js';
 
-/** The role whose keys are danger-toned — unlimited authority (07 §3.7). */
+/** The role whose keys are danger-toned — unlimited authority. */
 const SUPER_ADMIN_SLUG = 'super-admin';
 
 /** Scope chips beyond this are noise; the Roles page owns the full matrix. */

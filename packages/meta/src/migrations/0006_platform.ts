@@ -4,7 +4,7 @@
  * adminium_automation_runs, adminium_scheduled_reports, adminium_exports,
  * adminium_imports, adminium_email_templates, adminium_webhooks,
  * adminium_webhook_deliveries, adminium_feature_flags, adminium_manifests,
- * adminium_changelog_seen (07-meta-store.md §3.19, §3.22–§3.26, §3.28–§3.33).
+ * adminium_changelog_seen.
  */
 
 import type { Kysely } from 'kysely';

@@ -7,8 +7,8 @@
  * `domain-track.definitions.ts`, which imports the config schemas and `demoData`
  * generators. Those must not drag the `OrgChart` / `GanttChart` components into
  * the eager registry chunk — the family stays in ONE lazy chunk loaded via
- * `lazy(() => import('./domain-track-components.js'))` (04 §2.3; chunk-budget
- * gate). Same convention as `boards-config.ts` / the kpi + charts families.
+ * `lazy(() => import('./domain-track-components.js'))` (chunk-budget gate). Same
+ * convention as `boards-config.ts` / the kpi + charts families.
  */
 import { z } from 'zod';
 
@@ -16,13 +16,13 @@ import { DAY_MS, DOMAIN_DEMO_EPOCH, mulberry32, pickFrom } from './domain-lib.js
 import type { GanttData, OrgNode, OrgTreeData } from './domain-types.js';
 import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
-// ── org-chart (annex §13) ──────────────────────────────────────────────────
+// ── org-chart (annex) ──────────────────────────────────────────────────────
 
 /**
  * `org-chart` config. The field names map a FLAT self-referencing people table
  * (`manager_id → id`) onto the tree — the auto-instantiation trigger for this
- * widget is exactly "self-FK on a people table" (annex §13 auto-instantiation),
- * so the generator names the columns here. A payload already shaped as
+ * widget is exactly "self-FK on a people table" (annex auto-instantiation), so
+ * the generator names the columns here. A payload already shaped as
  * `hierarchy/tree` ignores them.
  *
  * `maxDepth` / `collapsible` / `deptColorMap` are the annex's declared config.
@@ -78,9 +78,9 @@ const ORG_PEOPLE: readonly { id: string; name: string; title: string; dept: stri
 ];
 
 /**
- * Deterministic `hierarchy/tree` payload (04 §7.7). The seed selects which
- * reports are staffed (never the CEO or the VPs), so distinct seeds yield
- * distinct — but always well-formed and connected — org trees.
+ * Deterministic `hierarchy/tree` payload. The seed selects which reports
+ * are staffed (never the CEO or the VPs), so distinct seeds yield distinct
+ * — but always well-formed and connected — org trees.
  */
 export function orgChartDemoData(seed: number): OrgTreeData {
   const random = mulberry32(seed || 1);
@@ -115,7 +115,7 @@ export function orgChartDemoData(seed: number): OrgTreeData {
   return { roots, total: kept.length };
 }
 
-// ── gantt-chart (annex §13) ────────────────────────────────────────────────
+// ── gantt-chart (annex) ────────────────────────────────────────────────────
 
 /**
  * `gantt-chart` config. Field names project a task table onto the time axis;
@@ -185,7 +185,7 @@ function demoDay(offset: number): string {
 }
 
 /**
- * Deterministic task `record-list` (04 §7.7). Dates derive from the fixed
+ * Deterministic task `record-list`. Dates derive from the fixed
  * `DOMAIN_DEMO_EPOCH`; the seed drives per-task progress + owner, so distinct
  * seeds yield distinct payloads while the plan's shape stays legible.
  */
@@ -207,6 +207,6 @@ export function ganttChartDemoData(seed: number): GanttData {
 /**
  * The demo "today" — day 34 of the plan (design port), as epoch ms. Stories and
  * tests pin `format.referenceTime` to this so the today marker lands in a fixed
- * place without any wall-clock read (04 §7.7 / VRT byte-determinism).
+ * place without any wall-clock read (/ VRT byte-determinism).
  */
 export const GANTT_DEMO_TODAY_MS = DOMAIN_DEMO_EPOCH + 34 * DAY_MS;

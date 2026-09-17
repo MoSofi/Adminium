@@ -121,6 +121,28 @@ whose attachments exceed it cannot be saved.
 — the from addresses a template may use. The relay's own address is always
 the first sender; add more for a support desk or a newsletter identity.
 
+## Links in emails
+
+Password-reset and invitation emails carry a link back to Adminium. The
+address that link opens is **Address in email links** under
+*Studio → Settings → Email*: a scheme, a host and, if you need one, a port,
+such as `https://admin.example.com`. A path is refused.
+
+You rarely have to type it. While the field is empty, Adminium fills it in
+from the browser of an admin who can manage settings, the next time that admin
+finishes first-run setup, signs in or saves a change. It never fills in
+`localhost` or another address only your own machine can reach, so an instance
+you are trying out locally keeps an empty field until you fill it. Clear the
+field and Adminium learns the address again the same way. The audit log records
+each time it does.
+
+Until the address is known, links use the host the request was sent to. They
+never use the `Origin` header, which any script can set when it asks for a
+password reset. Behind a reverse proxy that answers only for your hostname, the
+host is your hostname. If Adminium's port can be reached without the proxy,
+fill the field in yourself, because a direct caller can put any host in its
+request.
+
 ## Testing
 
 **Test** sends the email *as it is on screen* — unsaved edits included — to the

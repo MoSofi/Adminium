@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Token → compiled scope (28-public-surface.md §3.2–§3.3).
+ * Token → compiled scope.
  *
  * The hot path of the public surface. Everything expensive happens once:
  * `compileScope` runs on a cache miss, never per request, so the request path
@@ -9,8 +9,8 @@
  * ── EVERY FAILURE LOOKS THE SAME ───────────────────────────────────────────
  * Unknown prefix, wrong hash, revoked, expired, missing scope, scope that no
  * longer compiles — all return `null`. The caller answers one status with one
- * code. That is §3.2's enumeration rule, and it is why this returns a bare
- * `null` rather than a discriminated reason: a reason is a thing a caller can
+ * code. That is enumeration rule, and it is why this returns a bare `null`
+ * rather than a discriminated reason: a reason is a thing a caller can
  * accidentally put on the wire, and the dashboard's own data routes already
  * demonstrate the failure mode (a 404 for an unknown connection and a 403 for a
  * real one, which together are a status-code oracle).
@@ -64,8 +64,8 @@ export interface ResolverDeps {
   /** Column existence per physical table, from the connection's snapshot. */
   columnsOf?: (connectionId: string) => Promise<TableColumnLookup | undefined>;
   /**
-   * The connection's tenant configuration (28-T34) — the zone and currency a
-   * scope inherits when it does not state its own. Optional so tests and the
+   * The connection's tenant configuration — the zone and currency a scope
+   * inherits when it does not state its own. Optional so tests and the
    * Studio authoring path can compile a scope with no connection behind it.
    */
   tenantConfigOf?: (connectionId: string) => Promise<InheritedTenantConfig | undefined>;
@@ -139,8 +139,8 @@ export function createPublicKeyResolver(deps: ResolverDeps): PublicKeyResolver {
       let scope: CompiledScope;
       try {
         const columnsOf = await deps.columnsOf?.(scopeRow.connectionId);
-        // 28-T34: the connection carries the tenant's zone and currency; the
-        // scope overrides them when it states its own.
+        // The connection carries the tenant's zone and currency; the scope
+        // overrides them when it states its own.
         const inherited = await deps.tenantConfigOf?.(scopeRow.connectionId);
         scope = compileScope(
           JSON.parse(scopeRow.document) as unknown,

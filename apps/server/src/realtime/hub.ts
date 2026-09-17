@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Realtime channel hub (08-server-api.md §3, M2-T07). In-process pub/sub that
- * both the WS gateway (`realtime/ws.ts`) and the SSE fallback
- * (`realtime/sse.ts`) attach to, and that the jobs worker publishes into.
+ * Realtime channel hub. In-process pub/sub that both the WS gateway
+ * (`realtime/ws.ts`) and the SSE fallback (`realtime/sse.ts`) attach to, and
+ * that the jobs worker publishes into.
  *
  * Wave-2 channels:
  * - `notifications:<userId>`             — own userId only
  * - `jobs:<jobId>`                       — job owner or `system:jobs:read`
  * - `config-changed`                     — any authenticated session
- * - `widget-data:<connectionId>:<table>` — table read permission (04 §5.3)
+ * - `widget-data:<connectionId>:<table>` — table read permission
  *
  * Authorization runs at subscribe time (`authorizeChannel`), mirroring the
  * REST RBAC checks; publishing is server-internal and unchecked. Stream
@@ -21,7 +21,7 @@ export interface RealtimeUser {
   id: string;
 }
 
-/** The wire shape of every server→client realtime event (§3 protocol). */
+/** The wire shape of every server→client realtime event (protocol). */
 export interface RealtimeEvent {
   channel: string;
   type: string;
@@ -48,7 +48,7 @@ export type ChannelDescriptor =
   | { kind: 'config-changed' }
   | { kind: 'widget-data'; connectionId: string; table: string };
 
-/** Prefix of the widget-data stream channels (04-widget-registry.md §5.3). */
+/** Prefix of the widget-data stream channels. */
 export const WIDGET_DATA_CHANNEL_PREFIX = 'widget-data';
 
 /** `widget-data:<connectionId>:<qualifiedTable>` — the stream channel name. */
@@ -61,7 +61,7 @@ export function widgetDataReadPermission(connectionId: string, table: string): s
   return `table:${connectionId}:${table}:read`;
 }
 
-/** Parses a channel name into its §3 descriptor (`null` = unknown channel). */
+/** Parses a channel name into its descriptor (`null` = unknown channel). */
 export function parseChannel(channel: string): ChannelDescriptor | null {
   if (channel.length === 0 || channel.length > MAX_CHANNEL_LENGTH) return null;
   if (channel === 'config-changed') return { kind: 'config-changed' };
@@ -98,7 +98,7 @@ export interface ChannelAuthDeps {
 }
 
 /**
- * Subscribe-time authorization (§3 topics table). Unknown channels are always
+ * Subscribe-time authorization (topics table). Unknown channels are always
  * denied — deny-by-default, so a typo never becomes an open firehose.
  */
 export async function authorizeChannel(
@@ -121,7 +121,7 @@ export async function authorizeChannel(
     }
     case 'widget-data':
       // Same gate as a widget-data query: read permission on the resolved
-      // table (04 §5.3). PII/secret columns are stripped at publish time.
+      // table. PII/secret columns are stripped at publish time.
       return deps.can(user, widgetDataReadPermission(parsed.connectionId, parsed.table));
   }
 }
@@ -149,7 +149,7 @@ export class RealtimeHub {
     };
   }
 
-  /** Build the §3 event frame and fan it out to current subscribers. */
+  /** Build the event frame and fan it out to current subscribers. */
   publish(channel: string, type: string, data: unknown, at: number = Date.now()): RealtimeEvent {
     const event: RealtimeEvent = { channel, type, data, ts: new Date(at).toISOString() };
     const sinks = this.channels.get(channel);

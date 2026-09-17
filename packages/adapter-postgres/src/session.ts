@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Session rails shared by the two pools this package opens — 05 §4.1.
+ * Session rails shared by the two pools this package opens.
  *
  * Both the `PostgresAdapter` pool (catalog + statistics) and the
  * `createQueryEngine` pool (CRUD row reads) have to apply the same limits, spot
@@ -32,10 +32,10 @@ export function isPoolerStartupRejection(error: unknown): boolean {
 }
 
 /**
- * The 05 §4.1 session settings, in both shapes: the startup-packet form (zero
- * round trips, preferred) and the `SET LOCAL` prelude used when a pooler
- * refuses it. They are built together so the two can never drift into
- * enforcing different limits.
+ * The session settings, in both shapes: the startup-packet form (zero round
+ * trips, preferred) and the `SET LOCAL` prelude used when a pooler refuses
+ * it. They are built together so the two can never drift into enforcing
+ * different limits.
  */
 export function buildSessionSettings(
   statementTimeoutMs: number,

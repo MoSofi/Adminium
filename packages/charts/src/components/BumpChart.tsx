@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-bump` primitive (research/widget-registry.md §2): rank-over-time
+ * `chart-bump` primitive (research/widget-registry.md): rank-over-time
  * polylines with hollow dots and end labels (channel rank). Rank is an ordinal
- * axis, so the period axis mirrors in RTL (04 §7.4 — rankings mirror) and end
- * labels sit on the inline-end. Colors from the viz palette only.
+ * axis, so the period axis mirrors in RTL (rankings mirror) and end labels sit
+ * on the inline-end. Colors from the viz palette only.
  */
 import type { ReactNode } from 'react';
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/report-builder/$id` — the editor's route (43-report-builder.md 43-T06).
- * Reads the document once and hands it to the editor, keyed by id so opening
- * another document mounts a fresh draft (D4/O6: the draft is the editor's own
- * from then on; a refetch never overwrites it).
+ * `/report-builder/$id` — the editor's route. Reads the document once and
+ * hands it to the editor, keyed by id so opening another document mounts a
+ * fresh draft (D4/O6: the draft is the editor's own from then on; a refetch
+ * never overwrites it).
  */
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';

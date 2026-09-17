@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Production {@link ResolveRun} — turns a persisted run into a live provider
- * client with the DECRYPTED API key (06-llm-assist.md §3.2, §7.5, §9,
- * acceptance §10 "key never logged").
+ * client with the DECRYPTED API key (acceptance).
  *
  * It reads the `llm.*` settings (`provider`/`apiKey`/`baseUrl`/`model`/
  * `maxOutputTokens`), decrypts `llm.apiKey` through the injected
@@ -37,8 +36,8 @@ import type { ResolvedRun, ResolveRun } from '../jobs/llm-run.js';
 
 /**
  * Per-provider `maxTokens` ceiling the `LLM_TRUNCATED` escalation raises to
- * before counting a repair (§7.5). Conservative output caps for the chat
- * contract each client speaks; a truncated reply retries once at this budget.
+ * before counting a repair. Conservative output caps for the chat contract
+ * each client speaks; a truncated reply retries once at this budget.
  */
 export const PROVIDER_OUTPUT_CEILING: Record<ProviderId, number> = {
   anthropic: 64_000,

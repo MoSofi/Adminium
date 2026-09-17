@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Schema-authoring routes — 35-schema-authoring.md §3.5, 35-T10, 35-T15,
- * 35-T17, 35-T37.
+ * Schema-authoring routes.
  *
  *   POST /connections/:id/schema/plan            → the ordered, hazard-classified plan + its SQL
  *   POST /connections/:id/schema/apply           → run it (202 + job when the worker is up)
@@ -9,17 +8,17 @@
  *   GET  /connections/:id/schema/changes         → the applied-change ledger
  *   PUT  /connections/:id/diagram-layout         → ER-diagram node positions (D21, M18)
  *
- * ─── Honest absence is enforced here, not in the UI (D5, 35-T15) ───────────
+ * ─── Honest absence is enforced here, not in the UI (D5) ───────────────────
  *
  * A `schema-file` connection has no database; a read-only or DDL-less role
  * cannot write to one; a `read-only-analytics` connection was declared
  * read-only by the operator at setup. All three get **403 `READ_ONLY_MODE`** —
- * the code 13 §2.5 already specified for the marketplace's narrower case, and
- * the status `errors.ts:134` gives it (13's "409" was never built). The Studio
+ * the code already specified for the marketplace's narrower case, and the
+ * status `errors.ts:134` gives it (13's "409" was never built). The Studio
  * hides the surface, and this is what makes hiding it honest rather than the
  * only thing standing between a caller and the customer's schema.
  *
- * ─── Not reachable by an API key (D23, 35-T17) ─────────────────────────────
+ * ─── Not reachable by an API key (D23) ─────────────────────────────────────
  *
  * Any `adm_sk_` bearer holding a grant can call any mutating route requiring
  * it. DDL by API key is either a CI feature worth designing or an unattended
@@ -181,7 +180,7 @@ export function schemaDdlRoutes(deps: SchemaDdlRoutesDeps): FastifyPluginAsyncZo
         model: applyOverrides(snapshot.schema as DatabaseModel, active),
         snapshotId: snapshot.id,
         // Recorded by every introspection, and the input the whole per-version
-        // hazard matrix (§5, D4) is computed from.
+        // hazard matrix is computed from.
         engineVersion: snapshot.engineVersion,
       };
     }
@@ -209,13 +208,13 @@ export function schemaDdlRoutes(deps: SchemaDdlRoutesDeps): FastifyPluginAsyncZo
          * The server's own version, not `null`.
          *
          * This was hardcoded `null`, and `atLeastVersion(null, …)` is false for
-         * every floor — so the ENTIRE per-version hazard matrix (§5, D4) fell
-         * to its worst case on every connection Adminium has ever planned
-         * against. `add-column NOT NULL DEFAULT` was reported as a full table
-         * rewrite on PostgreSQL 16, where it is metadata-only; MySQL 8.0.29+
-         * never earned an INSTANT prediction. The docs page promises "Adminium
-         * reads your server's version and tells you which one you have", and
-         * it did not. Found during the MySQL acceptance run (§9.8).
+         * every floor — so the ENTIRE per-version hazard matrix fell to its
+         * worst case on every connection Adminium has ever planned against.
+         * `add-column NOT NULL DEFAULT` was reported as a full table rewrite on
+         * PostgreSQL 16, where it is metadata-only; MySQL 8.0.29+ never earned
+         * an INSTANT prediction. The docs page promises "Adminium reads your
+         * server's version and tells you which one you have", and it did not.
+         * Found during the MySQL acceptance run.
          */
         serverVersion: engineVersion,
         maxIdentifierLength: caps.maxIdentifierLength,
@@ -330,8 +329,8 @@ export function schemaDdlRoutes(deps: SchemaDdlRoutesDeps): FastifyPluginAsyncZo
           ceilingDoor: { superAdmin: set.superAdmin, acknowledged: new Set(acknowledgeCeiling) },
           /*
            * The SQLite rebuild's step 12 — read the rebuilt table back and
-           * compare it with what the plan promised (§7). `tableFilter` is why
-           * this is cheap: it re-reads ONE table, not the schema.
+           * compare it with what the plan promised. `tableFilter` is why this
+           * is cheap: it re-reads ONE table, not the schema.
            *
            * Written, tested, and unreachable until it was passed here.
            */
@@ -482,7 +481,7 @@ export function schemaDdlRoutes(deps: SchemaDdlRoutesDeps): FastifyPluginAsyncZo
           },
         });
 
-        // Open dashboards drop stale caches on config-changed (09 §2.1) — the
+        // Open dashboards drop stale caches on config-changed — the
         // generate route's own last act, and the reason a new page appears in
         // the sidebar without a reload.
         if (app.hasDecorator('realtime')) {

@@ -19,7 +19,7 @@ import { api } from '../app/api.js';
 import type { ConnectionHealth } from './runtimeChipState.js';
 
 /**
- * 11-electron.md §8.1's "lightweight connection-health poll" — the second of the
+ * The "lightweight connection-health poll" — the second of the
  * two feeds behind the desktop runtime chip (`shell/RuntimeChipHost.tsx`).
  *
  * It is the same `GET /api/v1/connections` the Studio hub reads, under a
@@ -47,8 +47,8 @@ export function connectionHealthQuery() {
      * STOPS DEAD ON ERROR, and that is not a nicety. `GET /api/v1/connections`
      * is guarded by the Admin-only `system:connections:manage`, while the chip
      * that reads this renders in the topbar for EVERY signed-in user — so for an
-     * Editor, a Viewer, or any of the §8.3 LAN users, this query's steady state
-     * is 403. A plain interval would re-ask, and be refused, every 30 s for the
+     * Editor, a Viewer, or any of the LAN users, this query's steady state is
+     * 403. A plain interval would re-ask, and be refused, every 30 s for the
      * length of their session: a permanent background loop generating audit
      * noise and load to compute a badge they will never be shown.
      *

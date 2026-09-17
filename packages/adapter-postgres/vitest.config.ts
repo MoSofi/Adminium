@@ -15,7 +15,7 @@ export default defineConfig({
     ...workers(),
     /**
      * Measured in BOTH modes, because the live suites are probe-gated and the
-     * previous floor was set blind to that (15-quality.md §1 asks 90/85):
+     * previous floor was set blind to that (asks 90/85):
      *
      *   psql reachable (as in CI)   99.82% statements / 98.86% branches
      *   psql absent (bare laptop)   99.82% statements / 98.42% branches
@@ -37,7 +37,7 @@ export default defineConfig({
     // run to run — adapter-sqlite measured the same suite reporting 582 then
     // 584 total branches on consecutive runs, ~0.3 of a point — so a floor a
     // quarter-point under the measurement is decided by noise, not coverage.
-    // Every number here still clears 15-quality.md §1 with room.
+    // Every number here still clears with room.
     coverage: coverage({ statements: 98, branches: 97 }),
     hookTimeout: 60_000,
     testTimeout: 30_000,

@@ -2,17 +2,17 @@
 /**
  * Wave 0020 — the add-on half of `adminium_manifests`, plus the attachment
  * table an add-on needs and an app does not
- * (26-add-on-runtime.md §4, as amended 2026-08-29).
+ * (as amended 2026-08-29).
  *
  * ─── This ALTERs. It does not create. ───────────────────────────────────────
  *
- * 26 §4 as first written said `adminium_manifests` "does not exist at all
- * today, so this creates it rather than altering it", and `research/BRIEF.md`
- * §6 and `16-milestones.md` M16-T02 repeated it. All three were wrong: the
- * table has shipped since `0006_platform.ts:319-348`. It has no repo, no
- * writer and zero rows, which is how three documents came to record a shipped
- * table as absent — and it is why this migration adds two columns to something
- * that is already there rather than creating a fourth copy of the idea.
+ * The plan as first written said `adminium_manifests` "does not exist at all
+ * today, so this creates it rather than altering it", repeated it. All three
+ * were wrong: the table has shipped since `0006_platform.ts:319-348`. It has
+ * no repo, no writer and zero rows, which is how three documents came to
+ * record a shipped table as absent — and it is why this migration adds two
+ * columns to something that is already there rather than creating a fourth
+ * copy of the idea.
  *
  * Three shipped columns this plan never accounted for come along for the ride:
  * `connection_id`, `status`, and **`license_key_encrypted`** — a column 17
@@ -23,9 +23,10 @@
  *
  * ─── Why attachments are a table and not `attached_to` on the row ───────────
  *
- * 26 O3 asks how one add-on attaches to several hosts and recommends "two rows,
+ * An open question asked how one add-on attaches to several hosts, and
+ * recommended "two rows,
  * keyed `(manifest_key, attached_to)`". **This does not do that**, and the
- * reason is a cost O3 could not have weighed, because it was written believing
+ * reason is a cost it could not have weighed, because it was written believing
  * the table did not exist yet:
  *
  *  1. **Two rows means two manifest documents.** `manifest` is the whole
@@ -40,8 +41,7 @@
  *  3. **It requires editing a shipped constraint.** `uq_adminium_manifests_manifest_key`
  *     is UNIQUE on `manifest_key` ALONE (`0006_platform.ts:344-348`). Two rows
  *     per key violates it, so O3's shape means dropping and recreating a shipped
- *     index across three dialects — against §4's own "never edit a shipped
- *     migration".
+ * index across three dialects — against own "never edit a shipped migration".
  *
  * An attachment is a many-to-many fact between a manifest and a host app, so it
  * gets the table that models one. The shipped unique index stays true (one
@@ -51,7 +51,7 @@
  *
  * ─── Why `disabled_at` and not a boolean ───────────────────────────────────
  *
- * §5.1's `PATCH /add-ons/:key` enables and disables per surface, and that state
+ * `PATCH /add-ons/:key` enables and disables per surface, and that state
  * belongs on the attachment rather than on the manifest: an add-on can be
  * legitimately live on one host and switched off on another. The timestamp
  * follows 0019's discipline verbatim — NULL means enabled, and "how long has
@@ -63,8 +63,8 @@
  * None, and not for the usual reason: the table has zero rows in every
  * deployment, because nothing has ever written to it. `kind` still carries a
  * default so the column is honest about what a pre-existing row would have
- * meant — `adminium_manifests` was introduced for installed micro-SaaS apps
- * (13-marketplace.md), so an unlabelled row is an app.
+ * meant — `adminium_manifests` was introduced for installed micro-SaaS apps,
+ * so an unlabelled row is an app.
  */
 
 import type { Kysely } from 'kysely';

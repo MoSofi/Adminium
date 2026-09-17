@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Saved-views client (M5-T06). Every call is nested under a page id and half of
- * them under a view id too, so the whole contract is: the right verb, the right
- * two path segments (both encoded), and the `{ data: … }` unwrap that matches
- * what `routes/views/schema.ts` wraps.
+ * Saved-views client. Every call is nested under a page id and half of them
+ * under a view id too, so the whole contract is: the right verb, the right two
+ * path segments (both encoded), and the `{ data: … }` unwrap that matches what
+ * `routes/views/schema.ts` wraps.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 

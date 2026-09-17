@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Public-surface data layer (28-T13) over `/api/v1/public-api`,
+ * Public-surface data layer over `/api/v1/public-api`,
  * `/api/v1/public-scopes` and `/api/v1/public-keys`
  * (`apps/server/src/routes/public-admin/`).
  *
  * ── THE SECRET IS RE-READABLE HERE, AND THAT INVERTS ONE CONVENTION ────────
  * `api-keys/apiKeysApi.ts` deliberately keeps its one-time plaintext OUT of the
  * react-query cache, because a cached secret outlives its render. A publishable
- * key is the opposite by design (28 §3.3): it lives in a public JS bundle and
- * has to be recoverable months later for a rebuild, so `GET /public-keys/:id/
- * reveal` exists and is audited server-side.
+ * key is the opposite by design: it lives in a public JS bundle and has to be
+ * recoverable months later for a rebuild, so `GET /public-keys/:id/ reveal`
+ * exists and is audited server-side.
  *
  * The cache rule still holds, for a different reason. A revealed token is
  * fetched on demand and held in component state, never in a query — not to
@@ -64,7 +64,7 @@ export interface PublicKeyDto {
   prefix: string;
   scopeId: string;
   side: PublicSide;
-  /** Hosted app surface this key is bound to (29 D10), or null. */
+  /** Hosted app surface this key is bound to, or null. */
   appKey: string | null;
   origins: string[];
   expiresAt: number | null;
@@ -79,8 +79,8 @@ export interface PublicKeyCreateBody {
   name: string;
   scopeId: string;
   /**
-   * Bind the key to a hosted app surface (29 D10): its customer side then
-   * serves this key at `surface-config.json`, so rotation needs no rebuild.
+   * Bind the key to a hosted app surface: its customer side then serves
+   * this key at `surface-config.json`, so rotation needs no rebuild.
    */
   appKey?: string | undefined;
   origins?: string[] | undefined;
@@ -217,7 +217,7 @@ export function keysByScope(keys: readonly PublicKeyDto[]): Map<string, PublicKe
  * The server answers a bad document with `422 VALIDATION_FAILED` carrying every
  * issue `compileScope` found, and this page is the ONLY place they are shown:
  * the operator wrote the document and is the only person who can fix it. The
- * anonymous surface still says nothing at all (28 §3.2).
+ * anonymous surface still says nothing at all.
  */
 export function scopeIssuesFrom(error: unknown): ScopeIssue[] {
   const details = (error as { details?: unknown } | null)?.details;

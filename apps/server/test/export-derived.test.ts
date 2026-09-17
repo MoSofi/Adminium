@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Derived columns in EXPORTS and scheduled reports
- * (36-derived-columns.md 36-T20 / D28).
+ * Derived columns in EXPORTS and scheduled reports.
  *
  * The owner ruled that a computed number ships in an export rather than
  * silently vanishing from it — which makes the export path a place where a
@@ -97,7 +96,7 @@ describe('exports compute a page’s derived columns', () => {
         nav: { group: 'workspace', icon: 'file', order: 1, slug: 'invoices' },
         access: { minRole: 'viewer', permissions: [] },
         // The REAL envelope shape: the template body is nested under `config`
-        // (41-export-builder.md §0.3). Seeding `derived` at the top level is
+        // . Seeding `derived` at the top level is
         // how this suite stayed green while the job read a level too high.
         config: { columns: [], derived: DERIVED },
       },
@@ -176,7 +175,7 @@ async function readFile(storage: FileStore, fileId: string): Promise<string> {
   if (fileId === '') throw new Error('export produced no file');
   const chunks: Buffer[] = [];
   // The implicit destination: `destinationId: null` IS this server's disk, and
-  // on it the storage key is the row id (37 D3, D19).
+  // on it the storage key is the row id.
   for await (const chunk of await storage.read({ destinationId: null, storageKey: fileId })) {
     chunks.push(Buffer.from(chunk));
   }

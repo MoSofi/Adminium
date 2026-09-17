@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the `me` resource (08-server-api.md §2.2): profile view and
- * patch plus per-user preference axes (07-meta-store.md §3.4, §7.2 —
- * `null` = "use workspace default").
+ * Zod schemas for the `me` resource: profile view and patch plus per-user
+ * preference axes (`null` = "use workspace default").
  */
 import { z } from 'zod';
 import {
@@ -22,7 +21,7 @@ export const mePatchBody = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
     email: z.string().trim().min(3).max(320).optional(),
-    /** Required when `email` changes (§2.2). */
+    /** Required when `email` changes. */
     password: z.string().min(1).max(200).optional(),
   })
   .refine((body) => body.email === undefined || body.password !== undefined, {
@@ -42,7 +41,7 @@ export const mePrefsView = z.object({
 
 const prefSource = z.enum(['system', 'global', 'user']);
 
-/** §7.2 resolved axes + per-axis provenance for the settings UI. */
+/** Resolved axes + per-axis provenance for the settings UI. */
 export const mePrefsResolvedView = z.object({
   theme: themeSchema,
   accent: accentSchema,
@@ -66,7 +65,7 @@ export const mePrefsReply = z.object({
 });
 export type MePrefsReply = z.infer<typeof mePrefsReply>;
 
-/** Absent = unchanged; `null` = clear back to inherit (07-meta-store.md §7.2). */
+/** Absent = unchanged; `null` = clear back to inherit. */
 export const mePrefsPatchBody = z.object({
   theme: themeSchema.nullable().optional(),
   accent: accentSchema.nullable().optional(),

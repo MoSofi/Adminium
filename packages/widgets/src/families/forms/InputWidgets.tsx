@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `forms` family's INPUT widgets (annex §10) — `otp-input`, `chip-input`,
+ * The `forms` family's INPUT widgets (annex) — `otp-input`, `chip-input`,
  * `segmented-control`, `password-strength-meter`. Each is a thin registry
  * binding over an @adminium/ui primitive that already owns the interaction
  * model; this file adds the `form-state` binding, the config surface, and the
@@ -11,8 +11,8 @@
  * headers restating the same three sentences.
  *
  * WRITE MODEL: these widgets are CONTROLLED by local state and report changes as
- * `mutate` intents (04 §2.1) — they never persist. An unbound (demo) instance
- * has nowhere to send the intent, so it simply keeps local state.
+ * `mutate` intents — they never persist. An unbound (demo) instance has nowhere
+ * to send the intent, so it simply keeps local state.
  */
 
 import { ChipInput, FormField, OtpInput, PasswordStrength, SegmentedControl, defaultPasswordScore } from '@adminium/ui';
@@ -88,7 +88,7 @@ export function OtpInputWidget({ config, data, onEvent }: WidgetProps<OtpInputCo
 // ── chip-input ──────────────────────────────────────────────────────────────
 
 /**
- * The closed validator vocabulary (annex §10 `validator`). Config names a RULE,
+ * The closed validator vocabulary (annex `validator`). Config names a RULE,
  * never a predicate — see `chipInputConfigSchema`. `email` is the annex's
  * example ("commits on Enter with validation, e.g. contains @").
  */
@@ -185,7 +185,7 @@ export function SegmentedControlWidget({ config, data, onEvent }: WidgetProps<Se
 // ── password-strength-meter ─────────────────────────────────────────────────
 
 /**
- * `password-strength-meter` (annex §10) — 4-segment bar filled by score.
+ * `password-strength-meter` (annex) — 4-segment bar filled by score.
  *
  * Scoring is @adminium/ui's `defaultPasswordScore`, NOT a second rule of our
  * own: the auth screens already meter passwords with it, and two scorers would

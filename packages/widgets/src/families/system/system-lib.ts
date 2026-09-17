@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `system` family shared helpers (annex §12) — PURE module (no React, no
+ * `system` family shared helpers (annex) — PURE module (no React, no
  * @adminium/ui, no lucide). Imported by both the family's config module and its
  * components, so the registry metadata graph can reach the schemas + demo
- * generators without dragging component code into the eager chunk (04 §2.3).
+ * generators without dragging component code into the eager chunk.
  *
  * The readers here are deliberately LENIENT: system widgets bind to whatever a
  * real table/health-check returns, and a malformed payload must degrade to a
- * fallback render rather than throw into the WidgetErrorBoundary (04 §3).
+ * fallback render rather than throw into the WidgetErrorBoundary.
  */
 
 import { getFormatters } from '@adminium/i18n';
@@ -20,10 +20,10 @@ export type SystemTone = (typeof SYSTEM_TONES)[number];
  * Map the SHARED-CONFIG tone vocabulary onto @adminium/ui's.
  *
  * The two differ by exactly one member and it is not an oversight: shared config
- * (04 §2.1) offers `muted` — an authoring word for "de-emphasised" — while the
- * design system's `Tone` calls that same slot `neutral`. Every widget that
- * forwards `config.tone` to a UI primitive must translate, so the mapping lives
- * here once rather than being re-derived (and re-mistaken) per widget.
+ * offers `muted` — an authoring word for "de-emphasised" — while the design
+ * system's `Tone` calls that same slot `neutral`. Every widget that forwards
+ * `config.tone` to a UI primitive must translate, so the mapping lives here once
+ * rather than being re-derived (and re-mistaken) per widget.
  */
 export function uiToneOf(tone: string | undefined, fallback: SystemTone = 'neutral'): SystemTone {
   if (tone === undefined) return fallback;
@@ -32,7 +32,7 @@ export function uiToneOf(tone: string | undefined, fallback: SystemTone = 'neutr
 }
 
 /**
- * The `state-hero` view vocabulary (annex §12: "stateMap keyed by view id
+ * The `state-hero` view vocabulary (annex: "stateMap keyed by view id
  * (404/500/offline/forbidden/maintenance/conn-error)"). Closed vocabulary — a
  * stored config can never smuggle an unknown view past the schema.
  */
@@ -43,19 +43,21 @@ export type StateHeroViewId = (typeof STATE_HERO_VIEWS)[number];
 export const LOG_LINE_KINDS = ['info', 'ok', 'warn', 'error', 'running'] as const;
 export type LogLineKind = (typeof LOG_LINE_KINDS)[number];
 
-/** `connection-status` state machine (annex §12: connecting → connected | failed). */
+/** `connection-status` state machine (annex: connecting → connected | failed).
+ * */
 export const CONNECTION_STATES = ['idle', 'connecting', 'connected', 'failed'] as const;
 export type ConnectionState = (typeof CONNECTION_STATES)[number];
 
 /**
- * `autosave-indicator` phases (annex §12: warn-dot "Unsaved changes" → spinner
+ * `autosave-indicator` phases (annex: warn-dot "Unsaved changes" → spinner
  * "Saving…" → green check "All changes saved"). Mirrors @adminium/ui's
- * `AutosaveStatus` exactly — `dirty` was added there for this annex requirement.
+ * `AutosaveStatus` exactly — `dirty` was added there for this annex
+ * requirement.
  */
 export const AUTOSAVE_STATUSES = ['idle', 'dirty', 'saving', 'saved', 'error'] as const;
 export type AutosaveStatus = (typeof AUTOSAVE_STATUSES)[number];
 
-/** Aggregate service health, worst-wins (annex §12 `status-banner-hero`). */
+/** Aggregate service health, worst-wins (annex `status-banner-hero`). */
 export const SERVICE_STATES = ['up', 'degraded', 'down'] as const;
 export type ServiceState = (typeof SERVICE_STATES)[number];
 
@@ -71,7 +73,7 @@ export interface BindingSource {
  * The event target for a bound widget: `connectionId` + the schema-qualified
  * table name, or `null` when the widget is running on `demoData` (no binding).
  * An unbound widget must not offer write affordances — there is nowhere to send
- * the intent — so callers use `null` to disable them (04 §5).
+ * the intent — so callers use `null` to disable them.
  */
 export function bindingSourceOf(
   binding: { connectionId: string; source: { schema?: string | undefined; name: string } } | undefined,
@@ -90,8 +92,8 @@ function rec(value: unknown): Rec | null {
 }
 
 /**
- * Read the single row out of a §3 `record` envelope. Also accepts a bare object
- * so template/story composition can hand a widget its row directly.
+ * Read the single row out of a `record` envelope. Also accepts a bare object so
+ * template/story composition can hand a widget its row directly.
  */
 export function recordRowOf(data: unknown): Rec | null {
   const envelope = rec(data);
@@ -103,7 +105,7 @@ export function recordRowOf(data: unknown): Rec | null {
 }
 
 /**
- * Read the rows out of a §3 `record-list` envelope (or a bare array / `stream`
+ * Read the rows out of a `record-list` envelope (or a bare array / `stream`
  * snapshot).
  *
  * Every element is checked to be a real object and non-objects are DROPPED, not
@@ -175,7 +177,7 @@ export function oneOf<T extends string>(value: unknown, allowed: readonly T[], f
 }
 
 /**
- * Worst-wins aggregate of a service list (annex §12 `status-banner-hero`:
+ * Worst-wins aggregate of a service list (annex `status-banner-hero`:
  * "bg/border/icon/title derive from worst child state").
  */
 export function worstServiceState(states: readonly ServiceState[]): ServiceState {
@@ -184,7 +186,7 @@ export function worstServiceState(states: readonly ServiceState[]): ServiceState
   return 'up';
 }
 
-/** Fall back to `en-US` when a widget's config carries no locale override (04 §2). */
+/** Fall back to `en-US` when a widget's config carries no locale override. */
 export function resolveLocale(locale: string | undefined): string {
   return locale !== undefined && locale.trim() !== '' ? locale : 'en-US';
 }
@@ -192,7 +194,7 @@ export function resolveLocale(locale: string | undefined): string {
 /**
  * Format an epoch-ms timestamp as a locale-aware short time ("14:32"), used for
  * the "last checked" / "saved at" stamps. Goes through the @adminium/i18n Intl
- * layer (10-i18n-theming.md §4) rather than raw `Intl` so numbering systems and
+ * layer rather than raw `Intl` so numbering systems and
  * the data/prose context rules stay consistent with the rest of the product.
  */
 export function formatStamp(epochMs: number | undefined, locale: string | undefined): string | undefined {

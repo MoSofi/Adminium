@@ -3,19 +3,18 @@
  * CrudApi — the typed data-access adapter the `page-crud` template receives
  * as a prop. The template never fetches; the dashboard interpreter
  * implements this against the generated CRUD API
- * (apps/server/src/routes/data, 08-server-api.md §2.7) and hands it in:
+ * (apps/server/src/routes/data) and hands it in:
  *
- *   list        GET    /api/v1/data/:connectionId/:table
- *   get         GET    /api/v1/data/:connectionId/:table/:recordId(?include=inboundCounts)
- *   create      POST   /api/v1/data/:connectionId/:table
- *   update      PATCH  /api/v1/data/:connectionId/:table/:recordId
- *   remove      DELETE /api/v1/data/:connectionId/:table/:recordId(?dryRun|confirm)
- *   references  GET    /api/v1/data/:connectionId/:table/:recordId/references
- *   bulk        POST   /api/v1/data/:connectionId/:table/bulk
- *   undo        POST   /api/v1/data/undo/:token
- *   lookup      GET    list on the FK's referenced table (q= on display column)
- *   listRelated GET    list on a referencing table (where column = value)
- *   export      POST   /api/v1/exports  (09 §11.2, a queued export-run job)
+ * list GET /api/v1/data/:connectionId/:table get GET
+ *   /api/v1/data/:connectionId/:table/:recordId(?include=inboundCounts) create POST
+ *   /api/v1/data/:connectionId/:table update PATCH
+ *   /api/v1/data/:connectionId/:table/:recordId remove DELETE
+ *   /api/v1/data/:connectionId/:table/:recordId(?dryRun|confirm) references GET
+ *   /api/v1/data/:connectionId/:table/:recordId/references bulk POST
+ *   /api/v1/data/:connectionId/:table/bulk undo POST /api/v1/data/undo/:token lookup GET
+ *   list on the FK's referenced table (q= on display column) listRelated GET list on a
+ *   referencing table (where column = value) export POST /api/v1/exports (a queued
+ *   export-run job)
  *
  * Every shape below mirrors apps/server/src/routes/data/schema.ts verbatim
  * so the dashboard implementation is a straight `fetch` + JSON pass-through.
@@ -25,7 +24,7 @@ import type { TabularExportFormat } from '../../lib/export.js';
 
 export type CrudRow = Record<string, unknown>;
 
-/** Filter grammar (08 §2.7.1, apps/server/src/crud/filters.ts). */
+/** Filter grammar (apps/server/src/crud/filters.ts). */
 export const CRUD_FILTER_OPS = [
   'eq',
   'neq',
@@ -85,8 +84,7 @@ export interface CrudListParams {
    * Derived-column spec, URL-encoded JSON mirroring the page's stored
    * `config.derived` block: `{"measures":[…],"fields":[…]}`. ONE `compute=`
    * param, never repeated — measures fold a child table into each row and
-   * fields compute arithmetic over them server-side
-   * (36-derived-columns.md §3.1).
+   * fields compute arithmetic over them server-side.
    */
   compute?: string | undefined;
   limit?: number | undefined;
@@ -123,7 +121,7 @@ export interface CrudGetResult {
 
 export interface CrudMutationResult {
   data: CrudRow | null;
-  /** Single-use undo token (§2.7.3); null when not undoable. */
+  /** Single-use undo token; null when not undoable. */
   undoToken: string | null;
 }
 
@@ -143,7 +141,7 @@ export interface CrudBulkResult {
 }
 
 /**
- * Export formats the server can actually build. `xlsx` is in the §3.25
+ * Export formats the server can actually build. `xlsx` is in the
  * vocabulary but `POST /exports` rejects it with a 422 (no spreadsheet
  * dependency exists in this repo), so it is not in the contract; `json` is
  * JSON-lines, matching the `export-run` artifact.
@@ -205,8 +203,8 @@ export interface CrudApi {
   bulk?(action: 'update' | 'delete', ids: readonly unknown[], values?: CrudRow): Promise<CrudBulkResult>;
   /**
    * FK combobox feed: search the referenced table's display column
-   * (debounced 200ms server-side search, 09 §7.1). Optional — FK fields
-   * degrade to a plain input without it.
+   * (debounced 200ms server-side search). Optional — FK fields degrade
+   * to a plain input without it.
    */
   lookup?(
     fk: { table: string; column: string },
@@ -219,10 +217,10 @@ export interface CrudApi {
   listRelated?(ref: { table: string; column: string; value: unknown; limit?: number | undefined }): Promise<CrudRow[]>;
   /**
    * Queue a server-side export of the current selection/query — `POST
-   * /exports` (09 §11.2), which streams the WHOLE result set through the
-   * masking pipeline into a stored artifact. Optional: without it the bulk
-   * toolbar's Export serializes the selected rows in the browser instead, so
-   * the button works either way (the difference is fidelity and reach, not
+   * /exports`, which streams the WHOLE result set through the masking
+   * pipeline into a stored artifact. Optional: without it the bulk toolbar's
+   * Export serializes the selected rows in the browser instead, so the
+   * button works either way (the difference is fidelity and reach, not
    * whether anything happens).
    */
   export?(request: CrudExportRequest): Promise<CrudExportTicket>;

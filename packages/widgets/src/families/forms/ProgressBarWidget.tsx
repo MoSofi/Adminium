@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `progress-bar` (annex §10) — determinate pill track with an animated accent
+ * `progress-bar` (annex) — determinate pill track with an animated accent
  * fill + optional mono % caption. Powers wizard %, import progress (the fill
  * flips `pos` at 100%) and generation progress. Evidence: Adminium Console,
  * Import Wizard, Workspace Onboarding, Connect Database, See It In Action.
@@ -25,7 +25,7 @@ export type { ProgressBarConfig };
 export function ProgressBarWidget({ config, data }: WidgetProps<ProgressBarConfig>) {
   const t = useMaybeT();
   const metric = asSingleMetric(data);
-  // A malformed payload renders 0%, never a NaN-width bar (04 §3 leniency).
+  // A malformed payload renders 0%, never a NaN-width bar (leniency).
   const value = clampPct(metric?.value);
   const complete = value >= 100;
   const label = config.label ?? config.title ?? t('ui:widgets.forms.progressBar.label', 'Progress');

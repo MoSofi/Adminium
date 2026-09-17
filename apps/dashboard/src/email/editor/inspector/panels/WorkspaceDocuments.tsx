@@ -2,7 +2,7 @@
 /**
  * The Attachments panel's *Workspace documents* (comp 695-701; Appendix A
  * §E3; D8): the library's non-image files as rows — name, size, a plus —
- * each a fixed attachment when clicked. Read-only over `GET /files` (§3.7).
+ * each a fixed attachment when clicked. Read-only over `GET /files`.
  */
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { FileText, Plus } from 'lucide-react';

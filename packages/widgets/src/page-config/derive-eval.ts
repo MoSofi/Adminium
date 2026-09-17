@@ -13,7 +13,6 @@ import type { DerivedField, FieldExpr } from './crud-derived.js';
 
 /**
  * The derived-field evaluator — one ordered pass over a row, in exact BigInt.
- * 36-derived-columns.md §3.5.
  *
  * WHERE IT RUNS. On the SERVER, after masking, at both list return sites and
  * as a fourth stage on the single-record GET — and, identically, in the Studio
@@ -48,10 +47,10 @@ import type { DerivedField, FieldExpr } from './crud-derived.js';
 /**
  * A field's outcome for one row.
  *
- * `text` is the fourth state (41-export-builder.md D5): the word a
- * `result: 'text'` rule answered with. It never enters arithmetic — the parser
- * refuses a text leaf as an operand and a reference to a text field — so the
- * decimal branches below treat one as absent purely defensively.
+ * `text` is the fourth state: the word a `result: 'text'` rule answered with.
+ * It never enters arithmetic — the parser refuses a text leaf as an operand
+ * and a reference to a text field — so the decimal branches below treat one as
+ * absent purely defensively.
  */
 export type DerivedValue =
   | { state: 'value'; value: Decimal }

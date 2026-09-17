@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * FILL F3 — what an action needs to run (42-automations-and-workflow-logs.md
- * §4.1 "Per-kind settings (undrawn)").
+ * FILL F3 — what an action needs to run.
  *
  * The comp's inspector configures a step's NAME, its description, its
  * condition, its branch labels and its error behaviour — and nothing an

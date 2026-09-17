@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure GitHub-style contribution-calendar geometry (research/widget-registry.md
- * §2 `chart-heatmap-calendar`): up to 53 week columns × 7 day rows of per-day
+ * `chart-heatmap-calendar`): up to 53 week columns × 7 day rows of per-day
  * counts, discrete intensity levels, a less→more legend. DOM-free and
- * deterministic (04 §7.1) — UTC-only date math, no `Date.now()`.
+ * deterministic — UTC-only date math, no `Date.now()`.
  *
- * RTL policy (04 §7.4, explicit): the week columns run right→left under `rtl`
- * (newest week on the inline-start edge); the day rows never move.
+ * RTL policy (explicit): the week columns run right→left under `rtl` (newest
+ * week on the inline-start edge); the day rows never move.
  */
 import { heatLevel } from './heat.js';
 

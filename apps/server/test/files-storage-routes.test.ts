@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Storage-destination routes and the migrate job (37-files-and-storage.md
- * Appendix C, D16, D20, 37-T12).
+ * Storage-destination routes and the migrate job.
  *
  * Two behaviours carry most of the weight here and both are easy to get wrong
  * in a way no type catches: the secret must never come back out, and a

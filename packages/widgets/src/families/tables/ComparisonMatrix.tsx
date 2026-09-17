@@ -18,9 +18,10 @@ export { comparisonMatrixConfigSchema, comparisonMatrixDemoData };
 export type { ComparisonMatrixConfig, ComparisonCell, ComparisonColumn, ComparisonMatrixData, ComparisonRow };
 
 /**
- * `comparison-matrix` (annex §3) — the plan/feature grid: a sticky multi-column
+ * `comparison-matrix` (annex) — the plan/feature grid: a sticky multi-column
  * header, grouped category bands, cells rendering a check / an em-dash / mono
- * text, and one column visually promoted (Pricing, Billing & Usage's plan grid).
+ * text, and one column visually promoted (Pricing, Billing & Usage's plan
+ * grid).
  *
  * A CSS grid pseudo-table, not a `<table>` — the same call the family's
  * `data-grid` makes — with explicit ARIA table roles so the semantics survive

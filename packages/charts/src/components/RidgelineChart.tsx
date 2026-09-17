@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-ridgeline` primitive (research/widget-registry.md §2): overlapping
+ * `chart-ridgeline` primitive (research/widget-registry.md): overlapping
  * filled density ridges with decreasing alpha, one ridge per group (front row
  * first). The value axis runs across the plot width and mirrors in RTL; group
  * labels sit in the inline-start gutter. Token-only colors; fade-in on mount.

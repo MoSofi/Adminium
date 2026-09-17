@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The deferred `invoices` namespace's contract (34-invoices-add-on.md 34-T51;
- * the `email` gate's twin, `emailNamespace.test.ts`):
+ * The deferred `invoices` namespace's contract (the `email` gate's twin,
+ * `emailNamespace.test.ts`):
  *
  * 1. Every `invoices:` key must exist in the en-US bundle.
  * 2. Every call site carries an inline fallback that is the catalogue text,

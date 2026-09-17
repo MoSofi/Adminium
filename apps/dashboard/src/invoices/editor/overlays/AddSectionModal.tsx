@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Add-section modal (comp 71-105, 1645-1655; 34-invoices-add-on.md
- * Appendix E §I8, O19): *Add a section* — *Build your own* (the four custom
- * types, a 2-column grid of tiles with hints) and *Standard blocks* (chips
- * for exactly the sections currently OFF, `offSections`), collapsing to
- * *Every standard block is already on this invoice.* when none remain.
+ * The Add-section modal (comp 71-105, 1645-1655; O19): *Add a section*
+ * — *Build your own* (the four custom types, a 2-column grid of tiles with
+ * hints) and *Standard blocks* (chips for exactly the sections currently
+ * OFF, `offSections`), collapsing to *Every standard block is already on
+ * this invoice.* when none remain.
  *
  * This is THE path an off block comes back by: the comp's in-canvas "Add
- * <section>" ghosts are unreachable (§0.4.6 item 1) and are not built.
- * Where the pick lands — the pre-filter index of a between-block chip, or
- * the end — is the editor's (`addOpen.at`), not the modal's.
+ * <section>" ghosts are unreachable and are not built. Where the pick
+ * lands — the pre-filter index of a between-block chip, or the end — is
+ * the editor's (`addOpen.at`), not the modal's.
  */
 import { LayoutList } from 'lucide-react';
 import { Modal, ModalBody, ModalHeader } from '@adminium/ui';

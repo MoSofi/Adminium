@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Checked-in extraction of the widget-registry ANNEX catalog
- * (the internal widget-registry annex, §1–§13) — the source of truth the
- * registry-parity gate (04-widget-registry.md acceptance #1, 04-T17) diffs the
- * live registry against. 176 ids across the 13 families; ids are transcribed
- * verbatim from the annex `### \`id\`` headings (and the §13 document-block
- * bullet list), in annex order.
+ * (the internal widget-registry annex) — the source of truth the
+ * registry-parity gate (#1) diffs the live registry against. 176 ids across
+ * the 13 families; ids are transcribed verbatim from the annex `### \`id\``
+ * headings (and the document-block bullet list), in annex order.
  *
  * This list is intentionally hand-checked-in (not derived at runtime from the
  * markdown) so that a *drift* between what the annex documents and what the
@@ -104,60 +103,65 @@ export const ALL_ANNEX_IDS: ReadonlySet<string> = new Set(
  * family as the tail lands.
  */
 export const ANNEX_PENDING: Record<WidgetFamily, readonly string[]> = {
-  // §1 fully delivered: the M4 kpi-stat-card / usage-meter slice plus the M7
-  // Wave-4 tail (TRACK KPI-FEEDS) — compact tile, metric hero, stat pair, the
+  // The KPI / Stat family is fully delivered: the M4 kpi-stat-card /
+  // usage-meter slice plus the M7 Wave-4 tail (TRACK KPI-FEEDS) — compact
+  // tile, metric hero, stat pair, the
   // two SVG gauges, period comparison, micro-kpi subtitle, auto-insights.
   kpi: [],
-  // Time/flow charts (04-T09) — multiline, stream, forecast, anomaly,
-  // candlestick, bump, timeline-lanes — landed and wired into the registry, so
-  // the charts family is fully delivered.
+  // Time/flow charts — multiline, stream, forecast, anomaly, candlestick,
+  // bump, timeline-lanes — landed and wired into the registry, so the charts
+  // family is fully delivered.
   charts: [],
-  // §3 fully delivered — the M4 slice + Track F + the M7 Wave-4 TAIL
+  // The Tables & Lists family is fully delivered — the M4 slice + Track F + the M7 Wave-4 TAIL
   // (sparkline-table, top-movers-list, ranked-entity-list, accordion-list,
   // comparison-matrix, chip-cloud).
   tables: [],
-  // §4 fully delivered: the Track-F slice plus the M7 Wave-4 tail (TRACK
+  // The Feeds family is fully delivered: the Track-F slice plus the M7 Wave-4 tail (TRACK
   // KPI-FEEDS) — load-older-paginator and toast-stack, the overlay toast host
-  // (cross-listed as undo-toast in §12), which wraps @adminium/ui's
-  // ToastStack + useToastQueue rather than reimplementing the queue.
+  // (cross-listed as undo-toast), which wraps @adminium/ui's ToastStack +
+  // useToastQueue rather than reimplementing the queue.
   feeds: [],
-  // §5 fully delivered: the Track-CAL month/agenda/matrix/capacity slice plus
+  // The Calendar family is fully delivered: the Track-CAL month/agenda/matrix/capacity slice plus
   // the M7 Wave-4 TAIL — legend filter, upcoming feed, the range-picker control,
   // and the scheduled-jobs list. The legend/upcoming slots page-calendar.json
   // holds open (`fallback: 'omit'`) now fill, as does its date-range-picker
   // toolbar chrome (and page-scheduler.json's / page-log-viewer.json's).
   calendar: [],
-  // §6 fully delivered by the M7 Wave-4 TAIL — `board-card` is now registered
+  // The Boards family is fully delivered by the M7 Wave-4 TAIL — `board-card` is now registered
   // under its own annex id (the same component the kanban columns render, no
   // longer only their private sub-component), and `inline-compose-card` fills
   // page-board.json's `compose` slot.
   boards: [],
-  // §7 fully delivered by the M7 Wave-4 tail (TRACK COMM-GEO) — the Leaflet
+  // The Geo family is fully delivered by the M7 Wave-4 tail (TRACK COMM-GEO) — the Leaflet
   // bubble map, and the region-coded tilegram the annex cross-lists with
   // `chart-choropleth-grid` (one visual, two entry points; the geo id is what
-  // the §7 rule emits when a table has region codes but no coordinates).
+  // the rule emits when a table has region codes but no coordinates).
   geo: [],
-  // §8 fully delivered by Track MEDIA (the file-browser exit criterion).
+  // The Media family is fully delivered by Track MEDIA (the file-browser
+  // exit criterion).
   media: [],
-  // §9 fully delivered: the Track-COMM inbox/thread/AI-panel slice plus the M7
-  // Wave-4 tail (TRACK COMM-GEO) — typing-indicator (also the thread's own
+  // The Communication family is fully delivered: the Track-COMM
+  // inbox/thread/AI-panel slice plus the M7 Wave-4 tail (TRACK COMM-GEO) —
+  // typing-indicator (also the thread's own
   // embedded typing row) and the niche call-widget.
   communication: [],
-  // §10 fully delivered: the Track-FCS wizard/input slice plus the M7 Wave-4
-  // TAIL (TRACK FORMS) — the rule/flow/question builder canvases, the export
+  // The Forms & Controls family is fully delivered: the Track-FCS
+  // wizard/input slice plus the M7 Wave-4 tail (TRACK FORMS) — the
+  // rule/flow/question builder canvases, the export
   // builder, the import wizard's column mapper, the document-canvas inline
   // field, and the two widgets LIFTED out of the Studio connect wizard
   // (connection-string-field, table-inclusion-checklist), which now render the
   // widgets-side component instead of a divergent copy of it.
   forms: [],
-  // §11 fully delivered by Track FCS.
+  // The Chrome family is fully delivered by Track FCS.
   chrome: [],
-  // §12 fully delivered by Track FCS.
+  // The System family is fully delivered by Track FCS.
   system: [],
-  // §13 fully delivered — and with it the ANNEX ITSELF, 176/176. Three tracks
-  // built this family: Track DOMAIN's two M7 exit-criteria widgets (org-chart,
-  // gantt-chart); TRACK BUILDER's DOCUMENT half (`document-canvas` plus its
-  // 22-block shared library, block-totals-summary … block-highlight-box); and
+  // The Domain family is fully delivered — and with it the CATALOG ITSELF,
+  // 176/176. Three tracks built this family: Track DOMAIN's two M7
+  // exit-criteria widgets (org-chart, gantt-chart); TRACK BUILDER's DOCUMENT
+  // half (`document-canvas` plus its 22-block shared library,
+  // block-totals-summary … block-highlight-box); and
   // TRACK OPS's ops/billing/API/marketing tail — the eighteen cards
   // (starter-template-picker … policy-list) that were the last list standing in
   // this record and are now registered through `domain-ops-track.definitions.ts`.

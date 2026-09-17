@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Meta-store relocation (01-architecture.md §3.1, §7.2) — the service, the
- * retire step, and the host that restarts onto the moved store.
+ * Meta-store relocation — the service, the retire step, and the host that
+ * restarts onto the moved store.
  *
  * The copy itself is `@adminium/meta`'s (`relocate.test.ts` exercises it across
  * every pair of dialects). What is under test here is the part that can lose
@@ -68,7 +68,7 @@ describe('relocateMetaStore', () => {
     expect(result.totalRows).toBeGreaterThan(0);
     expect(result.retiredSqlitePath).toBe(join(dir, 'meta.db'));
 
-    // §7.2 rung 2 now answers with the new store, and the DSN is encrypted —
+    // Rung 2 now answers with the new store, and the DSN is encrypted —
     // a meta DSN in plaintext on disk would be a credential leak.
     const bootstrap = await readBootstrap(dir);
     expect(bootstrap?.metaUrl).toBeDefined();

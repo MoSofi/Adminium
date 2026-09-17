@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-marimekko` primitive (research/widget-registry.md §2): column width =
+ * `chart-marimekko` primitive (research/widget-registry.md): column width =
  * outer share, stacked vertical segments = inner mix, with in-cell labels past
  * a size threshold. Composed from ChartSurface + pure `layoutMarimekko`
- * geometry (a §3 `matrix`). Segment color cycles the viz palette by row;
- * columns mirror in RTL; segments fade in on mount.
+ * geometry (a `matrix`). Segment color cycles the viz palette by row; columns
+ * mirror in RTL; segments fade in on mount.
  */
 import type { ReactNode } from 'react';
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Design-mode API client — 35-schema-authoring.md §3.5.
+ * Design-mode API client.
  *
  *   POST /connections/:id/schema/plan   → the plan and its SQL (runs nothing)
  *   POST /connections/:id/schema/apply  → run it

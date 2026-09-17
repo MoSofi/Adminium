@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Derived fields on the CRUD read endpoints — the `compute=` param's
- * arithmetic half (36-derived-columns.md §3.5).
+ * arithmetic half.
  *
  * One ordered pass per row, run AFTER the whole masking chain
  * (`maskRows → applyLookupMask → applyMeasureMask`) at both list return sites

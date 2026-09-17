@@ -21,15 +21,15 @@ import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
- * Track F contribution to the `feeds` family (annex §4). Metadata only — the
- * config schemas and demo generators come from the pure `feeds-config` module,
- * and the @adminium/ui-heavy widget components load through the
+ * Track F contribution to the `feeds` family (annex). Metadata only — the config
+ * schemas and demo generators come from the pure `feeds-config` module, and the
+ * @adminium/ui-heavy widget components load through the
  * `feeds-track-f-components` barrel via `lazy(() => import(...))`, so the family
  * stays in one lazy chunk and the registry metadata never eagerly pulls the
- * component code (04 §2.3; the boards/domain/media convention). The GREEN LOOP
- * spreads `feedsTrackFDefinitions` into `families/feeds/definitions.ts` (and
- * wires that into the registry map). Widget ids match the annex catalog exactly
- * (acceptance #1).
+ * component code (the boards/domain/media convention). The GREEN LOOP spreads
+ * `feedsTrackFDefinitions` into `families/feeds/definitions.ts` (and wires that
+ * into the registry map). Widget ids match the annex catalog exactly (acceptance
+ * #1).
  */
 
 export const activityFeedDefinition: WidgetDefinition = defineWidget({
@@ -100,10 +100,11 @@ export const unreadBadgeDefinition: WidgetDefinition = defineWidget({
 });
 
 /**
- * `load-older-paginator` (annex §4; M7 Wave 4). The annex's "cursor into older
- * pool" rides the canonical §3 `record-list` envelope — `total` + a non-null
+ * `load-older-paginator` (annex; M7 Wave 4). The annex's "cursor into older
+ * pool" rides the canonical `record-list` envelope — `total` + a non-null
  * `cursor` are what make more fetchable — so no bespoke shape is needed.
- * `placement: 'inline'`: it is attached to a feed's footer, never grid-placed.
+ * `placement: 'inline'`: it is attached to a feed's footer, never
+ * grid-placed.
  */
 export const loadOlderPaginatorDefinition: WidgetDefinition = defineWidget({
   id: 'load-older-paginator',
@@ -121,11 +122,11 @@ export const loadOlderPaginatorDefinition: WidgetDefinition = defineWidget({
 });
 
 /**
- * `toast-stack` (annex §4; cross-listed as `undo-toast` in §12) — the overlay
- * toast HOST, wrapping @adminium/ui's `ToastStack` + `useToastQueue` (03 §7.2)
- * rather than reimplementing the queue.
+ * `toast-stack` (annex; cross-listed as `undo-toast`) — the overlay toast
+ * HOST, wrapping @adminium/ui's `ToastStack` + `useToastQueue` rather than
+ * reimplementing the queue.
  *
- * `dataContract: 'static'` per annex §4 ("ephemeral `{message, icon, onUndo?}`"):
+ * `dataContract: 'static'` per annex ("ephemeral `{message, icon, onUndo?}`"):
  * toasts are pushed imperatively, never queried, so there is no bound shape and
  * `isEmptyByShape.static` correctly never routes this to the empty state.
  *

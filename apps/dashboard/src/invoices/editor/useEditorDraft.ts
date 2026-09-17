@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The editor's state (34-invoices-add-on.md O22 → 39 D1's model): the draft,
- * its history, the last saved draft, and the one way anything reaches the
- * server — `save()`.
+ * The editor's state (model): the draft, its history, the last saved draft,
+ * and the one way anything reaches the server — `save()`.
  *
  * NOTHING HERE WRITES ON INPUT. The comp autosaves 900 ms after a keystroke
  * (1346-1350); that choreography is NOT built — the chip is driven by an

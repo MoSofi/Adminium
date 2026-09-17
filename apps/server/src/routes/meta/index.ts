@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Meta-placement resource: `GET /api/v1/meta/placement`,
- * `POST /api/v1/meta/relocate` (01-architecture.md §3.1, §7.2).
+ * `POST /api/v1/meta/relocate`.
  *
  * ── WHAT THIS FIXES ─────────────────────────────────────────────────────────
  * The Studio connect wizard has always had a meta step, and it has never done

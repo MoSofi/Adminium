@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Export Builder's draft rules (41-export-builder.md §3.7): the comp's
- * header casing (D4), the three add outcomes (731-737), the per-family
- * budgets (D9, D11), duplicate headers, reorder, the wire shape (D1) and the
- * round trip a finished export makes back into a draft ("Based on").
+ * The Export Builder's draft rules: the comp's header casing (D4), the three
+ * add outcomes (731-737), the per-family budgets (D9, D11), duplicate
+ * headers, reorder, the wire shape (D1) and the round trip a finished export
+ * makes back into a draft ("Based on").
  */
 import { describe, expect, it } from 'vitest';
 

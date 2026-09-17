@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Data-contract shapes for the `tables` family Track F widgets (annex §3).
- * Types only — erased at compile time, so both the pure `tables-track-f-config`
+ * Data-contract shapes for the `tables` family Track F widgets (annex). Types
+ * only — erased at compile time, so both the pure `tables-track-f-config`
  * module (which the registry's eager metadata graph reaches) and the widget
  * components can name them without either one importing the other. That keeps
- * the config module free of component code (04 §2.3, acceptance #3) AND keeps
- * the module graph acyclic, which `pnpm check-deps` enforces with
- * `tsPreCompilationDeps`.
+ * the config module free of component code (acceptance #3) AND keeps the module
+ * graph acyclic, which `pnpm check-deps` enforces with `tsPreCompilationDeps`.
  *
  * The component files re-export these, so existing import points stay stable.
  */

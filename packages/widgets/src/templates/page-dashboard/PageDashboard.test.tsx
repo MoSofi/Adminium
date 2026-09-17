@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * page-dashboard template tests (M4-T05): renders a fixture layout on the
- * static grid with per-instance data states, resolves demo mode for
- * unbound widgets, batches all bound descriptors into ONE adapter call,
- * isolates per-item failures, and survives invalid layouts + unknown
- * widget ids (widget-missing fallback, never a crash).
+ * page-dashboard template tests: renders a fixture layout on the static
+ * grid with per-instance data states, resolves demo mode for unbound
+ * widgets, batches all bound descriptors into ONE adapter call, isolates
+ * per-item failures, and survives invalid layouts + unknown widget ids
+ * (widget-missing fallback, never a crash).
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';

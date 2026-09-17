@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Deterministic demo payloads for the "bars & ranking" chart group (04 §7.7):
- * every definition's `demoData(seed)` returns the §3 envelope the live server
- * would (record-list / categorical / matrix). Own seeded PRNG (no Date.now/
+ * Deterministic demo payloads for the "bars & ranking" chart group: every
+ * definition's `demoData(seed)` returns the envelope the live server would
+ * (record-list / categorical / matrix). Own seeded PRNG (no Date.now/
  * Math.random) keeps this pure and independent of the @adminium/charts build,
  * so the widget metadata + demo determinism is testable on its own.
  */

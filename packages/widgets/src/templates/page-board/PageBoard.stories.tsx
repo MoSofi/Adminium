@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-board` template stories (09 §7.5): the stored-config kanban over a
- * canned record-list (Project Board), the swimlane variant (Kanban
- * Swimlanes), the quarter-bucketed roadmap (Kanban Roadmap), and the
- * loading/error/invalid degradation states. Typed loosely — the 04-T17 QA
+ * `page-board` template stories: the stored-config kanban over a canned
+ * record-list (Project Board), the swimlane variant (Kanban Swimlanes),
+ * the quarter-bucketed roadmap (Kanban Roadmap), and the
+ * loading/error/invalid degradation states. Typed loosely — the QA
  * harness wires widgets stories into the workspace Storybook.
  */
 import { PageBoard } from './PageBoard.js';

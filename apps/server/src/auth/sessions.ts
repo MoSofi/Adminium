@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Session mechanics (08-server-api.md §2.1, 07-meta-store.md §3.5).
+ * Session mechanics.
  *
  * Opaque tokens: `adms_` + 32 random bytes base64url; only the SHA-256 hex of
  * the full token string is stored in `adminium_sessions`. The cookie
@@ -23,13 +23,13 @@ export const SESSION_TOKEN_PREFIX = 'adms_';
 export const CHALLENGE_TOKEN_PREFIX = 'admc_';
 export const RESET_TOKEN_PREFIX = 'admr_';
 
-/** Sliding-expiry defaults (08-server-api.md §2.1). */
+/** Sliding-expiry defaults. */
 export const SESSION_IDLE_TTL_MS = 7 * 86_400_000; // 7 days idle
 /** Absolute-lifetime fallback when `auth.sessionTtlHours` cannot be read. */
 export const SESSION_ABSOLUTE_TTL_MS = 30 * 86_400_000; // 30 days absolute
-/** 2FA login challenge: 5 minutes, single-use (§2.1). */
+/** 2FA login challenge: 5 minutes, single-use. */
 export const CHALLENGE_TTL_MS = 5 * 60_000;
-/** Password-reset tokens: single-use, 30-minute TTL (§7 item 7). */
+/** Password-reset tokens: single-use, 30-minute TTL. */
 export const RESET_TOKEN_TTL_MS = 30 * 60_000;
 
 /** `<prefix>` + 32 random bytes base64url (43 chars of payload). */
@@ -55,11 +55,11 @@ export interface MintedSession {
 const HOUR_MS = 3_600_000;
 
 /**
- * The workspace's absolute session lifetime (`auth.sessionTtlHours`,
- * 07-meta-store.md §7.1), read per mint rather than cached: an admin who
- * shortens the policy expects the very next sign-in to obey it, and sessions
- * are minted rarely enough that one indexed read costs nothing. Unset ⇒ the
- * registry default (720 h), which is {@link SESSION_ABSOLUTE_TTL_MS}.
+ * The workspace's absolute session lifetime (`auth.sessionTtlHours`), read
+ * per mint rather than cached: an admin who shortens the policy expects the
+ * very next sign-in to obey it, and sessions are minted rarely enough that
+ * one indexed read costs nothing. Unset ⇒ the registry default (720 h),
+ * which is {@link SESSION_ABSOLUTE_TTL_MS}.
  */
 export async function sessionAbsoluteTtlMs(meta: MetaDb): Promise<number> {
   return (await settingsRepo(meta).get('auth.sessionTtlHours')) * HOUR_MS;
@@ -125,10 +125,10 @@ export async function resolveSessionByToken(
 }
 
 /**
- * Privilege-boundary rotation hook (§7 item 7): revokes the old row and mints
- * a fresh token for the same user, keeping the original absolute deadline.
- * Call on login step-ups, role changes, and password changes that keep the
- * current session alive.
+ * Privilege-boundary rotation hook: revokes the old row and mints a fresh
+ * token for the same user, keeping the original absolute deadline. Call on
+ * login step-ups, role changes, and password changes that keep the current
+ * session alive.
  */
 export async function rotateSession(
   meta: MetaDb,
@@ -197,7 +197,7 @@ export function isSecureRequest(request: FastifyRequest): boolean {
 }
 
 /**
- * Cookie contract (§2.1): httpOnly, SameSite=Lax, signed, path /.
+ * Cookie contract: httpOnly, SameSite=Lax, signed, path /.
  *
  * `maxAge` stays the 30-day ceiling even when `auth.sessionTtlHours` is
  * shorter: the row's `expires_at` is the authority, and a cookie that outlives

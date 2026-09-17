@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-ranking-bars` primitive (research/widget-registry.md §2): label +
+ * `chart-ranking-bars` primitive (research/widget-registry.md): label +
  * proportional horizontal bar (leader at full accent, the rest dimmed) + mono
  * value. Composed from ChartSurface + pure `layoutRanking` geometry. Token-only
  * colors, RTL-mirrored value axis, mount fade with reduced-motion fallback.

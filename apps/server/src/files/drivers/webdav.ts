@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `webdav` driver (37-files-and-storage.md §3.10, D33/O3) — "my own remote
- * server".
+ * The `webdav` driver — "my own remote server".
  *
  * WHY WEBDAV AND NOT SFTP. The owner asked to be able to "configure a remote
  * server for hosting". SFTP would mean adding `ssh2` — a native-ish dependency

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The generic "rows + Add + per-row remove" shape (43-report-builder.md
- * Appendix A I10) the comp draws for eight repeaters: metrics 383, data
- * points 385, table rows 387, files 393, currencies 403, discount codes 407,
- * tax lines 409, payments 411 and delivery steps 421. The field group owns
- * each row's markup (`renderRow`) and the per-repeater seed (`onAdd`); this
- * owns the list, the remove buttons and the dashed *Add …* row.
+ * The generic "rows + Add + per-row remove" shape (I10) the comp draws for
+ * eight repeaters: metrics 383, data points 385, table rows 387, files 393,
+ * currencies 403, discount codes 407, tax lines 409, payments 411 and
+ * delivery steps 421. The field group owns each row's markup (`renderRow`)
+ * and the per-repeater seed (`onAdd`); this owns the list, the remove
+ * buttons and the dashed *Add …* row.
  *
- * A copy of the invoice inspector's file (43 D7).
+ * A copy of the invoice inspector's file.
  */
 import { Plus } from 'lucide-react';
 import type { ReactNode } from 'react';

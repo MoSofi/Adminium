@@ -49,7 +49,7 @@ export function makeBootstrap(overrides: Partial<BootstrapData> = {}): Bootstrap
   };
 }
 
-/** A valid `page-crud` envelope for `public.customers` (01-architecture.md §6.1). */
+/** A valid `page-crud` envelope for `public.customers`. */
 export function makeCrudEnvelope(overrides: Partial<PageEnvelope> = {}): PageEnvelope {
   return {
     v: 1,

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/** @adminium/engine — SchemaModel, Adapter interface, classification, config generation. See 05-introspection-engine.md. */
+/** @adminium/engine — SchemaModel, Adapter interface, classification, config
+ * generation. */
 export const PACKAGE_NAME = '@adminium/engine';
 
 export * from './schema-model.js';

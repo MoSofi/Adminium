@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * JSON IR parser — the public ingestion contract (05 §2.3/§5.2). The "format"
- * is simply the DatabaseModel schema itself; this wraps `parseDatabaseModel`
- * with pretty error mapping so external emitters get actionable messages.
+ * JSON IR parser — the public ingestion contract. The "format" is simply the
+ * DatabaseModel schema itself; this wraps `parseDatabaseModel` with pretty
+ * error mapping so external emitters get actionable messages.
  *
  * `$schema` IS STRIPPED, and that is the one place this parser is deliberately
  * laxer than the model. Every object in the IR is a Zod `strictObject`, so an

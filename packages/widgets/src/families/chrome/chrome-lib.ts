@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chrome` family shared helpers (annex §11) — PURE module (no React, no
+ * `chrome` family shared helpers (annex) — PURE module (no React, no
  * @adminium/ui, no lucide). Imported by both the family's config module and its
  * components, so the registry metadata graph can reach the schemas + demo
- * generators without dragging component code into the eager chunk (04 §2.3).
+ * generators without dragging component code into the eager chunk.
  */
 
 import { getFormatters } from '@adminium/i18n';
 
-/** Fall back to `en-US` when a widget's config carries no locale override (04 §2). */
+/** Fall back to `en-US` when a widget's config carries no locale override. */
 export function resolveLocale(locale: string | undefined): string {
   return locale !== undefined && locale.trim() !== '' ? locale : 'en-US';
 }
 
 /**
- * The `command-palette` / `global-search` result-group vocabulary (annex §11:
+ * The `command-palette` / `global-search` result-group vocabulary (annex:
  * "grouped results in fixed order (Actions/Navigate/Recent or
  * Pages/Metrics/People/Records/Actions)"). Closed vocabulary: a stored config
  * orders these groups, and an index entry declares one — neither can invent a
@@ -35,7 +35,7 @@ export const DEFAULT_SEARCH_GROUP_ORDER: readonly CommandGroupKey[] = [
   'actions',
 ];
 
-/** `tab-bar` visual styles (annex §11 `style`). */
+/** `tab-bar` visual styles (annex `style`). */
 export const TAB_STYLES = ['underline', 'segmented'] as const;
 export type TabStyle = (typeof TAB_STYLES)[number];
 
@@ -48,7 +48,7 @@ function rec(value: unknown): Rec | null {
 }
 
 /**
- * Read the rows out of a §3 `record-list` envelope (or a bare array). Non-object
+ * Read the rows out of a `record-list` envelope (or a bare array). Non-object
  * elements are DROPPED rather than cast — see the identical note in
  * `system-lib.recordRowsOf`; blind-casting turns the next field access into a
  * render-time TypeError.
@@ -127,8 +127,8 @@ export function isSafeHref(href: string | undefined): href is string {
 
 /**
  * Case/diacritic-insensitive substring match — the palette/search filter
- * predicate (annex §11 "live substring filter"). Uses the locale's collator via
- * NFD folding so "José" matches "jose" in every one of the 8 locales.
+ * predicate (annex). Uses the locale's collator via NFD folding so "José"
+ * matches "jose" in every one of the 8 locales.
  */
 export function fold(value: string): string {
   return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase();
@@ -142,7 +142,7 @@ export function matches(haystack: string | undefined, needle: string): boolean {
 
 /**
  * Split `text` on the first case-insensitive occurrence of `query` into
- * before/match/after, for the palette's match highlighting (annex §11). Returns
+ * before/match/after, for the palette's match highlighting (annex). Returns
  * `null` when there is no match, so callers render the plain string.
  */
 export function highlightParts(text: string, query: string): { before: string; match: string; after: string } | null {
@@ -172,8 +172,9 @@ function spanInOriginal(text: string, foldedStart: number, foldedLength: number)
 }
 
 /**
- * Collapse a deep breadcrumb trail to `maxDepth` entries (annex §11
- * `maxDepth/collapse`), returning `null` where the middle was elided.
+ * Collapse a deep breadcrumb trail to `maxDepth` entries (annex
+ * `maxDepth/collapse`), returning `null` where the middle was
+ * elided.
  *
  * The FIRST and LAST crumbs always survive: the root is how you escape, and the
  * last is where you are — collapsing either would make the trail useless. The
@@ -201,6 +202,6 @@ export function formatUpdated(iso: string | undefined, locale: string | undefine
   if (Number.isNaN(date.getTime())) return undefined;
   const formatters = getFormatters(resolveLocale(locale));
   // `referenceTime` pins "now" so demo/VRT captures stay byte-deterministic
-  // (shared config, 04 §2.1); without it we fall back to the wall clock.
+  // (shared config); without it we fall back to the wall clock.
   return now === undefined ? formatters.relative(date) : formatters.relative(date, { now });
 }

@@ -5,9 +5,9 @@
  * The single validation authority for stored config documents: the envelope
  * schema, nav/widget schemas, and the config-migration runner. Also
  * re-exports the `@adminium/widgets/page-config` pure-Zod leaf so consumers
- * (dashboard, manifest, server routes) have one import surface
- * (07-meta-store.md §3.17). No node: imports anywhere in this directory —
- * enforced by test/browser-safe.test.ts and the dependency-cruiser gate.
+ * (dashboard, manifest, server routes) have one import surface. No node:
+ * imports anywhere in this directory — enforced by
+ * test/browser-safe.test.ts and the dependency-cruiser gate.
  */
 export {
   CONFIG_KINDS,
@@ -36,7 +36,7 @@ export {
   type ConfigMigration,
 } from './migrations.js';
 export { TABLE_BOUND_TEMPLATES, isTableBoundTemplate } from './table-bound.js';
-// Assembled surface: the per-template leaf schemas (04-widget-registry.md §5.1, §6.1).
+// Assembled surface: the per-template leaf schemas.
 export {
   COMPILABLE_DATA_SHAPES,
   DATA_SHAPES,
@@ -57,11 +57,12 @@ export {
   type QueryDescriptor,
   type QueryFilter,
 } from '@adminium/widgets/page-config';
-// `page-crud`'s config body is a `columns[]` of these (04 §6.1). Re-exported
-// here so the two consumers that must validate one — the server's page-config
-// PATCH and the dashboard's column editor — share the single definition
-// rather than restating it; neither may import `@adminium/widgets` directly
-// (dependency-cruiser `server-no-ui-widgets-charts`, `dashboard-no-full-engine`).
+// `page-crud`'s config body is a `columns[]` of these. Re-exported here so
+// the two consumers that must validate one — the server's page-config PATCH
+// and the dashboard's column editor — share the single definition rather than
+// restating it; neither may import `@adminium/widgets` directly
+// (dependency-cruiser `server-no-ui-widgets-charts`,
+// `dashboard-no-full-engine`).
 export {
   COLUMN_DISPLAY_KINDS,
   GRID_LOGICAL_TYPES,
@@ -77,10 +78,9 @@ export {
   type GridLogicalType,
   type GridTone,
 } from '@adminium/widgets/page-config';
-// `page-crud`'s stored `config.detail` block (30-record-pages.md D1/D3): the
-// record-page contract every generated body already carries. Same sharing
-// rationale as the column spec above — one schema on both sides of the
-// boundary, absence tolerated.
+// `page-crud`'s stored `config.detail` block: the record-page contract every
+// generated body already carries. Same sharing rationale as the column spec
+// above — one schema on both sides of the boundary, absence tolerated.
 export {
   crudAttachmentsConfigSchema,
   crudDetailConfigSchema,
@@ -91,8 +91,7 @@ export {
   type CrudDetailConfig,
   type CrudDetailTabConfig,
 } from '@adminium/widgets/page-config';
-// NOT re-exported here: `formatRefList` / `parseRefList`
-// (38-files-library-and-attachments.md D5).
+// NOT re-exported here: `formatRefList` / `parseRefList`.
 //
 // Every block above is read by something on the FIRST PAINT, so this module is
 // in the dashboard's entry chunk — and Rollup does not drop a re-export's
@@ -113,12 +112,12 @@ export {
   type CrudLabelsConfig,
 } from '@adminium/widgets/page-config';
 // `page-crud`'s stored `config.derived` block, the exact decimal arithmetic it
-// is defined over, and the evaluator that reads it (36-derived-columns.md
-// §3.3-§3.5). This re-export is the ONLY legal path by which the server sees
-// this vocabulary: dependency-cruiser's `server-no-ui-widgets-charts` forbids
-// `apps/server` importing `@adminium/widgets`, and the money law must have one
-// implementation shared by the read path, the export jobs and the Studio live
-// preview rather than three that drift.
+// is defined over, and the evaluator that reads it. This re-export is the ONLY
+// legal path by which the server sees this vocabulary: dependency-cruiser's
+// `server-no-ui-widgets-charts` forbids `apps/server` importing
+// `@adminium/widgets`, and the money law must have one implementation shared
+// by the read path, the export jobs and the Studio live preview rather than
+// three that drift.
 export {
   DECIMAL_LITERAL_PATTERN,
   DECIMAL_ZERO,

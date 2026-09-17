@@ -6,14 +6,14 @@
  *
  * `src/api/widgetData.ts#extractBindings` deliberately gates on
  * `kind === 'dashboard'`; archetype envelopes are `kind: 'page'`
- * (templateKind, 09 §3.2) yet their `config.layout` items DO carry
- * `binding` query descriptors (04 §5.1 — see generate-archetypes.test.ts).
- * This hook is the same one-batch-per-page-mount discipline over that
- * layout: extract → dedupe/batch via `fetchWidgetDataBatch` → per-instance
- * `WidgetDataState`s handed to the template through its `states` prop.
- * The query key matches useDashboardData's `['widget-data', pageId, params]`
- * prefix, so WS `widget-data:*`/`table:*` invalidations (src/api/realtime.ts)
- * refetch these pages too.
+ * (templateKind) yet their `config.layout` items DO carry `binding` query
+ * descriptors (see generate-archetypes.test.ts). This hook is the same
+ * one-batch-per-page-mount discipline over that layout: extract →
+ * dedupe/batch via `fetchWidgetDataBatch` → per-instance `WidgetDataState`s
+ * handed to the template through its `states` prop. The query key matches
+ * useDashboardData's `['widget-data', pageId, params]` prefix, so WS
+ * `widget-data:*`/`table:*` invalidations (src/api/realtime.ts) refetch these
+ * pages too.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
@@ -116,7 +116,7 @@ export function usePageTemplateData(page: PageEnvelope, params: WidgetDataParams
         continue;
       }
       if (query.isError) {
-        // Whole-batch transport failure → per-widget error states (09 §4.1).
+        // Whole-batch transport failure → per-widget error states.
         record[instanceId] = { status: 'error', error: query.error, refetch };
         continue;
       }

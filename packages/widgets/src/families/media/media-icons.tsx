@@ -17,10 +17,10 @@ import { kindOf } from './media-lib.js';
 import type { FileKind } from './media-lib.js';
 
 /**
- * Kind → Lucide glyph for the `media` family's type-coded icon chips (annex §8;
- * File Manager's `ftMeta` icon map). Separated from `media-lib.ts` so that module
+ * Kind → Lucide glyph for the `media` family's type-coded icon chips (annex; File
+ * Manager's `ftMeta` icon map). Separated from `media-lib.ts` so that module
  * stays JSX-free and the registry-metadata graph (`media-config.ts`) never pulls
- * `lucide-react` into the eager chunk (04 §2.3; the `feeds/feed-icons` convention).
+ * `lucide-react` into the eager chunk (the `feeds/feed-icons` convention).
  */
 
 const KIND_ICON: Record<FileKind, ReactNode> = {
@@ -43,9 +43,10 @@ export function fileKindIcon(kind: FileKind): ReactNode {
 
 /**
  * Glyph for an untrusted row, honouring a config `typeIconMap` override
- * (annex §8 `file-browser` config): the map remaps a raw `type` value onto a
+ * (annex `file-browser` config): the map remaps a raw `type` value onto a
  * DIFFERENT kind's glyph (e.g. `{ blueprint: 'image' }`), keeping the icon
- * vocabulary closed — a widget never renders an arbitrary icon name from data.
+ * vocabulary closed — a widget never renders an arbitrary icon name from
+ * data.
  */
 export function fileIconFor(
   type: unknown,
@@ -60,7 +61,7 @@ export function fileIconFor(
   return fileKindIcon(kindOf(type, mime, name));
 }
 
-/** The `link-list` row chip glyph (annex §8 — reference links, not files). */
+/** The `link-list` row chip glyph (annex — reference links, not files). */
 export function linkIcon(): ReactNode {
   return <LinkIcon />;
 }

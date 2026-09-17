@@ -22,9 +22,9 @@
 
 ### Patch Changes
 
-- 8fb86bf: The contract registry gains a fourth entry: `document-render@1` (34 D1, bought
-  2026-09-02), with two implementations in the same wave — `invoices` and
-  `barcode-labels` — which is what 25 D4's gate asks of a new contract.
+- 8fb86bf: The contract registry gains a fourth entry: `document-render@1` (bought
+  2026-09-02), with two implementations in the same wave — `invoices` and `barcode-labels`
+  — which is what gate asks of a new contract.
   
   It is the first contract an add-on uses to hand Adminium **bytes**. Every other
   one describes a conversation with a service: a carrier quotes and books, a
@@ -97,20 +97,17 @@
   read by nothing rather than dropped, because it is empty and dropping a column
   is the one thing a migration cannot take back.
   
-  **Attachments are a join table.** The wave's plan originally recommended two
-  manifest rows keyed `(manifest_key, attached_to)` for an add-on attached to two
-  hosts; that recommendation was withdrawn and the join table ratified. Three costs argue against it, and the
-  third only became visible once the table turned out to be shipped: two rows mean
-  two copies of the manifest document, which an upgrade must then rewrite
-  atomically or leave one host on an older version; the credential FK becomes
-  ambiguous, since a DHL API key belongs to the add-on rather than to one of its
-  attachments, so disconnecting "the other one" either orphans a secret or deletes
-  a live one; and it requires dropping and recreating the shipped
-  `uq_adminium_manifests_manifest_key` across three dialects, against §4's own
-  "never edit a shipped migration". An attachment is a many-to-many fact and now
-  has the table that models one. `disabledAt` lives there rather than on the
-  manifest, so an add-on can be live on one host and off on another — which a
-  single flag could not represent.
+  **Attachments are a join table.** The wave's plan originally recommended two manifest rows keyed
+  `(manifest_key, attached_to)` for an add-on attached to two hosts; that recommendation was withdrawn and the
+  join table ratified. Three costs argue against it, and the third only became visible once the table turned
+  out to be shipped: two rows mean two copies of the manifest document, which an upgrade must then rewrite
+  atomically or leave one host on an older version; the credential FK becomes ambiguous, since a DHL API key
+  belongs to the add-on rather than to one of its attachments, so disconnecting "the other one" either orphans
+  a secret or deletes a live one; and it requires dropping and recreating the shipped
+  `uq_adminium_manifests_manifest_key` across three dialects, against own "never edit a shipped migration". An
+  attachment is a many-to-many fact and now has the table that models one. `disabledAt` lives there rather than
+  on the manifest, so an add-on can be live on one host and off on another — which a single flag could not
+  represent.
   
   **Credentials get their own key, not the DSN's.** `deriveKey`'s `info` parameter
   exists to keep purposes apart, and these are genuinely different: a DSN opens
@@ -136,14 +133,13 @@
   
   **`manifests.manage` is grantable, in the same change that landed its first
   enforcement point** — which is the rule its own reserved list documents. It went
-  to `operations` rather than `workspace`: installing an add-on runs its server
-  half in this process, which is closer to starting a job than to changing a
-  setting, and 26 D3 exists precisely to stop it riding on `settings.manage`. The
-  reserved set had four hard-coded copies rather than the two that were expected,
-  and one of them is production code — `RESERVED_GRANTS` in the dashboard's
-  `rolesApi.ts`, which the dashboard cannot import from `@adminium/meta`, so
-  nothing detects drift and a key left there is silently dropped from the matrix
-  with no error and no failing test.
+  to `operations` rather than `workspace`: installing an add-on runs its server half
+  in this process, which is closer to starting a job than to changing a setting,
+  exists precisely to stop it riding on `settings.manage`. The reserved set had four
+  hard-coded copies rather than the two that were expected, and one of them is
+  production code — `RESERVED_GRANTS` in the dashboard's `rolesApi.ts`, which the
+  dashboard cannot import from `@adminium/meta`, so nothing detects drift and a key
+  left there is silently dropped from the matrix with no error and no failing test.
   
   Applying a plan that needs new tables lands in the same release — see the
   add-on schema changeset — so an add-on whose tables the host database already
@@ -198,3 +194,13 @@
 ### Minor Changes
 
 - First public release: the Adminium CLI/server and its library packages.
+
+---
+
+*A note on the entries above.* Some of them cited the internal work plan this
+repository was built from — a document filename, a section, or a task id. That
+plan was never published, so those citations were dead ends for every reader but
+their author, and they were reworded on 2026-09-17. No entry's substance
+changed: only the references went. The reasoning they pointed at is public now,
+one short page per decision, at
+<https://docs.adminium.dev/anatomy/decisions/>.

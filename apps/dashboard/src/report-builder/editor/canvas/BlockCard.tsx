@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * One block card on the sheet (comp 304-314, `cardStyle` 616-621, `wrapStyle`
- * 613; 43-report-builder.md Appendix A C3–C5, D17): a 13 px-radius card whose
- * head row is grip · the kind's glyph · the inline title · up · down · delete,
- * with the kind's body beneath.
+ * 613; C3–C5, D17): a 13 px-radius card whose head row is grip · the kind's
+ * glyph · the inline title · up · down · delete, with the kind's body beneath.
  *
  * FOUR STATES, THE COMP'S (616-621): selected draws a 1.5 px accent border
  * and a 3 % accent wash; `show: false` renders at 50 % opacity (it never
- * removes and never re-orders — 43 §0.3 trap 2); dragging is 50 % too; being
- * dragged OVER paints a 3 px accent bar on the top edge.
+ * removes and never re-orders — trap 2); dragging is 50 % too; being dragged
+ * OVER paints a 3 px accent bar on the top edge.
  *
  * DRAG IS THE COMP'S HTML5 CHOREOGRAPHY (306, 626) plus a keyboard path
  * (D17): the grip is a real button, so ArrowUp/ArrowDown reorder without a
  * mouse — invisible at rest, and Playwright's `dragTo` cannot drive HTML5 DnD
- * reliably in CI (43 §8).
+ * reliably in CI.
  */
 import type { DragEvent, ReactNode } from 'react';
 import { cn } from '@adminium/ui';

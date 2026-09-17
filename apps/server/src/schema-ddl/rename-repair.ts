@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Rename repair — 35-schema-authoring.md D33, §6, 35-T29.
+ * Rename repair.
  *
  * ─── Why a rename needs a second act ───────────────────────────────────────
  *
@@ -33,8 +33,8 @@
  *     leaves a filter pointing at a dead name, and there is no schema for the
  *     document that would let this rewrite it safely.
  *
- * Every one of those is reported to the operator in the confirm dialog (§6's
- * `not-repaired` consequence) rather than silently left.
+ * Every one of those is reported to the operator in the confirm dialog
+ * (`not-repaired` consequence) rather than silently left.
  */
 import type { MetaDb } from '@adminium/meta';
 import { connectionsRepo, pagesRepo, permissionsRepo } from '@adminium/meta';

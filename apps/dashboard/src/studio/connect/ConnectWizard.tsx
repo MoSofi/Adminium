@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/connect` — the connect wizard (M5-T01/T02/T03, 09 §8.2):
- * page-wizard pattern — `Stepper` header, one step body, sticky footer with
- * Back/Continue. State persists per keystroke to sessionStorage
- * (refresh-safe); abandoning after create leaves the connection resumable.
+ * `/studio/connect` — the connect wizard: page-wizard pattern — `Stepper`
+ * header, one step body, sticky footer with Back/Continue. State persists
+ * per keystroke to sessionStorage (refresh-safe); abandoning after create
+ * leaves the connection resumable.
  *
  * Steps: intent → source (3 input modes) → test+introspect (progress log) →
  * table inclusion → meta placement → generate/success.
@@ -193,7 +193,7 @@ export function ConnectWizard({
     const next = WIZARD_STEP_IDS[stepIndex + 1];
     if (next === undefined) return;
 
-    // ── Leaving the meta step MOVES the store (01 §3.1) ───────────────────
+    // ── Leaving the meta step MOVES the store ─────────────────────────────
     // This is the step that used to record an answer and do nothing with it:
     // the Studio is served by a running server, so a meta store already
     // existed by the time anyone could be asked where it should live, and
@@ -236,7 +236,7 @@ export function ConnectWizard({
       return;
     }
 
-    // Leaving the tables step persists inclusion + intent (M5-T02).
+    // Leaving the tables step persists inclusion + intent.
     if (state.step === 'tables' && state.connectionId !== null) {
       setPersisting(true);
       setPersistError(null);

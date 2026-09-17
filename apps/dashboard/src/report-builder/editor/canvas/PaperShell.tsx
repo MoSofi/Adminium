@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The paper (comp `cardOuter` 692, `bgScrim` 693, 288-291;
- * 43-report-builder.md Appendix A C1): a 760 px rounded card with an optional
- * full-bleed background image under a white scrim at `bgTint`, and the
- * content above it.
+ * C1): a 760 px rounded card with an optional full-bleed background image
+ * under a white scrim at `bgTint`, and the content above it.
  *
  * ALWAYS LIGHT (D10, 34 S6/DEP-15): the sheet has one palette in both themes
  * — the comp's dark-mode sheet and its dark scrim (`rgba(16,16,20,tint)`,

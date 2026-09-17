@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * DSN parsing, masking, and the connection-string SSRF guard
- * (08-server-api.md §7 item 2). Scheme allowlist `postgres|mysql|sqlite`;
- * cloud-metadata addresses are always refused. Loopback blocking is
- * production-only by default — a DB on the same box is the normal self-host
- * case (§7's `ADMINIUM_NETWORK_POLICY=strict` tightens it further at M15).
+ * DSN parsing, masking, and the connection-string SSRF guard. Scheme
+ * allowlist `postgres|mysql|sqlite`; cloud-metadata addresses are always
+ * refused. Loopback blocking is production-only by default — a DB on the
+ * same box is the normal self-host case (`ADMINIUM_NETWORK_POLICY=strict`
+ * tightens it further at M15).
  */
 
 import { AppError, ValidationFailedError } from '../errors.js';
@@ -78,11 +78,11 @@ export interface DsnGuardOptions {
 }
 
 /**
- * Shared outbound-host SSRF guard (§7 item 2). Cloud-metadata endpoints
- * (169.254.0.0/16, metadata.google.internal, the AWS IPv6 IMDS fd00:ec2::254)
- * are ALWAYS blocked — that is the credential-theft target; loopback is blocked
- * only per {@link DsnGuardOptions}. Used for both source DSNs and any
- * user-configurable outbound URL (e.g. the LLM provider baseUrl). Throws 422.
+ * Shared outbound-host SSRF guard. Cloud-metadata endpoints (169.254.0.0/16,
+ * metadata.google.internal, the AWS IPv6 IMDS fd00:ec2::254) are ALWAYS blocked
+ * — that is the credential-theft target; loopback is blocked only per {@link
+ * DsnGuardOptions}. Used for both source DSNs and any user-configurable
+ * outbound URL (e.g. the LLM provider baseUrl). Throws 422.
  */
 export function assertOutboundHostAllowed(host: string, opts: DsnGuardOptions = {}): void {
   const h = host.toLowerCase().replace(/^\[|\]$/g, '');
@@ -119,7 +119,7 @@ export function guardOutboundUrl(rawUrl: string, opts: DsnGuardOptions = {}): vo
 }
 
 /**
- * §7 item 2 guard, run before any dial. Cloud-metadata is always blocked;
+ * The SSRF guard, run before any dial. Cloud-metadata is always blocked;
  * loopback per {@link DsnGuardOptions}. Throws 422.
  */
 export function guardDsn(dsn: string, opts: DsnGuardOptions = {}): ParsedDsn {
@@ -147,8 +147,7 @@ export function maskDsn(dsn: string | null): string | null {
 
 /**
  * True when two DSNs point at the same physical database (host+port+db, or
- * the same SQLite file) — drives the meta-placement same-db check
- * (01-architecture.md §3.1).
+ * the same SQLite file) — drives the meta-placement same-db check.
  */
 export function sameDatabase(a: string | null, b: string | null): boolean {
   if (a === null || b === null) return false;
@@ -169,7 +168,7 @@ export function sameDatabase(a: string | null, b: string | null): boolean {
   return localA === localB && pa.port === pb.port && pa.database === pb.database;
 }
 
-/** 409 `META_PLACEMENT_INVALID` (01-architecture.md §3.1, enforced server-side). */
+/** 409 `META_PLACEMENT_INVALID` (enforced server-side). */
 export class MetaPlacementError extends AppError {
   override readonly name = 'MetaPlacementError';
 
@@ -188,7 +187,7 @@ export class MetaPlacementError extends AppError {
  * dies on a permission error; this one's is a `CREATE TABLE adminium_users`
  * landing on somebody else's `adminium_users` — a mid-migration DDL error naming
  * one table, from a runner that has already committed the migrations before it
- * (07-meta-store.md §4 is up-only, so there is no rollback to a clean state).
+ * (is up-only, so there is no rollback to a clean state).
  *
  * Thrown by `ConnectionManager.assertMetaPrefixAvailable`, which is where the
  * remedy lives too — see that method for why the ledger is the discriminator.

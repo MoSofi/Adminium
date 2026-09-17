@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 6 — you're all set (45-onboarding.md §2, comp step "All set").
+ * Step 6 — you're all set (comp step "All set").
  *
  * THE COMP CLAIMS MORE THAN THIS WIZARD DOES. It ends on "We generated 6
  * dashboards from your schema", and generation has not run: 45 R4 hands tables,

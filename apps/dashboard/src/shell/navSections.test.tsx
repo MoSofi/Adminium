@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-connection nav sectioning (M5-T05): the pure helpers plus SidebarNav
- * rendering — flat with zero/one connection (no redundant label), sub-labeled
- * by connection display name with 2+, "Shared" for connection-less pages.
+ * Per-connection nav sectioning: the pure helpers plus SidebarNav rendering —
+ * flat with zero/one connection (no redundant label), sub-labeled by
+ * connection display name with 2+, "Shared" for connection-less pages.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';

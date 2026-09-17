@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * Render tests for the distribution & correlation chart primitives (04-T09):
- * SVG structure, a11y contract (role=img + aria-label), token-only fills,
+ * Render tests for the distribution & correlation chart primitives: SVG
+ * structure, a11y contract (role=img + aria-label), token-only fills,
  * categorical/value-axis RTL mirroring, and the reduced-motion fade gate.
  */
 import { cleanup, render } from '@testing-library/react';

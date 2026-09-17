@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the data-exports resource (M7-T07, 07-meta-store.md §3.25,
- * 09-generated-app.md §11.2). Source/format/status vocabularies come from
- * meta's payload schemas — one authority, no drift.
+ * Zod schemas for the data-exports resource. Source/format/status
+ * vocabularies come from meta's payload schemas — one authority, no drift.
  */
 
 import { z } from 'zod';
@@ -44,7 +43,7 @@ export const exportsListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
-// --- the builder's reads (41-export-builder.md §3.1, §3.5) ------------------------------
+// --- the builder's reads ------------------------------
 
 export const exportsSourcesQuery = z.object({ connectionId: z.string().min(1) });
 

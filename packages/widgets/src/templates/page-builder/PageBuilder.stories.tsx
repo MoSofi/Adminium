@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-builder` template stories (M7-T06): the four flavors the annex names
- * for this template's comps — an invoice document canvas with palette +
- * inspector, the report flavor (the kindMeta-fixed palette copy), the survey
- * flavor with LIVE publish counts, and the automation flow. Typed loosely —
- * the 04-T17 QA harness wires widgets stories into the workspace Storybook.
+ * `page-builder` template stories: the four flavors the annex names for this
+ * template's comps — an invoice document canvas with palette + inspector,
+ * the report flavor (the kindMeta-fixed palette copy), the survey flavor
+ * with LIVE publish counts, and the automation flow. Typed loosely — the
+ * QA harness wires widgets stories into the workspace Storybook.
  */
 import { useState } from 'react';
 import type { AutosaveStatus } from '@adminium/ui';
@@ -53,7 +53,7 @@ export const AutomationFlavor = {
   ),
 };
 
-/** The autosave choreography cycling through the pill states (09 §7.11). */
+/** The autosave choreography cycling through the pill states. */
 function AutosaveDemo() {
   const [status, setStatus] = useState<AutosaveStatus>('idle');
   return (

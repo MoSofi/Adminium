@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Storybook preview — the four theming axes as global toolbar items
- * (03-component-library.md §8, 02-T13). One decorator drives everything by
- * mounting the real ThemeProvider with the toolbar globals as `userPrefs`, so
- * stories get exactly the DOM attributes (`data-theme`/`data-accent`/
- * `data-density`/`dir`/`lang`) and Radix DirectionProvider the apps get.
+ * Storybook preview — the four theming axes as global toolbar items. One
+ * decorator drives everything by mounting the real ThemeProvider with the
+ * toolbar globals as `userPrefs`, so stories get exactly the DOM attributes
+ * (`data-theme`/`data-accent`/ `data-density`/`dir`/`lang`) and Radix
+ * DirectionProvider the apps get.
  */
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
@@ -50,7 +50,7 @@ const SETTLE_TIMEOUT_MS = 8_000;
 
 /**
  * Signals the VRT runner and the axe sweep that the story has finished
- * rendering (03 §10).
+ * rendering.
  *
  * THIS USED TO BE A BARE `useEffect(…, [])`, and that is a much bigger bug than
  * it looks. A mount effect fires when the STORY COMPONENT mounts, which is not

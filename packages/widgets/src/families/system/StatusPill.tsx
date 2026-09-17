@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `status-pill` (annex §12) — the UNIVERSAL enum renderer: soft tone bg,
- * colored dot, label. Every enum column in the generated app registers one of
- * these with an LLM/heuristic-assigned tone map (annex §12 auto-instantiation:
+ * `status-pill` (annex) — the UNIVERSAL enum renderer: soft tone bg, colored
+ * dot, label. Every enum column in the generated app registers one of these
+ * with an LLM/heuristic-assigned tone map (annex auto-instantiation:
  * `active|paid|success|healthy`→pos, `pending|trial|warn`→warn,
  * `failed|error|churned|breached`→danger).
  *

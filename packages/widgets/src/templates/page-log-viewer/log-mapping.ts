@@ -5,7 +5,7 @@ import type { LogRow } from '../../families/tables/tables-track-f-types.js';
 import type { TimelineEntry } from '../../families/feeds/feeds-types.js';
 
 /**
- * `page-log-viewer` field mapping (09-generated-app.md §7.8) — PURE module.
+ * `page-log-viewer` field mapping — PURE module.
  *
  * The generator binds `log-table` to a raw `record-list` over the audit/event
  * table (candidates rule `tables.log-table`) and its config carries only
@@ -15,7 +15,7 @@ import type { TimelineEntry } from '../../families/feeds/feeds-types.js';
  * over the payload's own keys, seeded by the binding's `orderBy` column (the
  * generator always orders a log DESC on its time axis, so that column IS the
  * timestamp). Every helper here is pure and clock-injectable so the template's
- * tests and stories are deterministic (04 §7.7 discipline).
+ * tests and stories are deterministic (discipline).
  */
 
 /** Column-name → LogRow-field projection. Absent field ⇔ no matching column. */
@@ -36,7 +36,7 @@ export interface LogFieldMap {
 export type MappedLogRow = LogRow & { raw: Record<string, unknown> };
 
 /**
- * A `record-list` envelope's rows — tolerant of the canonical §3 `{ rows }`,
+ * A `record-list` envelope's rows — tolerant of the canonical `{ rows }`,
  * the `{ data }` / `{ snapshot }` shorthands, and a bare array (the same
  * tolerance as the families' own readers, e.g. communication `chatRowsOf`).
  */
@@ -162,7 +162,7 @@ export type LogTimeWindowKey = (typeof LOG_TIME_WINDOWS)[number]['key'];
 
 export type LogLevelKey = 'all' | 'errors';
 
-/** Apply the toolbar's level + time filters (09 §7.8) to mapped rows. */
+/** Apply the toolbar's level + time filters to mapped rows. */
 export function filterLogRows(
   rows: readonly MappedLogRow[],
   options: { level: LogLevelKey; window: LogTimeWindowKey; now: number },

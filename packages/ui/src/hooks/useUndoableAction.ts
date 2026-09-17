@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Duration of the undo window, matching the undo-toast auto-dismiss
- * (03-component-library.md §7.2 — action/Undo 5200ms).
+ * (action/Undo 5200ms).
  */
 export const UNDO_WINDOW_MS = 5200;
 
@@ -51,10 +51,10 @@ export interface UseUndoableActionReturn<T> {
 
 /**
  * useUndoableAction — the perform-with-undo primitive behind destructive
- * mutations (03-component-library.md §7.2 Undo pattern): `run()`
- * applies the mutation optimistically, then either `undo()` reverts it within
- * the window or `commit()` finalizes it (called automatically when the window
- * elapses, and on unmount while pending).
+ * mutations (Undo pattern): `run()` applies the mutation optimistically, then
+ * either `undo()` reverts it within the window or `commit()` finalizes it
+ * (called automatically when the window elapses, and on unmount while
+ * pending).
  *
  * Pairs with `useToastQueue`:
  * ```tsx

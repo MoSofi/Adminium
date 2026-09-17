@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Runtime override layer (23 §4.3).
+ * Runtime override layer.
  *
  * The assertions that matter here are the ones the naive implementation gets
  * wrong: en-US overrides must not wipe their namespace, reset must actually

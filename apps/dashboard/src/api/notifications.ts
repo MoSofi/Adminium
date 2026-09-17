@@ -116,7 +116,7 @@ export function notificationPrefsQuery() {
 /**
  * Notification → `notification-feed` widget row (families/feeds vocabulary:
  * actor/action/target/ts/read/category). The feed widget localizes nothing —
- * `title`/`body` are the server's stable en-US fallbacks (§3.20 write-once
+ * `title`/`body` are the server's stable en-US fallbacks (write-once
  * convention), which is exactly what a feed row wants.
  */
 export function notificationFeedRow(row: NotificationDto): Record<string, unknown> {

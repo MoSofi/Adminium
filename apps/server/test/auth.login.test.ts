@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Login/session/logout happy path + uniform credential failures + audit rows
- * (08-server-api.md §2.1) and the 503 META_NOT_CONFIGURED boot-without-meta
- * behavior.
+ * and the 503 META_NOT_CONFIGURED boot-without-meta behavior.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { auditRepo } from '@adminium/meta';
@@ -33,7 +32,7 @@ describe('POST /auth/login → GET /auth/session → POST /auth/logout', () => {
     expect(res.json()).toMatchObject({
       data: { user: { email: ADMIN_EMAIL, name: ADMIN_NAME, status: 'active', totpEnabled: false } },
     });
-    // No secret material in the reply (§7 item 6).
+    // No secret material in the reply.
     expect(res.body).not.toContain('passwordHash');
 
     const setCookie = String(res.headers['set-cookie']);

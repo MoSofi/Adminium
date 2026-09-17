@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Installing an app, ported from `Marketplace.dc.html`'s install wizard
- * (47-app-installation.md step 3).
+ * Installing an app, ported from `Marketplace.dc.html`'s install
+ * wizard.
  *
  * The comp draws a six-screen flow: source → connection → schema plan →
  * settings → review & install → success, over a sticky Cancel/Back/Next
@@ -18,16 +18,16 @@
  *
  *  **D1 — no settings step.** The comp's step 3 fills in the app's required
  *  settings. An install does not create `settings` (nor `pages`, `roles`,
- *  `seeds`) — that is 13-T03/T04 and it is unbuilt. The step is omitted rather
- *  than shown empty, and the success screen says surfaces rather than the
- *  comp's "a new group is now in your sidebar", which would be untrue.
+ * `seeds`) — that is and it is unbuilt. The step is omitted rather than shown
+ *  empty, and the success screen says surfaces rather than the comp's "a new
+ *  group is now in your sidebar", which would be untrue.
  *
  *  **D2 — the plan's Create/Map-existing toggle is a badge, not a control.**
  *  The comp offers per-table column mapping onto an existing table. The server
  *  has no mapping: it creates a table or reuses one of the same name, and
  *  REFUSES a reuse whose columns are short rather than altering a table the
- *  operator owns (26-T02's rule). A segmented control with one reachable
- *  option is a control that lies, so the outcome is stated instead.
+ * operator owns (rule). A segmented control with one reachable option is a
+ *  control that lies, so the outcome is stated instead.
  *
  *  **D3 — review is folded into the plan step.** With settings, pages and
  *  roles out of scope, the comp's review screen restates the plan step's own

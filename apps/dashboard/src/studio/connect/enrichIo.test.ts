@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * BYO enrichment side-effects (06-llm-assist.md §10.2 step 4).
+ * BYO enrichment side-effects.
  *
- * BYO is the telemetry-free path (§9): the user copies a prompt into their own
+ * BYO is the telemetry-free path: the user copies a prompt into their own
  * model and brings the answer back. So the property this suite pins is a
  * NEGATIVE one — neither helper touches the network — plus the two degraded
  * environments they have to survive: a browser with no clipboard permission

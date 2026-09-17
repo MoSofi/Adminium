@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Publishable keys — mint, verify, rotate (28-public-surface.md §3.3, 28-T06).
+ * Publishable keys — mint, verify, rotate.
  *
- * ── THE LOAD-BEARING PROPERTY (28 D3) ──────────────────────────────────────
- * An `adm_pub_` token is NEVER an `RbacPrincipal`. That is not enforced here;
- * it falls out of `parseBearerApiKey` gating on `adm_sk_`, so a publishable
- * token cannot resolve through the rbac plugin at all and `request.can()` is
- * false for it on every route in the server. This module must never widen that:
- * do not teach `rbac/api-keys.ts` about this prefix, and do not store these
- * rows in `adminium_api_keys`. The off switch covers exactly one namespace
- * because of that property, not because of an allow-list somebody maintains.
+ * ── THE LOAD-BEARING PROPERTY ────────────────────────────────────── An
+ * `adm_pub_` token is NEVER an `RbacPrincipal`. That is not enforced here; it
+ * falls out of `parseBearerApiKey` gating on `adm_sk_`, so a publishable token
+ * cannot resolve through the rbac plugin at all and `request.can()` is false
+ * for it on every route in the server. This module must never widen that: do
+ * not teach `rbac/api-keys.ts` about this prefix, and do not store these rows
+ * in `adminium_api_keys`. The off switch covers exactly one namespace because
+ * of that property, not because of an allow-list somebody maintains.
  *
  * ── WHY THE SECRET IS RE-READABLE ──────────────────────────────────────────
  * `adminium_api_keys` reveals once and never again, which is right for a
@@ -38,7 +38,7 @@ export const PUBLISHABLE_KEY_SECRET_LENGTH = 40;
 /** Stored display fragment: `adm_pub_` + first 8 secret chars. */
 export const PUBLISHABLE_DISPLAY_PREFIX_LENGTH = PUBLISHABLE_KEY_PREFIX.length + 8;
 
-/** Session token minted by `POST /public/claim` (§3.4). */
+/** Session token minted by `POST /public/claim`. */
 export const PUBLIC_SESSION_PREFIX = 'adm_pubs_';
 export const PUBLIC_SESSION_SECRET_LENGTH = 40;
 
@@ -100,7 +100,7 @@ export function parseBearerPublishableKey(authorization: string | undefined): st
   return token.startsWith(PUBLISHABLE_KEY_PREFIX) ? token : null;
 }
 
-/** Same, for the end-customer session token (a separate header, §3.4). */
+/** Same, for the end-customer session token (a separate header). */
 export function parsePublicSessionToken(header: string | undefined): string | null {
   if (header === undefined) return null;
   const token = header.trim();
@@ -126,7 +126,7 @@ export function tokenHashEquals(a: string, b: string): boolean {
  *
  * Revocation and expiry are checked here rather than in the query so that the
  * reason is available to the caller — but the caller must still answer every
- * failure identically on the wire (§3.2's enumeration rule). Do not surface
+ * failure identically on the wire (enumeration rule). Do not surface
  * "revoked" and "expired" as different statuses to an anonymous client.
  */
 export function keyIsLive(

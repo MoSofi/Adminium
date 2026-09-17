@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wire schemas for the desktop capability grant table (11-electron.md §12).
+ * Wire schemas for the desktop capability grant table.
  *
  * The grant identity `{ manifestId, capabilityId }` is the body of both POST
  * (consent) and DELETE (revoke) — one shape, so a form that can grant can revoke
@@ -17,7 +17,7 @@ import { capabilityIdSchema } from '../../capabilities/catalog.js';
 
 /** The identity written by consent / removed by revoke. */
 export const capabilityGrantRefBody = z.strictObject({
-  /** The installed micro-SaaS manifest's id (reverse-DNS; §12 / 13-marketplace.md). */
+  /** The installed micro-SaaS manifest's id (reverse-DNS). */
   manifestId: z.string().min(1).max(200),
   capabilityId: capabilityIdSchema,
 });

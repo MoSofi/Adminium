@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `adminium generate-prompt` — 06-llm-assist.md §10.4, verbatim:
+ * `adminium generate-prompt`, verbatim:
  *
  *   adminium generate-prompt --connection <id> [--sections labels,enums,…]
  *       [--locales en_US,de_DE] [--sampling] [--out ./prompt.md]
@@ -11,8 +11,8 @@
  * chat window is byte-identical to the one the Studio BYO screen shows, and the
  * run is a first-class row either way. It never touches the HTTP API.
  *
- * Chunked runs (§4.5) write one file per chunk: `--out ./prompt.md` with three
- * chunks yields `prompt.1.md`, `prompt.2.md`, `prompt.3.md` — hence "file(s)".
+ * Chunked runs write one file per chunk: `--out./prompt.md` with three chunks
+ * yields `prompt.1.md`, `prompt.2.md`, `prompt.3.md` — hence "file(s)".
  */
 
 import { writeFile } from 'node:fs/promises';
@@ -28,8 +28,8 @@ import { loadCliEnv } from '../runtime.js';
 
 /**
  * Per-column sample cap when `--sampling` is passed. Mirrors the Studio wizard's
- * `SAMPLING_MAX_VALUES` (06 §4.2) — the two front doors must opt in to the same
- * amount of data, or "the same prompt" would be a lie.
+ * `SAMPLING_MAX_VALUES` — the two front doors must opt in to the same amount of
+ * data, or "the same prompt" would be a lie.
  */
 export const SAMPLING_MAX_VALUES = 20;
 
@@ -155,7 +155,7 @@ export const generatePromptCommand: Command = {
         }
       }
 
-      // The two facts §10.4 requires on stdout.
+      // The two facts requires on stdout.
       io.out('');
       io.out(`runId:          ${created.run.id}`);
       io.out(`token estimate: ~${String(created.artifact.tokenEstimate)}`);

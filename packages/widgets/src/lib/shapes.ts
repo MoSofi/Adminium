@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Lenient payload narrowing for the §3 canonical envelopes (04 §3). Widget
- * components receive `data: unknown` from WidgetHost (already known to be
- * non-empty per the definition's `isEmpty` predicate) and narrow it here —
- * a malformed payload returns null and the component renders its own
+ * Lenient payload narrowing for the canonical envelopes. Widget components
+ * receive `data: unknown` from WidgetHost (already known to be non-empty
+ * per the definition's `isEmpty` predicate) and narrow it here — a
+ * malformed payload returns null and the component renders its own
  * fallback instead of throwing into the error boundary.
  */
 

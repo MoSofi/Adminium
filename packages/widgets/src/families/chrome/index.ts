@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chrome` family public surface (annex §11) — the navigation/chrome components
+ * `chrome` family public surface (annex) — the navigation/chrome components
  * (sidebar-nav, command-palette, global-search, breadcrumb, tab-bar, nav-card,
  * shortcuts-panel, avatar-stack) plus the TRACK FCS registry metadata. Component
  * code is also reachable through each definition's `lazy()` ref, so the registry
- * still emits one chunk per family (04 §2.3); this barrel is for direct
- * template/story composition and tests. Registry metadata lives in
- * `chrome-track.definitions.ts`; schemas + demo generators in `chrome-config.ts`.
+ * still emits one chunk per family; this barrel is for direct template/story
+ * composition and tests. Registry metadata lives in
+ * `chrome-track.definitions.ts`; schemas + demo generators in
+ * `chrome-config.ts`.
  */
 export {
   AvatarStackWidget,

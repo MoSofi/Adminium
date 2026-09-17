@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The eight style axes as canvas classes (the comp's `wrapOf`, 1407-1419;
- * 39-email-templates-and-campaigns.md Appendix A §E2). The mail body is
- * ALWAYS LIGHT, so the greys are the comp's literals; the accent rides the
- * `--adm-email-accent` custom property the shell sets (D15).
+ * The eight style axes as canvas classes (the comp's `wrapOf`, 1407-1419).
+ * The mail body is ALWAYS LIGHT, so the greys are the comp's
+ * literals; the accent rides the `--adm-email-accent` custom property the
+ * shell sets (D15).
  *
  * `full` bleeds the block to the paper's edges: the body has 28 px side
  * padding, so the wrapper pulls out by that much and pads back in.
@@ -95,7 +95,6 @@ export function strings(value: unknown): string[] {
  * MUTED IS `#6b6b76`, NOT THE COMP'S `#9a9aa5`: on white the comp's grey is
  * 2.78:1 and fails WCAG AA (axe blocks on it); `#6b6b76` is 5.3:1 and the
  * design system's light `--fg-muted` — the comp's own fallback value. Applies
- * to every muted text on the canvas; the mail renderer is a separate concern
- * (§6.1).
+ * to every muted text on the canvas; the mail renderer is a separate concern.
  */
 export const KICKER = 'text-[10.5px] font-bold uppercase tracking-[.05em] text-[#6b6b76]';

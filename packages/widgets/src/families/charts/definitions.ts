@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family definitions (annex §2; M4-T05 slice: `chart-line-area`,
+ * `charts` family definitions (annex slice: `chart-line-area`,
  * `chart-bar`, `chart-donut`, `chart-sparkline` — the remaining ~33 ids
- * land with 04-T09). Metadata only; component code loads through the
+ * land alongside them). Metadata only; component code loads through the
  * `components.ts` barrel via `lazy()` so Vite emits one chunk for the
- * whole family (04 §2.3). Demo payloads come from the deterministic
- * seeded generators in @adminium/charts (04 §7.7), converted into the §3
- * envelopes the live server returns.
+ * whole family. Demo payloads come from the deterministic seeded
+ * generators in @adminium/charts, converted into the envelopes the live
+ * server returns.
  */
 
 import { lazy } from 'react';

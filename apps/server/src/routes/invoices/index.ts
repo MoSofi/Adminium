@@ -1,31 +1,30 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Invoice documents — templates and invoices (34-invoices-add-on.md §3.9,
- * Appendix G; `adminium_invoice_documents`, wave 0027), mounted under
- * `/api/v1`. The reply bodies are mirrored type-for-type by
+ * Invoice documents — templates and invoices
+ * (`adminium_invoice_documents`, wave 0027), mounted under `/api/v1`. The
+ * reply bodies are mirrored type-for-type by
  * `apps/dashboard/src/invoices/api.ts` (the copied-mirror convention; the
  * SYNC NOTE is in `schema.ts`).
  *
  * THE AUTHORED SURFACE, NOT THE PIPELINE. Everything here lists, creates,
  * edits and saves what a person typed. Nothing here renders, prints or sends
- * — that is the render register's wave (34 §3.3, 34b), which will point back
- * at these rows. So there is no render, no PDF and no number sequence from
- * the register on this surface yet; `numbering.ts` is the surface's own
- * counter.
+ * — that is the render register's wave (34b), which will point back at these
+ * rows. So there is no render, no PDF and no number sequence from the
+ * register on this surface yet; `numbering.ts` is the surface's own counter.
  *
- * THE ONE RULE EVERY WRITE OBEYS (34 O22 → 39 D1's model): nothing writes
- * the row while an operator types. `PUT /:id` is the explicit save and it
- * carries the whole on-screen document; the summary and the denormalised
- * number are re-derived from it on every save, never patched piecemeal.
+ * THE ONE RULE EVERY WRITE OBEYS (model): nothing writes the row while an
+ * operator types. `PUT /:id` is the explicit save and it carries the
+ * whole on-screen document; the summary and the denormalised number are
+ * re-derived from it on every save, never patched piecemeal.
  *
  * DELETE IS A HARD DELETE. This comp has no archive — its `doDelete` (1386)
  * filters the row out of the array after a confirm — and the email surface's
- * archive shelf (39 D4) is a different product decision that this one did
- * not make. An invoice built from a template survives the template's
- * deletion untouched (`originId` is a soft ref, 34 O20).
+ * archive shelf is a different product decision that this one did not make.
+ * An invoice built from a template survives the template's deletion
+ * untouched (`originId` is a soft ref).
  *
  * Reads need a session; every write needs `system:settings:manage` (the
- * email rule, 39 D19 — invoice documents add no permission key).
+ * email rule, — invoice documents add no permission key).
  */
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -377,7 +376,7 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
       async (request, reply) => {
         const userId = requireUserId(request);
         await requireSettingsManage(request, 'create invoices');
-        // `:id` is the TEMPLATE the new invoice starts from (34 O20); the
+        // `:id` is the TEMPLATE the new invoice starts from; the
         // invoice remembers it as `originId` and is its own document from here.
         const source = await mustFind(request.params.id);
         if (source.kind !== 'template') {

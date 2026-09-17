@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Canonical locale registry (10-i18n-theming.md §2.1) plus the runtime
- * overlay that lets an admin add locales the build never saw
- * (23-runtime-translations.md §5).
+ * Canonical locale registry plus the runtime overlay that lets an
+ * admin add locales the build never saw.
  *
  * Two id types, and the split is load-bearing:
  *
@@ -20,14 +19,14 @@
  * locale still referenced by a user pref, a restored backup, an imported
  * config bundle — is the NORMAL aftermath of the feature, not an edge case,
  * and these helpers run inside a theme subscriber. `emitTheme` isolates each
- * listener now (23 §4.4), so a throw here no longer errors the React commit —
- * it is logged and swallowed, and this subscriber simply does not finish. That
- * is a quieter failure, not a smaller one: ThemeProvider stamps `dir`/`lang`
- * BEFORE it emits, so the page turns RTL while every string stays in the old
+ * listener now, so a throw here no longer errors the React commit — it is
+ * logged and swallowed, and this subscriber simply does not finish. That is a
+ * quieter failure, not a smaller one: ThemeProvider stamps `dir`/`lang` BEFORE
+ * it emits, so the page turns RTL while every string stays in the old
  * language, and nothing on screen says why.
  *
- * `dir` is still derived from the locale, never independently settable
- * (02-design-system.md §4.2).
+ * `dir` is still derived from the locale, never independently
+ * settable.
  */
 
 export interface LocaleEntry {
@@ -37,14 +36,14 @@ export interface LocaleEntry {
   tag: string;
   /** English exonym for admin surfaces. */
   english: string;
-  /** Native endonym — locale pickers always show this (§7.3). */
+  /** Native endonym — locale pickers always show this. */
   native: string;
   dir: 'ltr' | 'rtl';
   /**
-   * Body font-stack hint per `@adminium/tokens` fonts.css (02-design-system.md
-   * §2.4): `latin` → Manrope, `arabic` → IBM Plex Sans Arabic (Manrope
-   * fallback for Latin glyphs), `cjk` → Manrope + platform CJK fallbacks.
-   * JetBrains Mono stays the mono face everywhere (§5.1).
+   * Body font-stack hint per `@adminium/tokens` fonts.css: `latin` → Manrope,
+   * `arabic` → IBM Plex Sans Arabic (Manrope fallback for Latin glyphs), `cjk`
+   * → Manrope + platform CJK fallbacks. JetBrains Mono stays the mono face
+   * everywhere.
    */
   fontHint: 'latin' | 'arabic' | 'cjk';
 }
@@ -53,13 +52,13 @@ export interface LocaleEntry {
 export interface RuntimeLocaleEntry extends LocaleEntry {
   /** False for admin-created locales. */
   builtin: boolean;
-  /** Offered in pickers? (23 §3.1 `enabled`.) */
+  /** Offered in pickers? (`enabled`.) */
   enabled: boolean;
   /** Picker ordering. */
   sortOrder: number;
   /**
-   * The REAL BCP-47 tag whose `Intl` behaviour this locale borrows (23 §5.6).
-   * For a built-in this is just `tag`; for a custom locale it is the admin's
+   * The REAL BCP-47 tag whose `Intl` behaviour this locale borrows. For a
+   * built-in this is just `tag`; for a custom locale it is the admin's
    * choice, because `tag` itself may be something `Intl` has never heard of.
    */
   intlTag: string;
@@ -78,7 +77,7 @@ export const LOCALES = [
   { id: 'ar_EG', tag: 'ar-EG', english: 'Arabic (Egypt)', native: 'العربية (مصر)', dir: 'rtl', fontHint: 'arabic' },
 ] as const satisfies readonly LocaleEntry[];
 
-/** The eight COMPILED locales — the exhaustive axis (23 §5.1). */
+/** The eight COMPILED locales — the exhaustive axis. */
 export type BuiltinLocaleId = (typeof LOCALES)[number]['id']; // 'en_US' | … | 'ar_EG'
 
 /**
@@ -140,7 +139,7 @@ export function allLocales(): readonly RuntimeLocaleEntry[] {
   }
   for (const [id, entry] of runtimeById) {
     const base = merged.get(id);
-    // A built-in row may only carry `enabled`/`sortOrder` (23 §3.1 field
+    // A built-in row may only carry `enabled`/`sortOrder` (field
     // lock) — presentation always comes from the compiled entry, so an admin
     // cannot flip ar_EG to ltr and corrupt a shipped bundle's rendering.
     merged.set(
@@ -155,7 +154,7 @@ export function allLocales(): readonly RuntimeLocaleEntry[] {
   );
 }
 
-/** The locales a picker may offer, in picker order (23 §3.1 `enabled`). */
+/** The locales a picker may offer, in picker order (`enabled`). */
 export function availableLocales(): readonly RuntimeLocaleEntry[] {
   return allLocales().filter((l) => l.enabled);
 }
@@ -218,10 +217,10 @@ export function tagForLocale(id: LocaleId): string {
 }
 
 /**
- * The tag to hand `Intl.*` and `IntlMessageFormat` (23 §4.5). For a compiled
- * locale this is just the tag; for a custom locale it is the admin-chosen
- * borrow tag, because the locale's own tag may be something no ICU
- * implementation has data for.
+ * The tag to hand `Intl.*` and `IntlMessageFormat`. For a compiled locale
+ * this is just the tag; for a custom locale it is the admin-chosen borrow
+ * tag, because the locale's own tag may be something no ICU implementation
+ * has data for.
  */
 export function intlTagForLocale(id: LocaleId): string {
   return runtimeById.get(id)?.intlTag ?? tagForLocale(id);

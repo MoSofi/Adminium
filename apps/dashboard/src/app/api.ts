@@ -1,24 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Minimal fetch client for `/api/v1` (08-server-api.md §1.4 envelope).
- * Cookie-session auth (same-origin); every non-2xx response is normalized to
- * an `ApiError` carrying the canonical `code`, HTTP status, and `requestId`
- * (the support handshake). Network-level failures surface as the browser's
- * `TypeError` and are mapped to the `offline` state by `stateIdForError`.
+ * Minimal fetch client for `/api/v1` (envelope). Cookie-session auth
+ * (same-origin); every non-2xx response is normalized to an `ApiError`
+ * carrying the canonical `code`, HTTP status, and `requestId` (the support
+ * handshake). Network-level failures surface as the browser's `TypeError`
+ * and are mapped to the `offline` state by `stateIdForError`.
  *
- * CSRF (08-server-api.md §7 item 4): every mutating call carries the
- * session-bound token `GET /bootstrap` issued, in `x-adminium-csrf`. The token
- * lives in a module-level holder rather than React state because FOUR of the
- * five mutating fetch call sites in this app do not go through `api` at all —
- * `studio/api.ts` (deleteJson), `studio/remap/api.ts` (putJson),
- * `app/branding.ts` (raw image bytes), `data-io/api.ts` (raw text/csv) and —
- * since 37 — `files/api.ts` (raw upload bytes, and the only one that uses
- * `XMLHttpRequest` rather than `fetch`, because `fetch` has no upload-progress
- * event) all hand-roll their transport because this client is JSON-only. They
- * import
- * {@link csrfHeaders} from here; patching only this file would ship a
- * dashboard that 403s on schema-override saves, logo uploads, CSV imports and
- * the delete-connection confirm.
+ * CSRF: every mutating call carries the session-bound token `GET /bootstrap`
+ * issued, in `x-adminium-csrf`. The token lives in a module-level holder
+ * rather than React state because FOUR of the five mutating fetch call sites
+ * in this app do not go through `api` at all — `studio/api.ts` (deleteJson),
+ * `studio/remap/api.ts` (putJson), `app/branding.ts` (raw image bytes),
+ * `data-io/api.ts` (raw text/csv) and — since 37 — `files/api.ts` (raw upload
+ * bytes, and the only one that uses `XMLHttpRequest` rather than `fetch`,
+ * because `fetch` has no upload-progress event) all hand-roll their transport
+ * because this client is JSON-only. They import {@link csrfHeaders} from here;
+ * patching only this file would ship a dashboard that 403s on schema-override
+ * saves, logo uploads, CSV imports and the delete-connection confirm.
  *
  * There are exactly TWO writers, and the second one is not an afterthought:
  * `app/bootstrap.ts` (every load of an authed surface) and

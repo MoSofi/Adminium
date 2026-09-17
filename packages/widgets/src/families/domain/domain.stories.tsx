@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK DOMAIN `domain` family stories (annex §13): each widget's loaded
- * variant, the four WidgetFrame states through WidgetHost (acceptance #4), and
+ * TRACK DOMAIN `domain` family stories (annex): each widget's loaded variant,
+ * the four WidgetFrame states through WidgetHost (acceptance #4), and
  * light/dark × LTR/RTL matrices (acceptance #9).
  *
  * REAL GEOMETRY MIRRORING — the RTL stories are not a bare `dir` attribute, and
- * the two widgets deliberately show OPPOSITE behavior (10-i18n-theming.md §5.5):
+ * the two widgets deliberately show OPPOSITE behavior:
  *
  *   - `org-chart` MIRRORS. Node cards are positioned on `inset-inline-start` and
  *     the connector overlay carries `rtl:-scale-x-100`, so a `dir="rtl"` wrapper

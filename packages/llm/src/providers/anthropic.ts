@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Anthropic Messages API client (06-llm-assist.md §3.1). Auth: `x-api-key` +
- * `anthropic-version`; POST `/v1/messages` in the Messages wire format. Fetch
- * only, no SDK. Enrichment temperature is fixed at 0 (asserted) and sent only to
- * the models that still accept it — see {@link anthropicAcceptsTemperature}.
+ * Anthropic Messages API client. Auth: `x-api-key` + `anthropic-version`; POST
+ * `/v1/messages` in the Messages wire format. Fetch only, no SDK. Enrichment
+ * temperature is fixed at 0 (asserted) and sent only to the models that still
+ * accept it — see {@link anthropicAcceptsTemperature}.
  */
 import { pingComplete, requestJson, toCompleteResult } from './http.js';
 import { anthropicAcceptsTemperature, listAnthropicModels } from './model-catalog.js';
@@ -54,7 +54,7 @@ export function createAnthropicClient(config: ProviderConfig): ProviderClient {
        * (4.7 and newer): those 400 the whole request rather than ignoring the
        * field, so one deprecated parameter fails an entire enrichment run.
        *
-       * The §3.1 determinism mandate cannot be honoured on those models by any
+       * The determinism mandate cannot be honoured on those models by any
        * request this client can make — the knob is gone, and the API samples at
        * its own default. `assertEnrichmentTemperature` above still stands: a
        * caller asking for 0.7 is a bug wherever it lands, and on a 4.6-or-older

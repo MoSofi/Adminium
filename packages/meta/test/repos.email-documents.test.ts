@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * emailTemplatesRepo / emailBlocksRepo / emailRunsRepo — the 39-T01 verbs
- * (39-email-templates-and-campaigns.md §3.2, D1–D5, D11).
+ * emailTemplatesRepo / emailBlocksRepo / emailRunsRepo — the verbs.
  *
  * The one assertion that carries the wave is the mirror one: the same ops
  * applied to three siblings of DIFFERENT lengths clamp per sibling and clone
- * ids, because a save under 39 D1 carries the session's structural edits to
- * every language variation in one transaction, and an index that is valid on
- * the English document may be past the end of the German one.
+ * ids, because a save carries the session's structural edits to every
+ * language variation in one transaction, and an index that is valid on the
+ * English document may be past the end of the German one.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 

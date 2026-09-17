@@ -19,7 +19,7 @@ export interface ReportScheduleDto {
   timezone: string;
 }
 
-/** §3.24 stored INTENT; v1 delivers a CSV data snapshot regardless. */
+/** Stored INTENT; v1 delivers a CSV data snapshot regardless. */
 export type ReportFormat = 'pdf' | 'png';
 
 export interface ScheduledReportDto {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Track COMM `communication` family stories (annex §9): the conversation inbox,
+ * Track COMM `communication` family stories (annex): the conversation inbox,
  * chat thread, and AI assist panel loaded variants, the four WidgetFrame states
  * through WidgetHost (acceptance #4), and light/dark × LTR/RTL matrices with
  * REAL geometry mirroring (acceptance #9 — the RTL frames set `dir="rtl"` so the
@@ -10,7 +10,7 @@
  * Widgets resolve through a LOCAL registry override so the stories work before
  * the green loop merges the definitions into the global map. Payloads are the
  * same seeded generators `demoData` uses, and every relative/day label is pinned
- * to `CHAT_DEMO_EPOCH` so VRT captures are byte-deterministic (04-T17).
+ * to `CHAT_DEMO_EPOCH` so VRT captures are byte-deterministic.
  */
 import type { ReactNode } from 'react';
 
@@ -245,7 +245,7 @@ export const TailThemeAndDirectionMatrix = {
 
 /**
  * The exit-criterion surface: inbox + thread side by side, the way the
- * generator composes a conversations+messages table pair (annex §14).
+ * generator composes a conversations+messages table pair (annex).
  */
 export const InboxAndThread = {
   name: 'conversation-inbox + chat-thread (the chat page)',

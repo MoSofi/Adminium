@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Driver error → typed `AdapterError` mapping — 05-introspection-engine.md §3.
- * The Studio wizard and the `diagnostics-readout` widget map `code` to
- * remediation copy, so the mapping here is the whole UX for failure states.
+ * Driver error → typed `AdapterError` mapping. The Studio wizard and the
+ * `diagnostics-readout` widget map `code` to remediation copy, so the mapping
+ * here is the whole UX for failure states.
  */
 import { AdapterError, type AdapterErrorCode } from '@adminium/engine/adapter';
 

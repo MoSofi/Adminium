@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The brand marks a document may put in its banner, as bytes
- * (39-email-templates-and-campaigns.md D6, §0.2 #1).
+ * (#1).
  *
  * The comp's Logo mark picker is a grid of twelve Lucide icons rendered as
  * inline SVG. Gmail, Outlook and Apple Mail do not render inline SVG, so the

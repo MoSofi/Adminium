@@ -4,7 +4,7 @@
 
 ## Tasks covered
 
-<!-- Milestone/task IDs this PR implements or advances (e.g. M0-T02, 01-T04), or the linked issue(s). -->
+<!-- Milestone/task IDs this PR implements or advances (e.g.), or the linked issue(s). -->
 
 -
 

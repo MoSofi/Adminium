@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The stored reference (37-files-and-storage.md D7, D31, §3.6).
+ * The stored reference.
  *
  * When a file is bound to a column, SOMETHING goes in that column. The owner
  * asked for "the link/url/id", and each of the three has a real constituency:
@@ -124,15 +124,14 @@ export interface RefTarget {
 /**
  * Mint the value to store in the user's column.
  *
- * `origin` is the request's own origin (there is no `ADMINIUM_BASE_URL` — see
- * `security/csrf.ts:32`), so a `url` reference names the instance the upload
- * actually went through. A destination with a `publicBaseUrl` wins over the
- * instance origin, because that is the whole point of configuring one: the
- * link should work without Adminium in the path.
+ * `origin` is the instance's public origin, the one email links use
+ * (`security/public-origin.ts`), so a `url` reference names this instance. A
+ * destination with a `publicBaseUrl` wins over the instance origin, because
+ * that is the whole point of configuring one: the link should work without
+ * Adminium in the path.
  */
 /**
- * Classify a column value that may hold MANY references
- * (38-files-library-and-attachments.md D1, D5).
+ * Classify a column value that may hold MANY references.
  *
  * A `multiple` column stores a JSON array of references in the column's own
  * shape — `["file_01J…","file_01K…"]` — and a `text` column is what holds it,

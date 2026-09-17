@@ -4,15 +4,14 @@
  * track — page-log-viewer / page-files / page-chat bindings).
  *
  * `src/api/widgetData.ts`'s `extractBindings`/`useDashboardData` are gated on
- * `page.kind === 'dashboard'`; the §14 archetype pages are `kind: 'page'` but
- * carry the same `config.layout` + per-item `config.binding` descriptors
- * (09-generated-app.md §3.2). This module reuses the SAME transport
- * (`fetchWidgetDataBatch` — one deduped `POST /api/v1/widget-data/batch`) and
- * the SAME query-key root, so WS `widget-data:*`/`table:*` invalidations
- * (src/api/realtime.ts) refetch these pages automatically, and materializes a
- * per-instance `WidgetDataState` record the template renderers consume via
- * their `states` prop (unbound instances stay absent → the template's demo
- * path, 04 §5.3).
+ * `page.kind === 'dashboard'`; the archetype pages are `kind: 'page'` but
+ * carry the same `config.layout` + per-item `config.binding` descriptors.
+ * This module reuses the SAME transport (`fetchWidgetDataBatch` — one deduped
+ * `POST /api/v1/widget-data/batch`) and the SAME query-key root, so WS
+ * `widget-data:*`/`table:*` invalidations (src/api/realtime.ts) refetch these
+ * pages automatically, and materializes a per-instance `WidgetDataState`
+ * record the template renderers consume via their `states` prop (unbound
+ * instances stay absent → the template's demo path).
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';

@@ -19,14 +19,14 @@ import { OpsEmpty } from './OpsEmpty.js';
 import type { WidgetEvent, WidgetProps } from '../../registry/types.js';
 
 /**
- * `credit-card-tile` (annex §13) — the skeuomorphic payment card: brand
- * gradient, masked PAN, holder, expiry, a Default badge / Set-default action and
- * a hover lift; plus the dashed `add-method` ghost card and the compact
+ * `credit-card-tile` (annex) — the skeuomorphic payment card: brand gradient,
+ * masked PAN, holder, expiry, a Default badge / Set-default action and a hover
+ * lift; plus the dashed `add-method` ghost card and the compact
  * `payment-method-row`. Evidence: Payments, Billing & Usage, Billing Overview.
  *
- * The three faces are ONE registry id behind `variant` config, per 04 §2.1
- * ("visual variants are config, never new registry ids") — and the annex agrees,
- * naming them under this single heading.
+ * The three faces are ONE registry id behind `variant` config, ("visual variants
+ * are config, never new registry ids") — and the annex agrees, naming them under
+ * this single heading.
  *
  * A Cloud/marketing + billing surface (M12/M14 consumers): it renders its data
  * contract and holds NO billing logic. It never sees a PAN — the bound table

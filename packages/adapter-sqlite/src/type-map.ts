@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SQLite declared type → affinity → portable LogicalType mapping —
- * 05-introspection-engine.md §2.2 ("SQLite (declared → affinity)") and §4.3.
+ * ("SQLite (declared → affinity)").
  *
  * SQLite declared types are free text: apply SQLite's five-rule affinity
  * algorithm first, then override with declared-name hints (`BOOLEAN`,
@@ -12,16 +12,17 @@
  *
  * Timestamps may be stored as TEXT or INTEGER epoch — storage format is NOT
  * probed at setup (schema-only); the runtime data layer detects it on first
- * read (05 §2.2).
+ * read.
  */
 import type { ColumnDefault, LogicalType } from '@adminium/engine/adapter';
 
 export type SqliteAffinity = 'INTEGER' | 'TEXT' | 'BLOB' | 'REAL' | 'NUMERIC';
 
 /**
- * SQLite's five-rule column affinity algorithm (sqlite.org/datatype3.html
- * §3.1), verbatim: INT → INTEGER; CHAR/CLOB/TEXT → TEXT; BLOB or empty →
- * BLOB; REAL/FLOA/DOUB → REAL; everything else → NUMERIC.
+ * SQLite's five-rule column affinity algorithm
+ * (sqlite.org/datatype3.html), verbatim: INT → INTEGER; CHAR/CLOB/TEXT →
+ * TEXT; BLOB or empty → BLOB; REAL/FLOA/DOUB → REAL; everything else →
+ * NUMERIC.
  */
 export function sqliteAffinity(declaredType: string): SqliteAffinity {
   const t = declaredType.toUpperCase();
@@ -81,7 +82,7 @@ function modifiers(declaredType: string): number[] {
     .filter((n) => Number.isFinite(n));
 }
 
-/** Declared-name hints layered over affinity — 05 §2.2 (skipped on STRICT). */
+/** Declared-name hints layered over affinity — (skipped on STRICT). */
 function hintFor(base: string): LogicalType | null {
   if (base.includes('BOOL')) return 'boolean';
   if (base.includes('DATETIME') || base.includes('TIMESTAMP')) return 'timestamp';
@@ -97,7 +98,7 @@ function hintFor(base: string): LogicalType | null {
  * Map a verbatim SQLite declared type to its portable shape. `strict: true`
  * (from `pragma_table_list.strict`) skips the hint layer; `ANY` and
  * unrecognized non-strict names become `'unknown'` with the verbatim
- * `dbType` preserved by the caller (rendered read-only as text — 05 §2.2).
+ * `dbType` preserved by the caller (rendered read-only as text).
  */
 export function mapSqliteType(
   declaredType: string,
@@ -114,7 +115,7 @@ export function mapSqliteType(
 
   let logicalType: LogicalType;
   if (base === '') {
-    // No declared type: BLOB affinity, but unmappable → unknown (05 §4.3).
+    // No declared type: BLOB affinity, but unmappable → unknown.
     logicalType = 'unknown';
   } else if (base === 'ANY') {
     logicalType = 'unknown'; // STRICT tables' escape-hatch column type
@@ -142,7 +143,7 @@ export function mapSqliteType(
         } else if (!strict && hint !== null) {
           logicalType = hint;
         } else {
-          // NUMERIC catch-all with an unrecognized name — unknown (05 §2.2).
+          // NUMERIC catch-all with an unrecognized name — unknown.
           logicalType = 'unknown';
         }
         break;
@@ -165,8 +166,7 @@ const LITERAL_DEFAULT = /^('(?:[^']|'')*'|-?\d+(\.\d+)?|true|false|null|x'[0-9a-
 /**
  * Classify a column default — `pragma_table_xinfo.dflt_value` is the raw
  * default expression text. Autoincrement is decided by the assembler
- * (INTEGER PRIMARY KEY rowid alias / AUTOINCREMENT keyword — 05 §4.3),
- * not here.
+ * (INTEGER PRIMARY KEY rowid alias / AUTOINCREMENT keyword), not here.
  */
 export function classifyDefault(defaultText: string | null): ColumnDefault {
   if (defaultText === null || defaultText === '') return null;

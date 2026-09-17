@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0024 — storage destinations and the record linkage files never had
- * (37-files-and-storage.md §3.2, D2, D3, D6, D12).
+ * Wave 0024 — storage destinations and the record linkage files never
+ * had.
  *
  * ─── Why destinations are rows and not a settings key ──────────────────────
  *

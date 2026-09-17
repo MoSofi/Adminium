@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * @adminium/charts — bespoke SVG chart layer (04-widget-registry.md §7).
- * No chart library: d3-scale + d3-shape math only; colors strictly via CSS
- * custom properties from @adminium/tokens (viz.css). Consumers import
+ * @adminium/charts — bespoke SVG chart layer. No chart library: d3-scale +
+ * d3-shape math only; colors strictly via CSS custom properties from
+ * @adminium/tokens (viz.css). Consumers import
  * '@adminium/charts/styles.css' once for the structural/motion classes.
  *
  * geometry/ is pure and DOM-free (server-safe for scheduled-report rendering);
  * components/ are the React primitives. Storybook stories live in Wave B's
  * @adminium/widgets wrappers — this package hosts vitest render tests only.
- * Raster export (§7.6) is deferred; chart roots already carry data-export-node.
+ * Raster export is deferred; chart roots already carry data-export-node.
  */
 
 // Core plumbing
@@ -57,7 +57,7 @@ export type { Bin } from './utils/stats.js';
 export { formatCompact, formatShortDate } from './utils/format.js';
 export { estimateTextWidth, truncateToWidth } from './utils/text.js';
 
-// Deterministic seeded demo data (§7.7)
+// Deterministic seeded demo data
 export { fnv1a, mulberry32 } from './demo/mulberry32.js';
 export {
   DEMO_EPOCH_MS,
@@ -70,7 +70,7 @@ export {
 } from './demo/generators.js';
 export type { DemoCategory, DemoGroupedBars, DemoPoint, DemoTimeseriesOptions } from './demo/generators.js';
 
-// ── M7 Wave-1 chart primitives (04-T09) ──────────────────────────────────────
+// ── M7 Wave-1 chart primitives ───────────────────────────────────────────────
 // One export block per widget family; geometry stays pure/DOM-free and the
 // components remain bespoke SVG (no chart library). Widget wrappers in
 // @adminium/widgets lazy-import these.

@@ -3,7 +3,7 @@
  * The `/email-templates` search contract, in a leaf module: the router reads
  * it eagerly (a `validateSearch` runs before the page loads), and the page is
  * lazy — importing the page for it would pull the whole manager into the
- * entry chunk (39-email-templates-and-campaigns.md D16).
+ * entry chunk.
  */
 export interface EmailTemplatesSearch {
   /** Which tray opens — the campaign-sent notice links here with `campaign`. */

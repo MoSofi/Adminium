@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * WebSocket gateway `GET /ws` (08-server-api.md §3, M2-T07): pre-handshake
- * auth, subscribe/unsubscribe protocol, per-channel authorization (foreign
- * user denial), the 64-channel cap, ping/pong, and hub cleanup on close.
+ * WebSocket gateway `GET /ws`: pre-handshake auth, subscribe/unsubscribe
+ * protocol, per-channel authorization (foreign user denial), the
+ * 64-channel cap, ping/pong, and hub cleanup on close.
  *
  * `@fastify/websocket` (and its `ws` client) are declared by this wave's
  * integration (the auth agent owns apps/server/package.json), so the suite

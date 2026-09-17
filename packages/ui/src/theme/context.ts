@@ -7,20 +7,21 @@ import { createContext } from 'react';
 
 import type { ResolvedTheme, ThemePrefs } from './types.js';
 
-/** `setPref` updates one axis optimistically (02-design-system.md §4 behavior 4). */
+/** `setPref` updates one axis optimistically (behavior 4). */
 export type SetThemePref = <K extends keyof ThemePrefs>(key: K, value: ThemePrefs[K]) => void;
 
 /**
  * Drop the optimistic session override for one axis so the resolved value falls
- * back through to the server-resolved props (§4.2). The Preferences page calls
- * this on "Reset to workspace default" — clearing an axis server-side does not
- * change the in-session `setPref` layer, which would otherwise keep masking the
+ * back through to the server-resolved props. The Preferences page calls this on
+ * "Reset to workspace default" — clearing an axis server-side does not change
+ * the in-session `setPref` layer, which would otherwise keep masking the
  * refetched default until a reload.
  */
 export type ClearSessionPref = (key: keyof ThemePrefs) => void;
 
 export interface ThemeContextValue {
-  /** Effective preferences after the resolution order (§4.2); `theme` may be `system`. */
+  /** Effective preferences after the resolution order; `theme` may be `system`.
+   * */
   prefs: ThemePrefs;
   /** Resolved values as stamped on `<html>`. */
   resolved: ResolvedTheme;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * About API client (M10-T04): GET /api/v1/about and /api/v1/about/update-check.
- * Shapes mirror apps/server src/routes/about/schema.ts (type-only copy per the
- * 01-architecture.md §2.3 matrix). Change both together.
+ * About API client: GET /api/v1/about and /api/v1/about/update-check. Shapes
+ * mirror apps/server src/routes/about/schema.ts (type-only copy per the
+ * matrix). Change both together.
  */
 import { queryOptions } from '@tanstack/react-query';
 
@@ -18,7 +18,7 @@ export interface AboutData {
   metaEngine: MetaEngine;
   /**
    * The newest applied meta-store migration, or `null` when unreadable.
-   * 11-electron.md §13's desktop About version field; see the server schema.
+   * The desktop About panel's version field; see the server schema.
    */
   metaMigrationVersion: string | null;
   node: string;

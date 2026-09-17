@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The card facts (43-report-builder.md D15/D16): what the manager's card,
- * row and thumbnail draw without decoding the body, written by the server on
- * every save. The shape is `reportSummarySchema` in `@adminium/meta` and
- * `ReportSummaryFacts` in the dashboard's `api.ts`, exactly.
+ * The card facts: what the manager's card, row and thumbnail draw without
+ * decoding the body, written by the server on every save. The shape is
+ * `reportSummarySchema` in `@adminium/meta` and `ReportSummaryFacts` in the
+ * dashboard's `api.ts`, exactly.
  *
  * These ARE the inputs of the comp's `cards` thumbnail (584-591): the accent
  * bar, the report title, up to three KPI boxes from the FIRST `kpi` block,
@@ -22,7 +22,7 @@ import type { ReportBody } from './document.js';
 import { BLANK_ICON, thumbSeries } from './starters.js';
 
 export interface SummaryContext {
-  /** The row's `starter` key's icon, or `file-text` for a blank document (43 D14). */
+  /** The row's `starter` key's icon, or `file-text` for a blank document. */
   starterIcon?: string | undefined;
 }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The renderer ↔ main wire contract for the §4 bridge: channel names and the
+ * The renderer ↔ main wire contract for the bridge: channel names and the
  * result envelope.
  *
  * Shared by BOTH ends — `src/preload/index.ts` (which invokes) and
@@ -12,9 +12,9 @@
  * in the feature rather than in the wiring.
  *
  * PURE. No zod, no `node:`, no `electron`. The preload bundle is CommonJS loaded
- * by Electron's sandbox `require` shim (§2.4 → electron.vite.config.ts), so
- * every byte reachable from it is bundled into it; keeping this file to strings
- * and types keeps the preload to what it should be — a wire, not a program.
+ * by Electron's sandbox `require` shim (→ electron.vite.config.ts), so every
+ * byte reachable from it is bundled into it; keeping this file to strings and
+ * types keeps the preload to what it should be — a wire, not a program.
  * Validation lives in `src/main/ipc.ts`, on the side that does not trust the
  * other one.
  */
@@ -22,17 +22,17 @@
 import type { DesktopErrorCode, DesktopPlatform, DesktopVersions } from './api.js';
 
 /**
- * §4's namespace on `window`, and the whole of the detection contract ("the SPA
+ * The namespace on `window`, and the whole of the detection contract ("the SPA
  * treats `window.adminiumDesktop !== undefined` as running in the desktop
  * shell"). One constant because three files and the dashboard all name it.
  */
 export const BRIDGE_KEY = 'adminiumDesktop';
 
 /**
- * One channel per §4 method. Prefixed and hyphenated so a channel can never
+ * One channel method. Prefixed and hyphenated so a channel can never
  * collide with a channel some dependency registers on the same `ipcMain`.
  *
- * `bootstrap` is the exception that is not a §4 method: see
+ * `bootstrap` is the exception that is not a method: see
  * {@link BridgeBootstrap}.
  */
 export const IPC_CHANNELS = {
@@ -54,7 +54,7 @@ export const IPC_CHANNELS = {
   readBundledText: 'adminium-desktop:read-bundled-text',
   relaunch: 'adminium-desktop:relaunch',
   showLogs: 'adminium-desktop:show-logs',
-  /** main → renderer push, §4 `onUpdateEvent`. The only one-way channel. */
+  /** main → renderer push, `onUpdateEvent`. The only one-way channel. */
   updateEvent: 'adminium-desktop:update-event',
 } as const;
 
@@ -82,7 +82,7 @@ export const INVOKE_CHANNELS = [
 ] as const;
 
 /**
- * §4's two synchronous properties, `platform` and `versions`.
+ * The two synchronous properties, `platform` and `versions`.
  *
  * They are properties, not promises — `contextBridge` copies values at expose
  * time, so there is no moment later at which an async answer could become one.
@@ -103,10 +103,10 @@ export interface BridgeBootstrap {
  * Electron turns an exception inside `ipcMain.handle` into a rejection whose
  * message is `"Error invoking remote method '<channel>': <original>"` and whose
  * every other property — `name`, `code`, anything custom — is gone. A typed
- * error contract (§12's `CAPABILITY_NOT_GRANTED` is one, and the SPA branches on
- * it) cannot survive that. So the code crosses as data, inside a plain object
- * that structured-clone reproduces exactly, and `src/preload/index.ts` is the
- * one place that turns it back into a rejection.
+ * error contract (`CAPABILITY_NOT_GRANTED` is one, and the SPA branches on it)
+ * cannot survive that. So the code crosses as data, inside a plain object that
+ * structured-clone reproduces exactly, and `src/preload/index.ts` is the one
+ * place that turns it back into a rejection.
  */
 export type IpcResult<T> =
   | { readonly ok: true; readonly value: T }

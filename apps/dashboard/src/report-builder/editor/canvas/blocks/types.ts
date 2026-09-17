@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What every canvas block body receives (43-report-builder.md D7): ONE block
- * object plus the editing surface, and the viewer's locale for the three
- * figures `Intl` formats (D11).
+ * What every canvas block body receives: ONE block object plus the editing
+ * surface, and the viewer's locale for the three figures `Intl` formats
+ * (D11).
  *
  * A PRIVATE SET. These components import nothing from `src/invoices`, nothing
  * from `@adminium/widgets` and nothing from `@adminium/charts`: seventeen of
- * the 25 kinds share a NAME with an invoice block and not its fields (43 §0.3
- * trap 3), the widget blocks receive only `format` and are inert (34 §0.1
- * fact 3), and the two chart primitives pad differently from the four lines
- * the comp draws (623-624).
+ * the 25 kinds share a NAME with an invoice block and not its fields (trap
+ * 3), the widget blocks receive only `format` and are inert (fact 3), and the
+ * two chart primitives pad differently from the four lines the comp draws
+ * (623-624).
  */
 import type { DocumentEdits } from '../../../model/edits.js';
 import type { BlockOf, ReportBlockKind } from '../../../model/envelope.js';

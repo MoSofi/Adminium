@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK OPS — config schemas + deterministic demo generators for the eighteen
- * §13 ops / billing / API / marketing cards. PURE module (zod + domain-lib +
+ * ops / billing / API / marketing cards. PURE module (zod + domain-lib +
  * domain-ops-lib only; NO React, no component imports).
  *
  * WHY THIS EXISTS: `domain-ops.definitions.ts` imports the schemas and the
@@ -10,8 +10,8 @@
  * definitions module — would drag eighteen @adminium/ui-heavy components into
  * the bundle of any page that renders any widget, and the sibling
  * `lazy(() => import('./domain-ops-components.js'))` ref would buy nothing
- * (04 §2.3; qa/chunk-budget.test.ts walks exactly this closure and fails on it).
- * Same convention as `domain-config.ts` / `system-config.ts` / `media-config.ts`.
+ * (qa/chunk-budget.test.ts walks exactly this closure and fails on it). Same
+ * convention as `domain-config.ts` / `system-config.ts` / `media-config.ts`.
  *
  * FIELD-NAME CONFIG: every widget here binds a table the user already has, so
  * each schema opens with a field map (`nameField`, `statusField`, …) that
@@ -19,11 +19,11 @@
  * annex's evidence screens use, so a conventionally-named table binds with no
  * config at all.
  *
- * DEMO DETERMINISM (04 §7.7): every generator derives from `mulberry32(seed)`
- * and the fixed `DOMAIN_DEMO_EPOCH` — no `Date.now()`, no `Math.random()`, at
- * module scope or inside a generator. Distinct seeds must yield distinct
- * payloads (the determinism gate asserts the seed genuinely threads through), so
- * every generator varies real content, never just a label.
+ * DEMO DETERMINISM: every generator derives from `mulberry32(seed)` and the
+ * fixed `DOMAIN_DEMO_EPOCH` — no `Date.now()`, no `Math.random()`, at module
+ * scope or inside a generator. Distinct seeds must yield distinct payloads (the
+ * determinism gate asserts the seed genuinely threads through), so every
+ * generator varies real content, never just a label.
  */
 import { z } from 'zod';
 
@@ -39,7 +39,7 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * The demo "now" — day 34 of the demo window, as epoch ms. Stories and tests pin
  * `format.referenceTime` to this so every relative stamp ("2 hours ago"), the
  * running stopwatch, and the uptime axis land in a fixed place without a single
- * wall-clock read (04 §7.7 / VRT byte-determinism). It matches the gantt's
+ * wall-clock read (/ VRT byte-determinism). It matches the gantt's
  * `GANTT_DEMO_TODAY_MS` so a page composing both reads as one moment in time.
  */
 export const OPS_DEMO_NOW_MS = DOMAIN_DEMO_EPOCH + 34 * DAY_MS;
@@ -57,7 +57,7 @@ function sampleSome<T>(random: () => number, items: readonly T[], keepProbabilit
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// starter-template-picker (annex §13)
+// starter-template-picker (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -119,7 +119,7 @@ export function starterTemplatePickerDemoData(seed: number): OpsListData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// slo-monitor-card (annex §13)
+// slo-monitor-card (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -196,7 +196,7 @@ export function sloMonitorCardDemoData(seed: number): OpsRecordData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// uptime-segment-bar (annex §13)
+// uptime-segment-bar (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -236,7 +236,7 @@ export function uptimeSegmentBarDemoData(seed: number): OpsListData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// experiment-variant-compare (annex §13)
+// experiment-variant-compare (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -297,15 +297,15 @@ export function experimentVariantCompareDemoData(seed: number): OpsListData & { 
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// credit-card-tile (annex §13)
+// credit-card-tile (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
  * `credit-card-tile` config. `brandMeta` / `variant` are the annex's declared
  * config — the three variants ARE this widget (annex: "plus dashed `add-method`
  * ghost card and compact `payment-method-row`"), which is why they are config
- * and not three registry ids (04 §2.1: "visual variants are config, never new
- * registry ids").
+ * and not three registry ids ("visual variants are config, never new registry
+ * ids").
  */
 export const creditCardTileConfigSchema = widgetSharedConfigSchema.extend({
   brandField: z.string().default('brand'),
@@ -342,7 +342,7 @@ export function creditCardTileDemoData(seed: number): OpsRecordData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// plan-pricing-cards (annex §13)
+// plan-pricing-cards (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -420,7 +420,7 @@ export function planPricingCardsDemoData(seed: number): OpsListData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// api-keys-panel (annex §13)
+// api-keys-panel (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -499,7 +499,7 @@ export function apiKeysPanelDemoData(seed: number): OpsListData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// api-playground (annex §13)
+// api-playground (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -511,7 +511,7 @@ export function apiKeysPanelDemoData(seed: number): OpsListData {
  * arbitrary authenticated calls from a dashboard cell is a confused-deputy hole).
  * A write method's Send emits a `mutate` INTENT the host executes through the
  * CRUD API — with its permission checks, undo and audit — which is the same
- * contract every editing widget in the registry follows (04 §2.1).
+ * contract every editing widget in the registry follows.
  */
 export const apiPlaygroundConfigSchema = widgetSharedConfigSchema.extend({
   methodField: z.string().default('method'),
@@ -570,7 +570,7 @@ export function apiPlaygroundDemoData(seed: number): OpsRecordData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// code-snippet-block (annex §13)
+// code-snippet-block (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -624,7 +624,7 @@ export function codeSnippetBlockDemoData(seed: number): OpsRecordData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// webhook-endpoints-list (annex §13)
+// webhook-endpoints-list (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** `webhook-endpoints-list` config. `eventCatalog` is the annex's declared config. */
@@ -665,7 +665,7 @@ export function webhookEndpointsListDemoData(seed: number): OpsListData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// resource-api-card (annex §13)
+// resource-api-card (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** `resource-api-card` config. `methods` is the annex's declared config. */
@@ -712,7 +712,7 @@ export function resourceApiCardDemoData(seed: number): OpsRecordData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// policy-list (annex §13)
+// policy-list (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** `policy-list` config — RLS policies per table. */
@@ -751,7 +751,7 @@ export function policyListDemoData(seed: number): OpsListData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// live-timer (annex §13)
+// live-timer (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -762,8 +762,8 @@ export function policyListDemoData(seed: number): OpsListData {
  * `format.referenceTime` pins "now" for demo, tests and VRT captures, and only
  * when it is absent does the component start its own 1s interval. Nothing in
  * this module reads the wall clock, so `demoData(seed)` is byte-identical
- * forever (04 §7.7 / the determinism gate) — which a `Date.now()` in a generator
- * would silently destroy.
+ * forever (/ the determinism gate) — which a `Date.now()` in a generator would
+ * silently destroy.
  */
 export const liveTimerConfigSchema = widgetSharedConfigSchema.extend({
   taskField: z.string().default('task_name'),
@@ -811,7 +811,7 @@ export function liveTimerDemoData(seed: number): OpsRecordData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// sync-status-card (annex §13)
+// sync-status-card (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** `sync-status-card` config. `syncAction` is the annex's declared config. */
@@ -864,7 +864,7 @@ export function syncStatusCardDemoData(seed: number): OpsRecordData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ip-allowlist-card (annex §13)
+// ip-allowlist-card (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -900,7 +900,7 @@ export function ipAllowlistCardDemoData(seed: number): OpsListData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// onboarding-checklist (annex §13)
+// onboarding-checklist (annex)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -908,11 +908,11 @@ export function ipAllowlistCardDemoData(seed: number): OpsListData {
  * declared config.
  *
  * This is the REUSABLE WIDGET FORM of the reactive checklist already shipped in
- * apps/dashboard/src/onboarding (M5-T06). It deliberately shares NO code with it:
- * packages must not import apps (the dependency would invert the architecture),
- * so this is built from the data contract — steps + done flags — and the app's
- * own copy stays the app's. The two are expected to converge later, on the app's
- * side, by mounting this widget.
+ * apps/dashboard/src/onboarding. It deliberately shares NO code with it: packages
+ * must not import apps (the dependency would invert the architecture), so this is
+ * built from the data contract — steps + done flags — and the app's own copy
+ * stays the app's. The two are expected to converge later, on the app's side, by
+ * mounting this widget.
  */
 export const onboardingChecklistConfigSchema = widgetSharedConfigSchema.extend({
   idField: z.string().default('id'),
@@ -1006,7 +1006,7 @@ export function onboardingChecklistDemoData(seed: number): OpsListData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// testimonial-card / trust-badges (annex §13 — one heading, two ids)
+// testimonial-card / trust-badges (annex — one heading, two ids)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**

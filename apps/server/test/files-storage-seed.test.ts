@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The first-boot storage-destination seed (37-files-and-storage.md §3.11, D15,
- * 37-T08).
+ * The first-boot storage-destination seed.
  *
  * The behaviours that matter are the ones the `ADMINIUM_SOURCE_URL` seed
  * learned the hard way: it runs ONCE, it never overrides what somebody

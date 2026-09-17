@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * DashboardGrid — the `pageLayoutSchema` renderer (04-widget-registry.md §6).
- * 12 fluid columns, 40 px half-row units, 14 px gap. Below `lg` the grid reflows
- * to one stacked column ordered by `(y, x)`; items keep their height spans.
+ * DashboardGrid — the `pageLayoutSchema` renderer. 12 fluid columns, 40 px
+ * half-row units, 14 px gap. Below `lg` the grid reflows to one stacked column
+ * ordered by `(y, x)`; items keep their height spans.
  *
  * Two modes on one surface:
  *  - STATIC (default, M4): read-only placement. Unchanged from the original
  *    renderer — the `page-dashboard` template and demos depend on it.
- *  - EDIT (04-T12): pass `editMode` (the builder's pencil toggle). Each item
- *    becomes a dnd-kit draggable whose activator is the WidgetFrame grip (the
- *    host renders `<GridDragHandle/>` there), the grid surface is the droppable,
- *    a custom modifier snaps the drag overlay to cells, and a pointer/keyboard
- *    SE-corner (inline-end) handle resizes. On drop/commit the layout runs
- *    `applyMove`/`applyResize` then `compactVertical` (all from ./layout-edit +
- *    ./layout-math — never rebuilt here) and `onLayoutChange` fires the settled
- *    `PageLayout`. Keyboard: focus the grip, arrows move a draft by one LOGICAL
- *    cell, Shift+arrows resize, Enter saves, Escape reverts — announced through
- *    one polite live region.
+ * - EDIT: pass `editMode` (the builder's pencil toggle). Each item becomes a
+ *  dnd-kit draggable whose activator is the WidgetFrame grip (the host renders
+ *  `<GridDragHandle/>` there), the grid surface is the droppable, a custom
+ *  modifier snaps the drag overlay to cells, and a pointer/keyboard SE-corner
+ *  (inline-end) handle resizes. On drop/commit the layout runs
+ *    `applyMove`/`applyResize` then `compactVertical` (all from ./layout-edit
+ *    + ./layout-math — never rebuilt here) and `onLayoutChange` fires the
+ *  `PageLayout`. Keyboard: focus the grip, arrows move a draft by one LOGICAL
+ *  cell, Shift+arrows resize, Enter saves, Escape reverts — announced through
+ *  one polite live region.
  *
  * Per-item placement uses the `--*` CSS-custom-property escape hatch (the only
  * sanctioned style prop): coordinates land in `--gi-*` variables consumed by
@@ -75,13 +75,13 @@ export interface DashboardGridProps {
   renderItem: (item: LayoutItem, ctx: RenderItemContext) => ReactNode;
   className?: string | undefined;
   testId?: string | undefined;
-  /** Builder edit toggle (04 §6.2). Off → the original static renderer. */
+  /** Builder edit toggle. Off → the original static renderer. */
   editMode?: boolean | undefined;
   /** Settled `PageLayout` after every move/resize (debounced-persist upstream). */
   onLayoutChange?: ((layout: PageLayout) => void) | undefined;
   /** Per-widget resize floor (registry `sizing`); default `minW×minH = 1×1`. */
   getSizing?: ((widgetId: string) => MinSize) | undefined;
-  /** Writing direction — mirrors the LOGICAL keyboard arrow semantics (04 §6.2). */
+  /** Writing direction — mirrors the LOGICAL keyboard arrow semantics. */
   dir?: 'ltr' | 'rtl' | undefined;
   /** i18n label + announcement overrides (builder passes `t('ui.grid.*')`). */
   labels?: GridEditLabelsInput | undefined;
@@ -94,7 +94,7 @@ const SURFACE_CLASS = 'grid grid-cols-1 auto-rows-[40px] gap-[14px] lg:grid-cols
 
 /** Arrow key → signed cell delta. Horizontal mirrors LOGICALLY under RTL
  *  (reading order for move; growth toward the inline-end for resize); vertical
- *  is block-flow, never mirrored (04 §6.2). */
+ * is block-flow, never mirrored. */
 function arrowDelta(key: string, dir: 'ltr' | 'rtl'): { dx: number; dy: number } | null {
   const forward = dir === 'rtl' ? -1 : 1;
   switch (key) {
@@ -268,7 +268,7 @@ function EditableGrid({
       if (item === undefined) return;
       // Mirror the horizontal delta under RTL and cap `x` so the widget keeps
       // its width at the inline-end edge — the same semantics as the keyboard
-      // move and pointer-resize paths (04 §6.2).
+      // move and pointer-resize paths.
       const { x, y } = pointerMoveTarget(item, event.delta, cellRef.current, dir);
       if (x === item.x && y === item.y) return;
       const moved = applyMove(layout, id, x, y, minSizeFor(item.widget));

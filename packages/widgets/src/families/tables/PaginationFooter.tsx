@@ -5,10 +5,10 @@ import { IconButton, MonoText, Select } from '@adminium/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
- * `pagination-footer` (annex §3) — keyset flavor (09 §7.1): mono range text
- * ("1–25 of 8,402" — total optional in cursor mode), prev/next, page-size
- * select. Attached to `data-grid`; the host owns the cursor stack (the CRUD
- * API only hands out `cursor.next`, so "prev" replays the host's history).
+ * `pagination-footer` (annex) — keyset flavor: mono range text ("1–25 of
+ * 8,402" — total optional in cursor mode), prev/next, page-size select.
+ * Attached to `data-grid`; the host owns the cursor stack (the CRUD API
+ * only hands out `cursor.next`, so "prev" replays the host's history).
  */
 
 export const PAGE_SIZE_OPTIONS = [25, 50, 100, 200] as const;

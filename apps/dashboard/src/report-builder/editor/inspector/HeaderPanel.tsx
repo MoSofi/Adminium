@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Report header panel (comp 353-371; 43-report-builder.md Appendix A I3):
- * Kicker · Report title · Subtitle, the five accent swatches, the three
- * status options, and the background image — upload, or a 46 × 34 thumb with
- * Replace / Remove and an *Overlay {n}%* range at 0–95.
+ * The Report header panel (comp 353-371; I3): Kicker · Report title ·
+ * Subtitle, the five accent swatches, the three status options, and the
+ * background image — upload, or a 46 × 34 thumb with Replace / Remove and an
+ * *Overlay {n}%* range at 0–95.
  *
  * A starter may carry an accent that is NOT one of the five (`health` is
  * `#12805c`, Appendix C): none of the swatches shows as active then, exactly

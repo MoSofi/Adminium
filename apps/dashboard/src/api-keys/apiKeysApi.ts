@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * API-keys data layer (M10-T06) over the existing `/api/v1/api-keys` routes
- * (08-server-api.md §2.16) — no new server surface.
+ * API-keys data layer over the existing `/api/v1/api-keys` routes — no new
+ * server surface.
  *
  * THE ONE-TIME SECRET. `POST /api-keys` is the only endpoint in the product
  * that ever serialises a plaintext key: the server stores a SHA-256 hash plus a
@@ -12,7 +12,7 @@
  * its one render and rides along with every devtools dump.
  *
  * Scopes are a ROLE's grant set, not a per-key field: a key acts with its
- * role's permissions (07 §3.7). `GET /roles/:id/permissions` is gated on
+ * role's permissions. `GET /roles/:id/permissions` is gated on
  * `system:roles:manage` while this page is gated on `system:api-keys:manage`,
  * so every role-derived query here is failure-tolerant by design — a principal
  * holding only the latter still gets a working page, minus the scope chips.
@@ -83,7 +83,7 @@ export function rolesQuery() {
 }
 
 /**
- * A role's §5.1 grant strings → the key's scope chips.
+ * A role's grant strings → the key's scope chips.
  *
  * The `super-admin` special-case mirrors the server's own create-reply logic
  * (routes/api-keys/index.ts): that role's authority is implicit, not a matrix

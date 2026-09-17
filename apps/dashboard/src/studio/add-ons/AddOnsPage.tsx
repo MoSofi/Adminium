@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/add-ons` — the Studio surface for the add-on runtime
- * (26-add-on-runtime.md §7, 26-T14; 32-add-on-distribution.md §4.4).
+ * `/studio/add-ons` — the Studio surface for the add-on
+ * runtime.
  *
- * Design input: `designs/Integrations.dc.html`. What that comp draws is a
+ * Design input: the integrations comp. What it draws is a
  * browse grid, a connected list, a consent dialog and a disconnect. What this
  * page adds is the DATA STORY behind them, and the order below is the order an
  * operator actually moves through:
  *
  *  1. **What is available**, bundled first. A fresh install browses with no
- *     network at all (32 D8), so the list is useful before anyone decides
- *     whether to switch the online catalog on. "Check for newer" is a separate,
- *     visible action rather than something the page does on load.
- *  2. **What installing would do** — the plan, shown BEFORE consent. 26 §7 is
+ * network at all, so the list is useful before anyone decides whether to switch
+ *     the online catalog on. "Check for newer" is a separate, visible action
+ *     rather than something the page does on load.
+ *  2. **What installing would do** — the plan, shown BEFORE consent. The install plan is
  *     explicit that this dialog "is the security surface, not decoration: it is
  *     where a user sees what an add-on may reach before it can reach it". So it
  *     names the tables, the hosts, and the reason when the answer is no.
@@ -20,16 +20,16 @@
  *
  * ── THE TWO CONFIRMS SAY DIFFERENT THINGS, DELIBERATELY ────────────────────
  * Disable keeps everything and is reversible in one click. Disconnect deletes
- * the keys and keeps every table (24 D16 / 26 D5). Uninstall additionally
- * removes the package from disk (32 D11) and still keeps the tables. Three
- * different outcomes, so three different sentences — a shared "are you sure?"
- * would make the safest of them read like the most destructive.
+ * the keys and keeps every table. Uninstall additionally removes the package
+ * from disk and still keeps the tables. Three different outcomes, so three
+ * different sentences — a shared "are you sure?" would make the safest of
+ * them read like the most destructive.
  *
  * ── WHAT THIS PAGE WILL NOT DO ─────────────────────────────────────────────
  * It does not offer to create the tables an add-on wants. The server refuses a
- * plan that needs schema change (`ADD_ON_DDL_REQUIRED`, 26-T02 unbuilt), and
- * the honest surface for that is the plan saying which tables are missing — not
- * a disabled button, and certainly not a "create them" action that would fail.
+ * plan that needs schema change (`ADD_ON_DDL_REQUIRED`, unbuilt), and the
+ * honest surface for that is the plan saying which tables are missing — not a
+ * disabled button, and certainly not a "create them" action that would fail.
  */
 import { useMutation, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -159,7 +159,7 @@ function PlanSummary({ plan }: { plan: InstallPlan }) {
   );
 }
 
-/** The consent dialog (26 §7) — the security surface, not decoration. */
+/** The consent dialog — the security surface, not decoration. */
 function ConsentDialog({
   entry,
   plan,
@@ -241,7 +241,7 @@ function ConsentDialog({
 }
 
 /**
- * The NON-SECRET settings, generated from `manifest.settings` (34 §7.9, D14).
+ * The NON-SECRET settings, generated from `manifest.settings`.
  *
  * ─── Why this is a different form from Connect ─────────────────────────────
  *
@@ -255,9 +255,9 @@ function ConsentDialog({
  * ─── On the `dashboard` host this form IS the settings surface (D23) ───────
  *
  * An add-on's own `settings.add-on.panel` fill never renders in stock Adminium
- * — that needs the dashboard slot host, which is post-v1 (§7.12). Until then
- * this is where its settings are edited, which is exactly why it is generated
- * rather than bespoke: it has to serve an add-on nobody has seen.
+ * — that needs the dashboard slot host, which is post-v1. Until then this is
+ * where its settings are edited, which is exactly why it is generated rather
+ * than bespoke: it has to serve an add-on nobody has seen.
  *
  * ─── `json` renders as a raw editor, and that is said rather than hidden ───
  *
@@ -373,7 +373,7 @@ function SettingsForm({ addOn, busy }: { addOn: AddOnDto; busy: boolean }) {
 }
 
 /**
- * The connect form, GENERATED from the manifest (34 §7.9, 34-T18).
+ * The connect form, GENERATED from the manifest.
  *
  * ─── The defect this replaces ──────────────────────────────────────────────
  *
@@ -472,7 +472,7 @@ function ConnectForm({
 }
 
 /**
- * SIDELOAD (32 D4) — upload a package this server could not have fetched.
+ * SIDELOAD — upload a package this server could not have fetched.
  *
  * ── WHY THE HASH FIELD IS REQUIRED, AND NOT A CONVENIENCE ──────────────────
  *
@@ -483,10 +483,10 @@ function ConnectForm({
  * thing a download gets from the catalog: a hash to verify against, supplied by
  * somebody other than the bytes themselves.
  *
- * Every release publishes exactly this value beside its Download link (48 D9),
- * so the person doing the sideloading can carry it without trusting this page,
- * and the server refuses anything that does not match. A form that computed the
- * hash from the uploaded file would be verifying the bytes against themselves.
+ * Every release publishes exactly this value beside its Download link, so the
+ * person doing the sideloading can carry it without trusting this page, and the
+ * server refuses anything that does not match. A form that computed the hash
+ * from the uploaded file would be verifying the bytes against themselves.
  *
  * ── WHY THE KEY AND VERSION ARE NOT ASKED FOR ──────────────────────────────
  *
@@ -644,7 +644,7 @@ export function AddOnsPage() {
   };
 
   /**
-   * Run something that returns a JOB, and follow it to the end (32 D10).
+   * Run something that returns a JOB, and follow it to the end.
    *
    * A download is not a request. It runs on the worker — with its retries, its
    * cancellation and its `jobs:<jobId>` topic — so `POST /add-ons/download`
@@ -842,8 +842,8 @@ export function AddOnsPage() {
                   {/*
                     * The non-secret half. Rendered whether or not the add-on
                     * is connected — a `connect: 'none'` add-on has settings
-                    * too, and until the dashboard slot host lands (§7.12) this
-                    * is the only place they can be edited.
+                    * too, and until the dashboard slot host lands this is the
+                    * only place they can be edited.
                     */}
                   <SettingsForm addOn={addOn} busy={busy} />
 

@@ -12,8 +12,8 @@ import { compareCellValues, demoCustomerColumns, demoCustomerRows, rowIdOf } fro
 
 /**
  * Full `page-crud` story over an in-memory CrudApi on demo data
- * (M4-T03 acceptance: template smoke on mock data — create, sort, search,
- * cascade delete and undo all work against local state).
+ * (template smoke on mock data — create, sort, search, cascade delete and
+ * undo all work against local state).
  */
 const meta = {
   title: 'Widgets/Templates/PageCrud',

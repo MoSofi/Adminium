@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Reading and writing a file column's stored value, browser-side
- * (38-files-library-and-attachments.md D5).
+ * Reading and writing a file column's stored value,
+ * browser-side.
  *
  * A `multiple` column stores a JSON array of references in a `text` column:
  * `["file_01J…","file_01K…"]`. This is the half of that grammar the RENDERER
@@ -11,13 +11,13 @@
  * ─── Why this is not imported from the server ──────────────────────────────
  *
  * `apps/server/src/files/refs.ts` owns the authoritative grammar, and this
- * package may not import it (the 01 §2.3 matrix: a browser chunk must not pull
- * server code). It is also a DIFFERENT job. The server CLASSIFIES each entry —
- * is it our id, our key, or somebody else's link — because it has to decide
- * what to attach and what to leave alone. Nothing here can classify anything:
- * the browser has no destination list and no file table. It has strings, and
- * it hands them to the host's `resolve` adapter, which answers `null` for
- * every value that is not ours.
+ * package may not import it (the matrix: a browser chunk must not pull server
+ * code). It is also a DIFFERENT job. The server CLASSIFIES each entry — is it
+ * our id, our key, or somebody else's link — because it has to decide what to
+ * attach and what to leave alone. Nothing here can classify anything: the
+ * browser has no destination list and no file table. It has strings, and it
+ * hands them to the host's `resolve` adapter, which answers `null` for every
+ * value that is not ours.
  *
  * So this file is deliberately small and deliberately dumb. Change it together
  * with the server's, and keep the tolerance identical: the two disagreeing

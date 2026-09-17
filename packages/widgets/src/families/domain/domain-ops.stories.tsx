@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK OPS stories (annex §13) — the eighteen ops / billing / API / marketing
- * cards that close the annex catalog: the four WidgetFrame states through
- * WidgetHost (acceptance #4), a light/dark × LTR/RTL matrix (acceptance #9), and
- * a grouped gallery per concern so all eighteen are captured without eighteen
+ * TRACK OPS stories (annex) — the eighteen ops / billing / API / marketing cards
+ * that close the annex catalog: the four WidgetFrame states through WidgetHost
+ * (acceptance #4), a light/dark × LTR/RTL matrix (acceptance #9), and a grouped
+ * gallery per concern so all eighteen are captured without eighteen
  * near-identical story files.
  *
  * REAL GEOMETRY MIRRORING — the RTL stories are not a bare `dir` attribute; they
@@ -299,7 +299,7 @@ export const MatrixLtrDark = {
  * RTL with REAL Arabic copy and an `ar-EG` locale — not a bare `dir` flip. The
  * status rule, the card chrome and the checklist all mirror; the mono data
  * (percentages, the masked PAN) stays Latin-digit and tabular per the
- * data-context numeral policy (10-i18n-theming.md §4.2).
+ * data-context numeral policy.
  */
 export const MatrixRtlLight = {
   name: 'matrix — RTL light (ar-EG)',

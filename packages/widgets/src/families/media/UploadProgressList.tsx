@@ -15,15 +15,15 @@ export { uploadProgressListConfigSchema, uploadProgressListDemoData };
 export type { UploadProgressListConfig, UploadStatus };
 
 /**
- * `upload-progress-list` (annex §8) — per-file rows with a progress bar and a
+ * `upload-progress-list` (annex) — per-file rows with a progress bar and a
  * status ("62%", "Done", "Failed" + Retry). Generalises to export-queue jobs
  * (Adminium UI Kit), which is why the fields are config-named rather than
  * hardcoded to uploads.
  *
  * NO TRANSPORT: the widget renders job rows from the data contract and reports
  * Retry/Cancel/Download intents through callbacks. It never uploads and never
- * polls — there are no files routes yet (08 §2.11); the host drives the jobs and
- * feeds their state back in.
+ * polls — there are no files routes yet; the host drives the jobs and feeds
+ * their state back in.
  */
 
 /** A normalized job row. */

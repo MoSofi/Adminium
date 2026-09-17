@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-radar` primitive (research/widget-registry.md §2): N named axes on a
+ * `chart-radar` primitive (research/widget-registry.md): N named axes on a
  * regular polygon with one filled polygon per series (current vs an optional
  * target overlay), concentric grid rings, and per-axis labels. Axis order
- * mirrors in RTL (§7.4). Colors are tokens only; geometry is pure (04 §7.1).
+ * mirrors in RTL. Colors are tokens only; geometry is pure.
  */
 import type { ReactNode } from 'react';
 

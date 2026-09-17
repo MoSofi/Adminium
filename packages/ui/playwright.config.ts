@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Playwright config for the @adminium/ui visual-regression matrix
- * (03-component-library.md §10). Runs vrt/vrt.spec.ts against the static
- * Storybook build served by the zero-dep server in scripts/serve-static.mjs.
+ * Playwright config for the @adminium/ui visual-regression matrix. Runs
+ * vrt/vrt.spec.ts against the static Storybook build served by the
+ * zero-dep server in scripts/serve-static.mjs.
  *
  * Baselines live in vrt/__screenshots__/ and are canonical for LINUX
  * rendering only (CI container). The snapshot path template deliberately
@@ -30,7 +30,7 @@ export default defineConfig({
   reporter: process.env['CI'] ? [['list'], ['html', { open: 'never' }]] : [['list']],
   expect: {
     toHaveScreenshot: {
-      // §10: tight ratio — token/layout drift must surface
+      // Tight ratio — token/layout drift must surface
       maxDiffPixelRatio: 0.001,
       animations: 'disabled',
       caret: 'hide',
@@ -40,7 +40,7 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}`,
     viewport: { width: 1280, height: 900 },
     deviceScaleFactor: 1,
-    // §10 determinism: end-states for nb-* keyframes, no JS-driven motion
+    // Determinism: end-states for nb-* keyframes, no JS-driven motion
     contextOptions: { reducedMotion: 'reduce' },
     trace: 'off',
     video: 'off',

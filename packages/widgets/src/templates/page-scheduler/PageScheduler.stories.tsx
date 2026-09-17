@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-scheduler` template stories (09 §7.6, M7-T03): the Shift Scheduler
- * comp (click-to-cycle matrix with coverage bars + week nav), the Team
- * Workload comp (capacity board with the week/month rescale), demo mode, and
- * the degradation states. Typed loosely — the 04-T17 QA harness wires
- * widgets stories into Storybook.
+ * `page-scheduler` template stories: the Shift Scheduler comp
+ * (click-to-cycle matrix with coverage bars + week nav), the Team Workload
+ * comp (capacity board with the week/month rescale), demo mode, and the
+ * degradation states. Typed loosely — the QA harness wires widgets stories
+ * into Storybook.
  */
 import { PageScheduler } from './PageScheduler.js';
 

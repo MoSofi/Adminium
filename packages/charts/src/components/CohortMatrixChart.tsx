@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-cohort-matrix` primitive (research/widget-registry.md §2): cohort rows
- * × period columns, accent-alpha cells, triangular nulls transparent, in-cell
+ * `chart-cohort-matrix` primitive (research/widget-registry.md): cohort rows ×
+ * period columns, accent-alpha cells, triangular nulls transparent, in-cell
  * value labels that flip to the on-accent color past ~55%. Fixed cell geometry
  * with an intrinsic size (the widget wrapper adds horizontal scroll) — the
  * DonutChart precedent for non-responsive charts. Token-only colors, mount fade

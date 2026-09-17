@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A `FileStore` for tests (37-files-and-storage.md 37-T07).
+ * A `FileStore` for tests.
  *
  * The default is the IMPLICIT destination — no destination rows at all — which
  * is the state every pre-wave-0024 suite was written against and the state a

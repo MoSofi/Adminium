@@ -2,9 +2,9 @@
 /**
  * The three Calculated forms (comp 379-415, 1114-1129): add or subtract two
  * columns, a percentage of one column, a rule with a threshold. Operands are
- * base numeric columns and the totals authored here (41-export-builder.md
- * D10); a block the shipped parser would refuse is never authored
- * (`addColumn` runs `parseCrudDerived` first).
+ * base numeric columns and the totals authored here; a block the shipped
+ * parser would refuse is never authored (`addColumn` runs `parseCrudDerived`
+ * first).
  */
 import { useState } from 'react';
 import { Select } from '@adminium/ui';

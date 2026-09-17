@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Driver error → typed `AdapterError` mapping — 05-introspection-engine.md §3.
- * mysql2 errors carry a symbolic `code` (`ER_ACCESS_DENIED_ERROR`, …) plus
- * `errno`/`sqlState`; socket-level failures carry Node errnos. The Studio
- * wizard and the `diagnostics-readout` widget map `code` to remediation
- * copy, so the mapping here is the whole UX for failure states.
+ * Driver error → typed `AdapterError` mapping. mysql2 errors carry a symbolic
+ * `code` (`ER_ACCESS_DENIED_ERROR`, …) plus `errno`/`sqlState`; socket-level
+ * failures carry Node errnos. The Studio wizard and the `diagnostics-readout`
+ * widget map `code` to remediation copy, so the mapping here is the whole UX
+ * for failure states.
  */
 import { AdapterError, type AdapterErrorCode } from '@adminium/engine/adapter';
 

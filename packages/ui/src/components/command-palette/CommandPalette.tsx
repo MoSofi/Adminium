@@ -76,7 +76,7 @@ const defaultFilter = (item: CommandItem, query: string): boolean => {
  * + label + kbd hint), accent-soft selected row, empty state echoing the
  * query, footer hint bar; fully keyboard driven (↑↓ wrap, Enter opens, Esc
  * closes) with `aria-activedescendant` combobox semantics
- * (research/design-system.md §3 Tier 3). Pair with `useCommandK`.
+ * (research/design-system.md Tier 3). Pair with `useCommandK`.
  */
 export function CommandPalette({
   open,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The wizard, assembled (45-onboarding.md §2).
+ * The wizard, assembled.
  *
  * The cases here are the ones no step body can be responsible for on its own:
  * what Continue means on each screen, and what happens on the two failures the

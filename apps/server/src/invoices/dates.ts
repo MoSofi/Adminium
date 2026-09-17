@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Document dates for the starters (34-invoices-add-on.md Appendix G). The
- * comp seeds literal strings ("Jul 12, 2026", comp 1088); a starter minted
- * on a real day writes today's, thirty days out for the due date, a month
- * out for the next charge — in the document's language, because the date is
- * CONTENT the customer reads, not chrome (34 D17 as amended).
+ * Document dates for the starters. The comp seeds literal strings ("Jul 12,
+ * 2026", comp 1088); a starter minted on a real day writes today's, thirty
+ * days out for the due date, a month out for the next charge — in the
+ * document's language, because the date is CONTENT the customer reads, not
+ * chrome (as amended).
  *
  * `Intl` with a fixed `en-US`-style pattern (short month, day, year) per
  * language; UTC, so the same instant gives the same text on every host.

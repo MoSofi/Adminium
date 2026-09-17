@@ -43,7 +43,7 @@ export interface KeyValueListProps extends ComponentPropsWithRef<'div'> {
 /**
  * KeyValueList — bordered rounded container with hairline-divided label/value
  * rows; the review/summary list used in wizard confirm steps, detail panes
- * and billing summaries (research/design-system.md §3 Tier 3).
+ * and billing summaries (research/design-system.md Tier 3).
  */
 export function KeyValueList({ items, className, children, ...props }: KeyValueListProps) {
   return (

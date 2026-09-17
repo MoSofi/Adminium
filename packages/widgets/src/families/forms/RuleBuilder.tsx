@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `rule-builder` (annex §10) — condition rows (field, operator, accent value)
+ * `rule-builder` (annex) — condition rows (field, operator, accent value)
  * joined by ALL/ANY pill dividers, removable, with a dashed add button; feeds
  * segment/filter definitions. Evidence: Audience Segments.
  *
  * PRESENTATIONAL: the condition list lives in local state and every change is
- * reported as a `mutate` intent (04 §2.1). The widget never compiles the rule to
- * SQL and never persists it — the host owns both, because a WHERE clause built
- * in the browser is a WHERE clause the server must re-derive anyway.
+ * reported as a `mutate` intent. The widget never compiles the rule to SQL and
+ * never persists it — the host owns both, because a WHERE clause built in the
+ * browser is a WHERE clause the server must re-derive anyway.
  *
- * Binds the §3 `form-state` shape. Not `record-list`, even though the payload
+ * Binds the `form-state` shape. Not `record-list`, even though the payload
  * carries a list: an EMPTY rule-builder is not an empty widget — it is a builder
  * waiting for its first condition, and it must show the dashed add button rather
- * than the frame's "no data" state (`form-state` is never empty by §3).
+ * than the frame's "no data" state (a `form-state` payload is never empty).
  */
 
 import { DateInput, IconButton, Input, Select, cn } from '@adminium/ui';
@@ -50,7 +50,7 @@ type Rec = Record<string, unknown>;
  * Literal bundle key per operator. Indexed rather than assembled so all 14 are
  * visible to the extractor and a new `RULE_OPERATORS` member is a compile error
  * rather than a raw `widgets.forms.ruleBuilder.op.…` inside the operator
- * dropdown (10 §2.5).
+ * dropdown.
  */
 const OP_KEY = {
   eq: 'ui:widgets.forms.ruleBuilder.op.eq',
@@ -75,7 +75,7 @@ function fieldDefOf(catalog: readonly RuleFieldConfig[], name: string): RuleFiel
 }
 
 /**
- * Project the §3 `form-state` payload onto conditions.
+ * Project the `form-state` payload onto conditions.
  *
  * A condition naming a column the catalog no longer has is KEPT (typed as
  * `string`, the most permissive operator set), not dropped. Dropping it would

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK BUILDER — payload types for `document-canvas` and the 22 `block-*`
- * document-vocabulary widgets (annex §13, "Document blocks").
+ * document-vocabulary widgets (annex, "Document blocks").
  *
- * DOM-free and React-free: these are the §3 data-contract envelopes the blocks
+ * DOM-free and React-free: these are the data-contract envelopes the blocks
  * bind to, so `blocks-config.ts` can describe them (and generate demo payloads
- * for them) without the definitions module ever reaching component code
- * (04 §2.3; the chunk-budget gate).
+ * for them) without the definitions module ever reaching component code (the
+ * chunk-budget gate).
  *
- * ENVELOPE CHOICE (04 §3) — the annex gives each block a bespoke "Data:" note
- * rather than naming a canonical shape, so each note is mapped onto the closest
- * §3 envelope and the mapping is documented on the definition:
+ * ENVELOPE CHOICE — the annex gives each block a bespoke "Data:" note rather
+ * than naming a canonical shape, so each note is mapped onto the closest
+ * envelope and the mapping is documented on the definition:
  *   - a bag of scalars for ONE document field group ({sigName, sigTitle},
  *     {balance, earned, tier}, …) → `record`, i.e. `{ row }` — the shape the
  *     shared `isEmptyByShape.record` predicate reads via `row == null`;
@@ -23,7 +23,7 @@
 
 // --- document-canvas ---------------------------------------------------------
 
-/** The three document surfaces the canvas renders (annex §13 `docType`). */
+/** The three document surfaces the canvas renders (annex `docType`). */
 export type DocType = 'invoice' | 'report' | 'email';
 
 /**
@@ -41,10 +41,10 @@ export interface DocBlockInstance {
 }
 
 /**
- * The single doc object `document-canvas` binds to (annex §13: "single doc
- * object (strings, address lines, items[], rates, flags, blockOrder[])").
- * Carried in the §3 `record` envelope, so `{ row: null }` routes to the empty
- * state through the host's shared predicate.
+ * The single doc object `document-canvas` binds to (annex: "single doc object
+ * (strings, address lines, items[], rates, flags, blockOrder[])"). Carried in
+ * the `record` envelope, so `{ row: null }` routes to the empty state through
+ * the host's shared predicate.
  */
 export interface DocRecord {
   docType?: DocType | undefined;
@@ -60,7 +60,7 @@ export interface DocRecord {
   rates?: DocRates | undefined;
   /** Ordered block instances — the canvas's render order. */
   blockOrder?: readonly DocBlockInstance[] | undefined;
-  /** ~20 per-doc boolean show-flags keyed by block id (annex §13). */
+  /** ~20 per-doc boolean show-flags keyed by block id (annex). */
   flags?: Readonly<Record<string, boolean>> | undefined;
   /**
    * Per-block payload bag, keyed by block registry id.
@@ -242,20 +242,20 @@ export interface BlockHighlight {
 /** `block-two-col-table` — first row styled header, right col mono. */
 export type BlockTwoColRow = readonly [string, string];
 
-// --- §3 envelopes ------------------------------------------------------------
+// --- envelopes ------------------------------------------------------------
 
-/** Canonical `record-list` envelope (04 §3). */
+/** Canonical `record-list` envelope. */
 export interface RowsData<T> {
   rows: readonly T[];
   total: number;
 }
 
-/** Canonical `record` envelope (04 §3) — empty ⇔ `row == null`. */
+/** Canonical `record` envelope — empty ⇔ `row == null`. */
 export interface RowData<T> {
   row: T | null;
 }
 
-/** Canonical `categorical` envelope (04 §3) — the mini report charts. */
+/** Canonical `categorical` envelope — the mini report charts. */
 export interface CategoricalData {
   items: readonly { label: string; value: number }[];
 }

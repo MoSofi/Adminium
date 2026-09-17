@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shared PURE helpers for the `domain` family (annex §13) — a deterministic
- * seeded PRNG, tone coercion, the cycle-safe self-FK → tree adapter + tidy-tree
- * layout behind `org-chart`, and the time-axis geometry behind `gantt-chart`.
+ * Shared PURE helpers for the `domain` family (annex) — a deterministic seeded
+ * PRNG, tone coercion, the cycle-safe self-FK → tree adapter + tidy-tree layout
+ * behind `org-chart`, and the time-axis geometry behind `gantt-chart`.
  *
  * DOM-free and React-free on purpose: every layout decision is a pure function
- * of its inputs, so the geometry is golden-testable (04-T17 determinism gate)
- * and the definitions module can import the demo generators without dragging
- * component code into the eager registry chunk (04 §2.3).
+ * of its inputs, so the geometry is golden-testable (determinism gate) and the
+ * definitions module can import the demo generators without dragging component
+ * code into the eager registry chunk.
  *
- * DIRECTION POLICY (10-i18n-theming.md §5.5) — the two widgets sit on OPPOSITE
- * sides of the mirroring rule, and this module keeps both honest by emitting
- * LTR-canonical geometry in both cases:
+ * DIRECTION POLICY — the two widgets sit on OPPOSITE sides of the mirroring
+ * rule, and this module keeps both honest by emitting LTR-canonical geometry
+ * in both cases:
  *
  *   - `org-chart` is a hierarchy, not a time axis → it MIRRORS. The layout below
  *     is canonical-LTR and the component maps it onto `inset-inline-start`, so
  *     the browser mirrors the tree under `dir="rtl"` (the same logical-CSS
  *     mechanism the `calendar` family relies on for its month grid).
- *   - `gantt-chart` is a time axis → it does NOT mirror. Per §5.5 the timeline
+ *   - `gantt-chart` is a time axis → it does NOT mirror: the timeline
  *     canvas is a **fixed-LTR island** ("time flows left→right … the label
  *     column stays physically left of the canvas so labels align with the time
  *     origin"); only the surrounding chrome mirrors. `@adminium/charts` already
@@ -50,7 +50,7 @@ export function pickFrom<T>(random: () => number, items: readonly T[]): T {
 /**
  * Fixed demo anchor — 2026-07-01T00:00:00Z. `demoData(seed)` derives every date
  * from this constant so payloads are byte-identical across runs and never read
- * the wall clock (04 §7.7 / determinism gate).
+ * the wall clock (/ determinism gate).
  */
 export const DOMAIN_DEMO_EPOCH = Date.UTC(2026, 6, 1);
 
@@ -529,8 +529,8 @@ export interface GanttModelOptions {
  * rounds to 0 days — or that sets the milestone field — becomes a diamond.
  *
  * Positions are canonical-LTR day offsets: day 0 is the oldest instant and the
- * axis grows toward `totalDays`. This does NOT flip under RTL — per
- * 10-i18n-theming.md §5.5 the gantt canvas is a fixed-LTR island.
+ * axis grows toward `totalDays`. This does NOT flip under RTL — the gantt
+ * canvas is a fixed-LTR island.
  */
 export function toGanttModel(
   rows: readonly Rec[],

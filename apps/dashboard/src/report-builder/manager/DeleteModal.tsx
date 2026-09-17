@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The comp's delete confirm (99-114; 43-report-builder.md Appendix A M14) in
- * the system's modal anatomy: danger tile, *Delete {name}?*, one sentence,
- * Cancel / Delete. It confirms a HARD delete — this comp has no archive
- * (43 D8) — so the sentence says what the comp's says: it cannot be undone.
+ * The comp's delete confirm (99-114; M14) in the system's modal anatomy:
+ * danger tile, *Delete {name}?*, one sentence, Cancel / Delete. It confirms
+ * a HARD delete — this comp has no archive — so the sentence says what the
+ * comp's says: it cannot be undone.
  *
  * Shared with the editor's header Delete (comp 267): same props, same copy.
  */

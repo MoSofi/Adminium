@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * `PageRecordProps.panels` / `.actions` and `PageCrudProps.rowActions`
- * (34-invoices-add-on.md §7.8; 34-T15, 34-T16).
+ * `PageRecordProps.panels` / `.actions` and
+ * `PageCrudProps.rowActions`.
  *
  * Three seams that all say the same thing: the HOST owns what the content is,
  * the template owns where it sits. What is pinned here is the "where", because

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio` — the connections manager hub (M5-T05, 09 §8.1, ported from
- * `Data Connections.dc.html` per the §5 checklist): stat tiles over
- * the fleet, one health card per connection (engine badge, status pill driven
- * by the persisted test-connection results, last-introspected relative time,
+ * `/studio` — the connections manager hub (ported from `Data
+ * Connections.dc.html` per the checklist): stat tiles over the fleet, one
+ * health card per connection (engine badge, status pill driven by the
+ * persisted test-connection results, last-introspected relative time,
  * included-table + generated-page counts) and the manage actions — test,
  * re-introspect (with diff feedback), open the remap editor, pause/resume
  * (meta wave 0019), and the type-to-confirm delete (server re-enforces
- * `confirmName`, §2.4).
+ * `confirmName`).
  */
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -108,7 +108,7 @@ async function awaitIntrospectJob(
   intervalMs: number,
   signal: AbortSignal,
 ): Promise<'succeeded' | 'failed' | 'aborted'> {
-  // Bounded: ~2 min at the default interval — introspection budget (05 §10).
+  // Bounded: ~2 min at the default interval — introspection budget.
   for (let i = 0; i < 100; i += 1) {
     if (signal.aborted) return 'aborted';
     const job = await studioApi.getJob(jobId);
@@ -386,7 +386,7 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
       // it would arrive with no context. `onSettled` still invalidates the
       // connections query, so the snapshot is fresh the next time the hub opens.
       if (outcome === 'aborted') return;
-      // Diff feedback (§8.2 analyze step): no-op vs a new snapshot (+ masks).
+      // Diff feedback (analyze step): no-op vs a new snapshot (+ masks).
       if (outcome === 'noop') {
         toasts.push({
           variant: 'info',
@@ -709,7 +709,7 @@ export interface ConnectionsHubProps {
   /** Router-injected navigation (routes.tsx wires useNavigate). */
   onConnectNew: () => void;
   onOpenRemap: (connectionId: string) => void;
-  /** Opens `/studio/apps` (29-T17); optional so bare mounts stay valid. */
+  /** Opens `/studio/apps`; optional so bare mounts stay valid. */
   onOpenHostedApps?: (() => void) | undefined;
   /** Introspection-job poll interval; tests pass 0. */
   pollIntervalMs?: number | undefined;

@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Data-exports routes (M7-T07, 09-generated-app.md §11.2), mounted under
- * `/api/v1`:
+ * Data-exports routes, mounted under `/api/v1`:
  *
- * - `POST /exports`              — request an export → 202 + `export-run` job.
- *   Guard: per-table `table:<conn>:<table>:export` AFTER snapshot identifier
- *   resolution (08 §5.2). The caller's PII capability is captured here and
- *   rides the job payload — the job never re-derives grants.
+ * - `POST /exports` — request an export → 202 + `export-run` job. Guard:
+ * per-table `table:<conn>:<table>:export` AFTER snapshot identifier
+ * resolution. The caller's PII capability is captured here and rides the job
+ * payload — the job never re-derives grants.
  * - `GET  /exports`              — own exports; everyone's with
  *   {@link EXPORTS_MANAGE_PERMISSION} (fail-closed until the key is granted).
  * - `GET  /exports/:id`          — status poll (owner or manage).
  * - `GET  /exports/:id/download` — authenticated artifact stream (owner or
  *   manage); 410 once expired, 409 while processing.
  *
- * `xlsx` is in the §3.25 format vocabulary but NOT buildable without a new
- * dependency — it is rejected here with a clear 422 (documented deviation).
+ * `xlsx` is in the format vocabulary but NOT buildable without a new
+ * dependency — it is rejected here with a clear 422 (documented
+ * deviation).
  */
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -54,7 +54,7 @@ import {
 } from './schema.js';
 
 /**
- * `system:exports:manage` — see-everyone's-exports. Declared in the M7-T07
+ * `system:exports:manage` — see-everyone's-exports. Declared in the
  * handoff for meta's SYSTEM_ACTION_KEYS (`exports.manage`); until assembly
  * lands the key the check parses to "deny", so the list stays mine-only.
  */
@@ -106,7 +106,7 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
-    // The builder's reads (41-export-builder.md §3.5) — sources, views and
+    // The builder's reads — sources, views and
     // the preview — live beside the resource they read, under one deps object.
     await registerBuilderRoutes(app, { meta, manager });
 
@@ -127,7 +127,7 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
 
         await manager.mustFind(connectionId);
         const view = await loadSnapshotView(meta, connectionId);
-        // Identifier resolution FIRST, then RBAC on the resolved name (§5.2).
+        // Identifier resolution FIRST, then RBAC on the resolved name.
         const table = view.table(resolved.table);
         const permission = `table:${connectionId}:${table.id}:export`;
         if (!(await request.can(permission))) {
@@ -147,7 +147,7 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
         // PII capability captured at request time (crud/mask.ts).
         const unmasked = await canReadPii(request);
         // A builder DEFINITION is validated here, through the same resolver
-        // the preview and the job use (41-export-builder.md §3.3): an unknown
+        // the preview and the job use: an unknown
         // column, a bad hop, a colliding alias or a duplicate header is a 422
         // on the request, never a failed job discovered on the exports page.
         const definition = await resolveExportDefinition({
@@ -180,7 +180,7 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
             unmasked,
             // A definition carries its own derived block; threading the page's
             // as well would compute the same measures twice under two alias
-            // sets (41 §0.3). Only the pre-definition shape reads the page.
+            // sets. Only the pre-definition shape reads the page.
             ...(resolved.pageId === undefined || !definition.legacy ? {} : { pageId: resolved.pageId }),
           },
         });

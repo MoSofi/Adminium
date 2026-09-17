@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `files.migrate` — move stored bytes between destinations
- * (37-files-and-storage.md D20, 37-T12).
+ * `files.migrate` — move stored bytes between destinations.
  *
  * COPY, VERIFY, FLIP, THEN DELETE — in that order, per object, and the order
  * is the whole design. Every other ordering has a window in which a crash

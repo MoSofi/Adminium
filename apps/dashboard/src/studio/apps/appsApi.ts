@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Installed-app data layer (47-app-installation.md step 3) over `/api/v1/apps`
+ * Installed-app data layer over `/api/v1/apps`
  * (`apps/server/src/routes/apps/`).
  *
  * Shapes mirror the server's Zod replies (`routes/apps/schema.ts`) — the
  * copied-mirror convention: change both together.
  *
- * ── BROWSING IS NOT FETCHING (48 §6b G8-D3) ────────────────────────────────
- * `GET /apps/catalog` reads the app store plus whatever the last refresh of the
+ * ── BROWSING IS NOT FETCHING (b G8-D3) ──────────────────────────────── `GET
+ * /apps/catalog` reads the app store plus whatever the last refresh of the
  * online app catalog cached; it never reaches the network on its own. Refresh,
  * download and update are separate, explicit actions, and the two that fetch
  * are JOBS the page follows to the end.

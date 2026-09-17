@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * FK-cluster domain detection — 05-introspection-engine.md §8.3.
+ * FK-cluster domain detection.
  *
- * Domains drive "one `page-dashboard` per domain" (research/widget-registry.md
- * §15): connected components over the relation graph (declared + accepted
- * inferred, confidence ≥ 0.8); singleton tables attach to the component they
- * share a name prefix with, else to a "General" domain. Domain naming: schema
- * name when meaningful, else the most-central (weighted hub) table's plural
- * label.
+ * Domains drive "one `page-dashboard` per domain"
+ * (research/widget-registry.md): connected components over the relation graph
+ * (declared + accepted inferred, confidence ≥ 0.8); singleton tables attach to
+ * the component they share a name prefix with, else to a "General" domain.
+ * Domain naming: schema name when meaningful, else the most-central (weighted
+ * hub) table's plural label.
  */
 
 import type { DatabaseModel, TableModel } from '../schema-model.js';
@@ -24,7 +24,7 @@ export interface Domain {
   hubTableId: string;
 }
 
-/** Relations that count as domain edges (§6 thresholds: accepted at ≥ 0.8). */
+/** Relations that count as domain edges (thresholds: accepted at ≥ 0.8). */
 const EDGE_CONFIDENCE = 0.8;
 
 class UnionFind {
@@ -58,8 +58,8 @@ function sharedPrefix(a: string, b: string): boolean {
 /**
  * Detect FK-cluster domains over the model's non-system tables. Join tables
  * participate as edges (their relations connect the sides) but are never
- * chosen as hubs. Components larger than 12 tables would split by schema per
- * §8.3 — with a single schema they stay one domain.
+ * chosen as hubs. Components larger than 12 tables would split by schema —
+ * with a single schema they stay one domain.
  */
 export function detectDomains(model: DatabaseModel, tables: readonly TableModel[]): Domain[] {
   const ids = new Set(tables.map((t) => t.id));
@@ -125,7 +125,7 @@ export function detectDomains(model: DatabaseModel, tables: readonly TableModel[
   const named = (members: string[]): Domain => {
     const hub = hubOf(members);
     const hubTable = byId.get(hub);
-    // Schema name when meaningful (§8.3), else the hub table's plural label.
+    // Schema name when meaningful, else the hub table's plural label.
     const schema = hubTable?.schema ?? 'public';
     const meaningful = schema !== 'public' && schema !== 'main' && schema !== model.name;
     const rawLabel = meaningful ? humanize(schema) : humanize(hub);

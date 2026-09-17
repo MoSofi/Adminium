@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-dashboard` template renderer (04-widget-registry.md §10,
- * 09-generated-app.md §7.2, M4-T05).
+ * `page-dashboard` template renderer.
  *
  * Renders a stored `config.layout` (pageLayoutSchema) on the static 12-col
  * DashboardGrid: every item becomes a WidgetHost fed by the
  * DashboardData adapter (one `queryBatch` round trip for all bound
  * widgets, per-item error isolation) or by deterministic demo data when
  * unbound. Responsive stacking below `lg` comes from the grid. Edit mode
- * (dashboard builder) is 04-T12/M7; the chrome toolbar
- * (`date-range-picker` publishing `dateRange.*` params) arrives with the
- * chrome family — `params` is already plumbed through to the adapter.
+ * (dashboard builder) is /M7; the chrome toolbar (`date-range-picker`
+ * publishing `dateRange.*` params) arrives with the chrome family —
+ * `params` is already plumbed through to the adapter.
  */
 
 import { useMemo } from 'react';
@@ -29,7 +28,7 @@ import {
 export interface PageDashboardProps {
   /** The page's `config.layout` document (raw — validated here). */
   layout: unknown;
-  /** Transport for bound widgets; absent → full demo mode (04 §5.3). */
+  /** Transport for bound widgets; absent → full demo mode. */
   adapter?: DashboardDataAdapter | undefined;
   /** Page-control params (e.g. `dateRange.*`) forwarded to every binding. */
   params?: Record<string, unknown> | undefined;

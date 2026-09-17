@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * StatePage — renders a system state by id (route `/state/$stateId`,
- * 09-generated-app.md §6.1) and wires each state's primary/secondary CTA to
- * its real recovery action (§6.1 table). Unknown ids render the branded 404.
+ * StatePage — renders a system state by id (route `/state/$stateId`) and
+ * wires each state's primary/secondary CTA to its real recovery action
+ * (table). Unknown ids render the branded 404.
  */
 import { useNavigate } from '@tanstack/react-router';
 
@@ -63,11 +63,11 @@ export function StatePage({ stateId, requestId, fullPage = true, onRetry }: Stat
     offline: retry,
     'expired-link': toLogin,
     'expired-session': toLogin,
-    // Studio connect wizard lands in M5 (09-T11) — home is the honest target.
+    // Studio connect wizard lands in M5 — home is the honest target.
     'empty-no-sources': () => void navigate({ to: '/' }),
     'read-only': () => void navigate({ to: '/' }),
     // `suspended` has no primary action: its "Contact owner" target is the
-    // cloud customer-portal deep link (12-cloud-platform.md), which v1 does not
+    // cloud customer-portal deep link, which v1 does not
     // ship. It used to be wired to `() => undefined`, which rendered a button
     // that ate the click — the dead-CTA bug wearing a handler. Absent from this
     // map, StateHero omits the button and the body copy carries the instruction.

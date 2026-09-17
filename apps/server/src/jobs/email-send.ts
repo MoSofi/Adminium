@@ -48,7 +48,7 @@ import type { JobRegistry } from './registry.js';
 
 export { EMAIL_SEND_JOB_KIND };
 
-/** A fixed attachment: the library file whose bytes travel with the message (39 D8). */
+/** A fixed attachment: the library file whose bytes travel with the message. */
 export const emailSendAttachmentRefSchema: z.ZodType<EmailSendAttachmentRef> = z.object({
   fileId: z.string().min(1).max(36),
   filename: z.string().min(1).max(255),
@@ -82,7 +82,8 @@ const envelopeSchema = z.object({
   subject: z.string(),
   html: z.string(),
   text: z.string(),
-  /** A configured sender's `Name <addr>`; absent = the transport's `email.smtp.from` (39 D7). */
+  /** A configured sender's `Name <addr>`; absent = the transport's
+   * `email.smtp.from`. */
   from: z.string().optional(),
 });
 
@@ -92,7 +93,7 @@ export interface EmailSendHandlerDeps {
   secret: string;
   /** Transport factory; tests inject a recorder instead of a socket. */
   createTransport?: ((cfg: SmtpConfig) => EmailTransport) | undefined;
-  /** Where attachment and inline-image bytes are read from (39 D8/D9). */
+  /** Where attachment and inline-image bytes are read from. */
   storage?: FileStore | undefined;
 }
 
@@ -102,7 +103,8 @@ async function readAll(stream: AsyncIterable<Buffer | string>): Promise<Buffer> 
   return Buffer.concat(chunks);
 }
 
-/** The bytes of a LIVE library file — throws with the filename when it is missing or trashed (39 D8). */
+/** The bytes of a LIVE library file — throws with the filename when it is
+ * missing or trashed. */
 async function readLibraryFile(
   deps: EmailSendHandlerDeps,
   fileId: string,
@@ -122,7 +124,7 @@ async function readLibraryFile(
 /**
  * Every part the message needs, as bytes: inline images first (the HTML
  * references them), then the fixed attachments. Exported so the campaign
- * runner (39 D11) resolves them once per run rather than once per recipient.
+ * runner resolves them once per run rather than once per recipient.
  */
 export async function resolveEmailParts(
   deps: EmailSendHandlerDeps,
@@ -165,7 +167,7 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
       const envelope = envelopeSchema.parse(
         JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(deps.secret))),
       );
-      // Bytes are read HERE, never at enqueue (39 D8): the queue row carries
+      // Bytes are read HERE, never at enqueue: the queue row carries
       // ids, the message carries content, and a file trashed in between fails
       // the send instead of sending a copy nobody can revoke.
       ctx.progress(25, { step: 'attachments', message: 'reading attachments' });

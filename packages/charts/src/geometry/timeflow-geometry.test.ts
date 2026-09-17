@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Geometry tests for the M7 "time, forecast & flow" chart group (04-T09).
- * Pure functions → determinism (Node-vs-expected byte identity), golden path
+ * Geometry tests for the M7 "time, forecast & flow" chart group. Pure
+ * functions → determinism (Node-vs-expected byte identity), golden path
  * strings for the hand-built builders, and structural correctness. No DOM.
  */
 import { describe, expect, it } from 'vitest';

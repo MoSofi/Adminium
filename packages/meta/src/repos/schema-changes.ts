@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * schemaChangesRepo — `adminium_schema_changes` (35-schema-authoring.md §3.5,
- * D3, 35-T09, 35-T36).
+ * schemaChangesRepo — `adminium_schema_changes`.
  *
  * The record of what an apply did to a customer's database.
  *
@@ -215,9 +214,9 @@ export function schemaChangesRepo(meta: MetaDb) {
 
     /**
      * A `running` row for this connection — an apply that never reported an
-     * outcome. The next plan surfaces it (35-T36): the operator is told the
-     * schema may be part-way between two shapes rather than being handed a
-     * plan built on that assumption without being told.
+     * outcome. The next plan surfaces it: the operator is told the schema
+     * may be part-way between two shapes rather than being handed a plan
+     * built on that assumption without being told.
      */
     async unfinishedFor(connectionId: string): Promise<SchemaChange | null> {
       const row = await db

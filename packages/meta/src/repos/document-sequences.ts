@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * documentSequencesRepo — adminium_document_sequences (34-invoices-add-on.md
- * §3.3, D11; wave 0031).
+ * documentSequencesRepo — adminium_document_sequences (wave 0031).
  *
  * ─── WHY COMPARE-AND-SET AND NOT A TRANSACTION ─────────────────────────────
  *

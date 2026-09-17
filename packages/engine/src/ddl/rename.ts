@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Rename pre-application — 35-schema-authoring.md §3.1, 35-T03.
+ * Rename pre-application.
  *
  * ─── The problem this solves, stated once ──────────────────────────────────
  *

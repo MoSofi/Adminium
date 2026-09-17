@@ -20,7 +20,7 @@ export interface AvatarStackProps extends ComponentPropsWithRef<'div'> {
 /**
  * AvatarStack — overlapping avatar row: −8px overlap via the logical `-ms-2`
  * negative margin, 2px `--surface` ring on every item, and a `+N` overflow
- * chip past `max` (research/design-system.md §3 Tier 1).
+ * chip past `max` (research/design-system.md Tier 1).
  */
 export function AvatarStack({
   children,

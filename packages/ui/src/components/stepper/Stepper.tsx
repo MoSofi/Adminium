@@ -100,7 +100,7 @@ function StepCircle({ state, index }: { state: StepState; index: number }) {
 /**
  * Stepper — wizard progress: numbered/spinner/check circles + connectors in
  * `horizontal` (wizard header) and `vertical` (timeline) variants; states
- * pending/active/loading/done/error (research/design-system.md §3 Tier 3).
+ * pending/active/loading/done/error (research/design-system.md Tier 3).
  * `<ol>` semantics with `aria-current="step"` on the active item.
  */
 export function Stepper({

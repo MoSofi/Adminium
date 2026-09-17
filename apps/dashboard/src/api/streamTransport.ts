@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The app's realtime stream transport (04-widget-registry.md §5.3). A single
- * multiplexed WS connection (SSE fallback) shared by every live stream widget,
- * exposed as the `StreamTransport` contract `@adminium/widgets/binding` expects.
- * `StreamProvider` puts it on the context; `useWidgetStream` reads it.
+ * The app's realtime stream transport. A single multiplexed WS connection (SSE
+ * fallback) shared by every live stream widget, exposed as the `StreamTransport`
+ * contract `@adminium/widgets/binding` expects. `StreamProvider` puts it on the
+ * context; `useWidgetStream` reads it.
  *
  * This is deliberately its OWN connection, separate from the AppShell's
  * `config-changed` client (apps/dashboard/src/shell/AppShell.tsx): widget-data
@@ -42,9 +42,9 @@ export const STREAM_SSE_EVENT_TYPES = [
   'record.bulk-update',
   'record.bulk-delete',
   'record.undo',
-  // 37 D27 — the record page's Attachments panel. Unregistered, the SSE
-  // fallback attaches no listener for the name, so the frame arrives and is
-  // dropped without a trace: on that transport a named event never reaches
+  // The record page's Attachments panel. Unregistered, the SSE fallback
+  // attaches no listener for the name, so the frame arrives and is dropped
+  // without a trace: on that transport a named event never reaches
   // `onmessage`.
   'record.attachments',
 ] as const;

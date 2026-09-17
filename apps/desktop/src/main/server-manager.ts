@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ServerManager — forks, supervises and shuts down the embedded server
- * (11-electron.md §2.1 topology, §2.2 boot sequence steps 5/7/9).
+ * (topology, boot sequence steps 5/7/9).
  *
  * ─── Nothing here needs Electron ─────────────────────────────────────────────
  *
@@ -16,8 +16,8 @@
  *
  * ─── The restart policy, and where it departs from a naive reading ───────────
  *
- * §2.2 step 9: "exit code 0 (deliberate restart, e.g. LAN toggle) ⇒ silent
- * restart; nonzero ⇒ crash screen … Three crashes within 60 s ⇒ stop
+ * "exit code 0 (deliberate restart, e.g. LAN toggle) ⇒ silent restart;
+ * nonzero ⇒ crash screen … Three crashes within 60 s ⇒ stop
  * auto-restarting and show the log path."
  *
  * Three things that reading leaves open, decided here:
@@ -33,14 +33,14 @@
  *    forever — and this cap is the only thing standing between us and it. Only
  *    nonzero exits are *reported* as crashes; both are counted.
  * 3. **Exits before `ready` are the handshake's business, not the policy's**
- *    (see {@link ServerManagerImpl}'s `#supervise`). §2.2 step 7 sends a failed
+ *    (see {@link ServerManagerImpl}'s `#supervise`). A failed start sends
  *    boot to the crash screen; re-forking a server that cannot open its data
  *    directory just delays the same dialog.
  *
- * Backoff is layered on top (the "supervised restart" part): §2.2 asks for a
+ * Backoff is layered on top (the "supervised restart" part): the boot needs a
  * silent restart, not an instant one, and re-forking a server that died on a
  * locked SQLite file succeeds 500 ms later where it fails at 0 ms. A deliberate
- * exit-0 restart keeps a 0 ms delay, so §8.3's LAN toggle stays snappy.
+ * exit-0 restart keeps a 0 ms delay, so LAN toggle stays snappy.
  */
 
 import { utilityProcess } from 'electron';
@@ -80,7 +80,7 @@ export interface ServerChildLike {
 }
 
 export interface ForkOptions {
-  /** Absolute path of the built entry — `out/server/index.js` (§2.1). */
+  /** Absolute path of the built entry — `out/server/index.js`. */
   entry: string;
   env: Record<string, string>;
 }
@@ -94,7 +94,7 @@ export type ForkServer = (opts: ForkOptions) => ServerChildLike;
  * `stdio: ['ignore', 'pipe', 'pipe']` is the load-bearing part. The default
  * (`inherit`) sends the child's output to the terminal that launched the app —
  * which, for a packaged desktop app double-clicked in Finder, is nowhere at all.
- * §9 requires those two streams land in `adminium-server.log`, and they can only
+ * Both streams have to land in `adminium-server.log`, and they can only
  * be piped if they are pipes.
  */
 export const utilityProcessFork: ForkServer = ({ entry, env }) =>
@@ -110,14 +110,14 @@ export interface ServerReadyInfo {
   host: string;
   /** The RESOLVED port — with `ADMINIUM_PORT=0` this message is where it exists. */
   port: number;
-  /** `http://127.0.0.1:<port>` (§2.2 step 8). */
+  /** `http://127.0.0.1:<port>`. */
   url: string;
   migrationsApplied: number;
   /**
-   * The newest meta migration this app's server build ships (§9, 11-T12).
+   * The newest meta migration this app's server build ships.
    *
    * The handshake is the ONLY way this reaches the main process — see
-   * `server/protocol.ts`'s `migrations.version`. §9's restore refuses a backup
+   * `server/protocol.ts`'s `migrations.version`. A restore refuses a backup
    * newer than this, and it must do so before it touches any data.
    */
   metaVersion: string;
@@ -135,21 +135,21 @@ export type ServerState =
       readonly reason: string;
     }
   | { readonly status: 'stopped' }
-  /** The give-up state §2.2 step 9's crash page renders. */
+  /** The give-up state crash page renders. */
   | {
       readonly status: 'failed';
       readonly reason: string;
       readonly exitCode: number | null;
-      /** "Show logs" target (§9). */
+      /** "Show logs" target. */
       readonly logPath: string;
-      /** The excerpt §2.2 step 7 asks the crash screen to show. */
+      /** The excerpt asks the crash screen to show. */
       readonly excerpt: readonly string[];
     };
 
 export type ServerStateListener = (state: ServerState) => void;
 
 /**
- * What `main/index.ts` renders a crash screen from (§2.2 step 9).
+ * What `main/index.ts` renders a crash screen from.
  *
  * Emitted ONLY for exits that were neither asked for nor pre-`ready`: a quit, a
  * deliberate `restart()`, and a boot that never handshook are all already
@@ -176,7 +176,7 @@ export type ServerExitListener = (exit: ServerExit) => void;
 // ─── Restart policy (pure) ───────────────────────────────────────────────────
 
 export interface RestartPolicy {
-  /** §2.2: "Three crashes within 60 s ⇒ stop auto-restarting". */
+  /** "Three crashes within 60 s ⇒ stop auto-restarting". */
   maxRestarts: number;
   windowMs: number;
   baseDelayMs: number;
@@ -190,7 +190,7 @@ export const DEFAULT_RESTART_POLICY: RestartPolicy = {
   maxDelayMs: 5_000,
 };
 
-/** §2.2 step 7: "Timeout 30 s ⇒ crash screen with log excerpt." */
+/** "Timeout 30 s ⇒ crash screen with log excerpt." */
 export const DEFAULT_READY_TIMEOUT_MS = 30_000;
 /** How long a `shutdown` message gets before `kill()`. */
 export const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -212,9 +212,9 @@ export interface RestartDecisionInput {
 }
 
 /**
- * The whole of §2.2 step 9, as arithmetic. Extracted from the manager because a
- * restart loop is easy to write, hard to observe, and catastrophic when wrong —
- * this way the cap is a table of inputs and outputs rather than a claim.
+ * The whole of, as arithmetic. Extracted from the manager because a restart
+ * loop is easy to write, hard to observe, and catastrophic when wrong — this
+ * way the cap is a table of inputs and outputs rather than a claim.
  */
 export function decideRestart(input: RestartDecisionInput): RestartDecision {
   if (input.expected) return { action: 'none' };
@@ -230,7 +230,7 @@ export function decideRestart(input: RestartDecisionInput): RestartDecision {
     };
   }
 
-  // Exit 0 unexpectedly = the server restarted itself on purpose (§2.2 names the
+  // Exit 0 unexpectedly = the server restarted itself on purpose (names the
   // LAN toggle). Nothing is wrong, so nothing is throttled.
   if (input.exitCode === 0) return { action: 'restart', delayMs: 0, attempt: count };
 
@@ -273,16 +273,16 @@ const REAL_TIMERS: TimerApi = {
 };
 
 export interface CreateServerManagerOptions {
-  /** Absolute path of `out/server/index.js` (§2.1). */
+  /** Absolute path of `out/server/index.js`. */
   entry: string;
-  /** §2.3 `dataDir`, absolute. */
+  /** `dataDir`, absolute. */
   dataDir: string;
-  /** The decrypted `ADMINIUM_SECRET` (§2.2 step 3). */
+  /** The decrypted `ADMINIUM_SECRET`. */
   secret: string;
   /**
-   * Mints §2.2 step 4's boot token. Called ONCE PER FORK, not once per app
-   * launch — read {@link ServerManager.bootToken} after `ready` to learn the
-   * live child's token, and never cache the value across a restart.
+   * Mints boot token. Called ONCE PER FORK, not once per app launch — read
+   * {@link ServerManager.bootToken} after `ready` to learn the live child's
+   * token, and never cache the value across a restart.
    *
    * ─── WHY A FACTORY AND NOT THE TOKEN ─────────────────────────────────────
    *
@@ -290,7 +290,7 @@ export interface CreateServerManagerOptions {
    * step 4 and re-emitted into `#buildEnv()` on every fork. Each fresh child
    * therefore built a fresh `createBootTokenGuard(T)` with `consumed = false`
    * — so the SAME token bought a SECOND passwordless super-admin session after
-   * every LAN toggle and every crash auto-restart (up to 3 per 60 s). §5 says
+   * every LAN toggle and every crash auto-restart (up to 3 per 60 s). The rule is
    * "one success per boot token"; what the code delivered was one success per
    * child process, with the token's real lifetime being the whole app run.
    *
@@ -304,26 +304,26 @@ export interface CreateServerManagerOptions {
    */
   createBootToken: () => string;
   /**
-   * §2.3 `singleUser`, mirrored into `adminium_settings` by the child at boot so
-   * §5's auto-login route can read it. Required for the reason
-   * {@link BuildServerEnvInput.singleUser} gives: forgetting it is a silent 403
-   * on every launch, not a compile error.
+   * `singleUser`, mirrored into `adminium_settings` by the child at boot so
+   * auto-login route can read it. Required for the reason {@link
+   * BuildServerEnvInput.singleUser} gives: forgetting it is a silent 403 on
+   * every launch, not a compile error.
    */
   singleUser: boolean;
-  /** §2.4/§8.3. Defaults to loopback; only the LAN toggle passes `0.0.0.0`. */
+  /** Defaults to loopback; only the LAN toggle passes `0.0.0.0`. */
   host?: string | undefined;
-  /** Defaults to 0 — the §2.1 random free port. */
+  /** Defaults to 0 — the random free port. */
   port?: number | undefined;
   telemetryOptIn?: boolean | undefined;
   logLevel?: DesktopLogLevel | undefined;
-  /** §3: the dashboard build inside `resources/`. */
+  /** The dashboard build inside `resources/`. */
   staticRoot?: string | undefined;
-  /** §6 step 2 card 4: `resources/demo/demo-seed.mjs` (11-T08). */
+  /** The wizard's demo card: `resources/demo/demo-seed.mjs`. */
   demoSeedScript?: string | undefined;
-  /** 32-T11: `resources/add-ons-bundle`, the pre-verified bundled add-on set. */
+  /** `resources/add-ons-bundle`, the pre-verified bundled add-on set. */
   bundledAddOnsDir?: string | undefined;
   /**
-   * §9's `<userData>/logs`. Given it, the manager writes the child's stdout and
+   * `<userData>/logs`. Given it, the manager writes the child's stdout and
    * stderr into a rotating `adminium-server.log`. Omitted (and with no explicit
    * `log`), it keeps the last lines in memory only — enough for the crash screen
    * excerpt, but "Show logs" has nothing to reveal.
@@ -341,23 +341,23 @@ export interface CreateServerManagerOptions {
   inheritEnv?: NodeJS.ProcessEnv | undefined;
 }
 
-/** The port `main/index.ts` drives (§2.2 steps 5, 7 and 9). */
+/** The port `main/index.ts` drives (steps 5, 7 and 9). */
 export interface ServerManager {
   readonly state: ServerState;
   /**
-   * The token handed to the LIVE child, mirrored for the §2.2 step 8 URL, or
-   * `null` before the first fork.
+   * The token handed to the LIVE child, mirrored for the URL, or `null`
+   * before the first fork.
    *
    * Re-read after every `ready` — it is minted PER FORK, so a value cached
    * across a restart is one the running server has never heard of. See
    * {@link CreateServerManagerOptions.createBootToken}.
    */
   readonly bootToken: string | null;
-  /** §2.2 steps 5–7. Resolves with the RESOLVED port. */
+  /** Fork, handshake, ready. Resolves with the RESOLVED port. */
   start(): Promise<ServerReadyInfo>;
   /** Graceful: `shutdown` message, then `kill()` if ignored. */
   stop(): Promise<void>;
-  /** Deliberate (§8.3's LAN toggle). Not throttled, not counted. */
+  /** Deliberate (LAN toggle). Not throttled, not counted. */
   restart(changes?: { host?: string; port?: number }): Promise<ServerReadyInfo>;
   /** Unexpected post-`ready` exits only. Returns an unsubscribe. */
   onExit(listener: ServerExitListener): () => void;
@@ -383,7 +383,7 @@ class ServerManagerImpl implements ServerManager {
 
   #state: ServerState = { status: 'idle' };
   #child: ServerChildLike | null = null;
-  /** `run` ⇒ §2.2 step 9 applies to an exit; anything else ⇒ we asked for it. */
+  /** `run` ⇒ applies to an exit; anything else ⇒ we asked for it. */
   #intent: 'run' | 'stopping' | 'restarting' = 'run';
   /**
    * True only between `ready` and the next exit.
@@ -400,15 +400,15 @@ class ServerManagerImpl implements ServerManager {
   #restartTimer: unknown = null;
   /** Resolved by the exit listener so `stop()` can await a graceful close. */
   readonly #exitWaiters = new Set<(code: number) => void>();
-  /** §8.3 flips these and restarts; nothing in Wave 1 does. */
+  /** The LAN toggle flips these and restarts; nothing in Wave 1 does. */
   #host: string;
   #port: number | undefined;
   /**
    * The token the LIVE child was forked with, or `null` before the first fork.
    *
    * `null` is a real state and not a placeholder: until a child exists there is
-   * no boot, and §5's token is a per-boot fact. Callers that navigate the window
-   * read this AFTER `ready`.
+   * no boot, token is a per-boot fact. Callers that navigate the window read
+   * this AFTER `ready`.
    */
   #bootToken: string | null = null;
 
@@ -432,7 +432,7 @@ class ServerManagerImpl implements ServerManager {
   }
 
   /**
-   * The live child's §5 token, or `null` before the first fork.
+   * The live child's token, or `null` before the first fork.
    *
    * Re-read it after every `ready`. A caller holding one across a restart is
    * holding a token the running server has never heard of — which is the whole
@@ -454,7 +454,7 @@ class ServerManagerImpl implements ServerManager {
   }
 
   /**
-   * §2.2 steps 5–7. Resolves once the child reports its port; rejects with a
+   * Fork, handshake, ready. Resolves once the child reports its port; rejects with a
    * {@link ServerStartError} carrying the log excerpt if it never does.
    */
   async start(): Promise<ServerReadyInfo> {
@@ -466,9 +466,9 @@ class ServerManagerImpl implements ServerManager {
 
   /**
    * Graceful shutdown: `{ type: "shutdown" }` first — which lets Fastify run its
-   * `onClose` hooks (pool disposal, and §9's `wal_checkpoint(TRUNCATE)` so the
-   * `.sqlite` files are self-contained at rest) — and `kill()` only if the child
-   * ignores it. Killing first leaves WAL sidecars next to every database.
+   * `onClose` hooks (pool disposal, `wal_checkpoint(TRUNCATE)` so the `.sqlite`
+   * files are self-contained at rest) — and `kill()` only if the child ignores
+   * it. Killing first leaves WAL sidecars next to every database.
    */
   async stop(): Promise<void> {
     this.#cancelRestartTimer();
@@ -483,7 +483,7 @@ class ServerManagerImpl implements ServerManager {
   }
 
   /**
-   * Stop and start again, deliberately (§8.3's LAN toggle is the caller). Not
+   * Stop and start again, deliberately (LAN toggle is the caller). Not
    * throttled and not counted against the cap: the user asked for it.
    */
   async restart(changes: { host?: string; port?: number } = {}): Promise<ServerReadyInfo> {
@@ -532,13 +532,13 @@ class ServerManagerImpl implements ServerManager {
   /**
    * Called exactly once per `#spawnAndWait`, which is what makes the mint below
    * exactly one token per child. If this ever grows a second call site per
-   * spawn, the fork and the window would disagree about the token and §5's
-   * auto-login would 401 — move the mint into `#spawnAndWait` rather than
-   * letting `#buildEnv` become non-idempotent.
+   * spawn, the fork and the window would disagree about the token auto-login
+   * would 401 — move the mint into `#spawnAndWait` rather than letting
+   * `#buildEnv` become non-idempotent.
    */
   #buildEnv(): Record<string, string> {
     // Step 4, per FORK. The previous child's token dies with it: nothing in the
-    // new process has ever heard of it, which is precisely the property §5's
+    // new process has ever heard of it, which is precisely the property
     // "one success per boot token" needs and the old once-per-launch token did
     // not have.
     this.#bootToken = this.#opts.createBootToken();
@@ -588,7 +588,7 @@ class ServerManagerImpl implements ServerManager {
 
     this.#child = child;
 
-    // §9: pipe both streams before anything can be written to them — a boot that
+    // Pipe both streams before anything can be written to them — a boot that
     // dies in its first 50 ms is the one whose output matters most.
     if (child.stdout !== null && child.stdout !== undefined) {
       pipeStreamToLog(child.stdout, this.#log, '[server:out]');
@@ -621,7 +621,7 @@ class ServerManagerImpl implements ServerManager {
   }
 
   /**
-   * The §2.2 step 7 handshake.
+   * The handshake.
    *
    * Three ways to lose: an `error` message (the child said why), an exit before
    * `ready` (it died), or silence for 30 s (it hung). A MALFORMED message is

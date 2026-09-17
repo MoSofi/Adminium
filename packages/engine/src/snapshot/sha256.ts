@@ -3,10 +3,10 @@
  * Minimal, dependency-free SHA-256 (FIPS 180-4) over a UTF-8 string.
  *
  * Why not `node:crypto`: `@adminium/engine` src is environment-agnostic —
- * it declares no node types and its subpaths may be bundled client-side
- * (01-architecture.md §2.3.2). Web Crypto's `subtle.digest` is async, which
- * would poison the pure/sync snapshot API for no benefit at these input
- * sizes (a 500-table model is < 10 MB; SHA-256 of that is milliseconds).
+ * it declares no node types and its subpaths may be bundled client-side.
+ * Web Crypto's `subtle.digest` is async, which would poison the pure/sync
+ * snapshot API for no benefit at these input sizes (a 500-table model is <
+ * 10 MB; SHA-256 of that is milliseconds).
  *
  * Verified against the FIPS test vectors in test/snapshot.test.ts.
  */

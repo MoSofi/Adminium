@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `gauge-arc` (annex §1) — a 180° speedometer arc with coloured qualitative
- * bands and a needle (or a plain half-arc dasharray gauge with `needle: false`),
- * plus the annex's grid-of-gauges CLUSTER mode (2×2 / 5-up SLA + system-health
+ * `gauge-arc` (annex) — a 180° speedometer arc with coloured qualitative bands
+ * and a needle (or a plain half-arc dasharray gauge with `needle: false`), plus
+ * the annex's grid-of-gauges CLUSTER mode (2×2 / 5-up SLA + system-health
  * clusters). Renders only the loaded state — skeleton/empty/error are
  * WidgetFrame's job.
  *
- * TWO SHAPES, ONE WIDGET (04 §3): the definition declares
- * `['single-metric', 'categorical']` because `cluster` is a CONFIG flag — the
- * single gauge binds a score, the cluster binds a {label, pct, tone} list. The
- * component reads whichever its config selects; `gaugeArcDemoData` emits a
- * payload satisfying both.
+ * TWO SHAPES, ONE WIDGET: the definition declares `['single-metric',
+ * 'categorical']` because `cluster` is a CONFIG flag — the single gauge binds
+ * a score, the cluster binds a {label, pct, tone} list. The component reads
+ * whichever its config selects; `gaugeArcDemoData` emits a payload satisfying
+ * both.
  *
  * COLOUR: bands name semantic TONES, never raw colours — a gauge re-themes with
  * the app (research/widget-registry.md Conventions: "CSS variables only").
@@ -20,9 +20,9 @@
  * would read as running backwards. The labels, values and the cluster grid
  * around it are logical-property flex/grid and flip normally.
  *
- * REDUCED MOTION (04 §7.5, mandatory): the needle and the value sweep settle in
- * from the arc's start via `useMountAnimation`, which paints the final frame
- * immediately under `prefers-reduced-motion: reduce`.
+ * REDUCED MOTION (mandatory): the needle and the value sweep settle in from the
+ * arc's start via `useMountAnimation`, which paints the final frame immediately
+ * under `prefers-reduced-motion: reduce`.
  */
 
 import { EmptyState, MonoText } from '@adminium/ui';
@@ -40,7 +40,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
-// (04 §2.3). Re-exported here to keep existing import points stable.
+// . Re-exported here to keep existing import points stable.
 export { gaugeArcConfigSchema, gaugeArcDemoData } from './kpi-config.js';
 export type { GaugeArcConfig } from './kpi-config.js';
 
@@ -156,7 +156,7 @@ function Arc({ value, max, bands, needle, width, mounted, label, tone }: ArcProp
   );
 }
 
-/** One cluster cell: a small arc + its label and value (annex §1 cluster mode). */
+/** One cluster cell: a small arc + its label and value (annex cluster mode). */
 function ClusterCell({
   label,
   value,

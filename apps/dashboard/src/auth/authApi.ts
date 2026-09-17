@@ -17,7 +17,7 @@ interface LoginReplyData {
   challengeToken?: string;
 }
 
-/** POST /auth/login → 200 session or 202 2FA challenge (§2.1 step-up). */
+/** POST /auth/login → 200 session or 202 2FA challenge (step-up). */
 export async function login(email: string, password: string): Promise<LoginResult> {
   const { data } = await api.post<{ data: LoginReplyData }>('/api/v1/auth/login', { email, password });
   if (data.twoFactorRequired === true && typeof data.challengeToken === 'string') {
@@ -55,7 +55,7 @@ const CHALLENGE_KEY = 'adminium-2fa-challenge';
 export function storeChallenge(
   challengeToken: string,
   returnTo: string | undefined,
-  /** The surface gate's document-navigation target (29 D4) — see LoginPage. */
+  /** The surface gate's document-navigation target — see LoginPage. */
   next?: string | undefined,
 ): void {
   try {

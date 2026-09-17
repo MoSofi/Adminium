@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Preflight's privilege pass — 35-schema-authoring.md D17, 35-T07, 35-T34.
+ * Preflight's privilege pass.
  *
  * ─── The bug this file exists to keep fixed ────────────────────────────────
  *
@@ -130,7 +130,7 @@ describe('a rename says what follows the name and what does not', () => {
    * The drop path stated both halves; the rename path stated neither, so the
    * whole review pane for a rename read "A metadata-only rename." That is true
    * of the table and false of the app around it, and a rename is precisely the
-   * change an operator is most likely to assume is harmless. Found running §10
+   * change an operator is most likely to assume is harmless. Found running
    * criterion 13 in a browser.
    */
   it('names the repair and the deliberate non-repair on a table rename', async () => {

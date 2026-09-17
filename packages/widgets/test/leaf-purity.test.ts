@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 /**
  * The page-config leaf is architecturally load-bearing: it must import ONLY
  * zod (plus its own relative modules) so that `@adminium/engine/config` can
- * depend on it without a cycle and browsers can bundle it (01-architecture.md
- * §6.1). This test fails the build if any other import sneaks in.
+ * depend on it without a cycle and browsers can bundle it. This test fails
+ * the build if any other import sneaks in.
  */
 const leafDir = fileURLToPath(new URL('../src/page-config', import.meta.url));
 

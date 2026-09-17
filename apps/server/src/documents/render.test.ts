@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The render pipeline (34-invoices-add-on.md §7.3, D8/D11; 34-T11).
+ * The render pipeline.
  *
  * Every case here is about the ORDER of the seven steps, because the order is
  * the design and every one of them has a plausible wrong version:
  *
  *  - the provider is chosen by the profile's add-on key, not by
- *    `resolveProvider`'s lowest-key choice (§0.3 trap 11) — the test installs
- *    TWO providers to make that a real choice rather than a lookup;
+ * `resolveProvider`'s lowest-key choice (trap 11) — the test installs TWO
+ *    providers to make that a real choice rather than a lookup;
  *  - the register row exists BEFORE the bytes, so a crash leaves a record of
  *    an attempt rather than silence;
  *  - the number is claimed AFTER a successful render, so a failure burns none
@@ -224,7 +224,7 @@ describe('the render pipeline', () => {
 
   it('picks the provider the PROFILE names, not the one that sorts first', async () => {
     /*
-     * §0.3 trap 11, and the reason `providerByKey` exists beside
+     * A known trap, and the reason `providerByKey` exists beside
      * `resolveProvider`. `barcode-labels` sorts before `invoices`, so a
      * pipeline using the lowest-key choice would render this invoice through
      * a barcode add-on — silently, and catastrophically.

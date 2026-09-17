@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0011 — runtime translations (23-runtime-translations.md §3.1, §3.2).
+ * Wave 0011 — runtime translations.
  *
  * Two tables, both deliberately SPARSE:
  *
@@ -14,9 +14,9 @@
  *    admin cannot flip `ar_EG` to `ltr` and corrupt a shipped bundle.
  *  - `adminium_translations` holds one row per OVERRIDDEN message. Absence
  *    means "use the compiled built-in"; a row with an empty `value` means
- *    "deliberately blank" (§3.3). Reset-to-built-in is therefore a hard
- *    DELETE, which is why the version stamp is a counter in
- *    `adminium_settings` and not `MAX(updated_at)` over these rows.
+ * "deliberately blank". Reset-to-built-in is therefore a hard DELETE,
+ *    which is why the version stamp is a counter in `adminium_settings`
+ *    and not `MAX(updated_at)` over these rows.
  *
  * Column widths are index-budget driven, not guesses. The composite unique
  * index spans scope(16) + locale(35) + namespace(16) + key(120) = 187 chars;

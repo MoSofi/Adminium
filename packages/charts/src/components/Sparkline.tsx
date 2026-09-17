@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-sparkline` primitive (research/widget-registry.md §2): inline 6–12
+ * `chart-sparkline` primitive (research/widget-registry.md): inline 6–12
  * point micro-chart, bar|line variant, last point emphasized. No axes, no
  * tooltip — embeds in KPI cards, table cells and list rows. Decorative by
  * default (aria-hidden) unless a label is provided.

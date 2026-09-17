@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Postgres table-statistics collector — 06-llm-assist.md §4.2.
+ * Postgres table-statistics collector.
  *
  * Cheap-first strategy (sample-free by default): row-count from
  * `pg_class.reltuples` with an exact `COUNT(*)` fallback for small/stale

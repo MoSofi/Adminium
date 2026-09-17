@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * User-directory routes (08-server-api.md §2.15): the list page and its
- * filters, the invite → activation-token → `POST /auth/password/reset` round
- * trip (this build has no SMTP, so the token IS the delivery), the two
- * asymmetric role guards, suspend-vs-hard-delete, the permission matrix, and
- * audit coverage of every mutation.
+ * User-directory routes: the list page and its filters, the invite →
+ * activation-token → `POST /auth/password/reset` round trip (this build has
+ * no SMTP, so the token IS the delivery), the two asymmetric role guards,
+ * suspend-vs-hard-delete, the permission matrix, and audit coverage of every
+ * mutation.
  *
  * The harness mirrors `rbac-helpers.ts` but builds the server WITH a meta
  * store so the real `/auth/password/reset` handler is mounted — the invite
@@ -522,7 +522,7 @@ describe('GET /permissions/catalog', () => {
     for (const reserved of ['system:webhooks:manage', 'system:sql:run']) {
       expect(keys, reserved).not.toContain(reserved);
     }
-    // Un-reserved by 26-T05 and 42-T13, so the catalog now OFFERS both —
+    // Un-reserved by, so the catalog now OFFERS both
     // asserted here rather than merely dropped from the list above, because
     // "no longer absent" and "actually present" are different facts and only
     // the second one proves the change reached this surface.

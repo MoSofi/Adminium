@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Introspection pipeline (M3-T05): adapter `introspect()` → column/table
+ * Introspection pipeline: adapter `introspect()` → column/table
  * classification (`@adminium/engine`) → canonical checksum → snapshot row →
- * auto-proposed PII mask overrides ("Mask PII columns · On by default",
- * 05-introspection-engine.md §7.2).
+ * auto-proposed PII mask overrides ("Mask PII columns · On by default").
  *
- * 08 §2.4 runs this as an `introspect` job (202 + jobId, progress on
+ * This runs as an `introspect` job (202 + jobId, progress on
  * `jobs:<id>`); `registerIntrospectJob` wires that. The route falls back to
- * a synchronous run (with the 05 §10 duration budget) when the jobs worker
- * is not registered — dev/test topologies.
+ * a synchronous run (with the duration budget) when the jobs worker is not
+ * registered — dev/test topologies.
  */
 
 import {
@@ -36,7 +35,7 @@ export interface RunIntrospectionOptions {
   meta: MetaDb;
   connectionId: string;
   createdBy?: string | null | undefined;
-  /** 05 §10 total budget; default 30s. */
+  /** Total budget; default 30s. */
   timeoutMs?: number | undefined;
 }
 
@@ -100,7 +99,7 @@ export async function runIntrospection(opts: RunIntrospectionOptions): Promise<I
     await adapter.close().catch(() => undefined);
   }
 
-  // 05 §6 rules 1–2 BEFORE §§7–8. Both classifiers read `model.relations`,
+  // Relation rules 1–2 run BEFORE the classifiers. Both classifiers read `model.relations`,
   // and on a schema that declares no foreign keys (MyISAM, legacy SQLite,
   // most ORM-generated MySQL) that array arrives empty: every `*_id` column
   // falls through to `external-id`, every join table classifies as an
@@ -160,7 +159,7 @@ export interface IntrospectJobRegistry {
   has(kind: string): boolean;
 }
 
-/** Wire the async path of `POST /connections/:id/introspect` (08 §2.4). */
+/** Wire the async path of `POST /connections/:id/introspect`. */
 export function registerIntrospectJob(
   registry: IntrospectJobRegistry,
   deps: { manager: ConnectionManager; meta: MetaDb },

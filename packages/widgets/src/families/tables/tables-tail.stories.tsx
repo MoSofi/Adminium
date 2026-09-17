@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK TABLES-CAL-BOARDS `tables` M7 Wave-4 TAIL stories (annex §3): each
+ * TRACK TABLES-CAL-BOARDS `tables` M7 Wave-4 TAIL stories (annex): each
  * widget's loaded variant, the four WidgetFrame states through WidgetHost
  * (acceptance #4), and light/dark × LTR/RTL matrices with REAL geometry
  * mirroring (acceptance #9 — the RTL frames set `dir="rtl"` so the ranked bars

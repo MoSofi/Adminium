@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `chart-slope` primitive (research/widget-registry.md §2): two period axes
- * (A → B) with one connecting line per record, colored pos/danger by direction,
- * and end labels. Composed from ChartSurface + pure `layoutSlope` geometry
+ * `chart-slope` primitive (research/widget-registry.md): two period axes (A →
+ * B) with one connecting line per record, colored pos/danger by direction, and
+ * end labels. Composed from ChartSurface + pure `layoutSlope` geometry
  * (deterministic two-point paths). Token-only colors; the two period columns
  * are categorical and mirror in RTL; lines fade in on mount.
  */

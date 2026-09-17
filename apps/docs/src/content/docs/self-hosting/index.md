@@ -16,7 +16,7 @@ That is the whole architecture. It fits on one small VPS.
 
 | | |
 |---|---|
-| **Node.js** | 22 or newer (if running from a source checkout) |
+| **Node.js** | 22.14 or newer (for `npx` or a source checkout; the Docker image brings its own) |
 | **Port** | 4600 by default |
 | **Meta store** | PostgreSQL, MySQL/MariaDB, or SQLite |
 | **Source database** | PostgreSQL, MySQL/MariaDB, or SQLite — external, always |
@@ -26,11 +26,14 @@ That is the whole architecture. It fits on one small VPS.
 
 | | Use when |
 |---|---|
-| [From source](/getting-started/quickstart/) | A laptop, an evaluation, a machine you already manage with Node |
+| [The npm package](/getting-started/quickstart/) | A laptop, an evaluation, a machine you already manage with Node |
+| [A project](/projects/deploy/) | Somebody writes code for this admin: pages, hooks or actions you deploy from a repository |
 | [Docker](/getting-started/docker/) | You would rather not manage a Node install |
 | [Docker Compose](/self-hosting/docker-compose/) | A real deployment, with a meta database |
+| [A VPS without Docker](/self-hosting/vps/) | A real deployment on a Linux server you manage, as a systemd service |
 
-All three run the identical process. Only the wrapper differs.
+All five run the identical process. Only the wrapper differs — a project image
+is the published image with the project folder copied into it.
 
 ## Decide these before you commit
 
@@ -97,11 +100,21 @@ Three things to back up, and they are not the same thing:
 | | What | How |
 |---|---|---|
 | **The meta store** | Users, roles, connections, page config, audit | Your database's normal backup |
-| **The data directory** | Files stored on this server's disk, exports — and the embedded meta store, if you use it | Filesystem backup of `ADMINIUM_DATA_DIR` |
+| **The data directory** | Files stored on this server's disk, exports, installed apps and add-ons — and the embedded meta store and its pre-upgrade snapshots, if you use it | Filesystem backup of `ADMINIUM_DATA_DIR` |
 | **`ADMINIUM_SECRET`** | The key to everything encrypted in the meta store | Your secret manager |
 
 A meta-store backup without the secret is unreadable. Back them up together, and
 test the restore.
+
+On a host with no persistent disk, such as DigitalOcean App Platform, the data
+directory is empty again after every deploy, so there is nothing there to back
+up. Keep the meta store in a managed database and files in a
+[storage destination](/self-hosting/env-vars/#adminium_storage_url), and know
+that installed apps and some add-ons are lost at each deploy — see
+[Installing apps](/self-hosting/installing-apps/#on-a-host-with-no-persistent-disk)
+and [Installing add-ons](/self-hosting/installing-add-ons/#on-a-host-with-no-persistent-disk).
+With a PostgreSQL or MySQL meta store, Adminium writes no backup of its own:
+back up that database with its own tools.
 
 `adminium export-zip` is **not** a backup — it is a config bundle, and it is not
 a substitute for a database backup. See

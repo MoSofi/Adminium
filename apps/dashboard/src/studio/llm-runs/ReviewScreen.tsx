@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/llm-runs/:id/review` — the review-diff screen (06-llm-assist.md
- * §8.2, §10.3). Loads the run detail + `SuggestionDiff[]`, groups them into the
- * ten §10.3 categories, and drives the accept/reject selection: default checks
- * follow the §8.2 review defaults, the header slider bulk-accepts by confidence
- * (never `rejects-heuristic`/`user-locked` — acceptance criterion 12), and the
+ * `/studio/llm-runs/:id/review` — the review-diff screen. Loads the run detail
+ * + `SuggestionDiff[]`, groups them into the ten categories, and drives the
+ * accept/reject selection: default checks follow the review defaults, the
+ * header slider bulk-accepts by confidence (never
+ * `rejects-heuristic`/`user-locked` — acceptance criterion 12), and the
  * selection persists across reload until the run is applied (criterion 12).
  * Applying commits `POST /runs/:id/apply` in one transaction and raises an Undo
  * toast via the app-wide undo contract; an applied run renders read-only.
@@ -52,7 +52,7 @@ function diffQuery(runId: string) {
 
 const REVIEWABLE_STATUSES = new Set(['validated', 'applied', 'partially_applied']);
 
-/** The app-wide undo token an apply may return (parked in the undo store, §10.3). */
+/** The app-wide undo token an apply may return (parked in the undo store). */
 function undoTokenOf(result: RunApplyResult): string | null {
   const token = result.undoToken;
   return typeof token === 'string' && token.length > 0 ? token : null;
@@ -99,7 +99,7 @@ function ReviewScreenBody({ runId }: ReviewScreenProps) {
   const initRef = useRef<string | null>(null);
 
   // Initialize selection once, from the server review (applied) or the persisted
-  // draft (falling back to the §8.2 defaults) for an unapplied run.
+  // draft (falling back to the defaults) for an unapplied run.
   useEffect(() => {
     if (run === undefined || diffs === undefined) return;
     if (initRef.current === runId) return;

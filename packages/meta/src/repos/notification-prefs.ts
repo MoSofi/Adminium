@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * notificationPrefsRepo — adminium_notification_prefs (07-meta-store.md §3.21):
- * composite-PK `(user_id, event_key)` matrix of per-event delivery channels
+ * notificationPrefsRepo — adminium_notification_prefs: composite-PK `(user_id,
+ * event_key)` matrix of per-event delivery channels
  * (`notificationChannelsSchema` — inApp / email / push).
  *
  * A missing row means "defaults" ({@link DEFAULT_NOTIFICATION_CHANNELS}), so
  * the table only stores deviations — reads merge, writes upsert. Channel
  * AVAILABILITY (no SMTP ⇒ email undeliverable) is a server concern layered on
  * top; the repo stores the user's intent verbatim so it survives the day a
- * transport appears (§8.2 never-hide-always-explain).
+ * transport appears (never-hide-always-explain).
  */
 
 import type { MetaDb } from '../connect.js';

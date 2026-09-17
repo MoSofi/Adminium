@@ -43,7 +43,7 @@ export interface AlertProps extends Omit<ComponentPropsWithRef<'div'>, 'title'> 
 /**
  * Alert / Callout — tone-soft background + `color-mix` tone border, icon +
  * title + body + optional CTA; tones info/pos/warn/danger
- * (research/design-system.md §3 Tier 3).
+ * (research/design-system.md Tier 3).
  */
 export function Alert({
   tone = 'info',

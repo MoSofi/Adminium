@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Data-contract shapes for the `tables` family M7 Wave-4 TAIL slice (annex §3):
+ * Data-contract shapes for the `tables` family M7 Wave-4 TAIL slice (annex):
  * sparkline-table, top-movers-list, ranked-entity-list, accordion-list,
  * comparison-matrix, chip-cloud.
  *
  * Types only — erased at compile time, so both the pure `tables-tail-config`
  * module (which the registry's eager metadata graph reaches) and the widget
  * components can name them without either importing the other. That keeps the
- * config module free of component code (04 §2.3, acceptance #3) AND keeps the
- * module graph acyclic, which `pnpm check-deps` enforces with
+ * config module free of component code (acceptance #3) AND keeps the module
+ * graph acyclic, which `pnpm check-deps` enforces with
  * `tsPreCompilationDeps`. Mirrors `tables-track-f-types.ts`.
  *
  * The component files re-export these, so import points stay stable.

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Page-config client (09-generated-app.md §2.3 loader contract, §3):
- * `GET /api/v1/pages/:pageId` → run client-side config migrations
- * (`@adminium/engine/config`, the browser-safe subpath — same functions the
- * server runs on read, 01-architecture.md §8.2) → Zod-validate the envelope.
+ * Page-config client (loader contract): `GET /api/v1/pages/:pageId` → run
+ * client-side config migrations (`@adminium/engine/config`, the
+ * browser-safe subpath — same functions the server runs on read) →
+ * Zod-validate the envelope.
  *
- * Never-crash rules (§3.1): a document with `v` newer than this build renders
- * the "config too new" card; a document failing envelope validation renders
- * the invalid-config card. Both are ordinary query *data* (`PageDocumentResult`),
- * not thrown errors — only transport/API failures (403/404/5xx) throw, so the
- * route error mapping can render the matching system state.
+ * Never-crash rules: a document with `v` newer than this build renders the
+ * "config too new" card; a document failing envelope validation renders the
+ * invalid-config card. Both are ordinary query *data* (`PageDocumentResult`), not
+ * thrown errors — only transport/API failures (403/404/5xx) throw, so the route
+ * error mapping can render the matching system state.
  */
 import { queryOptions } from '@tanstack/react-query';
 import {
@@ -37,9 +37,9 @@ export type PageDocumentResult =
       canCreate: boolean;
       canUpdate: boolean;
       canDelete: boolean;
-      /** May attach a sidecar file (37 D11). Not derived from `canUpdate`: on
-       *  a read-only source the record cannot be edited and a file still can be
-       *  attached, which is what the sidecar mode is for. */
+      /** May attach a sidecar file. Not derived from `canUpdate`: on a
+       * read-only source the record cannot be edited and a file still can be
+       * attached, which is what the sidecar mode is for. */
       canAttach: boolean;
       /** Caller holds the server's PII unmask permission — PII cells render a
        *  reveal affordance. Defaults CLOSED (false) when absent: the reveal is
@@ -73,7 +73,7 @@ function versionOf(raw: unknown): number | null {
   return typeof v === 'number' && Number.isInteger(v) ? v : null;
 }
 
-/** migrate → validate; every failure mode is a value, never a throw (§3.1). */
+/** migrate → validate; every failure mode is a value, never a throw. */
 export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}): PageDocumentResult {
   const migrations = options.migrations ?? configMigrations;
   let migrated: unknown;

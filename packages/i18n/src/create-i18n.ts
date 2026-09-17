@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * i18next factory (10-i18n-theming.md §2.3): i18next + IcuFormat (ICU
- * MessageFormat for every message — i18next's own plural-suffix system is
- * disabled by the ICU format plugin) + an inline lazy backend.
+ * i18next factory: i18next + IcuFormat (ICU MessageFormat for every
+ * message — i18next's own plural-suffix system is disabled by the ICU
+ * format plugin) + an inline lazy backend.
  *
  * The instance starts with the EAGER namespaces only: en-US's ship
  * synchronously (they are the fallback text and must never be async) and the
@@ -43,7 +43,7 @@ export interface CreateI18nOptions {
    * fallback chain instead of failing.
    */
   loadBundle?: BundleLoader | undefined;
-  /** Missing-key hook (dev overlay / CI missing-key guard, §8.2). */
+  /** Missing-key hook (dev overlay / CI missing-key guard). */
   onMissingKey?: ((lng: string, ns: string, key: string) => void) | undefined;
 }
 
@@ -63,7 +63,7 @@ function lazyBackend(load: BundleLoader): BackendModule {
               return;
             }
             const data = 'default' in bundle ? (bundle as { default: ResourceBundle }).default : bundle;
-            // CLONE (23-T01). i18next stores a backend bundle BY REFERENCE
+            // CLONE. i18next stores a backend bundle BY REFERENCE
             // (`skipCopy: true` on the connector's store write), and this
             // object is the live default export of a dynamic-import module —
             // a process-wide singleton. Anything that later merges runtime
@@ -74,7 +74,7 @@ function lazyBackend(load: BundleLoader): BackendModule {
           },
           () => {
             // Missing/failed chunk: resolve empty so the fallback chain applies
-            // (degraded network beats a blank screen, §7.5).
+            // (degraded network beats a blank screen).
             callback(null, {});
           },
         );
@@ -91,11 +91,11 @@ function lazyBackend(load: BundleLoader): BackendModule {
 export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance> {
   const tag = tagForLocale(opts.locale);
 
-  // DEEP clone, not a spread (23-T01). A shallow spread leaves
+  // DEEP clone, not a spread. A shallow spread leaves
   // `resources['en-US'].common === EN_US_EAGER.common`, and i18next's
   // ResourceStore takes `this.data = data` with no copy of its own — so the
   // store would alias the compiled ES-module singletons. Any later merge of
-  // runtime overrides (23 §4.3) would then permanently rewrite the compiled
+  // runtime overrides would then permanently rewrite the compiled
   // English in memory: the original text is gone, so even a correct
   // reset-to-built-in has nothing to restore, and on the server every
   // subsequently created instance inherits another caller's overrides.
@@ -127,11 +127,11 @@ export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance>
     resources,
     // Bundled en-US coexists with the lazy backend for other locales.
     partialBundledLanguages: true,
-    // React escapes; ICU handles placeables (§2.3).
+    // React escapes; ICU handles placeables.
     interpolation: { escapeValue: false },
     returnNull: false,
-    // TRUE since 23-T08: an empty string is a deliberate override state
-    // ("render nothing", 23 §3.3), not a missing value. With `false`, an
+    // TRUE since: an empty string is a deliberate override state
+    // ("render nothing"), not a missing value. With `false`, an
     // admin's blank would fall through to the en-US built-in and the state
     // would be unexpressible. Compiled bundles are unaffected — the parity
     // gate asserts no compiled message is empty.
@@ -147,7 +147,7 @@ export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance>
   });
 
   // A language switch changes what every key resolves to, so it is a revision
-  // change like any other (23 §4.4). Without this, only components that
+  // change like any other. Without this, only components that
   // consume `I18nProvider`'s context re-render — and the dashboard's ~2.3k
   // call sites use a module-level `t()` that is not a hook, so already-painted
   // strings kept the OUTGOING language until a reload while `dir` flipped
@@ -161,9 +161,9 @@ export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance>
 }
 
 /**
- * Preloaded live locale switch (§7.4): the target locale's namespaces load
- * BEFORE `changeLanguage` fires, so the UI never renders a half-translated
- * frame while `dir`/`lang` flip.
+ * Preloaded live locale switch: the target locale's namespaces load BEFORE
+ * `changeLanguage` fires, so the UI never renders a half-translated frame
+ * while `dir`/`lang` flip.
  *
  * `loadLanguages` covers whatever is in `options.ns` at the time, which is the
  * eager set plus any deferred namespace already pulled in — so switching

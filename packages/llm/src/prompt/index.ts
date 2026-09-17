@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `@adminium/llm` prompt-builder barrel — 06-llm-assist.md §4, §5.
+ * `@adminium/llm` prompt-builder barrel.
  *
  * `buildPrompt` is the single producer of prompt text shared by the direct-API
  * and BYO paths. `PROMPT_VERSION` / `SCHEMA_VERSION` are intentionally NOT

@@ -44,7 +44,7 @@ export interface SegmentedControlProps
 
 /**
  * SegmentedControl — 3px-padded `--surface-2` tray; active segment =
- * `--surface` bg + card shadow (research/design-system.md §3 Tier 2).
+ * `--surface` bg + card shadow (research/design-system.md Tier 2).
  * Variants come from the option shape: text, icon-only, with count pill,
  * with status dot. Radiogroup semantics with a single tab stop; arrow keys
  * move AND select (RTL-mirrored); Home/End jump.

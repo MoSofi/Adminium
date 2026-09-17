@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The New-rule modal's trigger fields (42-automations-and-workflow-logs.md
- * D25, FILL F1/F4): "When" offers four events and no table; the table is a
- * searchable `Combobox` that appears for the three record events only.
+ * The New-rule modal's trigger fields (FILL F1/F4): "When" offers four
+ * events and no table; the table is a searchable `Combobox` that appears
+ * for the three record events only.
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';

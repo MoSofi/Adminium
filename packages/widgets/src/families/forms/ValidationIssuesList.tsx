@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `validation-issues-list` (annex §10) — severity-toned issue rows: an icon
+ * `validation-issues-list` (annex) — severity-toned issue rows: an icon
  * tile, the title, the resolution description, and an outcome count pill.
  * Evidence: Import Wizard (the annex's import page always composes
  * `upload-dropzone` + `column-mapping-table` + this + `progress-bar`).
@@ -32,7 +32,7 @@ export interface ValidationIssue {
   count?: number | undefined;
 }
 
-/** Project the §3 `record-list` payload onto issues. */
+/** Project the `record-list` payload onto issues. */
 export function issuesOf(data: unknown, config: ValidationIssuesListConfig): ValidationIssue[] {
   const rows = recordRowsOf(data);
   const out: ValidationIssue[] = [];
@@ -60,13 +60,13 @@ const SEVERITY_RANK: Record<IssueSeverity, number> = { error: 0, warn: 1, info: 
  * The list is a triage surface: an import blocked by 12 invalid emails must not
  * be reported below "Dates normalised to ISO" merely because the server happened
  * to emit the notice first. Ties keep payload order, so the result stays
- * deterministic for the same payload (04 §7.7).
+ * deterministic for the same payload.
  */
 export function sortIssues(issues: readonly ValidationIssue[]): ValidationIssue[] {
   return [...issues].sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
 }
 
-/** Config `severityMap` overrides the default severity→tone map (annex §10). */
+/** Config `severityMap` overrides the default severity→tone map (annex). */
 function toneOf(severity: IssueSeverity, map: Record<string, FormTone> | undefined): FormTone {
   return map?.[severity] ?? DEFAULT_SEVERITY_TONE[severity];
 }

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Cascade-owned children default OUT of the sidebar (30-record-pages.md
- * follow-up, 2026-08-24): the schema's own composition claim — a declared,
- * NOT-NULL, ON DELETE CASCADE FK to an included parent — is the one signal
- * that a table's home is its parent's record-page tab, so its generated crud
- * page carries `nav.hidden` while KEEPING its group (un-hiding in Studio must
- * restore the right placement).
+ * Cascade-owned children default OUT of the sidebar (follow-up, 2026-08-24):
+ * the schema's own composition claim — a declared, NOT-NULL, ON DELETE
+ * CASCADE FK to an included parent — is the one signal that a table's home is
+ * its parent's record-page tab, so its generated crud page carries
+ * `nav.hidden` while KEEPING its group (un-hiding in Studio must restore the
+ * right placement).
  *
  * Every refusal clause is asserted too, because each one is a case where
  * hiding would be a lie: an inferred FK is a guess, a nullable FK permits

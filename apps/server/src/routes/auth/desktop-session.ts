@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `POST /api/v1/auth/desktop-session` — the desktop shell's boot-token
- * auto-login (11-electron.md §5).
+ * auto-login.
  *
  * This is the only route in the product that hands out a super-admin session
  * without a password, so it is written as four independent gates, each of which
@@ -12,12 +12,12 @@
  *     self-host or Docker instance does not have the route at all — the strongest
  *     form the gate can take, since an absent route cannot be misconfigured,
  *     bypassed, or reached by a bug in the three gates below.
- *  2. PEER. The socket's `remoteAddress` must be loopback (§2.4, "unconditionally").
- *     Not `request.ip` — see `auth/desktop-session.ts` for why that distinction is
- *     the difference between a check and a vulnerability.
+ * 2. PEER. The socket's `remoteAddress` must be loopback ("unconditionally"). Not
+ *  `request.ip` — see `auth/desktop-session.ts` for why that distinction is the
+ *  difference between a check and a vulnerability.
  *  3. POLICY. `adminium_settings.desktop.singleUser` must be true — the mirror of
- *     `config.json`'s §2.3 `singleUser`, i.e. the user has not turned on "Require
- *     login on this device".
+ * `config.json`'s `singleUser`, i.e. the user has not turned on "Require login on
+ *     this device".
  *  4. TOKEN. Constant-time match against this boot's token, single-use.
  *
  * They run IN THAT ORDER, which is itself a decision: a non-loopback peer is
@@ -31,7 +31,7 @@
  * 401 `INVALID_CREDENTIALS`, the same envelope `/auth/login` gives a bad
  * password. They are the same fact — "this is not a credential this server will
  * accept" — and telling them apart would answer questions worth asking (was this
- * token ever valid? has the real one been used yet?). §5's prose says a replay is
+ * token ever valid? has the real one been used yet?). The prose says a replay is
  * a 403; it is a 401 here because 403 means "authenticated, not allowed", and
  * nobody who fails this check is authenticated. The one thing that IS 403 is gate
  * 3: `DESKTOP_AUTOLOGIN_DISABLED` — a configuration answer, not a credential
@@ -51,7 +51,7 @@ import { authDesktopSessionBody, authLoginReply, type AuthLoginReply } from './s
 
 export interface DesktopSessionRoutesDeps {
   meta: MetaDb;
-  /** This boot's `ADMINIUM_BOOT_TOKEN` (§2.2 step 4). Never persisted. */
+  /** This boot's `ADMINIUM_BOOT_TOKEN`. Never persisted. */
   bootToken: string;
 }
 
@@ -61,16 +61,16 @@ function invalidBootToken(): AppError {
 }
 
 /**
- * The super admin this route signs in as (§5: "issues a normal session for the
+ * The super admin this route signs in as ("issues a normal session for the
  * super-admin user").
  *
  * THE OLDEST ACTIVE ONE, deterministically. A desktop install has exactly one
  * super admin — first run creates it and there is no second door — but "exactly
  * one" is an expectation about data, not a constraint the schema enforces, and
- * LAN share (§8.3) exists precisely so other people can get accounts. If a second
- * super admin ever appears, "whichever row the database felt like returning"
- * would make auto-login pick a different person on different boots. `createdAt`
- * ordering picks the one that first run created, every time, on every dialect.
+ * LAN share exists precisely so other people can get accounts. If a second super
+ * admin ever appears, "whichever row the database felt like returning" would make
+ * auto-login pick a different person on different boots. `createdAt` ordering
+ * picks the one that first run created, every time, on every dialect.
  *
  * `status = 'active'` because a suspended or invited account is not a principal:
  * the session hook would refuse to resolve the session we just minted, and the
@@ -94,7 +94,7 @@ async function findSuperAdmin(meta: MetaDb): Promise<User | null> {
 export function desktopSessionRoutes(deps: DesktopSessionRoutesDeps): FastifyPluginAsyncZod {
   const { meta } = deps;
   // Per REGISTRATION, which is per boot: the utilityProcess is forked fresh with
-  // a fresh token each launch (§2.2), so the guard's lifetime and the token's
+  // a fresh token each launch, so the guard's lifetime and the token's
   // lifetime are the same object's lifetime. Nothing to expire, nothing to clean.
   const guard = createBootTokenGuard(deps.bootToken);
   const settings = settingsRepo(meta);
@@ -104,13 +104,13 @@ export function desktopSessionRoutes(deps: DesktopSessionRoutesDeps): FastifyPlu
       '/auth/desktop-session',
       {
         preHandler: [app.requireMeta],
-        // The same §6 bucket as `/auth/login` and `/setup/super-admin`, for the
+        // The same bucket as `/auth/login` and `/setup/super-admin`, for the
         // same two reasons: it is unauthenticated and credential-facing, and it
-        // is reachable from the LAN whenever §8.3 sharing is on. Guessing the
+        // is reachable from the LAN whenever sharing is on. Guessing the
         // token is hopeless (32 random bytes, one shot), but an unlimited
         // rejected-request loop still costs CPU and — because gate 2 audits
         // every non-loopback attempt — writes an audit row per try. A limiter
-        // caps both. It is a marker, not an implementation: the §6 limiter in
+        // caps both. It is a marker, not an implementation: the limiter in
         // `plugins/core.ts` keys its buckets off `config.rateLimitBucket`, and
         // a route that forgot to declare one would be the one door it never
         // covers. Keys are per-ip, so a LAN peer burning this bucket can never
@@ -166,7 +166,7 @@ export function desktopSessionRoutes(deps: DesktopSessionRoutesDeps): FastifyPlu
         const user = await findSuperAdmin(meta);
         if (user === null) {
           // No super admin yet ⇒ this is a first-run boot and the wizard, not
-          // this route, is the way in (§6). Not a credential failure: the token
+          // this route, is the way in. Not a credential failure: the token
           // was right. 409 says "the instance is not in a state where this means
           // anything", which is what the SPA needs to hear to route to /setup.
           throw new AppError(

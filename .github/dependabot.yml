@@ -104,7 +104,7 @@ updates:
       # ── Deliberately pinned to the runtime, not to latest ──────────────────
       #
       # @types/node must track the Node the product actually runs (22 in every
-      # workflow, engines >=22, node:22 in the Dockerfile). Letting the types
+      # workflow, engines ^22.14, node:22 in the Dockerfile). Letting the types
       # run ahead invites code against APIs the runtime does not have, which
       # typechecks green and fails at boot. Bump this WITH the runtime.
       - dependency-name: '@types/node'

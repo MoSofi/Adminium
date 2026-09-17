@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Settings → AI (06-T12) component + RBAC tests — happy-dom, fetch mocked like
- * the sibling studio suites (no msw). Covers: the provider option-card grid and
- * its expanded config, the WRITE-ONLY key round-trip (save sends the key; the
- * reply + UI only ever show `sk-…last4`, never the raw key), the test-connection
+ * Settings → AI component + RBAC tests — happy-dom, fetch mocked like the
+ * sibling studio suites (no msw). Covers: the provider option-card grid and its
+ * expanded config, the WRITE-ONLY key round-trip (save sends the key; the reply
+ * + UI only ever show `sk-…last4`, never the raw key), the test-connection
  * latency result, the run-history row → review navigation, and the StudioGuard
  * gate that keeps Editors/Viewers off the surface entirely (acceptance #13).
  */
@@ -121,11 +121,11 @@ function stubFetch(options: StubOptions = {}) {
     if (url.startsWith('/api/v1/bootstrap')) {
       return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ nav: { groups: [] } }) }));
     }
-    // The page suspends on this now: 11-electron.md §8.2's LLM row decides
+    // The page suspends on this now: the LLM row decides
     // whether the BYO panel or the provider form leads, and that is the order of
     // the page, so it may not be decided after first paint (see
     // `studioAiLocalMode.test.tsx` for the ordering itself). Self-host + network
-    // allowed is this suite's world — the pre-§8.2 behaviour, unchanged.
+    // allowed is this suite's world — the pre- behaviour, unchanged.
     if (url.startsWith('/api/v1/system/info')) {
       return Promise.resolve(
         jsonResponse(200, {
@@ -217,7 +217,7 @@ describe('StudioAiPage', () => {
     expect(screen.getByRole('radio', { name: /Anthropic/ })).toBeDefined();
     expect(screen.getByRole('radio', { name: /OpenAI-compatible/ })).toBeDefined();
     expect(screen.getByRole('radio', { name: /Ollama/ })).toBeDefined();
-    // BYO panel surfaces the contract versions (§4.3).
+    // BYO panel surfaces the contract versions.
     expect(screen.getByText('Prompt adminium.prompt/v1.2')).toBeDefined();
     expect(screen.getByText('Schema adminium.llm/v1')).toBeDefined();
     // Run history section present.

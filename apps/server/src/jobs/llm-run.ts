@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `llm-run` job handler — the direct-API path as an `adminium_jobs` job
- * (06-llm-assist.md §7.5, §10.2 step 3, acceptance #6).
+ * (acceptance #6).
  *
  * Given a run id, it: parses the run's persisted `prompt_text` back into the
  * per-chunk `system`/`user` messages (byte-identical to what the BYO export
- * shows — §1 invariant 1), moves the run `draft → running`, resolves the active
- * provider client (decrypted key — see `llm/provider-resolver.ts`), drives the
- * repair loop in `llm/direct-runner.ts`, and persists the terminal run through
- * T07's run-service (`validated` with the merged response + token usage +
- * duration, or `failed` with the preserved error list). A cancel aborts the run
- * to `discarded`.
+ * shows), moves the run `draft → running`, resolves the active provider client
+ * (decrypted key — see `llm/provider-resolver.ts`), drives the repair loop in
+ * `llm/direct-runner.ts`, and persists the terminal run through T07's
+ * run-service (`validated` with the merged response + token usage + duration,
+ * or `failed` with the preserved error list). A cancel aborts the run to
+ * `discarded`.
  *
- * Direct-only (§9): a BYO run must never reach here — its intake is T07's
+ * Direct-only: a BYO run must never reach here — its intake is T07's
  * `run-service.receiveResponse`, and it records NO provider/model. The handler
  * guards on `mode === 'provider'`.
  *
@@ -41,7 +41,7 @@ import type { JobHandlerContext, JobRegistry } from './registry.js';
 /** Job kind for the direct-API enrichment runner. */
 export const LLM_RUN_KIND = 'llm-run';
 
-/** Payload: the run to execute. `userId` follows the jobs owner convention (§3). */
+/** Payload: the run to execute. `userId` follows the jobs owner convention. */
 export const llmRunPayloadSchema = z.object({
   runId: z.string().min(1),
   userId: z.string().optional(),
@@ -56,7 +56,7 @@ export interface ResolvedRun {
   model: string;
   /** Initial response budget. */
   maxTokens: number;
-  /** Ceiling `maxTokens` is raised to on `LLM_TRUNCATED` (§7.5). */
+  /** Ceiling `maxTokens` is raised to on `LLM_TRUNCATED`. */
   maxTokensCeiling: number;
   /** Validate one raw reply against the run's snapshot + registries. */
   validate: (rawText: string) => ValidationResult;
@@ -106,7 +106,7 @@ async function executeLlmRun(
   if (existing === null) {
     throw new Error(`llm-run: run not found: ${payload.runId}`);
   }
-  // Direct-only: BYO intake is T07's receiveResponse; it records no provider (§9).
+  // Direct-only: BYO intake is T07's receiveResponse; it records no provider.
   if (existing.mode !== 'provider') {
     throw new Error(`llm-run requires a provider run; ${existing.id} is mode "${existing.mode}"`);
   }
@@ -207,7 +207,7 @@ async function safeDiscard(runService: RunService, runId: string): Promise<void>
 /**
  * Split a persisted `prompt_text` blob back into per-chunk direct-path messages.
  * `prompt_text` is `chunk.byo` joined by {@link CHUNK_SEPARATOR}; each chunk is
- * `=== SYSTEM ===\n<system>\n\n=== USER ===\n<user>` (the §1 invariant-1 form), so
+ * `=== SYSTEM ===\n<system>\n\n=== USER ===\n<user>` (the invariant-1 form), so
  * the `system`/`user` recovered here are byte-identical to what was built.
  */
 export function parsePromptChunks(promptText: string): RunnerChunk[] {

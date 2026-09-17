@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure-geometry contract for the "bars & ranking" chart group (04-T09): every
- * layout is deterministic (same input → deep-equal output, so server-side
- * report rendering matches the browser), RTL mirrors the horizontal/categorical
- * axis, and the path-emitting layouts (pareto, slope) produce identical SVG
- * path strings in Node — checked against a golden below (04 §7.1/§7.6).
+ * Pure-geometry contract for the "bars & ranking" chart group: every layout is
+ * deterministic (same input → deep-equal output, so server-side report
+ * rendering matches the browser), RTL mirrors the horizontal/categorical axis,
+ * and the path-emitting layouts (pareto, slope) produce identical SVG path
+ * strings in Node — checked against a golden below.
  */
 import { describe, expect, it } from 'vitest';
 

@@ -13,16 +13,16 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * `demoData` generators. Those must NOT drag the @adminium/ui-heavy chat
  * components into the eager registry chunk — the components load only through
  * `lazy(() => import('./communication-track-components.js'))`, so the family
- * stays one on-demand chunk (04 §2.3, acceptance #3). The `boards-config`
- * convention; the component files re-export these symbols so barrel/story/test
- * import points stay one-per-widget.
+ * stays one on-demand chunk (acceptance #3). The `boards-config` convention; the
+ * component files re-export these symbols so barrel/story/test import points
+ * stay one-per-widget.
  */
 
-// ── conversation-inbox (annex §9) ──────────────────────────────────────────
+// ── conversation-inbox (annex) ─────────────────────────────────────────────
 /**
  * Rows: {id, name, initials, preview, ts, unread, online, group?}. Field names
  * are config-driven so the generator can bind a `conversations` table whose
- * columns are named anything (04 §5 / annex §14 auto-instantiation).
+ * columns are named anything (/ annex auto-instantiation).
  */
 export const conversationInboxConfigSchema = widgetSharedConfigSchema.extend({
   nameField: z.string().default('name'),
@@ -30,7 +30,7 @@ export const conversationInboxConfigSchema = widgetSharedConfigSchema.extend({
   sentAtField: z.string().default('ts'),
   unreadField: z.string().default('unread'),
   onlineField: z.string().default('online'),
-  /** Presence dots (annex §9 config `presence`). */
+  /** Presence dots (annex config `presence`). */
   presence: z.boolean().default(true),
   /** Show the group-chat glyph for rows whose `group` field is true. */
   groupChats: z.boolean().default(true),
@@ -39,7 +39,7 @@ export const conversationInboxConfigSchema = widgetSharedConfigSchema.extend({
   searchable: z.boolean().default(false),
   searchLabel: z.string().optional(),
   searchPlaceholder: z.string().optional(),
-  /** Selecting a row clears its unread pill (annex §9). */
+  /** Selecting a row clears its unread pill (annex). */
   clearUnreadOnSelect: z.boolean().default(true),
   emptyTitle: z.string().optional(),
   emptyBody: z.string().optional(),
@@ -66,7 +66,8 @@ const INBOX_DEMO_PREVIEWS = [
   'Rate limits look healthy this week.',
 ] as const;
 
-/** Deterministic `record-list` of conversation rows (04 §7.7), canonical §3 `{ rows, total }`. */
+/** Deterministic `record-list` of conversation rows, canonical `{ rows,
+ * total }`. */
 export function conversationInboxDemoData(seed: number): {
   rows: Record<string, unknown>[];
   total: number;
@@ -86,7 +87,7 @@ export function conversationInboxDemoData(seed: number): {
   return { rows, total: rows.length };
 }
 
-// ── chat-thread (annex §9) ─────────────────────────────────────────────────
+// ── chat-thread (annex) ────────────────────────────────────────────────────
 /**
  * Ordered messages {author, body, sentAt, attachments} per conversation — every
  * field name comes from config (the track contract: "record-list of messages
@@ -108,13 +109,13 @@ export const chatThreadConfigSchema = widgetSharedConfigSchema.extend({
   peerName: z.string().optional(),
   peerStatus: z.string().optional(),
   peerOnline: z.boolean().default(false),
-  /** Composer (annex §9 config `composer`). */
+  /** Composer (annex config `composer`). */
   composer: z.boolean().default(true),
   composerPlaceholder: z.string().optional(),
   sendLabel: z.string().optional(),
-  /** Attachment chips under a bubble (annex §9 config `attachments`). */
+  /** Attachment chips under a bubble (annex config `attachments`). */
   attachments: z.boolean().default(true),
-  /** Italic "typing…" row bound to config (annex §9 `typingIndicator`). */
+  /** Italic "typing…" row bound to config (annex `typingIndicator`). */
   typingIndicator: z.boolean().default(false),
   typingLabel: z.string().optional(),
   /** Day separators between day groups. */
@@ -163,7 +164,7 @@ const THREAD_DEMO_JITTER_MS = 90 * 60_000;
 /**
  * Deterministic `record-list` of messages spanning TWO days, so the day
  * separator + author-run grouping are both exercised by demoData alone.
- * Canonical §3 `{ rows, total }` envelope.
+ * Canonical `{ rows, total }` envelope.
  */
 export function chatThreadDemoData(seed: number): {
   rows: Record<string, unknown>[];
@@ -190,13 +191,13 @@ export function chatThreadDemoData(seed: number): {
   return { rows, total: rows.length };
 }
 
-// ── typing-indicator (annex §9) ────────────────────────────────────────────
+// ── typing-indicator (annex) ───────────────────────────────────────────────
 /**
  * "Avatar + italic 'typing…' row bound to a boolean" — a `boolean-map` keyed by
- * conversation id (annex §9: "boolean per conversation"). `conversationId`
- * selects this instance's row; the display NAMES are config, not data, because
- * the thread hosting the indicator already knows its peer (the annex places it
- * as a child of `chat-thread`).
+ * conversation id (annex: "boolean per conversation"). `conversationId` selects
+ * this instance's row; the display NAMES are config, not data, because the
+ * thread hosting the indicator already knows its peer (the annex places it as a
+ * child of `chat-thread`).
  */
 export const typingIndicatorConfigSchema = widgetSharedConfigSchema.extend({
   /** Which `entries` key this instance watches. Unset → any live entry counts. */
@@ -216,9 +217,9 @@ export const typingIndicatorConfigSchema = widgetSharedConfigSchema.extend({
 export type TypingIndicatorConfig = z.infer<typeof typingIndicatorConfigSchema>;
 
 /**
- * Deterministic `boolean-map` of per-conversation typing state (04 §7.7), keyed
- * by the same `c1…c7` ids `conversationInboxDemoData` emits so an inbox + thread
- * + indicator demo page lines up.
+ * Deterministic `boolean-map` of per-conversation typing state, keyed by the
+ * same `c1…c7` ids `conversationInboxDemoData` emits so an inbox + thread +
+ * indicator demo page lines up.
  *
  * `c1` is pinned live for EVERY seed: `c1` is the inbox's first row (and so the
  * thread's default selection), and a demo/VRT frame of a typing indicator that
@@ -235,13 +236,13 @@ export function typingIndicatorDemoData(seed: number): { entries: Record<string,
   return { entries };
 }
 
-// ── call-widget (annex §9) ─────────────────────────────────────────────────
+// ── call-widget (annex) ────────────────────────────────────────────────────
 /**
- * The ringing overlay: "{kind, peer, state}" — the §3 `record` shape. Niche by
- * the annex's own note ("kept for marketplace apps: POS support line,
- * telehealth micro-SaaS"), so it stays a thin, config-labelled shell: it renders
- * call state and emits accept/decline as `mutate` intents. It never touches a
- * media device — WebRTC (if a marketplace app ever wants it) is the host's.
+ * The ringing overlay: "{kind, peer, state}" — the `record` shape. Niche by the
+ * annex's own note ("kept for marketplace apps: POS support line, telehealth
+ * micro-SaaS"), so it stays a thin, config-labelled shell: it renders call state
+ * and emits accept/decline as `mutate` intents. It never touches a media device
+ * — WebRTC (if a marketplace app ever wants it) is the host's.
  */
 export const callWidgetConfigSchema = widgetSharedConfigSchema.extend({
   kindField: z.string().default('kind'),
@@ -266,10 +267,10 @@ export type CallWidgetConfig = z.infer<typeof callWidgetConfigSchema>;
 const CALL_DEMO_PEERS = ['Morgan Lee', 'Sam Park', 'Priya Rao', 'Casey Ford', 'Jordan Smith'] as const;
 
 /**
- * Deterministic `record` envelope for the ringing card (04 §7.7). Pinned to
- * `ringing` for every seed — it is the annex's headline state (the expanding
- * accent ring), so it is what the demo and every VRT capture must show; the
- * peer and kind vary with the seed.
+ * Deterministic `record` envelope for the ringing card. Pinned to `ringing`
+ * for every seed — it is the annex's headline state (the expanding accent
+ * ring), so it is what the demo and every VRT capture must show; the peer
+ * and kind vary with the seed.
  */
 export function callWidgetDemoData(seed: number): { row: Record<string, unknown> } {
   const random = mulberry32(seed || 1);
@@ -284,12 +285,12 @@ export function callWidgetDemoData(seed: number): { row: Record<string, unknown>
   };
 }
 
-// ── ai-chat-panel (annex §9) ───────────────────────────────────────────────
+// ── ai-chat-panel (annex) ──────────────────────────────────────────────────
 /**
- * The schema-Q&A / in-dashboard AI panel SHELL (04 §11, 06 §10). Rendering
- * only: the M6 LLM layer (@adminium/llm + /api/v1/llm) lives on the server, so
- * this widget never calls a provider — `providerConfigured: false` renders the
- * "configure a provider" empty state and the host owns the send callback.
+ * The schema-Q&A / in-dashboard AI panel SHELL. Rendering only: the M6 LLM
+ * layer (@adminium/llm + /api/v1/llm) lives on the server, so this widget
+ * never calls a provider — `providerConfigured: false` renders the "configure
+ * a provider" empty state and the host owns the send callback.
  */
 export const aiChatPanelConfigSchema = widgetSharedConfigSchema.extend({
   roleField: z.string().default('role'),
@@ -333,7 +334,8 @@ const AI_DEMO_ANSWERS = [
   'Revenue peaked in March at $482k, then flattened around $410k for Q2.',
 ] as const;
 
-/** Deterministic `record-list` of assistant/user turns (04 §7.7), canonical §3 `{ rows, total }`. */
+/** Deterministic `record-list` of assistant/user turns, canonical `{ rows,
+ * total }`. */
 export function aiChatPanelDemoData(seed: number): {
   rows: Record<string, unknown>[];
   total: number;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The generated-field renderer shared by `modal-wizard` and `drawer-form`
- * (annex §10 auto-instantiation: "column type → control (text/varchar→input,
+ * (annex auto-instantiation: "column type → control (text/varchar→input,
  * text long→textarea, enum→segmented-control or select, bool→switch,
  * timestamp→date picker, numeric→number input with unit, email/url/phone via
  * name+check heuristics)").
@@ -38,7 +38,7 @@ function stringValue(value: unknown): string {
   return '';
 }
 
-/** The control for one generated field (annex §10's column-type → control map). */
+/** The control for one generated field (annex column-type → control map). */
 function control(field: FormFieldConfig, value: unknown, onChange: (value: unknown) => void): ReactElement {
   switch (field.kind) {
     case 'textarea':
@@ -114,7 +114,7 @@ export function FormFields({ fields, values, onChange, invalid, requiredHint, id
             // also flips `aria-invalid` on the control.
             {...(isInvalid ? { error: resolvedRequiredHint } : {})}
             {...(!isInvalid && field.helpText !== undefined ? { helper: field.helpText } : {})}
-            // The unit annotates the label (annex §10 "number input with unit").
+            // The unit annotates the label (annex).
             {...(field.unit === undefined ? {} : { tag: <Tag mono>{field.unit}</Tag> })}
           >
             {control(field, values[field.name], (next) => onChange(field.name, next))}

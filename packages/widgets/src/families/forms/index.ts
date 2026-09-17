@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `forms` family public surface (annex §10) — the form/wizard/input components
+ * `forms` family public surface (annex) — the form/wizard/input components
  * (modal-wizard, drawer-form, stepper, progress-bar, otp-input, chip-input,
  * segmented-control, filter-chip-bar, toggle-switch-list, option-cards,
  * password-strength-meter, validation-issues-list) plus the TRACK FCS registry
  * metadata. Component code is also reachable through each definition's `lazy()`
- * ref, so the registry still emits one chunk per family (04 §2.3); this barrel is
- * for direct template/story composition and tests. Registry metadata lives in
+ * ref, so the registry still emits one chunk per family; this barrel is for
+ * direct template/story composition and tests. Registry metadata lives in
  * `forms-track.definitions.ts`; schemas + demo generators in `forms-config.ts`.
  */
 export {

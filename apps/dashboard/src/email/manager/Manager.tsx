@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The email manager (39-email-templates-and-campaigns.md §3.6, Appendix A
- * §M1–M12): the topbar's title, actions menu and *New {kind}*; the toolbar;
- * the gallery or list of cards in optional groups; the empty states; and the
- * card actions with their toasts.
+ * The email manager: the topbar's title, actions menu and *New
+ * {kind}*; the toolbar; the gallery or list of cards in optional groups; the
+ * empty states; and the card actions with their toasts.
  *
  * TWO KINDS, ONE SCREEN. The Templates/Campaigns tray filters `kind`; the
  * counts come with every list reply so the badges never lag the rows.
@@ -15,7 +14,7 @@
  * leading chip to leave: cards do not open, the Edit slot restores, Delete
  * becomes *Delete for good* (or *Reset to built-in* on a shipped key).
  *
- * EVERY DESTRUCTIVE TOAST HAS UNDO (§M11): delete is an archive the toast
+ * EVERY DESTRUCTIVE TOAST HAS UNDO: delete is an archive the toast
  * reverses with `PATCH archived:false`; duplicate's Undo deletes the copy —
  * a copy is never a built-in, so `DELETE` removes it rather than resetting.
  */

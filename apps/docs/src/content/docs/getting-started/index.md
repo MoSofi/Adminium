@@ -22,6 +22,11 @@ does not. Your schema and your customizations live as **configuration** in
 Adminium's own tables; the server reads that configuration on every request and
 renders accordingly.
 
+That configuration does not have to stay hidden in a database. In a
+[project](/projects/) — a folder `adminium new` creates — each page is a small
+JSON file, so you edit it in your editor, review it in a pull request and deploy
+it with the rest of your code. It is still configuration, not a generated app.
+
 The consequence people ask about most: there is no source code to download. When
 you run [`adminium export-zip`](/reference/cli/#export-zip), you get the server
 plus its configuration bundle — enough to stand the same instance up somewhere
@@ -67,8 +72,8 @@ models, and five other formats. See
 
 ## Where to go next
 
-- [Quickstart from source](/getting-started/quickstart/) — run the CLI from a
-  git checkout.
+- [Quickstart](/getting-started/quickstart/) — create a project and run it.
+- [Projects](/projects/) — pages as files, and your own code beside them.
 - [Run with Docker](/getting-started/docker/) — if you would rather not install
   Node.
 - [Connect your first database](/getting-started/first-connection/) — what the

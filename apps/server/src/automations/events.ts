@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * OCCURRENCE IDENTITY (42-automations-and-workflow-logs.md D6, §3.3).
+ * OCCURRENCE IDENTITY.
  *
  * Four producers can decide the same thing happened, and the ONLY reason a
  * dashboard-created row does not fire a rule twice is that the route matcher

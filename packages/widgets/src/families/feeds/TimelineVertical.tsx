@@ -10,16 +10,16 @@ import type { TimelineEntry } from './feeds-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
- * `timeline-vertical` (annex §4) — an icon-node vertical timeline with
- * connector lines. Variants: `activity` (record CRUD trail), `changelog`
- * (version gutter + tag-pill entry cards), `incidents` (severity halo dots +
- * postmortem notes), `trace` (per-step status dots + mono log snippets). Binds
- * to an ordered `record-list`.
+ * `timeline-vertical` (annex) — an icon-node vertical timeline with connector
+ * lines. Variants: `activity` (record CRUD trail), `changelog` (version gutter
+ * + tag-pill entry cards), `incidents` (severity halo dots + postmortem
+ * notes), `trace` (per-step status dots + mono log snippets). Binds to an
+ * ordered `record-list`.
  */
 
 // Config schema + deterministic demo payload live in the pure `feeds-config`
 // module, and the entry shape in `feeds-types`, so the registry metadata graph
-// never reaches this component file (04 §2.3). Re-exported here to keep
+// never reaches this component file. Re-exported here to keep
 // existing import points stable.
 export { timelineVerticalConfigSchema, timelineVerticalDemoData } from './feeds-config.js';
 export type { TimelineVerticalConfig } from './feeds-config.js';

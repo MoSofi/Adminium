@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0005 — ops: adminium_jobs, adminium_audit_log,
- * adminium_notifications, adminium_notification_prefs
- * (07-meta-store.md §3.11–§3.12, §3.20–§3.21).
+ * adminium_notifications, adminium_notification_prefs.
  */
 
 import type { Kysely } from 'kysely';

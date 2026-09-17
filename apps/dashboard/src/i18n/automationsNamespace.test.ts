@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The deferred `automations` namespace's contract (42-automations-and-workflow-logs.md 42-T25;
- * the `email` gate's twin, `emailNamespace.test.ts`):
+ * The deferred `automations` namespace's contract (the `email` gate's twin,
+ * `emailNamespace.test.ts`):
  *
  * 1. Every `automations:` key must exist in the en-US bundle.
  * 2. Every call site carries an inline fallback that is the catalogue text,

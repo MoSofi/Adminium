@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-files` template stories (09 §7.9): the demo-mode composition
- * (file-browser + usage-meter), a bound run over an attachments-shaped table
+ * `page-files` template stories: the demo-mode composition (file-browser +
+ * usage-meter), a bound run over an attachments-shaped table
  * (generated-vocabulary config keys + real column names), the loading/error
  * states through the `states` override, and an upload-enabled run with live
  * progress jobs — four states, matching the template-story idiom.
@@ -24,7 +24,7 @@ const ATTACHMENT_ROWS = [
   { id: 'f-4', file_name: 'Budget.xlsx', file_type: 'sheet', parent_id: null, file_size: 812_000, updated_at: new Date(NOW - 600_000).toISOString(), is_starred: false },
 ];
 
-/** Demo mode (04 §5.3): no adapter — every widget seeds from its instance id. */
+/** Demo mode: no adapter — every widget seeds from its instance id. */
 export const DemoMode = {
   render: () => <PageFiles layout={demoFilesLayout} />,
 };

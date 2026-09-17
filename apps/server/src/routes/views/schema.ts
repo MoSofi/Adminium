@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for saved views (M5-T06, 07-meta-store.md §3.18).
+ * Zod schemas for saved views.
  *
  * `config` is the page-crud grid state (search / sort / filters / page size /
  * visible columns). It is validated structurally but kept forward-compatible

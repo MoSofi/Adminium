@@ -14,7 +14,7 @@ export { typingIndicatorConfigSchema, typingIndicatorDemoData } from './communic
 export type { TypingIndicatorConfig };
 
 /**
- * `typing-indicator` (annex §9) — "Avatar + italic 'typing…' row bound to a
+ * `typing-indicator` (annex) — "Avatar + italic 'typing…' row bound to a
  * boolean". Binds to a `boolean-map` keyed by conversation id and renders the
  * peer's avatar (or the group's typists) beside an italic label and three
  * staggered pulsing dots.

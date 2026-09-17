@@ -3,11 +3,11 @@
  * The gate that makes `./registered-ids.ts` trustworthy.
  *
  * That list is the leaf-safe mirror of `widgetRegistry` the generator defaults
- * to for its `isRegistered` test (04 §8 H1/H4). A mirror that silently drifts is
- * worse than no mirror: a missing entry drops a registered widget out of every
+ * to for its `isRegistered` test (H1/H4). A mirror that silently drifts is worse
+ * than no mirror: a missing entry drops a registered widget out of every
  * generated page, and a stale entry persists an id that renders `widget-missing`
  * — exactly what the membership test exists to prevent. So parity is asserted in
- * BOTH directions, mirroring `../qa/registry-parity.test.ts`.
+ * BOTH directions, mirroring `./qa/registry-parity.test.ts`.
  */
 import { describe, expect, it } from 'vitest';
 

@@ -41,7 +41,7 @@ export { kanbanBoardConfigSchema, kanbanBoardDemoData, kanbanColumnDefSchema } f
 export type { KanbanBoardConfig };
 
 /**
- * `kanban-board` (annex §6) — fixed status columns of draggable cards. Columns
+ * `kanban-board` (annex) — fixed status columns of draggable cards. Columns
  * derive from a workflow-enum field; a card dropped in another column emits an
  * `onCardMove(cardId, fromColumn, toColumn)` the binding fires as an optimistic
  * UPDATE mutation (rolled back if the mutation promise rejects). Pointer drag
@@ -50,8 +50,8 @@ export type { KanbanBoardConfig };
  * `record-list` grouped by the status field.
  *
  * Ports Project Board.dc.html, Kanban Roadmap.dc.html — closing the
- * "modal not wired to grid" gap (research/ia-mapping.md §5): a committed move
- * updates the board state in place rather than only firing a detached modal.
+ * "modal not wired to grid" gap: a committed move updates the board state in
+ * place rather than only firing a detached modal.
  */
 
 /** Column-header status dot tone → token background (no raw hex). */
@@ -286,7 +286,7 @@ export function KanbanBoardWidget({ config, data, onEvent }: WidgetProps<KanbanB
       {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
       labels={labels}
       // Return the host's result so a rejected `mutate` promise rolls the
-      // optimistic move back and announces the failure (annex §6 a11y).
+      // optimistic move back and announces the failure (annex a11y).
       onCardMove={(cardId, _from, toColumn) =>
         onEvent({
           type: 'mutate',

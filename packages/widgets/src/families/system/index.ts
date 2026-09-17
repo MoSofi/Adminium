@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `system` family public surface (annex §12) — the state/feedback components
+ * `system` family public surface (annex) — the state/feedback components
  * (state-hero, empty-state, status-pill, alert-banner, status-banner-hero,
  * connection-status, autosave-indicator, progress-log-console,
  * diagnostics-readout) plus the TRACK FCS registry metadata. Component code is
  * also reachable through each definition's `lazy()` ref, so the registry still
- * emits one chunk per family (04 §2.3); this barrel is for direct
- * template/story composition and tests. Registry metadata lives in
- * `system-track.definitions.ts`; schemas + demo generators in `system-config.ts`.
+ * emits one chunk per family; this barrel is for direct template/story
+ * composition and tests. Registry metadata lives in
+ * `system-track.definitions.ts`; schemas + demo generators in
+ * `system-config.ts`.
  */
 export {
   AlertBannerView,

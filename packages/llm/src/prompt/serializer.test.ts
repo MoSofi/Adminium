@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Schema-IR / statistics serialization (06-llm-assist.md §4.1, §4.2).
+ * Schema-IR / statistics serialization.
  *
  * Locks the SAMPLE-FREE guarantee (acceptance criterion 8): with sampling off no
  * cell value appears; with sampling on, PII/secret column values still never

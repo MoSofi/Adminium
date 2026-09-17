@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Swimlane timeline geometry (`chart-timeline-lanes`, research/widget-registry.md
- * §2): stacked horizontal lanes with events positioned along a shared time
- * axis. The time axis is an LTR island (04 §7.4 — time axes never mirror), so
- * event x-positions are LTR here; the component flips only the lane-label
- * gutter side under RTL. Pure + DOM-free.
+ * Swimlane timeline geometry (`chart-timeline-lanes`,
+ * research/widget-registry.md): stacked horizontal lanes with events positioned
+ * along a shared time axis. The time axis is an LTR island (time axes never
+ * mirror), so event x-positions are LTR here; the component flips only the
+ * lane-label gutter side under RTL. Pure + DOM-free.
  */
 
 export interface LaneEvent {

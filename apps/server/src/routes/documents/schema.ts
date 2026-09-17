@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/api/v1/documents` wire shapes (34-invoices-add-on.md §7.5; 34-T12).
+ * `/api/v1/documents` wire shapes.
  *
  * ─── `subject` IS NULLABLE IN THE REPLY, AND THAT IS THE REDACTION ─────────
  *

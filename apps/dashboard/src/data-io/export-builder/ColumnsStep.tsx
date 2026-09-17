@@ -2,9 +2,9 @@
 /**
  * Step 2 — Columns (comp 209-452): "What goes in the file.", the two panes
  * (the file's ordered list at the start, the column browser at the end), and
- * under 900px the browser as a bottom sheet behind an "Add columns" button
- * (41-export-builder.md D13). The add outcomes — already in the file, over a
- * budget, refused by the parser, added — are the comp's toasts (731-737).
+ * under 900px the browser as a bottom sheet behind an "Add columns" button.
+ * The add outcomes — already in the file, over a budget, refused by the
+ * parser, added — are the comp's toasts (731-737).
  */
 import { useEffect, useState } from 'react';
 import { Drawer, DrawerBody } from '@adminium/ui';

@@ -7,7 +7,7 @@ import { Kbd } from '../kbd/index.js';
 /**
  * Container that carries the Input chrome; the inner `<input>` is borderless
  * and the focus ring moves to the wrapper via `:focus-within`
- * (research/design-system.md §3 Tier 2).
+ * (research/design-system.md Tier 2).
  */
 export const inputGroupContainerClasses =
   'flex h-[34px] w-full min-w-0 items-center gap-1 rounded-md border border-border-strong bg-surface-2 ps-3 pe-2 ' +
@@ -39,7 +39,7 @@ export interface InputGroupProps
 
 /**
  * Input with chrome-level slots: leading icon, mono text prefix, trailing
- * icon-button and `Kbd` suffix (research/design-system.md §3 Tier 2).
+ * icon-button and `Kbd` suffix (research/design-system.md Tier 2).
  * `className` styles the wrapper; all other props (and `ref`) reach the
  * `<input>`.
  */

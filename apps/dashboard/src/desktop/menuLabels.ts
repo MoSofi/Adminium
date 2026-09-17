@@ -1,23 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Push the native menu's localized labels to the Electron shell (11-electron.md
- * §14: "All labels localized via @adminium/i18n bundles … menu rebuilds on
- * locale change").
+ * Push the native menu's localized labels to the Electron shell ("All labels
+ * localized via @adminium/i18n bundles … menu rebuilds on locale change").
  *
  * ─── Why the RENDERER resolves these, not the shell ──────────────────────────
  *
  * The desktop shell cannot import `@adminium/i18n` (`.dependency-cruiser.cjs`'s
  * `desktop-shell-only` rule — `apps/desktop` may import `@adminium/server` and
  * nothing else), and the locale the menu must follow is the one the USER picked
- * in this SPA — the axis `ThemeProvider` owns (10-i18n-theming.md §7.4), which
- * only the renderer knows and only the renderer knows when it changes. So the
- * SPA resolves the menu strings through its own `t()` and pushes the map over
- * §4's `setMenuLabels`; `apps/desktop/src/main/index.ts` rebuilds the native
- * menu from it (`menu.ts`'s `menuTranslator`).
+ * in this SPA — the axis `ThemeProvider` owns, which only the renderer knows
+ * and only the renderer knows when it changes. So the SPA resolves the menu
+ * strings through its own `t()` and pushes the map over `setMenuLabels`;
+ * `apps/desktop/src/main/index.ts` rebuilds the native menu from it
+ * (`menu.ts`'s `menuTranslator`).
  *
  * On self-host and Cloud there is no shell — `getDesktopApi()` returns `null` and
- * this is a no-op, exactly as this same one bundle must behave in a browser (§4
- * detection contract).
+ * this is a no-op, exactly as this same one bundle must behave in a browser
+ * (detection contract).
  *
  * The keys are the shared contract's {@link DesktopMenuLabelKey}, so a menu item
  * this SPA forgets to resolve is a compile error here (the return type is a full
@@ -72,7 +71,7 @@ export function pushDesktopMenuLabels(): void {
   const api = getDesktopApi();
   if (api === null) return;
   void api.setMenuLabels(resolveMenuLabels()).catch(() => {
-    // The shell logs its own failures (§9); a menu that stays in the previous
+    // The shell logs its own failures; a menu that stays in the previous
     // locale is not worth a console error in the SPA.
   });
 }

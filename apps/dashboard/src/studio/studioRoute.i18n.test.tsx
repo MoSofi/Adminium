@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A Studio route, end to end, on a REAL i18next instance (10-T06).
+ * A Studio route, end to end, on a REAL i18next instance.
  *
  * Every other Studio page test installs the i18n stand-in, which resolves the
  * whole catalogue synchronously — so none of them exercises the thing the

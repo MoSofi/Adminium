@@ -49,8 +49,8 @@ const chipClasses =
 
 /**
  * ChoiceChips / PillOptions — pill option chips, selected = accent border +
- * accent-soft bg + accent text (research/design-system.md §3 Tier 2).
- * Single mode is a radiogroup with roving tabindex; multiple mode renders
+ * accent-soft bg + accent text (research/design-system.md Tier 2). Single
+ * mode is a radiogroup with roving tabindex; multiple mode renders
  * `aria-pressed` toggle chips.
  */
 export function ChoiceChips(props: ChoiceChipsProps) {

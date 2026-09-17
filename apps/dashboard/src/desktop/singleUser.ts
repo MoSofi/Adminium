@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The "Require login on this device" answer (11-electron.md §5), read and
- * written through the preload bridge.
+ * The "Require login on this device" answer, read and written through the
+ * preload bridge.
  *
  * ─── Why the bridge and not the API ──────────────────────────────────────────
  *
- * `config.json` is the source of truth for `singleUser` (§2.3: the main process
- * owns that file), and the server's `adminium_settings.desktop.singleUser` — the
- * value the §5 route actually gates on — is a MIRROR the server writes at boot
- * from the env block. So the only correct place to write this answer is the file,
- * through `setConfig`; writing the mirror instead would produce a value that the
- * next launch silently overwrites, i.e. a toggle that appears to work and does
- * not. This is exactly §5's promised behavior: "turning on 'Require login on this
- * device' lands on the standard login screen ON NEXT LAUNCH".
+ * `config.json` is the source of truth for `singleUser` (the main process owns
+ * that file), and the server's `adminium_settings.desktop.singleUser` — the value
+ * the route actually gates on — is a MIRROR the server writes at boot from the
+ * env block. So the only correct place to write this answer is the file, through
+ * `setConfig`; writing the mirror instead would produce a value that the next
+ * launch silently overwrites, i.e. a toggle that appears to work and does not.
+ * This is exactly promised behavior: "turning on 'Require login on this device'
+ * lands on the standard login screen ON NEXT LAUNCH".
  *
  * This is also the reason `lib/desktop-runtime.ts`'s "gate features on the
  * SERVER, use the bridge only for native affordances" rule points this way and

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * /settings/translations integration (23-runtime-translations.md §7):
- * super-admin gating, the key browser, saving an override, resetting to the
- * built-in, and the locale manager's enable/disable.
+ * /settings/translations integration: super-admin gating, the key browser,
+ * saving an override, resetting to the built-in, and the locale manager's
+ * enable/disable.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -163,7 +163,7 @@ describe('/settings/translations', () => {
     expect(await screen.findByText('Kiswahili')).toBeTruthy();
     expect(screen.getByText('Deutsch')).toBeTruthy();
     // The custom locale is labelled as such — a built-in cannot be deleted and
-    // the UI has to make that distinction visible (23 §7).
+    // the UI has to make that distinction visible.
     expect(screen.getAllByText(/Custom/).length).toBeGreaterThan(0);
   });
 
@@ -193,7 +193,7 @@ describe('/settings/translations', () => {
     await waitFor(() => {
       const del = calls.find((c) => c.method === 'DELETE' && c.url.includes('/i18n/keys'));
       expect(del).toBeDefined();
-      // A blank write is a DIFFERENT operation ("render nothing", 23 §3.3), so
+      // A blank write is a DIFFERENT operation ("render nothing"), so
       // reset must never be implemented as one.
       expect(calls.some((c) => c.method === 'PUT' && c.body !== undefined && (c.body as { value?: string }).value === '')).toBe(false);
     });

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Metric formatting + delta computation units (annex §1 `format`,
+ * Metric formatting + delta computation units (annex `format`,
  * `deltaMode`). Locale pinned to en-US for deterministic output.
  */
 import { describe, expect, it } from 'vitest';

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Snapshot module — 05-introspection-engine.md §9 (M3-T02 diff half /
- * 05-T09 engine side).
+ * Snapshot module — (diff half / engine side).
  *
  * The engine computes checksums and diffs; PERSISTENCE is owned by
- * `@adminium/meta` (`adminium_schema_snapshots` — 07-meta-store.md). The
- * store's dedupe rule uses `Snapshot.checksum`: identical checksum to the
- * latest snapshot → no new row, just touch `checked_at`.
+ * `@adminium/meta` (`adminium_schema_snapshots`). The store's dedupe rule
+ * uses `Snapshot.checksum`: identical checksum to the latest snapshot →
+ * no new row, just touch `checked_at`.
  */
 import type { DatabaseModel } from '../schema-model.js';
 import { hashModel } from './hash.js';

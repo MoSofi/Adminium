@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The desktop boot-token exchange (11-electron.md §5, §2.2 step 8).
+ * The desktop boot-token exchange.
  *
- * §2.2 step 8: "Main window navigates to `http://127.0.0.1:<port>/?bootToken=…`
- * — the SPA exchanges the token for a session (§5) and strips it from the URL."
- * This module is that sentence.
+ * "Main window navigates to `http://127.0.0.1:<port>/?bootToken=…` — the SPA
+ * exchanges the token for a session and strips it from the URL." This module is
+ * that sentence.
  *
  * ─── STRIP FIRST, THEN EXCHANGE ──────────────────────────────────────────────
  *
@@ -34,11 +34,11 @@
  * Every failure path (no token, wrong token, replayed token, "Require login on
  * this device" on, no super admin yet) resolves rather than throws, and the app
  * simply carries on to its normal guards — which send an unauthenticated user to
- * /login, which is exactly the right screen for every one of those cases (§5:
- * "the SPA shows the standard login"). Nothing here is worth a crash page.
+ * /login, which is exactly the right screen for every one of those cases ("the
+ * SPA shows the standard login"). Nothing here is worth a crash page.
  */
 
-/** §2.2 step 8's query parameter. One constant — the server greps for it too. */
+/** The query parameter. One constant — the server greps for it too. */
 export const BOOT_TOKEN_PARAM = 'bootToken';
 
 /** What the exchange did, for tests and for the caller's log line. */
@@ -118,7 +118,7 @@ export async function exchangeBootToken(deps: ExchangeBootTokenDeps = {}): Promi
     return response.ok ? 'exchanged' : 'refused';
   } catch {
     // A `TypeError` from fetch: the server died between the navigation and this
-    // call. The shell's own crash handling (§2.2 step 9) owns that story.
+    // call. The shell's own crash handling owns that story.
     return 'unreachable';
   }
 }

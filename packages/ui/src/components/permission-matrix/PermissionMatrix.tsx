@@ -5,9 +5,9 @@ import { ToggleMatrix } from '../toggle-matrix/ToggleMatrix.js';
 import type { ToggleMatrixCellState, ToggleMatrixGroup } from '../toggle-matrix/ToggleMatrix.js';
 
 /**
- * The RBAC grant-string grammar (apps/server/src/rbac/permissions.ts,
- * 08-server-api.md §5.1), mirrored as template-literal types so permission
- * keys are checked at the call site:
+ * The RBAC grant-string grammar (apps/server/src/rbac/permissions.ts),
+ * mirrored as template-literal types so permission keys are checked at the
+ * call site:
  *
  * ```
  * system:<area>:<verb>                    // closed set, e.g. system:roles:manage

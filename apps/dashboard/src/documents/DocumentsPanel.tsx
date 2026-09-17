@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Documents panel and the Make button (34-invoices-add-on.md §7.8;
- * 34-T15).
+ * The Documents panel and the Make button.
  *
- * ─── BOTH ARE ABSENT UNTIL A PROVIDER IS INSTALLED (24 D6) ─────────────────
+ * ─── BOTH ARE ABSENT UNTIL A PROVIDER IS INSTALLED ─────────────────────────
  *
  * `GET /documents/providers` is asked first, and a deployment with none gets
  * nothing at all — no empty panel, no greyed-out button. An affordance that

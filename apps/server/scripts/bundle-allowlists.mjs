@@ -7,16 +7,15 @@
  *
  * WHY THIS EXISTS. `LLM_ALLOWED_TEMPLATES` / `LLM_ALLOWED_WIDGETS` are derived
  * from the live registries in `@adminium/widgets`, which the server tree may
- * never import (01-architecture.md §2.3). The CLI therefore loaded them from the
- * built widgets dist BY FILE PATH — fine in a monorepo checkout, dead in every
- * deployed artifact:
+ * never import. The CLI therefore loaded them from the built widgets dist BY
+ * FILE PATH — fine in a monorepo checkout, dead in every deployed artifact:
  *
  *  - the Docker image runs `pnpm deploy --filter=@adminium/server --prod`, which
  *    injects only the server's DECLARED workspace deps. `@adminium/widgets` is
  *    not one (and is `private: true`, so it can never be a published dependency
  *    either). Both LLM subcommands died with "The widget registry build is
  *    missing", hinting at a `pnpm --filter` command a container user cannot run;
- *  - a future `npx adminium` tarball ships `dist` + `dashboard` only.
+ *  - a future `npx @adminiumjs/adminium` tarball ships `dist` + `dashboard` only.
  *
  * So the build SNAPSHOTS the lists — pure JSON data, no code, no import edge —
  * into `<package>/vocabulary/`, which is on the `files` allow-list and is the
@@ -25,8 +24,8 @@
  * workspace it was built from is not there at run time.
  *
  * `LUCIDE_ICON_NAMES` rides along for identical reasons, from `@adminium/ui`
- * (which the server may not import either). Without it the §7.3 unknown-icon
- * check has no manifest, silently skips, and a model can store any hallucinated
+ * (which the server may not import either). Without it the unknown-icon check
+ * has no manifest, silently skips, and a model can store any hallucinated
  * string as a table's icon — which the dashboard then draws as a fallback glyph
  * after fetching the whole icon catalogue to discover the name is dead.
  *
@@ -51,12 +50,12 @@ const OUT_FILE = join(OUT_DIR, 'llm-allowlist.json');
 const source = join(repoRoot, 'packages', 'widgets', 'dist', 'registry', 'llm-allowlist.js');
 /**
  * `LUCIDE_ICON_NAMES` — same problem, different package. `@adminium/ui` is not
- * a dependency of `@adminium/server` and never can be (01 §2.3 forbids the
- * import edge outright), so the icon vocabulary the LLM validator checks a
- * suggested `icon` against travels the same way the widget lists do: snapshotted
- * here, read as data. The module it comes from is generated and carries NO
- * imports at all — plain strings — so reading it costs nothing and drags no
- * React into this script.
+ * a dependency of `@adminium/server` and never can be (forbids the import edge
+ * outright), so the icon vocabulary the LLM validator checks a suggested `icon`
+ * against travels the same way the widget lists do: snapshotted here, read as
+ * data. The module it comes from is generated and carries NO imports at all —
+ * plain strings — so reading it costs nothing and drags no React into this
+ * script.
  */
 const iconSource = join(repoRoot, 'packages', 'ui', 'dist', 'components', 'icon', 'icon-names.js');
 const check = process.argv.includes('--check');

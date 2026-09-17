@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The header's save chip (comp 256-259, 673-675; 43-report-builder.md
- * Appendix A E3): *Saving…* · *Unsaved changes* · *All changes saved*, plus
- * *Couldn't save* when a PUT fails. The system's `AutosaveIndicator` pill,
- * driven by the explicit Save (D4/O6) — the same four states, announced
- * politely.
+ * The header's save chip (comp 256-259, 673-675; E3): *Saving…* · *Unsaved
+ * changes* · *All changes saved*, plus *Couldn't save* when a PUT fails.
+ * The system's `AutosaveIndicator` pill, driven by the explicit Save
+ * (D4/O6) — the same four states, announced politely.
  */
 import { AutosaveIndicator } from '@adminium/ui';
 

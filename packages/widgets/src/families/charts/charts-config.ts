@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Config schemas for the `charts` family M4 base group (annex §2):
+ * Config schemas for the `charts` family M4 base group (annex):
  * `chart-line-area`, `chart-bar`, `chart-donut`, `chart-sparkline`. PURE
  * module — zod + the shared config only, no chart primitives and no React —
  * matching the sibling `bars-ranking-config` / `part-whole-config` /
@@ -11,8 +11,8 @@
  * While these schemas lived in `ChartWidgets.tsx`, the definitions had to reach
  * into that component module to name them, pulling the chart wrappers and their
  * @adminium/charts primitives into the eager chunk and leaving the sibling
- * `lazy(() => import('./components.js'))` refs buying nothing (04 §2.3,
- * acceptance #3; enforced by `qa/chunk-budget.test.ts`).
+ * `lazy(() => import('./components.js'))` refs buying nothing (acceptance #3;
+ * enforced by `qa/chunk-budget.test.ts`).
  *
  * `ChartWidgets.tsx` re-exports these symbols so existing story/test import
  * points stay stable.
@@ -25,7 +25,7 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 export const chartLineAreaConfigSchema = widgetSharedConfigSchema.extend({
   smooth: z.boolean().default(true),
-  /** Axis labels on/off (annex §2 `axis`). */
+  /** Axis labels on/off (annex `axis`). */
   axis: z.boolean().default(true),
   /** Dashed prior-period comparison line when the payload carries `compare`. */
   compareToPrior: z.boolean().default(true),
@@ -38,7 +38,7 @@ export type ChartLineAreaConfig = z.infer<typeof chartLineAreaConfigSchema>;
 
 export const chartBarConfigSchema = widgetSharedConfigSchema.extend({
   highlight: z.enum(['max', 'current', 'none']).default('max'),
-  /** Category labels under the columns (annex §2 `labels`). */
+  /** Category labels under the columns (annex `labels`). */
   labels: z.boolean().default(true),
   axis: z.boolean().default(true),
   barRadius: z.number().int().min(0).max(12).default(3),

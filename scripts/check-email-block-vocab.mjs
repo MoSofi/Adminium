@@ -5,9 +5,8 @@
  * generic canvas must agree.
  *
  * `adminium_email_templates.blocks` stores an ordered array of
- * `{ block: 'email.heading' | 'email.text' | ... }` records. THREE independent
- * pieces of code read that vocabulary (39-email-templates-and-campaigns.md
- * D16):
+ * `{ block: 'email.heading' | 'email.text' |... }` records. THREE independent
+ * pieces of code read that vocabulary:
  *
  *   - `apps/server/src/email/render.ts`          turns the blocks into MIME
  *   - `apps/dashboard/src/email/model/blocks.ts`  the Email Templates editor
@@ -24,8 +23,7 @@
  * The rule per pair: the RENDERER and the EDITOR are identical (membership and
  * order); the generic canvas's six are a PREFIX of the renderer's list - it
  * keeps its original vocabulary until the page-builder email flavor retires
- * (39 O4 -> 27-T61), and a prefix is what lets the renderer grow without
- * touching it.
+ * (->), and a prefix is what lets the renderer grow without touching it.
  *
  * --- WHY A SCRIPT AND NOT A SHARED IMPORT ---------------------------------
  *

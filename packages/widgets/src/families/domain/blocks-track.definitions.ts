@@ -54,16 +54,16 @@ import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
  * TRACK BUILDER — registry metadata for `document-canvas` + the 22 `block-*`
- * document-vocabulary widgets (annex §13), the slice that closes the annex's
- * §13 document half.
+ * document-vocabulary widgets (annex), the slice that closes the annex's
+ * document half.
  *
  * METADATA ONLY. Every component loads through the `blocks-track-components`
  * barrel via `lazy(() => import(...))`, and the schemas + `demoData` come from
  * the PURE `blocks-config.ts` — so this module's transitive STATIC import graph
  * never reaches a `.tsx`, the family stays in one lazy chunk, and the registry
- * never eagerly pulls the document vocabulary into a sibling family's bundle
- * (04 §2.3). `qa/chunk-budget.test.ts` walks exactly this graph and fails on a
- * static component import, which is why the barrel indirection exists.
+ * never eagerly pulls the document vocabulary into a sibling family's bundle.
+ * `qa/chunk-budget.test.ts` walks exactly this graph and fails on a static
+ * component import, which is why the barrel indirection exists.
  *
  * The GREEN LOOP spreads `blocksTrackDefinitions` into the registry map. Widget
  * ids match the annex catalog verbatim (acceptance #1).
@@ -71,11 +71,11 @@ import type { WidgetDefinition } from '../../registry/types.js';
  * SIZING — the annex gives the blocks no per-widget grid note (they are a
  * "shared library used by `document-canvas`", sized by the canvas's paper
  * column), so each is sized at the smallest cell where it stays legible
- * STANDALONE on the 12-col grid, in 40px half-units (04 §6.1). `document-canvas`
- * itself is the annex's "main canvas pane" → `placement: 'page'`.
+ * STANDALONE on the 12-col grid, in 40px half-units. `document-canvas` itself is
+ * the annex's "main canvas pane" → `placement: 'page'`.
  *
  * DATA CONTRACTS — the annex gives each block a bespoke "Data:" note rather than
- * a §3 shape name; each mapping is justified on its definition below and in
+ * a shape name; each mapping is justified on its definition below and in
  * `block-types.ts`.
  *
  * `capabilities.editsData` marks the blocks that emit `mutate` intents (line-item
@@ -94,7 +94,7 @@ export const documentCanvasDefinition: WidgetDefinition = defineWidget({
   configSchema: documentCanvasConfigSchema,
   /**
    * The annex's "single doc object (strings, address lines, items[], rates,
-   * flags, blockOrder[])" — the §3 `record` envelope, so the shared
+   * flags, blockOrder[])" — the `record` envelope, so the shared
    * `isEmptyByShape.record` predicate (`row == null`) routes a doc-less canvas
    * to the empty state.
    */
@@ -412,7 +412,7 @@ export const blockTermsCheckboxDefinition: WidgetDefinition = defineWidget({
   configSchema: blockTermsCheckboxConfigSchema,
   /**
    * annex "{label, checked}" — a CONTROL whose payload is its own state, so the
-   * §3 `form-state` shape: `isEmptyByShape['form-state']` never routes it to the
+   * `form-state` shape: `isEmptyByShape['form-state']` never routes it to the
    * empty card, which is right (an unchecked box is data, not absence).
    */
   dataContract: 'form-state',
@@ -473,7 +473,7 @@ export const blockHighlightBoxDefinition: WidgetDefinition = defineWidget({
 });
 
 /**
- * The TRACK BUILDER slice, in annex §13 order: the canvas, then its 22-block
+ * The TRACK BUILDER slice, in annex order: the canvas, then its 22-block
  * shared library. Wired into `qa/delivered.ts`; the GREEN LOOP spreads it into
  * the registry map.
  */

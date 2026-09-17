@@ -36,7 +36,7 @@ export interface BlockPanelProps {
   onDuplicate: () => void;
   onRemove: () => void;
   onChooseImage: () => void;
-  /** The image picker arrives with 39-T14; until then the button is disabled. */
+  /** The image picker is not built yet; until then the button is disabled. */
   imagePickerAvailable: boolean;
 }
 

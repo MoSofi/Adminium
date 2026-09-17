@@ -2,9 +2,9 @@
 /**
  * Dirty-state bar: "{n} changes" + per-change chips with individual revert,
  * revert-all, and Save (PUT full document). After a successful save the
- * "Regenerate pages" action appears (POST /connections/:id/generate) — copy
- * per 04-widget-registry.md §6.3: only pages whose generated_hash is
- * untouched are regenerated in place; human-edited pages are preserved.
+ * "Regenerate pages" action appears (POST /connections/:id/generate) —
+ * copy: only pages whose generated_hash is untouched are regenerated in
+ * place; human-edited pages are preserved.
  */
 import { X } from 'lucide-react';
 import { Badge, Button, cn } from '@adminium/ui';

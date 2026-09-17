@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 2 — connect your database (45-onboarding.md §2, comp step "Connect your
- * database").
+ * Step 2 — connect your database (comp step "Connect your database").
  *
  * WHAT THIS STEP DOES NOT DO: connect. There is no account yet, so there is no
  * session, so there is no endpoint that would take a connection string (45 R1).
@@ -12,13 +11,13 @@
  * "Connected · 14 tables detected" line belongs to that moment and is rendered
  * there, not faked here.
  *
- * IT ALSO ASKS WHAT IS ALREADY IN THERE (45-T11). Point a second install at a
- * database that already runs an Adminium and, until this step asked, nothing
- * noticed until the storage step — after an account had been created — where
- * the relocation refused. `POST /setup/probe` answers it here, from a route
- * that is open only while setup is, and the two ways out are offered on the
- * spot: sign in to the instance that is already there, or keep its tables and
- * start beside them.
+ * IT ALSO ASKS WHAT IS ALREADY IN THERE. Point a second install at a database
+ * that already runs an Adminium and, until this step asked, nothing noticed
+ * until the storage step — after an account had been created — where the
+ * relocation refused. `POST /setup/probe` answers it here, from a route that
+ * is open only while setup is, and the two ways out are offered on the spot:
+ * sign in to the instance that is already there, or keep its tables and start
+ * beside them.
  *
  * THE BRIDGE IS ITS OWN STATE. When adminium.dev has handed this instance a
  * connection string, `GET /bridge/seed/:ticket` needs `connections:manage`

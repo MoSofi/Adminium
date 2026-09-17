@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/forgot` under 11-electron.md §8.2's email row.
+ * `/forgot` email row.
  *
  * The bug this locks down is a lie, not a crash: with no SMTP relay the server
  * mints a reset token and has nowhere to post it, so the old screen told a

@@ -1,11 +1,11 @@
 # @adminium/e2e
 
-Playwright end-to-end matrix (M9-T05 / 01-T10): the **built** server serving
-the **built** dashboard, seeded with the Northwind demo fixture, driven on
-all three v1 engines. `scripts/e2e-server.mjs` prepares the source database,
-boots the composed server, seeds over the real API (login → connection →
-introspect → generate), and only then starts listening — so Playwright's
-readiness probe (`/api/v1/healthz`) implies "fully seeded".
+Playwright end-to-end matrix: the **built** server serving the **built**
+dashboard, seeded with the Northwind demo fixture, driven on all three v1
+engines. `scripts/e2e-server.mjs` prepares the source database, boots the
+composed server, seeds over the real API (login → connection → introspect →
+generate), and only then starts listening — so Playwright's readiness probe
+(`/api/v1/healthz`) implies "fully seeded".
 
 ## Run locally
 
@@ -55,15 +55,41 @@ both.
 It asserts three independent things, because they fail independently:
 
 1. `<html lang="ar-EG" dir="rtl">`, and that switching back to `en_US` flips it —
-   direction is derived from the locale, never set on its own (02 §4.2).
+   direction is derived from the locale, never set on its own.
 2. Real Arabic glyphs reach the DOM. `dir="rtl"` over English text is trivial to
    produce and proves nothing about the bundles.
-3. Fixed-LTR islands (10 §5.6) did **not** mirror. This is the failure nobody
-   looks for, because a wrongly-mirrored connection string makes the page look
-   *more* RTL, not broken.
+3. Fixed-LTR islands did **not** mirror. This is the failure nobody looks for,
+   because a wrongly-mirrored connection string makes the page look *more* RTL,
+   not broken.
 
 It restores `en_US` in `afterEach`: the suite runs serially against one seeded
 account, so a mid-spec failure must not leave it in Arabic for the next file.
+
+## Project leg (`project` project)
+
+`tests/project.spec.ts` runs a project folder the way a developer does. It
+does not use the shared Northwind server:
+
+1. `adminium new --database …` with the built CLI, in a temp folder
+   (`tests/projectHarness.ts`);
+2. `adminium dev`: page files, a live edit, a Studio edit, actions, hooks,
+   pages and cells written as code, `eject`;
+3. `adminium start` as a server: a Studio edit, `pull --from`, a redeploy, and a
+   conflict settled in Studio.
+
+It needs the same builds as the rest of the suite, plus `esbuild`, which this
+package installs; the harness links it into the project the way `npm install`
+would. The project gets its own databases on the leg's engine:
+`adminium_e2e_project` for Northwind and, on Postgres and MySQL,
+`adminium_e2e_project_meta` for its meta store. Its server listens on the leg's
+port + 40 (4650, 4651, 4652). Run it on its own (Playwright still starts the
+shared servers) with:
+
+```sh
+pnpm --filter @adminium/e2e e2e -- --project=project
+```
+
+`E2E_KEEP_PROJECT=1` keeps the folder and the databases for a look afterwards.
 
 ## Debugging
 
@@ -77,24 +103,23 @@ CI runs the three legs as separate jobs in `.github/workflows/e2e.yml`
 (postgres:16 / mysql:8.4 service containers), uploading traces and the HTML
 report only on failure.
 
-## Desktop (`_electron`) suite — 11-T20
+## Desktop (`_electron`) suite
 
 A second, independent suite (`tests-desktop/`, config
 `playwright.desktop.config.ts`, project `desktop-e2e`) drives the **built
 Electron app** (`apps/desktop/out/main/index.js`) via Playwright's `_electron`.
-It launches the app against a hermetic `--user-data-dir` and walks 11-electron.md
-§6/§7/§9:
+It launches the app against a hermetic `--user-data-dir` and walks:
 
-- **`desktop-app.spec.ts`** — first-run → demo DB → dashboard → CRUD edit →
-  chart render → backup, plus the §2.4 renderer security posture (contextIsolation
-  on, sandbox on, nodeIntegration off, navigation locked to loopback, external
-  links open the system browser).
-- **`desktop-offline.spec.ts`** — the §7 offline smoke: `session.webRequest`
-  deny-all except `127.0.0.1`; the same walk; assert **zero** blocked requests
-  (no Google Fonts, no tiles, no CDN). Launched with `ADMINIUM_DISABLE_UPDATES=1`
-  (updates off) and telemetry off.
+- **`desktop-app.spec.ts`** — first-run → demo DB → dashboard → CRUD edit → chart
+  render → backup, plus the renderer security posture (contextIsolation on, sandbox
+  on, nodeIntegration off, navigation locked to loopback, external links open the
+  system browser).
+- **`desktop-offline.spec.ts`** — the offline smoke: `session.webRequest` deny-all
+  except `127.0.0.1`; the same walk; assert **zero** blocked requests (no Google
+  Fonts, no tiles, no CDN). Launched with `ADMINIUM_DISABLE_UPDATES=1` (updates
+  off) and telemetry off.
 - **`desktop-crash-wal.spec.ts`** — commit a write, SIGKILL the app, relaunch the
-  same data dir, assert the committed data survived (WAL durability, §9).
+  same data dir, assert the committed data survived (WAL durability).
 
 It is **not** part of `pnpm test` — apps/e2e has no `test` script, so exactly like
 the engine legs it stays out of the repo-wide gate. Run it explicitly:

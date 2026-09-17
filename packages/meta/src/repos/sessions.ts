@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * sessionsRepo — adminium_sessions (07-meta-store.md §3.5).
- * Cookie tokens are opaque; only their SHA-256 hex is stored (hashing in server).
+ * sessionsRepo — adminium_sessions. Cookie tokens are
+ * opaque; only their SHA-256 hex is stored (hashing in
+ * server).
  */
 
 import type { Selectable } from 'kysely';
@@ -11,7 +12,7 @@ import { newId } from '../ids.js';
 import type { AdminiumSessionsTable } from '../schema/tables.js';
 import { DAY_MS } from './util.js';
 
-/** `last_seen_at` updates are throttled to at most one per this interval (§3.5). */
+/** `last_seen_at` updates are throttled to at most one per this interval. */
 export const SESSION_TOUCH_INTERVAL_MS = 60_000;
 
 export type Session = Selectable<AdminiumSessionsTable>;
@@ -116,7 +117,7 @@ export function sessionsRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows);
     },
 
-    /** Retention §8 `sessions` policy: expired, or revoked > 24 h ago. */
+    /** Retention `sessions` policy: expired, or revoked > 24 h ago. */
     async gc(at: number = Date.now()): Promise<number> {
       const res = await db
         .deleteFrom('adminium_sessions')

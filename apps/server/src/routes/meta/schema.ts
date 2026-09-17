@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the meta-placement resource (naming per 08-server-api.md §1.5:
+ * Zod schemas for the meta-placement resource (naming:
  * `<resource><Action><Part>` consts, `z.infer` PascalCase types).
  */
 import { z } from 'zod';
@@ -9,16 +9,16 @@ import { z } from 'zod';
  * `GET /meta/placement` — where Adminium's own tables currently live, and
  * whether this instance is able to move them.
  *
- * The DSN is NOT returned, only the engine and the §7.2 rung it came from. A
- * meta DSN is a credential, and the wizard's question ("are you still on the
+ * The DSN is NOT returned, only the engine and the rung it came from. A meta
+ * DSN is a credential, and the wizard's question ("are you still on the
  * embedded store?") is answerable without one.
  */
 export const metaPlacementReply = z.object({
   data: z.object({
-    /** Which §7.2 rung answered: `env`, `bootstrap`, or `embedded`. */
+    /** Which rung answered: `env`, `bootstrap`, or `embedded`. */
     source: z.enum(['env', 'bootstrap', 'embedded']),
     engine: z.enum(['postgres', 'mysql', 'sqlite']),
-    /** True when the store is the §3.1 OD-1 embedded SQLite fallback. */
+    /** True when the store is the OD-1 embedded SQLite fallback. */
     embedded: z.boolean(),
     /**
      * False when relocation cannot work here, with `reason` saying why — an
@@ -44,10 +44,10 @@ export const metaRelocateBody = z
     dsn: z.string().min(1).max(4096),
     /**
      * Rename the target's existing `adminium_` tables out of the way instead of
-     * refusing (45-onboarding.md 45-T11). Off by default: merging two stores is
-     * not something this can do, and silently moving somebody's tables would be
-     * a worse answer than the refusal. The first-run wizard sets it only after
-     * telling the operator exactly which tables are there.
+     * refusing. Off by default: merging two stores is not something this can
+     * do, and silently moving somebody's tables would be a worse answer than
+     * the refusal. The first-run wizard sets it only after telling the operator
+     * exactly which tables are there.
      */
     park: z.boolean().optional(),
   })

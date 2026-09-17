@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Snapshot-backed identifier allowlisting (08-server-api.md §2.7 / §7 item 1):
- * every `:table` and column name in a data request resolves against the
- * active schema snapshot — the strings that reach SQL are the snapshot's
- * own, never the client's. Unknown identifiers → 422 `UNKNOWN_IDENTIFIER`;
- * masked/secret columns → 403 `COLUMN_FORBIDDEN` (§5.3).
+ * Snapshot-backed identifier allowlisting: every `:table` and column name in a
+ * data request resolves against the active schema snapshot — the strings that
+ * reach SQL are the snapshot's own, never the client's. Unknown identifiers →
+ * 422 `UNKNOWN_IDENTIFIER`; masked/secret columns → 403 `COLUMN_FORBIDDEN`.
  */
 
 import type { LogicalType } from '@adminium/engine';
@@ -14,9 +13,9 @@ import type { EffectiveModel, EffectiveTable } from '../connections/effective-sc
 import { columnPolicyFor } from '../connections/effective-schema.js';
 
 /**
- * Text-ish logical types the `q=` quick search matches over (§2.7.1).
- * `enum`/`uuid` are excluded — PG has no ILIKE operator for them without a
- * cast, and casting is a widget-data concern (04 §5), not quick search.
+ * Text-ish logical types the `q=` quick search matches over. `enum`/`uuid`
+ * are excluded — PG has no ILIKE operator for them without a cast, and
+ * casting is a widget-data concern, not quick search.
  */
 const TEXTISH: ReadonlySet<LogicalType> = new Set(['text', 'varchar']);
 
@@ -47,7 +46,7 @@ export interface ResolvedTable {
   /** Ordered PK column names; empty ⇒ read-only (no mutations, no undo). */
   primaryKey: string[];
   columns: Map<string, ResolvedColumn>;
-  /** Views / PK-less tables are read-only variants (05 §8.2). */
+  /** Views / PK-less tables are read-only variants. */
   readOnly: boolean;
   table: EffectiveTable;
 }
@@ -62,7 +61,7 @@ export class SnapshotView {
     this.model = model;
     for (const table of model.tables) {
       // A system table and an operator-excluded table are not addressable
-      // through `/data` AT ALL — 35-schema-authoring.md §6.1, 35-T28.
+      // through `/data` AT ALL.
       //
       // This index was built from every table in the model, with no filter, and
       // super-admin bypass is total (`rbac/resolver.ts`). So on the same-database
@@ -121,7 +120,7 @@ export class SnapshotView {
     return resolved;
   }
 
-  /** Resolve a column; secret columns are invisible (422, §7.1 rule 1). */
+  /** Resolve a column; secret columns are invisible (422). */
   column(table: ResolvedTable, clientName: string): ResolvedColumn {
     const column = table.columns.get(clientName);
     if (column === undefined || column.secret) {

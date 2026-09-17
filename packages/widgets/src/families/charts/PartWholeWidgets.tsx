@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `charts` family — part-to-whole & hierarchy wrappers (04-T09): map stored
- * instance config + §3 envelopes onto the @adminium/charts primitives. Loaded
- * lazily (one chunk per family, 04 §2.3); components render only the LOADED
- * state — WidgetFrame owns skeleton/empty/error. Accessible names come from
+ * `charts` family — part-to-whole & hierarchy wrappers: map stored instance
+ * config + envelopes onto the @adminium/charts primitives. Loaded lazily
+ * (one chunk per family); components render only the LOADED state —
+ * WidgetFrame owns skeleton/empty/error. Accessible names come from
  * `config.title` (rendered as the SVG aria-label). Direction flows from the
- * ChartDirectionContext the dashboard bridges from the i18n `dir` (04 §7.4).
+ * ChartDirectionContext the dashboard bridges from the i18n `dir`.
  */
 import { Chord, Funnel, Radar, RadialBar, Sunburst, Treemap, WordCloud } from '@adminium/charts';
 import { useMaybeT } from '@adminium/i18n/react';

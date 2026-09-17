@@ -3,7 +3,7 @@
  * The `/automations` and `/workflow-logs` search contracts, in a leaf module:
  * the router reads them eagerly (a `validateSearch` runs before the page
  * loads) and both pages are lazy — importing a page for its contract would
- * pull the flow builder into the entry chunk (42 §3.6; the invoice surface's
+ * pull the flow builder into the entry chunk (the invoice surface's
  * `search.ts`).
  *
  * Both selections live in the URL for the same reason: a rule and a run are

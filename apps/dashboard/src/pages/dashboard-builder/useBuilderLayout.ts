@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Working-copy layout state for the dashboard builder (04-widget-registry.md
- * §6.2). Holds the draft `PageLayout` being edited plus the current inspector
- * selection, and exposes the add / duplicate / remove / config-edit mutations
- * as pure layout transforms (see `placement.ts`). Persistence (shared vs
- * personal) is wired by the surrounding editor, which watches `draft`/`dirty`.
+ * Working-copy layout state for the dashboard builder. Holds the draft
+ * `PageLayout` being edited plus the current inspector selection, and exposes
+ * the add / duplicate / remove / config-edit mutations as pure layout
+ * transforms (see `placement.ts`). Persistence (shared vs personal) is wired
+ * by the surrounding editor, which watches `draft`/`dirty`.
  */
 
 import { useCallback, useState } from 'react';

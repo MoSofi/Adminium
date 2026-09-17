@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * THE SCHEDULE SCANNER (42-automations-and-workflow-logs.md D5, §3.3,
- * 42-T07) — the owner's "a CRON workflow", and the half of his appointment
- * example a record trigger cannot express.
+ * THE SCHEDULE SCANNER — the owner's "a CRON workflow", and the half of
+ * his appointment example a record trigger cannot express.
  *
  * "Email them two hours before their appointment" is not caused by a write.
  * Nothing happens at all: a row that was written last week becomes

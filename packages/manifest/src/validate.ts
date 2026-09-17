@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Manifest validation entry point (13-marketplace.md §2, §9). Layers the
- * envelope schema with the v1 publisher policy: the installer rejects any
- * `publisher.id` other than `adminium` unless the `third-party-publishers`
- * feature flag is on (off in v1). Pure — safe in the browser storefront.
+ * Manifest validation entry point. Layers the envelope schema with the v1
+ * publisher policy: the installer rejects any `publisher.id` other than
+ * `adminium` unless the `third-party-publishers` feature flag is on (off
+ * in v1). Pure — safe in the browser storefront.
  */
 
 import {
@@ -18,22 +18,22 @@ export interface ManifestIssue {
   /** Dotted path to the offending field, e.g. `publisher.id`. */
   path: string;
   message: string;
-  /** Issue code for the add-on rules (24 §5.3); absent for schema issues. */
+  /** Issue code for the add-on rules; absent for schema issues. */
   code?: string;
 }
 
 export interface ValidateManifestOptions {
   /**
    * Allow a non-`adminium` publisher. Wired to the `third-party-publishers`
-   * feature flag (§9); OFF in v1, so third-party manifests are rejected.
+   * feature flag; OFF in v1, so third-party manifests are rejected.
    *
    * For an add-on the gate matters MORE, not less: an add-on's server half runs
-   * in the host process with no sandbox (24 D13), so an unsandboxed in-process
-   * add-on from an unknown publisher would be remote code execution with a
-   * marketplace in front of it.
+   * in the host process with no sandbox, so an unsandboxed in-process add-on
+   * from an unknown publisher would be remote code execution with a marketplace
+   * in front of it.
    */
   allowThirdPartyPublishers?: boolean;
-  /** Installed app keys, so an add-on's `attaches` can be checked (24 §5.3). */
+  /** Installed app keys, so an add-on's `attaches` can be checked. */
   knownAppKeys?: readonly string[];
   /** The host app's table refs, so an add-on's `scopes` can be bounded. */
   hostTables?: readonly string[];

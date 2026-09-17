@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Fetch the bundled add-on set (32 D3, tasks 32-T11/32-T12; 48-self-hosted-downloads.md D1).
+ * Fetch the bundled add-on set (tasks).
  *
  *   node scripts/release/fetch-add-ons-bundle.mjs <outDir> [--pins <file>]
  *
@@ -46,7 +46,8 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
-/** The only host this script will talk to (48 D1): the release files' download folder. */
+/** The only host this script will talk to: the release files' download folder.
+ * */
 const DOWNLOAD_BASE = 'https://downloads.adminium.dev';
 
 /** Aligned with the seed's filename grammar in apps/server/src/add-ons/store.ts. */
@@ -148,14 +149,14 @@ function digestsMatch(bytes, integrity) {
 
 /**
  * Download one tarball, reading the body under {@link MAX_TARBALL_BYTES}, from
- * the address the server builds for the same key and version (48 D4):
- *   https://downloads.adminium.dev/add-ons/<key>/<key>-<version>.tgz
+ * the address the server builds for the same key and version:
+ * https://downloads.adminium.dev/add-ons/<key>/<key>-<version>.tgz
  */
 async function download(pin) {
   const url = `${DOWNLOAD_BASE}/add-ons/${pin.key}/${pin.key}-${pin.version}.tgz`;
   const response = await fetch(url, {
     redirect: 'error',
-    // Build machines are not browsers either; say what is asking (48 §4).
+    // Build machines are not browsers either; say what is asking.
     headers: { 'user-agent': 'Adminium-build/fetch-add-ons-bundle' },
   });
   if (!response.ok || response.body === null) {

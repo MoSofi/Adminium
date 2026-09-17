@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Per-dialect advisory lock around the migration pass (07-meta-store.md §4).
+ * Per-dialect advisory lock around the migration pass.
  *
  * WHY IT EXISTS. `docker compose pull && docker compose up -d` with more than
  * one replica — or a PM2 cluster, or a rolling fleet deploy — boots several

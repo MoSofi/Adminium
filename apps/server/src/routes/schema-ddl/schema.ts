@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for `routes/schema-ddl/` — 35-schema-authoring.md §3.5, 35-T10.
+ * Zod schemas for `routes/schema-ddl/`.
  *
  * The request body is the engine's `SchemaEdit`, mirrored here rather than
  * imported: a route's wire contract is the route's, and `strictObject` at this
  * boundary is what makes D30's closed vocabulary a 422 at the gate instead of
- * a validation error three layers in (§3.1 — "a body carrying them is a 422 at
- * the Zod gate, before validation runs").
+ * a validation error three layers in ("a body carrying them is a 422 at the
+ * Zod gate, before validation runs").
  */
 import { z } from 'zod';
 
@@ -99,8 +99,8 @@ export const schemaEditBody = z.strictObject({
     .default({ tables: [], columns: [] }),
   upsertTables: z.array(desiredTable).max(100).default([]),
   /**
-   * Add columns to tables that already exist, without restating them
-   * (38-files-library-and-attachments.md D6).
+   * Add columns to tables that already exist, without restating
+   * them.
    *
    * The narrow door: a caller that holds only a snapshot cannot restate a real
    * table faithfully through `upsertTables` — `logicalType` is a closed enum,
@@ -180,7 +180,7 @@ export const planReply = z.object({
   hazard: z.string(),
   requiresSuperAdmin: z.boolean(),
   checksum: z.string(),
-  /** A previous apply that never reported an outcome (35-T36). */
+  /** A previous apply that never reported an outcome. */
   unfinished: z.object({ id: z.string(), startedAt: z.number() }).nullable(),
 });
 

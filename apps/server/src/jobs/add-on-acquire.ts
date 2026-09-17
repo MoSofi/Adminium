@@ -1,24 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two acquisition job kinds (32-add-on-distribution.md §4.3, D10;
- * 48-self-hosted-downloads.md D3/D4).
+ * The two acquisition job kinds.
  *
  * WHY JOBS AND NOT REQUEST HANDLERS. A download is a multi-second, multi-step
  * network operation (catalog row → download → verify → hardened unpack), and
  * the jobs substrate already carries every property that
  * needs: retries with attempt counts, cooperative cancellation, and — the one
  * that decides it — progress published on the `jobs:<jobId>` WS topic, which
- * the Studio page consumes for free (26 §5.3's argument, applied to
- * acquisition). Running it on the request thread would mean either a held
- * connection or a bespoke progress channel.
+ * the Studio page consumes for free (argument, applied to acquisition).
+ * Running it on the request thread would mean either a held connection or a
+ * bespoke progress channel.
  *
  * `add-on-download` IS INTERNAL-ONLY. Its payload names a `(key, version)` that
  * the route resolves against the CACHED CATALOG — that is where the integrity
- * value comes from, and it is the whole trust chain (48 D3). A `jobs.manage`
- * holder who could hand-craft this payload through the generic `POST /jobs`
- * would be choosing their own integrity value, which is the same as having
- * none. The registry's `internal` flag exists for exactly this class of payload
- * (see `registry.ts`'s note on `export-run`'s `unmasked`).
+ * value comes from, and it is the whole trust chain. A `jobs.manage` holder who
+ * could hand-craft this payload through the generic `POST /jobs` would be
+ * choosing their own integrity value, which is the same as having none. The
+ * registry's `internal` flag exists for exactly this class of payload (see
+ * `registry.ts`'s note on `export-run`'s `unmasked`).
  *
  * IDEMPOTENCY IS THE REPO'S `dedupeKey`, not a bespoke check: an existing
  * pending/running job with the same key is returned rather than a second one
@@ -69,7 +68,7 @@ export interface AddOnAcquireDeps {
 }
 
 /**
- * Records an acquisition event under the `add-on` audit category (§4.3: every
+ * Records an acquisition event under the `add-on` audit category (every
  * refresh, download, verify-refusal, unpack-refusal, upload, staged, deleted
  * and upgraded lands there).
  *
@@ -157,9 +156,9 @@ export function registerAddOnAcquireHandlers(
       const entry = await entryFromCache(deps.store, key, version);
       if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
-      // 48 D4: the client builds the address from the row's key and exact
-      // version. The row's `integrity` goes to the store below, untouched: the
-      // download host never supplies the value its own bytes are checked by.
+      // The client builds the address from the row's key and exact version.
+      // The row's `integrity` goes to the store below, untouched: the download
+      // host never supplies the value its own bytes are checked by.
       ctx.progress(20, { step: 'download', message: `Downloading ${label}` });
       let tarball;
       try {
@@ -167,7 +166,7 @@ export function registerAddOnAcquireHandlers(
       } catch (err) {
         // Audited like the verify and unpack legs. A download that dies at the
         // transport — a redirect off the download host, a 404, an over-cap
-        // body, a timeout — is exactly the kind of event §4.3 wants on the
+        // body, a timeout — is exactly the kind of event wants on the
         // record, and leaving it as the one silent leg would have made the
         // audit trail's completeness a matter of which failure happened to occur.
         await audit(

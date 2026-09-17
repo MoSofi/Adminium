@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Schema IR + statistics serialization for the prompt (06-llm-assist.md §4.1,
- * §4.2, §5.2).
+ * Schema IR + statistics serialization for the prompt.
  *
  * Three producers, mapping onto the three `=== INPUT: … ===` blocks of the user
  * section:
@@ -9,13 +8,13 @@
  *   - {@link serializeStats}     → `{{STATS_JSON}}`      (aggregates only)
  *   - {@link serializeSampling}  → `{{SAMPLING_BLOCK}}`  (opt-in cell values)
  *
- * SAMPLE-FREE BY DEFAULT (§1 invariant 5, acceptance criterion 8): with sampling
- * off, NO cell value from any table can appear. The schema IR carries only
- * structure (types, flags, DECLARED enum values — which are schema, not data);
- * the stats block carries only row counts, null fractions and distinct counts —
- * it NEVER copies `min`/`max`/`sampleValues` off a `StatsResult`. Cell values
- * live exclusively in the sampling block, which is empty unless the caller opts
- * in, and even then excludes PII-suspected and secret columns.
+ * SAMPLE-FREE BY DEFAULT (acceptance criterion 8): with sampling off, NO cell
+ * value from any table can appear. The schema IR carries only structure (types,
+ * flags, DECLARED enum values — which are schema, not data); the stats block
+ * carries only row counts, null fractions and distinct counts — it NEVER copies
+ * `min`/`max`/`sampleValues` off a `StatsResult`. Cell values live exclusively
+ * in the sampling block, which is empty unless the caller opts in, and even then
+ * excludes PII-suspected and secret columns.
  *
  * Deterministic: objects are built in a fixed key order and arrays follow input
  * order, so `JSON.stringify` output is stable (no sorting, no timestamps).
@@ -34,10 +33,11 @@ import type {
 
 import type { Sampling } from './types.js';
 
-/** Text columns with `distinctCount` at or below this are pseudo-enum candidates (§4.2). */
+/** Text columns with `distinctCount` at or below this are pseudo-enum
+ * candidates. */
 export const PSEUDO_ENUM_MAX_DISTINCT = 24;
 
-/** Header line the opt-in sampling block leads with (§5.2 builder note). */
+/** Header line the opt-in sampling block leads with (builder note). */
 export const SAMPLING_BLOCK_HEADER =
   '=== INPUT: SAMPLE VALUES (user opted in; PII columns excluded) ===';
 
@@ -53,11 +53,11 @@ export interface SerializedColumn {
   enum?: string;
   /** Declared FK target as `"schema.table.column"`. */
   references?: string;
-  /** Heuristic PII suspicion — the model confirms/rejects (§4.2, decision 8). */
+  /** Heuristic PII suspicion — the model confirms/rejects. */
   piiSuspected?: true;
   /** Secret column — never contributes any value-touching statistic. */
   secret?: true;
-  /** Low-cardinality non-PII text: values sent only under sampling opt-in (§4.2). */
+  /** Low-cardinality non-PII text: values sent only under sampling opt-in. */
   pseudoEnumCandidate?: true;
 }
 
@@ -67,7 +67,7 @@ export interface SerializedFullTable {
   columns: SerializedColumn[];
 }
 
-/** Out-of-chunk FK target: names only, no suggestions requested (§4.5). */
+/** Out-of-chunk FK target: names only, no suggestions requested. */
 export interface SerializedStubTable {
   table: string;
   stub: true;
@@ -187,7 +187,7 @@ function isSecret(column: ColumnModel): boolean {
 // ─── Schema IR (structure only — never cell values) ─────────────────────────
 
 export interface SerializeSchemaIrOptions {
-  /** Qualified ids to render as `"stub": true` context (§4.5). */
+  /** Qualified ids to render as `"stub": true` context. */
   stubTables?: ReadonlySet<string>;
   /** Stats used solely to compute `pseudoEnumCandidate` (distinct-count driven). */
   stats?: readonly StatsResult[];

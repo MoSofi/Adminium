@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The six DOCUMENT languages (34-invoices-add-on.md O23; the comp's `langs()`
- * 1183-1192, `i18n()` 1194-1202, `localize()` 1203-1207).
+ * The six DOCUMENT languages (the comp's `langs()` 1183-1192, `i18n()`
+ * 1194-1202, `localize()` 1203-1207).
  *
- * A document's language is the CUSTOMER's, not the admin UI's locale (34 D17
- * as amended): the list is the comp's own — three of its six are not UI
- * locales and five UI locales are not in it — and every string in this file
- * is document CONTENT (the word the customer reads on the sheet), which is
- * why none of it is an `invoices:` message key. The chrome around the sheet
+ * A document's language is the CUSTOMER's, not the admin UI's locale (as
+ * amended): the list is the comp's own — three of its six are not UI locales
+ * and five UI locales are not in it — and every string in this file is
+ * document CONTENT (the word the customer reads on the sheet), which is why
+ * none of it is an `invoices:` message key. The chrome around the sheet
  * follows the viewer's locale as usual.
  *
  * `localizeBody` translates exactly what the comp translates — the title

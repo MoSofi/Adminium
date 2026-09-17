@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `page-scheduler` binding (09-generated-app.md §4.1, §7.6, M7-T03): projects
- * the page envelope onto the real `PageScheduler` template from
- * `@adminium/widgets`.
+ * `page-scheduler` binding: projects the page envelope onto the real
+ * `PageScheduler` template from `@adminium/widgets`.
  *
  * Data flow: `usePlanningStates` runs the page's ONE widget-data batch over
  * the stored record-list descriptors; the template maps shift rows through
  * `personColumn`/`dateColumn`/`typeColumn` into the interactive ShiftMatrix.
  * The template's week nav publishes the visible window as `dateRange.*`
  * params, re-windowing the batch through the late-bound filters appended to
- * the schedule item's descriptor (04 §5.1).
+ * the schedule item's descriptor.
  *
  * Writes: click-to-cycle → update/delete intents, empty-slot add → insert —
  * all through the host sink (CRUD + undo toast + widget-data invalidation,

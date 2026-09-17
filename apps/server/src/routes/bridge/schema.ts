@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the local-bridge resource (naming per 08-server-api.md §1.5:
+ * Zod schemas for the local-bridge resource (naming:
  * `<resource><Action><Part>` consts, `z.infer` PascalCase types).
  *
  * `bridgeHandoffBody` is the only cross-origin write body in the API, so it is

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Global-defaults API client (10-i18n-theming.md §7.2): GET/PUT
- * /api/v1/settings/defaults. Shapes mirror apps/server
- * src/routes/settings/schema.ts (copied per the 01-architecture.md §2.3
+ * Global-defaults API client: GET/PUT /api/v1/settings/defaults. Shapes
+ * mirror apps/server src/routes/settings/schema.ts (copied per the
  * matrix). The query key is invalidated by the realtime mapping on
  * `settings.defaults.updated` (src/api/realtime.ts).
  */
@@ -35,7 +34,7 @@ export function settingsDefaultsQuery() {
   });
 }
 
-/** Full-object write (§7.2) — never a partial patch. */
+/** Full-object write — never a partial patch. */
 export async function putSettingsDefaults(values: SettingsDefaultsValues): Promise<SettingsDefaultsData> {
   return (await api.put<{ data: SettingsDefaultsData }>('/api/v1/settings/defaults', values)).data;
 }

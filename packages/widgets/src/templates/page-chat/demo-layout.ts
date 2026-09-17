@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The default `page-chat` demo layout — the manifest's slot areas
- * (templates/page-chat.json) filled the way the §14 archetype pass fills them
- * on a conversation+message pair: the required `inbox` (`conversation-inbox`)
- * and `thread` (`chat-thread`) slots plus the optional `attachments` rail.
- * No bindings → every widget renders `demoData(hash(instanceId))` (04 §5.3
- * demo mode). Used by Storybook, tests and first-run states.
+ * (templates/page-chat.json) filled the way the archetype pass fills them on
+ * a conversation+message pair: the required `inbox` (`conversation-inbox`)
+ * and `thread` (`chat-thread`) slots plus the optional `attachments` rail. No
+ * bindings → every widget renders `demoData(hash(instanceId))` (demo mode).
+ * Used by Storybook, tests and first-run states.
  */
 
 import type { PageLayout } from '../../page-config/index.js';

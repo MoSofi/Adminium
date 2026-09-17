@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `POST /desktop/local-database` — 11-electron.md §6 step 2 card 1, task 11-T07.
+ * `POST /desktop/local-database` — card 1, task.
  *
  * ─── THE CRITERION THIS SUITE IS BUILT AROUND ────────────────────────────────
  *
@@ -14,7 +14,7 @@
  *
  *  - a `status` column emitted as `TEXT` applies perfectly, introspects with
  *    `maxLength: null`, fails candidate rule r07, and silently produces a CRUD
- *    grid where the schema described a kanban board (11-T08 hit exactly this);
+ *    grid where the schema described a kanban board (this happened once);
  *  - a `PRIMARY KEY` clause that is not the rowid-alias spelling creates fine and
  *    then rejects every insert;
  *  - an FK emitted before its target table creates fine and rejects at seed time.
@@ -200,7 +200,7 @@ describe('POST /desktop/local-database — blank', () => {
     const { status, body } = await create(t, { name: 'My Shop' });
 
     expect(status).toBe(201);
-    // §6 names this path exactly, and §9's backup format ("databases/<slug>.sqlite")
+    // This path is named exactly, backup format ("databases/<slug>.sqlite")
     // depends on it staying this.
     expect(body.slug).toBe('my-shop');
     expect(body.file).toBe(localDatabaseFile(t.dataDir, 'my-shop'));
@@ -208,7 +208,7 @@ describe('POST /desktop/local-database — blank', () => {
     expect(existsSync(body.file)).toBe(true);
     expect(body.tables).toEqual([]);
 
-    // §9's first pragma. Read from the FILE with an independent handle: the
+    // The first pragma. Read from the FILE with an independent handle: the
     // journal mode is the one setting that persists in the header, so this is
     // the only one an assertion can prove was actually applied to the database
     // rather than to some connection that has since closed.
@@ -224,7 +224,7 @@ describe('POST /desktop/local-database — blank', () => {
     t = await harness();
     await create(t, { name: 'Ledger' });
 
-    // §9's ethos: the app never destroys data. A second "Ledger" must not be
+    // The ethos: the app never destroys data. A second "Ledger" must not be
     // able to silently replace the first one's file — which, on the wizard's
     // own path, is a user retrying after a typo in step 3.
     const res = await t.app.inject({
@@ -272,7 +272,7 @@ describe('POST /desktop/local-database — from a Prisma schema file', () => {
       `expected a kanban page from Task.status; got:\n${pages.map((p) => `  ${p.slug}: ${p.widgets.join(', ')}`).join('\n')}`,
     ).toBeDefined();
 
-    // Self-referential FK → org chart (§3.1's trigger; `Employee.managerId`).
+    // Self-referential FK → org chart (trigger; `Employee.managerId`).
     const org = pages.find((page) => page.widgets.includes('org-chart'));
     expect(org).toBeDefined();
   });
@@ -357,7 +357,7 @@ describe('POST /desktop/local-database — from a Prisma schema file', () => {
     // model views without one. So the emitter's `view-skipped` cannot fire, and
     // a reply carrying only the emitter's warnings would tell the user nothing:
     // their view would have vanished between their file and their database in
-    // silence. §8.2's rule is never hide, always explain — which means the two
+    // silence. The rule is never hide, always explain — which means the two
     // warning sources have to be merged before they reach the wizard.
     expect(body.tables).toEqual(['orders']);
     const messages = body.warnings.map((warning) => warning.message);

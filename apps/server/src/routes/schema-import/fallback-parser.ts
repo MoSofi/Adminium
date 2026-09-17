@@ -66,7 +66,7 @@ function modelName(fileName: string | undefined, fallback: string): string {
 
 // --- sql-ddl ----------------------------------------------------------------
 
-/** Native type prefix → engine logical type (the closed 05 §2.2 set). */
+/** Native type prefix → engine logical type (the closed set). */
 const TYPE_MAP: ReadonlyArray<[RegExp, LogicalType]> = [
   [/^(big(int|serial)|int8)/, 'bigint'],
   [/^(small(int|serial)|int2|int4|integer|int\b|serial|mediumint|tinyint\s*\(\s*(?!1\b)\d+\s*\))/, 'integer'],

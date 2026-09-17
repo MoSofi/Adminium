@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure cohort-retention matrix geometry (research/widget-registry.md §2
+ * Pure cohort-retention matrix geometry (research/widget-registry.md
  * `chart-cohort-matrix`): cohort rows × period columns, accent alpha by value,
  * triangular nulls transparent, label text flips to the on-accent color past a
- * threshold (~55%). DOM-free and deterministic (04 §7.1) so the same
- * SVG path/positions render in Node and the browser (acceptance #10).
+ * threshold (~55%). DOM-free and deterministic so the same SVG path/positions
+ * render in Node and the browser (acceptance #10).
  *
- * RTL policy (04 §7.4): the period columns are a horizontal categorical scale,
- * so they mirror under `rtl` (rightmost = M0) with the cohort label gutter on
- * the inline-start (physical right) side; the vertical cohort rows never move.
+ * RTL policy: the period columns are a horizontal categorical scale, so they
+ * mirror under `rtl` (rightmost = M0) with the cohort label gutter on the
+ * inline-start (physical right) side; the vertical cohort rows never move.
  */
 import { heatLevel, rampColorVar } from './heat.js';
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Installing an app from Studio (47-app-installation.md step 3).
+ * Installing an app from Studio.
  *
  * What is worth proving here is the consent seam, because it is the whole
  * reason the flow has four steps instead of one button:
@@ -412,7 +412,7 @@ describe('the installed list', () => {
 
     await user.click(screen.getByRole('button', { name: /Uninstall/i }));
 
-    // 24 D16 / 26 D5: disabling never destroys data, and the dialog says so.
+    // Disabling never destroys data, and the dialog says so.
     expect(screen.getByText(/tables it created in your database are left alone/i)).toBeTruthy();
 
     await user.type(screen.getByLabelText(/Type clinic to confirm/i), 'clinic');

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The editor's state (39-email-templates-and-campaigns.md D1): the draft,
- * its history, the last saved draft, and the one way anything reaches the
- * server — `save()`.
+ * The editor's state: the draft, its history, the last saved draft, and
+ * the one way anything reaches the server — `save()`.
  *
  * NOTHING HERE WRITES ON INPUT. `mutate` changes the draft in memory;
  * `beginEdit` records a history step (the comp's `beginEdit` on focus, so a

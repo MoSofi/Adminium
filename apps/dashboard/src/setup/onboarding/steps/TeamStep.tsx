@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 5 — bring your team (45-onboarding.md §2, comp step "Bring your team").
+ * Step 5 — bring your team (comp step "Bring your team").
  *
  * Invitations are real here: `POST /users` mints one and answers with the
  * activation link and whether it was also emailed (`teamApi.ts`). On an install

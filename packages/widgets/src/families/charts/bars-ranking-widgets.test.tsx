@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * Render + frame-state tests for the "bars & ranking" widgets (04-T09,
- * acceptance #4): each renders its loaded chart through WidgetHost (registry
- * override, since the family barrel is green-loop-assembled), labels the SVG
- * from config.title, and drives all four WidgetFrame states — skeleton, empty
+ * Render + frame-state tests for the "bars & ranking" widgets (acceptance
+ * #4): each renders its loaded chart through WidgetHost (registry override,
+ * since the family barrel is green-loop-assembled), labels the SVG from
+ * config.title, and drives all four WidgetFrame states — skeleton, empty
  * (per-widget copy), error + Retry.
  */
 import { cleanup, render, waitFor } from '@testing-library/react';

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Shared coverage policy — 15-quality.md §1, task 15-T01.
+ * Shared coverage policy.
  *
  * `include: ['src/**']` is LOAD-BEARING, not tidiness. vitest's default
  * `coverage.include` is `['**']`, which with `all: true` sweeps node_modules and
@@ -33,9 +33,9 @@ import { coverageConfigDefaults } from 'vitest/config';
 
 /**
  * Build a package's coverage block. Omit `statements`/`branches` to collect and
- * report without asserting — which is what 15-quality.md §1 prescribes for
- * `@adminium/ui`, `@adminium/widgets` and `@adminium/charts`, where screenshots
- * and axe are the meaningful signal rather than branch counts.
+ * report without asserting — which is what prescribes for `@adminium/ui`,
+ * `@adminium/widgets` and `@adminium/charts`, where screenshots and axe are the
+ * meaningful signal rather than branch counts.
  */
 export function coverage({ statements, branches, functions, exclude = [] } = {}) {
   return {

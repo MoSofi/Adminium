@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * automationsRepo + automationRunsRepo (42-automations-and-workflow-logs.md
- * §3.2, 42-T03). The behaviours worth pinning are the ones a later change
- * could quietly break:
+ * automationsRepo + automationRunsRepo. The behaviours worth pinning are
+ * the ones a later change could quietly break:
  *
  *  - `begin` is exactly-once through a UNIQUE index, not a check-then-insert
  *    (D6) — and it returns NULL rather than throwing, because "someone else
  *    already fired this" is the normal answer for three of the four producers.
  *  - `advance` never touches what a person authored, so a poll every minute
  *    does not move `updated_at`.
- *  - retention keeps a failed run twice as long (D23 / 07 §8) and never
- *    sweeps work that has not happened yet.
+ * - retention keeps a failed run twice as long (D23 /) and never sweeps
+ *  work that has not happened yet.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
