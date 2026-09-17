@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * THE DESKTOP ↔ SERVER ENV CONTRACT (11-electron.md §2.2 step 5).
+ * THE DESKTOP ↔ SERVER ENV CONTRACT.
  *
  * One module, both directions: {@link buildServerEnv} is what `ServerManager`
  * (main) hands to `utilityProcess.fork`, {@link parseDesktopServerEnv} is what
@@ -11,45 +11,40 @@
  *
  * ─── Why a mapping layer exists at all ──────────────────────────────────────
  *
- * §2.2 specifies a DESKTOP-FACING env block (`ADMINIUM_HOST`, `ADMINIUM_PORT`,
+ * The shell passes a DESKTOP-FACING env block (`ADMINIUM_HOST`, `ADMINIUM_PORT`,
  * `ADMINIUM_META_DSN`, `ADMINIUM_DISABLE_TELEMETRY`). `@adminium/server`'s actual
  * contract — `config/env.ts`, the Zod schema every front door validates through
  * — names three of those differently and cannot express a fourth:
  *
- *   §2.2 desktop name            → `envSchema` name        note
+ *   desktop name                 → `envSchema` name        note
  *   ─────────────────────────────────────────────────────────────────────────
- *   ADMINIUM_HOST                → HOST
- *   ADMINIUM_PORT                → PORT                    0 is NOT expressible
- *   ADMINIUM_META_DSN            → ADMINIUM_META_URL
- *   ADMINIUM_DISABLE_TELEMETRY=1 → ADMINIUM_TELEMETRY=off
- *   ADMINIUM_DATA_DIR            → ADMINIUM_DATA_DIR       (same)
- *   ADMINIUM_SECRET              → ADMINIUM_SECRET         (same)
- *   ADMINIUM_RUNTIME             → (not in the schema; read from `process.env`
- *   ADMINIUM_BOOT_TOKEN             by the §5 desktop-session route, which is
- *                                   registered only when runtime is `desktop`)
- *   (§2.3 `singleUser`)          → ADMINIUM_DESKTOP_SINGLE_USER
+ * ADMINIUM_HOST → HOST ADMINIUM_PORT → PORT 0 is NOT expressible
+ *   ADMINIUM_META_DSN → ADMINIUM_META_URL ADMINIUM_DISABLE_TELEMETRY=1 →
+ *   ADMINIUM_TELEMETRY=off ADMINIUM_DATA_DIR → ADMINIUM_DATA_DIR (same)
+ *   ADMINIUM_SECRET → ADMINIUM_SECRET (same) ADMINIUM_RUNTIME → (not in the
+ *   schema; read from `process.env` ADMINIUM_BOOT_TOKEN by the desktop-session
+ *   route, which is registered only when runtime is `desktop`) (`singleUser`) →
+ *   ADMINIUM_DESKTOP_SINGLE_USER
  *
- * `ADMINIUM_DESKTOP_SINGLE_USER` has no §2.2 spelling because §2.2 lists the
- * variables the SERVER needs to boot, and this one is not one of them — §5 asks
- * for `config.singleUser` to be "mirrored into `adminium_settings` … by the
- * server at boot", and the env block is the only channel that reaches the child.
+ * `ADMINIUM_DESKTOP_SINGLE_USER` has no spelling because lists the variables the
+ * SERVER needs to boot, and this one is not one of them — asks for
+ * `config.singleUser` to be "mirrored into `adminium_settings` … by the server
+ * at boot", and the env block is the only channel that reaches the child.
  * `compose.ts` mirrors it and `apps/server/src/config/env.ts` documents it as
  * "Set by apps/desktop's buildServerEnv when it forks the utilityProcess", which
  * is a promise this module has to keep: unset ⇒ no mirror ⇒ the registry default
- * (`false`) stands ⇒ gate 3 of the §5 route 403s every auto-login.
+ * (`false`) stands ⇒ gate 3 of the route 403s every auto-login.
  *
- * `PORT` is `z.coerce.number().int().min(1)`, so `PORT=0` — the §2.1 "listens
- * 127.0.0.1:0 (random free port)" requirement — is a VALIDATION ERROR, not a
- * config value. The entry therefore treats the ephemeral port as a listen-time
- * instruction (`app.listen({ port: 0 })`) and keeps it out of the schema
- * entirely; see {@link toServerEnvRecord}. This is the honest resolution while
- * the schema belongs to another package; widening `PORT` to allow 0 for the
- * ephemeral case is the follow-up.
+ * `PORT` is `z.coerce.number().int().min(1)`, so `PORT=0` — the requirement —
+ * is a VALIDATION ERROR, not a config value. The entry therefore treats the
+ * ephemeral port as a listen-time instruction (`app.listen({ port: 0 })`) and
+ * keeps it out of the schema entirely; see {@link toServerEnvRecord}. This is
+ * the honest resolution while the schema belongs to another package; widening
+ * `PORT` to allow 0 for the ephemeral case is the follow-up.
  *
  * The mapping lives on the DESKTOP side of the boundary on purpose: the desktop
- * shell is the wrapper (01 §4 "only the wrapper differs"), so the wrapper eats
- * the impedance mismatch rather than pushing a desktop-shaped name into a schema
- * four other deployment modes share.
+ * shell is the wrapper, so the wrapper eats the impedance mismatch rather than
+ * pushing a desktop-shaped name into a schema four other deployment modes share.
  */
 
 import { randomBytes } from 'node:crypto';
@@ -58,27 +53,27 @@ import { isAbsolute, join, resolve } from 'node:path';
 
 import { z } from 'zod';
 
-/** §2.2 step 4: "a per-boot random `bootToken` (32 bytes, hex)". */
+/** "a per-boot random `bootToken` (32 bytes, hex)". */
 export const BOOT_TOKEN_BYTES = 32;
 /** Hex doubles it. Pinned so a truncating generator fails at the child, loudly. */
 export const BOOT_TOKEN_HEX_LENGTH = BOOT_TOKEN_BYTES * 2;
 
-/** §2.4: the server binds loopback. Wave 1 has no other legal value. */
+/** The server binds loopback. Wave 1 has no other legal value. */
 export const LOOPBACK_HOST = '127.0.0.1';
 
-/** §2.1: `ADMINIUM_PORT=0` — the OS picks; the child reports back (§2.2 step 7). */
+/** `ADMINIUM_PORT=0` — the OS picks; the child reports back. */
 export const EPHEMERAL_PORT = 0;
 
 /** Mirrors `@adminium/server`'s `LOG_LEVELS`; re-declared to keep this leaf pure. */
 export const DESKTOP_LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const;
 export type DesktopLogLevel = (typeof DESKTOP_LOG_LEVELS)[number];
 
-/** §2.1: "Meta-store is always local SQLite at `<dataDir>/meta.db`". */
+/** "Meta-store is always local SQLite at `<dataDir>/meta.db`". */
 export function metaDsnForDataDir(dataDir: string): string {
   return `sqlite:${join(resolve(dataDir), 'meta.db')}`;
 }
 
-/** A fresh per-boot token. Never persisted (§2.2 step 4). */
+/** A fresh per-boot token. Never persisted. */
 export function generateBootToken(): string {
   return randomBytes(BOOT_TOKEN_BYTES).toString('hex');
 }
@@ -86,49 +81,49 @@ export function generateBootToken(): string {
 // ─── Parent side: building the child's env ───────────────────────────────────
 
 export interface BuildServerEnvInput {
-  /** §2.3 `dataDir`. Must be absolute — the child resolves paths against it. */
+  /** `dataDir`. Must be absolute — the child resolves paths against it. */
   dataDir: string;
-  /** The decrypted `ADMINIUM_SECRET` (§2.2 step 3). */
+  /** The decrypted `ADMINIUM_SECRET`. */
   secret: string;
-  /** {@link generateBootToken}'s output for THIS boot (§2.2 step 4). */
+  /** {@link generateBootToken}'s output for THIS boot. */
   bootToken: string;
   /**
-   * §2.3 `singleUser` — "Skip login on this computer".
+   * `singleUser` — "Skip login on this computer".
    *
    * REQUIRED, and not optional-with-a-default, because both possible mistakes
-   * are silent. `config.json` is the source of truth (§2.3: the main process
+   * are silent. `config.json` is the source of truth (the main process
    * owns it, because the settings panel writes it through the preload bridge)
    * and this variable is the only channel that reaches the child, so a caller
    * that forgets it hands the server no answer at all — the mirror does not run,
    * `adminium_settings.desktop.singleUser` keeps the registry default `false`,
-   * and §5's auto-login 403s on every boot with "Skip login" ticked. A default
-   * here would pick an answer on the user's behalf instead. Neither is
-   * acceptable for a flag that decides whether a password is required, so the
-   * type system asks.
+   * auto-login 403s on every boot with "Skip login" ticked. A default here would
+   * pick an answer on the user's behalf instead. Neither is acceptable for a
+   * flag that decides whether a password is required, so the type system asks.
    */
   singleUser: boolean;
   /**
-   * §2.2/§8.3. Defaults to loopback + ephemeral. LAN share is the ONLY caller
-   * that passes anything else, and it passes `0.0.0.0` + a fixed port
-   * deliberately — Wave 1 never does.
+   * Defaults to loopback + ephemeral. LAN share is the ONLY caller that
+   * passes anything else, and it passes `0.0.0.0` + a fixed port deliberately
+   * — Wave 1 never does.
    */
   host?: string | undefined;
   port?: number | undefined;
-  /** §7: omitted unless the user opted in, in which case the server's own consent setting governs. */
+  /** Omitted unless the user opted in, in which case the server's own consent
+   * setting governs. */
   telemetryOptIn?: boolean | undefined;
   logLevel?: DesktopLogLevel | undefined;
-  /** §3: the dashboard build copied into `resources/` at package time. */
+  /** The dashboard build copied into `resources/` at package time. */
   staticRoot?: string | undefined;
   /**
-   * §6 step 2 card 4: `resources/demo/demo-seed.mjs`, which the server imports by
-   * path to seed the demo database (11-T08). Omitted ⇒ the server does not
-   * register the demo route and the wizard's fourth card has nothing to call —
+   * The wizard's demo card: `resources/demo/demo-seed.mjs`, which the server imports by
+   * path to seed the demo database. Omitted ⇒ the server does not register
+   * the demo route and the wizard's fourth card has nothing to call
    * a degradation, not a failure, so this is optional here even though the
    * shipped app always passes it.
    */
   demoSeedScript?: string | undefined;
   /**
-   * 32-T11: `resources/add-ons-bundle`, the pre-verified bundled add-on set the
+   * `resources/add-ons-bundle`, the pre-verified bundled add-on set the
    * desktop-release workflow fetches next to the demo seed — six first-party
    * tarballs + `.integrity` sidecars, pinned by
    * `scripts/release/add-ons-bundle.json`. The server seeds its add-on store
@@ -154,13 +149,13 @@ export interface BuildServerEnvInput {
  *
  * This is a security control, not tidiness. `utilityProcess.fork`'s `env`
  * replaces the child's environment wholesale, and the natural implementation
- * (`{ ...process.env, ...ours }`) inherits the user's shell. A developer with
+ * (`{...process.env...ours }`) inherits the user's shell. A developer with
  * `HOST=0.0.0.0` exported in their profile — an entirely ordinary thing to have
  * — would then launch a desktop app that binds every interface, silently
- * defeating §2.4's "the server binds 127.0.0.1 … never 0.0.0.0 in Wave 1". The
- * same reasoning covers the rest: `PORT` would break the handshake, and a stray
+ * defeating "the server binds 127.0.0.1 … never 0.0.0.0 in Wave 1". The same
+ * reasoning covers the rest: `PORT` would break the handshake, and a stray
  * `ADMINIUM_META_URL` would point the desktop app's meta store at somebody's
- * production Postgres while §2.1 promises local SQLite.
+ * production Postgres while promises local SQLite.
  *
  * The desktop-facing aliases are stripped too: the child reads THIS block, so an
  * inherited `ADMINIUM_PORT` must not reach it.
@@ -180,41 +175,45 @@ export const STRIPPED_INHERITED_ENV_KEYS: readonly string[] = [
   'ADMINIUM_DISABLE_TELEMETRY',
   'ADMINIUM_STATIC_ROOT',
   // An inherited value here would decide whether the local user needs a
-  // password. `config.json` decides that (§2.3/§5), and this block always
-  // states it — but the strip is what makes "always" independent of the order
-  // the keys happen to be assigned in below.
+  // password. `config.json` decides that, and this block always states it —
+  // but the strip is what makes "always" independent of the order the keys
+  // happen to be assigned in below.
   'ADMINIUM_DESKTOP_SINGLE_USER',
-  // The server IMPORTS this path (11-T08). An inherited value would let anything
-  // that can set an environment variable choose which module the server process
-  // executes — a much larger promotion than the rest of this list prevents. The
-  // shell knows where its own resources are; nothing else gets a vote.
+  // The server IMPORTS this path. An inherited value would let anything that can
+  // set an environment variable choose which module the server process executes
+  // — a much larger promotion than the rest of this list prevents. The shell
+  // knows where its own resources are; nothing else gets a vote.
   'ADMINIUM_DEMO_SEED_SCRIPT',
-  // Same promotion class as the seed script, one step removed (32-T11): the
-  // server SEEDS ITS ADD-ON STORE from every tarball in this directory. The
-  // hashes are verified against sidecars in the SAME directory, so pointing it
+  // Same promotion class as the seed script, one step removed: the server
+  // SEEDS ITS ADD-ON STORE from every tarball in this directory. The hashes
+  // are verified against sidecars in the SAME directory, so pointing it
   // somewhere else is choosing an entire set of packages to install at boot —
   // the shell knows where its bundled set is; nothing else gets a vote.
   'ADMINIUM_BUNDLED_ADD_ONS',
-  // §8.3 is what makes this one a security control rather than hygiene.
+  // LAN share is what makes this one a security control rather than hygiene.
   //
   // `trustProxy` tells Fastify to believe `X-Forwarded-For`, which is correct
   // behind Caddy/nginx and catastrophic here: NOTHING is ever in front of this
-  // child. Main forks it directly (§2.1) and LAN peers reach it over the socket
-  // it binds (§8.3) — there is no proxy to be behind, so a forwarding header is
-  // never legitimate and is only ever an attacker's spelling of `request.ip`.
+  // child. Main forks it directly and LAN peers reach it over the socket it
+  // binds — there is no proxy to be behind, so a forwarding header is never
+  // legitimate and is only ever an attacker's spelling of `request.ip`.
   //
-  // With it on, every LAN peer picks its own address: §8.3's audit-log promise
-  // ("the audit log records their LAN IPs") records a chosen string, §8.3's
-  // "rate limiting and lockout behave as on self-host" is evaded by rotating the
+  // With it on, every LAN peer picks its own address: the audit-log promise
+  // ("the audit log records their LAN IPs") records a chosen string, "rate
+  // limiting and lockout behave as on self-host" is evaded by rotating the
   // header, and the share panel's session count reads the same forged value.
-  // Auto-login survives it — §5's route and the panel's own gate read
+  // Auto-login survives it — route and the panel's own gate read
   // `socket.remoteAddress`, which is the kernel's and not a header's — and that
   // is precisely the standard the rest of this list is held to.
   'ADMINIUM_TRUST_PROXY',
+  // Its list of proxy addresses. Meaningless with the flag forced off, and
+  // worse than meaningless inherited: the server refuses to boot on a list
+  // while the flag is off, so a stray export would stop the app from starting.
+  'ADMINIUM_TRUSTED_PROXIES',
 ];
 
 /**
- * The §2.2 step 5 env block, layered over a sanitized inherit.
+ * The env block, layered over a sanitized inherit.
  *
  * Returns `Record<string, string>` — `utilityProcess.fork`'s `env` option takes
  * strings, and an `undefined` value smuggled in as the string `"undefined"` is a
@@ -249,7 +248,7 @@ export function buildServerEnv(input: BuildServerEnvInput): Record<string, strin
   env.ADMINIUM_SECRET = input.secret;
   env.ADMINIUM_BOOT_TOKEN = input.bootToken;
 
-  // §5's mirror. ALWAYS emitted, including the `off` case: `compose.ts` gates
+  // The mirror. ALWAYS emitted, including the `off` case: `compose.ts` gates
   // the mirror on this key being defined, so "off" and "absent" are different
   // instructions — absent means "this wrapper has no opinion, leave the stored
   // answer alone", which is the right default for a self-host server and the
@@ -257,7 +256,7 @@ export function buildServerEnv(input: BuildServerEnvInput): Record<string, strin
   // `config.json`. `on`/`off` are `config/env.ts`'s BOOLEANISH spelling.
   env.ADMINIUM_DESKTOP_SINGLE_USER = input.singleUser ? 'on' : 'off';
 
-  // §8.3. Stated rather than left to the server schema's `default off`, for the
+  // Stated rather than left to the server schema's `default off`, for the
   // reason the strip above exists: this is the value that decides whether
   // `request.ip` is the kernel's answer or a LAN peer's claim, and "off because
   // nobody set it" is a weaker guarantee than "off because we said so". The
@@ -265,8 +264,8 @@ export function buildServerEnv(input: BuildServerEnvInput): Record<string, strin
   // app in which the other value is right.
   env.ADMINIUM_TRUST_PROXY = 'off';
 
-  // §7: opting IN does not mean "report" — it means "let the server's own
-  // consent setting decide", which is what leaving both variables unset does
+  // Opting IN does not mean "report" — it means "let the server's own consent
+  // setting decide", which is what leaving both variables unset does
   // (`ADMINIUM_TELEMETRY` is tri-state on purpose; see `config/env.ts`). Opting
   // out is a hard veto, so it is expressed as an explicit `off`.
   if (input.telemetryOptIn !== true) {
@@ -307,8 +306,8 @@ function isExistingDirectory(path: string): boolean {
 const emptyToUndefined = (value: unknown): unknown => (value === '' ? undefined : value);
 
 export const desktopServerEnvSchema = z.object({
-  // Not merely informational: §5 registers `POST /api/v1/auth/desktop-session`
-  // only when this is `desktop`, and §2.4 makes that route's existence a
+  // Not merely informational: the shell registers `POST /api/v1/auth/desktop-session`
+  // only when this is `desktop`, makes that route's existence a
   // security-relevant fact. A typo must fail the boot, not quietly ship a
   // server with no auto-login.
   ADMINIUM_RUNTIME: z.literal('desktop', { error: 'must be "desktop" for the embedded server' }),
@@ -340,7 +339,7 @@ export const desktopServerEnvSchema = z.object({
 
 export interface DesktopServerEnv {
   host: string;
-  /** 0 ⇒ ask the OS (§2.1). Never reaches `envSchema`; see the module header. */
+  /** 0 ⇒ ask the OS. Never reaches `envSchema`; see the module header. */
   port: number;
   dataDir: string;
   metaDsn: string;
@@ -380,7 +379,7 @@ export function parseDesktopServerEnv(env: NodeJS.ProcessEnv): DesktopServerEnv 
     host: parsed.ADMINIUM_HOST,
     port: parsed.ADMINIUM_PORT,
     dataDir,
-    // §2.1 is unconditional — local SQLite even when the SOURCE db is remote —
+    // The rule is unconditional — local SQLite even when the SOURCE db is remote —
     // so an absent DSN is a default, not an error.
     metaDsn: parsed.ADMINIUM_META_DSN ?? metaDsnForDataDir(dataDir),
     secret: parsed.ADMINIUM_SECRET,
@@ -392,14 +391,14 @@ export function parseDesktopServerEnv(env: NodeJS.ProcessEnv): DesktopServerEnv 
 }
 
 /**
- * The §2.2-name → `envSchema`-name translation, as a plain record ready for
+ * The -name → `envSchema`-name translation, as a plain record ready for
  * `loadCliEnv`.
  *
  * `PORT` is DELIBERATELY ABSENT when the port is ephemeral: the server's schema
  * rejects 0 (`min(1)`), and the entry passes the real 0 to `app.listen` itself.
  * Emitting `PORT=0` here would fail the boot at `stage: "env"` with a message
- * about a port the user never chose. A fixed port (LAN share, §8.3) IS emitted,
- * so `env.PORT` and the listening socket agree wherever they can.
+ * about a port the user never chose. A fixed port (LAN share) IS emitted, so
+ * `env.PORT` and the listening socket agree wherever they can.
  */
 export function toServerEnvRecord(
   desktop: DesktopServerEnv,
@@ -418,7 +417,7 @@ export function toServerEnvRecord(
   record.ADMINIUM_LOG_LEVEL = desktop.logLevel;
   if (desktop.telemetryDisabled) {
     // Tri-state (`config/env.ts`): an explicit `off` vetoes the in-app consent
-    // setting, which is exactly what §7's "None unless telemetryOptIn" means.
+    // setting, which is exactly what "None unless telemetryOptIn" means.
     record.ADMINIUM_TELEMETRY = 'off';
   } else {
     delete record.ADMINIUM_TELEMETRY;

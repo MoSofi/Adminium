@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/settings` — the Studio settings hub (M5-T05, 09 §8.1), ported from
- * `Settings.dc.html` + `Workspace Settings.dc.html` per the
- * §5 checklist: workspace identity (what `adminium_settings` supports and the
- * app actually reads today — registry key `branding.appName`), the three
- * enforced `auth.*` security knobs (`PUT /settings/security`), the
- * review-then-confirm save modal (09 §7.10: changed fields as key/value
- * rows), one card of cross-links out of the hub (Pages, AI enrichment, Global
- * defaults, translations — one row each), and the danger zone with the
- * type-to-confirm connection delete (the comp's keeper interaction).
+ * `/studio/settings` — the Studio settings hub, ported from
+ * `Settings.dc.html` + `Workspace Settings.dc.html` per the checklist:
+ * workspace identity (what `adminium_settings` supports and the app actually
+ * reads today — registry key `branding.appName`), the three enforced `auth.*`
+ * security knobs (`PUT /settings/security`), the review-then-confirm save
+ * modal (changed fields as key/value rows), one card of cross-links out of
+ * the hub (Pages, AI enrichment, Global defaults, translations — one row
+ * each), and the danger zone with the type-to-confirm connection delete (the
+ * comp's keeper interaction).
  *
  * Identity, security and the SMTP transport are three cards of ONE form:
  * separate section-puts on the wire, one Save button and one confirm modal on
@@ -19,13 +19,14 @@
  * cross-link is likewise super-admin-only — `/settings/defaults` returns the
  * forbidden state for everyone else — so it is hidden from plain admins.
  */
-import { useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Blocks,
   Building2,
   Files,
+  FolderCode,
   Globe2,
   HardDrive,
   Languages,
@@ -63,6 +64,7 @@ import {
 } from '../../app/branding.js';
 import { t } from '../../i18n/t.js';
 import { OnboardingEntry } from '../../onboarding/OnboardingEntry.js';
+import { projectOverviewQuery } from '../project/projectOverviewApi.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import type { ConnectionDto } from '../api.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
@@ -134,13 +136,16 @@ interface FormValues {
   /** Staged clear of a configured transport, like the logo's `remove`. */
   smtpRemove: boolean;
   /**
-   * The configured From addresses beyond the SMTP one
-   * (39-email-templates-and-campaigns.md D7). The SMTP From address is the
-   * implicit first sender and is not a row here — it cannot be removed.
+   * The configured From addresses beyond the SMTP one. The SMTP From
+   * address is the implicit first sender and is not a row here — it cannot
+   * be removed.
    */
   senders: EmailSender[];
-  /** `email.maxAttachmentBytes` as typed MB text, for the same reason as the numbers above (39 D8). */
+  /** `email.maxAttachmentBytes` as typed MB text, for the same reason as the
+   * numbers above. */
   attachmentMb: string;
+  /** `system.publicOrigin` as typed; empty = not set. */
+  publicOrigin: string;
 }
 
 const MB = 1024 * 1024;
@@ -163,6 +168,29 @@ function boundedMb(text: string): number | null {
 /** Submission port for a cleartext relay — what a first-time form should suggest. */
 const SMTP_DEFAULT_PORT = '587';
 
+/**
+ * `normalizePublicOrigin` in apps/server/src/security/public-origin.ts,
+ * mirrored: an http(s) origin and nothing more, written the way `URL` writes
+ * it, or null. The route re-checks; this puts the refusal under the field.
+ */
+const LINK_ORIGIN_SHAPE = /^https?:\/\/[^\s/?#@\\]+\/?$/i;
+const LINK_ORIGIN_LABEL = /^[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?$/;
+const LINK_ORIGIN_MAX_LENGTH = 255;
+
+function linkOriginOf(text: string): string | null {
+  const trimmed = text.trim();
+  if (trimmed.length > LINK_ORIGIN_MAX_LENGTH || !LINK_ORIGIN_SHAPE.test(trimmed)) return null;
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.endsWith('.') ? url.hostname.slice(0, -1) : url.hostname;
+  if (!host.startsWith('[') && !host.split('.').every((label) => LINK_ORIGIN_LABEL.test(label))) return null;
+  return url.origin.length <= LINK_ORIGIN_MAX_LENGTH ? url.origin : null;
+}
+
 function toValues(
   data: WorkspaceSettingsData,
   security: SecuritySettings,
@@ -184,6 +212,7 @@ function toValues(
     smtpRemove: false,
     senders: email.senders.map((sender) => ({ ...sender })),
     attachmentMb: toMb(email.maxAttachmentBytes),
+    publicOrigin: email.publicOrigin ?? '',
   };
 }
 
@@ -407,7 +436,7 @@ function WorkspaceForm({
   const before = toValues(initial, initialSecurity, initialEmail);
 
   // `/studio/settings#email` — where the email manager's "Email settings" and
-  // "Manage senders" items land (39 D7): scroll the SMTP card into view.
+  // "Manage senders" items land: scroll the SMTP card into view.
   const hash = useLocation({ select: (location) => location.hash });
   useEffect(() => {
     if (hash.replace(/^#/, '') !== 'email') return;
@@ -483,7 +512,7 @@ function WorkspaceForm({
   // left to its 422 rather than guessed at here.
   const smtpPassMissing = smtpInUse && smtpUser !== '' && values.smtpPass === '' && !initialEmail.configured;
 
-  // --- senders + attachment cap (39 D7, D8) -----------------------------------
+  // --- senders + attachment cap -----------------------------------
   const sendersNormalized = values.senders.map((sender) => ({
     name: sender.name.trim(),
     address: sender.address.trim(),
@@ -495,7 +524,23 @@ function WorkspaceForm({
   const attachmentMb = boundedMb(values.attachmentMb);
   const capDirty = values.attachmentMb !== before.attachmentMb;
 
-  const dirty = nameDirty || versionDirty || logoDirty || securityDirty || smtpDirty || sendersDirty || capDirty;
+  // --- the address in email links (system.publicOrigin) -----------------------
+  // Compared NORMALIZED, so retyping the stored value with a capital or a
+  // trailing slash is not an edit. Empty is a real value: it clears the setting.
+  const linkOriginText = values.publicOrigin.trim();
+  const linkOrigin = linkOriginText === '' ? null : linkOriginOf(linkOriginText);
+  const linkOriginInvalid = linkOriginText !== '' && linkOrigin === null;
+  const linkOriginDirty = (linkOrigin ?? linkOriginText) !== before.publicOrigin;
+
+  const dirty =
+    nameDirty ||
+    versionDirty ||
+    logoDirty ||
+    securityDirty ||
+    smtpDirty ||
+    sendersDirty ||
+    capDirty ||
+    linkOriginDirty;
 
   const appNameInvalid = values.appName.trim().length === 0 || values.appName.trim().length > 60;
   const invalid =
@@ -507,9 +552,10 @@ function WorkspaceForm({
     smtpPassMissing ||
     (smtpInUse && smtpPort === null) ||
     sendersInvalid ||
-    attachmentMb === null;
+    attachmentMb === null ||
+    linkOriginInvalid;
 
-  // Review-then-confirm (09 §7.10): the modal lists exactly what changes.
+  // Review-then-confirm: the modal lists exactly what changes.
   const change = (beforeValue: string, afterValue: string): string =>
     t('studio:settingsHub.review.change', '{before} → {after}', {
       before: beforeValue,
@@ -624,6 +670,12 @@ function WorkspaceForm({
       value: change(before.attachmentMb, values.attachmentMb.trim()),
     });
   }
+  if (linkOriginDirty) {
+    changes.push({
+      label: t('studio:settingsHub.email.linkOrigin.label', 'Address in email links'),
+      value: change(before.publicOrigin === '' ? '—' : before.publicOrigin, linkOrigin ?? '—'),
+    });
+  }
 
   function save(): void {
     setSaving(true);
@@ -689,9 +741,10 @@ function WorkspaceForm({
           emailBody.smtp = next;
         }
         // The senders and the cap ride the same PUT, each only when it changed
-        // (absent = untouched on the wire, 39-T04).
+        // (absent = untouched on the wire).
         if (sendersDirty) emailBody.senders = sendersNormalized;
         if (capDirty && attachmentMb !== null) emailBody.maxAttachmentBytes = Math.round(attachmentMb * MB);
+        if (linkOriginDirty && !linkOriginInvalid) emailBody.publicOrigin = linkOrigin;
         if (Object.keys(emailBody).length > 0) {
           queryClient.setQueryData(EMAIL_SETTINGS_QUERY_KEY, await putEmailSettings(emailBody));
         }
@@ -1038,8 +1091,8 @@ function WorkspaceForm({
         </CardBody>
       </Card>
 
-      {/* The senders a document may choose as its From (39 D7), and the
-          attachment cap (39 D8). Part of the SAME form and the same review
+      {/* The senders a document may choose as its From, and the
+          attachment cap. Part of the SAME form and the same review
           modal; the manager's Email settings / Manage senders items both land
           on `#email`, which is the SMTP card above. */}
       <Card>
@@ -1122,6 +1175,36 @@ function WorkspaceForm({
             >
               {t('studio:settingsHub.email.senders.add', 'Add sender')}
             </Button>
+          </div>
+
+          {/* Where links in password-reset and invitation emails point
+              (system.publicOrigin). On this card, beside the cap, because it
+              shapes the message rather than the relay and saves without one.
+              The row pattern is the cap's own. */}
+          <div className="mt-4 border-t border-border pt-4 sm:max-w-md">
+            <FormField
+              label={t('studio:settingsHub.email.linkOrigin.label', 'Address in email links')}
+              helper={t(
+                'studio:settingsHub.email.linkOrigin.helper',
+                'Password-reset and invitation links open this address. If it is empty, Adminium fills it in from the next admin who signs in or saves a change, unless they are on localhost.',
+              )}
+              {...(linkOriginInvalid
+                ? {
+                    error: t(
+                      'studio:settingsHub.email.linkOrigin.error',
+                      'Enter an address such as https://admin.example.com, with no path.',
+                    ),
+                  }
+                : {})}
+            >
+              <Input
+                inputMode="url"
+                autoComplete="off"
+                spellCheck={false}
+                value={values.publicOrigin}
+                onChange={(event) => set('publicOrigin', event.target.value)}
+              />
+            </FormField>
           </div>
 
           <div className="mt-4 border-t border-border pt-4 sm:max-w-xs">
@@ -1211,6 +1294,7 @@ function WorkspaceFormLoader(): ReactNode {
     String(email.secure ?? ''),
     email.senders.map((sender) => `${sender.name}<${sender.address}>`).join(','),
     String(email.maxAttachmentBytes),
+    email.publicOrigin ?? '',
   ].join('|');
   return (
     <WorkspaceForm key={key} initial={data} initialSecurity={security} initialEmail={email} />
@@ -1311,19 +1395,21 @@ function LinkRow({
 // --- page -----------------------------------------------------------------------
 
 export interface StudioSettingsPageProps {
-  /** Router-injected: opens `/settings/defaults` (10 §7.3 surface). */
+  /** Router-injected: opens `/settings/defaults` (surface). */
   onOpenGlobalDefaults: () => void;
   onOpenTranslations: () => void;
-  /** Router-injected: opens `/studio/settings/ai` (06 §10.1, Admin+). */
+  /** Router-injected: opens `/studio/settings/ai` (Admin+). */
   onOpenAiSettings: () => void;
-  /** Router-injected: opens `/studio/pages` (08 §2.6 lifecycle surface, Admin+). */
+  /** Router-injected: opens `/studio/pages` (lifecycle surface, Admin+). */
   onOpenPages: () => void;
-  /** `/studio/storage` (37-files-and-storage.md §3.8). */
+  /** `/studio/storage`. */
   onOpenStorage: () => void;
-  /** `/studio/add-ons` (26-add-on-runtime.md §7, 32-add-on-distribution.md §4.4). */
+  /** `/studio/add-ons`. */
   onOpenAddOns: () => void;
-  /** `/studio/public-api` (28-public-surface.md §4). */
+  /** `/studio/public-api`. */
   onOpenPublicApi: () => void;
+  /** `/studio/settings/project`: the project folder this server runs (super admins). */
+  onOpenProject?: (() => void) | undefined;
 }
 
 export function StudioSettingsPage({
@@ -1334,9 +1420,12 @@ export function StudioSettingsPage({
   onOpenStorage,
   onOpenAddOns,
   onOpenPublicApi,
+  onOpenProject,
 }: StudioSettingsPageProps): ReactNode {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const isSuperAdmin = bootstrap.roles.includes(SUPER_ADMIN_ROLE);
+  // Only a server that runs a project folder answers; the row shows only then.
+  const project = useQuery({ ...projectOverviewQuery(), enabled: isSuperAdmin && onOpenProject !== undefined });
 
   return (
     <PageSurface width="page" className="flex flex-col gap-4">
@@ -1470,7 +1559,22 @@ export function StudioSettingsPage({
           />
         ) : null}
 
-        {/* 23-runtime-translations.md §7. Same super-admin gate and the same
+        {/* The project folder this server runs. Super admins only, like the
+            page itself, and only when there is a project to show. */}
+        {isSuperAdmin && onOpenProject !== undefined && project.data != null ? (
+          <LinkRow
+            icon={<FolderCode />}
+            heading={t('studio:settingsHub.projectCard.heading', 'Project')}
+            body={t(
+              'studio:settingsHub.projectCard.body',
+              'The project folder this server runs: its hooks, actions and page files.',
+            )}
+            cta={t('studio:settingsHub.projectCard.cta', 'Open project')}
+            onOpen={onOpenProject}
+          />
+        ) : null}
+
+        {/* Same super-admin gate and the same
             reason: the page renders the 403 state for anyone else, so hiding
             the cross-link keeps plain admins out of a dead end. */}
         {isSuperAdmin ? (

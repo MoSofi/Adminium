@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The §2.2 env contract, both directions.
+ * The env contract, both directions.
  *
- * The security-relevant assertions are the inherit-stripping ones. §2.4 is
+ * The security-relevant assertions are the inherit-stripping ones. The boundary is
  * unambiguous — "the server binds `127.0.0.1` … never `0.0.0.0` in Wave 1" — and
  * the ONLY thing that makes that true on a machine whose owner has `HOST` or
  * `PORT` exported in their shell profile is {@link STRIPPED_INHERITED_ENV_KEYS}.
@@ -42,7 +42,7 @@ const base = {
 } as const;
 
 describe('generateBootToken', () => {
-  it('produces 32 bytes of hex (§2.2 step 4)', () => {
+  it('produces 32 bytes of hex', () => {
     const token = generateBootToken();
     expect(token).toHaveLength(BOOT_TOKEN_HEX_LENGTH);
     expect(token).toMatch(/^[0-9a-f]+$/);
@@ -55,7 +55,7 @@ describe('generateBootToken', () => {
 });
 
 describe('buildServerEnv', () => {
-  it('emits the §2.2 step 5 block with loopback + an ephemeral port by default', () => {
+  it('emits the block with loopback + an ephemeral port by default', () => {
     const env = buildServerEnv({ ...base });
 
     expect(env).toEqual({
@@ -72,14 +72,14 @@ describe('buildServerEnv', () => {
     });
   });
 
-  it('points the meta DSN at <dataDir>/meta.db — always SQLite (§2.1)', () => {
+  it('points the meta DSN at <dataDir>/meta.db — always SQLite', () => {
     const env = buildServerEnv({ ...base });
     expect(env.ADMINIUM_META_DSN).toBe(`sqlite:${DATA_DIR}/meta.db`);
   });
 
-  it('never emits 0.0.0.0 unless a caller explicitly asks (§2.4 / §8.3)', () => {
+  it('never emits 0.0.0.0 unless a caller explicitly asks', () => {
     expect(buildServerEnv({ ...base }).ADMINIUM_HOST).toBe('127.0.0.1');
-    // §8.3's LAN toggle is the one caller allowed to do this, and it also fixes
+    // The LAN toggle is the one caller allowed to do this, and it also fixes
     // the port so other devices get a stable URL.
     const lan = buildServerEnv({ ...base, host: '0.0.0.0', port: 4600 });
     expect(lan.ADMINIUM_HOST).toBe('0.0.0.0');
@@ -100,7 +100,7 @@ describe('buildServerEnv', () => {
       expect(env.PATH).toBe('/usr/bin');
     });
 
-    it('strips an inherited ADMINIUM_META_URL / _DSN (§2.1: always local SQLite)', () => {
+    it('strips an inherited ADMINIUM_META_URL / _DSN (always local SQLite)', () => {
       const env = buildServerEnv({
         ...base,
         inherit: {
@@ -123,10 +123,10 @@ describe('buildServerEnv', () => {
       expect(env.ADMINIUM_BOOT_TOKEN).toBe(TOKEN);
     });
 
-    it('forces ADMINIUM_TRUST_PROXY off, whatever the shell says (§8.3)', () => {
+    it('forces ADMINIUM_TRUST_PROXY off, whatever the shell says', () => {
       // Nothing is ever in front of this child, so a forwarding header is never
       // legitimate — it is only ever a LAN peer's spelling of `request.ip`. With
-      // it on, §8.3's "the audit log records their LAN IPs" records whatever the
+      // it on, "the audit log records their LAN IPs" records whatever the
       // peer typed, and its rate limiting is evaded by rotating the header.
       const env = buildServerEnv({
         ...base,
@@ -138,6 +138,17 @@ describe('buildServerEnv', () => {
       expect(env.ADMINIUM_TRUST_PROXY).toBe('off');
     });
 
+    it('strips an inherited ADMINIUM_TRUSTED_PROXIES', () => {
+      // The server refuses a proxy list while the flag is off, and the flag is
+      // always off here — so an exported list would stop the app from booting.
+      const env = buildServerEnv({
+        ...base,
+        inherit: { ADMINIUM_TRUSTED_PROXIES: '10.0.0.0/8' },
+      });
+
+      expect('ADMINIUM_TRUSTED_PROXIES' in env).toBe(false);
+    });
+
     it('drops undefined values instead of stringifying them', () => {
       // `{ FOO: undefined }` reaching the child as the STRING "undefined" is a
       // classic way to make a Zod default silently not apply.
@@ -146,7 +157,7 @@ describe('buildServerEnv', () => {
     });
   });
 
-  describe('telemetry (§7)', () => {
+  describe('telemetry', () => {
     it('vetoes telemetry when the user has not opted in', () => {
       expect(buildServerEnv({ ...base }).ADMINIUM_DISABLE_TELEMETRY).toBe('1');
       expect(buildServerEnv({ ...base, telemetryOptIn: false }).ADMINIUM_DISABLE_TELEMETRY).toBe(
@@ -169,7 +180,7 @@ describe('buildServerEnv', () => {
     expect(env.ADMINIUM_STATIC_ROOT).toBe('/app/resources/dash');
   });
 
-  describe('the demo seed script (§6 step 2 card 4, 11-T08)', () => {
+  describe('the demo seed script (card 4)', () => {
     it('passes an absolute path through, and resolves a relative one', () => {
       // Absolute because the server `import()`s it: the child's cwd is not this
       // process's, so a relative specifier would resolve somewhere else entirely.
@@ -199,7 +210,7 @@ describe('buildServerEnv', () => {
     });
   });
 
-  describe('the bundled add-on set (32-T11)', () => {
+  describe('the bundled add-on set', () => {
     const withTempDir = (run: (dir: string) => void): void => {
       const dir = mkdtempSync(join(tmpdir(), 'adminium-add-ons-bundle-'));
       try {
@@ -272,7 +283,7 @@ describe('buildServerEnv', () => {
     expect(() => buildServerEnv({ ...base, bootToken: 'abc' })).toThrow(/hex characters/);
   });
 
-  describe('the §5 singleUser mirror', () => {
+  describe('the singleUser mirror', () => {
     it('always states an answer, because "off" and "absent" are different instructions', () => {
       expect(buildServerEnv({ ...base, singleUser: true }).ADMINIUM_DESKTOP_SINGLE_USER).toBe('on');
       // NOT undefined: `compose.ts` gates the mirror on the key being DEFINED,
@@ -297,9 +308,9 @@ describe('buildServerEnv', () => {
 /**
  * THE SEAM. Everything above asserts what this side of the fork emits; the
  * server's suite asserts what the route does with a hand-written env. Neither
- * crosses, and the gap between them is where §5 died once already: the shell
- * emitted no `ADMINIUM_DESKTOP_SINGLE_USER` at all, `compose.ts`'s
- * `!== undefined` guard was therefore never true, the mirror never ran,
+ * crosses, and the gap between them is where died once already: the shell
+ * emitted no `ADMINIUM_DESKTOP_SINGLE_USER` at all, `compose.ts`'s `!==
+ * undefined` guard was therefore never true, the mirror never ran,
  * `adminium_settings.desktop.singleUser` kept the registry default `false`, and
  * every desktop launch with "Skip login on this computer" ticked landed on the
  * login form via a 403 `DESKTOP_AUTOLOGIN_DISABLED`. Both suites stayed green.
@@ -322,7 +333,7 @@ describe('the desktop → server env chain, end to end', () => {
 
   it('delivers singleUser: true to compose.ts as the boolean the mirror writes', () => {
     // `!== undefined` is compose.ts's gate; `true` is what it mirrors into
-    // `adminium_settings.desktop.singleUser`, which is gate 3 of the §5 route.
+    // `adminium_settings.desktop.singleUser`, which is gate 3 of the route.
     expect(throughTheChain(true)).toBe(true);
   });
 
@@ -333,10 +344,10 @@ describe('the desktop → server env chain, end to end', () => {
     expect(throughTheChain(false)).toBe(false);
   });
 
-  it('delivers the demo seed script path to compose.ts (11-T08)', () => {
+  it('delivers the demo seed script path to compose.ts', () => {
     // The same failure mode this describe block exists for: `compose.ts` gates
     // the demo route on `ADMINIUM_DEMO_SEED_SCRIPT !== undefined`, so a key that
-    // is dropped anywhere along the chain costs §6's fourth card its route while
+    // is dropped anywhere along the chain costs fourth card its route while
     // both ends' own suites stay green. `toServerEnvRecord` carries it through
     // by inheritance rather than naming it — which is exactly the kind of thing
     // that works until someone stops spreading `inherit`.
@@ -356,11 +367,11 @@ describe('the desktop → server env chain, end to end', () => {
     expect(parsed.ADMINIUM_DEMO_SEED_SCRIPT).toBeUndefined();
   });
 
-  it('delivers trustProxy: false to the real server schema while sharing on the LAN (§8.3)', () => {
+  it('delivers trustProxy: false to the real server schema while sharing on the LAN', () => {
     // THE POINT OF THIS TEST is the far end. `buildServerEnv` setting the key
     // proves nothing on its own — `toServerEnvRecord` carries it by SPREADING
     // `inherit` rather than naming it, so the value only survives as long as
-    // nobody stops doing that. What §8.3's audit-log promise actually rests on
+    // nobody stops doing that. What the audit-log promise actually rests on
     // is `Env.ADMINIUM_TRUST_PROXY` being `false` at the end of the real chain,
     // because that is what makes Fastify's `request.ip` the kernel's answer
     // instead of a LAN peer's `X-Forwarded-For`.
@@ -368,7 +379,10 @@ describe('the desktop → server env chain, end to end', () => {
       ...base,
       host: '0.0.0.0',
       port: 4600,
-      inherit: { ADMINIUM_TRUST_PROXY: '1' },
+      // The list rides along to prove the strip reaches the far end too: the
+      // real schema refuses a list while the flag is off, so this parse throws
+      // if it gets through.
+      inherit: { ADMINIUM_TRUST_PROXY: '1', ADMINIUM_TRUSTED_PROXIES: '10.0.0.0/8' },
     });
     const parsed = envSchema.parse(toServerEnvRecord(parseDesktopServerEnv(built), built));
 
@@ -395,11 +409,11 @@ describe('parseDesktopServerEnv', () => {
   });
 
   it('accepts port 0 — the whole reason this schema is not the server schema', () => {
-    // `@adminium/server`'s own PORT is `min(1)`; §2.1 requires 0.
+    // `@adminium/server`'s own PORT is `min(1)`; the child needs 0.
     expect(parseDesktopServerEnv(buildServerEnv({ ...base })).port).toBe(0);
   });
 
-  it('defaults the meta DSN to <dataDir>/meta.db when absent (§2.1 is unconditional)', () => {
+  it('defaults the meta DSN to <dataDir>/meta.db when absent (is unconditional)', () => {
     const env = buildServerEnv({ ...base });
     delete env.ADMINIUM_META_DSN;
     expect(parseDesktopServerEnv(env).metaDsn).toBe(metaDsnForDataDir(DATA_DIR));
@@ -441,7 +455,7 @@ describe('parseDesktopServerEnv', () => {
 describe('toServerEnvRecord', () => {
   const desktop = () => parseDesktopServerEnv(buildServerEnv({ ...base }));
 
-  it('translates the §2.2 names onto the server schema names', () => {
+  it('translates the names onto the server schema names', () => {
     const record = toServerEnvRecord(desktop(), {});
 
     expect(record.HOST).toBe('127.0.0.1');
@@ -458,7 +472,7 @@ describe('toServerEnvRecord', () => {
     expect(record.PORT).toBeUndefined();
   });
 
-  it('emits PORT when the port is fixed, so env and socket agree (§8.3)', () => {
+  it('emits PORT when the port is fixed, so env and socket agree', () => {
     const lan = parseDesktopServerEnv(buildServerEnv({ ...base, host: '0.0.0.0', port: 4600 }));
     const record = toServerEnvRecord(lan, {});
 

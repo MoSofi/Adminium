@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Settings registry (07-meta-store.md §7.1): every global settings key with
- * its Zod schema, code default, and secret flag. `adminium_settings` stores
- * explicit overrides only — unset keys fall back to these defaults, so new
- * releases can change defaults without data migrations.
+ * Settings registry: every global settings key with its Zod schema, code
+ * default, and secret flag. `adminium_settings` stores explicit overrides
+ * only — unset keys fall back to these defaults, so new releases can change
+ * defaults without data migrations.
  */
 
 import { z } from 'zod';
@@ -78,6 +78,16 @@ export const surfaceInstanceSlug = z
     message: '`staff` and `customer` are reserved — they name a side, not an instance',
   });
 
+/** True when `value` is exactly the origin `URL` serializes for it. */
+function isHttpOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'http:' || url.protocol === 'https:') && url.origin === value;
+  } catch {
+    return false;
+  }
+}
+
 const smtpSchema = z
   .object({
     host: z.string(),
@@ -90,10 +100,10 @@ const smtpSchema = z
   .nullable();
 
 /**
- * One configured From address (39-email-templates-and-campaigns.md D7). A
- * document's `brand.fromEmail` must be one of these or `email.smtp.from` —
- * a relay refuses or spam-folders an arbitrary From (SPF/DKIM), so the choice
- * is a list an operator curates, not a text field a template fills.
+ * One configured From address. A document's `brand.fromEmail` must be one of
+ * these or `email.smtp.from` — a relay refuses or spam-folders an arbitrary
+ * From (SPF/DKIM), so the choice is a list an operator curates, not a text
+ * field a template fills.
  */
 const emailSenderSchema = z.object({
   name: z.string().max(120),
@@ -111,14 +121,14 @@ const llmProviderSchema = z
   .nullable();
 
 /**
- * One row of the desktop capability grant table (11-electron.md §12).
+ * One row of the desktop capability grant table.
  *
  * A grant is the record that an installed micro-SaaS manifest was consented to a
  * host capability — `{ manifestId, capabilityId }` is its identity, `grantedAt`
  * its audit trail. The desktop `CapabilityHost` reads these to decide whether a
- * `capabilities.invoke` (§4) may reach a provider; a call with no matching grant
- * is refused with `CAPABILITY_NOT_GRANTED`. The dashboard's consent step writes
- * one and its revoke control removes one.
+ * `capabilities.invoke` may reach a provider; a call with no matching grant is
+ * refused with `CAPABILITY_NOT_GRANTED`. The dashboard's consent step writes one
+ * and its revoke control removes one.
  *
  * Bounds, not free strings: `capabilityId` is a dotted id from a closed host
  * vocabulary (`printer.escpos`, …) and `manifestId` a reverse-DNS app id, so both
@@ -132,7 +142,7 @@ export const capabilityGrantSchema = z.object({
 });
 export const capabilityGrantsSchema = z.array(capabilityGrantSchema);
 
-/** One consented desktop capability grant (11-electron.md §12). */
+/** One consented desktop capability grant. */
 export type CapabilityGrant = z.infer<typeof capabilityGrantSchema>;
 
 export const SETTINGS_REGISTRY = {
@@ -141,9 +151,9 @@ export const SETTINGS_REGISTRY = {
   'appearance.density': def<z.infer<typeof densitySchema>>(densitySchema, 'comfortable', 'Default layout density', P),
   'locale.default': def<z.infer<typeof localeSchema>>(localeSchema, 'en_US', 'Default locale', P),
   /**
-   * Monotonic stamp over the runtime-translation tables (23 §3.4). Every
-   * mutation bumps it inside its own transaction, and clients key their
-   * bundle cache / ETag on it.
+   * Monotonic stamp over the runtime-translation tables. Every mutation
+   * bumps it inside its own transaction, and clients key their bundle
+   * cache / ETag on it.
    *
    * NOT `MAX(updated_at)` over the rows: reset-to-built-in is a hard DELETE,
    * so the most common admin operation is invisible to a max-timestamp — the
@@ -207,7 +217,7 @@ export const SETTINGS_REGISTRY = {
   'auth.allowSignup': def(z.boolean(), false, 'Allow self-signup (default invite-only)', P),
 
   /*
-   * The public API's runtime off switch (28-public-surface.md §3.5 level 2).
+   * The public API's runtime off switch (level 2).
    *
    * DEFAULT FALSE, and deliberately NOT `portable`. It is an instance-level
    * decision about whether this database is reachable from the internet, and
@@ -223,13 +233,13 @@ export const SETTINGS_REGISTRY = {
   'publicApi.enabled': def(z.boolean(), false, 'Serve the scoped public API at /api/v1/public'),
 
   /*
-   * WHERE a hosted app's surfaces appear (29-app-surfaces.md D9).
+   * WHERE a hosted app's surfaces appear.
    *
    * `surfaces.apps` — per app key, whether the STAFF surface is blended into
    * this dashboard (`internal`, the default whenever a staff surface exists) or
-   * left as its own thing (`external`). Hosted is the normal case (28 D25) and
-   * "we do not need another surface" is the point of the whole wave, so
-   * external is the OPT-OUT, not the default.
+   * left as its own thing (`external`). Hosted is the normal case and "we do
+   * not need another surface" is the point of the whole wave, so external is
+   * the OPT-OUT, not the default.
    *
    * `connectionId` on the same record is WHICH DATABASE that staff surface
    * reads. A customer surface already answers this: its publishable key names a
@@ -302,7 +312,7 @@ export const SETTINGS_REGISTRY = {
       }),
     ),
     {},
-    'Per-app surface placement, connection binding and extra instances (29 D9)',
+    'Per-app surface placement, connection binding and extra instances',
   ),
   'surfaces.domains': def<
     Record<string, { appKey: string; side: 'staff' | 'customer'; instance?: string | undefined }>
@@ -313,11 +323,11 @@ export const SETTINGS_REGISTRY = {
         appKey: z.string().min(1),
         side: z.enum(['staff', 'customer']),
         /*
-         * Which INSTANCE this host serves (29 D9). Absent is the app's own
-         * mount, which is what every existing mapping means and keeps meaning.
-         * A host is the only signal a mapped domain has — the app cannot read
-         * the mapping — so the server has to answer with it rather than expect
-         * the bundle to work it out.
+         * Which INSTANCE this host serves. Absent is the app's own mount,
+         * which is what every existing mapping means and keeps meaning. A host
+         * is the only signal a mapped domain has — the app cannot read the
+         * mapping — so the server has to answer with it rather than expect the
+         * bundle to work it out.
          */
         instance: surfaceInstanceSlug.optional(),
       }),
@@ -327,18 +337,18 @@ export const SETTINGS_REGISTRY = {
   ),
   'auth.passwordMinLength': def(z.number().int().min(8).max(128), 10, 'Minimum password length', P),
   'email.smtp': def<z.infer<typeof smtpSchema>>(smtpSchema, null, 'SMTP transport; email features degrade gracefully when unset', { secret: true, portable: true }),
-  // ── email documents (39-email-templates-and-campaigns.md D7, D8) ──────────
+  // ── email documents ───────────────────────────────────────────────────────
   //
   // `email.senders` is the From addresses a document may choose beyond
   // `email.smtp.from` (which is always the implicit first entry). Portable:
   // it is configuration the operator authored, not a secret and not identity.
-  'email.senders': def<EmailSender[]>(z.array(emailSenderSchema).max(50), [], 'Configured From addresses a document may send from (39 D7)', P),
+  'email.senders': def<EmailSender[]>(z.array(emailSenderSchema).max(50), [], 'Configured From addresses a document may send from', P),
   // The cap on one message's attachments, enforced when a document is saved
   // and re-checked when it is queued. 10 MiB is where most relays start
   // refusing; the floor keeps a PDF possible and the ceiling stays under the
   // 50 MiB the strictest common providers accept.
-  'email.maxAttachmentBytes': def(z.number().int().min(262_144).max(52_428_800), 10_485_760, 'Largest total attachment payload per message, in bytes (39 D8)', P),
-  'llm.provider': def<z.infer<typeof llmProviderSchema>>(llmProviderSchema, null, 'LLM provider (06-llm-assist.md §3.1)', P),
+  'email.maxAttachmentBytes': def(z.number().int().min(262_144).max(52_428_800), 10_485_760, 'Largest total attachment payload per message, in bytes', P),
+  'llm.provider': def<z.infer<typeof llmProviderSchema>>(llmProviderSchema, null, 'LLM provider', P),
   'llm.apiKey': def<string | null>(z.string().nullable(), null, 'LLM provider API key', { secret: true, portable: true }),
   'llm.model': def<string | null>(z.string().nullable(), null, 'LLM model override (null = provider default)', P),
   'llm.baseUrl': def<string | null>(z.string().nullable(), null, 'Base URL for openai-compatible / ollama', P),
@@ -350,12 +360,12 @@ export const SETTINGS_REGISTRY = {
   'retention.notificationsDays': def(z.number().int().min(1), 90, 'Read-notification retention in days', P),
   'retention.llmRunsDays': def(z.number().int().min(1), 90, 'Unapplied LLM run retention in days', P),
   'retention.jobsDays': def(z.number().int().min(1), 30, 'Finished job retention in days', P),
-  // ── files & storage (37-files-and-storage.md §3.2, D8, D12, D24) ──────────
+  // ── files & storage ───────────────────────────────────────────────────────
   //
-  // `files.maxBytes` default is 08 §2.10's 200 MiB figure, which is also the
-  // number the File Manager comp puts in front of the user. The hard ceiling is
-  // 2 GiB and is below S3's 5 GiB single-PUT limit by design (D26): one
-  // request, one spool, one PUT, no multipart.
+  // `files.maxBytes` default is 200 MiB figure, which is also the number the
+  // File Manager comp puts in front of the user. The hard ceiling is 2 GiB and
+  // is below S3's 5 GiB single-PUT limit by design (D26): one request, one
+  // spool, one PUT, no multipart.
   'files.maxBytes': def(z.number().int().min(1024).max(2_147_483_648), 209_715_200, 'Largest single upload, in bytes', P),
   // The SECURITY BOUNDARY, not a convenience list (D8). A type absent from
   // here is refused whatever the file claims to be and whatever a column's
@@ -372,10 +382,10 @@ export const SETTINGS_REGISTRY = {
   'files.unattachedHours': def(z.number().int().min(1).max(720), 24, 'Hours an unattached upload is kept before it is moved to trash', P),
   'retention.filesTrashDays': def(z.number().int().min(1).max(365), 30, 'Days a trashed file is kept before its bytes are deleted', P),
   /*
-   * NULL BY DEFAULT — kept forever (34 O15). Every other retention key here
-   * has a window because what it sweeps is a BYPRODUCT: a trashed file, an
-   * audit batch, an export somebody already downloaded. An issued document is
-   * not a byproduct. It went to a customer, it may be the only record of a
+   * NULL BY DEFAULT — kept forever. Every other retention key here has a
+   * window because what it sweeps is a BYPRODUCT: a trashed file, an audit
+   * batch, an export somebody already downloaded. An issued document is not a
+   * byproduct. It went to a customer, it may be the only record of a
    * transaction, and a product that quietly deleted one after ninety days
    * would be destroying business records on a default nobody chose.
    *
@@ -394,20 +404,20 @@ export const SETTINGS_REGISTRY = {
   // Separate from telemetry.enabled and likewise OFF by default: an update
   // check is an outbound call that discloses the instance's IP + version to
   // the vendor, so a self-hosted instance opts into it explicitly rather than
-  // inheriting consent from the telemetry answer (M10-T04).
+  // inheriting consent from the telemetry answer.
   'updates.checkEnabled': def(z.boolean(), false, 'Check for new releases (opt-in outbound call)', P),
-  // The add-on catalog's browse-online switch (32-add-on-distribution.md D8,
-  // O1). OFF by default, and for the same reason `updates.checkEnabled` is: an
-  // online browse discloses this deployment's IP, the time, and the exact
-  // `package@version` it pulls to a third-party registry. The bundled set
-  // (D3) makes the Add-ons page useful with the switch off, so default-off
-  // costs a fresh install nothing. `ADMINIUM_NETWORK_FEATURES=off` and the
-  // desktop's air-gap mode both override it downward; nothing overrides it up.
+  // The add-on catalog's browse-online switch. OFF by default, and for the
+  // same reason `updates.checkEnabled` is: an online browse discloses this
+  // deployment's IP, the time, and the exact `package@version` it pulls to a
+  // third-party registry. The bundled set (D3) makes the Add-ons page useful
+  // with the switch off, so default-off costs a fresh install nothing.
+  // `ADMINIUM_NETWORK_FEATURES=off` and the desktop's air-gap mode both
+  // override it downward; nothing overrides it up.
   'addOns.catalogEnabled': def(z.boolean(), false, 'Browse the online add-on catalog (opt-in outbound call)', P),
-  // The app catalog's own switch (48-self-hosted-downloads.md §6b, R2: two switches, not
-  // one). Off by default for the add-on switch's reason: browsing online discloses this
-  // deployment's IP, the time and the exact app and version it pulls. The bundled set and
-  // uploads keep Hosted apps useful with it off, and the same two overrides force it down.
+  // The app catalog's own switch (b, R2: two switches, not one). Off by default for the
+  // add-on switch's reason: browsing online discloses this deployment's IP, the time and
+  // the exact app and version it pulls. The bundled set and uploads keep Hosted apps
+  // useful with it off, and the same two overrides force it down.
   'apps.catalogEnabled': def(z.boolean(), false, 'Browse the online app catalog (opt-in outbound call)', P),
   // ── NOT portable ──────────────────────────────────────────────────────────
   // Everything below identifies THIS instance, records that something already
@@ -417,23 +427,22 @@ export const SETTINGS_REGISTRY = {
   // hand a fresh install a "setup already done" flag it can never clear. See
   // `SettingDef.portable`.
   /**
-   * The desktop shell's §5 "Skip login on this computer" answer, mirrored out of
-   * `<userData>/config.json` (11-electron.md §2.3 `singleUser`) at every boot by
-   * the composition root. `POST /api/v1/auth/desktop-session` reads THIS — the
-   * route refuses while it is false, which is what the "Require login on this
-   * device" toggle turns off.
+   * The desktop shell's answer, mirrored out of `<userData>/config.json`
+   * (`singleUser`) at every boot by the composition root. `POST
+   * /api/v1/auth/desktop-session` reads THIS — the route refuses while it is
+   * false, which is what the "Require login on this device" toggle turns off.
    *
-   * NAMING: §5 spells the key `desktop.single_user`. This registry's convention
+   * NAMING: the store's key is `desktop.single_user`. This registry's convention
    * is `<domain>.<camelCase>` for all 30 of its siblings, and the key is a TS
    * literal type here rather than a string in a doc, so it follows the code.
    *
-   * DEFAULT FALSE — i.e. "ask for the password" — even though §2.3's `config.json`
-   * default is `true` and §6 step 3's checkbox ships ticked. That is not a
-   * contradiction, because THIS DEFAULT IS ONLY EVER REACHED WHEN THE MIRROR DID
-   * NOT RUN. When the desktop shell passes `ADMINIUM_DESKTOP_SINGLE_USER`, every
-   * boot overwrites this row with the user's real answer and the default is dead
-   * code; the only world where it decides anything is one where the wrapper
-   * failed to tell the server what the user chose.
+   * DEFAULT FALSE — i.e. "ask for the password" — even though `config.json`
+   * default is `true` checkbox ships ticked. That is not a contradiction, because
+   * THIS DEFAULT IS ONLY EVER REACHED WHEN THE MIRROR DID NOT RUN. When the
+   * desktop shell passes `ADMINIUM_DESKTOP_SINGLE_USER`, every boot overwrites
+   * this row with the user's real answer and the default is dead code; the only
+   * world where it decides anything is one where the wrapper failed to tell the
+   * server what the user chose.
    *
    * In that world the two candidate defaults fail in opposite directions:
    *
@@ -451,16 +460,16 @@ export const SETTINGS_REGISTRY = {
    * NEVER portable: it is per-DEVICE policy. A bundle that carried it would
    * answer "may this machine skip its login?" using another machine's answer.
    */
-  'desktop.singleUser': def(z.boolean(), false, 'Desktop: skip login on this computer (11-electron.md §5)'),
+  'desktop.singleUser': def(z.boolean(), false, 'Desktop: skip login on this computer'),
   /**
-   * The desktop capability grant table (11-electron.md §12). Written by the
-   * consent step on manifest install and cleared by its revoke control; read by
-   * the main-process `CapabilityHost` on every `capabilities.invoke` to gate a
-   * call against a real, revocable grant.
+   * The desktop capability grant table. Written by the consent step on manifest
+   * install and cleared by its revoke control; read by the main-process
+   * `CapabilityHost` on every `capabilities.invoke` to gate a call against a
+   * real, revocable grant.
    *
-   * NAMING: §12 spells the `adminium_settings` key `desktop.capability_grants`.
+   * NAMING: the `adminium_settings` key is `desktop.capability_grants`.
    * This registry's convention is `<domain>.<camelCase>` — the same override
-   * `desktop.singleUser` makes over §5's `desktop.single_user`, and for the same
+   * `desktop.singleUser` makes over `desktop.single_user`, and for the same
    * reason: the key is a TS literal type here, so it follows the code.
    *
    * NEVER portable: a grant is a per-DEVICE authorization to touch THIS machine's
@@ -470,13 +479,13 @@ export const SETTINGS_REGISTRY = {
   'desktop.capabilityGrants': def<z.infer<typeof capabilityGrantsSchema>>(
     capabilityGrantsSchema,
     [],
-    'Desktop: consented capability grants (11-electron.md §12)',
+    'Desktop: consented capability grants',
   ),
   'system.instanceId': def<string | null>(z.string().nullable(), null, 'Stable instance identity (seeded at bootstrap)'),
   'system.bootstrappedAt': def<number | null>(z.number().nullable(), null, 'First-run timestamp (epoch ms)'),
   /**
-   * The first-super-admin CLAIM (M10-T04). Its row's PRESENCE — not its value —
-   * is the once-only gate: `createFirstSuperAdmin` INSERTs it inside the same
+   * The first-super-admin CLAIM. Its row's PRESENCE — not its value — is the
+   * once-only gate: `createFirstSuperAdmin` INSERTs it inside the same
    * transaction that creates the user, so the `key` PRIMARY KEY makes a second
    * (or concurrent) bootstrap attempt fail atomically on every dialect. Never
    * `set()` this key from application code.
@@ -487,9 +496,9 @@ export const SETTINGS_REGISTRY = {
    */
   'system.superAdminCreatedAt': def<number | null>(z.number().nullable(), null, 'First-super-admin bootstrap claim (epoch ms)'),
   /*
-   * The first-boot source-connection seed (28-public-surface.md 28-T31), in two
-   * keys because the seed has two distinct facts to remember and collapsing
-   * them into one produces a dead end.
+   * The first-boot source-connection seed, in two keys because the seed has two
+   * distinct facts to remember and collapsing them into one produces a dead
+   * end.
    *
    * `system.sourceConnectionId` — WHICH row the seed made. Written on the first
    * attempt whether it worked or not, so a retry updates that row instead of
@@ -516,7 +525,7 @@ export const SETTINGS_REGISTRY = {
    * new instance's own seed — booting it to an empty dashboard with no
    * indication why.
    */
-  'system.sourceConnectionId': def<string | null>(z.string().nullable(), null, 'Connection id the first-boot source seed created (28-T31)'),
+  'system.sourceConnectionId': def<string | null>(z.string().nullable(), null, 'Connection id the first-boot source seed created'),
   'system.sourceSeededAt': def<number | null>(z.number().nullable(), null, 'First-boot source-connection seed claim, healthy probes only (epoch ms)'),
   /**
    * The bundle FORMAT version of this store. Not portable: the target records
@@ -526,6 +535,38 @@ export const SETTINGS_REGISTRY = {
    * number a newer target reports about itself.
    */
   'system.configVersion': def(z.number().int().min(1), 1, 'Config bundle format version'),
+  /**
+   * Where this instance answers, as links in outbound email must spell it:
+   * `https://admin.example.com`. Read by `security/public-origin.ts` in the
+   * server, which explains the whole mechanism.
+   *
+   * WHY IT EXISTS. Those links used to be built from the request that caused
+   * the mail, and `POST /auth/password/forgot` is unauthenticated. Its caller
+   * chose the host a real reset token was mailed under (password-reset
+   * poisoning). Nothing a request carries can say where the instance really
+   * answers, so this key does.
+   *
+   * WHO WRITES IT: an admin in Studio, or the server itself, once, from the
+   * browser `Origin` of an admin who can manage settings while the key is still
+   * unset. Unset means "not learned yet", never "use the request's Origin".
+   *
+   * NEVER portable. It is this instance's address, not configuration. Imported
+   * into another instance, it would send that instance's reset tokens to this
+   * one's host.
+   *
+   * Stored already normalized: the schema accepts exactly what `URL#origin`
+   * serializes (lower case, no default port, no path, no trailing slash), so a
+   * value read back can be concatenated with a path as-is.
+   */
+  'system.publicOrigin': def<string | null>(
+    z
+      .string()
+      .max(255)
+      .refine(isHttpOrigin, 'must be an http(s) origin with no path, such as https://admin.example.com')
+      .nullable(),
+    null,
+    'Public origin that links in outbound email point at',
+  ),
 } as const;
 
 export type SettingsRegistry = typeof SETTINGS_REGISTRY;

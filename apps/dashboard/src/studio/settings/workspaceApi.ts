@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Workspace-settings API client (M5-T05) — mirrors the Zod reply schemas in
+ * Workspace-settings API client — mirrors the Zod reply schemas in
  * `apps/server/src/routes/settings/schema.ts` (copied-mirror convention from
  * app/bootstrap.ts: change both together).
  */
@@ -88,13 +88,17 @@ export interface EmailSettings {
   from: string | null;
   secure: boolean | null;
   /**
-   * The configured From addresses a document may choose beyond `from`
-   * (39-email-templates-and-campaigns.md D7). `from` is the implicit first
-   * sender and is not repeated here.
+   * The configured From addresses a document may choose beyond `from`.
+   * `from` is the implicit first sender and is not repeated here.
    */
   senders: EmailSender[];
-  /** `email.maxAttachmentBytes` (39 D8). */
+  /** `email.maxAttachmentBytes`. */
   maxAttachmentBytes: number;
+  /**
+   * `system.publicOrigin`: the address links in email open, or `null` while
+   * the server has not learned it (apps/server/src/security/public-origin.ts).
+   */
+  publicOrigin: string | null;
 }
 
 export interface EmailSender {
@@ -134,6 +138,8 @@ export interface EmailSettingsPutBody {
   smtp?: EmailSettingsInput | null;
   senders?: EmailSender[];
   maxAttachmentBytes?: number;
+  /** `null` clears it; the server then learns it again from the next settings admin who signs in or saves. */
+  publicOrigin?: string | null;
 }
 
 export async function putEmailSettings(body: EmailSettingsPutBody): Promise<EmailSettings> {

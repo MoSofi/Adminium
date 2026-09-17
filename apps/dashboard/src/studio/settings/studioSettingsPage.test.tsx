@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * /studio/settings integration (M5-T05): workspace identity for super admins
- * with the review-then-confirm save modal (changed fields listed, branding
- * PUT), the admin fallback (no settings fetch, danger zone still present),
- * and the danger-zone type-to-confirm connection delete. Router-mounted like
- * the GlobalDefaultsPage suite.
+ * /studio/settings integration: workspace identity for super admins with the
+ * review-then-confirm save modal (changed fields listed, branding PUT), the
+ * admin fallback (no settings fetch, danger zone still present), and the
+ * danger-zone type-to-confirm connection delete. Router-mounted like the
+ * GlobalDefaultsPage suite.
  *
  * The `auth.*` security section rides the SAME form: one Save button, one
  * review modal, two section-puts. The 2FA toggle carries the advisory note
@@ -62,6 +62,7 @@ function makeEmail(overrides: Partial<EmailSettings> = {}): EmailSettings {
     secure: null,
     senders: [],
     maxAttachmentBytes: 10 * 1024 * 1024,
+    publicOrigin: null,
     ...overrides,
   };
 }
@@ -138,15 +139,17 @@ function stubFetch(
     }
     if (url === '/api/v1/settings/email' && method === 'PUT') {
       // Mirrors the route: the reply is the password-free view of what landed;
-      // an absent key leaves that part as it was (39-T04).
+      // an absent key leaves that part as it was.
       const put = body as {
         smtp?: Record<string, unknown> | null;
         senders?: EmailSettings['senders'];
         maxAttachmentBytes?: number;
+        publicOrigin?: string | null;
       };
       const extras = {
         senders: put.senders ?? email.senders,
         maxAttachmentBytes: put.maxAttachmentBytes ?? email.maxAttachmentBytes,
+        publicOrigin: put.publicOrigin === undefined ? email.publicOrigin : put.publicOrigin,
       };
       const smtp = put.smtp;
       return Promise.resolve(
@@ -744,7 +747,7 @@ describe('StudioSettingsPage', () => {
     expect(await screen.findByText('Nothing to delete — no connections yet.')).toBeDefined();
   });
 
-  describe('senders and the attachment cap (39-T04)', () => {
+  describe('senders and the attachment cap', () => {
     const configured = () =>
       makeEmail({ configured: true, host: 'smtp.acme.io', port: 587, user: 'ops', from: 'Acme <ops@acme.io>', secure: false });
 
@@ -799,6 +802,74 @@ describe('StudioSettingsPage', () => {
       await user.type(screen.getByLabelText('Address'), 'nope');
       expect(await screen.findByText('Enter an email address.')).toBeDefined();
       expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+    });
+
+    describe('the address in email links', () => {
+      const LABEL = 'Address in email links';
+
+      it('saves a typed address normalized, on its own, and names the change', async () => {
+        const user = userEvent.setup();
+        const { calls } = await renderPage();
+        await screen.findByRole('heading', { name: 'Senders' });
+        const field = screen.getByLabelText(LABEL) as HTMLInputElement;
+        expect(field.value).toBe('');
+
+        await user.type(field, 'HTTPS://Admin.Example.com/');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByText('— → https://admin.example.com')).toBeDefined();
+        await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+        await screen.findByText('Workspace settings updated');
+
+        const put = calls.find((c) => c.method === 'PUT' && c.url === '/api/v1/settings/email');
+        // No relay on this instance, and none needed: the address saves alone.
+        expect(put?.body).toEqual({ publicOrigin: 'https://admin.example.com' });
+      });
+
+      it('treats a respelling of the stored address as no edit, and clears it on empty', async () => {
+        const user = userEvent.setup();
+        const { calls } = await renderPage(
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          makeEmail({ publicOrigin: 'https://admin.example.com' }),
+        );
+        await screen.findByRole('heading', { name: 'Senders' });
+        const field = screen.getByLabelText(LABEL) as HTMLInputElement;
+        expect(field.value).toBe('https://admin.example.com');
+
+        await user.type(field, '/');
+        expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+
+        await user.clear(field);
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByText('https://admin.example.com → —')).toBeDefined();
+        await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+        await screen.findByText('Workspace settings updated');
+
+        const put = calls.find((c) => c.method === 'PUT' && c.url === '/api/v1/settings/email');
+        expect(put?.body).toEqual({ publicOrigin: null });
+      });
+
+      it('refuses anything but an origin under the field, and saves nothing', async () => {
+        const user = userEvent.setup();
+        const { calls } = await renderPage();
+        await screen.findByRole('heading', { name: 'Senders' });
+        const field = screen.getByLabelText(LABEL);
+
+        for (const value of ['admin.example.com', 'https://admin.example.com/admin', 'https://ops@admin.example.com']) {
+          await user.clear(field);
+          await user.type(field, value);
+          expect(
+            await screen.findByText('Enter an address such as https://admin.example.com, with no path.'),
+            value,
+          ).toBeDefined();
+          expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled'), value).toBe(true);
+        }
+        expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+      });
     });
 
     it('scrolls the SMTP card into view for /studio/settings#email', async () => {

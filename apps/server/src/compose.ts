@@ -1,35 +1,37 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * THE COMPOSITION ROOT (01-architecture.md §4: "All four deployment modes run
- * the identical `@adminium/server` process; only the wrapper differs").
+ * THE COMPOSITION ROOT ("All four deployment modes run the identical
+ * `@adminium/server` process; only the wrapper differs").
  *
  * `buildServer` is the Fastify *skeleton* — logger, error envelope, auth, static,
  * and the handful of resources that need no injected services (system/auth/me/
  * bootstrap/setup/about). Every other resource is a FACTORY over injected
  * services (`connectionsRoutes({ manager, meta })`, `llmRoutes({ … })`, …),
- * because 01 §2.3 forbids the route tree from reaching out and constructing a
+ * because forbids the route tree from reaching out and constructing a
  * `ConnectionManager` or importing `@adminium/widgets` on its own. Somebody has
  * to do that construction. This module is that somebody, and it is the ONLY one.
  *
  * WHY IT EXISTS. It used to be `scripts/demo-v01.mjs` — a demo script — which
- * meant `adminium start`, `adminium init`'s final boot and the Docker CMD all
+ * meant `adminium start`, `adminium try`'s final boot and the Docker CMD all
  * served a hollow API: the SPA loaded, setup created the super admin, and then
  * the connect wizard's `POST /api/v1/connections` 404'd, because the plugin that
  * answers it was only ever registered by a script nobody runs in production. The
  * dashboard calls 17 `/api/v1` namespaces; the skeleton serves 6. This module
- * closes that gap so the M10 exit criterion — "`npx adminium` (or `docker run`)
+ * closes that gap so the M10 exit criterion — "`npx @adminiumjs/adminium` (or
+ * `docker run`)
  * on a clean machine → first-run wizard → create super admin → connect any of the
  * 3 engines → generated app" — is met by the shipped artifact and not only by a
  * script in the repo.
  *
  * DEGRADATION. The LLM surface is the one optional part: `LLM_ALLOWED_TEMPLATES`
- * / `LLM_ALLOWED_WIDGETS` come from `@adminium/widgets` (01 §2.3: the server tree
- * may not import it), loaded by file path at runtime. When that load fails the
- * `/llm` routes are skipped and everything else boots — the demo script's
- * behavior, kept, because a missing AI vocabulary must not cost you your CRUD.
+ * / `LLM_ALLOWED_WIDGETS` come from `@adminium/widgets` (the server tree may not
+ * import it), loaded by file path at runtime. When that load fails the `/llm`
+ * routes are skipped and everything else boots — the demo script's behavior,
+ * kept, because a missing AI vocabulary must not cost you your CRUD.
  */
 
-import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
 import { isAddOnManifest, validateManifest } from '@adminium/manifest';
@@ -45,13 +47,15 @@ import {
   filesRepo,
   jobsRepo,
   manifestsRepo,
+  pagesRepo,
   passwordResetsRepo,
   sessionsRepo,
   settingsRepo,
   type EnqueueJobInput,
+  type InstalledManifest,
 } from '@adminium/meta';
 
-import { buildServer, type AdminiumServer } from './app.js';
+import { buildServer, type AdminiumServer, type BuildServerOptions } from './app.js';
 import type { HostedSurface } from './cli/surfaces-root.js';
 import type { Env } from './config/env.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
@@ -75,12 +79,23 @@ import {
 import { createDocumentPipeline } from './documents/compose.js';
 import { syncTriggersForAddOn } from './documents/trigger-sync.js';
 import { documentRoutes } from './routes/documents/index.js';
-import { createAddOnStore, seedBundledPackages } from './add-ons/store.js';
+import { createAddOnStore, installedNotInStore, seedBundledPackages } from './add-ons/store.js';
 import { createInstalledApps } from './apps/installed.js';
 import { createAppSchemaTarget } from './apps/schema-target.js';
 import { createAppCatalogClient } from './apps/catalog.js';
 import { createAppStore } from './apps/store.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
+import { createProjectService, isConfigWrite, type ProjectServerOptions } from './project/service.js';
+import { createActionRunner } from './project/code/actions.js';
+import { createProjectDb, type ProjectDbScope } from './project/code/db.js';
+import { createHookRunner, type ProjectLogFn } from './project/code/hooks.js';
+import { createProjectCodeRuntime } from './project/code/runtime.js';
+import type { CodeProblem } from './project/code/load.js';
+import { hasCodePage, type ClientBuild } from './project/client-build.js';
+import { PAGES_DIR } from './project/paths.js';
+import { createProjectClientHost } from './project/client-host.js';
+import { applyProjectPages } from './project/project-pages.js';
+import { createWriteService } from './crud/write-service.js';
 import { createDestinationResolver } from './files/destinations.js';
 import { createFileReconciler } from './files/reconcile.js';
 import { FILES_DIR } from './files/drivers/local.js';
@@ -150,6 +165,7 @@ import { meViewsRoutes } from './routes/me-views/index.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
 import { pagesRoutes } from './routes/pages/index.js';
+import { projectRoutes } from './routes/project/index.js';
 import { permissionsRoutes } from './routes/permissions/index.js';
 import { rolesRoutes } from './routes/roles/index.js';
 import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
@@ -177,7 +193,7 @@ import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
  * Daily, at 04:00 UTC, with an hour of jitter (below). Telemetry is the least
  * urgent thing this process does; a daily ping is what the payload documents
  * (`telemetry/payload.ts`) and nothing downstream reads it sooner. Runs on the
- * existing croner scheduler rather than a `setInterval`, per BRIEF §3 (no
+ * existing croner scheduler rather than a `setInterval`, per BRIEF (no
  * external scheduler, and no second timing mechanism either).
  */
 export const TELEMETRY_SCHEDULE_NAME = 'telemetry-ping';
@@ -186,8 +202,8 @@ export const TELEMETRY_CRON = '0 4 * * *';
 export const TELEMETRY_JITTER_MS = 60 * 60 * 1000;
 
 /**
- * Daily add-on catalog refresh (32-add-on-distribution.md D8/D10), offset an
- * hour from the telemetry ping so the two dailies never contend.
+ * Daily add-on catalog refresh, offset an hour from the telemetry ping so
+ * the two dailies never contend.
  *
  * The tick is a NO-OP on the vast majority of installs: the handler asks the
  * catalog client whether it is enabled before anything else, and the answer is
@@ -206,10 +222,10 @@ export const CATALOG_REFRESH_CRON = '0 5 * * *';
 export const CATALOG_REFRESH_JITTER_MS = 60 * 60 * 1000;
 
 /**
- * Daily app catalog refresh (48-self-hosted-downloads.md §6b G8-D3), half an
- * hour after the add-on one so the two never contend. The same terms: a no-op
- * unless `ADMINIUM_NETWORK_FEATURES` and `apps.catalogEnabled` are both on, and
- * registered unconditionally because registering a schedule is not consent.
+ * Daily app catalog refresh (b G8-D3), half an hour after the add-on one so the
+ * two never contend. The same terms: a no-op unless `ADMINIUM_NETWORK_FEATURES`
+ * and `apps.catalogEnabled` are both on, and registered unconditionally because
+ * registering a schedule is not consent.
  */
 export const APP_CATALOG_REFRESH_SCHEDULE_NAME = 'app-catalog-refresh';
 export const APP_CATALOG_REFRESH_CRON = '30 5 * * *';
@@ -221,18 +237,18 @@ export const APP_CATALOG_REFRESH_CRON = '30 5 * * *';
  */
 export const BUNDLED_ADD_ONS_DIR = process.env['ADMINIUM_BUNDLED_ADD_ONS'] ?? './add-ons-bundle';
 /**
- * Apps shipped with the build (47-app-installation.md step 4).
+ * Apps shipped with the build.
  *
  * The same shape the add-on bundle takes — a directory of `<key>-<version>.tgz`
  * beside a `.tgz.integrity` — and it exists for the same reason: an instance
  * that can only ever use what came with the image is a SUPPORTED configuration,
  * not a degraded one. It is also what lets the browse surface show real apps
- * before anything is published to a registry (47 O1).
+ * before anything is published to a registry.
  */
 export const BUNDLED_APPS_DIR = process.env['ADMINIUM_BUNDLED_APPS'] ?? './apps-bundle';
 
 /**
- * Daily export-retention sweep (M7-T07): flips `ready` → `expired` on
+ * Daily export-retention sweep: flips `ready` → `expired` on
  * `adminium_exports` rows past `expires_at`, then GCs the expired artifacts'
  * BYTES (`filesRepo.markDeleted` + `storage.remove`) so a snapshot never
  * outlives the "kept for 30 days, then expire" promise on disk. Offset from
@@ -242,8 +258,8 @@ export const EXPORTS_RETENTION_SCHEDULE_NAME = 'exports-retention-sweep';
 export const EXPORTS_RETENTION_CRON = '30 4 * * *';
 
 /**
- * Daily FILES sweep (37-files-and-storage.md D12, 37-T14). Two halves, and
- * they are different lifecycles that happen to run on one tick:
+ * Daily FILES sweep. Two halves, and they are different lifecycles that
+ * happen to run on one tick:
  *
  *  1. UNATTACHED uploads older than `files.unattachedHours` are trashed. These
  *     are the create form that was abandoned and the tab that was closed — a
@@ -264,7 +280,7 @@ export const FILES_RETENTION_CRON = '45 4 * * *';
  * from growing forever.
  *
  * WHAT WAS WRONG. `sessionsRepo`, `passwordResetsRepo`, `jobsRepo` and
- * `auditRepo` each ship a `gc()` written against the BRIEF §8 retention policy,
+ * `auditRepo` each ship a `gc()` written against the BRIEF retention policy,
  * and NOTHING called any of them. Every login wrote a session row that outlived
  * its own expiry forever; every scheduled-report tick and every export left a
  * finished `adminium_jobs` row behind; the audit log grew one row per mutation
@@ -286,9 +302,9 @@ export const RETENTION_GC_CRON = '0 3 * * *';
 
 export interface ComposeServerOptions {
   env: Env;
-  /** The opened meta store — `meta` for the services, `url` for §3.1 checks. */
+  /** The opened meta store — `meta` for the services, `url` for checks. */
   metaStore: MetaStoreHandle;
-  /** The shared source-database connection pool/registry (01 §3). */
+  /** The shared source-database connection pool/registry. */
   manager: ConnectionManager;
   runService: RunService;
   applyService: ApplyService;
@@ -297,14 +313,17 @@ export interface ComposeServerOptions {
    * (see the module header) — everything else is registered regardless.
    */
   allowed: AllowedVocabularies | null;
-  /** §4.2 statistics collector for the prompt builder. */
+  /** Statistics collector for the prompt builder. */
   collectStats?: CollectRunStats | undefined;
   /** Dashboard build directory; omitted ⇒ API only. */
   staticRoot?: string | undefined;
   /** Hosted app surfaces (`plugins/surfaces.ts`); omitted ⇒ none mounted. */
   surfaces?: readonly HostedSurface[] | undefined;
-  /** Passed through to {@link buildServer} (tests silence it with `false`). */
-  logger?: boolean | undefined;
+  /**
+   * Passed through to {@link buildServer}: tests silence it with `false`, or
+   * hand in a pino instance to read what the boot logged.
+   */
+  logger?: BuildServerOptions['logger'];
   /**
    * Passed through to {@link buildServer}: collect an OpenAPI document for
    * `app.swagger()`. Only `scripts/openapi.mjs` sets it — the spec has to be
@@ -321,6 +340,12 @@ export interface ComposeServerOptions {
    * restart must not offer the route at all.
    */
   onMetaRelocated?: OnMetaRelocated | undefined;
+  /**
+   * The project folder this server runs, when there is one (`adminium start`
+   * inside a project, and `adminium dev`). Registers `/project` and keeps the
+   * folder's page and schema files in step with this server.
+   */
+  project?: ProjectServerOptions | undefined;
 }
 
 export interface ComposedServer {
@@ -330,41 +355,40 @@ export interface ComposedServer {
   /** True when the `/llm` resource was registered (i.e. `allowed` was present). */
   llmEnabled: boolean;
   /**
-   * True when `POST /auth/desktop-session` was registered (11-electron.md §5).
-   * Reported rather than inferred: whether that route exists is the single most
-   * security-relevant fact about a composed server, and a caller (or a test)
-   * asking "did the boot-token door get opened?" should not have to re-derive
-   * the answer from the same two env vars this module already read.
+   * True when `POST /auth/desktop-session` was registered. Reported rather than
+   * inferred: whether that route exists is the single most security-relevant
+   * fact about a composed server, and a caller (or a test) asking "did the
+   * boot-token door get opened?" should not have to re-derive the answer from
+   * the same two env vars this module already read.
    */
   desktopSessionEnabled: boolean;
   /**
-   * True when `GET /desktop/lan-share` was registered (11-electron.md §8.3) —
-   * i.e. this is the Electron shell's child. Mirrors
-   * {@link ComposedServer.desktopSessionEnabled} and is reported for the same
-   * reason: which desktop-only doors a composed server opened is a fact a caller
-   * should read rather than re-derive.
+   * True when `GET /desktop/lan-share` was registered — i.e. this is the
+   * Electron shell's child. Mirrors {@link ComposedServer.desktopSessionEnabled}
+   * and is reported for the same reason: which desktop-only doors a composed
+   * server opened is a fact a caller should read rather than re-derive.
    */
   desktopLanEnabled: boolean;
   /**
-   * True when `POST /desktop/local-database` was registered (§6 step 2 card 1).
+   * True when `POST /desktop/local-database` was registered (card 1).
    */
   desktopLocalDbEnabled: boolean;
   /**
-   * True when `POST /desktop/demo-database` was registered (§6 step 2 card 4) —
-   * i.e. desktop runtime AND a seed script to run. The wizard hides the card
-   * when this is false, which is why the two flags are reported separately
-   * rather than as one "desktop extras" boolean.
+   * True when `POST /desktop/demo-database` was registered (card 4) — i.e.
+   * desktop runtime AND a seed script to run. The wizard hides the card when
+   * this is false, which is why the two flags are reported separately rather
+   * than as one "desktop extras" boolean.
    */
   desktopDemoEnabled: boolean;
   /**
-   * True when `POST /desktop/backup` was registered (§9). Reported for the same
+   * True when `POST /desktop/backup` was registered. Reported for the same
    * reason as its siblings: the shell's BackupCoordinator drives the File menu
    * and the 03:00 scheduler off this route, so "does the door exist" is a fact a
    * caller reads rather than re-derives.
    */
   desktopBackupEnabled: boolean;
   /**
-   * True when the §12 capability grant routes were registered. Reported for the
+   * True when the capability grant routes were registered. Reported for the
    * same reason as its siblings: the dashboard's consent/revoke UI and the
    * main-process `CapabilityHost` both reach `adminium_settings` through this
    * door, so whether it exists is a fact a caller reads rather than re-derives.
@@ -383,12 +407,12 @@ export interface ComposedServer {
 }
 
 /**
- * Mirror `config.json`'s §2.3 `singleUser` into the setting the §5 route reads.
+ * Mirror `config.json`'s `singleUser` into the setting the route reads.
  *
- * §5: "only while `config.singleUser` is true (mirrored into `adminium_settings`
- * … by the server at boot)". The desktop main process owns `config.json` and the
- * child cannot read it (different process, different lifetime, and §2.3 makes the
- * main process its only writer), so the env var IS the mirror channel — see
+ * "only while `config.singleUser` is true (mirrored into `adminium_settings` …
+ * by the server at boot)". The desktop main process owns `config.json` and the
+ * child cannot read it (different process, different lifetime, makes the main
+ * process its only writer), so the env var IS the mirror channel — see
  * `config/env.ts`. Unset ⇒ this does nothing at all, deliberately: absent input
  * must not be read as `false` and quietly overwrite an answer the user gave.
  */
@@ -406,8 +430,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const meta = opts.metaStore.meta;
 
   /*
-   * Installed apps (47-app-installation.md D1/D2), created BEFORE the server so
-   * the surfaces plugin can hold the registry it will read per request.
+   * Installed apps, created BEFORE the server so the surfaces plugin can hold
+   * the registry it will read per request.
    *
    * The first read is best-effort for the same reason the add-on store's prune
    * is: a meta store that cannot be queried yet is a real problem, but it is
@@ -474,7 +498,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     );
   }
 
-  // LLM assist (M6, 06-llm-assist.md §10.5). Only the vocabulary is optional;
+  // LLM assist (M6). Only the vocabulary is optional;
   // the key crypto and the resolver are cheap and pure.
   const llm =
     allowed === null
@@ -492,7 +516,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               keyCrypto,
               allowedTemplates: allowed.templates,
               allowedWidgets: allowed.widgets,
-              // §7.3's unknown-icon check. Documented since M6 as fed by
+              // The unknown-icon check. Documented since M6 as fed by
               // `@adminium/ui`'s `LUCIDE_ICON_NAMES`, and until now fed by
               // nothing: the symbol did not exist and this call never passed the
               // option, so the check silently skipped and a model could store any
@@ -503,7 +527,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           };
         })();
 
-  // THE ONE BYTE SEAM (37-files-and-storage.md §3.1). Everything Adminium
+  // THE ONE BYTE SEAM. Everything Adminium
   // stores goes through it: exports, imports, scheduled-report snapshots, the
   // branding logo, imported schema files and uploads.
   //
@@ -517,7 +541,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     repo: destinationsRepo(meta, storageCrypto),
     localRoot: resolve(env.ADMINIUM_DATA_DIR, FILES_DIR),
   });
-  // The first-boot destination seed (37 §3.11, D15), and it has TWO CALL SITES
+  // The first-boot destination seed, and it has TWO CALL SITES
   // deliberately.
   //
   // `cli/commands/start.ts` calls it too, and earlier, because on the CLI path
@@ -569,10 +593,44 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     files: filesRepo(meta),
   });
   // Which columns hold files, and the hook that keeps `adminium_files` in step
-  // with what those columns say (37 §3.7). One reader, shared by the upload
+  // with what those columns say. One reader, shared by the upload
   // route (which asks about ONE column) and the reconcile hook (which asks
   // about a whole table), so both see the same cache.
   const columnBlocks = createColumnBlockReader(meta);
+
+  // A project folder's sync. Its write hook is added here, before the API
+  // routes are registered, because a Fastify scope only inherits the hooks
+  // that existed when it was created.
+  const project =
+    opts.project === undefined
+      ? null
+      : createProjectService({
+          meta,
+          ...opts.project,
+          onApplied: () => {
+            columnBlocks.clear();
+            if (!app.hasDecorator('realtime')) return;
+            void pagesRepo(meta)
+              .configVersion()
+              .then((configVersion) => {
+                app.realtime.publish('config-changed', 'config-changed', { connectionId: null, configVersion });
+              })
+              .catch(() => undefined);
+          },
+        });
+  if (project !== null) {
+    app.addHook('onResponse', async (request, reply) => {
+      if (reply.statusCode < 400 && isConfigWrite(request.method, request.routeOptions.url)) {
+        project.databaseChanged();
+      }
+    });
+    app.addHook('onReady', async () => {
+      project.start();
+    });
+    app.addHook('onClose', async () => {
+      await project.close();
+    });
+  }
   const fileReconciler = createFileReconciler({
     meta,
     blocks: columnBlocks,
@@ -580,7 +638,90 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     logger: app.log,
   });
 
-  // The add-on package store (32-add-on-distribution.md D11): a sibling of
+  /*
+   * The project's own code: hooks around every record write, and actions.
+   * Never on the desktop app, which has no project, and never without a
+   * project folder, which is how `adminium try` starts. Every write path
+   * below is handed `recordWrites`, so the hooks see all of them.
+   */
+  /*
+   * The project's pages and widgets ride the same runtime: each
+   * `pages/<slug>.tsx` gets a page row, and under `adminium dev` a rebuild
+   * rewrites those rows and tells open dashboards to load the new files.
+   */
+  const pageProblems: CodeProblem[] = [];
+  const applyClientBuild = async (client: ClientBuild): Promise<void> => {
+    if (opts.project === undefined) return;
+    const { root } = opts.project;
+    const applied = await applyProjectPages(meta, client.pages, {
+      hasCodePage: (slug) => hasCodePage(root, slug),
+      hasPageFile: (slug) => existsSync(join(root, PAGES_DIR, `${slug}.json`)),
+    });
+    pageProblems.splice(0, pageProblems.length, ...applied.problems.map((problem) => ({ ...problem, at: Date.now() })));
+    for (const problem of applied.problems) opts.project.warn(`${problem.source}: ${problem.message}`);
+    for (const slug of applied.removed) opts.project.log(`Removed the page /p/${slug}; its file is gone.`);
+    for (const slug of applied.adopted) {
+      opts.project.log(`The page /p/${slug} now runs its code from pages/; it keeps its grants and views.`);
+    }
+  };
+  const projectCode =
+    opts.project === undefined || env.ADMINIUM_RUNTIME === 'desktop'
+      ? null
+      : createProjectCodeRuntime({
+          root: opts.project.root,
+          mode: opts.project.mode,
+          log: opts.project.log,
+          warn: opts.project.warn,
+          onClientChanged: async (client) => {
+            await applyClientBuild(client);
+            if (!app.hasDecorator('realtime')) return;
+            app.realtime.publish('config-changed', 'project-changed', { digest: client.digest });
+          },
+        });
+  const projectKeys = new Map<string, { key: string | null; at: number }>();
+  const projectKeyOf = async (connectionId: string): Promise<string | null> => {
+    const cached = projectKeys.get(connectionId);
+    if (cached !== undefined && Date.now() - cached.at < 10_000) return cached.key;
+    const key = await manager.mustFind(connectionId).then(
+      (connection) => connection.projectKey,
+      () => null,
+    );
+    projectKeys.set(connectionId, { key, at: Date.now() });
+    return key;
+  };
+  const projectLog: ProjectLogFn = (level, message, data) => {
+    app.log[level]({ project: data }, message);
+  };
+  const projectDb = (scope: ProjectDbScope) =>
+    createProjectDb({ app, meta, manager, writes: () => recordWrites, files: fileReconciler }, scope);
+  const hookRunner =
+    projectCode === null
+      ? null
+      : createHookRunner({
+          code: () => projectCode.current(),
+          keyOf: projectKeyOf,
+          db: ({ database, target, context }) =>
+            projectDb({ database, raw: target.db, dialect: target.dialect, context }),
+          log: projectLog,
+          failures: projectCode.failures,
+        });
+  const recordWrites = createWriteService(hookRunner === null ? {} : { hooks: () => hookRunner });
+  const projectActions =
+    projectCode === null
+      ? null
+      : createActionRunner({ app, meta, manager, code: () => projectCode.current(), db: projectDb, log: projectLog });
+  if (projectCode !== null) {
+    app.addHook('onReady', async () => {
+      projectCode.start();
+    });
+    app.addHook('onClose', async () => {
+      projectCode.close();
+    });
+  }
+  const projectClient = project === null ? null : createProjectClientHost({ meta, runtime: projectCode });
+  if (projectClient !== null) app.decorate('projectClient', projectClient);
+
+  // The add-on package store: a sibling of
   // `files/` under the same data dir, so downloaded packages survive an image
   // upgrade on the named volume the way exports and backups already do.
   //
@@ -613,8 +754,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * Best-effort in the same way the add-on seed below is: a missing directory
    * is the normal case for a from-source run, and a corrupt entry costs its own
    * package rather than the boot.
+   *
+   * Kept, not voided: the missing-package report at the end of this function
+   * waits for it.
    */
-  void appStore
+  const appSeed = appStore
     .pruneTemp()
     .then(async (pruned) => {
       if (pruned > 0) app.log.info({ pruned }, 'pruned orphaned app staging directories');
@@ -624,7 +768,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         (m, d) => app.log.warn(d, m),
         'app',
       );
-      if (seed.seeded.length > 0) app.log.info({ seeded: seed.seeded }, 'seeded bundled apps');
+      if (seed.seeded.length > 0) {
+        app.log.info({ seeded: seed.seeded }, 'seeded bundled apps');
+        /*
+         * The registry was read above, BEFORE this seed. On an empty data
+         * directory — every redeploy on a host with no persistent disk — an
+         * installed app the seed has just put back would otherwise stay
+         * unserved until the next install or uninstall.
+         */
+        try {
+          await installedApps.refresh();
+        } catch (error) {
+          app.log.warn({ err: error }, 'could not read installed apps; none will be served');
+        }
+      }
       if (seed.failed.length > 0) app.log.warn({ failed: seed.failed }, 'bundled apps failed to seed');
     })
     .catch((error: unknown) => {
@@ -632,7 +789,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     });
 
   const addOnStore = createAddOnStore({ dataDir: env.ADMINIUM_DATA_DIR });
-  void addOnStore
+  /*
+   * Kept, not voided: the boot-time runtime build waits for it (see
+   * `rebuildAddOnRuntime` below), and so does the missing-package report.
+   */
+  const addOnSeed = addOnStore
     .pruneTemp()
     .then(async (pruned) => {
       if (pruned > 0) app.log.info({ pruned }, 'pruned orphaned add-on staging directories');
@@ -651,16 +812,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    *
    * `runtime.ts` has always claimed a rebuild on install; the build below was
    * the only one, and its result was not kept anywhere — so nothing could read
-   * it and 34 §7.10's "rebuild whole after each of the three routes" had
-   * nowhere to put the new state. This holder is that place. It starts null,
-   * which is correct rather than a gap: the build is fire-and-forget at boot,
-   * and a render that arrives before it finishes gets `provider-missing` — a
-   * SKIP with a reason, not a failure.
+   * it "rebuild whole after each of the three routes" had nowhere to put the
+   * new state. This holder is that place. It starts null, which is correct
+   * rather than a gap: the build is fire-and-forget at boot, and a render that
+   * arrives before it finishes gets `provider-missing` — a SKIP with a reason,
+   * not a failure.
    */
   let addOnRuntime: AddOnRuntimeState | null = null;
 
   /**
-   * Rebuild the add-on runtime WHOLE (34 §7.10, 34-T13).
+   * Rebuild the add-on runtime WHOLE.
    *
    * Called at boot and again after every install, upgrade, enable/disable and
    * uninstall. Whole and never patched: a partially-updated provider map is
@@ -672,10 +833,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   let rebuildAddOnRuntime: () => Promise<void> = () => Promise.resolve();
 
   /*
-   * The document pipeline (34 §7.3). Assembled ONCE and handed to both entry
-   * points — the queued job below and the automation step further down — so
-   * "the same profile produces the same document however it was asked for" is
-   * one object rather than two that agree today.
+   * The document pipeline. Assembled ONCE and handed to both entry points —
+   * the queued job below and the automation step further down — so "the same
+   * profile produces the same document however it was asked for" is one
+   * object rather than two that agree today.
    */
   const documents = createDocumentPipeline({
     meta,
@@ -693,7 +854,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     resolveUser: (req) => req.user ?? null,
     // Registers the export-run / import-run / report-run handlers on the shared
     // registry — the same instances the exports/imports routes receive below.
-    dataIo: { manager, storage, storageCrypto },
+    dataIo: { manager, storage, storageCrypto, writes: recordWrites },
     // The realtime hub authorizes a SUBSCRIBED USER, not a request, so it cannot
     // reuse `request.can()` (which caches per request and needs a principal on
     // one). It goes through the same resolver + the same decision function the
@@ -713,21 +874,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...(llm === null ? {} : { llm: { resolve: llm.resolve } }),
   });
 
-  // The `introspect` job kind (08 §2.4): without this, POST
+  // The `introspect` job kind: without this, POST
   // /connections/:id/introspect silently falls back to its synchronous
   // dev/test path (30s request-thread budget) in every deployment and the
   // wizard's job-polling branch never runs.
   registerIntrospectJob(jobs.registry, { manager, meta });
 
   /*
-   * THE RULE ENGINE (42-automations-and-workflow-logs.md §3.3, §3.4).
+   * THE RULE ENGINE.
    *
    * Decorated BEFORE the data routes are registered, because
    * `crud/after-record-write.ts` guards on `hasDecorator('automations')` and a
    * write that reached the seam before this point would be dispatched to
    * nothing. Two croner names tick every minute alongside the scheduled-report
-   * poll, jittered apart so three schedules do not land on the same second
-   * (§8).
+   * poll, jittered apart so three schedules do not land on the same second.
    */
   const automations = createAutomations({
     meta,
@@ -740,6 +900,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     meta,
     manager,
     app,
+    writes: recordWrites,
     secret: env.ADMINIUM_SECRET,
     storage,
     // The `document.render` step's way to the pipeline (D55). Without it a
@@ -782,22 +943,22 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const undoStore = new UndoStore();
 
   /**
-   * THE DESKTOP AUTO-LOGIN DOOR (11-electron.md §5) — the one route in the
+   * THE DESKTOP AUTO-LOGIN DOOR — the one route in the
    * product that mints a super-admin session without a password.
    *
    * Both conditions are load-bearing, and the AND is the point:
    *
-   *  - `ADMINIUM_RUNTIME=desktop` — §5 registers this "only when" the Electron
-   *    shell is the wrapper. Every other deployment (self-host, Docker, npx, and
-   *    every test that does not opt in) composes a server with NO such route:
-   *    `/auth/desktop-session` 404s there, which is a stronger guarantee than any
-   *    runtime check inside a handler could make.
+   * - `ADMINIUM_RUNTIME=desktop` — registers this "only when" the Electron shell
+   *  is the wrapper. Every other deployment (self-host, Docker, npx, and every
+   *  test that does not opt in) composes a server with NO such route:
+   *  `/auth/desktop-session` 404s there, which is a stronger guarantee than any
+   *  runtime check inside a handler could make.
    *  - a boot token — a desktop boot without one has nothing to exchange, so the
-   *    route would be an unreachable surface. §2.2 mints a fresh token per boot;
+   *    route would be an unreachable surface. A fresh token is minted per boot;
    *    absence means the shell chose not to (or could not), and the app lands on
    *    the normal login screen.
    *
-   * The mirror runs first so the route's own §5 policy gate reads THIS boot's
+   * The mirror runs first so the route's own policy gate reads THIS boot's
    * answer rather than the last one's.
    */
   const desktopSession =
@@ -809,7 +970,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   }
 
   /**
-   * §8.3's share panel, behind gate 1 of `routes/desktop-lan/index.ts`.
+   * The share panel, behind gate 1 of `routes/desktop-lan/index.ts`.
    *
    * ONE condition, unlike the boot-token door above, and the asymmetry is
    * deliberate. That route needs a token to exchange, so a desktop boot without
@@ -821,21 +982,21 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const desktopLan = env.ADMINIUM_RUNTIME === 'desktop';
 
   /**
-   * §6 step 2's two server-side source cards — "Create a new local database"
-   * (card 1) and "Explore the demo database" (card 4).
+   * The two server-side source cards — "Create a new local database" (card
+   * 1) and "Explore the demo database" (card 4).
    *
-   * Both are gated on the runtime for the same reason, and it is not the §5
-   * reason: neither mints a credential, and both do exactly what
-   * `POST /connections` does, under the same `system:connections:manage` grant.
-   * What makes them desktop-only is their SUBJECT. Both write into
-   * `<dataDir>/databases/`, a directory that exists because the Electron shell
-   * created it and passed `ADMINIUM_DATA_DIR` (§2.2 step 5). On Docker that path
-   * is inside a container, so a database created there is one the user can
-   * neither find with a file dialog, back up, nor delete — a button that appears
-   * to work and produces something unreachable.
+   * Both are gated on the runtime for the same reason, and it is not the reason:
+   * neither mints a credential, and both do exactly what `POST /connections`
+   * does, under the same `system:connections:manage` grant. What makes them
+   * desktop-only is their SUBJECT. Both write into `<dataDir>/databases/`, a
+   * directory that exists because the Electron shell created it and passed
+   * `ADMINIUM_DATA_DIR`. On Docker that path is inside a container, so a
+   * database created there is one the user can neither find with a file dialog,
+   * back up, nor delete — a button that appears to work and produces something
+   * unreachable.
    *
    * The demo carries a second condition, and it is load-bearing in the same way
-   * the boot token is for §5: with no seed script there is nothing to run, so the
+   * the boot token is for: with no seed script there is nothing to run, so the
    * route would be an unreachable surface and the wizard hides the card instead
    * of offering a demo it cannot seed.
    */
@@ -848,7 +1009,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const desktopDemo = seedScriptPath === null ? null : { seedScriptPath };
 
   /**
-   * §9's backup, behind gate 1 of `routes/desktop/index.ts` (the route's own
+   * The backup, behind gate 1 of `routes/desktop/index.ts` (the route's own
    * header documents gates 2 and 3 — loopback peer, then `settings:manage`).
    *
    * One condition, like the LAN panel and for the same reason: every desktop
@@ -856,23 +1017,23 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * and `config.json` — self-host's answer to "back up my instance" is
    * `adminium export-zip` plus whatever backs up its Postgres.
    *
-   * `metaPath` is derived rather than passed because §2.1 makes it an invariant:
-   * the meta store is ALWAYS local SQLite on desktop (`ADMINIUM_META_DSN=
-   * sqlite:<dataDir>/meta.db`, §2.2 step 5), even when the source DB is a remote
-   * Postgres. `metaStore.url` is therefore the one true answer to "which file is
-   * the live meta store", and asking the caller to repeat it would let the two
-   * drift — the backup would snapshot a file the server is not using.
+   * `metaPath` is derived rather than passed because makes it an invariant: the
+   * meta store is ALWAYS local SQLite on desktop (`ADMINIUM_META_DSN=
+   * sqlite:<dataDir>/meta.db`), even when the source DB is a remote Postgres.
+   * `metaStore.url` is therefore the one true answer to "which file is the live
+   * meta store", and asking the caller to repeat it would let the two drift —
+   * the backup would snapshot a file the server is not using.
    */
   const desktopBackup = env.ADMINIUM_RUNTIME === 'desktop';
 
   /**
-   * §12's capability grant table, behind gate 1 of
+   * The capability grant table, behind gate 1 of
    * `routes/desktop-capabilities/index.ts`. One condition, like its siblings:
    * every desktop boot can install an app that declares a capability, so the
    * consent/revoke door and the grant reader the `CapabilityHost` calls both
-   * need to exist. Off-desktop there is no host and no hardware, so §12's answer
-   * there is "every capability `unavailable`" — a claim the SPA makes, not a
-   * grant table.
+   * need to exist. Off-desktop there is no host and no hardware, so answer there
+   * is "every capability `unavailable`" — a claim the SPA makes, not a grant
+   * table.
    */
   const desktopCapabilities = env.ADMINIUM_RUNTIME === 'desktop';
 
@@ -981,7 +1142,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(
         schemaDdlRoutes({ manager, meta, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
       );
-      await api.register(dataRoutes({ manager, meta, undoStore, files: fileReconciler }));
+      await api.register(dataRoutes({ manager, meta, undoStore, files: fileReconciler, writes: recordWrites }));
       // M7 data-io + reports/notifications (T5/T6): exports and imports share
       // the jobs pipeline wired above; scheduled reports ride the same registry
       // via the poll schedule below.
@@ -990,8 +1151,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(importsRoutes({ meta, manager, storage, enqueue: enqueueDataIo }));
       await api.register(notificationsRoutes({ meta, hub: jobs.hub }));
       await api.register(scheduledReportsRoutes({ meta }));
-      // 42 §3.1. `onRulesChanged` is what keeps the matcher's in-memory index
-      // honest: a rule saved through this route is matched by the next write.
+      // `onRulesChanged` is what keeps the matcher's in-memory index honest:
+      // a rule saved through this route is matched by the next write.
       await api.register(
         automationsRoutes({
           meta,
@@ -999,34 +1160,51 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           secret: env.ADMINIUM_SECRET,
           enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
           onRulesChanged: () => automations.matcher.onRulesChanged(),
-          runner: { storage, hub: jobs.hub },
+          runner: { storage, hub: jobs.hub, writes: recordWrites },
         }),
       );
       await api.register(automationRunsRoutes({ meta }));
       await api.register(
         emailTemplatesRoutes({ meta, storage, cancelRunningJob: (jobId) => jobs.worker.requestCancel(jobId) }),
       );
-      // 34-invoices-add-on.md §3.9: the authored `/invoices` surface — the
-      // same deps shape as the email documents; rendering is a later wave's.
+      // The authored `/invoices` surface — the same deps shape as the
+      // email documents; rendering is a later wave's.
       await api.register(invoicesRoutes({ meta }));
-      // 43-report-builder.md §3.1: the authored `/report-builder` surface —
-      // the same deps shape as the invoice documents. NOT scheduled reports.
+      // The authored `/report-builder` surface — the same deps shape as the
+      // invoice documents. NOT scheduled reports.
       await api.register(reportDocumentsRoutes({ meta }));
       await api.register(generateRoutes({ manager, meta }));
       await api.register(schemaImportRoutes());
       // The block cache is derived from page config, so a page write must drop
       // it — otherwise a column configured as a file column is invisible to the
-      // next upload for up to 30 seconds (38 D8).
+      // next upload for up to 30 seconds.
       await api.register(pagesRoutes({ meta, onPageChanged: () => { columnBlocks.clear(); } }));
-      // ⌘K global search (08 §2.9, M4-T06): pages by title + records via the
-      // crud quick-search path, RBAC/PII-filtered like the data routes.
+      if (project !== null) {
+        await api.register(
+          projectRoutes({
+            project,
+            ...(projectCode === null || projectActions === null || projectClient === null
+              ? {}
+              : {
+                  code: {
+                    runtime: projectCode,
+                    actions: projectActions,
+                    client: projectClient,
+                    pageProblems: () => pageProblems,
+                  },
+                }),
+          }),
+        );
+      }
+      // ⌘K global search: pages by title + records via the crud quick-search
+      // path, RBAC/PII-filtered like the data routes.
       await api.register(searchRoutes({ manager, meta }));
       await api.register(widgetDataRoutes({ manager, meta }));
       await api.register(
         // `emailKey` is passed explicitly rather than letting the route derive it
         // from `process.env`: the composition root already holds the parsed env,
         // and a route reading process.env directly is invisible to the desktop and
-        // CLI wrappers that build their own Env (01 §2.3).
+        // CLI wrappers that build their own Env.
         settingsRoutes({ meta, emailKey: emailSecretKey(env.ADMINIUM_SECRET) }),
       );
       // Branding rides with settings but owns the bytes half (logo storage)
@@ -1048,7 +1226,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       /*
-       * Documents (34 §7.5) — the register, its bytes and the mappings.
+       * Documents — the register, its bytes and the mappings.
        *
        * Registered UNCONDITIONALLY, like the add-on routes above and for the
        * same reason: `GET /documents/providers` is what the record page asks
@@ -1065,8 +1243,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           enqueue: (input) => jobs.enqueue(input as never),
         }),
       );
-      // Storage destinations (37 §3.2). Its own grant, `storage.manage`, and
-      // the resolver instance the store itself uses — so a credential edit
+      // Storage destinations. Its own grant, `storage.manage`, and the
+      // resolver instance the store itself uses — so a credential edit
       // invalidates the driver the next upload gets.
       await api.register(
         storageRoutes({
@@ -1080,8 +1258,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(viewsRoutes({ meta }));
       await api.register(meViewsRoutes({ meta }));
       await api.register(onboardingRoutes({ meta }));
-      // Managing the public surface (28 §3.3). Always registered, even when the
-      // public namespace itself is not: an operator must be able to author a
+      // Managing the public surface. Always registered, even when the public
+      // namespace itself is not: an operator must be able to author a
       // scope and see WHY the surface is off, and the page reports level 1 as a
       // read-only fact rather than a toggle that would silently do nothing.
       await api.register(
@@ -1094,12 +1272,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           },
         }),
       );
-      // Hosted app surfaces (29-app-surfaces.md §3.1): placement + domain
-      // attachment. Registered whenever a meta store exists — with no surfaces
+      // Hosted app surfaces: placement + domain attachment. Registered
+      // whenever a meta store exists — with no surfaces
       // discovered the list is empty and the page says how to add some, which
       // beats a namespace that 404s only on some instances.
       await api.register(surfacesAdminRoutes({ meta }));
-      // Installing an app (47-app-installation.md §1). Registered on the same
+      // Installing an app. Registered on the same
       // terms as the surfaces admin above: with nothing installed the list is
       // empty, which is a different thing from a namespace that 404s.
       await api.register(
@@ -1110,25 +1288,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
           // An install may not shadow a surface the operator deployed by hand:
           // those own registered routes the installed-app hook yields to, so it
-          // would appear to succeed and then serve nothing (47 D4).
+          // would appear to succeed and then serve nothing.
           directoryKeys: () => (opts.surfaces ?? []).map((surface) => surface.appKey),
-          // Where an installed app's tables are planned and created (47 O2).
+          // Where an installed app's tables are planned and created.
           // The same shared core the add-on target runs, given the connection
           // the operator picked instead of one inferred from a host.
           schemaTarget: createAppSchemaTarget({ meta, manager }),
           catalog: appCatalog,
         }),
       );
-      // The add-on runtime (26 §5.1). Registered unconditionally: an instance
-      // with no add-ons serves an empty list, which is what a host in connected
+      // The add-on runtime. Registered unconditionally: an instance with no
+      // add-ons serves an empty list, which is what a host in connected
       // mode expects to read — a conditionally-registered route would 404 there
       // instead, and a 404 is indistinguishable from "this build is too old".
       await api.register(
         addOnRoutes({
           meta,
           store: addOnStore,
-          // 34 §7.10. Without this a provider installed at 10am is unreachable
-          // until the process restarts, and 26 D6's round trip cannot pass.
+          // Without this a provider installed at 10am is unreachable until the
+          // process restarts, round trip cannot pass.
           rebuildRuntime: () => rebuildAddOnRuntime(),
           /*
            * Uninstall's 34 half, run BEFORE the manifest row goes: disable the
@@ -1147,7 +1325,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             await addOnSettingsRepo(meta).clear(key);
           },
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
-          // Where an add-on's tables are planned against and created (26-T02).
+          // Where an add-on's tables are planned against and created.
           schemaTarget: createAddOnSchemaTarget({
             meta,
             manager,
@@ -1183,7 +1361,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   );
 
   /*
-   * The public namespace (28-public-surface.md §3.1, D8).
+   * The public namespace.
    *
    * A SIBLING of the block above, not a child. Three reasons, all of which bite
    * if it moves inside:
@@ -1208,11 +1386,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         meta,
         manager,
         isEnabled: publicGate.isEnabled,
-        // 34 §7.6's door. The SAME pipeline the queued job and the automation
-        // step use, so "one profile draws one document however it was asked
-        // for" survives a third entry point.
+        // The door. The SAME pipeline the queued job and the automation step
+        // use, so "one profile draws one document however it was asked for"
+        // survives a third entry point.
         documents,
         storage,
+        writes: recordWrites,
       }));
       },
       { prefix: API_PREFIX },
@@ -1227,8 +1406,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     app.log.warn({ reason: publicBlocked }, 'public API not registered');
   }
 
-  // Add-on acquisition (32-add-on-distribution.md §4.1/§4.2, D10). The two job
-  // kinds are registered unconditionally; NEITHER of them can reach the network
+  // Add-on acquisition. The two job kinds are registered unconditionally;
+  // NEITHER of them can reach the network
   // on its own, because the catalog client's gate (`ADMINIUM_NETWORK_FEATURES`
   // AND the default-off `addOns.catalogEnabled` setting) is checked before any
   // URL is constructed — the same shape as telemetry below, and pinned by
@@ -1248,7 +1427,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     { jitterMs: CATALOG_REFRESH_JITTER_MS },
   );
 
-  // App acquisition (48 §6b G8-D3/D5): the add-on jobs' twins, behind the app
+  // App acquisition (b G8-D3/D5): the add-on jobs' twins, behind the app
   // catalog's own switch and cached in the app store.
   registerAppAcquireHandlers(jobs.registry, { meta, store: appStore, catalog: appCatalog });
   jobs.scheduler.registerSchedule(
@@ -1259,7 +1438,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   );
 
   /**
-   * The add-on runtime (26 §5.2/§5.3, T09/T10) — the point at which installed
+   * The add-on runtime — the point at which installed
    * add-on code enters this process.
    *
    * O1 was ratified in-process on 2026-08-29 on the plan's recorded
@@ -1273,11 +1452,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * which is the opposite of the trade this design is making.
    */
   /*
-   * ONE function, called at boot AND from the add-on routes (34 §7.10,
-   * 34-T13). It was an IIFE that ran once; making it a named function is what
-   * lets install, upgrade, enable/disable and uninstall rebuild without a
-   * restart — the behaviour `runtime.ts` has claimed since wave 26 and that
-   * 26 D6's round trip has been unable to demonstrate.
+   * ONE function, called at boot AND from the add-on routes. It was an IIFE
+   * that ran once; making it a named function is what lets install, upgrade,
+   * enable/disable and uninstall rebuild without a restart — the behaviour
+   * `runtime.ts` has claimed since wave 26 and that round trip has been
+   * unable to demonstrate.
    */
   rebuildAddOnRuntime = async () => {
     const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
@@ -1310,8 +1489,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       app.log.error({ key: problem.addOnKey, reason: problem.reason }, problem.message);
     }
     for (const conflict of runtime.conflicts) {
-      // Never silent (§5.2): an operator looking at a slot filled by an add-on
-      // they did not expect has to be able to find out why.
+      // Never silent: an operator looking at a slot filled by an add-on they
+      // did not expect has to be able to find out why.
       app.log.warn(conflict, 'add-on slot conflict — the lower `order` wins');
     }
 
@@ -1356,13 +1535,60 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * is corrupt must cost its own integration and nothing more. A boot that
    * died here would take an entire instance down for one broken third-party
    * module, which is the opposite of the trade this design is making.
+   *
+   * AND AFTER THE BUNDLED SEED. On an empty data directory — every redeploy on
+   * a host with no persistent disk — the seed is what puts a bundled add-on's
+   * files back, and a runtime built before it finishes finds no pin, records
+   * `IMPORT_FAILED`, and is not built again until something unrelated
+   * rebuilds it. 0.2.9 lost that race by 60–90 ms on each of the three such
+   * boots measured. The seed settles either way (it catches its own failures),
+   * so this always runs.
    */
-  void rebuildAddOnRuntime().catch((err: unknown) => {
-    app.log.error({ err }, 'the add-on runtime could not be built');
-  });
+  void addOnSeed
+    .then(() => rebuildAddOnRuntime())
+    .catch((err: unknown) => {
+      app.log.error({ err }, 'the add-on runtime could not be built');
+    });
 
-  // Telemetry (M10-T04). OPT-IN: `report()` reads `telemetry.enabled` FIRST and
-  // returns before building a payload, so an instance that has not consented
+  /*
+   * NAME WHAT DID NOT COME BACK. The meta store remembers every install; the
+   * data directory holds its files. After a deploy that emptied the directory,
+   * the seeds restore only the exact versions this build bundles, and
+   * everything else — an uploaded add-on, a version the build does not carry,
+   * any app it does not carry — is gone while Studio still lists it as
+   * installed. The log is the one place an operator on such a host looks, so it
+   * says which, and what to do.
+   */
+  void Promise.all([appSeed, addOnSeed])
+    .then(async () => {
+      const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
+      const refs = (rows: readonly InstalledManifest[]) =>
+        rows.map(({ row }) => ({ key: row.manifestKey, version: row.version }));
+      const dataDir = env.ADMINIUM_DATA_DIR;
+      for (const { key, version } of await installedNotInStore(
+        addOnStore,
+        refs(await repo.list('add-on')),
+      )) {
+        app.log.error(
+          { key, version, dataDir },
+          'installed add-on is not on this server (its files in the data directory are gone), so none of ' +
+            'it loads — upload the same package again, or uninstall it',
+        );
+      }
+      for (const { key, version } of await installedNotInStore(appStore, refs(await repo.list('app')))) {
+        app.log.error(
+          { key, version, dataDir },
+          'installed app is not on this server (its files in the data directory are gone), so it is not ' +
+            'served — upload or download the same version and install it again, or uninstall it',
+        );
+      }
+    })
+    .catch((err: unknown) => {
+      app.log.warn({ err }, 'could not check installed add-ons and apps against the data directory');
+    });
+
+  // Telemetry. OPT-IN: `report()` reads `telemetry.enabled` FIRST and returns
+  // before building a payload, so an instance that has not consented
   // makes zero network calls — the property `telemetry-network-isolation.test.ts`
   // pins. Registering the schedule is not consent; the schedule ticking on an
   // opted-out instance is a no-op read of one settings row.
@@ -1390,8 +1616,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     await enqueueDueReports(meta, (input) => jobs.enqueue(input));
   });
 
-  // Export retention (M7-T07): daily `ready` → `expired` sweep past
-  // `expires_at`, then byte GC — expired snapshots (potentially unmasked PII)
+  // Export retention: daily `ready` → `expired` sweep past
+  // `expires_at`, then byte GC — expired snapshots (potentially
+  // unmasked PII)
   // must not persist on disk past the promised retention window. `remove` is
   // idempotent and the worklist re-derives from rows, so a crash mid-pass
   // self-heals on the next tick.
@@ -1410,7 +1637,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     }
   });
 
-  // Files retention (37 D12/D14) — see FILES_RETENTION_SCHEDULE_NAME for the
+  // Files retention — see FILES_RETENTION_SCHEDULE_NAME for the
   // two halves. Counts are logged for the reason the meta GC logs its own: a
   // sweep that runs silently is indistinguishable from a sweep that is not
   // running.
@@ -1461,7 +1688,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     }
   });
 
-  // Meta-store retention (BRIEF §8). Every deletion is logged with its count:
+  // Meta-store retention (BRIEF). Every deletion is logged with its count:
   // a GC that runs silently is indistinguishable from a GC that is not running,
   // and "why is adminium_audit_log 4 GB" is exactly the question an operator
   // asks six months in, when there is nothing left to read.
@@ -1493,9 +1720,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const auditArchive = await settings.get('retention.auditArchive');
     const auditEntries = auditArchive ? null : await auditRepo(meta).gc(at, auditLogDays);
 
-    // 42 D23. `retention.automationRunsDays` has been a registered setting
+    // `retention.automationRunsDays` has been a registered setting
     // read by nobody since it was added; this is its first reader. Failed runs
-    // are kept twice as long (07 §8) and `pending`/`waiting` rows are never
+    // are kept twice as long and `pending`/`waiting` rows are never
     // swept — they are work that has not happened yet.
     const automationRunsDays = await settings.get('retention.automationRunsDays');
     const automationRuns = await automationRunsRepo(meta).gc(at, automationRunsDays);
@@ -1516,6 +1743,19 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         : 'retention sweep complete',
     );
   });
+
+  // The project's hooks and actions load before the server listens, so no
+  // write reaches a table ahead of its hooks. A file that fails to load is
+  // reported and skipped (`project/code/load.ts`). The pages the build has get
+  // their rows now too, and pages whose file is gone lose theirs.
+  if (projectCode !== null) {
+    await projectCode.load();
+    try {
+      await applyClientBuild(projectCode.loadClient());
+    } catch (error) {
+      opts.project?.warn(`Could not add the project's pages: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
   // The manager owns live source-DB pools; the server owns the manager's
   // lifetime once it is listening (the CLI hands it over at `startServer`).

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The `/files` routes end to end (37-files-and-storage.md Appendix C, 37-T11).
+ * The `/files` routes end to end.
  *
  * The assertions that matter most are the authorisation ones, because the
  * model here is deliberately unusual: there is no "can upload" grant. An
@@ -159,7 +159,7 @@ describe('files routes', () => {
   let connId: string;
   let table: string;
   /**
-   * §6 criterion 7's principal: `read` on the table and nothing else.
+   * The principal: `read` on the table and nothing else.
    *
    * It cannot be `t.users.viewer`, which is otherwise the read-only user here —
    * the list tests below grant that role `files.manage`, and every test after
@@ -171,7 +171,7 @@ describe('files routes', () => {
   let reader: User;
   let readerRole: Role;
   /**
-   * The LIBRARY principal (38 D4): `files.manage` and NO table grant at all.
+   * The LIBRARY principal: `files.manage` and NO table grant at all.
    *
    * Deliberately not `reader`, whose whole value above is that it holds one
    * table grant and nothing else — granting it `files.manage` here would make
@@ -212,12 +212,13 @@ describe('files routes', () => {
     body: Buffer,
     query: Record<string, string>,
     contentType = 'application/octet-stream',
+    headers: Record<string, string> = {},
   ) {
     const search = new URLSearchParams(query).toString();
     return t.app.inject({
       method: 'POST',
       url: `/api/v1/files?${search}`,
-      headers: { ...asUser(user), 'content-type': contentType },
+      headers: { ...asUser(user), 'content-type': contentType, ...headers },
       payload: body,
     });
   }
@@ -247,7 +248,7 @@ describe('files routes', () => {
               if (column === 'logo_url') return { ref: 'url', accept: ['png', 'jpeg', 'gif', 'webp'] };
               return null;
             },
-            // The SIDECAR half (37 §3.5): a page's `config.attachments` narrows
+            // The SIDECAR half: a page's `config.attachments` narrows
             // the same three things for an upload that names no column, and
             // caps how many one record may hold.
             pageAttachments: async () => sidecarConfig,
@@ -298,6 +299,29 @@ describe('files routes', () => {
       expect(body.data.contentPath).toBe(`/api/v1/files/${String(body.data.id)}/content`);
     });
 
+    it("names the instance's public origin in a url ref, never the caller's Origin", async () => {
+      const query = { filename: 'inv-1043.pdf', connectionId: connId, table, column: 'pdf_url' };
+      const forged = { origin: 'https://evil.example', host: 'admin.example.com' };
+
+      // Nothing stored: the host the upload was sent to.
+      const before = await upload(t.users.editor, PDF, query, 'application/octet-stream', forged);
+      expect(before.statusCode).toBe(201);
+      expect(before.json().ref).toBe(`http://admin.example.com/api/v1/files/${String(before.json().data.id)}/content`);
+
+      // Stored: the same address email links use, whatever the request says.
+      await settingsRepo(t.meta).set('system.publicOrigin', 'https://admin.example.com', { updatedBy: null });
+      try {
+        const after = await upload(t.users.editor, PDF, query, 'application/octet-stream', {
+          ...forged,
+          host: 'evil.example',
+        });
+        expect(after.statusCode).toBe(201);
+        expect(after.json().ref).toBe(`https://admin.example.com/api/v1/files/${String(after.json().data.id)}/content`);
+      } finally {
+        await settingsRepo(t.meta).unset('system.publicOrigin');
+      }
+    });
+
     it('refuses without create OR update on the table, naming the grant', async () => {
       // The viewer has `read` only.
       const res = await upload(t.users.viewer, PDF, { filename: 'x.pdf', connectionId: connId, table });
@@ -306,7 +330,7 @@ describe('files routes', () => {
     });
 
     it('refuses an upload that names no connection at all', async () => {
-      // 38 D4 reversed "must name a table"; "must belong to a connection"
+      // "Must name a table" was reversed; "must belong to a connection"
       // stands, and is what keeps a file findable at all.
       const res = await upload(t.users.editor, PDF, { filename: 'orphan.pdf' });
       expect(res.statusCode).toBe(422);
@@ -324,7 +348,7 @@ describe('files routes', () => {
     });
 
     /*
-     * The LIBRARY upload (38 D4) — the Files page's own.
+     * The LIBRARY upload — the Files page's own.
      *
      * Three facts are asserted together because getting any one of them wrong
      * is silent: the grant that authorises it, the connection it records, and
@@ -366,7 +390,7 @@ describe('files routes', () => {
 
       it('leaves the create-form upload unclaimed, so an abandoned form is still collected', async () => {
         // The same shape minus the table is claimed; with a table it must not
-        // be, or 37 D12's whole unattached lifecycle stops working.
+        // be, or whole unattached lifecycle stops working.
         const res = await upload(t.users.editor, PDF, { filename: 'draft.pdf', connectionId: connId, table });
         expect(res.statusCode).toBe(201);
         expect(res.json().data.attachedAt).toBeNull();
@@ -387,7 +411,7 @@ describe('files routes', () => {
       expect(res.json().error.message).toContain('image/png');
     });
 
-    it('415s a PDF wearing a .png name at an images-only column (37-T03, §6 criterion 6)', async () => {
+    it('415s a PDF wearing a.png name at an images-only column (criterion 6)', async () => {
       // THE MISMATCH CASE, and the only one that separates a real sniffer from
       // an extension lookup. The case above sends PNG bytes called `logo.png`,
       // which an extension reader would refuse for the same reason a head
@@ -552,7 +576,7 @@ describe('files routes', () => {
     });
 
     it('serves an attached file to `read` on its table, to a caller who did not upload it', async () => {
-      // §6 CRITERION 7'S POSITIVE HALF, and nothing reached it before. Every
+      // THE POSITIVE HALF, and nothing reached it before. Every
       // other download in this file is performed by the editor who uploaded the
       // bytes, and `canRead`'s uploader clause lets an uploader through
       // whatever the table grant says — so the attached branch was only ever
@@ -573,7 +597,7 @@ describe('files routes', () => {
       expect((await filesRepo(t.meta).findById(fileId))?.uploadedBy).toBe(t.users.editor.id);
     });
 
-    it('refuses that same reader an attach — `read` is not `update` (§6 criterion 7)', async () => {
+    it('refuses that same reader an attach — `read` is not `update` (criterion 7)', async () => {
       // The negative half for the SAME principal. Without it the test above
       // would be satisfied by a route that had stopped checking anything: the
       // pair is what says `read` opens the download and only the download.
@@ -658,7 +682,7 @@ describe('files routes', () => {
     });
 
     it('filters to one connection with no table — the Files page’s By-connection preset', async () => {
-      // Every upload in this suite records its connection now (38 D4), library
+      // Every upload in this suite records its connection now, library
       // and record-bound alike, which is what makes the preset a single query.
       const res = await t.app.inject({
         method: 'GET',
@@ -670,7 +694,7 @@ describe('files routes', () => {
       for (const file of res.json().data) expect(file.connectionId).toBe(connId);
     });
 
-    it('narrows to what arrived recently — the Recent preset (38 D9)', async () => {
+    it('narrows to what arrived recently — the Recent preset', async () => {
       const before = Date.now();
       const fresh = await upload(librarian, PDF, { filename: 'just-now.pdf', connectionId: connId });
       expect(fresh.statusCode).toBe(201);
@@ -801,7 +825,7 @@ describe('files routes', () => {
     });
   });
 
-  describe('the sidecar configuration is enforced on the wire (37 §3.5)', () => {
+  describe('the sidecar configuration is enforced on the wire', () => {
     // The Studio's Attachments card offers accept / maxBytes / maxCount. Before
     // this, NOTHING on the server read them — three controls that changed only
     // what the browser was willing to send. A cap the client alone applies is a
@@ -882,7 +906,7 @@ describe('files routes', () => {
     });
   });
 
-  describe('the realtime fan-out an open record page listens for (37 D27)', () => {
+  describe('the realtime fan-out an open record page listens for', () => {
     /**
      * The producer existed and the event reached nobody. `table:<conn>:<table>`
      * is a PUBLISH-ONLY channel — `parseChannel` has no case for it, so

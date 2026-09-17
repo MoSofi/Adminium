@@ -173,10 +173,11 @@ describe('PUT /settings/email', () => {
       secure: null,
       senders: [],
       maxAttachmentBytes: 10_485_760,
+      publicOrigin: null,
     });
   });
 
-  it('saves senders and the attachment cap on their own, leaving the transport alone (39 D7, D8)', async () => {
+  it('saves senders and the attachment cap on their own, leaving the transport alone', async () => {
     await putEmail(t, { smtp: SMTP_BODY });
     const before = await settingsRepo(t.meta).get('email.smtp');
 
@@ -210,6 +211,46 @@ describe('PUT /settings/email', () => {
     expect(JSON.stringify(row?.changes)).not.toContain('hunter2');
   });
 
+  it('saves the address links in email point at, normalized, and clears it on null', async () => {
+    const res = await putEmail(t, { publicOrigin: '  HTTPS://Admin.Example.COM:443/ ' });
+    expect(res.statusCode, res.body).toBe(200);
+    expect(res.json().data.publicOrigin).toBe('https://admin.example.com');
+    expect(await settingsRepo(t.meta).get('system.publicOrigin')).toBe('https://admin.example.com');
+    // Saved on its own: nothing else on the section moved.
+    expect(res.json().data.configured).toBe(false);
+
+    const read = await t.app.inject({ method: 'GET', url: '/api/v1/settings/email', headers: asUser(t.superAdmin) });
+    expect(read.json().data.publicOrigin).toBe('https://admin.example.com');
+
+    // An origin and nothing else: no path, no query, no credentials, no other scheme.
+    for (const publicOrigin of [
+      'admin.example.com',
+      'https://admin.example.com/admin',
+      'https://admin.example.com?x=1',
+      'https://user:pw@admin.example.com',
+      'https://evil.example\\@admin.example.com',
+      'javascript:alert(1)',
+      'ftp://admin.example.com',
+      '',
+    ]) {
+      expect((await putEmail(t, { publicOrigin })).statusCode, publicOrigin).toBe(422);
+    }
+    expect(await settingsRepo(t.meta).get('system.publicOrigin')).toBe('https://admin.example.com');
+
+    const cleared = await putEmail(t, { publicOrigin: null });
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json().data.publicOrigin).toBeNull();
+    // Cleared means no row, so the server can learn it again.
+    expect(await settingsRepo(t.meta).overrides()).not.toHaveProperty('system.publicOrigin');
+
+    const rows = (await auditRepo(t.meta).list({ category: 'settings' })).filter(
+      (r) => r.action === 'settings.email.update',
+    );
+    expect(rows.map((r) => r.changes?.after)).toContainEqual(
+      expect.objectContaining({ publicOrigin: 'https://admin.example.com' }),
+    );
+  });
+
   it('stores the password encrypted and never reads it back', async () => {
     const res = await putEmail(t, { smtp: SMTP_BODY });
     expect(res.statusCode).toBe(200);
@@ -224,6 +265,7 @@ describe('PUT /settings/email', () => {
       secure: false,
       senders: [],
       maxAttachmentBytes: 10_485_760,
+      publicOrigin: null,
     });
     // Not the value, not a masked copy, not a last-4 — the serialized body must
     // not contain the password in ANY form.
@@ -505,7 +547,7 @@ describe('createSmtpTransport', () => {
     expect(mailer.close).toHaveBeenCalledTimes(1);
   });
 
-  it('hands attachments to nodemailer as bytes only, inline ones by cid, and honours a configured From (39 D7–D9)', async () => {
+  it('hands attachments to nodemailer as bytes only, inline ones by cid, and honours a configured From', async () => {
     const pdf = Buffer.from('%PDF-1.4');
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
     await createSmtpTransport(cfg).send({

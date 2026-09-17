@@ -35,7 +35,6 @@ import {
   configureEmailRuntime,
   enqueueEmail,
   isEmailConfigured,
-  requestOrigin,
   resetEmailRuntime,
 } from '../src/email/send.js';
 import type { EmailTransport, OutboundEmail, SmtpConfig } from '../src/email/types.js';
@@ -44,6 +43,7 @@ import { notify } from '../src/notifications/notify.js';
 import { createJobRegistry } from '../src/jobs/registry.js';
 import { JobWorker } from '../src/jobs/worker.js';
 import { RealtimeHub } from '../src/realtime/hub.js';
+import { linkOrigin } from '../src/security/public-origin.js';
 import type { FileStore } from '../src/files/store.js';
 import { buildAuthApp, ADMIN_EMAIL, type AuthTestApp } from './auth-helpers.js';
 import { until } from './jobs-helpers.js';
@@ -269,18 +269,21 @@ describe('email.send: sealed payload, transport, and the quiet paths', () => {
     ).not.toBeNull();
   });
 
-  it('prefers the Origin header over a forgeable Host', () => {
-    expect(
-      requestOrigin({
-        protocol: 'http',
-        host: 'evil.example',
-        hostname: 'evil.example',
-        headers: { origin: 'https://admin.example.com/' },
-      }),
-    ).toBe('https://admin.example.com');
-    expect(
-      requestOrigin({ protocol: 'https', host: 'admin.test:8443', hostname: 'admin.test', headers: {} }),
-    ).toBe('https://admin.test:8443');
+  // This used to assert the opposite: that `Origin` wins because "a page
+  // cannot forge it". Any non-browser caller can, and `POST /auth/password/forgot`
+  // takes anyone's call. email-link-origin.test.ts has the end-to-end cases.
+  it('builds links from the stored public origin, never from the Origin header', async () => {
+    const forged = {
+      protocol: 'https',
+      host: 'admin.test:8443',
+      hostname: 'admin.test',
+      headers: { origin: 'https://evil.example' },
+    };
+    // Nothing stored yet: the request's own scheme and host.
+    expect(await linkOrigin(meta, forged)).toBe('https://admin.test:8443');
+
+    await settingsRepo(meta).set('system.publicOrigin', 'https://admin.example.com', { updatedBy: null });
+    expect(await linkOrigin(meta, forged)).toBe('https://admin.example.com');
   });
 });
 
@@ -403,7 +406,7 @@ describe('POST /auth/password/forgot still 202s and now also mails', () => {
   });
 });
 
-// --- attachments at delivery (39 D8, D9; 39-T06) ---------------------------------------
+// --- attachments at delivery ---------------------------------------
 
 describe('email.send delivers attachments and inline parts as bytes', () => {
   let meta: MetaDb;

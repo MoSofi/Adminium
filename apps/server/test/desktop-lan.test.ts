@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * LAN share, server side (11-electron.md §8.3): `GET /api/v1/desktop/lan-share`'s
- * gates and counts, `lanShareActive`'s bind reading, and §8.3's audit-log
- * promise.
+ * LAN share, server side: `GET /api/v1/desktop/lan-share`'s gates and counts,
+ * `lanShareActive`'s bind reading, audit-log promise.
  *
  * ─── The audit-log block is an ACCEPTANCE CRITERION, not a nice-to-have ──────
  *
- * §8.3: "the audit log (`adminium_audit_log`) records their LAN IPs." That is a
- * claim about a real login over a real socket, so it is tested as one — a
- * request from 192.168.1.24 through the actual `/auth/login` route, then a read
- * of the row it wrote. Asserting that `auditAuth` passes `request.ip` somewhere
- * would prove nothing about what Fastify puts in `request.ip`, which is the only
- * part that can actually be wrong.
+ * "the audit log (`adminium_audit_log`) records their LAN IPs." That is a claim
+ * about a real login over a real socket, so it is tested as one — a request from
+ * 192.168.1.24 through the actual `/auth/login` route, then a read of the row it
+ * wrote. Asserting that `auditAuth` passes `request.ip` somewhere would prove
+ * nothing about what Fastify puts in `request.ip`, which is the only part that
+ * can actually be wrong.
  *
  * ─── Gate 1 IS covered here ─────────────────────────────────────────────────
  *
@@ -132,15 +131,15 @@ afterEach(async () => {
   t = null;
 });
 
-describe('lanShareActive (§8.1, §8.3)', () => {
+describe('lanShareActive', () => {
   it('is true only for a desktop process bound to every interface', () => {
     expect(lanShareActive({ ADMINIUM_RUNTIME: 'desktop', HOST: '0.0.0.0' })).toBe(true);
     expect(lanShareActive({ ADMINIUM_RUNTIME: 'desktop', HOST: '127.0.0.1' })).toBe(false);
   });
 
-  it('is FALSE for a self-host server bound wide — that is a reverse proxy, not §8.3', () => {
+  it('is FALSE for a self-host server bound wide — that is a reverse proxy, not', () => {
     // Every Docker deployment binds 0.0.0.0. Reporting `true` for them would
-    // make §8.1's chip meaningless on the one runtime that renders it.
+    // make chip meaningless on the one runtime that renders it.
     expect(lanShareActive({ ADMINIUM_RUNTIME: 'self-host', HOST: '0.0.0.0' })).toBe(false);
   });
 
@@ -148,7 +147,7 @@ describe('lanShareActive (§8.1, §8.3)', () => {
     expect(isWildcardBindHost('::')).toBe(true);
     expect(isWildcardBindHost('[::]')).toBe(true);
     // A specific LAN address is reachable but is not a wildcard, and the shell
-    // never produces one (§8.3 flips between loopback and 0.0.0.0, nothing else).
+    // never produces one (flips between loopback and 0.0.0.0, nothing else).
     expect(isWildcardBindHost('192.168.1.5')).toBe(false);
   });
 });
@@ -163,7 +162,7 @@ describe('GET /desktop/lan-share', () => {
   });
 
   it('REFUSES a LAN peer, even a super admin one (gate 2)', async () => {
-    // The route exists only when the server is bound wide, so the LAN users §8.3
+    // The route exists only when the server is bound wide, so the LAN users
     // invited can reach it by construction. Without this gate, any of them with
     // a super-admin account could enumerate who else is on the network — a
     // surveillance surface nobody asked for. The panel is a LOCAL affordance.
@@ -187,7 +186,7 @@ describe('GET /desktop/lan-share', () => {
   });
 });
 
-describe('the §8.3 session count', () => {
+describe('the session count', () => {
   /** A live session, as `createSession` makes one. The token hash is opaque here. */
   let seq = 0;
   const open = (h: Harness, userId: string, ip: string | null) =>
@@ -237,7 +236,7 @@ describe('the §8.3 session count', () => {
   });
 });
 
-describe('the §8.3 precondition count (otherUsers)', () => {
+describe('the precondition count (otherUsers)', () => {
   it('does not count a second super admin — another copy of you is not "somebody to invite"', async () => {
     t = await harness();
     const roles = rolesRepo(t.meta);
@@ -265,7 +264,7 @@ describe('the §8.3 precondition count (otherUsers)', () => {
   });
 });
 
-describe('§8.3 acceptance: the audit log records LAN IPs', () => {
+describe('The audit log records LAN IPs', () => {
   it('stamps a LAN login with the peer address the kernel saw', async () => {
     t = await harness();
     // A real login through the real route, from a real non-loopback peer.
@@ -284,12 +283,12 @@ describe('§8.3 acceptance: the audit log records LAN IPs', () => {
     expect(entry?.ip).toBe('192.168.1.24');
   });
 
-  it('does not let a LAN peer choose the IP it is logged as (§8.3 + trustProxy off)', async () => {
+  it('does not let a LAN peer choose the IP it is logged as (+ trustProxy off)', async () => {
     // The desktop shell forces `ADMINIUM_TRUST_PROXY=off` (`apps/desktop/src/
     // server/env.ts`) precisely so this holds: nothing is ever in front of the
     // embedded server, so `X-Forwarded-For` is never a forwarding record — it is
     // only ever a peer's preferred spelling of itself. If it were honoured, the
-    // audit trail §8.3 promises would record whatever the attacker typed.
+    // audit trail promises would record whatever the attacker typed.
     t = await harness();
     await t.app.inject({
       method: 'POST',

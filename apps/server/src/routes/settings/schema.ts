@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Zod schemas for the global-defaults settings resource
- * (10-i18n-theming.md §7.2, 08-server-api.md): the four preference axes with
- * the same enums the meta json-payloads use, plus per-axis adoption counts
- * (`following` = users whose override is NULL for that axis).
+ * Zod schemas for the global-defaults settings resource: the four preference
+ * axes with the same enums the meta json-payloads use, plus per-axis
+ * adoption counts (`following` = users whose override is NULL for that
+ * axis).
  */
 import { z } from 'zod';
 import { accentSchema, densitySchema, localeSchema, themeSchema } from '@adminium/meta';
 
-/** PUT body — a full-object write (§7.2), never a partial patch. */
+import { PUBLIC_ORIGIN_MAX_LENGTH, normalizePublicOrigin } from '../../security/public-origin.js';
+
+/** PUT body — a full-object write, never a partial patch. */
 export const settingsDefaultsPutBody = z.object({
   theme: themeSchema,
   accent: accentSchema,
@@ -38,8 +40,8 @@ export const settingsDefaultsReply = z.object({
 });
 export type SettingsDefaultsReply = z.infer<typeof settingsDefaultsReply>;
 
-// --- workspace identity (M5-T05, 08 §2.16 sectioned puts) -----------------------
-// Bounds mirror the settings-registry Zod defs (07-meta-store.md §7.1) — the
+// --- workspace identity (sectioned puts) -----------------------
+// Bounds mirror the settings-registry Zod defs — the
 // repo re-validates on write, so these fail fast with a 422 instead of a 500.
 //
 // `auth.allowSignup` is still NOT exposed: nothing reads it (there is no
@@ -99,7 +101,7 @@ export type SettingsSecurityPutBody = z.infer<typeof settingsSecurityPutBody>;
 export const settingsSecurityReply = z.object({ data: settingsSecurityPutBody });
 export type SettingsSecurityReply = z.infer<typeof settingsSecurityReply>;
 
-// --- telemetry + update check (M10-T04, 08 §2.16 `settingsTelemetryPutBody`) ----
+// --- telemetry + update check (`settingsTelemetryPutBody`) ----
 // Both are OFF by default in the registry and are first asked on the first-run
 // consent screen; this section is how they are revisited later. Exposed under
 // the same rule as every other section here — both are enforced today:
@@ -122,7 +124,7 @@ export const settingsTelemetryReply = z.object({
 });
 export type SettingsTelemetryReply = z.infer<typeof settingsTelemetryReply>;
 
-// --- email / SMTP (08 §2.16 sectioned puts) --------------------------------------
+// --- email / SMTP (sectioned puts) --------------------------------------
 // The first settings section whose stored value is a SECRET, so it is also the
 // first that cannot be a symmetric read/write pair. Everything else here reads
 // back exactly what it accepts; a password must never be readable, so the GET
@@ -130,7 +132,7 @@ export type SettingsTelemetryReply = z.infer<typeof settingsTelemetryReply>;
 // takes a plaintext `pass` that `email/config.ts`'s key encrypts before it ever
 // reaches a row.
 //
-// Bounds mirror `smtpSchema` in the settings registry (07-meta-store.md §7.1),
+// Bounds mirror `smtpSchema` in the settings registry,
 // which re-validates on write, so a bad value fails as a 422 here rather than a
 // 500 out of the repo.
 
@@ -172,7 +174,7 @@ const CONTROL_CHAR_MESSAGE = 'must not contain line breaks or control characters
  * production SMTP password ends up in someone's notes app so it can be pasted
  * back. Absent ⇒ keep the stored one; empty string ⇒ clear it.
  */
-/** One configured From address beyond `email.smtp.from` (39-email-templates-and-campaigns.md D7). */
+/** One configured From address beyond `email.smtp.from`. */
 export const settingsEmailSender = z.object({
   name: z.string().max(120).refine(noControlChars, CONTROL_CHAR_MESSAGE),
   address: z
@@ -191,11 +193,27 @@ export const ATTACHMENT_CAP_MAX = 52_428_800;
 
 export const settingsEmailPutBody = z.object({
   /**
-   * Absent = the transport is untouched; `null` clears it (39-T04 made this
+   * Absent = the transport is untouched; `null` clears it (made this
    * optional so the senders and the cap can be saved on their own).
    */
   senders: z.array(settingsEmailSender).max(50).optional(),
   maxAttachmentBytes: z.number().int().min(ATTACHMENT_CAP_MIN).max(ATTACHMENT_CAP_MAX).optional(),
+  /**
+   * `system.publicOrigin`: where links in email point. Absent = untouched;
+   * `null` clears it, and the server then learns it again from the next
+   * settings admin's browser (security/public-origin.ts). Normalized before
+   * it is stored, so `HTTPS://Admin.Example.com/` saves as
+   * `https://admin.example.com`.
+   */
+  publicOrigin: z
+    .string()
+    .max(PUBLIC_ORIGIN_MAX_LENGTH)
+    .refine(
+      (value) => normalizePublicOrigin(value) !== null,
+      'must be an http(s) address with no path, such as https://admin.example.com',
+    )
+    .nullable()
+    .optional(),
   smtp: z
     .object({
       host: z.string().min(1).max(SMTP_HOST_MAX).refine(noControlChars, CONTROL_CHAR_MESSAGE),
@@ -238,13 +256,18 @@ export const settingsEmailView = z.object({
   from: z.string().nullable(),
   secure: z.boolean().nullable(),
   /**
-   * The configured From addresses a document may choose (39 D7). `from`
-   * above is the implicit first sender and is NOT repeated here — the client
-   * shows it as the row that cannot be removed.
+   * The configured From addresses a document may choose. `from` above is the
+   * implicit first sender and is NOT repeated here — the client shows it as
+   * the row that cannot be removed.
    */
   senders: z.array(settingsEmailSender),
-  /** `email.maxAttachmentBytes` (39 D8). */
+  /** `email.maxAttachmentBytes`. */
   maxAttachmentBytes: z.number().int(),
+  /**
+   * `system.publicOrigin`, or `null` while it is not known yet. Links in email
+   * then use the address each request arrived on.
+   */
+  publicOrigin: z.string().nullable(),
 });
 export type SettingsEmailView = z.infer<typeof settingsEmailView>;
 

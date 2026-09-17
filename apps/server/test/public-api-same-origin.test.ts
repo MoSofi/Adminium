@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * 29-T02/T03 — the `self` sentinel and same-origin access to the public API
- * (29-app-surfaces.md D2, acceptance criteria 2 and 3).
+ * The `self` sentinel and same-origin access to the public API (acceptance
+ * criteria 2 and 3).
  *
  * ── THE DEFECT THIS FIXES ──────────────────────────────────────────────────
  * 28 shipped four build modes, one of which — `hosted-customer` — is a bundle
@@ -69,9 +69,9 @@ afterEach(async () => {
  * A serving instance with the given origin list.
  *
  * Loopback bind so the public namespace registers without
- * `ADMINIUM_TRUST_PROXY` (28 D21), and `publicApi.enabled` set because the two
- * switches are independent and the row defaults false — without it every route
- * 503s and the origin gate is never reached.
+ * `ADMINIUM_TRUST_PROXY`, and `publicApi.enabled` set because the two switches
+ * are independent and the row defaults false — without it every route 503s and
+ * the origin gate is never reached.
  */
 async function serving(origins: string): Promise<ComposedServer['app']> {
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
@@ -200,7 +200,7 @@ async function probe(
   };
 }
 
-describe('29 D2 — the public gate\'s refusal matrix, with and without `self`', () => {
+describe('The public gate\'s refusal matrix, with and without `self`', () => {
   it('accepts same-origin callers only when the sentinel is set', async () => {
     const app = await serving(`self,${ALLOWED}`);
     const actual: Record<string, string | undefined> = {};
@@ -219,7 +219,7 @@ describe('29 D2 — the public gate\'s refusal matrix, with and without `self`',
   }, 60_000);
 });
 
-describe('29 D2 — what the same-origin path does NOT do', () => {
+describe('What the same-origin path does NOT do', () => {
   it('emits no Access-Control-Allow-Origin for a same-origin caller', async () => {
     // A same-origin response needs no CORS header, and emitting one would mean
     // echoing an origin the request never sent. `Vary: Origin` still goes out —
@@ -238,9 +238,9 @@ describe('29 D2 — what the same-origin path does NOT do', () => {
 
   it('still requires a valid key when the fetch metadata is FORGED', async () => {
     /*
-     * 28 §3.6, restated where someone will read it: `Sec-Fetch-Site` is
-     * trivially forged by a non-browser, and this is POLICY, not a boundary. It
-     * keeps other people's PAGES out; the publishable KEY is the credential.
+     * Restated where someone will read it: `Sec-Fetch-Site` is trivially forged
+     * by a non-browser, and this is POLICY, not a boundary. It keeps other
+     * people's PAGES out; the publishable KEY is the credential.
      *
      * The assertion is that the forgery gets you to the KEY CHECK and no
      * further. Nobody should later "fix" this into a boundary it cannot be.

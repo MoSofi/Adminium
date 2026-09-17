@@ -35,6 +35,8 @@ import { createSetupService } from '../src/setup/service.js';
 import { COMMANDS, findCommand, wantsHelp } from '../src/cli/run.js';
 import { allowlistCandidates, BUNDLED_VOCABULARY_FILE } from '../src/cli/allowlist.js';
 import { startCommand } from '../src/cli/commands/start.js';
+import { EXIT_CONFIG } from '../src/cli/exit.js';
+import { MIN_NODE, unsupportedNodeMessage } from '../src/cli/node-support.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { fakeDeps, fakeIo, fakeRuntime } from './cli-helpers.js';
 import { makeEnv } from './helpers.js';
@@ -154,7 +156,7 @@ describe('composition root (compose.ts)', () => {
       ['GET', '/api/v1/me/notification-prefs'],
       ['GET', '/api/v1/scheduled-reports'],
       ['GET', '/api/v1/email-templates'],
-      // M4-T06 closes the same way: the ⌘K palette's server half must exist
+      // The palette closes the same way: the ⌘K palette's server half must exist
       // on the composed server, not only in its own suite's harness.
       ['GET', '/api/v1/search?q=ab'],
     ] as const;
@@ -164,7 +166,7 @@ describe('composition root (compose.ts)', () => {
     }
 
     // Same bug class, jobs edition (pre-M12 audit): `registerIntrospectJob`
-    // shipped with zero call sites, so the 08 §2.4 async introspection path
+    // shipped with zero call sites, so the async introspection path
     // (202 + jobId) was dead code in every deployment and the route always
     // fell back to its synchronous dev/test branch. Compose must register it.
     expect(app.jobs.registry.has('introspect')).toBe(true);
@@ -176,15 +178,15 @@ describe('composition root (compose.ts)', () => {
   /**
    * The M11 repeat of the bug this whole describe block exists for.
    *
-   * `desktopRoutes` (§9's backup) was written, exported from `src/index.ts`,
-   * and covered by a suite that registered the plugin ITSELF — so every gate
+   * `desktopRoutes` (backup) was written, exported from `src/index.ts`, and
+   * covered by a suite that registered the plugin ITSELF — so every gate
    * stayed green while `compose.ts` registered it nowhere and the File menu's
    * "Back up now…" would have 404'd on a shipped build. An injected-dependency
    * test structurally cannot catch that: it injects its own deps and never
    * exercises the production wiring. Hence this pair, driving the real
    * `composeServer` with only an env difference between them.
    */
-  it('registers every §6/§8/§9 desktop route under the desktop runtime', async () => {
+  it('registers every desktop route under the desktop runtime', async () => {
     const meta = memoryMeta();
     const { app, ...flags } = await compose(meta, {
       ADMINIUM_RUNTIME: 'desktop',
@@ -224,8 +226,8 @@ describe('composition root (compose.ts)', () => {
 
   it('registers NO desktop route on self-host — an absent route cannot be bypassed', async () => {
     // The other half, and the security-relevant one. Gate 1 of each desktop
-    // route is compose refusing to register it off-desktop; §5's boot-token
-    // door mints a super-admin session without a password, and §9's backup is
+    // route is compose refusing to register it off-desktop; the boot-token
+    // door mints a super-admin session without a password, backup is
     // every row in every database in one request. On Docker/npx they must not
     // exist at all — a stronger guarantee than any in-handler runtime check.
     const meta = memoryMeta();
@@ -489,6 +491,101 @@ describe('packaging', () => {
     expect(pkg.files).toContain('vocabulary');
     // prepack must EMIT it, or `files` ships an empty promise.
     expect(pkg.scripts.prepack).toContain('bundle-allowlists.mjs');
+  });
+
+  // The bug behind the next four: better-sqlite3 13's prebuilt binaries need
+  // Node-API 10, which Node has from 22.14 (23.6 on the 23 line). Node 21.5
+  // does not throw on one, it segfaults in dlopen, so `npx
+  // @adminiumjs/adminium` printed `segmentation fault` and nothing else. npm
+  // gave no warning either: the server declared no `engines`, and
+  // better-sqlite3's own says `>=22`.
+
+  it('declares the Node floor on the published package, matching the repo root', async () => {
+    const pkg = (await import('../package.json', { with: { type: 'json' } })).default as {
+      engines?: { node?: string };
+    };
+    const root = JSON.parse(
+      await readFile(new URL('../../../package.json', import.meta.url), 'utf8'),
+    ) as { engines?: { node?: string } };
+    expect(pkg.engines?.node).toBe('^22.14.0 || >=23.6.0');
+    expect(pkg.engines?.node).toContain(MIN_NODE);
+    expect(root.engines?.node).toBe(pkg.engines?.node);
+  });
+
+  it('refuses every Node that cannot load the driver, and says which Node it found', () => {
+    const cases: [node: string, napi: string | undefined, supported: boolean][] = [
+      ['21.5.0', '9', false],
+      ['22.13.1', '9', false],
+      ['22.14.0', '10', true],
+      // Newer than 22.14 by version number, and it still crashes.
+      ['23.5.0', '9', false],
+      ['23.6.0', '10', true],
+      ['24.18.1', '10', true],
+      ['22.14.0', undefined, false],
+    ];
+    for (const [node, napi, supported] of cases) {
+      const message = unsupportedNodeMessage({ node, napi });
+      expect(message === null, `Node ${node}, Node-API ${String(napi)}`).toBe(supported);
+    }
+
+    const old = unsupportedNodeMessage({ node: '21.5.0', napi: '9' }) ?? '';
+    expect(old).toContain('needs Node.js 22.14 or newer');
+    expect(old).toContain('This is Node.js 21.5.0');
+    expect(old).toContain('https://nodejs.org');
+    expect(unsupportedNodeMessage({ node: '23.5.0', napi: '9' })).toContain('23.6 or newer');
+  });
+
+  it('checks Node before the CLI entry loads the command modules', async () => {
+    // ESM runs static imports before the file's own code. A static
+    // `import … from './run.js'` in cli/index.ts loads better-sqlite3 before
+    // any check can run, and on an old Node that load IS the segfault. So:
+    // pretend to be Node 21.5 and prove run.js was never loaded.
+    const loaded = vi.fn();
+    vi.doMock('../src/cli/run.js', () => {
+      loaded();
+      return { runCli: () => Promise.resolve(0) };
+    });
+    const versions = Object.getOwnPropertyDescriptor(process, 'versions');
+    if (versions === undefined) throw new Error('process.versions is not an own property');
+    Object.defineProperty(process, 'versions', {
+      value: { ...process.versions, node: '21.5.0', napi: '9' },
+      configurable: true,
+    });
+    const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const exitCode = process.exitCode;
+    try {
+      await import('../src/cli/index.js');
+      expect(loaded).not.toHaveBeenCalled();
+      expect(process.exitCode).toBe(EXIT_CONFIG);
+      const printed = write.mock.calls.map(([chunk]) => String(chunk)).join('');
+      expect(printed).toContain('This is Node.js 21.5.0');
+    } finally {
+      // A leftover exit code would fail this whole worker.
+      process.exitCode = exitCode;
+      write.mockRestore();
+      Object.defineProperty(process, 'versions', versions);
+      vi.doUnmock('../src/cli/run.js');
+    }
+  });
+
+  it('loads nothing else before that check, and never force-exits', async () => {
+    // The behavioural test above only watches run.js. Any other static import
+    // in the entry, or in what the entry imports, runs before the check too.
+    const read = (name: string) =>
+      readFile(new URL(`../src/cli/${name}`, import.meta.url), 'utf8');
+    const staticImports = (source: string) =>
+      [
+        ...source.matchAll(/^\s*(?:import|export)\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/gm),
+      ].map((match) => match[1] ?? '');
+
+    const entry = await read('index.ts');
+    expect(staticImports(entry).sort()).toEqual(['./exit.js', './node-support.js']);
+    for (const specifier of staticImports(entry)) {
+      expect(staticImports(await read(specifier.replace(/\.js$/, '.ts'))), specifier).toEqual([]);
+    }
+    expect(entry).toContain("await import('./run.js')");
+    // A listening server must survive a clean exit code (see index.ts).
+    expect(entry).not.toMatch(/process\.exit\(/);
   });
 });
 

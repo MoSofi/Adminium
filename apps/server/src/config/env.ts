@@ -1,28 +1,30 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { z } from 'zod';
 
+import { invalidTrustedProxies } from '../security/trust-proxy.js';
+
 /**
- * Environment validation (01-architecture.md §7.1). `loadEnv()` is called
- * first in the boot sequence; on invalid input it prints a fail-fast table
- * (variable | problem | hint) to stderr and throws — it never calls
- * `process.exit` so callers (CLI, tests, Electron) decide how to die.
+ * Environment validation. `loadEnv()` is called first in the boot
+ * sequence; on invalid input it prints a fail-fast table (variable |
+ * problem | hint) to stderr and throws — it never calls `process.exit` so
+ * callers (CLI, tests, Electron) decide how to die.
  */
 export const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const;
 
 /**
- * The DEPLOYMENT WRAPPER this process is running under (01-architecture.md §4:
- * "All four deployment modes run the identical `@adminium/server` process; only
- * the wrapper differs"). Only the wrapper sets it, and only `desktop` means
- * anything today: 11-electron.md §5 registers `POST /api/v1/auth/desktop-session`
- * ONLY under that value, so a self-host or Docker instance does not expose the
- * boot-token exchange at all — it has no route to attack, not merely a guarded
- * one. Everything that is not the Electron shell is `self-host` (Docker and npx
- * included); `cloud` joins when 12-cloud-platform.md lands.
+ * The DEPLOYMENT WRAPPER this process is running under ("All four deployment
+ * modes run the identical `@adminium/server` process; only the wrapper differs").
+ * Only the wrapper sets it, and only `desktop` means anything today:
+ * `POST /api/v1/auth/desktop-session` is registered ONLY under that
+ * value, so a self-host or Docker instance does not expose the boot-token
+ * exchange at all — it has no route to attack, not merely a guarded one.
+ * Everything that is not the Electron shell is `self-host` (Docker and npx
+ * included); `cloud` joins when lands.
  */
 export const RUNTIMES = ['self-host', 'desktop'] as const;
 export type Runtime = (typeof RUNTIMES)[number];
 
-/** 11-electron.md §2.2 step 4: the per-boot token is 32 random bytes, hex. */
+/** The per-boot token is 32 random bytes, hex. */
 export const BOOT_TOKEN_HEX_LENGTH = 64;
 
 const TRUTHY = new Set(['on', 'true', '1']);
@@ -33,7 +35,7 @@ const emptyToUndefined = (value: unknown): unknown => (value === '' ? undefined 
 
 /**
  * The one non-URL value `ADMINIUM_PUBLIC_API_ORIGINS` accepts: "this instance
- * itself" (29-app-surfaces.md D2).
+ * itself".
  *
  * It exists because an origin allow-list CANNOT express same-origin. A
  * same-origin `GET` sends NO `Origin` header at all — the Fetch spec appends
@@ -97,9 +99,9 @@ export const envSchema = z.object({
   ),
   HOST: z.preprocess(emptyToUndefined, z.string().default('0.0.0.0')),
   /**
-   * The first-boot source-connection seed (28-public-surface.md 28-T31): the
-   * database Adminium generates the back office FROM, as opposed to
-   * {@link ADMINIUM_META_URL}, the store it keeps its own state in.
+   * The first-boot source-connection seed: the database Adminium generates
+   * the back office FROM, as opposed to {@link ADMINIUM_META_URL}, the store
+   * it keeps its own state in.
    *
    * STILL NO `DATABASE_URL`, and the test that says so stays. That name was
    * validated here, passed through docker-compose.yml, and documented on two
@@ -126,7 +128,7 @@ export const envSchema = z.object({
   ADMINIUM_SOURCE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   /**
    * Where uploaded and generated FILES live, seeded once on a boot that has no
-   * storage destination configured (37-files-and-storage.md §3.11, D15).
+   * storage destination configured.
    *
    *   s3://<bucket>[/<prefix>]?endpoint=&region=&accessKey=&secretKey=&pathStyle=1&publicBaseUrl=
    *   webdav://<user>:<pass>@<host>[/<path>]?publicBaseUrl=
@@ -159,8 +161,8 @@ export const envSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   ADMINIUM_META_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   /**
-   * Files, exports, backups, add-on packages, the §7.2 bootstrap file and the
-   * §3.1 embedded meta store.
+   * Files, exports, backups, add-on packages, the bootstrap file and the
+   * embedded meta store.
    *
    * `./data` is the default for an EMBEDDED boot — a container, the Electron
    * shell, a host importing `loadEnv()` — and all of those pass the variable
@@ -188,7 +190,7 @@ export const envSchema = z.object({
    */
   ADMINIUM_STATIC_ROOT: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   /**
-   * ─── The desktop block (11-electron.md §2.2 step 5) ───────────────────────
+   * ─── The desktop block ────────────────────────────────────────────────────
    *
    * Set by `apps/desktop`'s `buildServerEnv` when it forks the utilityProcess,
    * and by nothing else. They live HERE, in the schema every front door
@@ -201,9 +203,9 @@ export const envSchema = z.object({
    */
   ADMINIUM_RUNTIME: z.preprocess(emptyToUndefined, z.enum(RUNTIMES).default('self-host')),
   /**
-   * The per-boot token the desktop main process generated this launch (§2.2
-   * step 4), which `POST /api/v1/auth/desktop-session` exchanges for a session.
-   * NEVER persisted anywhere — it exists in the main process's memory, in this
+   * The per-boot token the desktop main process generated this launch, which
+   * `POST /api/v1/auth/desktop-session` exchanges for a session. NEVER
+   * persisted anywhere — it exists in the main process's memory, in this
    * child's environment, and in the one URL that opens the window.
    *
    * Optional even under `ADMINIUM_RUNTIME=desktop`: absent ⇒ the route is not
@@ -223,16 +225,16 @@ export const envSchema = z.object({
       .optional(),
   ),
   /**
-   * The §5 "Skip login on this computer" answer, mirrored out of the desktop's
-   * `config.json` (§2.3 `singleUser`) on every boot.
+   * The answer, mirrored out of the desktop's `config.json` (`singleUser`) on
+   * every boot.
    *
    * Tri-state, for the same reason `ADMINIUM_TELEMETRY` is: `config.json` is the
-   * source of truth for this value (§2.3 — the main process owns it, because the
+   * source of truth for this value (the main process owns it, because the
    * settings panel writes it through the preload bridge), and the env var is the
    * only channel that reaches the child at boot. Set ⇒ compose mirrors it into
-   * `adminium_settings.desktop.singleUser`, which is what the route reads (§5).
-   * Unset ⇒ NOTHING is written and the stored value stands, so a wrapper that
-   * has not wired the mirror cannot silently flip a user's answer.
+   * `adminium_settings.desktop.singleUser`, which is what the route reads. Unset
+   * ⇒ NOTHING is written and the stored value stands, so a wrapper that has not
+   * wired the mirror cannot silently flip a user's answer.
    */
   ADMINIUM_DESKTOP_SINGLE_USER: z.preprocess(
     emptyToUndefined,
@@ -242,17 +244,17 @@ export const envSchema = z.object({
       .transform((value) => (value === undefined ? undefined : TRUTHY.has(value))),
   ),
   /**
-   * Absolute path to `demo-seed.mjs` — the §6 step 2 "Explore the demo database"
-   * seed script, which ships in `apps/desktop/resources/` (11-T08).
+   * Absolute path to `demo-seed.mjs` — the seed script, which ships in
+   * `apps/desktop/resources/`.
    *
    * The server cannot find this itself and must not try: the script's location is
    * a fact about the SHELL's layout (`resources/demo/` in the repo, inside the
-   * app bundle once §10 packages it), and `@adminium/server` may not import
+   * app bundle once packages it), and `@adminium/server` may not import
    * `@adminium/desktop` to ask. So the shell states it, the same way it states
-   * the boot token — and, like the boot token, this being absent is a
-   * DEGRADATION rather than an error: `compose.ts` skips the route and the
-   * wizard's demo card has nothing to call, while every other first-run path
-   * still works. A missing demo must not cost you your app.
+   * the boot token — and, like the boot token, this being absent is a DEGRADATION
+   * rather than an error: `compose.ts` skips the route and the wizard's demo card
+   * has nothing to call, while every other first-run path still works. A missing
+   * demo must not cost you your app.
    *
    * Only meaningful when {@link Runtime} is `desktop`; compose requires both.
    */
@@ -264,8 +266,8 @@ export const envSchema = z.object({
    * `undefined` MUST survive parsing. The real gate is the `telemetry.enabled`
    * setting, written by the first-run consent screen; an env var that collapsed
    * "unset" to `false` could not be layered over it without silently vetoing
-   * every consenting instance. So: set ⇒ the environment wins outright (01 §7.2
-   * "environment always wins"); unset ⇒ the consent answer stands.
+   * every consenting instance. So: set ⇒ the environment wins outright; unset ⇒
+   * the consent answer stands.
    *
    * It is layered at all because it was documented as the kill-switch
    * (`self-hosting/telemetry.md`, `env-vars.md`) while being read by NOTHING —
@@ -282,26 +284,26 @@ export const envSchema = z.object({
   ),
   /**
    * May this deployment use network-dependent features at all
-   * (11-electron.md §8.2 `networkFeaturesAllowed`)?
+   * (`networkFeaturesAllowed`)?
    *
    * READ THIS BEFORE USING IT: THIS IS A POLICY ANSWER, NOT A REACHABILITY
    * ANSWER. It does not mean "the internet is up" and must never be rendered as
    * if it did. The server cannot know whether the network is reachable without
-   * making an outbound call, and 11-electron.md §7 ("Offline is the default,
-   * network is the exception. Every network touchpoint … is explicit,
-   * user-visible, and individually disableable") is precisely the promise an
-   * unprompted reachability probe would break — the desktop offline smoke test
-   * fails the build over exactly that request. So the honest thing the server
-   * CAN report is the one it owns: whether the operator has permitted outbound
-   * features here. §8.2's webhooks row is written to match — those rows carry a
+   * making an outbound call, ("Offline is the default, network is the
+   * exception. Every network touchpoint … is explicit, user-visible, and
+   * individually disableable") is precisely the promise an unprompted
+   * reachability probe would break — the desktop offline smoke test fails the
+   * build over exactly that request. So the honest thing the server CAN report
+   * is the one it owns: whether the operator has permitted outbound features
+   * here. The webhooks row is written to match — those rows carry a
    * "Requires internet" HINT rather than a claim, because nothing in this
    * process is entitled to make the claim.
    *
    * Default `on`, because a self-host behind a normal internet connection is the
    * common case and webhooks/OAuth are ordinary features there. `off` is the
    * air-gap switch for the fleet admin who already reaches for
-   * `ADMINIUM_DISABLE_UPDATES=1` (§11) and `ADMINIUM_TELEMETRY=off`: it tells the
-   * SPA to stop offering what this network cannot do, instead of letting users
+   * `ADMINIUM_DISABLE_UPDATES=1` and `ADMINIUM_TELEMETRY=off`: it tells the SPA
+   * to stop offering what this network cannot do, instead of letting users
    * discover it one timeout at a time.
    *
    * NOT tri-state, unlike `ADMINIUM_TELEMETRY`: there is no stored setting
@@ -322,7 +324,47 @@ export const envSchema = z.object({
       .optional()
       .transform((value) => (value === undefined ? false : TRUTHY.has(value))),
   ),
-  // CORS is off by default — the SPA is same-origin (08-server-api.md §7 item 4).
+  /**
+   * Which connections count as the reverse proxy while `ADMINIUM_TRUST_PROXY`
+   * is on (`security/trust-proxy.ts`). A CSV of addresses, CIDR subnets and the
+   * names `loopback`, `linklocal`, `uniquelocal`.
+   *
+   * Unset ⇒ `loopback,uniquelocal` (`DEFAULT_TRUSTED_PROXIES`), which covers a
+   * proxy on this host and one on a Docker network. A value REPLACES that
+   * default rather than adding to it, so naming the proxy's own address is how
+   * an operator narrows trust to it.
+   *
+   * Refused while `ADMINIUM_TRUST_PROXY` is off (the object-level check below).
+   * A list that silently does nothing is exactly how this setting failed
+   * before, and the operator who wrote one clearly meant a proxy to be trusted.
+   */
+  ADMINIUM_TRUSTED_PROXIES: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const entries = value
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0);
+        if (entries.length === 0) return undefined;
+        const refused = invalidTrustedProxies(entries);
+        if (refused.length > 0) {
+          ctx.addIssue({
+            code: 'custom',
+            message:
+              `${refused.map((entry) => `"${entry}"`).join(', ')} ` +
+              `${refused.length === 1 ? 'is' : 'are'} not an address, a CIDR subnet, ` +
+              'or one of loopback, linklocal, uniquelocal',
+          });
+          return z.NEVER;
+        }
+        return entries;
+      }),
+  ),
+  // CORS is off by default — the SPA is same-origin.
   // A CSV of exact origins opts split deployments in; wildcard is rejected here
   // because responses are credentialed (cookies).
   ADMINIUM_CORS_ORIGINS: z.preprocess(
@@ -397,8 +439,7 @@ export const envSchema = z.object({
   ),
 
   /**
-   * Exact origins allowed to reach `/api/v1/public/*` (28-public-surface.md
-   * §3.5 level 1, §3.6).
+   * Exact origins allowed to reach `/api/v1/public/*` (level 1).
    *
    * UNSET ⇒ the public routes are NEVER REGISTERED. Not registered-and-
    * refusing: an instance that never opted in has no door to probe, which is
@@ -516,6 +557,16 @@ export const envSchema = z.object({
   ),
 })
   .superRefine((env, ctx) => {
+    if (env.ADMINIUM_TRUSTED_PROXIES !== undefined && !env.ADMINIUM_TRUST_PROXY) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ADMINIUM_TRUSTED_PROXIES'],
+        message:
+          'is set, but ADMINIUM_TRUST_PROXY is off, so no proxy is trusted. ' +
+          'Set ADMINIUM_TRUST_PROXY=on as well, or remove this variable.',
+      });
+    }
+
     // The disjointness rule from ADMINIUM_PUBLIC_API_ORIGINS' comment. Checked
     // across the two fields, so it belongs on the object rather than either one.
     const admin = env.ADMINIUM_CORS_ORIGINS;
@@ -566,6 +617,8 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_TELEMETRY: `one of ${BOOLEANISH.join(', ')} (default off)`,
   ADMINIUM_NETWORK_FEATURES: `one of ${BOOLEANISH.join(', ')} (default on; set off on air-gapped installs so the UI stops offering webhooks/OAuth)`,
   ADMINIUM_TRUST_PROXY: `one of ${BOOLEANISH.join(', ')} (default off; enable behind Caddy/TLS)`,
+  ADMINIUM_TRUSTED_PROXIES:
+    'CSV of proxy addresses, CIDR subnets, or loopback, linklocal, uniquelocal (default loopback,uniquelocal; needs ADMINIUM_TRUST_PROXY=on)',
   ADMINIUM_CORS_ORIGINS:
     'CSV of exact origins for split deployments, e.g. https://admin.acme.io — no wildcard',
   ADMINIUM_BRIDGE_ORIGINS:
