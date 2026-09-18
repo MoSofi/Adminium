@@ -470,8 +470,15 @@ test("a hook's message is in the skipped-rows report of a CSV import", async ({ 
 
   const review = page.getByTestId('import-review');
   await expect(review).toBeVisible({ timeout: 30_000 });
-  const figures = await review.locator('.font-mono').allInnerTexts();
-  expect(figures).toEqual(['2', '1', '0', '1']);
+  // allInnerTexts() reads once and answers [] when nothing matches, so it
+  // cannot tell "no figures" from "no panel right now" — and the panel is
+  // conditional on the polled job carrying stats, so it can be gone again in
+  // the frame after it was visible. toHaveText retries until the four figures
+  // are there. The one-shot read won on sqlite and postgres and lost on the
+  // slower mysql leg, twice.
+  await expect(review.locator('.font-mono')).toHaveText(['2', '1', '0', '1'], {
+    timeout: 30_000,
+  });
   const downloading = page.waitForEvent('download');
   await review.getByRole('link', { name: 'Download the skipped-rows report (CSV)' }).click();
   const report = readFileSync(await (await downloading).path(), 'utf8');
