@@ -898,6 +898,62 @@ export function tableWithAddedColumns(
  * than guessing one.
  */
 /**
+ * Every quoted literal in an expression, read in ONE left-to-right pass.
+ *
+ * ─── Why this is not a regular expression ──────────────────────────────────
+ *
+ * The obvious `/"((?:[^"\\]|\\.)*)"/g` backtracks polynomially, and so does
+ * its unrolled cousin — not because either is ambiguous, but because
+ * `matchAll` RESTARTS at every position, and on an expression with no closing
+ * quote each restart rescans to the end. That is quadratic over input this
+ * module does not control: a CHECK expression comes back from whatever the
+ * database has stored, and `parseEnumCheck` runs on every table a diff opens.
+ *
+ * A scanner has no restart. `at` only ever moves forward, so the whole
+ * function is linear in the length of the expression however the quotes fall.
+ *
+ * `quote` decides the escaping, because the two spellings escape differently:
+ * SQL doubles the quote (`'it''s'`) and JSON backslashes it (`"it\"s"`). An
+ * unterminated literal is not one, and is dropped rather than guessed at.
+ */
+function quotedLiterals(expression: string, quote: "'" | '"'): string[] {
+  const out: string[] = [];
+  let at = 0;
+  while (at < expression.length) {
+    if (expression[at] !== quote) {
+      at += 1;
+      continue;
+    }
+    at += 1;
+    let body = '';
+    let closed = false;
+    while (at < expression.length) {
+      const char = expression[at] as string;
+      if (quote === '"' && char === '\\') {
+        body += char + (expression[at + 1] ?? '');
+        at += 2;
+        continue;
+      }
+      if (char === quote) {
+        // `''` inside a single-quoted literal is one quote, not the end of it.
+        if (quote === "'" && expression[at + 1] === "'") {
+          body += "''";
+          at += 2;
+          continue;
+        }
+        closed = true;
+        at += 1;
+        break;
+      }
+      body += char;
+      at += 1;
+    }
+    if (closed) out.push(body);
+  }
+  return out;
+}
+
+/**
  * A CHECK read as enum membership: which column, and which values — or `null`
  * when the expression is some other rule.
  *
@@ -920,24 +976,13 @@ export function parseEnumCheck(
   const values: string[] = [];
   // Both quotings: the engines' own single quotes (with '' escaping) and the
   // double quotes `desiredTableToModel` writes through JSON.stringify.
-  for (const literal of expression.matchAll(/'((?:[^']|'')*)'/g)) {
-    values.push((literal[1] ?? '').replaceAll("''", "'"));
-  }
+  for (const body of quotedLiterals(expression, "'")) values.push(body.replaceAll("''", "'"));
   if (values.length === 0) {
-    /*
-     * UNROLLED, not `(?:[^"\\]|\\.)*`.
-     *
-     * The alternation form backtracks polynomially on a CHECK expression full
-     * of escaped quotes — and this expression comes out of a database snapshot,
-     * which is input nobody here controls. The unrolled loop below matches the
-     * same strings in linear time: a run of plain characters, then any number
-     * of (escape + run) pairs.
-     */
-    for (const literal of expression.matchAll(/"([^"\\]*(?:\\[\s\S][^"\\]*)*)"/g)) {
+    for (const body of quotedLiterals(expression, '"')) {
       try {
-        values.push(JSON.parse(`"${literal[1] ?? ''}"`) as string);
+        values.push(JSON.parse(`"${body}"`) as string);
       } catch {
-        values.push(literal[1] ?? '');
+        values.push(body);
       }
     }
   }
