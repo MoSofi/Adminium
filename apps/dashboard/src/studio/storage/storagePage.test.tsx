@@ -221,8 +221,24 @@ describe('storage draft algebra', () => {
   it('recognises a stored endpoint so reopening the editor is not a reset', () => {
     expect(presetIdFor({ endpoint: 'https://nyc3.digitaloceanspaces.com' })).toBe('spaces');
     expect(presetIdFor({ endpoint: 'https://abc.r2.cloudflarestorage.com' })).toBe('r2');
+    expect(presetIdFor({ endpoint: 'https://fly.storage.tigris.dev' })).toBe('tigris');
+    expect(presetIdFor({ endpoint: 'https://s3.us-west-004.backblazeb2.com' })).toBe('b2');
+    expect(presetIdFor({ endpoint: 'https://s3.eu-central-1.wasabisys.com' })).toBe('wasabi');
     expect(presetIdFor({})).toBe('aws');
     expect(presetIdFor({ endpoint: 'http://127.0.0.1:9000' })).toBe('minio');
+    // Typed without a scheme, which the endpoint field accepts.
+    expect(presetIdFor({ endpoint: 'nyc3.digitaloceanspaces.com' })).toBe('spaces');
+    expect(presetIdFor({ endpoint: 'HTTPS://NYC3.DIGITALOCEANSPACES.COM' })).toBe('spaces');
+  });
+
+  it('reads the host, so a provider domain elsewhere in the URL is not that provider', () => {
+    // Each of these CONTAINS a provider domain and is served by none of them.
+    expect(presetIdFor({ endpoint: 'https://minio.internal/?ref=wasabisys.com' })).toBe('minio');
+    expect(presetIdFor({ endpoint: 'https://wasabisys.com.example.net' })).toBe('minio');
+    expect(presetIdFor({ endpoint: 'https://example.net/digitaloceanspaces.com' })).toBe('minio');
+    expect(presetIdFor({ endpoint: 'https://notbackblazeb2.com' })).toBe('minio');
+    // An endpoint that cannot be parsed is "some other S3", not a guess.
+    expect(presetIdFor({ endpoint: 'http://:::::' })).toBe('minio');
   });
 });
 

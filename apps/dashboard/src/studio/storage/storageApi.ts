@@ -642,15 +642,48 @@ export function applyPreset(draft: DestinationDraft, id: S3PresetId): Destinatio
   };
 }
 
-/** Which preset a stored config looks like — so reopening an editor is not a reset. */
+/**
+ * The host an endpoint addresses, or `null` when it does not parse. Operators
+ * type these by hand, so a missing scheme is ordinary rather than an error.
+ */
+function endpointHost(endpoint: string): string | null {
+  const value = endpoint.trim();
+  if (value === '') return null;
+  const candidate = value.includes('://') ? value : `https://${value}`;
+  try {
+    return new URL(candidate).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/** Whether `host` IS `domain` or sits under it — never merely contains it. */
+function isHostUnder(host: string, domain: string): boolean {
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
+/**
+ * Which preset a stored config looks like — so reopening an editor is not a reset.
+ *
+ * Matched on the parsed HOST, not on a substring of the whole endpoint. The
+ * providers here all issue per-account or per-region subdomains
+ * (`nyc3.digitaloceanspaces.com`, `<account>.r2.cloudflarestorage.com`), so the
+ * test has to accept a subdomain while refusing a lookalike:
+ * `https://minio.internal/?ref=wasabisys.com` and `https://wasabisys.com.evil`
+ * both merely CONTAIN a provider domain and are neither of those providers.
+ * Anything unparseable or unrecognised is MinIO, which is what "some other S3"
+ * has always meant here.
+ */
 export function presetIdFor(config: Partial<S3DestinationConfig>): S3PresetId {
-  const endpoint = (config.endpoint ?? '').toLowerCase();
-  if (endpoint === '') return 'aws';
-  if (endpoint.includes('digitaloceanspaces.com')) return 'spaces';
-  if (endpoint.includes('r2.cloudflarestorage.com')) return 'r2';
-  if (endpoint.includes('fly.storage.tigris.dev')) return 'tigris';
-  if (endpoint.includes('backblazeb2.com')) return 'b2';
-  if (endpoint.includes('wasabisys.com')) return 'wasabi';
+  const endpoint = config.endpoint ?? '';
+  if (endpoint.trim() === '') return 'aws';
+  const host = endpointHost(endpoint);
+  if (host === null) return 'minio';
+  if (isHostUnder(host, 'digitaloceanspaces.com')) return 'spaces';
+  if (isHostUnder(host, 'r2.cloudflarestorage.com')) return 'r2';
+  if (isHostUnder(host, 'fly.storage.tigris.dev')) return 'tigris';
+  if (isHostUnder(host, 'backblazeb2.com')) return 'b2';
+  if (isHostUnder(host, 'wasabisys.com')) return 'wasabi';
   return 'minio';
 }
 
