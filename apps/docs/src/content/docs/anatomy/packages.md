@@ -32,7 +32,8 @@ git ls-tree -r --name-only HEAD -- packages/<pkg> | grep -E '\.test\.(ts|tsx|js)
 
 Two rows do not fit that shape, and say so in place: `tokens` is mostly CSS, and
 `config` is an ESLint plugin written in plain `.js`. Figures below were taken
-from `HEAD` on 2026-08-19.
+from `HEAD` on 2026-08-19, except the `public-client` row, which was added
+later and measured on 2026-09-18.
 
 | Package | Source | Tests | Depends on |
 |---|--:|--:|---|
@@ -41,6 +42,7 @@ from `HEAD` on 2026-08-19.
 | [meta](#adminiummeta) | 56 files, 10.3k | 22 | — |
 | [add-on-contracts](#adminiumadd-on-contracts) | 9 files, 1.1k | 1 | — |
 | [config](#adminiumconfig) | 7 JS files, 935 | 6 | — |
+| [public-client](#adminiumpublic-client) | 1 file, 567 | 1 | — |
 | [ui](#adminiumui) | 155 files, 9.6k | 76 | tokens |
 | [charts](#adminiumcharts) | 83 files, 9.8k | 15 | i18n, tokens |
 | [manifest](#adminiummanifest) | 3 files, 704 | 2 | add-on-contracts |
@@ -273,6 +275,92 @@ rules**, five of which exist because of a specific past bug:
 | `no-physical-direction-classes` | Bans `ml`/`mr`/`pl`/`pr`, `left`/`right`, `border-l`/`border-r`, `text-left`/`text-right`. Matches after stripping variant prefixes, so `rtl:ml-2` is caught too. |
 | `no-t-result-replace` | `t(k).replace('{count}', …)` only works via a thrown-and-swallowed ICU error. |
 | `no-dynamic-i18n-key` | A computed translation key cannot be extracted, reviewed or translated. |
+
+## @adminium/public-client
+
+**The typed client for the scoped public API.** One file, 567 lines, 33 tests —
+and **zero dependencies**, not even `zod`. It is also the only package here that
+nothing in this repository imports: it exists to be installed from npm by
+somebody else's front end, which is why no dependency rule names it and why it
+sits at the end of the leaf block rather than anywhere in the layering graph.
+
+The other side of it is the server's `/api/v1/public` namespace
+([REST reference](/reference/rest-api/#public)) — off by default, reached with a
+browser-safe publishable key, and narrowed by the operator to named resources
+and columns. This package is the shape of that namespace, in TypeScript.
+
+**Zero dependencies is a budget decision, not minimalism.** The same build ships
+inside fifteen separate static SPAs, each with its own size budget, so a
+validation library here would be paid for fifteen times over to re-check shapes
+the server already guarantees. `fetch` and `Intl`, and nothing else;
+`sideEffects: false` and a `dist`-only `files` list finish the job.
+
+One constructor, `createPublicClient(options)`, returning `PublicClient | null`:
+
+- **`null` when the base URL or key is absent** — so a demo build takes the
+  fallback branch *structurally* rather than through a `catch`. The hosted
+  marketplace demos are static clones with nothing behind them, and a client
+  that threw on a missing env var would break every one of them.
+- **Reads and writes** — `config`, `list`, `get`, `create`, `update`. `list`
+  encodes `where` as JSON because that is how the server parses it; hand-built
+  query strings are how a filter ends up subtly wrong in one of fifteen places,
+  refused opaquely. `config()` is fetched **once per client** and shared by
+  every concurrent caller, so a boot that renders six components makes one
+  request.
+- **`claim` / `signOut` / `isClaimed`** — an end-customer session, held in
+  memory and sent as `x-adminium-public-session`. `signOut` drops it locally
+  whatever the server said.
+- **`documents`** — `list`, `get`, `render`, `email` and `contentUrl`, every one
+  claim-gated, and an unclaimed caller gets an empty list rather than a refusal.
+  `render` additionally needs the key's `documents.create` capability, which
+  `config()` reports so a page can decide whether to *offer* "email me a copy"
+  rather than discover the refusal by being refused.
+- **`assertRefs(required)`** — call it at boot. An operator can narrow a scope
+  at any time, and the 403 that produces otherwise surfaces in production on a
+  page nobody was looking at; this turns it into a startup error naming the
+  missing resource or column.
+
+**Codes are the contract; prose is not.** `PUBLIC_ERROR_CODES` is thirteen codes
+as a `const` array and a matching union, so an unhandled one is a TypeScript
+error in the app rather than a surprise at runtime. Twelve mirror the server's
+own list; `PUBLIC_NETWORK_UNAVAILABLE` is minted here, for when the server said
+nothing at all and there is no code to read. `PublicApiError.message` is a
+developer string and explicitly **not** for display — the wire carries no
+translatable prose, which is what keeps the localization story free rather than
+deferred. The one exception is `PUBLIC_WRITE_REJECTED`, whose message is the
+Adminium project's own text and is meant for people.
+
+Two refusals are blunt on purpose. `isTransient` covers rate limiting, an
+unavailable upstream and a dead network but **not** `PUBLIC_API_DISABLED` — the
+operator turned the surface off, the server is answering correctly, and a retry
+loop just hammers it; use `isDisabled` and fall back to demo content. And a
+single claim code covers no match, several matches, a missing factor and an
+extra one, because anything finer turns a two-factor check into two one-factor
+ones — which is why a wrong claim resolves `false` rather than throwing.
+
+:::note[Time is the tenant's, never the reader's]
+`toTenantDay` and `toTenantMinutes` exist because the obvious
+`new Date(value).getHours()` reads the *visitor's* clock: a booking made at
+15:00 in London renders at 16:00 for a visitor in Berlin, silently. Both go
+through `Intl` with an explicit `timeZone` — `en-CA` for the day, whose short
+format is already ISO order. `isCanonicalTimeZone` is the companion, because
+`new Intl.DateTimeFormat({ timeZone })` does not throw for a legacy alias, it
+*remaps* it: `BST` resolves to `Asia/Dhaka`, six hours from the British Summer
+Time somebody meant. `formatTenantMoney` is the same argument about money — a
+`money` column arrives as a bare decimal string with no currency attached, and
+it is parsed once, at the last moment, for display only.
+:::
+
+Two rules keep it in its lane, and neither is a dependency edge. It is the only
+package in the monorepo that passes a **`functions` coverage floor** —
+89/81/85 across statements/branches/functions, a floor that was inert from the
+day it was written until 2026-09-04, because the shared helper destructured only
+two of the three axes and this was the only package that could have noticed. And
+its published identity is not its source name: `scripts/release/publish-npm.mjs`
+rewrites every `@adminium/*` to `@adminiumjs/*` at publish time, so an app must
+import `@adminiumjs/public-client`. One app imported the workspace name and
+shipped a specifier that could never have resolved from npm, whatever was
+published.
 
 ## @adminium/ui
 
