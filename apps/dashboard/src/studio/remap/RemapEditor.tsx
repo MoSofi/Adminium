@@ -55,7 +55,7 @@ import { RelationsTab } from './RelationsTab.js';
 import { SchemaTree } from './SchemaTree.js';
 import { TableInspector } from './TableInspector.js';
 import { putOverrides, regeneratePages, remapOverridesQuery, remapSchemaQuery } from './api.js';
-import { tableById, type RemapSelection } from './model.js';
+import { enumValuesFor, tableById, type RemapSelection } from './model.js';
 import { overrideKey, type RemapOverride } from './overrides.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
@@ -324,6 +324,35 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
           dialect={model.dialect}
           tables={model.tables as never}
           relations={model.relations as never}
+          /*
+           * B7. Without these, opening ANY table with an enum column staged
+           * `enumValues: {}` — and a column typed `enum` with no values is
+           * refused by the gate (`ENUM_ON_NON_ENUM_COLUMN`), so a table that
+           * had one could be loaded, edited and never applied. The values live
+           * in `model.enums`, keyed by the column's `enumRef`.
+           */
+          enumValuesByTable={Object.fromEntries(
+            model.tables.map((table) => [
+              table.id,
+              Object.fromEntries(
+                table.columns
+                  .map((column) => [column.name, enumValuesFor(model, column)] as const)
+                  .filter(([, values]) => values.length > 0),
+              ),
+            ]),
+          )}
+          nativeEnumsByTable={Object.fromEntries(
+            model.tables.map((table) => [
+              table.id,
+              table.columns
+                .filter(
+                  (column) =>
+                    column.enumRef !== null &&
+                    model.enums.find((def) => def.id === column.enumRef)?.source === 'native',
+                )
+                .map((column) => column.name),
+            ]),
+          )}
           onApplied={() => {
             void queryClient.invalidateQueries({
               queryKey: remapSchemaQuery(connectionId).queryKey,

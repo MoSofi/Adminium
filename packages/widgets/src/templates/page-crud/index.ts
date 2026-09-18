@@ -26,17 +26,31 @@ export {
   type CrudSort,
 } from './crud-api.js';
 export {
-  SEGMENTED_MAX_ARITY,
   coerceFieldValue,
-  fieldKindFor,
+  controlForColumn,
+  legalControls,
   fieldTypeTag,
   formColumns,
   isRequired,
-  type FieldKind,
+  optionsForColumn,
+  type ColumnFact,
+  type ColumnFacts,
+  type FormControl,
+  type ListOptionsResolver,
 } from './field-mapping.js';
+export {
+  FIELD_ISSUE_CODES,
+  fieldIssueMessage,
+  fieldMessagesOf,
+  formIssueMessage,
+  isFieldIssueCode,
+  type FieldIssue,
+  type FieldIssueCode,
+} from './field-issues.js';
 export { FileField, type FileFieldProps, type FileFieldUpload } from './FileField.js';
 export { FK_LOOKUP_DEBOUNCE_MS, RecordForm, type RecordFormProps } from './RecordForm.js';
 export { RecordDetail, type RecordDetailProps } from './RecordDetail.js';
+export { RecordFormDialog, type RecordFormDialogProps } from './RecordFormDialog.js';
 export {
   PAGE_CRUD_TEMPLATE_ID,
   PageCrud,

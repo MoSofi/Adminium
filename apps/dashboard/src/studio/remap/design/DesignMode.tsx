@@ -30,6 +30,7 @@ import { PlanReview } from './PlanReview.js';
 import { TableDesigner, identifierError } from './TableDesigner.js';
 import {
   blankTable,
+  keyOfExisting,
   modelTableToDesired,
   newTableKey,
   unsupportedColumnNotes,
@@ -54,6 +55,12 @@ export interface DesignModeProps {
   relations?: ModelRelation[];
   /** Column value lists, so an existing enum column keeps its options. */
   enumValuesByTable?: Record<string, Record<string, string[]>>;
+  /**
+   * Per table, the columns whose list is a NATIVE postgres enum type. Those are
+   * add-only: postgres has no statement that removes or renames a value (35
+   * D32), so the editor says so instead of planning one.
+   */
+  nativeEnumsByTable?: Record<string, string[]>;
   onApplied: () => void;
 }
 
@@ -100,6 +107,7 @@ export function DesignMode({
   tables,
   relations = [],
   enumValuesByTable = {},
+  nativeEnumsByTable = {},
   onApplied,
 }: DesignModeProps) {
   const buffer = useDesignBuffer();
@@ -265,6 +273,46 @@ export function DesignMode({
     (count, table) =>
       count + (table.name === '' ? 1 : 0) + table.columns.filter((c) => c.name === '').length,
     0,
+  );
+
+  /**
+   * Choice columns with nothing to choose from (B5).
+   *
+   * `enum` is a type you can pick from the list, and an enum column with an
+   * empty value list is refused by the gate as `ENUM_ON_NON_ENUM_COLUMN` — so
+   * before this editor existed picking it always ended in a refusal, and nowhere in the
+   * product could the values it wanted be typed. Now there is an editor, and
+   * this is the prompt that stops the round trip until it has been used.
+   * Blank values count too: they reach the wire as `""`, which Zod refuses.
+   */
+  const valuelessEnums = [...buffer.upserts.values()].flatMap((table) =>
+    table.columns
+      .filter(
+        (column) =>
+          column.logicalType === 'enum' &&
+          (table.enumValues[column.name] ?? []).filter((value) => value.trim() !== '').length === 0,
+      )
+      .map((column) => column.name),
+  );
+
+  /**
+   * Values that are typed but unusable: a blank row, or the same value twice.
+   *
+   * Both reach the wire — Zod refuses `""` outright, and a duplicate compiles to
+   * a CHECK listing it twice — so they block here, where the field that holds
+   * them is on screen and already marked.
+   */
+  const brokenEnumValues = [...buffer.upserts.values()].flatMap((table) =>
+    table.columns
+      .filter((column) => {
+        // Any column with a list, whatever its type says (D32).
+        const values = table.enumValues[column.name] ?? [];
+        if (column.logicalType !== 'enum' && values.length === 0) return false;
+        return (
+          values.some((value) => value.trim() === '') || new Set(values).size !== values.length
+        );
+      })
+      .map((column) => column.name),
   );
 
   const destructive =
@@ -434,6 +482,9 @@ export function DesignMode({
                   keyType: (staged.columns.find((c) => c.name === staged.primaryKey[0])?.logicalType ?? null) as never,
                 })),
             ]}
+            nativeEnumColumns={
+              editing.table.id === null ? [] : (nativeEnumsByTable[editing.table.id] ?? [])
+            }
             existing={editing.table.id !== null}
             /* Re-stage under the SAME key, so renaming replaces the staged
                table instead of adding a second one beside it. */
@@ -449,6 +500,28 @@ export function DesignMode({
           * there was no button. Offered only for a table that already exists:
           * a staged one is discarded, not dropped.
           */}
+        {/*
+          * A table staged in THIS change is discarded, not dropped — the
+          * distinction the comment below has always drawn and no button
+          * offered, which left `buffer.discard` with no caller and "Discard
+          * changes" (all of them) as the only way back.
+          */}
+        {editing !== null && editing.table.id === null && (
+          <div className="mt-4 border-t border-border pt-3">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                buffer.discard(editing.key);
+                setEditing(null);
+                setPlan(null);
+                setUnrepresentable([]);
+              }}
+            >
+              {t('studio:design.discardTable', 'Discard this new table')}
+            </Button>
+          </div>
+        )}
+
         {editing !== null && editing.table.id !== null && (
           <div className="mt-4 border-t border-border pt-3">
             <Button
@@ -521,7 +594,9 @@ export function DesignMode({
                       {
                         setUnrepresentable(unsupportedColumnNotes(table));
                         stage(
-                          table.id,
+                          // An existing table is keyed by its id, which never
+                          // changes — the name is the thing being typed.
+                          keyOfExisting(table.id),
                           modelTableToDesired(table, relations, enumValuesByTable[table.id] ?? {}),
                         );
                       }
@@ -543,7 +618,14 @@ export function DesignMode({
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Button
             onClick={() => void handlePlan()}
-            disabled={!buffer.dirty || planning || invalidNames.length > 0 || unnamed > 0}
+            disabled={
+              !buffer.dirty ||
+              planning ||
+              invalidNames.length > 0 ||
+              unnamed > 0 ||
+              valuelessEnums.length > 0 ||
+              brokenEnumValues.length > 0
+            }
           >
             {planning ? <Spinner size="sm" /> : null}
             {t('studio:design.plan', 'Review changes')}
@@ -587,6 +669,26 @@ export function DesignMode({
         {unnamed > 0 ? (
           <p className="text-body-sm text-fg-muted">
             {t('studio:design.unnamed', 'Name every table and column to review the changes.')}
+          </p>
+        ) : null}
+
+        {brokenEnumValues.length > 0 && valuelessEnums.length === 0 ? (
+          <p className="text-body-sm text-fg-muted">
+            {t(
+              'studio:design.brokenEnumValues',
+              'Every allowed value on {columns} needs to be filled in and different from the others.',
+              { columns: brokenEnumValues.join(', ') },
+            )}
+          </p>
+        ) : null}
+
+        {valuelessEnums.length > 0 ? (
+          <p className="text-body-sm text-fg-muted">
+            {t(
+              'studio:design.valuelessEnum',
+              'Give {columns} at least one allowed value to review the changes.',
+              { columns: valuelessEnums.join(', ') },
+            )}
           </p>
         ) : null}
 

@@ -36,12 +36,12 @@
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { pagesRepo, readBool, type MetaDb, type Page } from '@adminium/meta';
-import { classifyTable, type DatabaseModel, type TableModel } from '@adminium/engine';
 
 import { UnauthorizedError } from '../../errors.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { compileQuickSearch, type CompileFilterContext } from '../../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
+import { labelColumnFor } from '../../crud/labels.js';
 import { pkLabel } from '../../crud/records.js';
 import type { Row } from '../../crud/mask.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
@@ -89,26 +89,6 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | type
   } finally {
     clearTimeout(timer);
   }
-}
-
-/**
- * The label column for record hits: classifier displayColumn when it is a
- * readable (text-ish, unmasked, non-secret) column, else the first such
- * column, else null (→ PK label). Masked columns NEVER label a hit.
- */
-export function labelColumnFor(view: SnapshotView, table: ResolvedTable): string | null {
-  const usable = (name: string): boolean => {
-    const column = table.columns.get(name);
-    return column !== undefined && column.textish && !column.secret && !column.masked;
-  };
-  const classified = classifyTable(
-    view.model as DatabaseModel,
-    table.table as unknown as TableModel,
-  );
-  if (classified.displayColumn !== null && usable(classified.displayColumn)) {
-    return classified.displayColumn;
-  }
-  return [...table.columns.values()].find((c) => usable(c.name))?.name ?? null;
 }
 
 /** Number of columns a hit's context string draws from. */

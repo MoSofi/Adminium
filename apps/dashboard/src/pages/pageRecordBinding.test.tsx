@@ -366,7 +366,7 @@ describe('the record route renders the record PAGE', () => {
     const form = document.getElementById('page-record-add-public.orders') as HTMLElement;
     expect(form).not.toBeNull();
     await user.type(within(form).getByLabelText(/Total/), '45');
-    await user.click(screen.getByRole('button', { name: 'Add order' }));
+    await user.click(screen.getByRole('button', { name: 'Create order' }));
 
     await waitFor(() => {
       const created = fetchMock.mock.calls.find(

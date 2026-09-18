@@ -94,6 +94,13 @@ const DESCRIPTIONS = {
   me: 'The signed-in user — profile, preferences, notifications, saved layouts',
   meta: 'Where the meta store lives, and relocating it',
   onboarding: 'The first-run checklist',
+  'option-lists':
+    'Named sets of answers a column accepts, written once and pointed at by as many ' +
+    'columns as need them. Reading one needs only a session — a create dialog has to render ' +
+    'the choices to anyone who may add a row — while writing needs the same grant that points ' +
+    'a column at a list. The built-in lists live in code and are served with their labels in ' +
+    'the caller\'s locale; editing one makes an ordinary copy rather than changing it. Deleting ' +
+    'a list a column still names is refused with 409 and the columns using it.',
   pages: 'Pages and dashboards — layout, config, nav order, shared views',
   project:
     'A project folder on the server that runs one — which pages and schema customizations ' +

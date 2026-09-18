@@ -48,6 +48,45 @@ export type RemapOverride =
     }
   | { op: 'column.pii'; tableName: string; columnName: string; value: { masked: boolean; kind?: string } }
   | { op: 'column.hidden'; tableName: string; columnName: string; value: { hidden: boolean } }
+  /*
+   * ─── The four column RULES (plan 50 phase C) ─────────────────────────────
+   * Unlike the ops above, these change what the WRITE PATH does rather than
+   * what a reader sees: the create dialog, a CSV import, an automation and the
+   * public API all obey them.
+   */
+  | {
+      op: 'column.default';
+      tableName: string;
+      columnName: string;
+      value: {
+        kind: 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none';
+        text?: string;
+        userField?: 'id' | 'name';
+        onUpdate?: boolean;
+      };
+    }
+  | {
+      op: 'column.options';
+      tableName: string;
+      columnName: string;
+      value:
+        | { list: string }
+        | { values: { value: string; label?: string; tone?: string; description?: string }[] };
+    }
+  /** `required: true` only — "not required" is the absence of the row. */
+  | { op: 'column.required'; tableName: string; columnName: string; value: { required: true } }
+  | {
+      op: 'column.validation';
+      tableName: string;
+      columnName: string;
+      value: {
+        format?: 'email' | 'url' | 'phone';
+        min?: number;
+        max?: number;
+        minLength?: number;
+        maxLength?: number;
+      };
+    }
   | {
       op: 'relation.add';
       tableName: string;
@@ -65,6 +104,10 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.enumLabels',
   'column.pii',
   'column.hidden',
+  'column.default',
+  'column.options',
+  'column.required',
+  'column.validation',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

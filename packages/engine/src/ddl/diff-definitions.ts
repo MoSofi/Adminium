@@ -39,6 +39,7 @@ import {
   type Relation,
   type TableModel,
 } from '../schema-model.js';
+import { parseEnumCheck } from './edit.js';
 
 // ---------------------------------------------------------------------------
 // Shape
@@ -252,10 +253,28 @@ export function diffTableDefinitions(
     desired.indexes.filter((i) => !i.primary).map((i) => ({ name: i.name, columns: i.columns, unique: i.unique })),
   );
 
-  const beforeChecks = new Set(actual.checks.map((c) => c.expression));
-  const afterChecks = new Set(desired.checks.map((c) => c.expression));
-  const checksAdded = desired.checks.filter((c) => !beforeChecks.has(c.expression));
-  const checksRemoved = actual.checks.filter((c) => !afterChecks.has(c.expression));
+  /*
+   * A CHECK's IDENTITY, not its text.
+   *
+   * The same constraint is spelled three ways by three engines and a fourth by
+   * the desired document (see {@link parseEnumCheck}), so comparing expressions
+   * planned a drop and an add of an identical constraint every time a table
+   * with a choice column was opened. A membership check is identified by its
+   * column and its values as a SET — the order is the form's business, not the
+   * constraint's — and anything else still falls back to its own text, which is
+   * all the database gives us about a rule Adminium cannot author.
+   */
+  const columnNames = desired.columns.map((c) => c.name);
+  const checkKey = (check: { expression: string }): string => {
+    const parsed = parseEnumCheck(check.expression, columnNames);
+    return parsed === null
+      ? `expr:${check.expression}`
+      : `enum:${parsed.column}:${[...parsed.values].sort().join('\u0000')}`;
+  };
+  const beforeChecks = new Set(actual.checks.map(checkKey));
+  const afterChecks = new Set(desired.checks.map(checkKey));
+  const checksAdded = desired.checks.filter((c) => !beforeChecks.has(checkKey(c)));
+  const checksRemoved = actual.checks.filter((c) => !afterChecks.has(checkKey(c)));
 
   const actualFks = (input.actualFks ?? []).map(fkShapeOf);
   const desiredFks = (input.desiredFks ?? []).map(fkShapeOf);

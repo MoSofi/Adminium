@@ -46,6 +46,76 @@
     "close": "關閉對話方塊",
     "confirmTitle": "確定要繼續嗎？"
   },
+  "formDialog": {
+    "calendar": {
+      "days": "{month} 的日期",
+      "next": "下個月",
+      "noTimes": "這一天沒有可選時間",
+      "previous": "上個月",
+      "times": "時間",
+      "unchecked": "本月預訂過多，無法在此核對。"
+    },
+    "control": {
+      "fewer": "減少一個",
+      "hide": "隱藏",
+      "more": "增加一個",
+      "removeChip": "移除 {value}",
+      "reveal": "顯示",
+      "upTo": "最大 {size} MB"
+    },
+    "cta": {
+      "add": "新增{entity}",
+      "create": "建立{entity}"
+    },
+    "footnote": {
+      "required": "必填欄位標示為 *"
+    },
+    "issue": {
+      "required": "此欄位為必填。",
+      "notAllowed": "請選擇列出的值之一。",
+      "invalid": "此處的該值無效。",
+      "email": "請輸入有效的電子郵件地址。",
+      "url": "請輸入有效的網址。",
+      "phone": "請輸入有效的電話號碼。",
+      "number": "請輸入數字。",
+      "integer": "請輸入整數。",
+      "tooShort": "請至少輸入 {n} 個字元。",
+      "tooLong": "最多輸入 {n} 個字元。",
+      "tooSmall": "必須大於或等於 {min}。",
+      "tooLarge": "必須小於或等於 {max}。",
+      "outOfRange": "此數字超出範圍。",
+      "duplicate": "已新增。",
+      "form": "部分值遭到拒絕。請檢查標記的欄位。"
+    },
+    "lines": {
+      "add": "新增列",
+      "remove": "移除第 {n} 列"
+    },
+    "quick": {
+      "today": "今天",
+      "tomorrow": "明天",
+      "thisWeek": "本週",
+      "nextWeek": "下週",
+      "pickDate": "選擇日期",
+      "clear": "不設定{field}"
+    },
+    "reference": {
+      "noAccess": "你無權讀取 {table}，因此無法在此處修改。"
+    },
+    "subtitle": {
+      "sections": "{list}資訊"
+    },
+    "title": {
+      "create": "新增{entity}",
+      "edit": "編輯{entity}"
+    },
+    "wizard": {
+      "rail": "步驟",
+      "step": "第 {n} 步",
+      "back": "上一步",
+      "next": "繼續"
+    }
+  },
   "combobox": {
     "placeholder": "請選取…",
     "search": "搜尋…",
@@ -1438,53 +1508,23 @@
   },
   "templates": {
     "crud": {
-      "newRow": "新增資料列",
-      "exportAction": "匯出",
-      "searchPlaceholder": "搜尋 {table}…",
-      "removeFilter": "移除 {column} 篩選",
-      "queryFailed": "查詢失敗",
-      "loadingRows": "正在載入資料列",
-      "noMatchesTitle": "沒有相符的資料列",
-      "emptyTitle": "{count, plural, other {No {entity}s yet}}",
-      "createTitle": "新增 {entity}",
-      "createSubtitle": "會在 {table} 中建立一筆資料列。",
-      "createSubmit": "新增 {entity}",
-      "createSuccessTitle": "已新增 {name}",
-      "createSuccessBody": "您可以從通知中復原這項操作。",
-      "editTitle": "編輯 {entity}",
-      "saveSubmit": "儲存變更",
-      "deleteTitle": "刪除 {entity}",
-      "deletePreflight": "正在檢查參照…",
-      "deleteNoReferences": "此資料列沒有任何傳入參照。",
-      "deleteConsequencesIntro": "刪除此資料列也會影響：",
-      "referenceRows": "{count, plural, other {{n} rows}}",
-      "confirmPrompt": "請輸入 {value} 以確認",
-      "bulkDeleteTitle": "{count, plural, other {Delete {n} rows}}",
       "bulkDeleteBody": "參照造成的影響會套用到每一筆選取的資料列。",
       "bulkDeleteConfirm": "刪除資料列",
-      "uniqueHelper": "在 {table} 中必須是唯一值。",
-      "uniqueHelperCounted": "{count, plural, other {Checked against {n} rows.}}",
-      "toast": {
-        "created": "已建立 {entity}。",
-        "createFailed": "建立失敗。",
-        "saved": "變更已儲存。",
-        "updateFailed": "更新失敗。",
-        "deleted": "已刪除 {name}。",
-        "deleteFailed": "刪除失敗。",
-        "bulkDeleted": "{count, plural, other {{n} rows deleted.}}",
-        "bulkDeleteFailed": "批次刪除失敗。",
-        "exportIncomplete": "已匯出 {selected, number} 個所選列中的 {written, number} 個 — 請重新載入後再試一次。",
-        "undone": "已復原變更。",
-        "undoFailed": "復原失敗。"
-      },
+      "bulkDeleteTitle": "{count, plural, other {Delete {n} rows}}",
+      "confirmPrompt": "請輸入 {value} 以確認",
+      "createSubtitle": "會在 {table} 中建立一筆資料列。",
+      "deleteConsequencesIntro": "刪除此資料列也會影響：",
+      "deleteNoReferences": "此資料列沒有任何傳入參照。",
+      "deletePreflight": "正在檢查參照…",
+      "deleteTitle": "刪除 {entity}",
       "detail": {
         "fields": "欄位",
         "inboundReferences": "個傳入參照",
         "relatedCount": "{count, plural, other {{n} related records in {table}}}",
         "loadError": "無法載入此記錄。"
       },
-      "peekAction": "快速檢視",
-      "openPage": "開啟頁面",
+      "emptyTitle": "{count, plural, other {No {entity}s yet}}",
+      "exportAction": "匯出",
       "file": {
         "tooLarge": "該檔案超過 {limit} 的上限。",
         "uploading": "正在上傳",
@@ -1495,7 +1535,44 @@
         "add": "新增檔案",
         "removeNamed": "移除 {name}",
         "capReached": "此記錄最多接受 {count, plural, other {# 個檔案}}。"
-      }
+      },
+      "filters": {
+        "chip": "{name}：{values}",
+        "custom": "自訂",
+        "days": "{days} 天",
+        "from": "從 {value}",
+        "no": "否",
+        "rangeFrom": "從",
+        "rangeTo": "至",
+        "to": "至 {value}",
+        "yes": "是"
+      },
+      "loadingRows": "正在載入資料列",
+      "newRow": "新增資料列",
+      "noMatchesTitle": "沒有相符的資料列",
+      "openPage": "開啟頁面",
+      "peekAction": "快速檢視",
+      "queryFailed": "查詢失敗",
+      "referenceRows": "{count, plural, other {{n} rows}}",
+      "removeFilter": "移除 {column} 篩選",
+      "saveSubmit": "儲存變更",
+      "searchPlaceholder": "搜尋 {table}…",
+      "toast": {
+        "bulkDeleteFailed": "批次刪除失敗。",
+        "bulkDeleted": "{count, plural, other {{n} rows deleted.}}",
+        "createFailed": "建立失敗。",
+        "created": "已建立 {entity}。",
+        "createdMany": "{count, plural, other {已建立 # 筆記錄。}}",
+        "deleteFailed": "刪除失敗。",
+        "deleted": "已刪除 {name}。",
+        "exportIncomplete": "已匯出 {selected, number} 個所選列中的 {written, number} 個 — 請重新載入後再試一次。",
+        "saved": "變更已儲存。",
+        "undoFailed": "復原失敗。",
+        "undone": "已復原變更。",
+        "updateFailed": "更新失敗。"
+      },
+      "uniqueHelper": "在 {table} 中必須是唯一值。",
+      "uniqueHelperCounted": "{count, plural, other {Checked against {n} rows.}}"
     },
     "queue": {
       "allSegment": "全部",
@@ -1842,6 +1919,18 @@
     "make": {
       "label": "產生單據",
       "one": "產生{name}"
+    }
+  },
+  "lists": {
+    "name": {
+      "countries": "國家和地區",
+      "us-states": "美國州別",
+      "gender": "性別"
+    },
+    "gender": {
+      "female": "女",
+      "male": "男",
+      "other": "其他"
     }
   }
 }

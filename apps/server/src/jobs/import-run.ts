@@ -31,6 +31,7 @@ import { z } from 'zod';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
+import type { FieldIssues } from '../crud/column-rules.js';
 import type { Row } from '../crud/mask.js';
 import {
   HookFailedError,
@@ -40,6 +41,7 @@ import {
   insertRow,
   insertRows,
   updateRows,
+  type CheckedRow,
   type RecordWriteService,
   type WriteContext,
   type WriteTarget,
@@ -222,24 +224,68 @@ async function runImport(
     if (mode === 'upsert' || hooked.create) {
       for (const item of chunk) await writeOne(item, mode === 'upsert');
     } else {
+      /*
+       * THE FAST PATH, AND WHY IT HAS TO ASK FOR THE RULES ITSELF.
+       *
+       * No hook wants this write, so `beforeEach` never runs and the chunk
+       * goes straight into one INSERT. A rule placed inside the hook step
+       * would therefore never fire for a hook-less import — which is most
+       * imports. `check()` is the fill and the check without the hooks, and
+       * the branded rows it returns are the only thing `insertRows` accepts.
+       */
+      const checked = writes.check('create', writeTarget, context, chunk.map((item) => item.values));
+      const good: { item: (typeof chunk)[number]; values: CheckedRow }[] = [];
+      for (const [i, item] of chunk.entries()) {
+        const values = checked.rows[i];
+        if (values === null || values === undefined) {
+          refuseRow(item, checked.issues[i] ?? null);
+          continue;
+        }
+        good.push({ item, values });
+      }
+      if (good.length === 0) {
+        reportProgress();
+        return;
+      }
       try {
         await db.transaction().execute(async (trx) => {
           await insertRows(
             trx as unknown as Kysely<SourceDatabase>,
             table,
-            chunk.map((item) => item.values),
+            good.map((entry) => entry.values),
           );
         });
-        inserted += chunk.length;
+        inserted += good.length;
       } catch {
         // Isolate the offending row(s): replay the chunk row-by-row.
-        for (const item of chunk) await writeOne(item, false);
+        for (const entry of good) await writeOne(entry.item, false);
       }
     }
+    reportProgress();
+  }
+
+  function reportProgress(): void {
     ctx.progress(Math.min(95, 5 + Math.floor(((inserted + updated + skipped) / Math.max(1, total)) * 90)), {
       step: 'importing',
       message: `${inserted + updated} rows written`,
     });
+  }
+
+  /**
+   * A row the column rules refused. Reported with its FIELD and the reason —
+   * the import's whole value over a raw INSERT is telling somebody which cell
+   * to fix. With `skipInvalid` off it throws, exactly as a driver error does.
+   */
+  function refuseRow(
+    item: { rowNumber: number; values: Record<string, unknown>; raw: string[] },
+    fieldIssues: FieldIssues | null,
+  ): void {
+    const [column, issue] = Object.entries(fieldIssues ?? {})[0] ?? ['', null];
+    const code = issue?.code ?? 'invalid';
+    const message = column === '' ? `the value was refused (${code})` : `${column}: ${code}`;
+    if (!skipInvalid) fail(`row ${item.rowNumber}: ${message}`);
+    skipped += 1;
+    issues.push({ row: item.rowNumber, column, code: 'REFUSED', message, raw: item.raw.join(',') });
   }
 
   async function writeOne(
@@ -277,7 +323,12 @@ async function runImport(
             const [prepared] = await writes.beforeEach('update', writeTarget, context, [
               { values: item.values, record: before },
             ]);
-            await updateRows(db, table, prepared?.values ?? item.values, match);
+            if (prepared === undefined) return;
+            if (prepared.issues !== null) {
+              refuseRow(item, prepared.issues);
+              return;
+            }
+            await updateRows(db, table, prepared.values, match);
             updated += 1;
             await afterImportWrite('update', match, before);
             return;
@@ -290,7 +341,13 @@ async function runImport(
             .limit(1)
             .executeTakeFirst();
           if (existing !== undefined) {
-            await updateRows(db, table, item.values, match);
+            const checked = writes.check('update', writeTarget, context, [item.values]);
+            const values = checked.rows[0];
+            if (values === null || values === undefined) {
+              refuseRow(item, checked.issues[0] ?? null);
+              return;
+            }
+            await updateRows(db, table, values, match);
             updated += 1;
             return;
           }
@@ -298,12 +355,23 @@ async function runImport(
       }
       if (hooked.create) {
         const [prepared] = await writes.beforeEach('create', writeTarget, context, [{ values: item.values }]);
-        const stored = await insertRow(db, dialect, table, prepared?.values ?? item.values);
+        if (prepared === undefined) return;
+        if (prepared.issues !== null) {
+          refuseRow(item, prepared.issues);
+          return;
+        }
+        const stored = await insertRow(db, dialect, table, prepared.values);
         inserted += 1;
         await writes.afterEach('create', writeTarget, context, [{ record: stored, before: null }]);
         return;
       }
-      await insertRows(db, table, [item.values]);
+      const checked = writes.check('create', writeTarget, context, [item.values]);
+      const values = checked.rows[0];
+      if (values === null || values === undefined) {
+        refuseRow(item, checked.issues[0] ?? null);
+        return;
+      }
+      await insertRows(db, table, [values]);
       inserted += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

@@ -37,6 +37,7 @@ import {
 
 import { ConflictError } from '../src/errors.js';
 import { insertRow, mapDbError } from '../src/routes/data/index.js';
+import { asChecked } from './checked.js';
 import {
   asUser,
   buildDataTestApp,
@@ -325,7 +326,7 @@ describe('insertRow compiles per dialect', () => {
       db as never,
       'mysql',
       table,
-      { customer_id: 'E2E01', company_name: 'E2E Markets' },
+      asChecked({ customer_id: 'E2E01', company_name: 'E2E Markets' }),
     );
     expect(row).toMatchObject({ customer_id: 'E2E01', status: 'new' });
     expect(sql).toHaveLength(2);
@@ -341,7 +342,7 @@ describe('insertRow compiles per dialect', () => {
       db as never,
       'postgres',
       table,
-      { customer_id: 'E2E02', company_name: 'E2E Markets' },
+      asChecked({ customer_id: 'E2E02', company_name: 'E2E Markets' }),
     );
     expect(row).toMatchObject({ customer_id: 'E2E02', status: 'new' });
     expect(sql).toHaveLength(1);

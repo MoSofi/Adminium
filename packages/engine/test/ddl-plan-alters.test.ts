@@ -138,6 +138,79 @@ describe('planAlters — constraints', () => {
     expect(plan.hazard).toBe('safe');
   });
 
+  /*
+   * B6. The constraint steps used to carry neither their column nor the
+   * database's own name for the constraint, so the compiler had nothing to
+   * name: `add-check` could not find the value list, and `drop-check` guessed
+   * `ck_<table>` — a name no engine had ever assigned. Changing the allowed
+   * values on an existing table was therefore un-appliable.
+   */
+  it('gives every check step its column and the constraint’s real name', () => {
+    const columns = [
+      col({ name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false }),
+      col({ name: 'status', logicalType: 'enum' }),
+      col({ name: 'status_id', logicalType: 'integer' }),
+    ];
+    const before = model([
+      tbl({
+        name: 't',
+        columns,
+        // As postgres renders its own CHECK — the shape the fallback has to read.
+        checks: [
+          {
+            name: 'patients_status_check',
+            expression: "((status)::text = ANY ((ARRAY['new'::character varying])::text[]))",
+          },
+        ],
+      }),
+    ]);
+    const after = [
+      tbl({ name: 't', columns, checks: [{ name: null, expression: 'status in ("new", "done")' }] }),
+    ];
+    const plan = planDdl({ ...pg, actual: before, desired: after });
+    expect(kinds(plan)).toEqual(['drop-check', 'add-check']);
+
+    const dropped = plan.steps[0]!;
+    expect(dropped.constraint).toBe('patients_status_check');
+    // `status`, not `status_id`: the longest matching column name wins.
+    expect(dropped.column).toBe('status');
+
+    const added = plan.steps[1]!;
+    expect(added.column).toBe('status');
+    expect(added.constraint).toBeNull();
+    expect(added.summary).toContain('status');
+  });
+
+  /*
+   * D23. Auto-increment is not a DEFAULT on any engine, so a `set-default` step
+   * carrying it reached the compiler and threw `set-default with no default` —
+   * "turn auto-increment on for this key" was reviewable and un-appliable.
+   */
+  it('plans auto-increment on an existing key as set-identity, not set-default', () => {
+    const key = (over: Partial<ColumnModel> = {}) =>
+      col({ name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false, ...over });
+    const plain = model([tbl({ name: 't', columns: [key()] })]);
+    const generated = [tbl({ name: 't', columns: [key({ default: { kind: 'autoincrement' } })] })];
+
+    const on = planDdl({ ...pg, actual: plain, desired: generated });
+    expect(kinds(on)).toEqual(['set-identity']);
+    expect(on.steps[0]?.column).toBe('id');
+    expect(on.hazard).toBe('locking');
+
+    // …and off again, without a second `drop-default` behind it: postgres
+    // refuses DROP DEFAULT on an identity column, and MySQL would copy twice.
+    const off = planDdl({ ...pg, actual: model([generated[0]!]), desired: [tbl({ name: 't', columns: [key()] })] });
+    expect(kinds(off)).toEqual(['drop-identity']);
+
+    // From generated to a real default: detach first, then set it.
+    const toLiteral = planDdl({
+      ...pg,
+      actual: model([generated[0]!]),
+      desired: [tbl({ name: 't', columns: [key({ default: { kind: 'literal', text: '0' } })] })],
+    });
+    expect(kinds(toLiteral)).toEqual(['drop-identity', 'set-default']);
+  });
+
   it('plans a primary-key change as drop then set, in that order', () => {
     const before = model([
       tbl({

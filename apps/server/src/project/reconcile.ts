@@ -20,7 +20,7 @@
 
 import { projectFilesRepo, type MetaDb, type ProjectFileRow } from '@adminium/meta';
 
-import { applyPageFile, applySchemaFile, deletePage } from './apply-files.js';
+import { applyListFile, applyPageFile, applySchemaFile, deleteListByKey, deletePage } from './apply-files.js';
 import type { ProjectFileStore } from './file-store.js';
 import { parseProjectPath } from './paths.js';
 import { adoptAsProjectPage } from './project-pages.js';
@@ -257,6 +257,8 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
           if (file.kind === 'page') {
             const applied = await applyPageFile(meta, file.doc, snapshot.refs, now(), (slug) => folderSlugs.has(slug));
             for (const warning of applied.warnings) report.warnings.push(`${state.path}: ${warning}`);
+          } else if (file.kind === 'list') {
+            await applyListFile(meta, file.doc, now());
           } else {
             const connectionId = snapshot.refs.connectionOf(file.key);
             if (connectionId === null) break;
@@ -281,6 +283,8 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
           }
           if (kind.kind === 'page') {
             if (pageId !== null) await deletePage(meta, pageId);
+          } else if (kind.kind === 'list') {
+            await deleteListByKey(meta, kind.key);
           } else {
             const connectionId = snapshot.refs.connectionOf(kind.key);
             if (connectionId !== null) await applySchemaFile(meta, connectionId, [], now());

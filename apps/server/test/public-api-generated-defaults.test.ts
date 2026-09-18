@@ -44,6 +44,7 @@ import {
   resolveDefaults,
 } from '../src/public-api/generate.js';
 import { insertRow } from '../src/routes/data/index.js';
+import { asChecked } from './checked.js';
 
 type AnyDb = Kysely<SourceDatabase>;
 
@@ -213,7 +214,7 @@ async function roundTrip(db: AnyDb, dialect: Dialect, schema: string) {
   const table = view.table(`${schema}.conversations`);
   const at = new Date('2026-09-06T12:34:56.000Z');
   const values = resolveDefaults(DEFAULTS, dialect, at);
-  const inserted = await insertRow(db, dialect, table, values);
+  const inserted = await insertRow(db, dialect, table, asChecked(values));
   const stored = await db
     .selectFrom(`${schema}.conversations` as never)
     .selectAll()

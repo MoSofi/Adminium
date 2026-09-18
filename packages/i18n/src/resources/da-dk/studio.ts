@@ -143,6 +143,7 @@ export default {
       "skippedEdited": "Efterladt urørt, fordi du har redigeret dem: {pages}."
     },
     "apply": "Anvend",
+    "brokenEnumValues": "Hver tilladt værdi på {columns} skal være udfyldt og forskellig fra de andre.",
     "ceiling": {
       "authorise": "Godkend denne omskrivning",
       "body": "{table} har over {rows} rækker — mere, end Adminium omskriver af sig selv. Kun en Super Admin kan godkende det, og tabellen er låst, så længe omskrivningen varer.",
@@ -151,8 +152,9 @@ export default {
       "prompt": "Skriv {table} igen for at godkende omskrivningen"
     },
     "column": {
+      "default": "Starter som",
+      "defaultValue": "Værdi",
       "help": "Hvad betyder disse indstillinger?",
-      "key": "Nøgle",
       "length": "Længde",
       "link": "Linker til",
       "linkHelp": "Forbind dette til en række i en anden tabel.",
@@ -176,8 +178,18 @@ export default {
       "prompt": "Skriv {word} for at bekræfte",
       "title": "Anvend en destruktiv ændring"
     },
+    "default": {
+      "autoincrement": "Tæl op fra den sidste række",
+      "false": "Nej",
+      "literal": "En værdi",
+      "none": "Intet",
+      "now": "Den aktuelle dato og tid",
+      "true": "Ja",
+      "uuid": "Et nyt unikt id"
+    },
     "designer": "Tabeldesigner",
     "discard": "Kassér ændringer",
+    "discardTable": "Kassér denne nye tabel",
     "dropping": "Markeret til sletning",
     "empty": {
       "body": "Opret en tabel, eller vælg en at redigere. Intet når din database, før du har gennemgået sætningerne og anvendt dem.",
@@ -201,6 +213,16 @@ export default {
     },
     "help": {
       "close": "Luk",
+      "default": {
+        "example": "Et felt \"oprettet den\", der starter som den aktuelle dato og tid, skal aldrig tastes og kan ikke blive forkert.",
+        "term": "Starter som",
+        "what": "Hvad feltet indeholder, når ingen udfylder det. Databasen sætter selv værdien ind — også for rækker, der oprettes uden for Adminium."
+      },
+      "keyGeneration": {
+        "example": "Kun PostgreSQL kan generere et unikt id og give det tilbage med det samme, så på de andre motorer tæller nøglen op.",
+        "term": "Hvordan nøglen udfyldes",
+        "what": "Hvor hver rækkes id kommer fra. At tælle op fra den sidste række giver 1, 2, 3 og passer til de fleste tabeller; et unikt id er langt og tilfældigt, sværere at gætte og sværere at læse højt."
+      },
       "link": {
         "example": "En reservation linker til en klient. Adminium viser så klienten på reservationen og reservationerne på klienten.",
         "term": "Link til en anden tabel",
@@ -227,6 +249,11 @@ export default {
         "example": "To kunder bør ikke dele den samme e-mailadresse — marker feltet som unikt, og så kan de ikke.",
         "term": "Unik",
         "what": "To rækker må ikke indeholde den samme værdi. Databasen afviser den anden."
+      },
+      "values": {
+        "example": "En status: ny, i gang eller færdig. Ingen kan skrive \"i-gan\" og ved et uheld skabe en fjerde status.",
+        "term": "Tilladte værdier",
+        "what": "Den komplette liste over svar, feltet accepterer. Databasen afviser alt andet, og Adminium viser listen som knapper eller en menu i stedet for et tekstfelt."
       }
     },
     "keepTable": "Behold {table}",
@@ -256,15 +283,31 @@ export default {
       "columns": "Kolonner",
       "drop": "Slet denne tabel",
       "dropHelp": "Tabellen og alle dens rækker destrueres. Du får se præcis hvad der går i stykker, før noget køres.",
+      "keyCounted": "Tæl op fra den sidste række",
+      "keyGeneration": "Hvordan nøglen udfyldes",
+      "keyGenerationHelp": "Adminium læser den nye række tilbage via denne nøgle efter hver indsættelse.",
+      "keyGenerationOne": "På {dialect} skal en nøgle være et tællende heltal: et id genereret af databasen kan ikke læses tilbage efter en indsættelse.",
+      "keyUnique": "Et nyt unikt id",
       "name": "Tabelnavn",
       "nameHelp": "Små bogstaver, tal og understregninger.",
       "namePlaceholder": "reservations",
       "noKey": "Denne tabel har ingen primærnøgle, så Adminium behandler den som skrivebeskyttet — rækker kan vises, men ikke redigeres.",
-      "renameHelp": "Ændrer du dette, omdøbes tabellen i din database.",
-      "uuidKeyUnavailable": "På denne motor skal en nøgle være et genereret heltal: en databasegenereret uuid kan ikke læses tilbage efter en indsættelse."
+      "renameHelp": "Ændrer du dette, omdøbes tabellen i din database."
     },
     "unnamed": "Navngiv hver tabel og kolonne for at gennemgå ændringerne.",
-    "unrepresentableDefaults": "Disse kolonner beholder en databasegenereret standardværdi, som Adminium ikke kan redigere her, og den efterlades som den er: {columns}"
+    "unrepresentableDefaults": "Disse kolonner beholder en databasegenereret standardværdi, som Adminium ikke kan redigere her, og den efterlades som den er: {columns}",
+    "valuelessEnum": "Giv {columns} mindst én tilladt værdi for at gennemgå ændringerne.",
+    "values": {
+      "add": "Tilføj værdi",
+      "addOnly": "Denne liste er en type i din database, og Postgres kan ikke fjerne eller omdøbe en værdi, når den først findes. Du kan tilføje flere.",
+      "down": "Flyt {value} ned",
+      "empty": "En valgkolonne skal have mindst én værdi, før ændringen kan gennemgås.",
+      "label": "Tilladte værdier",
+      "placeholder": "in_progress",
+      "remove": "Fjern {value}",
+      "up": "Flyt {value} op",
+      "value": "Værdi {n}"
+    }
   },
   "diagram": {
     "ceiling": "Viser de {shown} mest forbundne tabeller. {omitted} flere er skjult — søg for at hente en frem.",
@@ -1197,6 +1240,126 @@ export default {
       "width": "Indholdsbredde",
       "widthHint": "Hvor bred sidens indholdskolonne må blive på en stor skærm."
     },
+    "filters": {
+      "add": "Tilføj et filter",
+      "control": "Kontrol til {column}",
+      "down": "Flyt {column} ned",
+      "empty": "Denne side har ingen filtre. Tilføj et nedenfor.",
+      "full": "En side viser højst {max} filtre.",
+      "name": "Navn til {column}",
+      "remove": "Fjern {column}-filter",
+      "reset": "Tilbage til de foreslåede filtre",
+      "subtitle": "De spørgsmål, værktøjslinjen kan stille om denne tabel. Urørt følger den tabellen.",
+      "title": "Filtre",
+      "up": "Flyt {column} op"
+    },
+    "form": {
+      "addLines": "{label} som linjer",
+      "dialog": {
+        "cta": "Knap",
+        "ctaIcon": "Knapikon",
+        "iconDefault": "Standard",
+        "subtitle": "Undertitel",
+        "title": "Titel",
+        "titleHelp": "Tom bruger de genererede ord."
+      },
+      "field": {
+        "availability": "Optaget når",
+        "availabilityAny": "En hvilken som helst række har det tidspunkt",
+        "availabilityHelp": "En anden række har samme tidspunkt. Vælg en kolonne for at indsnævre til ét lokale, én person, én maskine. Uden den vises intet som optaget.",
+        "availabilityOff": "Tjek ikke",
+        "control": "Kontrol",
+        "down": "Flyt {name} ned",
+        "drag": "Omarrangér {name}",
+        "help": "Hjælpetekst",
+        "initial": "Startværdi",
+        "initialHelp": "Det, en NY post starter med. En redigering anvender den aldrig.",
+        "initialLiteral": "En fast værdi",
+        "initialNone": "Ingenting",
+        "initialNow": "Dato og klokkeslæt nu",
+        "initialToday": "I dag",
+        "initialUser": "Den, der er logget ind",
+        "initialValue": "Værdien",
+        "label": "Etiket",
+        "placeholder": "Pladsholder",
+        "recap": "Opsummering",
+        "recapHelp": "En opsummeringsboks. Dens tekst redigeres indtil videre i sidens JSON.",
+        "remove": "Fjern {name}",
+        "required": "Spørg efter det",
+        "requiredHelp": "Formularen gemmer ikke uden det. Hvad DATABASEN kræver, sættes i Skema.",
+        "ruleChecks": "der gælder ekstra tjek",
+        "ruleDatabase": "databasen udfylder det",
+        "ruleFilled": "Adminium udfylder det",
+        "ruleList": "kun værdier fra listen {key}",
+        "ruleRequired": "databasen kræver det",
+        "ruleValues": "kun et fast sæt værdier",
+        "rules": "Denne kolonne: {rules}.",
+        "rulesLink": "Ret i Skema",
+        "settings": "Indstillinger for {name}",
+        "slotsEnd": "til",
+        "slotsEvery": "hver",
+        "slotsHelp": "Lad tiderne stå tomme for kun at vælge dag.",
+        "slotsStart": "Tider fra",
+        "span": "Bredde",
+        "spanHelp": "Hvor mange af sektionens kolonner feltet fylder.",
+        "up": "Flyt {name} op"
+      },
+      "gallery": {
+        "choice": {
+          "body": "Valgbare valgkort, en pille-kontakt og en skyder.",
+          "title": "Valgkort"
+        },
+        "multi": {
+          "body": "E-mail-chips, rollevalg, liste med tilladelser.",
+          "title": "Flere indtastninger"
+        },
+        "quick": {
+          "body": "Ét titelfelt med meta-piller på linjen. Ingen sektionsramme.",
+          "title": "Hurtig oprettelse"
+        },
+        "repeater": {
+          "body": "En reference, gentagelige linjer og løbende totaler.",
+          "title": "Gentagelse og totaler"
+        },
+        "sectioned": {
+          "body": "Lang post delt op i navngivne sektioner med et rullende felt.",
+          "title": "Sektioner"
+        },
+        "segmented": {
+          "body": "Segmenteret prioritet, lang beskrivelse, vedhæftningsliste, ansvarlig.",
+          "title": "Segmenter og filer"
+        },
+        "split": {
+          "body": "To ruder: det første afsnit ved siden af resten. Lavet til en kalender.",
+          "title": "Delt rude"
+        },
+        "upload": {
+          "body": "Medie-dropzone, valutafelter, tag-chips og en udgiv-kontakt.",
+          "title": "Upload og chips"
+        },
+        "wizard": {
+          "body": "Trin-for-trin-guide med statusskinne og Tilbage/Næste-fod.",
+          "title": "Guide"
+        }
+      },
+      "missing": {
+        "title": "Ikke på denne formular. En kolonne, databasen kræver, tilføjes automatisk, når dialogen åbnes."
+      },
+      "preview": "Forhåndsvis",
+      "previewEntity": "post",
+      "reset": "Nulstil til genereret",
+      "section": {
+        "add": "Tilføj en sektion",
+        "columnCount": "{count} kolonner",
+        "columns": "Kolonner",
+        "empty": "Ingen felter her endnu — flyt et herind, eller tilføj et nedenfor.",
+        "label": "Sektionsnavn",
+        "remove": "Fjern denne sektion",
+        "unnamed": "Unavngiven sektion"
+      },
+      "subtitle": "Det, dialogerne Ny og Rediger viser. Urørt følger den tabellen.",
+      "title": "Opret-formular"
+    },
     "icon": {
       "noMatches": "Ingen ikoner matcher den søgning.",
       "none": "Vælg et ikon",
@@ -1511,6 +1674,47 @@ export default {
       "suppressed": "Undertrykt",
       "toColumn": "Til kolonne",
       "toTable": "Til tabel"
+    },
+    "rules": {
+      "fill": "Starter som",
+      "fillDb": "Databasen udfylder det (en trigger)",
+      "fillDefault": "Overlad det til databasen",
+      "fillHelp": "Hvad Adminium sætter ind her, når ingen udfylder det.",
+      "fillImplicit": "Adminium udfylder dette automatisk.",
+      "fillLiteral": "En fast værdi",
+      "fillNone": "Intet — lad det stå tomt",
+      "fillNow": "Den aktuelle dato og tid",
+      "fillText": "Værdien",
+      "fillUser": "Den, der er logget ind",
+      "fillUuid": "Et nyt unikt id",
+      "format": "Format",
+      "formatAny": "Hvad som helst",
+      "formatEmail": "En e-mailadresse",
+      "formatPhone": "Et telefonnummer",
+      "formatUrl": "En webadresse",
+      "help": "De gælder overalt, hvor en række skrives — formularer, import, automatiseringer og API'et — ikke kun i denne app.",
+      "max": "Størst",
+      "maxLength": "Længste",
+      "min": "Mindst",
+      "minLength": "Korteste",
+      "onUpdate": "Udfyld det igen ved hver ændring",
+      "optionsFromDatabase": "Din database fastlægger de tilladte værdier for denne kolonne. Ret dem i Design.",
+      "optionsHelp": "Én pr. linje. Lad feltet stå tomt for at acceptere alt.",
+      "required": "Skal udfyldes",
+      "requiredAlready": "Din database kræver allerede denne kolonne.",
+      "requiredHelp": "Formularen beder om det, og en skrivning uden bliver afvist.",
+      "title": "Regler",
+      "optionsAnything": "Hvad som helst",
+      "optionsInline": "Disse værdier",
+      "optionsList": "En liste",
+      "optionsListHelp": "Selve listerne redigerer du under Studio → Lister.",
+      "optionsListLabel": "Liste",
+      "optionsListUnavailable": "Listerne kunne ikke læses.",
+      "optionsMissingList": "{key} (ikke i dette arbejdsområde)",
+      "optionsPickList": "Vælg en liste…",
+      "optionsSource": "Tilladte værdier",
+      "optionsSourceHelp": "En liste skrives én gang i Studio og bruges af hver kolonne, der nævner den.",
+      "optionsValues": "Værdierne"
     },
     "saveFailed": "Lagring mislykkedes: {message}",
     "subtitle": "{tables} tabeller · {applied} tilsidesættelser anvendt",
@@ -1835,6 +2039,11 @@ export default {
       "body": "Omformulér hvad som helst i Adminium, vælg hvilke sprog folk kan vælge, og tilføj dine egne.",
       "cta": "Åbn oversættelser",
       "heading": "Sprog og oversættelser"
+    },
+    "listsCard": {
+      "body": "De svar, en kolonne accepterer — lande, stadier, afdelinger — navngivet én gang og brugt overalt.",
+      "cta": "Åbn lister",
+      "heading": "Lister"
     }
   },
   "source": {
@@ -2091,5 +2300,54 @@ export default {
       "test": "Analysér"
     },
     "title": "Ny forbindelse"
+  },
+  "lists": {
+    "addValue": "Tilføj værdi",
+    "andMore": "og {count} mere",
+    "builtin": "Indbygget",
+    "builtinCount": "{count} værdier",
+    "builtinSubtitle": "En liste, Adminium leverer. Den er den samme i alle arbejdsområder, og navnene vises på hver enkelt persons eget sprog.",
+    "cancel": "Annuller",
+    "close": "Luk",
+    "copiedFrom": "en kopi af {key}",
+    "copyTitle": "En kopi af {name}",
+    "create": "Opret liste",
+    "delete": "Slet",
+    "deleteBody": "Listen forsvinder. De værdier, der allerede er gemt i dine rækker, bliver præcis som de er — en liste siger, hvad en formular tilbyder, ikke hvad en kolonne indeholder.",
+    "deleteTitle": "Slet {name}?",
+    "edit": "Rediger",
+    "editSubtitle": "De svar, en kolonne med denne liste accepterer, i den rækkefølge en formular tilbyder dem.",
+    "editTitle": "Rediger {name}",
+    "emptyBody": "En liste er de svar, en kolonne accepterer.",
+    "emptyTitle": "Ingen lister endnu",
+    "errorUnknown": "Det virkede ikke. Prøv igen.",
+    "inUseBody": "Fjern den først fra {columns}.",
+    "inUseNone": "Fjern den først fra de kolonner, der bruger den.",
+    "inUseTitle": "{name} bruges af en kolonne",
+    "issueBlank": "En af værdierne er tom. Udfyld den, eller fjern rækken.",
+    "issueDuplicate": "“{value}” står to gange på listen.",
+    "issueEmpty": "En liste skal have mindst én værdi.",
+    "issueName": "Giv listen et navn.",
+    "key": "Nøgle",
+    "keyFixed": "Regler kalder denne liste",
+    "keyHelper": "Det navn, regler og projektfiler bruger om denne liste. Det kan ikke ændres senere.",
+    "labelAt": "Etiket {n}",
+    "labelPlaceholder": "Det, folk læser",
+    "makeCopy": "Lav en kopi, jeg kan redigere",
+    "moveDown": "Flyt {value} ned",
+    "moveUp": "Flyt {value} op",
+    "name": "Navn",
+    "namePlaceholder": "Afdelinger",
+    "new": "Ny liste",
+    "removeValue": "Fjern {value}",
+    "save": "Gem ændringer",
+    "storeLabel": "Gem etiketten i stedet",
+    "storeLabelHelp": "En kopi gemmer koden, f.eks. DE. “Gem etiketten i stedet” gemmer det, den hedder her, f.eks. Tyskland — på dette arbejdsområdes sprog, fra nu af.",
+    "subtitle": "De svar, en kolonne accepterer — navngivet én gang og brugt overalt.",
+    "title": "Lister",
+    "valueAt": "Værdi {n}",
+    "valueCount": "{count} værdier",
+    "values": "Værdier",
+    "view": "Se"
   }
 } as const;

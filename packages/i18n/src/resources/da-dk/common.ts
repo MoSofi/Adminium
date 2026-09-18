@@ -1018,69 +1018,85 @@ export default {
       "openDocs": "Åbn dokumentationen"
     },
     "article": {
-      "install": {
-        "title": "Installér Adminium",
-        "excerpt": "Opret et projekt med én kommando, eller kør Adminium med docker run eller fra et kildekode-checkout."
-      },
-      "firstAdmin": {
-        "title": "Opret din første superadministrator",
-        "excerpt": "Hvad førstegangsguiden spørger om, og hvorfor den kun kan køre én gang."
-      },
-      "connectDb": {
-        "title": "Forbind din første database",
-        "excerpt": "Peg Adminium mod PostgreSQL, MySQL eller SQLite og generér en adminapp."
-      },
-      "schemaFile": {
-        "title": "Generér ud fra en skemafil",
-        "excerpt": "Upload et Prisma-skema, en Django-models.py, en Rails-schema.rb eller et .sql-dump — uden forbindelse."
-      },
-      "readOnly": {
-        "title": "Brug en skrivebeskyttet rolle",
-        "excerpt": "Introspektion læser kun skemametadata. Giv Adminium færrest mulige rettigheder."
-      },
       "apiKeys": {
         "title": "Godkendelse med API-nøgler",
         "excerpt": "Opret og tilbagekald nøgler — og hvorfor en nøgle kun vises for dig én gang."
-      },
-      "rest": {
-        "title": "REST API-reference",
-        "excerpt": "Hvert endpoint den genererede app udstiller, med request- og responseformater."
-      },
-      "manifest": {
-        "title": "Sidemanifestet",
-        "excerpt": "Hvordan en side beskrives som konfiguration, og hvordan du redigerer en i hånden."
-      },
-      "roles": {
-        "title": "Roller og rettigheder",
-        "excerpt": "Tildel Læser, Redaktør og Admin, og byg dine egne roller ud fra rettighedsmatricen."
       },
       "audit": {
         "title": "Læs revisionsloggen",
         "excerpt": "Hvem ændrede hvad, hvornår og hvorfra."
       },
-      "secrets": {
-        "title": "Sådan opbevarer Adminium dine hemmeligheder",
-        "excerpt": "Forbindelsesoplysninger krypteres med ADMINIUM_SECRET. API-nøgler hashes."
-      },
-      "docker": {
-        "title": "Selv-hosting med Docker",
-        "excerpt": "Det officielle image, docker-compose og drift af en separat metadatabase."
-      },
       "backup": {
         "title": "Sikkerhedskopiér og flyt en instans",
         "excerpt": "export-zip samler din serverkonfiguration; importér den for at genskabe samme opsætning et andet sted."
       },
-      "telemetry": {
-        "title": "Telemetri og opdateringstjek",
-        "excerpt": "Begge er tilvalg og slået fra som standard. Hvad der sendes, hvis du slår dem til."
+      "columnRules": {
+        "title": "Regler på en kolonne",
+        "excerpt": "Hvad der udfylder en kolonne, hvad den accepterer, og hvilke grænser der gælder — ved hver skrivning, ikke kun i én formular."
+      },
+      "connectDb": {
+        "title": "Forbind din første database",
+        "excerpt": "Peg Adminium mod PostgreSQL, MySQL eller SQLite og generér en adminapp."
       },
       "connectionFails": {
         "title": "En databaseforbindelse fejler",
         "excerpt": "Læs diagnosekortet: vært, port, TLS og den IP, din database skal tillade."
       },
+      "createDialog": {
+        "title": "Dialogerne Ny og Rediger",
+        "excerpt": "Hvor hvert felt kommer fra, og hvordan du designer din egen i stedet for den genererede."
+      },
+      "docker": {
+        "title": "Selv-hosting med Docker",
+        "excerpt": "Det officielle image, docker-compose og drift af en separat metadatabase."
+      },
+      "firstAdmin": {
+        "title": "Opret din første superadministrator",
+        "excerpt": "Hvad førstegangsguiden spørger om, og hvorfor den kun kan køre én gang."
+      },
+      "install": {
+        "title": "Installér Adminium",
+        "excerpt": "Opret et projekt med én kommando, eller kør Adminium med docker run eller fra et kildekode-checkout."
+      },
+      "lineItems": {
+        "title": "Linjer og bookinger",
+        "excerpt": "Tabeller med underlinjer og løbende totaler, kalendere der kender det allerede bookede, og én post pr. chip."
+      },
+      "manifest": {
+        "title": "Sidemanifestet",
+        "excerpt": "Hvordan en side beskrives som konfiguration, og hvordan du redigerer en i hånden."
+      },
       "missingTables": {
         "title": "Tabeller mangler efter introspektion",
         "excerpt": "Skemasynlighed, udeladte tabeller og en ny generering."
+      },
+      "readOnly": {
+        "title": "Brug en skrivebeskyttet rolle",
+        "excerpt": "Introspektion læser kun skemametadata. Giv Adminium færrest mulige rettigheder."
+      },
+      "rest": {
+        "title": "REST API-reference",
+        "excerpt": "Hvert endpoint den genererede app udstiller, med request- og responseformater."
+      },
+      "roles": {
+        "title": "Roller og rettigheder",
+        "excerpt": "Tildel Læser, Redaktør og Admin, og byg dine egne roller ud fra rettighedsmatricen."
+      },
+      "schemaFile": {
+        "title": "Generér ud fra en skemafil",
+        "excerpt": "Upload et Prisma-skema, en Django-models.py, en Rails-schema.rb eller et .sql-dump — uden forbindelse."
+      },
+      "secrets": {
+        "title": "Sådan opbevarer Adminium dine hemmeligheder",
+        "excerpt": "Forbindelsesoplysninger krypteres med ADMINIUM_SECRET. API-nøgler hashes."
+      },
+      "tableFilters": {
+        "title": "Filtrér en tabel",
+        "excerpt": "De seks slags filtre, de to en side får af sig selv, og hvordan de følger med en gemt visning."
+      },
+      "telemetry": {
+        "title": "Telemetri og opdateringstjek",
+        "excerpt": "Begge er tilvalg og slået fra som standard. Hvad der sendes, hvis du slår dem til."
       }
     }
   },

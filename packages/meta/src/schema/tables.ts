@@ -1158,6 +1158,28 @@ export interface AdminiumProjectFilesTable {
   serverHash: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// wave 0035 — option lists
+// ---------------------------------------------------------------------------
+
+/**
+ * A named set of answers a column accepts. Referenced by `key`,
+ * never by id, because a `column.options` rule travels in a project file and
+ * plan 49's gate refuses an instance id in one.
+ */
+export interface AdminiumOptionListsTable {
+  id: string;
+  /** The slug a rule names, unique in the workspace. */
+  key: string;
+  name: string;
+  /** JSON `[{ value, label?, tone?, description? }]`, in the order they render. */
+  items: string;
+  /** `custom`, or `copy:<builtin key>` for an editable copy of a built-in. */
+  origin: string;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
 /** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
@@ -1211,6 +1233,7 @@ export interface MetaDB {
   adminium_public_sessions: AdminiumPublicSessionsTable;
   adminium_public_challenges: AdminiumPublicChallengesTable;
   adminium_project_files: AdminiumProjectFilesTable;
+  adminium_option_lists: AdminiumOptionListsTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1266,4 +1289,5 @@ export const META_TABLE_NAMES = [
   'adminium_public_sessions',
   'adminium_public_challenges',
   'adminium_project_files',
+  'adminium_option_lists',
 ] as const satisfies readonly (keyof MetaDB)[];

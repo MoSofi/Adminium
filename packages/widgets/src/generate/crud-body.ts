@@ -68,8 +68,6 @@ export function enumTones(values: readonly string[]): Record<string, CrudEnumTon
   return tones;
 }
 
-const NUMERIC_TYPES = new Set(['integer', 'bigint', 'decimal', 'float']);
-
 interface RankedColumn {
   column: CandidateColumn;
   semantics: ClassifiedColumnInput;
@@ -182,7 +180,7 @@ export function crudDisplayColumns(
  * only the generator sees the full column list; the interpreter re-checks only
  * against the specs it has.
  */
-function fkDisplayFor(
+export function fkDisplayFor(
   table: CandidateTable,
   column: CandidateColumn,
   displayColumns: ReadonlyMap<string, string> | undefined,
@@ -211,31 +209,6 @@ export interface CrudSortSpec {
   dir: 'asc' | 'desc';
 }
 
-/** One generated form field (the modal-wizard renders these). */
-export interface CrudFormField {
-  column: string;
-  label: string;
-  required: boolean;
-  input?:
-    | 'fk-combobox'
-    | 'segmented'
-    | 'select'
-    | 'switch'
-    | 'date'
-    | 'datetime'
-    | 'number'
-    | 'json'
-    | 'textarea'
-    | 'text';
-  /** fk-combobox target table id. */
-  ref?: string;
-  /** segmented/select options. */
-  options?: readonly string[];
-  format?: 'currency';
-  maxLength?: number;
-  unique?: boolean;
-}
-
 /** The typed `page-crud` config body, pre-envelope. */
 export interface CrudPageBody {
   columns: GridColumnSpecInput[];
@@ -248,7 +221,6 @@ export interface CrudPageBody {
     tabsFromInboundFks: true;
     tabs: CrudDetailTab[];
   };
-  form?: { fields: CrudFormField[] };
 }
 
 /** `enumValues` carries resolved values or is absent — absent ⇔ no enum. */
@@ -451,63 +423,6 @@ function detailTabs(
   return tabs;
 }
 
-const AUTO_MANAGED_TAGS = new Set(['created-at', 'updated-at']);
-
-/** Generated form field defs (the modal-wizard renders these). */
-function formFields(table: CandidateTable, classified: ClassifiedTableInput): CrudFormField[] {
-  const byName = new Map(classified.columns.map((c) => [c.column, c]));
-  const fields: CrudFormField[] = [];
-  for (const column of table.columns) {
-    const semantics = byName.get(column.name);
-    if (semantics === undefined || (semantics.secret ?? false)) continue;
-    if (column.isGenerated ?? false) continue;
-    const defaultKind = column.defaultKind ?? null;
-    const auto = defaultKind !== null && defaultKind !== 'literal' && defaultKind !== 'expression';
-    if ((column.isPrimaryKey ?? false) && auto) continue; // autoincrement / uuid PKs
-    if (AUTO_MANAGED_TAGS.has(semantics.semantic) && defaultKind !== null) continue;
-
-    const field: CrudFormField = {
-      column: column.name,
-      label: humanize(column.name),
-      required: !(column.nullable ?? true) && defaultKind === null,
-    };
-    const tag = semantics.semantic;
-    if (tag === 'fk' && column.references !== null && column.references !== undefined) {
-      field.input = 'fk-combobox';
-      field.ref = column.references.tableId;
-    } else if (column.logicalType === 'enum') {
-      const values = enumValuesFor(column) ?? [];
-      field.input = values.length > 0 && values.length <= 3 ? 'segmented' : 'select';
-      field.options = values;
-    } else if (column.logicalType === 'boolean' || tag === 'boolean-flag') {
-      field.input = 'switch';
-    } else if (column.logicalType === 'date') {
-      field.input = 'date';
-    } else if (
-      column.logicalType === 'timestamp' ||
-      column.logicalType === 'timestamptz' ||
-      column.logicalType === 'time'
-    ) {
-      field.input = 'datetime';
-    } else if (NUMERIC_TYPES.has(column.logicalType)) {
-      field.input = 'number';
-      if (tag === 'money') field.format = 'currency';
-    } else if (column.logicalType === 'json') {
-      field.input = 'json';
-    } else if (tag === 'free-text') {
-      field.input = 'textarea';
-    } else {
-      field.input = 'text';
-      if (column.maxLength !== null && column.maxLength !== undefined) {
-        field.maxLength = column.maxLength;
-      }
-    }
-    if ((column.isUnique ?? false) && !(column.isPrimaryKey ?? false)) field.unique = true;
-    fields.push(field);
-  }
-  return fields;
-}
-
 /** Build the typed `page-crud` config body for one table (pre-envelope). */
 export function composeCrudBody(
   table: CandidateTable,
@@ -529,8 +444,20 @@ export function composeCrudBody(
       tabs: detailTabs(table, ctx.relations, ctx.includedTableIds),
     },
   };
-  if (!readOnly) {
-    body.form = { fields: formFields(table, classified) };
-  }
+  /*
+   * NO `form` BLOCK (plan 50, B9/D10).
+   *
+   * Generation used to write `form: { fields: [...] }` here and NOTHING read
+   * it — not the template, not the dashboard, not the server. It was a second
+   * description of the create form, disagreeing with the live one about two
+   * rules (it hid a timestamp only when something filled it, where the form hid
+   * it always; it segmented at ≤ 3 where the form segments at ≤ 4), and the one
+   * it disagreed with was the one on screen.
+   *
+   * The form document a page can now carry is `config.form` v2, written only by
+   * the form designer. Absence is the norm: with no block the dialog derives the
+   * form from the reply's LIVE column facts, which is the only version that
+   * follows the table when a column is added.
+   */
   return body;
 }

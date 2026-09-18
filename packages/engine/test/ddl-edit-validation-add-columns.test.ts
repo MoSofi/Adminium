@@ -291,10 +291,15 @@ describe('addColumns — the column it adds', () => {
       }),
       ctx(),
     );
-    expect(codes(auto)).toEqual(['UNSUPPORTED_DEFAULT']);
+    // Two faults, both real: the kind does not apply to the type, AND
+    // auto-increment belongs to the key, which this door cannot change (D23).
+    expect(codes(auto)).toContain('UNSUPPORTED_DEFAULT');
+    expect(codes(auto)).toContain('IDENTITY_NOT_A_KEY');
     // Substring, not equality: the message currently reads "a autoincrement",
     // and a grammar fix to that article must not be a test failure.
-    expect(auto[0]?.message).toContain('autoincrement default does not apply to a varchar column');
+    expect(auto.find((i) => i.code === 'UNSUPPORTED_DEFAULT')?.message).toContain(
+      'autoincrement default does not apply to a varchar column',
+    );
   });
 
   it('accepts the kinds that do apply, so the rule is a filter and not a ban', () => {
@@ -303,12 +308,27 @@ describe('addColumns — the column it adds', () => {
         addColumns: [
           add({ name: 'seen_at', logicalType: 'timestamptz', default: { kind: 'now' } }),
           add({ name: 'token', logicalType: 'uuid', default: { kind: 'uuid' } }),
-          add({ name: 'rank_no', logicalType: 'integer', default: { kind: 'autoincrement' } }),
         ],
       }),
       ctx(),
     );
     expect(issues).toEqual([]);
+  });
+
+  /*
+   * Auto-increment is NOT one of the kinds that apply here, whatever the type.
+   * This door adds a column to a table whose key it cannot change, and a
+   * generated integer that is not the key is refused by MySQL outright and
+   * silently defaultless on SQLite (D23). It used to be accepted.
+   */
+  it('refuses auto-increment, because the key is not this door’s to change', () => {
+    const issues = validateSchemaEdit(
+      edit({
+        addColumns: [add({ name: 'rank_no', logicalType: 'integer', default: { kind: 'autoincrement' } })],
+      }),
+      ctx(),
+    );
+    expect(codes(issues)).toEqual(['IDENTITY_NOT_A_KEY']);
   });
 
   it('refuses a literal that is not a literal of the column’s type', () => {

@@ -143,6 +143,7 @@ export default {
       "skippedEdited": "因为你编辑过而保持原样：{pages}。"
     },
     "apply": "应用",
+    "brokenEnumValues": "{columns} 的每个允许值都必须填写，并且互不相同。",
     "ceiling": {
       "authorise": "授权此次重写",
       "body": "{table} 有超过 {rows} 行——超出 Adminium 自行重写的规模。只有超级管理员可以授权，且重写期间该表将被锁定。",
@@ -151,8 +152,9 @@ export default {
       "prompt": "再次输入 {table} 以授权重写"
     },
     "column": {
+      "default": "初始值",
+      "defaultValue": "值",
       "help": "这些设置是什么意思？",
-      "key": "主键",
       "length": "长度",
       "link": "关联到",
       "linkHelp": "将此关联到另一个表中的一行。",
@@ -176,8 +178,18 @@ export default {
       "prompt": "输入 {word} 以确认",
       "title": "应用破坏性更改"
     },
+    "default": {
+      "autoincrement": "在最后一行之后递增",
+      "false": "否",
+      "literal": "指定值",
+      "none": "无",
+      "now": "当前日期和时间",
+      "true": "是",
+      "uuid": "新的唯一 id"
+    },
     "designer": "表设计器",
     "discard": "放弃更改",
+    "discardTable": "放弃这个新表",
     "dropping": "已标记为删除",
     "empty": {
       "body": "创建一个表，或选择一个进行编辑。在你查看并应用这些语句之前，不会有任何内容写入你的数据库。",
@@ -201,6 +213,16 @@ export default {
     },
     "help": {
       "close": "关闭",
+      "default": {
+        "example": "以当前日期和时间开始的“创建时间”字段无需手动填写，也不会填错。",
+        "term": "初始值",
+        "what": "没有人填写时字段里的内容。值由数据库自己写入，因此在 Adminium 之外创建的行也会被填上。"
+      },
+      "keyGeneration": {
+        "example": "只有 PostgreSQL 能生成唯一 id 并立即返回，所以在其他引擎上主键采用递增。",
+        "term": "主键如何填充",
+        "what": "每行的 id 从哪里来。在最后一行之后递增会得到 1、2、3，适合大多数表；唯一 id 则是又长又随机，更难猜，也更难念出来。"
+      },
       "link": {
         "example": "一条预订关联到一位客户。Adminium 随后会在预订上显示该客户，也会在客户上显示其预订记录。",
         "term": "关联到另一个表",
@@ -227,6 +249,11 @@ export default {
         "example": "两个客户不应该共用同一个邮箱地址——把它标记为唯一，他们就不可能共用了。",
         "term": "唯一",
         "what": "任何两行都不能存放相同的值。数据库会拒绝第二个。"
+      },
+      "values": {
+        "example": "状态为新建、进行中或已完成。没人能打成“进行种”而意外多出第四种状态。",
+        "term": "允许的值",
+        "what": "这个字段接受的完整答案列表。其他内容数据库一律拒绝，Adminium 会把列表显示为按钮或菜单，而不是文本框。"
       }
     },
     "keepTable": "保留 {table}",
@@ -256,15 +283,31 @@ export default {
       "columns": "列",
       "drop": "删除此表",
       "dropHelp": "该表及其中所有行都将被销毁。在执行任何操作前，您会看到具体会有什么受影响。",
+      "keyCounted": "在最后一行之后递增",
+      "keyGeneration": "主键如何填充",
+      "keyGenerationHelp": "每次插入后，Adminium 通过这个主键读回新行。",
+      "keyGenerationOne": "在 {dialect} 上，主键必须是递增整数：数据库生成的 id 在插入后无法读回。",
+      "keyUnique": "新的唯一 id",
       "name": "表名",
       "nameHelp": "小写字母、数字和下划线。",
       "namePlaceholder": "reservations",
       "noKey": "此表没有主键，因此 Adminium 会将其视为只读——可以列出行，但无法编辑。",
-      "renameHelp": "更改它会重命名你数据库中的表。",
-      "uuidKeyUnavailable": "在此引擎上，主键必须是生成的整数：数据库生成的 uuid 在插入后无法读回。"
+      "renameHelp": "更改它会重命名你数据库中的表。"
     },
     "unnamed": "为每个表和列命名后才能查看更改。",
-    "unrepresentableDefaults": "这些列保留由数据库生成的默认值，Adminium 无法在此编辑，将保持原样：{columns}"
+    "unrepresentableDefaults": "这些列保留由数据库生成的默认值，Adminium 无法在此编辑，将保持原样：{columns}",
+    "valuelessEnum": "为 {columns} 至少设置一个允许的值，才能检查更改。",
+    "values": {
+      "add": "添加值",
+      "addOnly": "这个列表是数据库中的一个类型，值一旦存在，Postgres 就无法删除或重命名。您仍然可以添加新值。",
+      "down": "下移 {value}",
+      "empty": "选择列至少需要一个值，才能检查此更改。",
+      "label": "允许的值",
+      "placeholder": "in_progress",
+      "remove": "移除 {value}",
+      "up": "上移 {value}",
+      "value": "值 {n}"
+    }
   },
   "diagram": {
     "ceiling": "正在显示关联最多的 {shown} 个表。另有 {omitted} 个被隐藏——搜索可将其调出。",
@@ -1197,6 +1240,126 @@ export default {
       "width": "内容宽度",
       "widthHint": "在大屏幕上，页面内容列最多可以有多宽。"
     },
+    "filters": {
+      "add": "添加筛选",
+      "control": "{column} 的控件",
+      "down": "下移 {column}",
+      "empty": "此页面没有筛选。在下方添加一个。",
+      "full": "一个页面最多显示 {max} 个筛选。",
+      "name": "{column} 的名称",
+      "remove": "移除 {column} 筛选",
+      "reset": "回到建议的筛选",
+      "subtitle": "工具栏可以对此表提出的问题。未改动时，它跟随表。",
+      "title": "筛选",
+      "up": "上移 {column}"
+    },
+    "form": {
+      "addLines": "{label}（明细行）",
+      "dialog": {
+        "cta": "按钮",
+        "ctaIcon": "按钮图标",
+        "iconDefault": "默认",
+        "subtitle": "副标题",
+        "title": "标题",
+        "titleHelp": "留空则使用自动生成的文案。"
+      },
+      "field": {
+        "availability": "已被占用的条件",
+        "availabilityAny": "任何一行占用该时间",
+        "availabilityHelp": "另一行占用了同一时间。选择一列可缩小到某个房间、某人或某台机器。不选则不显示任何占用。",
+        "availabilityOff": "不检查",
+        "control": "控件",
+        "down": "将 {name} 下移",
+        "drag": "重新排序 {name}",
+        "help": "帮助文字",
+        "initial": "初始值",
+        "initialHelp": "新建记录时的初始内容。编辑时不会套用。",
+        "initialLiteral": "固定值",
+        "initialNone": "无",
+        "initialNow": "当前日期和时间",
+        "initialToday": "今天",
+        "initialUser": "当前登录的人",
+        "initialValue": "该值",
+        "label": "标签",
+        "placeholder": "占位文字",
+        "recap": "摘要",
+        "recapHelp": "一个摘要框。目前其文案在页面的 JSON 中编辑。",
+        "remove": "移除 {name}",
+        "required": "必须填写",
+        "requiredHelp": "缺少该值时表单不会保存。数据库本身的要求在“架构”中设置。",
+        "ruleChecks": "还有额外校验",
+        "ruleDatabase": "由数据库填写",
+        "ruleFilled": "由 Adminium 填写",
+        "ruleList": "只接受列表 {key} 中的值",
+        "ruleRequired": "数据库要求填写",
+        "ruleValues": "只接受固定的一组值",
+        "rules": "此列：{rules}。",
+        "rulesLink": "在“架构”中修改",
+        "settings": "{name} 的设置",
+        "slotsEnd": "到",
+        "slotsEvery": "每",
+        "slotsHelp": "留空时间即为仅选择日期。",
+        "slotsStart": "时间从",
+        "span": "宽度",
+        "spanHelp": "该字段占据此分节的几列。",
+        "up": "将 {name} 上移"
+      },
+      "gallery": {
+        "choice": {
+          "body": "可选择的选项卡片、胶囊开关和滑块。",
+          "title": "选项卡片"
+        },
+        "multi": {
+          "body": "邮箱标签输入、角色选择、权限勾选列表。",
+          "title": "多项录入"
+        },
+        "quick": {
+          "body": "一个标题字段，附带同行的信息标签。无分节外框。",
+          "title": "快速创建"
+        },
+        "repeater": {
+          "body": "一个引用、可重复的明细行和实时合计。",
+          "title": "重复行与合计"
+        },
+        "sectioned": {
+          "body": "较长的记录拆分为带标题的分节，内容区可滚动。",
+          "title": "分节"
+        },
+        "segmented": {
+          "body": "分段式优先级、长描述、附件列表、负责人。",
+          "title": "分段与文件"
+        },
+        "split": {
+          "body": "两栏：第一节在左，其余在右。为日历而设。",
+          "title": "分栏"
+        },
+        "upload": {
+          "body": "媒体拖放区、金额输入、标签和发布开关。",
+          "title": "上传与标签"
+        },
+        "wizard": {
+          "body": "分步向导，带进度轨和“上一步 / 下一步”页脚。",
+          "title": "向导"
+        }
+      },
+      "missing": {
+        "title": "不在此表单中。数据库要求的列会在对话框打开时自动补回。"
+      },
+      "preview": "预览",
+      "previewEntity": "记录",
+      "reset": "恢复为自动生成",
+      "section": {
+        "add": "添加分节",
+        "columnCount": "{count} 列",
+        "columns": "列数",
+        "empty": "此处还没有字段——移一个进来，或在下方添加。",
+        "label": "分节名称",
+        "remove": "移除此分节",
+        "unnamed": "未命名分节"
+      },
+      "subtitle": "“新建”和“编辑”对话框显示的内容。未作改动时，它跟随表结构。",
+      "title": "创建表单"
+    },
     "icon": {
       "noMatches": "没有图标符合该搜索。",
       "none": "选择图标",
@@ -1511,6 +1674,47 @@ export default {
       "suppressed": "已屏蔽",
       "toColumn": "目标列",
       "toTable": "目标表"
+    },
+    "rules": {
+      "fill": "初始值",
+      "fillDb": "由数据库填写（触发器）",
+      "fillDefault": "交给数据库处理",
+      "fillHelp": "没有人填写时，Adminium 会在这里放什么。",
+      "fillImplicit": "Adminium 会自动填写。",
+      "fillLiteral": "固定值",
+      "fillNone": "不填——留空",
+      "fillNow": "当前日期和时间",
+      "fillText": "值",
+      "fillUser": "当前登录的人",
+      "fillUuid": "新的唯一 id",
+      "format": "格式",
+      "formatAny": "任意",
+      "formatEmail": "电子邮件地址",
+      "formatPhone": "电话号码",
+      "formatUrl": "网址",
+      "help": "只要写入数据行，这些规则都会生效——表单、导入、自动化和 API，而不只是这个应用。",
+      "max": "最大值",
+      "maxLength": "最长长度",
+      "min": "最小值",
+      "minLength": "最短长度",
+      "onUpdate": "每次更改时重新填写",
+      "optionsFromDatabase": "这一列的允许值由数据库决定，请在“设计”中修改。",
+      "optionsHelp": "每行一个。留空表示接受任何值。",
+      "required": "必须填写",
+      "requiredAlready": "您的数据库已经要求这一列必填。",
+      "requiredHelp": "表单会要求填写，缺少它的写入会被拒绝。",
+      "title": "规则",
+      "optionsAnything": "任意内容",
+      "optionsInline": "这些值",
+      "optionsList": "一个列表",
+      "optionsListHelp": "列表本身在 Studio → 列表 中编辑。",
+      "optionsListLabel": "列表",
+      "optionsListUnavailable": "无法读取列表。",
+      "optionsMissingList": "{key}（不在此工作区中）",
+      "optionsPickList": "选择一个列表…",
+      "optionsSource": "允许的值",
+      "optionsSourceHelp": "列表在 Studio 中写一次，引用它的每一列都能使用。",
+      "optionsValues": "这些值"
     },
     "saveFailed": "保存失败：{message}",
     "subtitle": "{tables} 张表 · 已应用 {applied} 项覆盖",
@@ -1835,6 +2039,11 @@ export default {
       "body": "重写 Adminium 中的任何文案，决定用户可以选择哪些语言，并添加你自己的语言。",
       "cta": "打开翻译",
       "heading": "语言与翻译"
+    },
+    "listsCard": {
+      "body": "一列所接受的答案——国家和地区、阶段、部门——命名一次，随处使用。",
+      "cta": "打开列表",
+      "heading": "列表"
     }
   },
   "source": {
@@ -2091,5 +2300,54 @@ export default {
       "test": "分析"
     },
     "title": "新建连接"
+  },
+  "lists": {
+    "addValue": "添加值",
+    "andMore": "另有 {count} 项",
+    "builtin": "内置",
+    "builtinCount": "{count} 个值",
+    "builtinSubtitle": "Adminium 自带的列表。它在每个工作区都相同，名称按各人自己的语言显示。",
+    "cancel": "取消",
+    "close": "关闭",
+    "copiedFrom": "{key} 的副本",
+    "copyTitle": "{name} 的副本",
+    "create": "创建列表",
+    "delete": "删除",
+    "deleteBody": "列表会被删除。行中已保存的值保持原样——列表决定表单提供什么，而不是列里存着什么。",
+    "deleteTitle": "删除 {name}？",
+    "edit": "编辑",
+    "editSubtitle": "使用该列表的列所接受的答案，按表单提供它们的顺序排列。",
+    "editTitle": "编辑 {name}",
+    "emptyBody": "列表就是一列所接受的一组答案。",
+    "emptyTitle": "还没有列表",
+    "errorUnknown": "操作未成功，请重试。",
+    "inUseBody": "请先从 {columns} 中移除它。",
+    "inUseNone": "请先从使用它的列中移除它。",
+    "inUseTitle": "{name} 正被某一列使用",
+    "issueBlank": "其中一个值为空。请填写或删除该行。",
+    "issueDuplicate": "“{value}”在列表中出现了两次。",
+    "issueEmpty": "列表至少需要一个值。",
+    "issueName": "给列表起个名字。",
+    "key": "键",
+    "keyFixed": "规则以此名称引用该列表",
+    "keyHelper": "规则和项目文件用来引用该列表的名称，之后无法更改。",
+    "labelAt": "标签 {n}",
+    "labelPlaceholder": "人们看到的文字",
+    "makeCopy": "创建一个可编辑的副本",
+    "moveDown": "将 {value} 下移",
+    "moveUp": "将 {value} 上移",
+    "name": "名称",
+    "namePlaceholder": "部门",
+    "new": "新建列表",
+    "removeValue": "移除 {value}",
+    "save": "保存更改",
+    "storeLabel": "改为保存标签",
+    "storeLabelHelp": "副本保存代码，例如 DE。“改为保存标签”保存它在这里的名称，例如“德国”——采用本工作区的语言，从现在起生效。",
+    "subtitle": "一列所接受的答案：命名一次，随处使用。",
+    "title": "列表",
+    "valueAt": "值 {n}",
+    "valueCount": "{count} 个值",
+    "values": "值",
+    "view": "查看"
   }
 } as const;

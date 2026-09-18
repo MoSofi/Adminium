@@ -18,7 +18,11 @@ import {
   isTableBoundTemplate,
   parseCrudAttachmentsConfig,
   parseCrudDerived,
+  parseCrudFilters,
+  parseCrudForm,
   parseCrudLabels,
+  type CrudFilterField,
+  type CrudFormConfig,
   type CrudAttachmentsConfig,
   type CrudDerivedConfig,
   type PagePaddingConfig,
@@ -42,6 +46,8 @@ import { ExternalLink } from 'lucide-react';
 import { pageTemplateDefinitions } from '@adminium/widgets';
 
 import { pageQuery } from '../../api/pages.js';
+import { FormDesignerCard } from './form-designer/FormDesignerCard.js';
+import { FiltersCard } from './FiltersCard.js';
 import { destinationsQuery } from '../storage/storageApi.js';
 import { t } from '../../i18n/t.js';
 import { studioApi } from '../api.js';
@@ -352,6 +358,49 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
    * other's work, which is exactly the bug this screen's single save button
    * was introduced to kill.
    */
+  /**
+   * The designed create/edit form. Three states, not two: `undefined` is
+   * untouched, `null` is "back to the generated form" (which DELETES the stored
+   * block), and a document is a design to store. Folding the last two together
+   * would make "reset to generated" store a copy of today's default and stop
+   * the form following the table.
+   */
+  const [formDraft, setFormDraft] = useState<CrudFormConfig | null | undefined>(undefined);
+  const storedForm = useMemo(
+    () => (storedConfig === null ? null : parseCrudForm(storedConfig)),
+    [storedConfig],
+  );
+  /*
+   * Changed means "says something different from what is stored". A page with
+   * no form whose draft went back to the generated one is NOT dirty, which is
+   * what keeps a look around the designer from making the Save button light up.
+   */
+  const formChanged =
+    formDraft !== undefined && JSON.stringify(formDraft) !== JSON.stringify(storedForm);
+
+  /**
+   * The toolbar's filters, with the same three states and the same reason:
+   * `null` means "back to the suggested ones", which DELETES the block so the
+   * toolbar keeps following the table rather than freezing today's suggestion.
+   */
+  const [filtersDraft, setFiltersDraft] = useState<CrudFilterField[] | null | undefined>(undefined);
+  const storedFilters = useMemo(
+    () => (storedConfig === null ? null : parseCrudFilters(storedConfig)),
+    [storedConfig],
+  );
+  const filtersChanged =
+    filtersDraft !== undefined && JSON.stringify(filtersDraft) !== JSON.stringify(storedFilters);
+  /** What the designer needs, or null when this page has no table behind it. */
+  const formFacts =
+    document.data?.status === 'ok' && document.data.formColumns.length > 0
+      ? {
+          columns: document.data.formColumns,
+          relations: document.data.formRelations,
+          children: document.data.formChildren,
+          connectionId: document.data.page.source.connectionId,
+          entity: document.data.tableLabelSingular,
+        }
+      : null;
   const [derivedDraft, setDerivedDraft] = useState<CrudDerivedConfig | null>(null);
   const storedDerived = useMemo<CrudDerivedConfig>(() => {
     const parsed = parseCrudDerived(storedConfig?.['derived']);
@@ -609,7 +658,12 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   const bodyDirty =
     storedConfig !== null &&
     !sourceChanged &&
-    (columnsDraft !== null || labelsChanged || derivedDraft !== null || attachmentsChanged);
+    (columnsDraft !== null ||
+      labelsChanged ||
+      derivedDraft !== null ||
+      attachmentsChanged ||
+      filtersChanged ||
+      formChanged);
 
   /**
    * The config body to persist: the stored one with each edited block applied
@@ -626,6 +680,19 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   function nextConfigBody(): Record<string, unknown> {
     const body = { ...(storedConfig ?? {}) };
     if (columnsDraft !== null) body['columns'] = columnsDraft;
+    if (formDraft !== undefined) {
+      // `null` DELETES the block: a form that says what the derived one says
+      // must not be frozen into the page, or it stops following the table the
+      // day a column is added.
+      if (formDraft === null) delete body['form'];
+      else body['form'] = formDraft;
+    }
+    if (filtersDraft !== undefined) {
+      // Same rule as the form: `null` removes the block and the toolbar goes
+      // back to deriving its filters from the live columns.
+      if (filtersDraft === null) delete body['filters'];
+      else body['filters'] = filtersDraft;
+    }
     if (derivedDraft !== null) {
       // An emptied block is REMOVED, not stored as `{measures:[],fields:[]}`:
       // absence is what a page that never defined one carries, and the read
@@ -1101,6 +1168,41 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
             ) : null}
           </CardBody>
         </Card>
+      ) : null}
+
+      {/*
+        THE CREATE FORM. A `page-crud` page bound to a table: a dashboard has no
+        record to create, and an unbound crud page has no columns to offer. The
+        card reports its draft here and saves nothing itself — one Save, this
+        screen's, for the same reason the Columns card gives up its own.
+      */}
+      {isCrud && effectiveTable !== null && !sourceChanged && formFacts !== null ? (
+        <FormDesignerCard
+          stored={storedForm}
+          columns={formFacts.columns}
+          relations={formFacts.relations}
+          {...(formFacts.children === undefined ? {} : { children: formFacts.children })}
+          onChange={setFormDraft}
+          {...(formFacts.connectionId === null
+            ? {}
+            : {
+                onOpenRules: () => {
+                  void navigate({
+                    to: '/studio/remap/$connectionId',
+                    params: { connectionId: formFacts.connectionId as string },
+                  });
+                },
+              })}
+          {...(formFacts.entity === null ? {} : { entity: formFacts.entity })}
+        />
+      ) : null}
+
+      {/*
+        THE FILTERS. Same gate as the designer above — a page bound to a table
+        — because the filters are questions about that table's columns.
+      */}
+      {isCrud && effectiveTable !== null && !sourceChanged && formFacts !== null ? (
+        <FiltersCard stored={storedFilters} columns={formFacts.columns} onChange={setFiltersDraft} />
       ) : null}
 
       {/*

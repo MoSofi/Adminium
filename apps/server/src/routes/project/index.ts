@@ -62,7 +62,7 @@ export const projectStatusReply = z.object({
     entries: z.array(
       z.object({
         path: z.string(),
-        kind: z.enum(['page', 'schema']),
+        kind: z.enum(['page', 'schema', 'list']),
         name: z.string(),
         pageId: z.string().nullable(),
         status: z.enum(['changed-on-server', 'conflict', 'not-in-project', 'pending', 'invalid']),

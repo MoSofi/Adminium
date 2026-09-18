@@ -46,6 +46,76 @@
     "close": "Dialog schließen",
     "confirmTitle": "Sind Sie sicher?"
   },
+  "formDialog": {
+    "calendar": {
+      "days": "Tage im {month}",
+      "next": "Nächster Monat",
+      "noTimes": "An diesem Tag gibt es keine Zeiten",
+      "previous": "Vorheriger Monat",
+      "times": "Zeiten",
+      "unchecked": "Dieser Monat hat zu viele Buchungen, um hier geprüft zu werden."
+    },
+    "control": {
+      "fewer": "Eins weniger",
+      "hide": "Verbergen",
+      "more": "Eins mehr",
+      "removeChip": "{value} entfernen",
+      "reveal": "Anzeigen",
+      "upTo": "bis zu {size} MB"
+    },
+    "cta": {
+      "add": "{entity} hinzufügen",
+      "create": "{entity} erstellen"
+    },
+    "footnote": {
+      "required": "Pflichtfelder sind mit * markiert"
+    },
+    "issue": {
+      "required": "Dieses Feld ist erforderlich.",
+      "notAllowed": "Wählen Sie einen der aufgeführten Werte.",
+      "invalid": "Dieser Wert ist hier nicht gültig.",
+      "email": "Geben Sie eine gültige E-Mail-Adresse ein.",
+      "url": "Geben Sie eine gültige Webadresse ein.",
+      "phone": "Geben Sie eine gültige Telefonnummer ein.",
+      "number": "Geben Sie eine Zahl ein.",
+      "integer": "Geben Sie eine ganze Zahl ein.",
+      "tooShort": "Verwenden Sie mindestens {n} Zeichen.",
+      "tooLong": "Verwenden Sie höchstens {n} Zeichen.",
+      "tooSmall": "Muss {min} oder mehr sein.",
+      "tooLarge": "Muss {max} oder weniger sein.",
+      "outOfRange": "Diese Zahl liegt außerhalb des gültigen Bereichs.",
+      "duplicate": "Bereits hinzugefügt.",
+      "form": "Einige Werte wurden abgelehnt. Prüfen Sie die markierten Felder."
+    },
+    "lines": {
+      "add": "Zeile hinzufügen",
+      "remove": "Zeile {n} entfernen"
+    },
+    "quick": {
+      "today": "Heute",
+      "tomorrow": "Morgen",
+      "thisWeek": "Diese Woche",
+      "nextWeek": "Nächste Woche",
+      "pickDate": "Datum wählen",
+      "clear": "Kein(e) {field}"
+    },
+    "reference": {
+      "noAccess": "Sie können {table} nicht lesen, daher ist hier keine Änderung möglich."
+    },
+    "subtitle": {
+      "sections": "Angaben: {list}"
+    },
+    "title": {
+      "create": "Neue(r) {entity}",
+      "edit": "{entity} bearbeiten"
+    },
+    "wizard": {
+      "rail": "Schritte",
+      "step": "Schritt {n}",
+      "back": "Zurück",
+      "next": "Weiter"
+    }
+  },
   "combobox": {
     "placeholder": "Auswählen…",
     "search": "Suchen…",
@@ -1438,53 +1508,23 @@
   },
   "templates": {
     "crud": {
-      "newRow": "Neue Zeile",
-      "exportAction": "Exportieren",
-      "searchPlaceholder": "{table} durchsuchen…",
-      "removeFilter": "Filter {column} entfernen",
-      "queryFailed": "Abfrage fehlgeschlagen",
-      "loadingRows": "Zeilen werden geladen",
-      "noMatchesTitle": "Keine passenden Zeilen",
-      "emptyTitle": "{count, plural, one {Noch keine {entity}} other {Noch keine {entity}}}",
-      "createTitle": "{entity} hinzufügen",
-      "createSubtitle": "Legt eine Zeile in {table} an.",
-      "createSubmit": "{entity} hinzufügen",
-      "createSuccessTitle": "{name} hinzugefügt",
-      "createSuccessBody": "Sie können dies über die eingeblendete Meldung rückgängig machen.",
-      "editTitle": "{entity} bearbeiten",
-      "saveSubmit": "Änderungen speichern",
-      "deleteTitle": "{entity} löschen",
-      "deletePreflight": "Verweise werden geprüft…",
-      "deleteNoReferences": "Diese Zeile hat keine eingehenden Verweise.",
-      "deleteConsequencesIntro": "Das Löschen dieser Zeile betrifft außerdem:",
-      "referenceRows": "{count, plural, one {{n} Zeile} other {{n} Zeilen}}",
-      "confirmPrompt": "Zum Bestätigen {value} eingeben",
-      "bulkDeleteTitle": "{count, plural, one {{n} Zeile löschen} other {{n} Zeilen löschen}}",
       "bulkDeleteBody": "Die Folgen für Verweise gelten für jede ausgewählte Zeile.",
       "bulkDeleteConfirm": "Zeilen löschen",
-      "uniqueHelper": "Muss in {table} eindeutig sein.",
-      "uniqueHelperCounted": "{count, plural, one {Mit {n} Zeile abgeglichen.} other {Mit {n} Zeilen abgeglichen.}}",
-      "toast": {
-        "created": "{entity} angelegt.",
-        "createFailed": "Anlegen fehlgeschlagen.",
-        "saved": "Änderungen gespeichert.",
-        "updateFailed": "Aktualisierung fehlgeschlagen.",
-        "deleted": "{name} gelöscht.",
-        "deleteFailed": "Löschen fehlgeschlagen.",
-        "bulkDeleted": "{count, plural, one {{n} Zeile gelöscht.} other {{n} Zeilen gelöscht.}}",
-        "bulkDeleteFailed": "Sammellöschung fehlgeschlagen.",
-        "exportIncomplete": "{written, number} von {selected, number} ausgewählten Zeilen exportiert — neu laden und erneut versuchen.",
-        "undone": "Änderung rückgängig gemacht.",
-        "undoFailed": "Rückgängig machen fehlgeschlagen."
-      },
+      "bulkDeleteTitle": "{count, plural, one {{n} Zeile löschen} other {{n} Zeilen löschen}}",
+      "confirmPrompt": "Zum Bestätigen {value} eingeben",
+      "createSubtitle": "Legt eine Zeile in {table} an.",
+      "deleteConsequencesIntro": "Das Löschen dieser Zeile betrifft außerdem:",
+      "deleteNoReferences": "Diese Zeile hat keine eingehenden Verweise.",
+      "deletePreflight": "Verweise werden geprüft…",
+      "deleteTitle": "{entity} löschen",
       "detail": {
         "fields": "Felder",
         "inboundReferences": "eingehende Verweise",
         "relatedCount": "{count, plural, one {{n} verknüpfter Datensatz in {table}} other {{n} verknüpfte Datensätze in {table}}}",
         "loadError": "Der Datensatz konnte nicht geladen werden."
       },
-      "peekAction": "Vorschau",
-      "openPage": "Seite öffnen",
+      "emptyTitle": "{count, plural, one {Noch keine {entity}} other {Noch keine {entity}}}",
+      "exportAction": "Exportieren",
       "file": {
         "tooLarge": "Diese Datei ist größer als das Limit von {limit}.",
         "uploading": "Wird hochgeladen",
@@ -1495,7 +1535,44 @@
         "add": "Dateien hinzufügen",
         "removeNamed": "{name} entfernen",
         "capReached": "Dieser Datensatz akzeptiert höchstens {count, plural, one {# Datei} other {# Dateien}}."
-      }
+      },
+      "filters": {
+        "chip": "{name}: {values}",
+        "custom": "Benutzerdefiniert",
+        "days": "{days} T",
+        "from": "ab {value}",
+        "no": "Nein",
+        "rangeFrom": "Von",
+        "rangeTo": "Bis",
+        "to": "bis {value}",
+        "yes": "Ja"
+      },
+      "loadingRows": "Zeilen werden geladen",
+      "newRow": "Neue Zeile",
+      "noMatchesTitle": "Keine passenden Zeilen",
+      "openPage": "Seite öffnen",
+      "peekAction": "Vorschau",
+      "queryFailed": "Abfrage fehlgeschlagen",
+      "referenceRows": "{count, plural, one {{n} Zeile} other {{n} Zeilen}}",
+      "removeFilter": "Filter {column} entfernen",
+      "saveSubmit": "Änderungen speichern",
+      "searchPlaceholder": "{table} durchsuchen…",
+      "toast": {
+        "bulkDeleteFailed": "Sammellöschung fehlgeschlagen.",
+        "bulkDeleted": "{count, plural, one {{n} Zeile gelöscht.} other {{n} Zeilen gelöscht.}}",
+        "createFailed": "Anlegen fehlgeschlagen.",
+        "created": "{entity} angelegt.",
+        "createdMany": "{count, plural, one {# Datensatz erstellt.} other {# Datensätze erstellt.}}",
+        "deleteFailed": "Löschen fehlgeschlagen.",
+        "deleted": "{name} gelöscht.",
+        "exportIncomplete": "{written, number} von {selected, number} ausgewählten Zeilen exportiert — neu laden und erneut versuchen.",
+        "saved": "Änderungen gespeichert.",
+        "undoFailed": "Rückgängig machen fehlgeschlagen.",
+        "undone": "Änderung rückgängig gemacht.",
+        "updateFailed": "Aktualisierung fehlgeschlagen."
+      },
+      "uniqueHelper": "Muss in {table} eindeutig sein.",
+      "uniqueHelperCounted": "{count, plural, one {Mit {n} Zeile abgeglichen.} other {Mit {n} Zeilen abgeglichen.}}"
     },
     "queue": {
       "allSegment": "Alle",
@@ -1842,6 +1919,18 @@
     "make": {
       "label": "Beleg erstellen",
       "one": "{name} erstellen"
+    }
+  },
+  "lists": {
+    "name": {
+      "countries": "Länder",
+      "us-states": "US-Bundesstaaten",
+      "gender": "Geschlecht"
+    },
+    "gender": {
+      "female": "Weiblich",
+      "male": "Männlich",
+      "other": "Divers"
     }
   }
 }

@@ -36,6 +36,7 @@ let CONN = '';
 
 const step = (over: Partial<DdlStep> & { id: string; kind: DdlStep['kind']; table: string }): DdlStep => ({
   column: null,
+  constraint: null,
   hazard: 'irreversible',
   requiresSuperAdmin: true,
   summary: 's',

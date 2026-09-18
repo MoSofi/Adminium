@@ -233,9 +233,12 @@ describe('bulk', () => {
 
 describe('lookup labels', () => {
   /** The FK picker's options, from one page of the referenced table. */
-  async function optionsFor(rows: Record<string, unknown>[]) {
+  async function optionsFor(rows: Record<string, unknown>[], display?: string) {
     captureFetch(() => jsonResponse(200, { data: rows }));
-    return lookup({ table: 'public.customers', column: 'id' }, 'av');
+    return lookup(
+      { table: 'public.customers', column: 'id', ...(display === undefined ? {} : { display }) },
+      'av',
+    );
   }
 
   it('searches the referenced table with a capped page', async () => {
@@ -247,18 +250,82 @@ describe('lookup labels', () => {
     expect(url.searchParams.get('limit')).toBe('20');
   });
 
-  it('prefers the conventional display columns, in order', async () => {
-    // The client knows no schema, so the preference list is the whole rule.
-    expect(await optionsFor([{ id: 1, email: 'ava@x.io', name: 'Ava Reyes' }])).toEqual([
-      { value: '1', label: 'Ava Reyes' },
-    ]);
-    expect(await optionsFor([{ id: 1, email: 'ava@x.io' }])).toEqual([
-      { value: '1', label: 'ava@x.io' },
+  it('asks for the key, the name and the details — and nothing else', async () => {
+    /*
+     * Without a `select` this call returns whole rows: every column of twenty
+     * records of the target, masked ones included, to render one label. The
+     * narrowing is the privacy fix as much as the payload one.
+     */
+    const fetchMock = captureFetch(() => jsonResponse(200, { data: [] }));
+    await lookup({ table: 'public.providers', column: 'id', display: 'full_name' }, 'am', {
+      name: 'full_name',
+      detail: ['speciality', 'building'],
+    });
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]), 'http://localhost');
+    expect(url.searchParams.get('select')).toBe('id,full_name,speciality,building');
+  });
+
+  it('asks for the key and the display column when the field says nothing', async () => {
+    const fetchMock = captureFetch(() => jsonResponse(200, { data: [] }));
+    await lookup({ table: 'public.providers', column: 'id', display: 'full_name' }, 'am');
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]), 'http://localhost');
+    expect(url.searchParams.get('select')).toBe('id,full_name');
+  });
+
+  it('joins the details with " · ", skipping the ones this row has not got', async () => {
+    captureFetch(() =>
+      jsonResponse(200, {
+        data: [
+          { id: 1, full_name: 'Amara Osei', speciality: 'Internal medicine', building: 'Bldg 2' },
+          { id: 2, full_name: 'Ben Halloran', speciality: 'Family practice', building: null },
+        ],
+      }),
+    );
+    const options = await lookup({ table: 'public.providers', column: 'id' }, '', {
+      name: 'full_name',
+      detail: ['speciality', 'building'],
+    });
+    // A row missing one detail reads as one detail, never as "Family practice · "
+    // with a dangling separator.
+    expect(options).toEqual([
+      { value: '1', label: 'Amara Osei', detail: 'Internal medicine · Bldg 2' },
+      { value: '2', label: 'Ben Halloran', detail: 'Family practice' },
     ]);
   });
 
-  it('falls back to any other non-empty text column before giving up', async () => {
+  it('shows the display column the spec names, whatever it is called', async () => {
+    /*
+     * The whole point of `fk.display`. Before it, the label came off a fixed
+     * list of hoped-for key names — so a `companies` table keyed by `company`
+     * showed raw ids, and this row would have shown the email.
+     */
+    expect(
+      await optionsFor([{ id: 1, email: 'ava@x.io', company: 'Drift & Fern' }], 'company'),
+    ).toEqual([{ value: '1', label: 'Drift & Fern' }]);
+  });
+
+  it('prefers the named column over one the old guess list would have picked', async () => {
+    expect(
+      await optionsFor([{ id: 1, name: 'Ava Reyes', code: 'AC-9' }], 'code'),
+    ).toEqual([{ value: '1', label: 'AC-9' }]);
+  });
+
+  it('shows a non-text display column rather than falling through', async () => {
+    expect(await optionsFor([{ id: 1, year: 1994, note: 'ignored' }], 'year')).toEqual([
+      { value: '1', label: '1994' },
+    ]);
+  });
+
+  it('falls back to any non-empty text column when the spec names none', async () => {
+    // An FK the generator could not resolve — an excluded target, a page made
+    // before the stamp. A degraded label still beats a picker of raw ids.
     expect(await optionsFor([{ id: 7, sku: 'SKU-9' }])).toEqual([{ value: '7', label: 'SKU-9' }]);
+  });
+
+  it('falls back when the named column is empty on this row', async () => {
+    expect(await optionsFor([{ id: 3, company: '', sku: 'SKU-9' }], 'company')).toEqual([
+      { value: '3', label: 'SKU-9' },
+    ]);
   });
 
   it('never labels a row with its own key column by accident', async () => {
@@ -269,6 +336,12 @@ describe('lookup labels', () => {
   it('skips empty strings rather than showing a blank option', async () => {
     expect(await optionsFor([{ id: 3, name: '', title: 'Ops lead' }])).toEqual([
       { value: '3', label: 'Ops lead' },
+    ]);
+  });
+
+  it('never labels a row with a column the spec does not have', async () => {
+    expect(await optionsFor([{ id: 4, name: 'Ava' }], 'company')).toEqual([
+      { value: '4', label: 'Ava' },
     ]);
   });
 

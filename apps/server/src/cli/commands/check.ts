@@ -7,8 +7,9 @@
  * URL, and compares the Dockerfile's image tag with the version package.json
  * installs. It also checks every page and schema file with no database:
  * their shape, the database keys they name, and that no id from one install
- * slipped into them. Built hooks and actions are loaded and checked the same
- * way the server loads them. Pages and widgets are built (which reads their
+ * slipped into them; a rule that names an option list the project does not
+ * carry is an error, because it would enforce nothing there. Built hooks and
+ * actions are loaded and checked the same way the server loads them. Pages and widgets are built (which reads their
  * settings), and every page file that names a project widget must name one
  * of the right kind. Problems exit with 2; things that only matter at start
  * time, such as a secret CI does not have, are warnings.
@@ -16,6 +17,8 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { isBuiltinOptionList } from '@adminium/engine/config';
 
 import { parseDsn } from '../../connections/dsn.js';
 import { variableSources } from '../../project/boot.js';
@@ -31,7 +34,7 @@ import {
 import { projectDsn } from '../../project/databases.js';
 import { loadDotEnv } from '../../project/dotenv.js';
 import { diskFileStore } from '../../project/file-store.js';
-import { offlineRefs, readProjectFiles } from '../../project/project-files.js';
+import { offlineRefs, readProjectFiles, type FolderFile } from '../../project/project-files.js';
 import { configFileName, findProject } from '../../project/locate.js';
 import { ADMINIUM_PACKAGE, IMAGE } from '../../project/scaffold.js';
 import { APP_VERSION } from '../../version.js';
@@ -88,6 +91,36 @@ export function projectWidgetFindings(path: string, portable: Record<string, unk
   return findings;
 }
 
+/**
+ * Rules that name an option list the project does not carry.
+ *
+ * A `column.options` rule either holds its values or names a key. A named key
+ * is either one of the built-ins, which are code and always there, or a
+ * `lists/<key>.json` in this project — anything else is a rule pointing at a
+ * list that exists only in the workspace it was written in.
+ */
+export function missingListFindings(files: Iterable<FolderFile>): Finding[] {
+  const known = new Set<string>();
+  const wanted: { path: string; where: string; key: string }[] = [];
+  for (const file of files) {
+    if (!file.valid) continue;
+    if (file.kind === 'list') known.add(file.key);
+    if (file.kind !== 'schema') continue;
+    file.rows.forEach((row, index) => {
+      if (row.op !== 'column.options') return;
+      const key = asObject(row.value)?.['list'];
+      if (typeof key !== 'string' || isBuiltinOptionList(key)) return;
+      wanted.push({ path: file.path, where: `overrides[${String(index)}]`, key });
+    });
+  }
+  return wanted
+    .filter((use) => !known.has(use.key))
+    .map((use) => ({
+      level: 'error' as const,
+      text: `${use.path}: ${use.where} uses the list "${use.key}", and there is no lists/${use.key}.json.`,
+    }));
+}
+
 /** The Dockerfile's image tag against the version package.json installs. */
 export function dockerfileFinding(root: string): Finding | null {
   const dockerfile = join(root, 'Dockerfile');
@@ -124,9 +157,9 @@ export const checkCommand: Command = {
   usage: 'adminium check',
   describe:
     'Validates adminium.config.ts, the settings the server would start with, the\n' +
-    'database URLs, the page and schema files, the hooks and actions, the pages\n' +
-    "and widgets, and that the Dockerfile's image matches package.json. Needs no\n" +
-    'database. Exits 2 when something is wrong.',
+    'database URLs, the page, schema and list files, the hooks and actions, the\n' +
+    "pages and widgets, and that the Dockerfile's image matches package.json.\n" +
+    'Needs no database. Exits 2 when something is wrong.',
   flags: {},
 
   async run({ io, deps, argv }) {
@@ -196,6 +229,7 @@ export const checkCommand: Command = {
       const files = await readProjectFiles(diskFileStore(project.root), offlineRefs(Object.keys(config.databases ?? {})));
       let pages = 0;
       let schemas = 0;
+      let lists = 0;
       let broken = 0;
       for (const file of files.values()) {
         if (!file.valid) {
@@ -206,10 +240,19 @@ export const checkCommand: Command = {
           const widgetFindings = projectWidgetFindings(file.path, file.doc.portable, client ?? EMPTY_CLIENT_BUILD);
           broken += widgetFindings.length;
           findings.push(...widgetFindings);
+        } else if (file.kind === 'list') {
+          lists += 1;
         } else {
           schemas += 1;
         }
       }
+      // A rule that names a list the project does not carry would enforce
+      // nothing in the next install — silently, because the write path treats
+      // an unknown list as no list at all. It is a file away from working, so
+      // `check` is where it has to be said.
+      const listFindings = missingListFindings(files.values());
+      broken += listFindings.length;
+      findings.push(...listFindings);
       if (client !== undefined && client.pages.length + client.widgets.length > 0) {
         findings.push({
           level: 'ok',
@@ -217,7 +260,10 @@ export const checkCommand: Command = {
         });
       }
       if (broken === 0) {
-        findings.push({ level: 'ok', text: `${String(pages)} page file(s) and ${String(schemas)} schema file(s) are valid` });
+        findings.push({
+          level: 'ok',
+          text: `${String(pages)} page file(s), ${String(schemas)} schema file(s) and ${String(lists)} list file(s) are valid`,
+        });
       }
 
       // The build is current here: loading the config built it when it was not.

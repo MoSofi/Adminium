@@ -170,6 +170,7 @@ import { permissionsRoutes } from './routes/permissions/index.js';
 import { rolesRoutes } from './routes/roles/index.js';
 import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaDdlRoutes } from './routes/schema-ddl/index.js';
+import { optionListsRoutes } from './routes/option-lists/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
@@ -1139,6 +1140,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       }
       await api.register(connectionsRoutes({ manager, meta }));
       await api.register(schemaRoutes({ manager, meta }));
+      // The answers a column accepts, named once. Registered
+      // beside the schema routes because a list and the rule that names it are
+      // edited with the same grant.
+      await api.register(optionListsRoutes({ meta }));
       await api.register(
         schemaDdlRoutes({ manager, meta, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
       );

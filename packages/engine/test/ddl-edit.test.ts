@@ -10,8 +10,10 @@ import { describe, expect, it } from 'vitest';
 import {
   AUTHORABLE_LOGICAL_TYPES,
   desiredTableToModel,
+  diffTableDefinitions,
   isAuthorableLogicalType,
   isReservedWord,
+  offerableDefaultKinds,
   schemaEditSchema,
   validateSchemaEdit,
   type DesiredColumn,
@@ -341,13 +343,182 @@ describe('D31 — a new table’s key must be readable back', () => {
 
   it('allows a table with no primary key at all — the consequence is stated, not refused', () => {
     const issues = validateSchemaEdit(
-      edit({ upsertTables: [table({ name: 'events_log', primaryKey: [] })] }),
+      edit({
+        upsertTables: [
+          table({
+            name: 'events_log',
+            // No key, and therefore no generated key either: auto-increment is
+            // the key's own property (D23), so leaving the fixture's identity
+            // default on a keyless table would be testing two things at once.
+            columns: [column({ name: 'id', logicalType: 'integer', nullable: false }), column()],
+            primaryKey: [],
+          }),
+        ],
+      }),
       ctx(),
     );
     expect(codes(issues)).not.toContain('UNADDRESSABLE_KEY');
     expect(issues).toHaveLength(0);
   });
+
+  /*
+   * D23's other half. `defaultKindAllowed` limits auto-increment to an integer
+   * column; being an integer is not enough, because every engine ties generated
+   * integers to the key. MySQL refuses an unindexed AUTO_INCREMENT column
+   * outright, and on SQLite `autoincrement` off the key compiles to no default
+   * at all — a NOT NULL column with nothing to fill it.
+   */
+  it('refuses auto-increment on a column that is not the whole primary key', () => {
+    const notTheKey = validateSchemaEdit(
+      edit({
+        upsertTables: [
+          table({
+            columns: [
+              column({ name: 'id', logicalType: 'integer', nullable: false }),
+              column({ name: 'seq', logicalType: 'integer', default: { kind: 'autoincrement' } }),
+            ],
+            primaryKey: ['id'],
+          }),
+        ],
+      }),
+      ctx(),
+    );
+    expect(codes(notTheKey)).toContain('IDENTITY_NOT_A_KEY');
+    expect(notTheKey[0]?.message).toContain('(id)');
+
+    const composite = validateSchemaEdit(
+      edit({
+        upsertTables: [
+          table({
+            columns: [
+              column({ name: 'id', logicalType: 'integer', nullable: false, default: { kind: 'autoincrement' } }),
+              column({ name: 'tenant', logicalType: 'integer', nullable: false }),
+            ],
+            primaryKey: ['id', 'tenant'],
+          }),
+        ],
+      }),
+      ctx(),
+    );
+    expect(codes(composite)).toContain('IDENTITY_NOT_A_KEY');
+  });
+
+  it('accepts auto-increment on the single-column key — the fixture every table starts from', () => {
+    const issues = validateSchemaEdit(edit({ upsertTables: [table()] }), ctx());
+    expect(codes(issues)).not.toContain('IDENTITY_NOT_A_KEY');
+  });
+
+  it('refuses a generated uuid default off postgres even when it is not the key', () => {
+    const withToken = table({
+      columns: [
+        column({ name: 'id', logicalType: 'integer', nullable: false, default: { kind: 'autoincrement' } }),
+        column({ name: 'token', logicalType: 'uuid', default: { kind: 'uuid' } }),
+      ],
+      primaryKey: ['id'],
+    });
+    // The compiler throws for this shape, and a throw is a 500 with no field.
+    const mysql = validateSchemaEdit(
+      edit({ upsertTables: [withToken] }),
+      ctx({ dialect: 'mysql', maxIdentifierLength: 64 }),
+    );
+    expect(codes(mysql)).toContain('UNSUPPORTED_DEFAULT');
+    expect(validateSchemaEdit(edit({ upsertTables: [withToken] }), ctx())).toEqual([]);
+  });
 });
+
+describe('offerableDefaultKinds — what a control may show', () => {
+  it('offers the clock for a TEXT column on sqlite, where a timestamp IS text', () => {
+    /*
+     * SQLite has no date type. A `timestamp` column created through this
+     * product comes back as `text`, so refusing a `now` default there refused a
+     * column the product itself had just made — the designer could not restate
+     * a table it had created two steps earlier. Found by the sqlite e2e leg.
+     */
+    expect(offerableDefaultKinds({ logicalType: 'text', dialect: 'sqlite', isSoleKey: false })).toContain('now');
+    expect(offerableDefaultKinds({ logicalType: 'text', dialect: 'postgres', isSoleKey: false })).not.toContain('now');
+  });
+
+
+  it('offers a value and the clock for a timestamp, and nothing else', () => {
+    expect(
+      offerableDefaultKinds({ logicalType: 'timestamptz', dialect: 'postgres', isSoleKey: false }),
+    ).toEqual(['literal', 'now']);
+  });
+
+  it('offers a unique id on postgres only', () => {
+    const forUuid = (dialect: 'postgres' | 'mysql' | 'sqlite') =>
+      offerableDefaultKinds({ logicalType: 'uuid', dialect, isSoleKey: true });
+    expect(forUuid('postgres')).toContain('uuid');
+    expect(forUuid('mysql')).not.toContain('uuid');
+    expect(forUuid('sqlite')).not.toContain('uuid');
+  });
+
+  it('offers auto-increment only on a column that is the whole key', () => {
+    expect(
+      offerableDefaultKinds({ logicalType: 'integer', dialect: 'postgres', isSoleKey: true }),
+    ).toContain('autoincrement');
+    expect(
+      offerableDefaultKinds({ logicalType: 'integer', dialect: 'postgres', isSoleKey: false }),
+    ).not.toContain('autoincrement');
+  });
+
+  it('agrees with the validator: nothing it offers is refused', () => {
+    for (const dialect of ['postgres', 'mysql', 'sqlite'] as const) {
+      for (const logicalType of AUTHORABLE_LOGICAL_TYPES) {
+        for (const kind of offerableDefaultKinds({ logicalType, dialect, isSoleKey: true })) {
+          const def =
+            kind === 'literal'
+              ? ({ kind: 'literal', text: literalFor(logicalType) } as const)
+              : ({ kind } as const);
+          const columns = [
+            column({ name: 'id', logicalType, nullable: false, default: def }),
+          ];
+          const issues = validateSchemaEdit(
+            edit({
+              upsertTables: [
+                table({
+                  columns,
+                  primaryKey: ['id'],
+                  // An enum column carries its value list or it is not one (D32).
+                  ...(logicalType === 'enum' ? { enumValues: { id: ['x'] } } : {}),
+                }),
+              ],
+            }),
+            ctx({ dialect, maxIdentifierLength: dialect === 'postgres' ? 63 : dialect === 'mysql' ? 64 : 128 }),
+          );
+          expect(issues.map((i) => i.code), `${dialect}/${logicalType}/${kind}`).toEqual([]);
+        }
+      }
+    }
+  });
+});
+
+/** A literal every type accepts, so the agreement test is about the KIND. */
+function literalFor(type: string): string {
+  switch (type) {
+    case 'integer':
+    case 'bigint':
+      return '1';
+    case 'decimal':
+    case 'float':
+      return '1.5';
+    case 'boolean':
+      return 'true';
+    case 'date':
+      return '2026-09-18';
+    case 'time':
+      return '09:30';
+    case 'timestamp':
+    case 'timestamptz':
+      return '2026-09-18T09:30';
+    case 'uuid':
+      return '00000000-0000-4000-8000-000000000000';
+    case 'json':
+      return '{}';
+    default:
+      return 'x';
+  }
+}
 
 describe('enum columns (D32)', () => {
   it('requires a value list on an enum column', () => {
@@ -360,12 +531,67 @@ describe('enum columns (D32)', () => {
     expect(codes(issues)).toContain('ENUM_ON_NON_ENUM_COLUMN');
   });
 
-  it('refuses a value list on a non-enum column', () => {
+  it('refuses a value list on a column that cannot hold one', () => {
+    const issues = validateSchemaEdit(
+      edit({
+        upsertTables: [
+          {
+            ...table(),
+            columns: [column({ name: 'amount', logicalType: 'decimal' })],
+            primaryKey: [],
+            enumValues: { amount: ['a', 'b'] },
+          },
+        ],
+      }),
+      ctx(),
+    );
+    expect(codes(issues)).toContain('ENUM_ON_NON_ENUM_COLUMN');
+  });
+
+  it('ACCEPTS one on a text column — that is what an enum reads back as (D32)', () => {
+    /*
+     * `enum` compiles to `varchar(64)` plus a CHECK on all three engines, so a
+     * choice column created yesterday is introspected as `varchar` with a
+     * parsed CHECK, never as logicalType `enum`. Insisting on `enum` here made
+     * the designer's round trip impossible: opening that table and changing
+     * anything sent back the value list it had just been given, and the gate
+     * refused it. Found by the sqlite e2e leg.
+     */
     const issues = validateSchemaEdit(
       edit({ upsertTables: [{ ...table(), enumValues: { title: ['a', 'b'] } }] }),
       ctx(),
     );
-    expect(codes(issues)).toContain('ENUM_ON_NON_ENUM_COLUMN');
+    expect(codes(issues)).not.toContain('ENUM_ON_NON_ENUM_COLUMN');
+  });
+
+  it('sees no change when a table with a choice column is merely opened', () => {
+    /*
+     * The engines spell a CHECK three different ways and the desired document a
+     * fourth, so comparing the TEXT planned a drop and an add of an identical
+     * constraint on every open — the "proposes NOTHING until something is
+     * edited" invariant, broken for exactly the tables this plan adds.
+     */
+    const desired = desiredTableToModel(
+      {
+        ...table(),
+        columns: [column({ name: 'id', logicalType: 'integer', nullable: false }), column({ name: 'status' })],
+        primaryKey: ['id'],
+        enumValues: { status: ['draft', 'sent'] },
+      },
+      { dbTypeFor: () => 'varchar(64)', defaultSchema: 'public' },
+    );
+    for (const asTheEngineWritesIt of [
+      "status IN ('draft','sent')",
+      "((status)::text = ANY ((ARRAY['draft'::character varying, 'sent'::character varying])::text[]))",
+      "(`status` in (_utf8mb4'draft',_utf8mb4'sent'))",
+      // …and the same values in the other order: a set, not a sequence.
+      "status in ('sent','draft')",
+    ]) {
+      const actual = { ...desired, checks: [{ name: 'ck', expression: asTheEngineWritesIt }] };
+      const diff = diffTableDefinitions(actual, desired);
+      expect(diff.checksAdded, asTheEngineWritesIt).toEqual([]);
+      expect(diff.checksRemoved, asTheEngineWritesIt).toEqual([]);
+    }
   });
 });
 

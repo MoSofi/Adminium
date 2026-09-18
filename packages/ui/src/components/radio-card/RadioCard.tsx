@@ -15,6 +15,17 @@ export interface RadioCardProps
   icon?: React.ReactNode | undefined;
   /** Trailing slot on the title row — e.g. a mono price or a `Badge`. */
   trailing?: React.ReactNode | undefined;
+  /**
+   * The BIG line under the title, as the design comp draws it: 20px
+   * mono, tight tracking — a delivery window, a size, a duration.
+   *
+   * `valueLine`, not `value`: a radio item's `value` is what it SUBMITS, and
+   * this is what it shows. Distinct from `description`, which is the sentence
+   * under it — a card that offers a choice usually has one number worth reading
+   * from across the room and one line of prose, and folding them together made
+   * the number prose.
+   */
+  valueLine?: React.ReactNode | undefined;
   /** Hide the top-end check indicator shown when selected. */
   hideIndicator?: boolean | undefined;
   /**
@@ -66,6 +77,7 @@ export function RadioCard({
   layout = 'row',
   title,
   description,
+  valueLine,
   icon,
   trailing,
   hideIndicator = false,
@@ -107,6 +119,11 @@ export function RadioCard({
           <span className={LAYOUT[layout].title}>{title}</span>
           {trailing ? <span className="ms-auto flex shrink-0 items-center">{trailing}</span> : null}
         </span>
+        {valueLine === undefined || valueLine === null ? null : (
+          <span className="font-mono text-[20px] font-extrabold tracking-[-0.02em] text-fg">
+            {valueLine}
+          </span>
+        )}
         {description === undefined || description === null ? null : (
           <span className={LAYOUT[layout].description}>{description}</span>
         )}

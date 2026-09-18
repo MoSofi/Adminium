@@ -37,6 +37,7 @@ const planned = (over: Partial<PlannedStep> & { sql: string[] }): PlannedStep =>
   kind: 'alter-column-type',
   table: 'main.huge',
   column: 'amount',
+  constraint: null,
   hazard: 'rewrite',
   requiresSuperAdmin: true,
   summary: 's',

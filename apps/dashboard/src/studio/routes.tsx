@@ -6,6 +6,7 @@
  * - `/studio` → connections manager hub
  * - `/studio/connect` → connect wizard (/02/03)
  * - `/studio/pages` → page manager (lifecycle surface)
+ * - `/studio/lists` → option lists: the answers a column accepts, named once
  * - `/studio/settings` → workspace settings hub
  * - `/studio/settings/project`       → the project folder this server runs, its
  *   hooks and actions (super admins). LAZY like its siblings.
@@ -83,6 +84,11 @@ const PublicApiPageLazy = lazy(async () => {
 const HostedAppsPageLazy = lazy(async () => {
   const mod = await import('./apps/HostedAppsPage.js');
   return { default: mod.HostedAppsPage };
+});
+
+const OptionListsPageLazy = lazy(async () => {
+  const mod = await import('./lists/OptionListsPage.js');
+  return { default: mod.OptionListsPage };
 });
 
 const StoragePageLazy = lazy(async () => {
@@ -271,6 +277,16 @@ function NewPageRouteComponent() {
   );
 }
 
+function ListsRouteComponent() {
+  return (
+    <StudioGuard>
+      <StudioBody>
+        <OptionListsPageLazy />
+      </StudioBody>
+    </StudioGuard>
+  );
+}
+
 function SettingsRouteComponent() {
   const navigate = useNavigate();
   return (
@@ -282,6 +298,7 @@ function SettingsRouteComponent() {
           onOpenAiSettings={() => void navigate({ to: '/studio/settings/ai' })}
           onOpenPages={() => void navigate({ to: '/studio/pages' })}
           onOpenStorage={() => void navigate({ to: '/studio/storage' })}
+          onOpenLists={() => void navigate({ to: '/studio/lists' })}
           onOpenAddOns={() => void navigate({ to: '/studio/add-ons' })}
           onOpenPublicApi={() => void navigate({ to: '/studio/public-api' })}
           onOpenProject={() => void navigate({ to: '/studio/settings/project' })}
@@ -493,6 +510,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: HostedAppsRouteComponent,
   });
 
+  const listsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/lists',
+    component: ListsRouteComponent,
+  });
+
   const storageRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/storage',
@@ -517,6 +540,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     projectSettingsRoute,
     publicApiRoute,
     hostedAppsRoute,
+    listsRoute,
     storageRoute,
     addOnsRoute,
     reviewRoute,

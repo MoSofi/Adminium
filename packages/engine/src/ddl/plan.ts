@@ -32,6 +32,7 @@ import {
   isEmptyDefinitionDiff,
   type TableDefinitionDiff,
 } from './diff-definitions.js';
+import { enumCheckColumn } from './edit.js';
 import type { AppliedRename } from './rename.js';
 import {
   classifyStep,
@@ -103,6 +104,8 @@ function make(
   ctx: HazardContext,
   opts: {
     column?: string | null;
+    /** The constraint's name as the database spells it, when there is one. */
+    constraint?: string | null;
     summary: string;
     detail?: Parameters<typeof classifyStep>[2];
     dependsOn?: string[];
@@ -115,6 +118,7 @@ function make(
     kind,
     table,
     column: opts.column ?? null,
+    constraint: opts.constraint ?? null,
     hazard: verdict.hazard,
     requiresSuperAdmin: requiresSuperAdmin(verdict.hazard),
     summary: opts.summary,
@@ -359,7 +363,13 @@ function planAlters(
     emit(make('drop-unique', id, ctx, { summary: `Drop unique constraint on ${u.columns.join(', ')}` }));
   }
   for (const c of diff.checksRemoved) {
-    emit(make('drop-check', id, ctx, { summary: `Drop check constraint ${c.name ?? c.expression}` }));
+    emit(
+      make('drop-check', id, ctx, {
+        column: enumCheckColumn(c.expression, actual.columns.map((col) => col.name)),
+        constraint: c.name,
+        summary: `Drop check constraint ${c.name ?? c.expression}`,
+      }),
+    );
   }
   for (const i of diff.indexesRemoved) {
     emit(make('drop-index', id, ctx, { summary: `Drop index ${i.name ?? i.columns.join(', ')}` }));
@@ -393,15 +403,52 @@ function planAlters(
       );
     }
     if (change.defaultChanged !== null) {
-      emit(
-        make(change.defaultChanged.to === null ? 'drop-default' : 'set-default', id, ctx, {
-          column: change.column,
-          summary:
-            change.defaultChanged.to === null
-              ? `Remove the default on ${change.column}`
-              : `Set the default on ${change.column}`,
-        }),
-      );
+      /*
+       * Auto-increment is NOT a default (D23). It is an identity sequence on
+       * postgres, a column attribute on MySQL and the rowid alias on SQLite, so
+       * it gets its own two step kinds — and a change FROM auto-increment TO a
+       * real default is both of them, in that order, because the identity has
+       * to be detached before the column will accept one (postgres refuses
+       * `DROP DEFAULT` on an identity column by name).
+       */
+      // `defaultChanged` carries RENDERED defaults (`diff-definitions.ts:149`),
+      // so the kind is the string itself — `'autoincrement'`, `'now'`,
+      // `'literal:0'`. Reading `.kind` off it compiled, matched nothing, and
+      // left every identity change planned as the `set-default` that throws.
+      const wasIdentity = change.defaultChanged.from === 'autoincrement';
+      const wantsIdentity = change.defaultChanged.to === 'autoincrement';
+      if (wasIdentity && !wantsIdentity) {
+        emit(
+          make('drop-identity', id, ctx, {
+            column: change.column,
+            summary: `Stop generating ${change.column} automatically`,
+          }),
+        );
+      }
+      if (wantsIdentity && !wasIdentity) {
+        emit(
+          make('set-identity', id, ctx, {
+            column: change.column,
+            summary: `Generate ${change.column} automatically`,
+          }),
+        );
+      } else if (change.defaultChanged.to !== null && !wantsIdentity) {
+        emit(
+          make('set-default', id, ctx, {
+            column: change.column,
+            summary: `Set the default on ${change.column}`,
+          }),
+        );
+      } else if (change.defaultChanged.to === null && !wasIdentity) {
+        // `drop-identity` already removed it; a second `drop-default` would be
+        // a no-op on postgres and another whole-table copy on MySQL.
+        emit(
+          make('drop-default', id, ctx, {
+            column: change.column,
+            summary: `Remove the default on ${change.column}`,
+          }),
+        );
+      }
     }
     if (change.commentChanged !== null) {
       emit(make('set-comment', id, ctx, { column: change.column, summary: `Update the comment on ${change.column}` }));
@@ -431,7 +478,17 @@ function planAlters(
     emit(make('add-unique', id, ctx, { summary: `Require ${u.columns.join(', ')} to be unique` }));
   }
   for (const c of diff.checksAdded) {
-    emit(make('add-check', id, ctx, { summary: `Restrict values with ${c.name ?? 'a check constraint'}` }));
+    const column = enumCheckColumn(c.expression, desired.columns.map((col) => col.name));
+    emit(
+      make('add-check', id, ctx, {
+        column,
+        constraint: c.name,
+        summary:
+          column === null
+            ? `Restrict values with ${c.name ?? 'a check constraint'}`
+            : `Restrict ${column} to its allowed values`,
+      }),
+    );
   }
   for (const i of diff.indexesAdded) {
     emit(make('add-index', id, ctx, { summary: `Index ${i.columns.join(', ')}` }));

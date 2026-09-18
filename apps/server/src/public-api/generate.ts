@@ -58,6 +58,8 @@ import { randomUUID } from 'node:crypto';
 
 import type { Dialect } from '@adminium/engine';
 
+import { instantFor } from '../crud/instants.js';
+
 /**
  * The closed set. A generator is a spec change, exactly as a slot id is.
  *
@@ -116,14 +118,13 @@ export function readGenerator(value: unknown): GeneratorReading | null {
 /**
  * The instant, in the form THIS dialect's `timestamptz` column accepts.
  *
- * Exported for the round-trip tests, which is the only way to prove the mysql
- * branch without a mysql server in the loop for every case.
+ * It lives in `crud/instants.ts` now, with the `date` / `time` / naive-
+ * `timestamp` spellings a column rule's `now` fill needs, and is re-exported
+ * here because this module had it first and its tests import it by this name.
+ * One spelling for both surfaces: the public API's `{"$generate":"now"}` and a
+ * filled `created_at` are the same instant written the same way.
  */
-export function instantFor(dialect: Dialect, now: Date): string {
-  const iso = now.toISOString();
-  // `2026-09-06T12:34:56.789Z` → `2026-09-06 12:34:56.789`, still UTC.
-  return dialect === 'mysql' ? iso.slice(0, 23).replace('T', ' ') : iso;
-}
+export { instantFor } from '../crud/instants.js';
 
 /**
  * Resolve every sentinel in a resource's `defaults`, leaving literals alone.

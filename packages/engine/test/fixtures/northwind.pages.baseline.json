@@ -305,36 +305,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "category_id",
-                "label": "Category Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "category_name",
-                "label": "Category Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "description",
-                "label": "Description",
-                "required": false,
-                "input": "textarea"
-              },
-              {
-                "column": "picture",
-                "label": "Picture",
-                "required": false,
-                "input": "text"
-              }
-            ]
-          },
-          "generatedHash": "d9ce86ca2e176d47522a908bdb99ecbe12286a282bca45a2e7c0842b84fa6175"
+          "generatedHash": "0211f4d77e3bd3cad718c533f1c542ddadb0f7eb1fcdd2d44a47f0e2877b71c6"
         }
       },
       {
@@ -393,24 +364,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "form": {
-            "fields": [
-              {
-                "column": "customer_type_id",
-                "label": "Customer Type Id",
-                "required": true,
-                "input": "text",
-                "maxLength": 5
-              },
-              {
-                "column": "customer_desc",
-                "label": "Customer Desc",
-                "required": false,
-                "input": "textarea"
-              }
-            ]
-          },
-          "generatedHash": "6f96aa1fe57eaa89e13938b2f92822b1bc9575f1f52954443546de1bbc76f466"
+          "generatedHash": "a6f494d3c6e56f71e7e3774f11dee3b1077bfaf929ce748dd946e9ef3bd46d97"
         }
       },
       {
@@ -546,88 +500,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "customer_id",
-                "label": "Customer Id",
-                "required": true,
-                "input": "text",
-                "maxLength": 5
-              },
-              {
-                "column": "company_name",
-                "label": "Company Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 40
-              },
-              {
-                "column": "contact_name",
-                "label": "Contact Name",
-                "required": false,
-                "input": "text",
-                "maxLength": 30
-              },
-              {
-                "column": "contact_title",
-                "label": "Contact Title",
-                "required": false,
-                "input": "text",
-                "maxLength": 30
-              },
-              {
-                "column": "address",
-                "label": "Address",
-                "required": false,
-                "input": "text",
-                "maxLength": 60
-              },
-              {
-                "column": "city",
-                "label": "City",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "region",
-                "label": "Region",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "postal_code",
-                "label": "Postal Code",
-                "required": false,
-                "input": "text",
-                "maxLength": 10
-              },
-              {
-                "column": "country",
-                "label": "Country",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "phone",
-                "label": "Phone",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              },
-              {
-                "column": "fax",
-                "label": "Fax",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              }
-            ]
-          },
-          "generatedHash": "7a0b53d9019ea6b5b2bbcfca370f78960b8f9979d5499966a3c453c2dfb3015b"
+          "generatedHash": "b8fec1510b9023c482b0898c68f52ba0ab0b2b109f146a10c6be5bae25f79668"
         }
       },
       {
@@ -764,132 +637,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "employee_id",
-                "label": "Employee Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "last_name",
-                "label": "Last Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 20
-              },
-              {
-                "column": "first_name",
-                "label": "First Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 10
-              },
-              {
-                "column": "title",
-                "label": "Title",
-                "required": false,
-                "input": "text",
-                "maxLength": 30
-              },
-              {
-                "column": "title_of_courtesy",
-                "label": "Title Of Courtesy",
-                "required": false,
-                "input": "text",
-                "maxLength": 25
-              },
-              {
-                "column": "birth_date",
-                "label": "Birth Date",
-                "required": false,
-                "input": "date"
-              },
-              {
-                "column": "hire_date",
-                "label": "Hire Date",
-                "required": false,
-                "input": "date"
-              },
-              {
-                "column": "address",
-                "label": "Address",
-                "required": false,
-                "input": "text",
-                "maxLength": 60
-              },
-              {
-                "column": "city",
-                "label": "City",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "region",
-                "label": "Region",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "postal_code",
-                "label": "Postal Code",
-                "required": false,
-                "input": "text",
-                "maxLength": 10
-              },
-              {
-                "column": "country",
-                "label": "Country",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "home_phone",
-                "label": "Home Phone",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              },
-              {
-                "column": "extension",
-                "label": "Extension",
-                "required": false,
-                "input": "text",
-                "maxLength": 4
-              },
-              {
-                "column": "photo",
-                "label": "Photo",
-                "required": false,
-                "input": "text"
-              },
-              {
-                "column": "notes",
-                "label": "Notes",
-                "required": false,
-                "input": "textarea"
-              },
-              {
-                "column": "reports_to",
-                "label": "Reports To",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.employees"
-              },
-              {
-                "column": "photo_path",
-                "label": "Photo Path",
-                "required": false,
-                "input": "text",
-                "maxLength": 255
-              }
-            ]
-          },
-          "generatedHash": "387447b433901b321bb6db37aef148e8b611e907bafdd1b0707e68d0fc13fa52"
+          "generatedHash": "0f209a7db124a2dd6ca48ef81508d1a7f8678728f5e471d214da3dd82d682f5d"
         }
       },
       {
@@ -995,42 +743,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "form": {
-            "fields": [
-              {
-                "column": "order_id",
-                "label": "Order Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "product_id",
-                "label": "Product Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "unit_price",
-                "label": "Unit Price",
-                "required": true,
-                "input": "number",
-                "format": "currency"
-              },
-              {
-                "column": "quantity",
-                "label": "Quantity",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "discount",
-                "label": "Discount",
-                "required": true,
-                "input": "number"
-              }
-            ]
-          },
-          "generatedHash": "4728a4853ddd4d1653c2f802371a7c65538cb704022dfe523384d06611ecf580"
+          "generatedHash": "0d7d3e3a345c779d82ac15f70aa2aa202cd0d9f8cc2cf0b302225b36ead208e6"
         }
       },
       {
@@ -1167,104 +880,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "order_id",
-                "label": "Order Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "customer_id",
-                "label": "Customer Id",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.customers"
-              },
-              {
-                "column": "employee_id",
-                "label": "Employee Id",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.employees"
-              },
-              {
-                "column": "order_date",
-                "label": "Order Date",
-                "required": false,
-                "input": "date"
-              },
-              {
-                "column": "required_date",
-                "label": "Required Date",
-                "required": false,
-                "input": "date"
-              },
-              {
-                "column": "shipped_date",
-                "label": "Shipped Date",
-                "required": false,
-                "input": "date"
-              },
-              {
-                "column": "ship_via",
-                "label": "Ship Via",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.shippers"
-              },
-              {
-                "column": "freight",
-                "label": "Freight",
-                "required": false,
-                "input": "number"
-              },
-              {
-                "column": "ship_name",
-                "label": "Ship Name",
-                "required": false,
-                "input": "text",
-                "maxLength": 40
-              },
-              {
-                "column": "ship_address",
-                "label": "Ship Address",
-                "required": false,
-                "input": "text",
-                "maxLength": 60
-              },
-              {
-                "column": "ship_city",
-                "label": "Ship City",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "ship_region",
-                "label": "Ship Region",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "ship_postal_code",
-                "label": "Ship Postal Code",
-                "required": false,
-                "input": "text",
-                "maxLength": 10
-              },
-              {
-                "column": "ship_country",
-                "label": "Ship Country",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              }
-            ]
-          },
-          "generatedHash": "9bb8ea2f82c15fa813397d172489ee09b2152e705b48eb0dca7636c224f5f7e6"
+          "generatedHash": "7540816dbcbfb8259ecdbafcf2365f8899ffc68f12773a6b98b4e5ff212b2dca"
         }
       },
       {
@@ -1408,76 +1024,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "product_id",
-                "label": "Product Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "product_name",
-                "label": "Product Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 40
-              },
-              {
-                "column": "supplier_id",
-                "label": "Supplier Id",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.suppliers"
-              },
-              {
-                "column": "category_id",
-                "label": "Category Id",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.categories"
-              },
-              {
-                "column": "quantity_per_unit",
-                "label": "Quantity Per Unit",
-                "required": false,
-                "input": "text",
-                "maxLength": 20
-              },
-              {
-                "column": "unit_price",
-                "label": "Unit Price",
-                "required": false,
-                "input": "number",
-                "format": "currency"
-              },
-              {
-                "column": "units_in_stock",
-                "label": "Units In Stock",
-                "required": false,
-                "input": "number"
-              },
-              {
-                "column": "units_on_order",
-                "label": "Units On Order",
-                "required": false,
-                "input": "number"
-              },
-              {
-                "column": "reorder_level",
-                "label": "Reorder Level",
-                "required": false,
-                "input": "number"
-              },
-              {
-                "column": "discontinued",
-                "label": "Discontinued",
-                "required": true,
-                "input": "number"
-              }
-            ]
-          },
-          "generatedHash": "56bed09994456c97c5cd23b15e5f5199b8053089b821ece73a4c1c8cece1c720"
+          "generatedHash": "26037052d7f0fa2dcda81792b95d4fb705bca1ceeb3d3c163b91b95266008a0a"
         }
       },
       {
@@ -1550,24 +1097,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "region_id",
-                "label": "Region Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "region_description",
-                "label": "Region Description",
-                "required": true,
-                "input": "text",
-                "maxLength": 60
-              }
-            ]
-          },
-          "generatedHash": "ad5acb5115fd6c0f7d0ab5d9d95d68bdcdfeae59685a67b04e2b1feccc1355d1"
+          "generatedHash": "a136dac19661cf30d926967632128fc2e735cd8da3fd9e761f69a3f3954946fe"
         }
       },
       {
@@ -1650,31 +1180,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "shipper_id",
-                "label": "Shipper Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "company_name",
-                "label": "Company Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 40
-              },
-              {
-                "column": "phone",
-                "label": "Phone",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              }
-            ]
-          },
-          "generatedHash": "cee27d4c07844fa9165fb3ef097d8695687c275023f9a101d5e0a89d18e42293"
+          "generatedHash": "23b0a566fe6429cb1ca8db363f87fc14267baaab1a5fb21c2981d6c231b16c28"
         }
       },
       {
@@ -1808,93 +1314,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "supplier_id",
-                "label": "Supplier Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "company_name",
-                "label": "Company Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 40
-              },
-              {
-                "column": "contact_name",
-                "label": "Contact Name",
-                "required": false,
-                "input": "text",
-                "maxLength": 30
-              },
-              {
-                "column": "contact_title",
-                "label": "Contact Title",
-                "required": false,
-                "input": "text",
-                "maxLength": 30
-              },
-              {
-                "column": "address",
-                "label": "Address",
-                "required": false,
-                "input": "text",
-                "maxLength": 60
-              },
-              {
-                "column": "city",
-                "label": "City",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "region",
-                "label": "Region",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "postal_code",
-                "label": "Postal Code",
-                "required": false,
-                "input": "text",
-                "maxLength": 10
-              },
-              {
-                "column": "country",
-                "label": "Country",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "phone",
-                "label": "Phone",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              },
-              {
-                "column": "fax",
-                "label": "Fax",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              },
-              {
-                "column": "homepage",
-                "label": "Homepage",
-                "required": false,
-                "input": "text"
-              }
-            ]
-          },
-          "generatedHash": "0c5c13eecf65a168ef9f4b8f96fc603d0552f397465602d80582dfec07563bf6"
+          "generatedHash": "019e589c6fa3874f68a326193aada11bc55fcde76e7cdfa29075cdf2c94eba94"
         }
       },
       {
@@ -1975,32 +1395,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "form": {
-            "fields": [
-              {
-                "column": "territory_id",
-                "label": "Territory Id",
-                "required": true,
-                "input": "text",
-                "maxLength": 20
-              },
-              {
-                "column": "territory_description",
-                "label": "Territory Description",
-                "required": true,
-                "input": "text",
-                "maxLength": 60
-              },
-              {
-                "column": "region_id",
-                "label": "Region Id",
-                "required": true,
-                "input": "fk-combobox",
-                "ref": "public.region"
-              }
-            ]
-          },
-          "generatedHash": "0de218bc67e9dff8ec1481b00da3bbbff84d1e3aa7f89de7427481bdb692d347"
+          "generatedHash": "6e83589333d5b99eac7611e687505bf2fba1cf4bde93f89069b5c53b70ee533a"
         }
       },
       {
@@ -2082,38 +1477,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "form": {
-            "fields": [
-              {
-                "column": "state_id",
-                "label": "State Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "state_name",
-                "label": "State Name",
-                "required": false,
-                "input": "text",
-                "maxLength": 100
-              },
-              {
-                "column": "state_abbr",
-                "label": "State Abbr",
-                "required": false,
-                "input": "text",
-                "maxLength": 2
-              },
-              {
-                "column": "state_region",
-                "label": "State Region",
-                "required": false,
-                "input": "text",
-                "maxLength": 50
-              }
-            ]
-          },
-          "generatedHash": "bfaf630bb186313a4049540d03c2f4441e559791d418801860a965d060bb1503"
+          "generatedHash": "8c819becfdf9dbd9be5245cdb21db7a36f4ffa911ca0d574df109b5c18847eb1"
         }
       }
     ],
@@ -3683,36 +3047,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "category_id",
-                "label": "Category Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "category_name",
-                "label": "Category Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "description",
-                "label": "Description",
-                "required": false,
-                "input": "textarea"
-              },
-              {
-                "column": "picture",
-                "label": "Picture",
-                "required": false,
-                "input": "text"
-              }
-            ]
-          },
-          "generatedHash": "d9ce86ca2e176d47522a908bdb99ecbe12286a282bca45a2e7c0842b84fa6175"
+          "generatedHash": "0211f4d77e3bd3cad718c533f1c542ddadb0f7eb1fcdd2d44a47f0e2877b71c6"
         }
       },
       {
@@ -3771,24 +3106,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "form": {
-            "fields": [
-              {
-                "column": "customer_type_id",
-                "label": "Customer Type Id",
-                "required": true,
-                "input": "text",
-                "maxLength": 5
-              },
-              {
-                "column": "customer_desc",
-                "label": "Customer Desc",
-                "required": false,
-                "input": "textarea"
-              }
-            ]
-          },
-          "generatedHash": "6f96aa1fe57eaa89e13938b2f92822b1bc9575f1f52954443546de1bbc76f466"
+          "generatedHash": "a6f494d3c6e56f71e7e3774f11dee3b1077bfaf929ce748dd946e9ef3bd46d97"
         }
       },
       {
@@ -3924,88 +3242,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "customer_id",
-                "label": "Customer Id",
-                "required": true,
-                "input": "text",
-                "maxLength": 5
-              },
-              {
-                "column": "company_name",
-                "label": "Company Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 40
-              },
-              {
-                "column": "contact_name",
-                "label": "Contact Name",
-                "required": false,
-                "input": "text",
-                "maxLength": 30
-              },
-              {
-                "column": "contact_title",
-                "label": "Contact Title",
-                "required": false,
-                "input": "text",
-                "maxLength": 30
-              },
-              {
-                "column": "address",
-                "label": "Address",
-                "required": false,
-                "input": "text",
-                "maxLength": 60
-              },
-              {
-                "column": "city",
-                "label": "City",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "region",
-                "label": "Region",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "postal_code",
-                "label": "Postal Code",
-                "required": false,
-                "input": "text",
-                "maxLength": 10
-              },
-              {
-                "column": "country",
-                "label": "Country",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "phone",
-                "label": "Phone",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              },
-              {
-                "column": "fax",
-                "label": "Fax",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              }
-            ]
-          },
-          "generatedHash": "7a0b53d9019ea6b5b2bbcfca370f78960b8f9979d5499966a3c453c2dfb3015b"
+          "generatedHash": "b8fec1510b9023c482b0898c68f52ba0ab0b2b109f146a10c6be5bae25f79668"
         }
       },
       {
@@ -4142,132 +3379,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "employee_id",
-                "label": "Employee Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "last_name",
-                "label": "Last Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 20
-              },
-              {
-                "column": "first_name",
-                "label": "First Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 10
-              },
-              {
-                "column": "title",
-                "label": "Title",
-                "required": false,
-                "input": "text",
-                "maxLength": 30
-              },
-              {
-                "column": "title_of_courtesy",
-                "label": "Title Of Courtesy",
-                "required": false,
-                "input": "text",
-                "maxLength": 25
-              },
-              {
-                "column": "birth_date",
-                "label": "Birth Date",
-                "required": false,
-                "input": "date"
-              },
-              {
-                "column": "hire_date",
-                "label": "Hire Date",
-                "required": false,
-                "input": "date"
-              },
-              {
-                "column": "address",
-                "label": "Address",
-                "required": false,
-                "input": "text",
-                "maxLength": 60
-              },
-              {
-                "column": "city",
-                "label": "City",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "region",
-                "label": "Region",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "postal_code",
-                "label": "Postal Code",
-                "required": false,
-                "input": "text",
-                "maxLength": 10
-              },
-              {
-                "column": "country",
-                "label": "Country",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "home_phone",
-                "label": "Home Phone",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              },
-              {
-                "column": "extension",
-                "label": "Extension",
-                "required": false,
-                "input": "text",
-                "maxLength": 4
-              },
-              {
-                "column": "photo",
-                "label": "Photo",
-                "required": false,
-                "input": "text"
-              },
-              {
-                "column": "notes",
-                "label": "Notes",
-                "required": false,
-                "input": "textarea"
-              },
-              {
-                "column": "reports_to",
-                "label": "Reports To",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.employees"
-              },
-              {
-                "column": "photo_path",
-                "label": "Photo Path",
-                "required": false,
-                "input": "text",
-                "maxLength": 255
-              }
-            ]
-          },
-          "generatedHash": "387447b433901b321bb6db37aef148e8b611e907bafdd1b0707e68d0fc13fa52"
+          "generatedHash": "0f209a7db124a2dd6ca48ef81508d1a7f8678728f5e471d214da3dd82d682f5d"
         }
       },
       {
@@ -4373,42 +3485,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "form": {
-            "fields": [
-              {
-                "column": "order_id",
-                "label": "Order Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "product_id",
-                "label": "Product Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "unit_price",
-                "label": "Unit Price",
-                "required": true,
-                "input": "number",
-                "format": "currency"
-              },
-              {
-                "column": "quantity",
-                "label": "Quantity",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "discount",
-                "label": "Discount",
-                "required": true,
-                "input": "number"
-              }
-            ]
-          },
-          "generatedHash": "4728a4853ddd4d1653c2f802371a7c65538cb704022dfe523384d06611ecf580"
+          "generatedHash": "0d7d3e3a345c779d82ac15f70aa2aa202cd0d9f8cc2cf0b302225b36ead208e6"
         }
       },
       {
@@ -4545,104 +3622,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "order_id",
-                "label": "Order Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "customer_id",
-                "label": "Customer Id",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.customers"
-              },
-              {
-                "column": "employee_id",
-                "label": "Employee Id",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.employees"
-              },
-              {
-                "column": "order_date",
-                "label": "Order Date",
-                "required": false,
-                "input": "date"
-              },
-              {
-                "column": "required_date",
-                "label": "Required Date",
-                "required": false,
-                "input": "date"
-              },
-              {
-                "column": "shipped_date",
-                "label": "Shipped Date",
-                "required": false,
-                "input": "date"
-              },
-              {
-                "column": "ship_via",
-                "label": "Ship Via",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.shippers"
-              },
-              {
-                "column": "freight",
-                "label": "Freight",
-                "required": false,
-                "input": "number"
-              },
-              {
-                "column": "ship_name",
-                "label": "Ship Name",
-                "required": false,
-                "input": "text",
-                "maxLength": 40
-              },
-              {
-                "column": "ship_address",
-                "label": "Ship Address",
-                "required": false,
-                "input": "text",
-                "maxLength": 60
-              },
-              {
-                "column": "ship_city",
-                "label": "Ship City",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "ship_region",
-                "label": "Ship Region",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "ship_postal_code",
-                "label": "Ship Postal Code",
-                "required": false,
-                "input": "text",
-                "maxLength": 10
-              },
-              {
-                "column": "ship_country",
-                "label": "Ship Country",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              }
-            ]
-          },
-          "generatedHash": "9bb8ea2f82c15fa813397d172489ee09b2152e705b48eb0dca7636c224f5f7e6"
+          "generatedHash": "7540816dbcbfb8259ecdbafcf2365f8899ffc68f12773a6b98b4e5ff212b2dca"
         }
       },
       {
@@ -4786,76 +3766,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "product_id",
-                "label": "Product Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "product_name",
-                "label": "Product Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 40
-              },
-              {
-                "column": "supplier_id",
-                "label": "Supplier Id",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.suppliers"
-              },
-              {
-                "column": "category_id",
-                "label": "Category Id",
-                "required": false,
-                "input": "fk-combobox",
-                "ref": "public.categories"
-              },
-              {
-                "column": "quantity_per_unit",
-                "label": "Quantity Per Unit",
-                "required": false,
-                "input": "text",
-                "maxLength": 20
-              },
-              {
-                "column": "unit_price",
-                "label": "Unit Price",
-                "required": false,
-                "input": "number",
-                "format": "currency"
-              },
-              {
-                "column": "units_in_stock",
-                "label": "Units In Stock",
-                "required": false,
-                "input": "number"
-              },
-              {
-                "column": "units_on_order",
-                "label": "Units On Order",
-                "required": false,
-                "input": "number"
-              },
-              {
-                "column": "reorder_level",
-                "label": "Reorder Level",
-                "required": false,
-                "input": "number"
-              },
-              {
-                "column": "discontinued",
-                "label": "Discontinued",
-                "required": true,
-                "input": "number"
-              }
-            ]
-          },
-          "generatedHash": "56bed09994456c97c5cd23b15e5f5199b8053089b821ece73a4c1c8cece1c720"
+          "generatedHash": "26037052d7f0fa2dcda81792b95d4fb705bca1ceeb3d3c163b91b95266008a0a"
         }
       },
       {
@@ -4928,24 +3839,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "region_id",
-                "label": "Region Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "region_description",
-                "label": "Region Description",
-                "required": true,
-                "input": "text",
-                "maxLength": 60
-              }
-            ]
-          },
-          "generatedHash": "ad5acb5115fd6c0f7d0ab5d9d95d68bdcdfeae59685a67b04e2b1feccc1355d1"
+          "generatedHash": "a136dac19661cf30d926967632128fc2e735cd8da3fd9e761f69a3f3954946fe"
         }
       },
       {
@@ -5028,31 +3922,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "shipper_id",
-                "label": "Shipper Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "company_name",
-                "label": "Company Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 40
-              },
-              {
-                "column": "phone",
-                "label": "Phone",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              }
-            ]
-          },
-          "generatedHash": "cee27d4c07844fa9165fb3ef097d8695687c275023f9a101d5e0a89d18e42293"
+          "generatedHash": "23b0a566fe6429cb1ca8db363f87fc14267baaab1a5fb21c2981d6c231b16c28"
         }
       },
       {
@@ -5186,93 +4056,7 @@
               }
             ]
           },
-          "form": {
-            "fields": [
-              {
-                "column": "supplier_id",
-                "label": "Supplier Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "company_name",
-                "label": "Company Name",
-                "required": true,
-                "input": "text",
-                "maxLength": 40
-              },
-              {
-                "column": "contact_name",
-                "label": "Contact Name",
-                "required": false,
-                "input": "text",
-                "maxLength": 30
-              },
-              {
-                "column": "contact_title",
-                "label": "Contact Title",
-                "required": false,
-                "input": "text",
-                "maxLength": 30
-              },
-              {
-                "column": "address",
-                "label": "Address",
-                "required": false,
-                "input": "text",
-                "maxLength": 60
-              },
-              {
-                "column": "city",
-                "label": "City",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "region",
-                "label": "Region",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "postal_code",
-                "label": "Postal Code",
-                "required": false,
-                "input": "text",
-                "maxLength": 10
-              },
-              {
-                "column": "country",
-                "label": "Country",
-                "required": false,
-                "input": "text",
-                "maxLength": 15
-              },
-              {
-                "column": "phone",
-                "label": "Phone",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              },
-              {
-                "column": "fax",
-                "label": "Fax",
-                "required": false,
-                "input": "text",
-                "maxLength": 24
-              },
-              {
-                "column": "homepage",
-                "label": "Homepage",
-                "required": false,
-                "input": "text"
-              }
-            ]
-          },
-          "generatedHash": "0c5c13eecf65a168ef9f4b8f96fc603d0552f397465602d80582dfec07563bf6"
+          "generatedHash": "019e589c6fa3874f68a326193aada11bc55fcde76e7cdfa29075cdf2c94eba94"
         }
       },
       {
@@ -5353,32 +4137,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "form": {
-            "fields": [
-              {
-                "column": "territory_id",
-                "label": "Territory Id",
-                "required": true,
-                "input": "text",
-                "maxLength": 20
-              },
-              {
-                "column": "territory_description",
-                "label": "Territory Description",
-                "required": true,
-                "input": "text",
-                "maxLength": 60
-              },
-              {
-                "column": "region_id",
-                "label": "Region Id",
-                "required": true,
-                "input": "fk-combobox",
-                "ref": "public.region"
-              }
-            ]
-          },
-          "generatedHash": "0de218bc67e9dff8ec1481b00da3bbbff84d1e3aa7f89de7427481bdb692d347"
+          "generatedHash": "6e83589333d5b99eac7611e687505bf2fba1cf4bde93f89069b5c53b70ee533a"
         }
       },
       {
@@ -5460,38 +4219,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "form": {
-            "fields": [
-              {
-                "column": "state_id",
-                "label": "State Id",
-                "required": true,
-                "input": "number"
-              },
-              {
-                "column": "state_name",
-                "label": "State Name",
-                "required": false,
-                "input": "text",
-                "maxLength": 100
-              },
-              {
-                "column": "state_abbr",
-                "label": "State Abbr",
-                "required": false,
-                "input": "text",
-                "maxLength": 2
-              },
-              {
-                "column": "state_region",
-                "label": "State Region",
-                "required": false,
-                "input": "text",
-                "maxLength": 50
-              }
-            ]
-          },
-          "generatedHash": "bfaf630bb186313a4049540d03c2f4441e559791d418801860a965d060bb1503"
+          "generatedHash": "8c819becfdf9dbd9be5245cdb21db7a36f4ffa911ca0d574df109b5c18847eb1"
         }
       }
     ],

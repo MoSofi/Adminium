@@ -143,6 +143,7 @@ export default {
       "skippedEdited": "Left untouched because you edited them: {pages}."
     },
     "apply": "Apply",
+    "brokenEnumValues": "Every allowed value on {columns} needs to be filled in and different from the others.",
     "ceiling": {
       "authorise": "Authorise this rewrite",
       "body": "{table} holds over {rows} rows — past the size Adminium rewrites on its own. Only a Super Admin can authorise this, and the table will be locked for as long as the rewrite takes.",
@@ -151,8 +152,9 @@ export default {
       "prompt": "Type {table} again to authorise the rewrite"
     },
     "column": {
+      "default": "Starts as",
+      "defaultValue": "Value",
       "help": "What do these settings mean?",
-      "key": "Key",
       "length": "Length",
       "link": "Links to",
       "linkHelp": "Connect this to a row in another table.",
@@ -176,8 +178,18 @@ export default {
       "prompt": "Type {word} to confirm",
       "title": "Apply a destructive change"
     },
+    "default": {
+      "autoincrement": "Count up from the last row",
+      "false": "No",
+      "literal": "A value",
+      "none": "Nothing",
+      "now": "The current date and time",
+      "true": "Yes",
+      "uuid": "A new unique id"
+    },
     "designer": "Table designer",
     "discard": "Discard changes",
+    "discardTable": "Discard this new table",
     "dropping": "Marked for deletion",
     "empty": {
       "body": "Create a table, or pick one to edit. Nothing reaches your database until you review the statements and apply them.",
@@ -201,6 +213,16 @@ export default {
     },
     "help": {
       "close": "Close",
+      "default": {
+        "example": "A \"created at\" field that starts as the current date and time never has to be typed, and cannot be wrong.",
+        "term": "Starts as",
+        "what": "What the field holds when nobody fills it in. The database puts the value there itself, so it is also what fills the field for rows created outside Adminium."
+      },
+      "keyGeneration": {
+        "example": "Only PostgreSQL can generate a unique id and hand it straight back, so on the other engines the key counts up.",
+        "term": "How the key is filled",
+        "what": "Where each row’s id comes from. Counting up from the last row gives 1, 2, 3 and is what most tables want; a unique id is a long random one, which is harder to guess and harder to read out loud."
+      },
       "link": {
         "example": "A reservation links to a client. Adminium then shows the client on the reservation, and the reservations on the client.",
         "term": "Link to another table",
@@ -227,6 +249,11 @@ export default {
         "example": "Two customers should not share an email address — mark it unique and they cannot.",
         "term": "Unique",
         "what": "No two rows may hold the same value. The database refuses the second one."
+      },
+      "values": {
+        "example": "A status of new, in progress or done. Nobody can type \"in-progres\" and create a fourth status by accident.",
+        "term": "Allowed values",
+        "what": "The complete list of answers this field accepts. The database refuses anything else, and Adminium shows the list as buttons or a menu instead of a text box."
       }
     },
     "keepTable": "Keep {table}",
@@ -256,15 +283,31 @@ export default {
       "columns": "Columns",
       "drop": "Drop this table",
       "dropHelp": "The table and every row in it are destroyed. You will see exactly what breaks before anything runs.",
+      "keyCounted": "Count up from the last row",
+      "keyGeneration": "How the key is filled",
+      "keyGenerationHelp": "Adminium reads the new row back by this key after every insert.",
+      "keyGenerationOne": "On {dialect} a key must be a counted integer: a database-generated id cannot be read back after an insert.",
+      "keyUnique": "A new unique id",
       "name": "Table name",
       "nameHelp": "Lowercase letters, numbers and underscores.",
       "namePlaceholder": "reservations",
       "noKey": "This table has no primary key, so Adminium will treat it as read-only — rows can be listed but not edited.",
-      "renameHelp": "Changing this renames the table in your database.",
-      "uuidKeyUnavailable": "On this engine a key must be a generated integer: a database-generated uuid cannot be read back after an insert."
+      "renameHelp": "Changing this renames the table in your database."
     },
     "unnamed": "Name every table and column to review the changes.",
-    "unrepresentableDefaults": "These columns keep a database-generated default Adminium cannot edit here, and it is left as it is: {columns}"
+    "unrepresentableDefaults": "These columns keep a database-generated default Adminium cannot edit here, and it is left as it is: {columns}",
+    "valuelessEnum": "Give {columns} at least one allowed value to review the changes.",
+    "values": {
+      "add": "Add value",
+      "addOnly": "This list is a type in your database, and Postgres cannot remove or rename a value once it exists. You can add more.",
+      "down": "Move {value} down",
+      "empty": "A choice column needs at least one value before this change can be reviewed.",
+      "label": "Allowed values",
+      "placeholder": "in_progress",
+      "remove": "Remove {value}",
+      "up": "Move {value} up",
+      "value": "Value {n}"
+    }
   },
   "diagram": {
     "ceiling": "Showing the {shown} most connected tables. {omitted} more are hidden — search to bring one in.",
@@ -1197,6 +1240,126 @@ export default {
       "width": "Content width",
       "widthHint": "How wide the page’s content column may grow on a large screen."
     },
+    "filters": {
+      "add": "Add a filter",
+      "control": "Control for {column}",
+      "down": "Move {column} down",
+      "empty": "This page has no filters. Add one below.",
+      "full": "A page shows at most {max} filters.",
+      "name": "Name for {column}",
+      "remove": "Remove {column} filter",
+      "reset": "Back to the suggested filters",
+      "subtitle": "The questions the toolbar can ask about this table. Untouched, it follows the table.",
+      "title": "Filters",
+      "up": "Move {column} up"
+    },
+    "form": {
+      "addLines": "{label} as lines",
+      "dialog": {
+        "cta": "Button",
+        "ctaIcon": "Button icon",
+        "iconDefault": "Default",
+        "subtitle": "Subtitle",
+        "title": "Title",
+        "titleHelp": "Empty uses the generated words."
+      },
+      "field": {
+        "availability": "Already taken when",
+        "availabilityAny": "Any row holds that time",
+        "availabilityHelp": "Another row holds the same time. Pick a column to narrow it to one room, one person, one machine. Left off, nothing is shown as taken.",
+        "availabilityOff": "Do not check",
+        "control": "Control",
+        "down": "Move {name} down",
+        "drag": "Reorder {name}",
+        "help": "Help text",
+        "initial": "Starting value",
+        "initialHelp": "What a NEW record starts with. An edit never applies it.",
+        "initialLiteral": "A fixed value",
+        "initialNone": "Nothing",
+        "initialNow": "The current date and time",
+        "initialToday": "Today",
+        "initialUser": "Who is signed in",
+        "initialValue": "The value",
+        "label": "Label",
+        "placeholder": "Placeholder",
+        "recap": "Recap",
+        "recapHelp": "A summary box. Its wording is edited in the page’s JSON for now.",
+        "remove": "Remove {name}",
+        "required": "Ask for it",
+        "requiredHelp": "The form refuses to save without it. What the DATABASE requires is set in Schema.",
+        "ruleChecks": "extra checks apply",
+        "ruleDatabase": "the database fills it in",
+        "ruleFilled": "Adminium fills it in",
+        "ruleList": "only values from the list {key}",
+        "ruleRequired": "the database requires it",
+        "ruleValues": "only a fixed set of values",
+        "rules": "This column: {rules}.",
+        "rulesLink": "Change in Schema",
+        "settings": "Settings for {name}",
+        "slotsEnd": "until",
+        "slotsEvery": "every",
+        "slotsHelp": "Leave the times empty for a day picker with no times.",
+        "slotsStart": "Times from",
+        "span": "Width",
+        "spanHelp": "How many of the section’s columns this field takes.",
+        "up": "Move {name} up"
+      },
+      "gallery": {
+        "choice": {
+          "body": "Selectable choice cards, a pill switch and a slider.",
+          "title": "Choice cards"
+        },
+        "multi": {
+          "body": "Email chips input, role select, permission checkbox list.",
+          "title": "Multi-entry"
+        },
+        "quick": {
+          "body": "One title field with inline meta pills. No section chrome.",
+          "title": "Quick create"
+        },
+        "repeater": {
+          "body": "A reference, repeatable line items and live totals.",
+          "title": "Repeater and totals"
+        },
+        "sectioned": {
+          "body": "Long record split into labelled sections with a scrolling body.",
+          "title": "Sectioned"
+        },
+        "segmented": {
+          "body": "Segmented priority, long description, attachment list, assignee.",
+          "title": "Segmented and files"
+        },
+        "split": {
+          "body": "Two panes: the first section beside the rest. Made for a calendar.",
+          "title": "Split pane"
+        },
+        "upload": {
+          "body": "Media dropzone, currency inputs, tag chips and a publish toggle.",
+          "title": "Upload and chips"
+        },
+        "wizard": {
+          "body": "Step-by-step wizard with a progress rail and Back / Next footer.",
+          "title": "Wizard"
+        }
+      },
+      "missing": {
+        "title": "Not on this form. A column the database demands is added back automatically when the dialog opens."
+      },
+      "preview": "Preview",
+      "previewEntity": "record",
+      "reset": "Reset to generated",
+      "section": {
+        "add": "Add a section",
+        "columnCount": "{count} columns",
+        "columns": "Columns",
+        "empty": "No fields here yet — move one in, or add one below.",
+        "label": "Section name",
+        "remove": "Remove this section",
+        "unnamed": "Unnamed section"
+      },
+      "subtitle": "What the New and Edit dialogs show. Untouched, it follows the table.",
+      "title": "Create form"
+    },
     "icon": {
       "noMatches": "No icons match that search.",
       "none": "Choose an icon",
@@ -1511,6 +1674,47 @@ export default {
       "suppressed": "Suppressed",
       "toColumn": "To column",
       "toTable": "To table"
+    },
+    "rules": {
+      "fill": "Starts as",
+      "fillDb": "The database fills it (a trigger)",
+      "fillDefault": "Leave it to the database",
+      "fillHelp": "What Adminium puts here when nobody fills it in.",
+      "fillImplicit": "Adminium fills this in automatically.",
+      "fillLiteral": "A fixed value",
+      "fillNone": "Nothing — leave it empty",
+      "fillNow": "The current date and time",
+      "fillText": "The value",
+      "fillUser": "Who is signed in",
+      "fillUuid": "A new unique id",
+      "format": "Format",
+      "formatAny": "Anything",
+      "formatEmail": "An email address",
+      "formatPhone": "A phone number",
+      "formatUrl": "A web address",
+      "help": "These apply wherever a row is written — forms, imports, automations and the API — not just in this app.",
+      "max": "Largest",
+      "maxLength": "Longest",
+      "min": "Smallest",
+      "minLength": "Shortest",
+      "onUpdate": "Fill it in again on every change",
+      "optionsFromDatabase": "Your database fixes the allowed values for this column. Change them in Design.",
+      "optionsHelp": "One per line. Leave empty to accept anything.",
+      "required": "Must be filled in",
+      "requiredAlready": "Your database already requires this column.",
+      "requiredHelp": "The form asks for it, and a write without it is refused.",
+      "title": "Rules",
+      "optionsAnything": "Anything",
+      "optionsInline": "These values",
+      "optionsList": "A list",
+      "optionsListHelp": "Edit the lists themselves in Studio → Lists.",
+      "optionsListLabel": "List",
+      "optionsListUnavailable": "The lists could not be read.",
+      "optionsMissingList": "{key} (not in this workspace)",
+      "optionsPickList": "Choose a list…",
+      "optionsSource": "Allowed values",
+      "optionsSourceHelp": "A list is written once in Studio and used by every column that names it.",
+      "optionsValues": "The values"
     },
     "saveFailed": "Save failed: {message}",
     "subtitle": "{tables} tables · {applied} overrides applied",
@@ -1835,6 +2039,11 @@ export default {
       "body": "Reword anything in Adminium, choose which languages people can pick, and add your own.",
       "cta": "Open translations",
       "heading": "Languages & translations"
+    },
+    "listsCard": {
+      "body": "The answers a column accepts — countries, stages, departments — named once and used from anywhere.",
+      "cta": "Open lists",
+      "heading": "Lists"
     }
   },
   "source": {
@@ -2091,5 +2300,54 @@ export default {
       "test": "Analyze"
     },
     "title": "New connection"
+  },
+  "lists": {
+    "addValue": "Add value",
+    "andMore": "and {count} more",
+    "builtin": "Built in",
+    "builtinCount": "{count} values",
+    "builtinSubtitle": "A list Adminium ships. It is the same in every workspace, and its names are written in each person’s own language.",
+    "cancel": "Cancel",
+    "close": "Close",
+    "copiedFrom": "a copy of {key}",
+    "copyTitle": "A copy of {name}",
+    "create": "Create list",
+    "delete": "Delete",
+    "deleteBody": "The list goes. The values already stored in your rows stay exactly as they are — a list says what a form offers, not what a column holds.",
+    "deleteTitle": "Delete {name}?",
+    "edit": "Edit",
+    "editSubtitle": "The answers a column with this list accepts, in the order a form offers them.",
+    "editTitle": "Edit {name}",
+    "emptyBody": "A list is a set of answers a column accepts.",
+    "emptyTitle": "No lists yet",
+    "errorUnknown": "That did not work. Try again.",
+    "inUseBody": "Remove it from {columns} first.",
+    "inUseNone": "Remove it from the columns that use it first.",
+    "inUseTitle": "{name} is used by a column",
+    "issueBlank": "One of the values is empty. Fill it in or remove the row.",
+    "issueDuplicate": "\"{value}\" is in the list twice.",
+    "issueEmpty": "A list needs at least one value.",
+    "issueName": "Give the list a name.",
+    "key": "Key",
+    "keyFixed": "Rules name this list as",
+    "keyHelper": "What rules and project files call this list. It cannot be changed later.",
+    "labelAt": "Label {n}",
+    "labelPlaceholder": "What people read",
+    "makeCopy": "Make a copy I can edit",
+    "moveDown": "Move {value} down",
+    "moveUp": "Move {value} up",
+    "name": "Name",
+    "namePlaceholder": "Departments",
+    "new": "New list",
+    "removeValue": "Remove {value}",
+    "save": "Save changes",
+    "storeLabel": "Store the label instead",
+    "storeLabelHelp": "A copy stores the code, e.g. DE. \"Store the label instead\" stores what it is called here, e.g. Germany — in this workspace’s language, from now on.",
+    "subtitle": "The answers a column accepts, named once and used from anywhere.",
+    "title": "Lists",
+    "valueAt": "Value {n}",
+    "valueCount": "{count} values",
+    "values": "Values",
+    "view": "View"
   }
 } as const;

@@ -143,6 +143,7 @@ export default {
       "skippedEdited": "Ponechány beze změny, protože jste je upravili: {pages}."
     },
     "apply": "Použít",
+    "brokenEnumValues": "Každá povolená hodnota u {columns} musí být vyplněná a odlišná od ostatních.",
     "ceiling": {
       "authorise": "Autorizovat tento přepis",
       "body": "{table} má přes {rows} řádků — víc, než Adminium přepisuje samo. Autorizovat to může jen Super Admin a tabulka bude po celou dobu přepisu zamčená.",
@@ -151,8 +152,9 @@ export default {
       "prompt": "Pro autorizaci přepisu napište {table} znovu"
     },
     "column": {
+      "default": "Výchozí hodnota",
+      "defaultValue": "Hodnota",
       "help": "Co tato nastavení znamenají?",
-      "key": "Klíč",
       "length": "Délka",
       "link": "Odkazuje na",
       "linkHelp": "Propojte to s řádkem v jiné tabulce.",
@@ -176,8 +178,18 @@ export default {
       "prompt": "Pro potvrzení napište {word}",
       "title": "Použít destruktivní změnu"
     },
+    "default": {
+      "autoincrement": "Číslovat dál od posledního řádku",
+      "false": "Ne",
+      "literal": "Určitá hodnota",
+      "none": "Nic",
+      "now": "Aktuální datum a čas",
+      "true": "Ano",
+      "uuid": "Nové jedinečné id"
+    },
     "designer": "Návrhář tabulek",
     "discard": "Zahodit změny",
+    "discardTable": "Zahodit tuto novou tabulku",
     "dropping": "Označeno ke smazání",
     "empty": {
       "body": "Vytvořte tabulku nebo vyberte jednu k úpravě. Do vaší databáze se nic nedostane, dokud si příkazy neprohlédnete a nepoužijete je.",
@@ -201,6 +213,16 @@ export default {
     },
     "help": {
       "close": "Zavřít",
+      "default": {
+        "example": "Pole „vytvořeno“, které začíná aktuálním datem a časem, nikdo nemusí psát a nemůže být špatně.",
+        "term": "Výchozí hodnota",
+        "what": "Co je v poli, když ho nikdo nevyplní. Hodnotu tam vloží sama databáze, tedy i u řádků vzniklých mimo Adminium."
+      },
+      "keyGeneration": {
+        "example": "Jedinečné id umí vygenerovat a hned vrátit jen PostgreSQL, na ostatních databázích se klíč čísluje.",
+        "term": "Jak se vyplní klíč",
+        "what": "Odkud se bere id každého řádku. Číslování od posledního řádku dá 1, 2, 3 a vyhovuje většině tabulek; jedinečné id je dlouhé a náhodné — hůř se hádá a hůř se předčítá."
+      },
       "link": {
         "example": "Rezervace se váže na klienta. Adminium pak u rezervace zobrazí klienta a u klienta jeho rezervace.",
         "term": "Vazba na jinou tabulku",
@@ -227,6 +249,11 @@ export default {
         "example": "Dva zákazníci by neměli sdílet stejnou e-mailovou adresu — označte ji jako jedinečnou a nepůjde to.",
         "term": "Jedinečné",
         "what": "Žádné dva řádky nesmějí mít stejnou hodnotu. Ten druhý databáze odmítne."
+      },
+      "values": {
+        "example": "Stav: nový, probíhá nebo hotovo. Nikdo nemůže napsat „probíhaá“ a omylem vytvořit čtvrtý stav.",
+        "term": "Povolené hodnoty",
+        "what": "Úplný seznam odpovědí, které pole přijme. Cokoli jiného databáze odmítne a Adminium seznam zobrazí jako tlačítka nebo nabídku místo textového pole."
       }
     },
     "keepTable": "Ponechat {table}",
@@ -256,15 +283,31 @@ export default {
       "columns": "Sloupce",
       "drop": "Smazat tuto tabulku",
       "dropHelp": "Tabulka i všechny její řádky budou zničeny. Než se cokoli spustí, uvidíte přesně, co se rozbije.",
+      "keyCounted": "Číslovat dál od posledního řádku",
+      "keyGeneration": "Jak se vyplní klíč",
+      "keyGenerationHelp": "Adminium podle tohoto klíče načte nový řádek po každém vložení.",
+      "keyGenerationOne": "V {dialect} musí být klíč počítané celé číslo: id vygenerované databází nelze po vložení načíst zpět.",
+      "keyUnique": "Nové jedinečné id",
       "name": "Název tabulky",
       "nameHelp": "Malá písmena, číslice a podtržítka.",
       "namePlaceholder": "reservations",
       "noKey": "Tato tabulka nemá primární klíč, takže s ní Adminium bude zacházet jen pro čtení — řádky lze vypsat, ale ne upravovat.",
-      "renameHelp": "Změna přejmenuje tabulku ve vaší databázi.",
-      "uuidKeyUnavailable": "Na tomto enginu musí být klíč generované celé číslo: uuid generované databází nelze po vložení přečíst zpět."
+      "renameHelp": "Změna přejmenuje tabulku ve vaší databázi."
     },
     "unnamed": "Pojmenujte každou tabulku a sloupec, abyste mohli změny zkontrolovat.",
-    "unrepresentableDefaults": "Tyto sloupce si ponechávají výchozí hodnotu generovanou databází, kterou zde Adminium nemůže upravit, a zůstává beze změny: {columns}"
+    "unrepresentableDefaults": "Tyto sloupce si ponechávají výchozí hodnotu generovanou databází, kterou zde Adminium nemůže upravit, a zůstává beze změny: {columns}",
+    "valuelessEnum": "Přidejte {columns} alespoň jednu povolenou hodnotu, abyste mohli změny zkontrolovat.",
+    "values": {
+      "add": "Přidat hodnotu",
+      "addOnly": "Tento seznam je typ ve vaší databázi a Postgres už existující hodnotu neumí odebrat ani přejmenovat. Přidávat další můžete.",
+      "down": "Posunout {value} dolů",
+      "empty": "Sloupec s výběrem potřebuje alespoň jednu hodnotu, než půjde změnu zkontrolovat.",
+      "label": "Povolené hodnoty",
+      "placeholder": "in_progress",
+      "remove": "Odebrat {value}",
+      "up": "Posunout {value} nahoru",
+      "value": "Hodnota {n}"
+    }
   },
   "diagram": {
     "ceiling": "Zobrazuje se {shown} nejvíce propojených tabulek. Dalších {omitted} je skrytých — vyhledejte je a přidejte.",
@@ -1197,6 +1240,126 @@ export default {
       "width": "Šířka obsahu",
       "widthHint": "Jak široký může být sloupec s obsahem stránky na velké obrazovce."
     },
+    "filters": {
+      "add": "Přidat filtr",
+      "control": "Ovládací prvek pro {column}",
+      "down": "Posunout {column} dolů",
+      "empty": "Tato stránka nemá žádné filtry. Přidejte jeden níže.",
+      "full": "Stránka zobrazí nejvýše {max} filtrů.",
+      "name": "Název pro {column}",
+      "remove": "Odebrat filtr {column}",
+      "reset": "Zpět k navrženým filtrům",
+      "subtitle": "Otázky, které může panel nástrojů klást o této tabulce. Bez úprav sleduje tabulku.",
+      "title": "Filtry",
+      "up": "Posunout {column} nahoru"
+    },
+    "form": {
+      "addLines": "{label} jako řádky",
+      "dialog": {
+        "cta": "Tlačítko",
+        "ctaIcon": "Ikona tlačítka",
+        "iconDefault": "Výchozí",
+        "subtitle": "Podtitul",
+        "title": "Titulek",
+        "titleHelp": "Prázdné použije vygenerovaná slova."
+      },
+      "field": {
+        "availability": "Obsazeno, když",
+        "availabilityAny": "Jakýkoli řádek má tento čas",
+        "availabilityHelp": "Jiný řádek má stejný čas. Vyberte sloupec pro zúžení na jednu místnost, osobu či stroj. Bez něj se nic nezobrazí jako obsazené.",
+        "availabilityOff": "Nekontrolovat",
+        "control": "Ovládací prvek",
+        "down": "Posunout {name} dolů",
+        "drag": "Přeskupit {name}",
+        "help": "Text nápovědy",
+        "initial": "Počáteční hodnota",
+        "initialHelp": "S čím začíná NOVÝ záznam. Při úpravě se nikdy nepoužije.",
+        "initialLiteral": "Pevná hodnota",
+        "initialNone": "Nic",
+        "initialNow": "Aktuální datum a čas",
+        "initialToday": "Dnes",
+        "initialUser": "Kdo je přihlášen",
+        "initialValue": "Hodnota",
+        "label": "Popisek",
+        "placeholder": "Zástupný text",
+        "recap": "Shrnutí",
+        "recapHelp": "Shrnující pole. Jeho text se zatím upravuje v JSON stránky.",
+        "remove": "Odebrat {name}",
+        "required": "Vyžádat si to",
+        "requiredHelp": "Formulář bez toho neuloží. Co vyžaduje DATABÁZE, se nastavuje ve Schématu.",
+        "ruleChecks": "platí další kontroly",
+        "ruleDatabase": "vyplňuje to databáze",
+        "ruleFilled": "vyplňuje to Adminium",
+        "ruleList": "jen hodnoty ze seznamu {key}",
+        "ruleRequired": "databáze to vyžaduje",
+        "ruleValues": "jen pevná množina hodnot",
+        "rules": "Tento sloupec: {rules}.",
+        "rulesLink": "Změnit ve Schématu",
+        "settings": "Nastavení pro {name}",
+        "slotsEnd": "do",
+        "slotsEvery": "po",
+        "slotsHelp": "Nechte časy prázdné pro pouhý výběr dne.",
+        "slotsStart": "Časy od",
+        "span": "Šířka",
+        "spanHelp": "Kolik sloupců sekce toto pole zabírá.",
+        "up": "Posunout {name} nahoru"
+      },
+      "gallery": {
+        "choice": {
+          "body": "Vybíratelné karty voleb, přepínač a posuvník.",
+          "title": "Karty voleb"
+        },
+        "multi": {
+          "body": "E-maily jako štítky, výběr role, seznam oprávnění.",
+          "title": "Hromadné zadání"
+        },
+        "quick": {
+          "body": "Jedno pole s názvem a štítky v řádku. Bez členění na sekce.",
+          "title": "Rychlé vytvoření"
+        },
+        "repeater": {
+          "body": "Reference, opakovatelné položky a průběžné součty.",
+          "title": "Opakovač a součty"
+        },
+        "sectioned": {
+          "body": "Dlouhý záznam rozdělený do pojmenovaných sekcí s rolovatelným tělem.",
+          "title": "Sekce"
+        },
+        "segmented": {
+          "body": "Segmentovaná priorita, dlouhý popis, seznam příloh, přiřazená osoba.",
+          "title": "Segmenty a soubory"
+        },
+        "split": {
+          "body": "Dva panely: první sekce vedle zbytku. Určeno pro kalendář.",
+          "title": "Rozdělený panel"
+        },
+        "upload": {
+          "body": "Plocha pro média, měnová pole, štítky a přepínač publikování.",
+          "title": "Nahrávání a štítky"
+        },
+        "wizard": {
+          "body": "Průvodce krok za krokem s ukazatelem postupu a patičkou Zpět / Další.",
+          "title": "Průvodce"
+        }
+      },
+      "missing": {
+        "title": "Není v tomto formuláři. Sloupec, který databáze vyžaduje, se při otevření dialogu doplní sám."
+      },
+      "preview": "Náhled",
+      "previewEntity": "záznam",
+      "reset": "Vrátit na vygenerovaný",
+      "section": {
+        "add": "Přidat sekci",
+        "columnCount": "{count} sloupců",
+        "columns": "Sloupce",
+        "empty": "Zatím tu nejsou žádná pole — přesuňte sem nějaké nebo je přidejte níže.",
+        "label": "Název sekce",
+        "remove": "Odebrat tuto sekci",
+        "unnamed": "Nepojmenovaná sekce"
+      },
+      "subtitle": "Co ukazují dialogy Nový a Upravit. Dokud se nezmění, řídí se tabulkou.",
+      "title": "Formulář pro vytvoření"
+    },
     "icon": {
       "noMatches": "Tomuto hledání neodpovídají žádné ikony.",
       "none": "Vyberte ikonu",
@@ -1511,6 +1674,47 @@ export default {
       "suppressed": "Potlačeno",
       "toColumn": "Do sloupce",
       "toTable": "Do tabulky"
+    },
+    "rules": {
+      "fill": "Výchozí hodnota",
+      "fillDb": "Vyplní to databáze (trigger)",
+      "fillDefault": "Nechat na databázi",
+      "fillHelp": "Co sem Adminium vloží, když to nikdo nevyplní.",
+      "fillImplicit": "Adminium to vyplňuje automaticky.",
+      "fillLiteral": "Pevná hodnota",
+      "fillNone": "Nic — nechat prázdné",
+      "fillNow": "Aktuální datum a čas",
+      "fillText": "Hodnota",
+      "fillUser": "Kdo je přihlášen",
+      "fillUuid": "Nové jedinečné id",
+      "format": "Formát",
+      "formatAny": "Cokoli",
+      "formatEmail": "E-mailová adresa",
+      "formatPhone": "Telefonní číslo",
+      "formatUrl": "Webová adresa",
+      "help": "Platí všude, kde vzniká řádek — ve formulářích, importech, automatizacích i v API —, nejen v této aplikaci.",
+      "max": "Největší",
+      "maxLength": "Nejdelší",
+      "min": "Nejmenší",
+      "minLength": "Nejkratší",
+      "onUpdate": "Vyplnit znovu při každé změně",
+      "optionsFromDatabase": "Povolené hodnoty tohoto sloupce určuje vaše databáze. Změňte je v Návrhu.",
+      "optionsHelp": "Jedna na řádek. Prázdné pole přijímá cokoli.",
+      "required": "Musí být vyplněno",
+      "requiredAlready": "Vaše databáze tento sloupec už vyžaduje.",
+      "requiredHelp": "Formulář se na to ptá a zápis bez toho je odmítnut.",
+      "title": "Pravidla",
+      "optionsAnything": "Cokoli",
+      "optionsInline": "Tyto hodnoty",
+      "optionsList": "Seznam",
+      "optionsListHelp": "Samotné seznamy upravíte ve Studiu → Seznamy.",
+      "optionsListLabel": "Seznam",
+      "optionsListUnavailable": "Seznamy se nepodařilo načíst.",
+      "optionsMissingList": "{key} (není v tomto pracovním prostoru)",
+      "optionsPickList": "Vyberte seznam…",
+      "optionsSource": "Povolené hodnoty",
+      "optionsSourceHelp": "Seznam se napíše jednou ve Studiu a použije jej každý sloupec, který jej pojmenuje.",
+      "optionsValues": "Hodnoty"
     },
     "saveFailed": "Uložení se nezdařilo: {message}",
     "subtitle": "{tables} tabulek · použito {applied} úprav",
@@ -1835,6 +2039,11 @@ export default {
       "body": "Přeformulujte v Adminiu cokoli, vyberte, které jazyky si lidé mohou zvolit, a přidejte vlastní.",
       "cta": "Otevřít překlady",
       "heading": "Jazyky a překlady"
+    },
+    "listsCard": {
+      "body": "Odpovědi, které sloupec přijímá — země, fáze, oddělení — pojmenované jednou a použitelné odkudkoli.",
+      "cta": "Otevřít seznamy",
+      "heading": "Seznamy"
     }
   },
   "source": {
@@ -2091,5 +2300,54 @@ export default {
       "test": "Analyzovat"
     },
     "title": "Nové připojení"
+  },
+  "lists": {
+    "addValue": "Přidat hodnotu",
+    "andMore": "a dalších {count}",
+    "builtin": "Vestavěný",
+    "builtinCount": "{count} hodnot",
+    "builtinSubtitle": "Seznam, který Adminium dodává. Je stejný v každém pracovním prostoru a jeho názvy se zobrazují v jazyce každého čtenáře.",
+    "cancel": "Zrušit",
+    "close": "Zavřít",
+    "copiedFrom": "kopie seznamu {key}",
+    "copyTitle": "Kopie seznamu {name}",
+    "create": "Vytvořit seznam",
+    "delete": "Smazat",
+    "deleteBody": "Seznam zmizí. Hodnoty už uložené ve vašich řádcích zůstanou přesně tak, jak jsou — seznam říká, co formulář nabízí, ne co sloupec obsahuje.",
+    "deleteTitle": "Smazat {name}?",
+    "edit": "Upravit",
+    "editSubtitle": "Odpovědi, které sloupec s tímto seznamem přijímá, v pořadí, v jakém je formulář nabízí.",
+    "editTitle": "Upravit {name}",
+    "emptyBody": "Seznam je sada odpovědí, které sloupec přijímá.",
+    "emptyTitle": "Zatím žádné seznamy",
+    "errorUnknown": "Nepovedlo se. Zkuste to znovu.",
+    "inUseBody": "Nejprve jej odeberte z {columns}.",
+    "inUseNone": "Nejprve jej odeberte ze sloupců, které jej používají.",
+    "inUseTitle": "{name} používá jeden ze sloupců",
+    "issueBlank": "Jedna z hodnot je prázdná. Vyplňte ji, nebo řádek odeberte.",
+    "issueDuplicate": "„{value}“ je v seznamu dvakrát.",
+    "issueEmpty": "Seznam potřebuje alespoň jednu hodnotu.",
+    "issueName": "Pojmenujte seznam.",
+    "key": "Klíč",
+    "keyFixed": "Pravidla tento seznam nazývají",
+    "keyHelper": "Jméno, kterým tento seznam nazývají pravidla a soubory projektu. Později je nelze změnit.",
+    "labelAt": "Popisek {n}",
+    "labelPlaceholder": "Co lidé čtou",
+    "makeCopy": "Vytvořit kopii, kterou mohu upravit",
+    "moveDown": "Posunout {value} dolů",
+    "moveUp": "Posunout {value} nahoru",
+    "name": "Název",
+    "namePlaceholder": "Oddělení",
+    "new": "Nový seznam",
+    "removeValue": "Odebrat {value}",
+    "save": "Uložit změny",
+    "storeLabel": "Ukládat místo toho popisek",
+    "storeLabelHelp": "Kopie ukládá kód, například DE. „Ukládat místo toho popisek“ ukládá, jak se zde jmenuje, například Německo — v jazyce tohoto pracovního prostoru, od této chvíle.",
+    "subtitle": "Odpovědi, které sloupec přijímá — pojmenované jednou a použitelné odkudkoli.",
+    "title": "Seznamy",
+    "valueAt": "Hodnota {n}",
+    "valueCount": "{count} hodnot",
+    "values": "Hodnoty",
+    "view": "Zobrazit"
   }
 } as const;

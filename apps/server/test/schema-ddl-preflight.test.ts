@@ -22,6 +22,7 @@ import { preflight } from '../src/schema-ddl/preflight.js';
 
 const step = (over: Partial<DdlStep> & { id: string; kind: DdlStep['kind']; table: string }): DdlStep => ({
   column: null,
+  constraint: null,
   hazard: 'safe',
   requiresSuperAdmin: false,
   summary: 's',

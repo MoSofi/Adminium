@@ -68,10 +68,10 @@ export {
   composeCrudBody,
   crudDisplayColumns,
   enumTones,
+  fkDisplayFor,
   type CrudBodyContext,
   type CrudDetailTab,
   type CrudEnumTone,
-  type CrudFormField,
   type CrudPageBody,
   type CrudSortSpec,
 } from './crud-body.js';

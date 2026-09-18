@@ -111,6 +111,13 @@ export const ID_PREFIXES = {
   // takes no prefix, as the settings and prefs tables do not.
   doc: 'adminium_documents',
   dpf: 'adminium_document_profiles',
+  /*
+   * wave 0035 — a named set of answers a column accepts. The id
+   * is internal: everything that REFERENCES a list names its `key`, because a
+   * rule naming a list travels in a project file and plan 49's gate refuses an
+   * instance id in one.
+   */
+  opl: 'adminium_option_lists',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

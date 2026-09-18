@@ -1008,69 +1008,85 @@
       "openDocs": "Otevřít dokumentaci"
     },
     "article": {
-      "install": {
-        "title": "Instalace Adminia",
-        "excerpt": "Vytvořte projekt jediným příkazem, nebo Adminium spusťte přes docker run či ze zdrojového checkoutu."
-      },
-      "firstAdmin": {
-        "title": "Vytvoření prvního supersprávce",
-        "excerpt": "Na co se průvodce prvním spuštěním ptá a proč může proběhnout jen jednou."
-      },
-      "connectDb": {
-        "title": "Připojení první databáze",
-        "excerpt": "Nasměrujte Adminium na PostgreSQL, MySQL nebo SQLite a vygenerujte administraci."
-      },
-      "schemaFile": {
-        "title": "Generování ze souboru se schématem",
-        "excerpt": "Nahrajte schéma Prisma, models.py z Djanga, schema.rb z Rails nebo výpis .sql — bez připojení."
-      },
-      "readOnly": {
-        "title": "Použití role jen pro čtení",
-        "excerpt": "Introspekce čte pouze metadata schématu. Dejte Adminiu co nejméně oprávnění."
-      },
       "apiKeys": {
         "title": "Ověřování pomocí klíčů API",
         "excerpt": "Vytváření a odvolávání klíčů — a proč se vám klíč ukáže jen jednou."
-      },
-      "rest": {
-        "title": "Referenční příručka REST API",
-        "excerpt": "Každý koncový bod vygenerované aplikace, s tvarem požadavku i odpovědi."
-      },
-      "manifest": {
-        "title": "Manifest stránky",
-        "excerpt": "Jak je stránka popsána konfigurací a jak ji upravit ručně."
-      },
-      "roles": {
-        "title": "Role a oprávnění",
-        "excerpt": "Přidělte role Divák, Editor a Správce a sestavte si vlastní z matice oprávnění."
       },
       "audit": {
         "title": "Čtení auditního záznamu",
         "excerpt": "Kdo co změnil, kdy a odkud."
       },
-      "secrets": {
-        "title": "Jak Adminium ukládá vaše tajemství",
-        "excerpt": "Přihlašovací údaje k připojení jsou šifrovány pomocí ADMINIUM_SECRET. Klíče API se hashují."
-      },
-      "docker": {
-        "title": "Vlastní hosting s Dockerem",
-        "excerpt": "Oficiální image, docker-compose a provoz samostatné meta databáze."
-      },
       "backup": {
         "title": "Záloha a přesun instance",
         "excerpt": "export-zip zabalí konfiguraci serveru; import ji jinde přehraje ve stejné podobě."
       },
-      "telemetry": {
-        "title": "Telemetrie a kontrola aktualizací",
-        "excerpt": "Obojí je dobrovolné a ve výchozím stavu vypnuté. Co se odesílá, když je zapnete."
+      "columnRules": {
+        "title": "Pravidla sloupce",
+        "excerpt": "Co sloupec vyplní, co přijímá a jaké má limity — při každém zápisu, nejen v jednom formuláři."
+      },
+      "connectDb": {
+        "title": "Připojení první databáze",
+        "excerpt": "Nasměrujte Adminium na PostgreSQL, MySQL nebo SQLite a vygenerujte administraci."
       },
       "connectionFails": {
         "title": "Připojení k databázi selhává",
         "excerpt": "Přečtěte si diagnostickou kartu: host, port, TLS a IP, kterou musí databáze povolit."
       },
+      "createDialog": {
+        "title": "Dialogy Nový a Upravit",
+        "excerpt": "Odkud pochází každé pole a jak navrhnout vlastní místo vygenerovaného."
+      },
+      "docker": {
+        "title": "Vlastní hosting s Dockerem",
+        "excerpt": "Oficiální image, docker-compose a provoz samostatné meta databáze."
+      },
+      "firstAdmin": {
+        "title": "Vytvoření prvního supersprávce",
+        "excerpt": "Na co se průvodce prvním spuštěním ptá a proč může proběhnout jen jednou."
+      },
+      "install": {
+        "title": "Instalace Adminia",
+        "excerpt": "Vytvořte projekt jediným příkazem, nebo Adminium spusťte přes docker run či ze zdrojového checkoutu."
+      },
+      "lineItems": {
+        "title": "Položky a rezervace",
+        "excerpt": "Tabulky podřízených řádků s průběžnými součty, kalendáře znající obsazené termíny a jeden záznam na štítek."
+      },
+      "manifest": {
+        "title": "Manifest stránky",
+        "excerpt": "Jak je stránka popsána konfigurací a jak ji upravit ručně."
+      },
       "missingTables": {
         "title": "Po introspekci chybí tabulky",
         "excerpt": "Viditelnost schématu, vyloučené tabulky a opětovné spuštění generování."
+      },
+      "readOnly": {
+        "title": "Použití role jen pro čtení",
+        "excerpt": "Introspekce čte pouze metadata schématu. Dejte Adminiu co nejméně oprávnění."
+      },
+      "rest": {
+        "title": "Referenční příručka REST API",
+        "excerpt": "Každý koncový bod vygenerované aplikace, s tvarem požadavku i odpovědi."
+      },
+      "roles": {
+        "title": "Role a oprávnění",
+        "excerpt": "Přidělte role Divák, Editor a Správce a sestavte si vlastní z matice oprávnění."
+      },
+      "schemaFile": {
+        "title": "Generování ze souboru se schématem",
+        "excerpt": "Nahrajte schéma Prisma, models.py z Djanga, schema.rb z Rails nebo výpis .sql — bez připojení."
+      },
+      "secrets": {
+        "title": "Jak Adminium ukládá vaše tajemství",
+        "excerpt": "Přihlašovací údaje k připojení jsou šifrovány pomocí ADMINIUM_SECRET. Klíče API se hashují."
+      },
+      "tableFilters": {
+        "title": "Filtrování tabulky",
+        "excerpt": "Šest druhů filtrů, dva, které stránka dostane sama, a jak se přenášejí do uloženého pohledu."
+      },
+      "telemetry": {
+        "title": "Telemetrie a kontrola aktualizací",
+        "excerpt": "Obojí je dobrovolné a ve výchozím stavu vypnuté. Co se odesílá, když je zapnete."
       }
     }
   },

@@ -51,14 +51,58 @@ export interface ResolvedTable {
   table: EffectiveTable;
 }
 
+/** One table of the effective model, as SQL-safe identifiers. */
+function resolveTable(table: EffectiveTable): ResolvedTable {
+  const policy = columnPolicyFor(table);
+  const columns = new Map<string, ResolvedColumn>();
+  for (const column of table.columns) {
+    columns.set(column.name, {
+      name: column.name,
+      logicalType: column.logicalType,
+      nullable: column.nullable,
+      isPrimaryKey: column.isPrimaryKey,
+      masked: policy.masked.has(column.name),
+      secret: policy.secret.has(column.name),
+      textish: TEXTISH.has(column.logicalType),
+    });
+  }
+  return {
+    id: table.id,
+    schema: table.schema,
+    name: table.name,
+    primaryKey: [...table.primaryKey],
+    columns,
+    readOnly: table.kind !== 'table' || table.primaryKey.length === 0,
+    table,
+  };
+}
+
 export class SnapshotView {
   readonly connectionId: string;
   readonly model: EffectiveModel;
+  /**
+   * The values of every OPTION LIST a rule on this connection names, resolved
+   * when the view was built.
+   *
+   * They ride the view rather than being read per write for the same reason the
+   * effective model does: a write path that goes to the meta store for a list is
+   * a write path that pays for it on every row of a CSV import. The view's stamp
+   * carries the lists' revision, so an edited list is in force on the very next
+   * request.
+   */
+  readonly optionLists: ReadonlyMap<string, readonly string[]>;
   readonly #tables = new Map<string, ResolvedTable>();
+  /** Excluded tables reached through a relation, resolved on demand. */
+  readonly #linkTables = new Map<string, ResolvedTable>();
 
-  constructor(connectionId: string, model: EffectiveModel) {
+  constructor(
+    connectionId: string,
+    model: EffectiveModel,
+    optionLists: ReadonlyMap<string, readonly string[]> = new Map(),
+  ) {
     this.connectionId = connectionId;
     this.model = model;
+    this.optionLists = optionLists;
     for (const table of model.tables) {
       // A system table and an operator-excluded table are not addressable
       // through `/data` AT ALL.
@@ -82,31 +126,36 @@ export class SnapshotView {
       // every path that resolves an identifier refuses them, for every principal.
       if (table.system) continue;
       if (table.excluded === true) continue;
-      const policy = columnPolicyFor(table);
-      const columns = new Map<string, ResolvedColumn>();
-      for (const column of table.columns) {
-        columns.set(column.name, {
-          name: column.name,
-          logicalType: column.logicalType,
-          nullable: column.nullable,
-          isPrimaryKey: column.isPrimaryKey,
-          masked: policy.masked.has(column.name),
-          secret: policy.secret.has(column.name),
-          textish: TEXTISH.has(column.logicalType),
-        });
-      }
-      const resolved: ResolvedTable = {
-        id: table.id,
-        schema: table.schema,
-        name: table.name,
-        primaryKey: [...table.primaryKey],
-        columns,
-        readOnly: table.kind !== 'table' || table.primaryKey.length === 0,
-        table,
-      };
+      const resolved = resolveTable(table);
       this.#tables.set(table.id, resolved);
       if (table.schema === model.defaultSchema) this.#tables.set(table.name, resolved);
     }
+  }
+
+  /**
+   * A table the caller reaches THROUGH another one: a link table, resolved by
+   * its snapshot id.
+   *
+   * It exists because the index above skips excluded tables, and hiding a join
+   * table in Studio is the tidy, ordinary thing to do — a relation field would
+   * otherwise break on exactly the schemas somebody had kept neat. What it does
+   * NOT relax is `system`: `adminium_*` and the migration ledgers stay
+   * unreachable through every door, which is the whole reason the index filters
+   * them.
+   *
+   * Nothing here is addressable as `:table`: the id never enters the allowlist,
+   * so no request can name this table directly.
+   */
+  linkTable(tableId: string): ResolvedTable | null {
+    const addressable = this.#tables.get(tableId);
+    if (addressable !== undefined) return addressable;
+    const cached = this.#linkTables.get(tableId);
+    if (cached !== undefined) return cached;
+    const table = this.model.tables.find((candidate) => candidate.id === tableId);
+    if (table === undefined || table.system) return null;
+    const resolved = resolveTable(table);
+    this.#linkTables.set(tableId, resolved);
+    return resolved;
   }
 
   /** Resolve the client's `:table` segment to snapshot identifiers (422 otherwise). */

@@ -205,7 +205,7 @@ describe('generatePages on Northwind (full-admin)', () => {
     });
   });
 
-  it('products crud page renders money as cell-money and forms carry field defs', () => {
+  it('products crud page renders money as cell-money, and carries NO form block', () => {
     const products = page(result.pages, 'products');
     const columns = products.config['columns'] as {
       name: string;
@@ -215,13 +215,14 @@ describe('generatePages on Northwind (full-admin)', () => {
     const unitPrice = columns.find((c) => c.name === 'unit_price');
     expect(unitPrice?.semantic).toBe('money');
     expect(unitPrice?.align).toBe('end');
-    const form = products.config['form'] as {
-      fields: { column: string; input: string; required: boolean }[];
-    };
-    expect(form.fields.find((f) => f.column === 'supplier_id')?.input).toBe('fk-combobox');
-    expect(form.fields.find((f) => f.column === 'unit_price')?.input).toBe('number');
-    // Northwind PKs carry no default → they stay in the form as required inputs.
-    expect(form.fields.find((f) => f.column === 'product_id')?.required).toBe(true);
+    /*
+     * The `form` block generation used to write was read by NOTHING and
+     * disagreed with the live form's own rules (plan 50, B9). A page carries a
+     * form document only when somebody designed one; with none, the dialog
+     * derives it from the reply's live column facts, which is the only version
+     * that follows the table when a column is added.
+     */
+    expect(products.config['form']).toBeUndefined();
   });
 
   it('employees land in the PEOPLE nav group', () => {

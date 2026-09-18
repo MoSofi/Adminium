@@ -8,8 +8,17 @@
  * its row, grants and views. Only then is a new row made.
  */
 
-import { newId, overridesRepo, pagesRepo, permissionsRepo, type MetaDb, type ProjectOverrideInput } from '@adminium/meta';
+import {
+  newId,
+  optionListsRepo,
+  overridesRepo,
+  pagesRepo,
+  permissionsRepo,
+  type MetaDb,
+  type ProjectOverrideInput,
+} from '@adminium/meta';
 
+import type { ListFileDocument } from './list-files.js';
 import { newPageIdFor, toLocalPage, type PageFileDocument, type ProjectRefs } from './page-files.js';
 
 export interface AppliedPage {
@@ -75,4 +84,34 @@ export async function applySchemaFile(
   at: number,
 ): Promise<void> {
   await overridesRepo(meta).replaceProjectRows(connectionId, rows, at);
+}
+
+/**
+ * Write what a `lists/<key>.json` says.
+ *
+ * The KEY is the identity — it is what the file is called, what a rule names
+ * and what travels — so an existing list with that key is updated in place and
+ * keeps its id, which is what makes a pull, an edit and a push a round trip
+ * rather than a new list each time.
+ */
+export async function applyListFile(meta: MetaDb, doc: ListFileDocument, at: number): Promise<void> {
+  const lists = optionListsRepo(meta);
+  const existing = await lists.findByKey(doc.key);
+  if (existing === null) {
+    await lists.create({ key: doc.key, name: doc.name, items: doc.items, origin: doc.origin }, at);
+    return;
+  }
+  await lists.update(doc.key, { name: doc.name, items: doc.items }, at);
+}
+
+/**
+ * Remove the list a deleted file named.
+ *
+ * A rule may still name it. That rule then checks nothing rather than refusing
+ * every write (see `tableRulesFor`), and `adminium check` says so by name — the
+ * alternative, refusing to apply the deletion, would leave the folder and the
+ * database disagreeing with no way to fix it from the folder.
+ */
+export async function deleteListByKey(meta: MetaDb, key: string): Promise<void> {
+  await optionListsRepo(meta).remove(key);
 }

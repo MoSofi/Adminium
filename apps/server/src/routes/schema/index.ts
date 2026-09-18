@@ -19,6 +19,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { diffModels, type DatabaseModel } from '@adminium/engine';
 import {
   MetaValidationError,
+  optionListsRepo,
   overridesRepo,
   snapshotsRepo,
   validateOverrideInput,
@@ -27,6 +28,7 @@ import {
 } from '@adminium/meta';
 
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { columnRuleIssue } from '../../connections/column-rules-validation.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { unauthorableReason } from '../../schema-ddl/authorable.js';
@@ -231,9 +233,18 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       const snapshot = await mustLatest(connectionId);
       const model = snapshot.schema as DatabaseModel;
       const tables = new Map(model.tables.map((t) => [t.id, t]));
+      /*
+       * The workspace's option lists, read ONCE for the whole document: a rule
+       * may name a list that exists, and whether it does is a question about
+       * the store rather than about the snapshot.
+       */
+      const knownLists = new Set((await optionListsRepo(meta).list()).map((list) => list.key));
 
       // Validate every op against the vocabulary AND the active snapshot
-      // (unknown identifiers → 422) before any write.
+      // (unknown identifiers → 422) before any write. The four column RULES
+      // are checked against the column they name as well: a rule the
+      // engine cannot keep is worse than no rule, because the form would
+      // promise it.
       for (const item of body.overrides) {
         try {
           validateOverrideInput({ connectionId, ...item, columnName: item.columnName ?? null });
@@ -254,6 +265,25 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
             `Unknown column ${JSON.stringify(item.columnName)} on ${item.tableName}.`,
             { table: item.tableName, column: item.columnName },
           );
+        }
+        if (
+          item.op === 'column.default' ||
+          item.op === 'column.options' ||
+          item.op === 'column.required' ||
+          item.op === 'column.validation'
+        ) {
+          const column = table.columns.find((c) => c.name === item.columnName);
+          // `columnName` was proved above; this is for the type checker.
+          if (column !== undefined) {
+            const issue = columnRuleIssue(item.op, item.value, column, model, knownLists);
+            if (issue !== null) {
+              throw new ValidationFailedError(issue, {
+                table: item.tableName,
+                column: item.columnName,
+                op: item.op,
+              });
+            }
+          }
         }
         if (item.op === 'relation.add') {
           const target = tables.get(String(item.value.toTable));

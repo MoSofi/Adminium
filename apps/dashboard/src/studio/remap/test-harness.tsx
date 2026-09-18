@@ -25,6 +25,12 @@ export interface HarnessOptions {
   onPlan?: ((body: unknown) => Response) | undefined;
   onApply?: ((body: unknown) => Response) | undefined;
   onAdopt?: ((body: unknown) => Response) | undefined;
+  /**
+   * The workspace's option lists, which the Rules section's list picker reads
+   * (plan 50 phase F). Absent ⇒ an empty workspace, which is what every suite
+   * that predates F gets: the picker offers nothing and nothing else changes.
+   */
+  optionLists?: (() => { key: string; name: string; items: { value: string }[]; origin: string; editable: boolean }[]) | undefined;
 }
 
 export interface Harness {
@@ -51,6 +57,9 @@ export function installFetch(options: HarnessOptions = {}): Harness {
     const method = init?.method ?? 'GET';
     if (method === 'GET' && url.endsWith('/schema')) {
       return Promise.resolve(jsonResponse(200, options.schema?.() ?? makeSchemaReply()));
+    }
+    if (method === 'GET' && url.endsWith('/option-lists')) {
+      return Promise.resolve(jsonResponse(200, { lists: options.optionLists?.() ?? [] }));
     }
     if (method === 'GET' && url.endsWith('/overrides')) {
       return Promise.resolve(jsonResponse(200, { overrides: options.overridesRows?.() ?? [] }));

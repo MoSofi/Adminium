@@ -37,6 +37,7 @@ import { hashEnvelope, humanize, slugify, SlugRegistry } from './util.js';
 export {
   archetypeSlug,
   buildArchetypeEnvelope,
+  columnSpecsForTable,
   composeRequestedArchetype,
   toCandidateModel,
   type ArchetypeBuildContext,

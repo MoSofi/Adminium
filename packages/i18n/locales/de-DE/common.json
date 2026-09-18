@@ -1008,69 +1008,85 @@
       "openDocs": "Doku öffnen"
     },
     "article": {
-      "install": {
-        "title": "Adminium installieren",
-        "excerpt": "Mit einem Befehl ein Projekt anlegen – oder Adminium per docker run oder aus einem Quell-Checkout starten."
-      },
-      "firstAdmin": {
-        "title": "Ersten Super-Admin anlegen",
-        "excerpt": "Was der Ersteinrichtungs-Assistent abfragt und warum er nur einmal laufen kann."
-      },
-      "connectDb": {
-        "title": "Ihre erste Datenbank verbinden",
-        "excerpt": "Adminium auf PostgreSQL, MySQL oder SQLite richten und eine Admin-App generieren."
-      },
-      "schemaFile": {
-        "title": "Aus einer Schemadatei generieren",
-        "excerpt": "Ein Prisma-Schema, eine Django-models.py, eine Rails-schema.rb oder einen .sql-Dump hochladen — ganz ohne Verbindung."
-      },
-      "readOnly": {
-        "title": "Eine Nur-Lese-Rolle verwenden",
-        "excerpt": "Die Introspektion liest nur Schema-Metadaten. Geben Sie Adminium so wenig Rechte wie möglich."
-      },
       "apiKeys": {
         "title": "Authentifizierung mit API-Schlüsseln",
         "excerpt": "Schlüssel erstellen und widerrufen — und warum ein Schlüssel Ihnen nur ein einziges Mal gezeigt wird."
-      },
-      "rest": {
-        "title": "REST-API-Referenz",
-        "excerpt": "Jeder Endpunkt der generierten App, mit Request- und Response-Formaten."
-      },
-      "manifest": {
-        "title": "Das Seiten-Manifest",
-        "excerpt": "Wie eine Seite als Konfiguration beschrieben wird und wie Sie eine von Hand bearbeiten."
-      },
-      "roles": {
-        "title": "Rollen & Berechtigungen",
-        "excerpt": "Viewer, Editor und Admin vergeben — und eigene Rollen aus der Berechtigungsmatrix bauen."
       },
       "audit": {
         "title": "Das Audit-Log lesen",
         "excerpt": "Wer hat was geändert, wann und von wo."
       },
-      "secrets": {
-        "title": "Wie Adminium Ihre Geheimnisse speichert",
-        "excerpt": "Verbindungsdaten werden mit ADMINIUM_SECRET verschlüsselt gespeichert. API-Schlüssel werden gehasht."
-      },
-      "docker": {
-        "title": "Self-Hosting mit Docker",
-        "excerpt": "Das offizielle Image, docker-compose und der Betrieb einer separaten Meta-Datenbank."
-      },
       "backup": {
         "title": "Eine Instanz sichern und umziehen",
         "excerpt": "export-zip bündelt Ihre Serverkonfiguration; beim Import wird dieselbe Einrichtung andernorts nachgespielt."
       },
-      "telemetry": {
-        "title": "Telemetrie und Update-Prüfungen",
-        "excerpt": "Beides ist opt-in und standardmäßig aus. Was gesendet wird, wenn Sie es einschalten."
+      "columnRules": {
+        "title": "Regeln für eine Spalte",
+        "excerpt": "Was eine Spalte füllt, was sie akzeptiert und welche Grenzen gelten — bei jedem Schreibvorgang, nicht nur in einem Formular."
+      },
+      "connectDb": {
+        "title": "Ihre erste Datenbank verbinden",
+        "excerpt": "Adminium auf PostgreSQL, MySQL oder SQLite richten und eine Admin-App generieren."
       },
       "connectionFails": {
         "title": "Eine Datenbankverbindung schlägt fehl",
         "excerpt": "Lesen Sie die Diagnosekarte: Host, Port, TLS — und die IP, die Ihre Datenbank zulassen muss."
       },
+      "createDialog": {
+        "title": "Die Dialoge „Neu“ und „Bearbeiten“",
+        "excerpt": "Woher jedes Feld kommt und wie Sie statt des generierten Formulars ein eigenes entwerfen."
+      },
+      "docker": {
+        "title": "Self-Hosting mit Docker",
+        "excerpt": "Das offizielle Image, docker-compose und der Betrieb einer separaten Meta-Datenbank."
+      },
+      "firstAdmin": {
+        "title": "Ersten Super-Admin anlegen",
+        "excerpt": "Was der Ersteinrichtungs-Assistent abfragt und warum er nur einmal laufen kann."
+      },
+      "install": {
+        "title": "Adminium installieren",
+        "excerpt": "Mit einem Befehl ein Projekt anlegen – oder Adminium per docker run oder aus einem Quell-Checkout starten."
+      },
+      "lineItems": {
+        "title": "Positionen und Buchungen",
+        "excerpt": "Tabellen mit Unterzeilen und laufenden Summen, Kalender, die bereits Gebuchtes kennen, und ein Datensatz je Chip."
+      },
+      "manifest": {
+        "title": "Das Seiten-Manifest",
+        "excerpt": "Wie eine Seite als Konfiguration beschrieben wird und wie Sie eine von Hand bearbeiten."
+      },
       "missingTables": {
         "title": "Nach der Introspektion fehlen Tabellen",
         "excerpt": "Schema-Sichtbarkeit, ausgeschlossene Tabellen und ein erneuter Generierungslauf."
+      },
+      "readOnly": {
+        "title": "Eine Nur-Lese-Rolle verwenden",
+        "excerpt": "Die Introspektion liest nur Schema-Metadaten. Geben Sie Adminium so wenig Rechte wie möglich."
+      },
+      "rest": {
+        "title": "REST-API-Referenz",
+        "excerpt": "Jeder Endpunkt der generierten App, mit Request- und Response-Formaten."
+      },
+      "roles": {
+        "title": "Rollen & Berechtigungen",
+        "excerpt": "Viewer, Editor und Admin vergeben — und eigene Rollen aus der Berechtigungsmatrix bauen."
+      },
+      "schemaFile": {
+        "title": "Aus einer Schemadatei generieren",
+        "excerpt": "Ein Prisma-Schema, eine Django-models.py, eine Rails-schema.rb oder einen .sql-Dump hochladen — ganz ohne Verbindung."
+      },
+      "secrets": {
+        "title": "Wie Adminium Ihre Geheimnisse speichert",
+        "excerpt": "Verbindungsdaten werden mit ADMINIUM_SECRET verschlüsselt gespeichert. API-Schlüssel werden gehasht."
+      },
+      "tableFilters": {
+        "title": "Eine Tabelle filtern",
+        "excerpt": "Die sechs Filterarten, die zwei, die eine Seite von selbst erhält, und ihr Platz in einer gespeicherten Ansicht."
+      },
+      "telemetry": {
+        "title": "Telemetrie und Update-Prüfungen",
+        "excerpt": "Beides ist opt-in und standardmäßig aus. Was gesendet wird, wenn Sie es einschalten."
       }
     }
   },

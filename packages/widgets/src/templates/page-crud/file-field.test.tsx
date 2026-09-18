@@ -18,7 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CellValue, type ResolvedFile } from '../../families/tables/cells.js';
 import { gridColumnSpecSchema, type GridColumnSpec } from '../../families/tables/column-spec.js';
 import { FileField } from './FileField.js';
-import { fieldKindFor } from './field-mapping.js';
+import { controlForColumn } from './field-mapping.js';
 
 afterEach(cleanup);
 
@@ -40,9 +40,9 @@ const resolved = (over: Partial<ResolvedFile> = {}): ResolvedFile => ({
   ...over,
 });
 
-describe('fieldKindFor — the block is the only trigger (D14)', () => {
-  it('returns `file` when a column carries a file block', () => {
-    expect(fieldKindFor(column({ file: { ref: 'url' } }))).toBe('file');
+describe('controlForColumn — the block is the only trigger (D14)', () => {
+  it('returns the attachments look when a column carries a file block', () => {
+    expect(controlForColumn(column({ file: { ref: 'url' } }))).toBe('attachments');
   });
 
   it('does NOT return `file` for the semantic tag alone', () => {
@@ -51,15 +51,15 @@ describe('fieldKindFor — the block is the only trigger (D14)', () => {
     // renders, including pages a person has edited.
     // Unbounded text with no block is a textarea by the rule that predates
     // this feature — the point is only that it is not `file`.
-    expect(fieldKindFor(column({ semantic: 'file-ref' }))).toBe('textarea');
-    expect(fieldKindFor(column({ semantic: 'image-url' }))).toBe('url');
+    expect(controlForColumn(column({ semantic: 'file-ref' }))).toBe('textarea');
+    expect(controlForColumn(column({ semantic: 'image-url' }))).toBe('url');
   });
 
   it('leaves the earlier branches alone', () => {
     // A file block cannot claim a column an earlier rule owns — a readonly or
     // server-managed column stays what it was.
-    expect(fieldKindFor(column({ file: { ref: 'url' }, readOnly: true }))).toBe('readonly');
-    expect(fieldKindFor(column({ file: { ref: 'url' }, semantic: 'created-at' }))).toBe('hidden');
+    expect(controlForColumn(column({ file: { ref: 'url' }, readOnly: true }))).toBe('readonly');
+    expect(controlForColumn(column({ file: { ref: 'url' }, semantic: 'created-at' }))).toBe('hidden');
   });
 });
 

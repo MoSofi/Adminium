@@ -143,6 +143,7 @@ export default {
       "skippedEdited": "Laissées intactes parce que vous les avez modifiées : {pages}."
     },
     "apply": "Appliquer",
+    "brokenEnumValues": "Chaque valeur autorisée de {columns} doit être renseignée et différente des autres.",
     "ceiling": {
       "authorise": "Autoriser cette réécriture",
       "body": "{table} contient plus de {rows} lignes — au-delà de la taille qu’Adminium réécrit de lui-même. Seul un Super Admin peut l’autoriser, et la table restera verrouillée pendant toute la réécriture.",
@@ -151,8 +152,9 @@ export default {
       "prompt": "Saisissez à nouveau {table} pour autoriser la réécriture"
     },
     "column": {
+      "default": "Valeur de départ",
+      "defaultValue": "Valeur",
       "help": "Que signifient ces réglages ?",
-      "key": "Clé",
       "length": "Longueur",
       "link": "Lié à",
       "linkHelp": "Reliez ceci à une ligne d’une autre table.",
@@ -176,8 +178,18 @@ export default {
       "prompt": "Saisissez {word} pour confirmer",
       "title": "Appliquer une modification destructrice"
     },
+    "default": {
+      "autoincrement": "Compter à partir de la dernière ligne",
+      "false": "Non",
+      "literal": "Une valeur",
+      "none": "Rien",
+      "now": "La date et l’heure actuelles",
+      "true": "Oui",
+      "uuid": "Un nouvel identifiant unique"
+    },
     "designer": "Concepteur de tables",
     "discard": "Abandonner les modifications",
+    "discardTable": "Abandonner cette nouvelle table",
     "dropping": "Marquée pour suppression",
     "empty": {
       "body": "Créez une table ou choisissez-en une à modifier. Rien n'atteint votre base de données avant que vous n'examiniez les instructions et ne les appliquiez.",
@@ -201,6 +213,16 @@ export default {
     },
     "help": {
       "close": "Fermer",
+      "default": {
+        "example": "Un champ « créé le » qui démarre à la date et l’heure actuelles n’a jamais à être saisi, et ne peut pas être faux.",
+        "term": "Valeur de départ",
+        "what": "Ce que contient le champ quand personne ne le remplit. C’est la base de données qui inscrit la valeur, y compris pour les lignes créées en dehors d’Adminium."
+      },
+      "keyGeneration": {
+        "example": "Seul PostgreSQL sait générer un identifiant unique et le renvoyer aussitôt ; sur les autres moteurs, la clé s’incrémente.",
+        "term": "Comment la clé est remplie",
+        "what": "D’où vient l’identifiant de chaque ligne. Compter à partir de la dernière ligne donne 1, 2, 3 et convient à la plupart des tables ; un identifiant unique est long et aléatoire, plus difficile à deviner et à lire à voix haute."
+      },
       "link": {
         "example": "Une réservation est liée à un client. Adminium affiche alors le client sur la réservation, et les réservations sur le client.",
         "term": "Lien vers une autre table",
@@ -227,6 +249,11 @@ export default {
         "example": "Deux clients ne devraient pas partager la même adresse e-mail — marquez ce champ comme unique et ils ne le pourront plus.",
         "term": "Unique",
         "what": "Deux lignes ne peuvent pas contenir la même valeur. La base de données refuse la seconde."
+      },
+      "values": {
+        "example": "Un statut : nouveau, en cours ou terminé. Personne ne peut taper « en-cour » et créer un quatrième statut par accident.",
+        "term": "Valeurs autorisées",
+        "what": "La liste complète des réponses que ce champ accepte. La base refuse tout le reste, et Adminium affiche la liste sous forme de boutons ou de menu plutôt qu’une zone de texte."
       }
     },
     "keepTable": "Conserver {table}",
@@ -256,15 +283,31 @@ export default {
       "columns": "Colonnes",
       "drop": "Supprimer cette table",
       "dropHelp": "La table et toutes ses lignes sont détruites. Vous verrez exactement ce qui sera cassé avant toute exécution.",
+      "keyCounted": "Compter à partir de la dernière ligne",
+      "keyGeneration": "Comment la clé est remplie",
+      "keyGenerationHelp": "Adminium relit la nouvelle ligne grâce à cette clé après chaque insertion.",
+      "keyGenerationOne": "Sur {dialect}, une clé doit être un entier incrémenté : un identifiant généré par la base ne peut pas être relu après une insertion.",
+      "keyUnique": "Un nouvel identifiant unique",
       "name": "Nom de la table",
       "nameHelp": "Lettres minuscules, chiffres et tirets bas.",
       "namePlaceholder": "reservations",
       "noKey": "Cette table n’a pas de clé primaire ; Adminium la traitera comme étant en lecture seule — les lignes peuvent être listées mais pas modifiées.",
-      "renameHelp": "La modifier renomme la table dans votre base de données.",
-      "uuidKeyUnavailable": "Sur ce moteur, une clé doit être un entier généré : un uuid généré par la base ne peut pas être relu après une insertion."
+      "renameHelp": "La modifier renomme la table dans votre base de données."
     },
     "unnamed": "Nommez chaque table et chaque colonne pour examiner les modifications.",
-    "unrepresentableDefaults": "Ces colonnes conservent une valeur par défaut générée par la base qu’Adminium ne peut pas modifier ici ; elle est laissée telle quelle : {columns}"
+    "unrepresentableDefaults": "Ces colonnes conservent une valeur par défaut générée par la base qu’Adminium ne peut pas modifier ici ; elle est laissée telle quelle : {columns}",
+    "valuelessEnum": "Donnez au moins une valeur autorisée à {columns} pour vérifier les modifications.",
+    "values": {
+      "add": "Ajouter une valeur",
+      "addOnly": "Cette liste est un type dans votre base de données, et Postgres ne peut ni supprimer ni renommer une valeur existante. Vous pouvez en ajouter d’autres.",
+      "down": "Déplacer {value} vers le bas",
+      "empty": "Une colonne à choix a besoin d’au moins une valeur avant que la modification puisse être vérifiée.",
+      "label": "Valeurs autorisées",
+      "placeholder": "in_progress",
+      "remove": "Supprimer {value}",
+      "up": "Déplacer {value} vers le haut",
+      "value": "Valeur {n}"
+    }
   },
   "diagram": {
     "ceiling": "Affichage des {shown} tables les plus connectées. {omitted} autres sont masquées — recherchez-en une pour l’ajouter.",
@@ -1197,6 +1240,126 @@ export default {
       "width": "Largeur du contenu",
       "widthHint": "Largeur maximale de la colonne de contenu de la page sur un grand écran."
     },
+    "filters": {
+      "add": "Ajouter un filtre",
+      "control": "Contrôle pour {column}",
+      "down": "Déplacer {column} vers le bas",
+      "empty": "Cette page n'a aucun filtre. Ajoutez-en un ci-dessous.",
+      "full": "Une page affiche au maximum {max} filtres.",
+      "name": "Nom pour {column}",
+      "remove": "Supprimer le filtre {column}",
+      "reset": "Revenir aux filtres suggérés",
+      "subtitle": "Les questions que la barre d'outils peut poser sur cette table. Sans modification, elle suit la table.",
+      "title": "Filtres",
+      "up": "Déplacer {column} vers le haut"
+    },
+    "form": {
+      "addLines": "{label} en lignes",
+      "dialog": {
+        "cta": "Bouton",
+        "ctaIcon": "Icône du bouton",
+        "iconDefault": "Par défaut",
+        "subtitle": "Sous-titre",
+        "title": "Titre",
+        "titleHelp": "Vide utilise les mots générés."
+      },
+      "field": {
+        "availability": "Déjà pris lorsque",
+        "availabilityAny": "N’importe quelle ligne occupe cet horaire",
+        "availabilityHelp": "Une autre ligne occupe le même horaire. Choisissez une colonne pour restreindre à une salle, une personne, une machine. Sans cela, rien n’est indiqué comme pris.",
+        "availabilityOff": "Ne pas vérifier",
+        "control": "Contrôle",
+        "down": "Descendre {name}",
+        "drag": "Réordonner {name}",
+        "help": "Texte d’aide",
+        "initial": "Valeur de départ",
+        "initialHelp": "Ce avec quoi un NOUVEL enregistrement commence. Une modification ne l’applique jamais.",
+        "initialLiteral": "Une valeur fixe",
+        "initialNone": "Rien",
+        "initialNow": "La date et l’heure actuelles",
+        "initialToday": "Aujourd’hui",
+        "initialUser": "La personne connectée",
+        "initialValue": "La valeur",
+        "label": "Libellé",
+        "placeholder": "Texte indicatif",
+        "recap": "Récapitulatif",
+        "recapHelp": "Un encadré de synthèse. Son texte se modifie pour l’instant dans le JSON de la page.",
+        "remove": "Retirer {name}",
+        "required": "Le demander",
+        "requiredHelp": "Le formulaire refuse d’enregistrer sans cette valeur. Ce que la BASE exige se règle dans Schéma.",
+        "ruleChecks": "des vérifications supplémentaires s’appliquent",
+        "ruleDatabase": "la base la remplit",
+        "ruleFilled": "Adminium la remplit",
+        "ruleList": "uniquement les valeurs de la liste {key}",
+        "ruleRequired": "la base l’exige",
+        "ruleValues": "uniquement un ensemble fixe de valeurs",
+        "rules": "Cette colonne : {rules}.",
+        "rulesLink": "Modifier dans Schéma",
+        "settings": "Réglages de {name}",
+        "slotsEnd": "jusqu'à",
+        "slotsEvery": "toutes les",
+        "slotsHelp": "Laissez les horaires vides pour un simple sélecteur de jour.",
+        "slotsStart": "Horaires de",
+        "span": "Largeur",
+        "spanHelp": "Combien de colonnes de la section ce champ occupe.",
+        "up": "Monter {name}"
+      },
+      "gallery": {
+        "choice": {
+          "body": "Cartes de choix sélectionnables, un interrupteur en pilule et un curseur.",
+          "title": "Cartes de choix"
+        },
+        "multi": {
+          "body": "Saisie d’e-mails en chips, sélection de rôle, liste de permissions.",
+          "title": "Saisie multiple"
+        },
+        "quick": {
+          "body": "Un champ titre avec des pastilles en ligne. Sans habillage de section.",
+          "title": "Création rapide"
+        },
+        "repeater": {
+          "body": "Une référence, des lignes répétables et des totaux en direct.",
+          "title": "Répéteur et totaux"
+        },
+        "sectioned": {
+          "body": "Enregistrement long découpé en sections nommées, avec un corps défilant.",
+          "title": "Sections"
+        },
+        "segmented": {
+          "body": "Priorité segmentée, description longue, liste de pièces jointes, personne assignée.",
+          "title": "Segments et fichiers"
+        },
+        "split": {
+          "body": "Deux volets : la première section à côté du reste. Conçu pour un calendrier.",
+          "title": "Deux volets"
+        },
+        "upload": {
+          "body": "Zone de dépôt média, champs monétaires, chips de tags et un interrupteur de publication.",
+          "title": "Envoi et chips"
+        },
+        "wizard": {
+          "body": "Assistant pas à pas avec un rail de progression et un pied Retour / Suivant.",
+          "title": "Assistant"
+        }
+      },
+      "missing": {
+        "title": "Absent de ce formulaire. Une colonne exigée par la base est rajoutée automatiquement à l’ouverture du dialogue."
+      },
+      "preview": "Aperçu",
+      "previewEntity": "enregistrement",
+      "reset": "Revenir au formulaire généré",
+      "section": {
+        "add": "Ajouter une section",
+        "columnCount": "{count} colonnes",
+        "columns": "Colonnes",
+        "empty": "Aucun champ ici — déplacez-en un, ou ajoutez-en un ci-dessous.",
+        "label": "Nom de la section",
+        "remove": "Retirer cette section",
+        "unnamed": "Section sans nom"
+      },
+      "subtitle": "Ce que montrent les dialogues Nouveau et Modifier. Intact, il suit la table.",
+      "title": "Formulaire de création"
+    },
     "icon": {
       "noMatches": "Aucune icône ne correspond à cette recherche.",
       "none": "Choisir une icône",
@@ -1511,6 +1674,47 @@ export default {
       "suppressed": "Écartée",
       "toColumn": "Colonne cible",
       "toTable": "Table cible"
+    },
+    "rules": {
+      "fill": "Valeur de départ",
+      "fillDb": "La base de données le remplit (un déclencheur)",
+      "fillDefault": "Laisser faire la base de données",
+      "fillHelp": "Ce qu’Adminium inscrit ici quand personne ne le remplit.",
+      "fillImplicit": "Adminium le remplit automatiquement.",
+      "fillLiteral": "Une valeur fixe",
+      "fillNone": "Rien — laisser vide",
+      "fillNow": "La date et l’heure actuelles",
+      "fillText": "La valeur",
+      "fillUser": "La personne connectée",
+      "fillUuid": "Un nouvel identifiant unique",
+      "format": "Format",
+      "formatAny": "N’importe quoi",
+      "formatEmail": "Une adresse e-mail",
+      "formatPhone": "Un numéro de téléphone",
+      "formatUrl": "Une adresse web",
+      "help": "Elles s’appliquent partout où une ligne est écrite — formulaires, imports, automatisations et API —, pas seulement dans cette application.",
+      "max": "Maximum",
+      "maxLength": "Longueur maximale",
+      "min": "Minimum",
+      "minLength": "Longueur minimale",
+      "onUpdate": "Le remplir à nouveau à chaque modification",
+      "optionsFromDatabase": "Votre base de données fixe les valeurs autorisées de cette colonne. Modifiez-les dans Conception.",
+      "optionsHelp": "Une par ligne. Laissez vide pour tout accepter.",
+      "required": "Doit être renseigné",
+      "requiredAlready": "Votre base de données exige déjà cette colonne.",
+      "requiredHelp": "Le formulaire le demande, et une écriture sans lui est refusée.",
+      "title": "Règles",
+      "optionsAnything": "N’importe quoi",
+      "optionsInline": "Ces valeurs",
+      "optionsList": "Une liste",
+      "optionsListHelp": "Les listes elles-mêmes se modifient dans Studio → Listes.",
+      "optionsListLabel": "Liste",
+      "optionsListUnavailable": "Les listes n’ont pas pu être lues.",
+      "optionsMissingList": "{key} (absente de cet espace de travail)",
+      "optionsPickList": "Choisir une liste…",
+      "optionsSource": "Valeurs autorisées",
+      "optionsSourceHelp": "Une liste s’écrit une fois dans Studio et sert à toutes les colonnes qui la nomment.",
+      "optionsValues": "Les valeurs"
     },
     "saveFailed": "Échec de l’enregistrement : {message}",
     "subtitle": "{tables} tables · {applied} remplacements appliqués",
@@ -1835,6 +2039,11 @@ export default {
       "body": "Reformulez n’importe quel texte d’Adminium, choisissez les langues proposées et ajoutez les vôtres.",
       "cta": "Ouvrir les traductions",
       "heading": "Langues et traductions"
+    },
+    "listsCard": {
+      "body": "Les réponses qu’accepte une colonne — pays, étapes, services — nommées une fois et utilisables partout.",
+      "cta": "Ouvrir les listes",
+      "heading": "Listes"
     }
   },
   "source": {
@@ -2091,5 +2300,54 @@ export default {
       "test": "Analyser"
     },
     "title": "Nouvelle connexion"
+  },
+  "lists": {
+    "addValue": "Ajouter une valeur",
+    "andMore": "et {count} de plus",
+    "builtin": "Intégrée",
+    "builtinCount": "{count} valeurs",
+    "builtinSubtitle": "Une liste fournie par Adminium. Elle est la même dans chaque espace de travail, et ses noms s’affichent dans la langue de chaque personne.",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "copiedFrom": "une copie de {key}",
+    "copyTitle": "Une copie de {name}",
+    "create": "Créer la liste",
+    "delete": "Supprimer",
+    "deleteBody": "La liste disparaît. Les valeurs déjà enregistrées dans vos lignes restent exactement telles quelles — une liste dit ce qu’un formulaire propose, pas ce qu’une colonne contient.",
+    "deleteTitle": "Supprimer {name} ?",
+    "edit": "Modifier",
+    "editSubtitle": "Les réponses qu’accepte une colonne liée à cette liste, dans l’ordre où un formulaire les propose.",
+    "editTitle": "Modifier {name}",
+    "emptyBody": "Une liste est un ensemble de réponses qu’accepte une colonne.",
+    "emptyTitle": "Aucune liste pour l’instant",
+    "errorUnknown": "Cela n’a pas fonctionné. Réessayez.",
+    "inUseBody": "Retirez-la d’abord de {columns}.",
+    "inUseNone": "Retirez-la d’abord des colonnes qui l’utilisent.",
+    "inUseTitle": "{name} est utilisée par une colonne",
+    "issueBlank": "Une des valeurs est vide. Remplissez-la ou supprimez la ligne.",
+    "issueDuplicate": "« {value} » figure deux fois dans la liste.",
+    "issueEmpty": "Une liste a besoin d’au moins une valeur.",
+    "issueName": "Donnez un nom à la liste.",
+    "key": "Clé",
+    "keyFixed": "Les règles appellent cette liste",
+    "keyHelper": "Le nom que les règles et les fichiers du projet donnent à cette liste. Il ne peut plus changer ensuite.",
+    "labelAt": "Libellé {n}",
+    "labelPlaceholder": "Ce que les gens lisent",
+    "makeCopy": "Faire une copie modifiable",
+    "moveDown": "Descendre {value}",
+    "moveUp": "Monter {value}",
+    "name": "Nom",
+    "namePlaceholder": "Services",
+    "new": "Nouvelle liste",
+    "removeValue": "Retirer {value}",
+    "save": "Enregistrer les modifications",
+    "storeLabel": "Enregistrer le libellé à la place",
+    "storeLabelHelp": "Une copie enregistre le code, par exemple DE. « Enregistrer le libellé à la place » enregistre son nom ici, par exemple Allemagne — dans la langue de cet espace de travail, à partir de maintenant.",
+    "subtitle": "Les réponses qu’accepte une colonne, nommées une fois et utilisables partout.",
+    "title": "Listes",
+    "valueAt": "Valeur {n}",
+    "valueCount": "{count} valeurs",
+    "values": "Valeurs",
+    "view": "Voir"
   }
 } as const;

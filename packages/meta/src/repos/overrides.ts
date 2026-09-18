@@ -32,6 +32,10 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.enumLabels',
   'column.pii',
   'column.hidden',
+  'column.default',
+  'column.options',
+  'column.required',
+  'column.validation',
 ]);
 
 export interface SchemaOverride {
@@ -189,6 +193,24 @@ export function overridesRepo(meta: MetaDb) {
         .orderBy('id', 'asc');
       if (opts.status !== undefined) query = query.where('status', '=', opts.status);
       const rows = await query.execute();
+      return rows.map(decode);
+    },
+
+    /**
+     * Every ACTIVE row of one op, across every connection.
+     *
+     * "Which columns name this option list" is a workspace-wide question — a
+     * list is not owned by a connection — and answering it by walking every
+     * connection's overrides would mean the caller knowing the connections.
+     */
+    async listByOp(op: string): Promise<SchemaOverride[]> {
+      const rows = await db
+        .selectFrom('adminium_schema_overrides')
+        .selectAll()
+        .where('op', '=', op as never)
+        .where('status', '=', 'active')
+        .orderBy('id', 'asc')
+        .execute();
       return rows.map(decode);
     },
 

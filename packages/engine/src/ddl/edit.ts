@@ -252,6 +252,14 @@ export const EDIT_ISSUE_CODES = [
   'UNADDRESSABLE_KEY',
   'ENUM_ON_NON_ENUM_COLUMN',
   'INVALID_RENAME',
+  /**
+   * Auto-increment was asked for on a column that is not the table's whole
+   * primary key (D23). Every engine ties generated integers to the key —
+   * MySQL requires an AUTO_INCREMENT column to be indexed first, and the CRUD
+   * insert path reads a new row back by its single generated key — so this is
+   * refused here rather than discovered as an engine error after Apply.
+   */
+  'IDENTITY_NOT_A_KEY',
 ] as const;
 export type EditIssueCode = (typeof EDIT_ISSUE_CODES)[number];
 
@@ -284,6 +292,12 @@ export interface EditValidationContext {
 }
 
 const META_PREFIX = 'adminium_';
+
+/**
+ * Types a value list can constrain. `enum` is the authoring word; `varchar` and
+ * `text` are what the database calls the same column once it exists (D32).
+ */
+const CAN_HOLD_VALUE_LIST: ReadonlySet<LogicalType> = new Set(['enum', 'varchar', 'text']);
 
 /** Literal defaults are validated against the column's logical type (D30). */
 function literalMatchesType(text: string, type: LogicalType): boolean {
@@ -323,21 +337,70 @@ function literalMatchesType(text: string, type: LogicalType): boolean {
   }
 }
 
+/** The four kinds a client may author, in the order a control should offer them. */
+export const DEFAULT_KINDS = ['literal', 'now', 'uuid', 'autoincrement'] as const;
+export type DefaultKind = (typeof DEFAULT_KINDS)[number];
+
 /**
  * Which default kinds make sense for a type. `autoincrement` is a key
  * generator, not a value — it belongs only on an integer key (D31).
+ *
+ * ─── Why the DIALECT matters for `now` ─────────────────────────────────────
+ *
+ * SQLite has no date type at all: a `timestamp` column is TEXT affinity, and
+ * the introspector reports what the engine reports — `text`. So a table
+ * created here with a current-time default came BACK as a text column carrying
+ * a `now` default, and restating it (opening it in the designer and changing
+ * anything else) was refused as "a now default does not apply to a text
+ * column" — about a column the operator had just made, through this product,
+ * two tests earlier. Found by the sqlite e2e leg.
+ *
+ * `datetime('now')` is exactly what SQLite puts in such a column, so on that
+ * engine text and varchar are date-capable and the rule says so.
  */
-function defaultKindAllowed(kind: NonNullable<DesiredDefault>['kind'], type: LogicalType): boolean {
+export function defaultKindAllowed(
+  kind: NonNullable<DesiredDefault>['kind'],
+  type: LogicalType,
+  dialect?: Dialect,
+): boolean {
   switch (kind) {
     case 'autoincrement':
       return type === 'integer' || type === 'bigint';
     case 'uuid':
       return type === 'uuid' || type === 'text' || type === 'varchar';
     case 'now':
+      if (dialect === 'sqlite' && (type === 'text' || type === 'varchar')) return true;
       return type === 'date' || type === 'time' || type === 'timestamp' || type === 'timestamptz';
     case 'literal':
       return true;
   }
+}
+
+/**
+ * The kinds a control may OFFER for one column, which is narrower than what the
+ * type admits: the dialect and the column's role in the table rule two of them
+ * out entirely.
+ *
+ * Exported so the Schema Designer's Default control and this file's validator
+ * cannot drift. A UI that offers what the gate refuses is a 422 the person
+ * cannot act on, and that is exactly what "choose enum" did before the
+ * allowed-values editor existed —
+ * offered, staged, refused at Review, with nowhere to type the values.
+ */
+export function offerableDefaultKinds(opts: {
+  logicalType: LogicalType;
+  dialect: Dialect;
+  /** True when this column IS the table's whole primary key. */
+  isSoleKey: boolean;
+}): DefaultKind[] {
+  return DEFAULT_KINDS.filter((kind) => {
+    if (!defaultKindAllowed(kind, opts.logicalType, opts.dialect)) return false;
+    // D31: only postgres can generate one, and only postgres can hand it back.
+    if (kind === 'uuid' && opts.dialect !== 'postgres') return false;
+    // D23: every engine ties generated integers to the key.
+    if (kind === 'autoincrement' && !opts.isSoleKey) return false;
+    return true;
+  });
 }
 
 /**
@@ -493,7 +556,16 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
       }
       const def = column.default;
       if (def !== null) {
-        if (!defaultKindAllowed(def.kind, column.logicalType)) {
+        if (def.kind === 'uuid' && ctx.dialect !== 'postgres') {
+          // The compiler throws for this one (`gen_random_uuid()` is postgres's
+          // alone), and a throw there is a 500 the operator cannot read.
+          push({
+            code: 'UNSUPPORTED_DEFAULT',
+            message: `a database-generated uuid default is Postgres-only; ${ctx.dialect} has no equivalent`,
+            ...where,
+          });
+        }
+        if (!defaultKindAllowed(def.kind, column.logicalType, ctx.dialect)) {
           push({
             code: 'UNSUPPORTED_DEFAULT',
             message: `a ${def.kind} default does not apply to a ${column.logicalType} column`,
@@ -509,6 +581,28 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
       }
     }
 
+    /*
+     * Auto-increment belongs to the KEY. `defaultKindAllowed` has already
+     * limited it to an integer column; this is the other half, and it needs the
+     * table, not the column.
+     */
+    for (const column of table.columns) {
+      if (column.default?.kind !== 'autoincrement') continue;
+      if (table.primaryKey.length !== 1 || table.primaryKey[0] !== column.name) {
+        push({
+          code: 'IDENTITY_NOT_A_KEY',
+          message:
+            `${JSON.stringify(column.name)} cannot be generated automatically: every engine ties ` +
+            "generated integers to the table's primary key, and this table's key is " +
+            (table.primaryKey.length === 0
+              ? 'not set'
+              : `(${table.primaryKey.join(', ')})`),
+          table: table.id ?? table.name,
+          column: column.name,
+        });
+      }
+    }
+
     // enumValues may only name enum columns of THIS table (D32).
     for (const columnName of Object.keys(table.enumValues)) {
       const column = table.columns.find((c) => c.name === columnName);
@@ -519,7 +613,15 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
           table: table.id ?? table.name,
           column: columnName,
         });
-      } else if (column.logicalType !== 'enum') {
+      } else if (!CAN_HOLD_VALUE_LIST.has(column.logicalType)) {
+        /*
+         * `enum` is a string plus a CHECK on all three engines (D32), so a
+         * column AUTHORED as `enum` reads back from the database as
+         * `varchar(64)` with a parsed CHECK — never as logicalType `enum`.
+         * Insisting on `enum` here meant the round trip could not close: open a
+         * table whose choice column you created yesterday, change anything, and
+         * the gate refused the value list it had just been sent.
+         */
         push({
           code: 'ENUM_ON_NON_ENUM_COLUMN',
           message: `${JSON.stringify(columnName)} is ${column.logicalType}, so it carries no value list`,
@@ -676,6 +778,16 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
      * column-level document or emitting a value-less enum, so it is refused by
      * name and pointed at the door that can express it.
      */
+    if (entry.column.default?.kind === 'autoincrement') {
+      push({
+        code: 'IDENTITY_NOT_A_KEY',
+        message:
+          'a column added to an existing table cannot be generated automatically: that belongs to the ' +
+          "table's primary key, which this door cannot change",
+        ...where,
+      });
+    }
+
     if (entry.column.logicalType === 'enum') {
       push({
         code: 'ENUM_ON_NON_ENUM_COLUMN',
@@ -686,7 +798,7 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
 
     const def = entry.column.default;
     if (def !== null) {
-      if (!defaultKindAllowed(def.kind, entry.column.logicalType)) {
+      if (!defaultKindAllowed(def.kind, entry.column.logicalType, ctx.dialect)) {
         push({
           code: 'UNSUPPORTED_DEFAULT',
           message: `a ${def.kind} default does not apply to a ${entry.column.logicalType} column`,
@@ -762,6 +874,89 @@ export function tableWithAddedColumns(
   return { ...actual, columns: [...actual.columns, ...added] };
 }
 
+/**
+ * Which column a CHECK constraint is about, or `null`.
+ *
+ * A step has to name its column for two different reasons: the compiler looks
+ * the allowed values up by column when it emits an `add-check`, and the review
+ * screen shows the operator which field a constraint belongs to. Neither worked,
+ * because the planner passed no column at all.
+ *
+ * The expression comes from one of two places and they do not look alike. One is
+ * {@link desiredTableToModel}'s own canonical `status in ("a", "b")` — the only
+ * shape D30 admits — which the first pattern reads exactly. The other is the
+ * database's own text, and every engine renders it differently:
+ *
+ *   postgres  ((status)::text = ANY ((ARRAY['a'::character varying, …])::text[]))
+ *   mysql     (`status` in (_utf8mb4'a',_utf8mb4'b'))
+ *   sqlite    status in ('a','b')
+ *
+ * So the fallback looks for one of the table's OWN column names in the text,
+ * preferring the longest match: `status` appears inside `status_id`, and
+ * answering the shorter name would attach the constraint to the wrong field.
+ * `null` when nothing matches — a caller that needs a column refuses rather
+ * than guessing one.
+ */
+/**
+ * A CHECK read as enum membership: which column, and which values — or `null`
+ * when the expression is some other rule.
+ *
+ * Two callers need this and they need it to agree. {@link diffTableDefinitions}
+ * compares an engine's own CHECK text against the canonical one this file
+ * writes, and they never match as strings: sqlite hands back
+ * `status IN ('draft','sent')`, postgres
+ * `((status)::text = ANY ((ARRAY['draft'::character varying])::text[]))`, and
+ * the desired document says `status in ("draft", "sent")`. Comparing the text
+ * planned a DROP and an ADD of the same constraint every time a table with a
+ * choice column was merely opened.
+ */
+export function parseEnumCheck(
+  expression: string,
+  columns: readonly string[],
+): { column: string; values: string[] } | null {
+  if (!/\bin\s*\(|=\s*any/i.test(expression)) return null;
+  const column = enumCheckColumn(expression, columns);
+  if (column === null) return null;
+  const values: string[] = [];
+  // Both quotings: the engines' own single quotes (with '' escaping) and the
+  // double quotes `desiredTableToModel` writes through JSON.stringify.
+  for (const literal of expression.matchAll(/'((?:[^']|'')*)'/g)) {
+    values.push((literal[1] ?? '').replaceAll("''", "'"));
+  }
+  if (values.length === 0) {
+    for (const literal of expression.matchAll(/"((?:[^"\\]|\\.)*)"/g)) {
+      try {
+        values.push(JSON.parse(`"${literal[1] ?? ''}"`) as string);
+      } catch {
+        values.push(literal[1] ?? '');
+      }
+    }
+  }
+  /*
+   * Postgres spells the cast inside the list (`'draft'::character varying`),
+   * so the type names arrive as literals only when they are quoted — they are
+   * not. What DOES arrive is the column's own type cast when it is quoted
+   * nowhere, which is why nothing is filtered here: every literal in a
+   * membership test is a member.
+   */
+  return values.length === 0 ? null : { column, values };
+}
+
+export function enumCheckColumn(
+  expression: string,
+  columns: readonly string[],
+): string | null {
+  const authored = /^\s*"?([a-z][a-z0-9_]*)"?\s+in\s*\(/i.exec(expression);
+  if (authored !== null) {
+    const name = authored[1]!;
+    if (columns.includes(name)) return name;
+  }
+  const candidates = columns
+    .filter((name) => new RegExp(`(^|[^a-z0-9_])${name}([^a-z0-9_]|$)`, 'i').test(expression))
+    .sort((a, b) => b.length - a.length);
+  return candidates[0] ?? null;
+}
+
 export function desiredTableToModel(
   desired: DesiredTable,
   opts: {
@@ -794,7 +989,10 @@ export function desiredTableToModel(
     isPrimaryKey: desired.primaryKey.includes(column.name),
     isUnique: uniqueSingles.has(column.name),
     isGenerated: false,
-    enumRef: column.logicalType === 'enum' ? `${id}.${column.name}` : null,
+    enumRef:
+      column.logicalType === 'enum' || (desired.enumValues[column.name] ?? []).length > 0
+        ? `${id}.${column.name}`
+        : null,
     maxLength: column.maxLength,
     numericPrecision: column.numericPrecision,
     numericScale: column.numericScale,

@@ -46,6 +46,76 @@
     "close": "关闭对话框",
     "confirmTitle": "确定要继续吗？"
   },
+  "formDialog": {
+    "calendar": {
+      "days": "{month} 的日期",
+      "next": "下个月",
+      "noTimes": "这一天没有可选时间",
+      "previous": "上个月",
+      "times": "时间",
+      "unchecked": "本月预订过多，无法在此核对。"
+    },
+    "control": {
+      "fewer": "减少一个",
+      "hide": "隐藏",
+      "more": "增加一个",
+      "removeChip": "移除 {value}",
+      "reveal": "显示",
+      "upTo": "最大 {size} MB"
+    },
+    "cta": {
+      "add": "添加{entity}",
+      "create": "创建{entity}"
+    },
+    "footnote": {
+      "required": "必填字段标有 *"
+    },
+    "issue": {
+      "required": "此字段为必填项。",
+      "notAllowed": "请选择列出的值之一。",
+      "invalid": "此处的该值无效。",
+      "email": "请输入有效的电子邮件地址。",
+      "url": "请输入有效的网址。",
+      "phone": "请输入有效的电话号码。",
+      "number": "请输入数字。",
+      "integer": "请输入整数。",
+      "tooShort": "请至少输入 {n} 个字符。",
+      "tooLong": "最多输入 {n} 个字符。",
+      "tooSmall": "必须大于或等于 {min}。",
+      "tooLarge": "必须小于或等于 {max}。",
+      "outOfRange": "此数字超出范围。",
+      "duplicate": "已添加。",
+      "form": "部分值被拒绝。请检查标记的字段。"
+    },
+    "lines": {
+      "add": "添加行",
+      "remove": "移除第 {n} 行"
+    },
+    "quick": {
+      "today": "今天",
+      "tomorrow": "明天",
+      "thisWeek": "本周",
+      "nextWeek": "下周",
+      "pickDate": "选择日期",
+      "clear": "不设置{field}"
+    },
+    "reference": {
+      "noAccess": "你无权读取 {table}，因此无法在此处修改。"
+    },
+    "subtitle": {
+      "sections": "{list}信息"
+    },
+    "title": {
+      "create": "新建{entity}",
+      "edit": "编辑{entity}"
+    },
+    "wizard": {
+      "rail": "步骤",
+      "step": "第 {n} 步",
+      "back": "上一步",
+      "next": "继续"
+    }
+  },
   "combobox": {
     "placeholder": "请选择…",
     "search": "搜索…",
@@ -1438,53 +1508,23 @@
   },
   "templates": {
     "crud": {
-      "newRow": "新建行",
-      "exportAction": "导出",
-      "searchPlaceholder": "搜索 {table}…",
-      "removeFilter": "移除 {column} 筛选",
-      "queryFailed": "查询失败",
-      "loadingRows": "正在加载行",
-      "noMatchesTitle": "没有匹配的行",
-      "emptyTitle": "{count, plural, other {No {entity}s yet}}",
-      "createTitle": "添加 {entity}",
-      "createSubtitle": "将在 {table} 中创建一行。",
-      "createSubmit": "添加 {entity}",
-      "createSuccessTitle": "已添加 {name}",
-      "createSuccessBody": "您可以从该通知中撤销此操作。",
-      "editTitle": "编辑 {entity}",
-      "saveSubmit": "保存更改",
-      "deleteTitle": "删除 {entity}",
-      "deletePreflight": "正在检查引用…",
-      "deleteNoReferences": "此行没有入站引用。",
-      "deleteConsequencesIntro": "删除此行还会影响：",
-      "referenceRows": "{count, plural, other {{n} rows}}",
-      "confirmPrompt": "输入 {value} 以确认",
-      "bulkDeleteTitle": "{count, plural, other {Delete {n} rows}}",
       "bulkDeleteBody": "引用带来的影响适用于所选的每一行。",
       "bulkDeleteConfirm": "删除这些行",
-      "uniqueHelper": "在 {table} 中必须唯一。",
-      "uniqueHelperCounted": "{count, plural, other {Checked against {n} rows.}}",
-      "toast": {
-        "created": "{entity} 已创建。",
-        "createFailed": "创建失败。",
-        "saved": "更改已保存。",
-        "updateFailed": "更新失败。",
-        "deleted": "{name} 已删除。",
-        "deleteFailed": "删除失败。",
-        "bulkDeleted": "{count, plural, other {{n} rows deleted.}}",
-        "bulkDeleteFailed": "批量删除失败。",
-        "exportIncomplete": "已导出 {selected, number} 个所选行中的 {written, number} 个 — 请重新加载后重试。",
-        "undone": "更改已撤销。",
-        "undoFailed": "撤销失败。"
-      },
+      "bulkDeleteTitle": "{count, plural, other {Delete {n} rows}}",
+      "confirmPrompt": "输入 {value} 以确认",
+      "createSubtitle": "将在 {table} 中创建一行。",
+      "deleteConsequencesIntro": "删除此行还会影响：",
+      "deleteNoReferences": "此行没有入站引用。",
+      "deletePreflight": "正在检查引用…",
+      "deleteTitle": "删除 {entity}",
       "detail": {
         "fields": "字段",
         "inboundReferences": "入站引用",
         "relatedCount": "{count, plural, other {{n} related records in {table}}}",
         "loadError": "无法加载该记录。"
       },
-      "peekAction": "快速查看",
-      "openPage": "打开页面",
+      "emptyTitle": "{count, plural, other {No {entity}s yet}}",
+      "exportAction": "导出",
       "file": {
         "tooLarge": "该文件超过 {limit} 的上限。",
         "uploading": "正在上传",
@@ -1495,7 +1535,44 @@
         "add": "添加文件",
         "removeNamed": "移除 {name}",
         "capReached": "此记录最多接受 {count, plural, other {# 个文件}}。"
-      }
+      },
+      "filters": {
+        "chip": "{name}：{values}",
+        "custom": "自定义",
+        "days": "{days} 天",
+        "from": "从 {value}",
+        "no": "否",
+        "rangeFrom": "从",
+        "rangeTo": "至",
+        "to": "至 {value}",
+        "yes": "是"
+      },
+      "loadingRows": "正在加载行",
+      "newRow": "新建行",
+      "noMatchesTitle": "没有匹配的行",
+      "openPage": "打开页面",
+      "peekAction": "快速查看",
+      "queryFailed": "查询失败",
+      "referenceRows": "{count, plural, other {{n} rows}}",
+      "removeFilter": "移除 {column} 筛选",
+      "saveSubmit": "保存更改",
+      "searchPlaceholder": "搜索 {table}…",
+      "toast": {
+        "bulkDeleteFailed": "批量删除失败。",
+        "bulkDeleted": "{count, plural, other {{n} rows deleted.}}",
+        "createFailed": "创建失败。",
+        "created": "{entity} 已创建。",
+        "createdMany": "{count, plural, other {已创建 # 条记录。}}",
+        "deleteFailed": "删除失败。",
+        "deleted": "{name} 已删除。",
+        "exportIncomplete": "已导出 {selected, number} 个所选行中的 {written, number} 个 — 请重新加载后重试。",
+        "saved": "更改已保存。",
+        "undoFailed": "撤销失败。",
+        "undone": "更改已撤销。",
+        "updateFailed": "更新失败。"
+      },
+      "uniqueHelper": "在 {table} 中必须唯一。",
+      "uniqueHelperCounted": "{count, plural, other {Checked against {n} rows.}}"
     },
     "queue": {
       "allSegment": "全部",
@@ -1842,6 +1919,18 @@
     "make": {
       "label": "生成单据",
       "one": "生成{name}"
+    }
+  },
+  "lists": {
+    "name": {
+      "countries": "国家和地区",
+      "us-states": "美国州",
+      "gender": "性别"
+    },
+    "gender": {
+      "female": "女",
+      "male": "男",
+      "other": "其他"
     }
   }
 }

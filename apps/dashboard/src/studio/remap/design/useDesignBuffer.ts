@@ -113,7 +113,19 @@ export function useDesignBuffer(): DesignBuffer {
     (baseSnapshotId: string): SchemaEdit => ({
       baseSnapshotId,
       renames,
-      upsertTables: [...upserts.values()],
+      /*
+       * An EMPTIED value list means "stop constraining this column", and the
+       * wire says that by not carrying the column at all — the planner then
+       * sees a check in the database and none in the desired table, and plans
+       * the drop. Sending `[]` instead is refused by the gate (`min(1)`), so
+       * the one way to remove a constraint would have been a 422.
+       */
+      upsertTables: [...upserts.values()].map((table) => ({
+        ...table,
+        enumValues: Object.fromEntries(
+          Object.entries(table.enumValues).filter(([, values]) => values.length > 0),
+        ),
+      })),
       dropTables: [...drops],
     }),
     [renames, upserts, drops],

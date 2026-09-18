@@ -63,6 +63,7 @@ import {
   ValidationFailedError,
 } from '../../errors.js';
 import { canReadPii } from '../../crud/mask.js';
+import { columnFactsFor } from './column-facts.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
 import { pageLayoutSchema } from './layout-schema.js';
 import {
@@ -628,6 +629,16 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
                 canUnmask: await canReadPii(request),
               }
             : {};
+        /*
+         * The table as it stands TODAY, for the create dialog: which columns
+         * exist, which are filled in for the person, which must be supplied.
+         * The stored `config.columns[]` goes stale the moment the schema moves
+         * and regeneration will not touch an edited page; these do not. Absent
+         * means "not computed" and the client keeps using the stored spec.
+         */
+        const columnFacts =
+          source === null ? null : await columnFactsFor(deps.meta, source.connectionId, source.table);
+        const facts = columnFacts === null ? {} : { columnFacts };
 
         // Layout resolution: a per-user override wins over the shared
         // default baked into the envelope's `config.layout`. Only applies when
@@ -656,12 +667,13 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
                 data: { ...envelope, config: { ...templateConfig, layout: parsed.data } },
                 canEditLayout,
                 ...tableCapabilities,
+                ...facts,
                 ...(layoutStale ? { layoutStale: true } : {}),
               };
             }
           }
         }
-        return { data: page.config, canEditLayout, ...tableCapabilities };
+        return { data: page.config, canEditLayout, ...tableCapabilities, ...facts };
       },
     );
 
