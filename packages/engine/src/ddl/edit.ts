@@ -924,7 +924,16 @@ export function parseEnumCheck(
     values.push((literal[1] ?? '').replaceAll("''", "'"));
   }
   if (values.length === 0) {
-    for (const literal of expression.matchAll(/"((?:[^"\\]|\\.)*)"/g)) {
+    /*
+     * UNROLLED, not `(?:[^"\\]|\\.)*`.
+     *
+     * The alternation form backtracks polynomially on a CHECK expression full
+     * of escaped quotes — and this expression comes out of a database snapshot,
+     * which is input nobody here controls. The unrolled loop below matches the
+     * same strings in linear time: a run of plain characters, then any number
+     * of (escape + run) pairs.
+     */
+    for (const literal of expression.matchAll(/"([^"\\]*(?:\\[\s\S][^"\\]*)*)"/g)) {
       try {
         values.push(JSON.parse(`"${literal[1] ?? ''}"`) as string);
       } catch {

@@ -1260,7 +1260,7 @@ export default {
         "ctaIcon": "Symbol der Schaltfläche",
         "iconDefault": "Standard",
         "subtitle": "Untertitel",
-        "title": "Titel",
+        "title": "Dialogtitel",
         "titleHelp": "Leer verwendet die erzeugten Wörter."
       },
       "field": {

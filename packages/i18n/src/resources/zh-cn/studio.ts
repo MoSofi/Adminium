@@ -1260,7 +1260,7 @@ export default {
         "ctaIcon": "按钮图标",
         "iconDefault": "默认",
         "subtitle": "副标题",
-        "title": "标题",
+        "title": "对话框标题",
         "titleHelp": "留空则使用自动生成的文案。"
       },
       "field": {

@@ -1260,7 +1260,7 @@ export default {
         "ctaIcon": "按鈕圖示",
         "iconDefault": "預設",
         "subtitle": "副標題",
-        "title": "標題",
+        "title": "對話方塊標題",
         "titleHelp": "留空則使用自動產生的文字。"
       },
       "field": {

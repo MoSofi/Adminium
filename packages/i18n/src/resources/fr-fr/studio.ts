@@ -1260,7 +1260,7 @@ export default {
         "ctaIcon": "Icône du bouton",
         "iconDefault": "Par défaut",
         "subtitle": "Sous-titre",
-        "title": "Titre",
+        "title": "Titre de la boîte de dialogue",
         "titleHelp": "Vide utilise les mots générés."
       },
       "field": {

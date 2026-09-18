@@ -35,6 +35,17 @@ function inputProps(props: ControlProps) {
     ...(disabled === true ? { disabled: true as const } : {}),
     ...(field?.placeholder === undefined ? {} : { placeholder: field.placeholder }),
     ...(column.maxLength === null || column.maxLength === undefined ? {} : { maxLength: column.maxLength }),
+    /*
+     * SPELLED OUT, not left to the DOM's default.
+     *
+     * An `<input>` with no `type` attribute behaves as a text box, so dropping
+     * it changes nothing a person sees — and everything a selector sees:
+     * `input[type="text"]` matches an ATTRIBUTE, and anything looking for the
+     * form's text fields by that (a test, a stylesheet, an extension) finds
+     * none. The sibling controls all name their type; this one is a text box
+     * and says so.
+     */
+    type: 'text' as const,
   };
 }
 
