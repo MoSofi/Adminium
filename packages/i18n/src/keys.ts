@@ -28,16 +28,28 @@ export function flattenBundle(
   return out;
 }
 
-/** Flat map → nested bundle, the shape i18next's resource store wants. */
+/**
+ * Flat map → nested bundle, the shape i18next's resource store wants.
+ *
+ * Every node is prototype-less. A key is a dotted path split into segments and
+ * walked by assignment, so on an ordinary object a key containing `__proto__`
+ * writes through to `Object.prototype` and changes every object in the process.
+ * Keys are not always ours — the runtime-translations feature stores them in the
+ * database, and this is an exported entry point of the package. `Object.create(null)`
+ * makes `__proto__` an ordinary own property, so such a key round-trips as itself
+ * instead of being dropped or escaping into the prototype.
+ */
 export function nestBundle(flat: ReadonlyMap<string, string>): ResourceBundle {
-  const root: Record<string, unknown> = {};
+  const root: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   for (const [path, value] of flat) {
     const parts = path.split('.');
     let node = root;
     for (let i = 0; i < parts.length - 1; i += 1) {
       const part = parts[i] as string;
       const next = node[part];
-      if (typeof next !== 'object' || next === null) node[part] = {};
+      if (typeof next !== 'object' || next === null) {
+        node[part] = Object.create(null) as Record<string, unknown>;
+      }
       node = node[part] as Record<string, unknown>;
     }
     node[parts[parts.length - 1] as string] = value;
