@@ -47,7 +47,7 @@
  * faster. It is not an option.
  */
 import { sql, type CompiledQuery, type Kysely } from 'kysely';
-import type { TableModel } from '@adminium/engine';
+import { enumCheckColumn, type TableModel } from '@adminium/engine';
 
 import { AppError } from '../errors.js';
 import { columnDefinition, quoteIdent, quoteLiteral } from './compile.js';
@@ -169,10 +169,22 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
   // Existing CHECKs pass through byte-identical (D30): a check already in the
   // snapshot is the database's own text, and re-deriving it would change it.
   for (const check of actual.checks) {
-    const isEnumCheck = Object.keys(input.enumValues ?? {}).some((c) =>
-      check.expression.includes(c),
-    );
-    if (!isEnumCheck) tableConstraints.push(`CHECK (${check.expression})`);
+    /*
+     * Which old CHECKs the desired enum lists REPLACE, and which are the
+     * database's own business.
+     *
+     * `expression.includes(columnName)` was too generous in both directions: a
+     * check on `status_id` was dropped because "status" is a substring of it,
+     * and so was any unrelated rule that happened to mention an enum column
+     * (`status <> 'void' OR amount > 0`) — silently, during a rebuild that
+     * promised to carry existing checks through. The replacement asks the two
+     * questions separately: does the check NAME one of the columns whose values
+     * are being restated, and is it a membership test rather than some other
+     * rule.
+     */
+    const named = enumCheckColumn(check.expression, Object.keys(input.enumValues ?? {}));
+    const isMembership = /\bin\s*\(|=\s*any/i.test(check.expression);
+    if (named === null || !isMembership) tableConstraints.push(`CHECK (${check.expression})`);
   }
 
   statements.push(

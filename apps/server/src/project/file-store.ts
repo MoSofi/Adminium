@@ -16,7 +16,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { PAGES_DIR, SCHEMA_DIR, fromProjectPath, parseProjectPath, type PathApi } from './paths.js';
+import { LISTS_DIR, PAGES_DIR, SCHEMA_DIR, fromProjectPath, parseProjectPath, type PathApi } from './paths.js';
 
 /** The file-system calls the store makes; tests pass an in-memory one. */
 export interface FileStoreFs {
@@ -56,7 +56,7 @@ function isMissing(error: unknown): boolean {
 export function diskFileStore(root: string, api: PathApi = path, fs: FileStoreFs = nodeFs): ProjectFileStore {
   const absolute = (projectPath: string): string => {
     if (parseProjectPath(projectPath) === null) {
-      throw new Error(`${projectPath} is not a page or schema file`);
+      throw new Error(`${projectPath} is not a page, schema or list file`);
     }
     const file = fromProjectPath(root, projectPath, api);
     const [dir] = projectPath.split('/') as [string];
@@ -69,7 +69,7 @@ export function diskFileStore(root: string, api: PathApi = path, fs: FileStoreFs
   return {
     async list() {
       const paths: string[] = [];
-      for (const dir of [PAGES_DIR, SCHEMA_DIR]) {
+      for (const dir of [PAGES_DIR, SCHEMA_DIR, LISTS_DIR]) {
         let names: string[];
         try {
           names = await fs.readdir(api.join(root, dir));

@@ -1,25 +1,42 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from 'vitest';
 
-import { SEGMENTED_MAX_ARITY, coerceFieldValue, dateOnlyValue, fieldKindFor, fieldTypeTag, formColumns, isRequired } from './field-mapping.js';
+import {
+  coerceFieldValue,
+  controlForColumn,
+  dateOnlyValue,
+  fieldTypeTag,
+  formColumns,
+  isRequired,
+  optionsForColumn,
+} from './field-mapping.js';
+import { SEGMENTED_MAX_ARITY } from '../../page-config/crud-form.js';
+import type { ColumnFact } from './field-mapping.js';
 import { gridColumnSpecSchema } from '../../families/tables/column-spec.js';
 import type { GridColumnSpecInput } from '../../families/tables/column-spec.js';
 
 const spec = (input: GridColumnSpecInput) => gridColumnSpecSchema.parse(input);
 
-describe('fieldKindFor — generated form mapping', () => {
+/*
+ * `controlForColumn` replaced `fieldKindFor` in phase E: one mapping, over the
+ * control catalog the designer and the server also read (Appendix C). The kinds
+ * this file used to assert map onto controls — `checkbox` became the comp's
+ * `toggle-row`, `fk` became `reference` — and the two RULES that matter are
+ * unchanged: what is hidden, and when a small required enum segments.
+ */
+describe('controlForColumn — the one mapping', () => {
   it('pk with default and server-managed timestamps are hidden', () => {
-    expect(fieldKindFor(spec({ name: 'id', label: 'ID', primaryKey: true, hasDefault: true }))).toBe('hidden');
-    expect(fieldKindFor(spec({ name: 'created_at', label: 'Created', logicalType: 'timestamptz', semantic: 'created-at' }))).toBe('hidden');
-    expect(fieldKindFor(spec({ name: 'updated_at', label: 'Updated', logicalType: 'timestamptz', semantic: 'updated-at' }))).toBe('hidden');
+    expect(controlForColumn(spec({ name: 'id', label: 'ID', primaryKey: true, hasDefault: true }))).toBe('hidden');
+    expect(controlForColumn(spec({ name: 'created_at', label: 'Created', logicalType: 'timestamptz', semantic: 'created-at' }))).toBe('hidden');
+    expect(controlForColumn(spec({ name: 'updated_at', label: 'Updated', logicalType: 'timestamptz', semantic: 'updated-at' }))).toBe('hidden');
   });
 
   it('cross-table projections (lookup + reverse aggregate) never become form fields', () => {
     expect(
-      fieldKindFor(spec({ name: 'client_id__name', label: 'Client Name', lookup: { path: ['client_id'], select: 'name' } })),
+      controlForColumn(spec({ name: 'client_id__name', label: 'Client Name', lookup: { path: ['client_id'], select: 'name' } })),
     ).toBe('hidden');
     expect(
-      fieldKindFor(
+      controlForColumn(
         spec({
           name: 'items__count',
           label: 'Items Count',
@@ -31,14 +48,14 @@ describe('fieldKindFor — generated form mapping', () => {
   });
 
   it('read-only columns render as readonly, natural pks stay editable', () => {
-    expect(fieldKindFor(spec({ name: 'slug', label: 'Slug', readOnly: true }))).toBe('readonly');
-    expect(fieldKindFor(spec({ name: 'code', label: 'Code', primaryKey: true, hasDefault: false, nullable: false }))).toBe('text');
+    expect(controlForColumn(spec({ name: 'slug', label: 'Slug', readOnly: true }))).toBe('readonly');
+    expect(controlForColumn(spec({ name: 'code', label: 'Code', primaryKey: true, hasDefault: false, nullable: false }))).toBe('text');
   });
 
-  it('FK → combobox', () => {
+  it('a foreign key is a reference', () => {
     expect(
-      fieldKindFor(spec({ name: 'owner_id', label: 'Owner', logicalType: 'integer', fk: { table: 'public.team_members', column: 'id' } })),
-    ).toBe('fk');
+      controlForColumn(spec({ name: 'owner_id', label: 'Owner', logicalType: 'integer', fk: { table: 'public.team_members', column: 'id' } })),
+    ).toBe('reference');
   });
 
   describe('enum arity rule (comp: SegmentedControl for small required enums)', () => {
@@ -52,33 +69,36 @@ describe('fieldKindFor — generated form mapping', () => {
       });
 
     it(`arity ≤ ${String(SEGMENTED_MAX_ARITY)} and required → segmented`, () => {
-      expect(fieldKindFor(enumSpec(2, false))).toBe('segmented');
-      expect(fieldKindFor(enumSpec(SEGMENTED_MAX_ARITY, false))).toBe('segmented');
+      expect(controlForColumn(enumSpec(2, false))).toBe('segmented');
+      expect(controlForColumn(enumSpec(SEGMENTED_MAX_ARITY, false))).toBe('segmented');
     });
     it('larger arity → select', () => {
-      expect(fieldKindFor(enumSpec(SEGMENTED_MAX_ARITY + 1, false))).toBe('select');
+      expect(controlForColumn(enumSpec(SEGMENTED_MAX_ARITY + 1, false))).toBe('select');
     });
     it('nullable enums always select (need the empty option)', () => {
-      expect(fieldKindFor(enumSpec(2, true))).toBe('select');
+      expect(controlForColumn(enumSpec(2, true))).toBe('select');
     });
   });
 
   it('logicalType dispatch: boolean/number/date/time/datetime/json', () => {
-    expect(fieldKindFor(spec({ name: 'ok', label: 'OK', logicalType: 'boolean' }))).toBe('checkbox');
-    expect(fieldKindFor(spec({ name: 'seats', label: 'Seats', logicalType: 'integer' }))).toBe('number');
-    expect(fieldKindFor(spec({ name: 'mrr', label: 'MRR', logicalType: 'decimal', semantic: 'money' }))).toBe('number');
-    expect(fieldKindFor(spec({ name: 'day', label: 'Day', logicalType: 'date' }))).toBe('date');
-    expect(fieldKindFor(spec({ name: 'at', label: 'At', logicalType: 'time' }))).toBe('time');
-    expect(fieldKindFor(spec({ name: 'when', label: 'When', logicalType: 'timestamptz' }))).toBe('datetime');
-    expect(fieldKindFor(spec({ name: 'meta', label: 'Meta', logicalType: 'json' }))).toBe('json');
+    // The comp's boolean is a toggle ROW, not a checkbox (D18).
+    expect(controlForColumn(spec({ name: 'ok', label: 'OK', logicalType: 'boolean' }))).toBe('toggle-row');
+    expect(controlForColumn(spec({ name: 'seats', label: 'Seats', logicalType: 'integer' }))).toBe('number');
+    // Money gets the currency prefix (Appendix C), which a plain number has no
+    // room for.
+    expect(controlForColumn(spec({ name: 'mrr', label: 'MRR', logicalType: 'decimal', semantic: 'money' }))).toBe('currency');
+    expect(controlForColumn(spec({ name: 'day', label: 'Day', logicalType: 'date' }))).toBe('date');
+    expect(controlForColumn(spec({ name: 'at', label: 'At', logicalType: 'time' }))).toBe('time');
+    expect(controlForColumn(spec({ name: 'when', label: 'When', logicalType: 'timestamptz' }))).toBe('datetime');
+    expect(controlForColumn(spec({ name: 'meta', label: 'Meta', logicalType: 'json' }))).toBe('json');
   });
 
   it('semantics dispatch: email/url/free-text; unbounded text → textarea', () => {
-    expect(fieldKindFor(spec({ name: 'email', label: 'Email', logicalType: 'varchar', semantic: 'email' }))).toBe('email');
-    expect(fieldKindFor(spec({ name: 'site', label: 'Site', logicalType: 'varchar', semantic: 'url' }))).toBe('url');
-    expect(fieldKindFor(spec({ name: 'bio', label: 'Bio', logicalType: 'text', semantic: 'free-text' }))).toBe('textarea');
-    expect(fieldKindFor(spec({ name: 'notes', label: 'Notes', logicalType: 'text' }))).toBe('textarea');
-    expect(fieldKindFor(spec({ name: 'name', label: 'Name', logicalType: 'varchar', maxLength: 120 }))).toBe('text');
+    expect(controlForColumn(spec({ name: 'email', label: 'Email', logicalType: 'varchar', semantic: 'email' }))).toBe('email');
+    expect(controlForColumn(spec({ name: 'site', label: 'Site', logicalType: 'varchar', semantic: 'url' }))).toBe('url');
+    expect(controlForColumn(spec({ name: 'bio', label: 'Bio', logicalType: 'text', semantic: 'free-text' }))).toBe('textarea');
+    expect(controlForColumn(spec({ name: 'notes', label: 'Notes', logicalType: 'text' }))).toBe('textarea');
+    expect(controlForColumn(spec({ name: 'name', label: 'Name', logicalType: 'varchar', maxLength: 120 }))).toBe('text');
   });
 });
 
@@ -153,5 +173,127 @@ describe('date columns — wire-instant round-trip (client-portal audit repro)',
     expect(coerceFieldValue(issuedOn, null)).toBeNull();
     // Unparseable values reach the database untouched — its error is the signal.
     expect(dateOnlyValue('not-a-date')).toBe('not-a-date');
+  });
+});
+
+describe('column facts — what the server says about the table right now', () => {
+  const fact = (over: Partial<ColumnFact> = {}): ColumnFact => ({
+    filledBy: null,
+    required: false,
+    writable: true,
+    ...over,
+  });
+
+  const createdAt = spec({
+    name: 'created_at',
+    label: 'Created',
+    logicalType: 'timestamptz',
+    semantic: 'created-at',
+    nullable: false,
+  });
+
+  it('shows a created_at that NOTHING fills — the create the owner could not make', () => {
+    /*
+     * The bug this whole plan starts from. The form hid the column on the
+     * classifier's TAG, and on a table whose `created_at` is NOT NULL with no
+     * database default that left a form which could not supply a value the
+     * database then demanded. A tag says what a column means; only a fact says
+     * who writes it.
+     */
+    expect(controlForColumn(createdAt, fact({ required: true }))).toBe('datetime');
+    expect(isRequired(createdAt, fact({ required: true }))).toBe(true);
+  });
+
+  it('still hides one that the database or Adminium fills', () => {
+    expect(controlForColumn(createdAt, fact({ filledBy: 'database' }))).toBe('hidden');
+    expect(controlForColumn(createdAt, fact({ filledBy: 'adminium' }))).toBe('hidden');
+    expect(isRequired(createdAt, fact({ filledBy: 'adminium' }))).toBe(false);
+  });
+
+  it('hides a key with a default and shows one the person has to type', () => {
+    const key = spec({ name: 'id', label: 'ID', primaryKey: true, nullable: false });
+    expect(controlForColumn(key, fact({ filledBy: 'database' }))).toBe('hidden');
+    expect(controlForColumn(key, fact({ required: true }))).toBe('text');
+  });
+
+  it('shows a generated column without letting anybody edit it', () => {
+    const total = spec({ name: 'total', label: 'Total', logicalType: 'decimal' });
+    expect(controlForColumn(total, fact({ writable: false, filledBy: 'database' }))).toBe('readonly');
+  });
+
+  it('never resurrects a projection, whatever the facts say', () => {
+    const lookup = spec({
+      name: 'client_id__name',
+      label: 'Client Name',
+      lookup: { path: ['client_id'], select: 'name' },
+    });
+    expect(controlForColumn(lookup, fact({ required: true }))).toBe('hidden');
+  });
+
+  it('falls back to the stored spec when the reply carried no facts', () => {
+    expect(controlForColumn(createdAt)).toBe('hidden');
+    expect(formColumns([createdAt])).toEqual([]);
+    expect(formColumns([createdAt], { created_at: fact({ required: true }) })).toHaveLength(1);
+  });
+});
+
+/*
+ * A `column.options` rule is the admin's answer list, and it
+ * decides both what the control OFFERS and which control it is — a column the
+ * database calls `varchar` is a choice field once somebody has said what may go
+ * in it.
+ */
+describe('an admin\u2019s answers — inline values and named lists', () => {
+  const fact = (over: Partial<ColumnFact> = {}): ColumnFact => ({
+    filledBy: null,
+    required: false,
+    writable: true,
+    ...over,
+  });
+  const country = spec({ name: 'country', label: 'Country', logicalType: 'varchar', nullable: false });
+  const lists = (key: string) =>
+    key === 'builtin:countries'
+      ? [
+          { value: 'DE', label: 'Germany' },
+          { value: 'FR', label: 'France' },
+        ]
+      : undefined;
+
+  it('offers the rule\u2019s own values, over the column\u2019s enum', () => {
+    const stage = spec({
+      name: 'stage',
+      label: 'Stage',
+      logicalType: 'enum',
+      enumValues: ['new', 'old'],
+      nullable: false,
+    });
+    // The rule is the narrower statement and the server enforces it: a form
+    // offering `old` would be a form arguing with the write path.
+    expect(
+      optionsForColumn(stage, fact({ options: { values: [{ value: 'new', label: 'New' }] } })),
+    ).toEqual([{ value: 'new', label: 'New' }]);
+    expect(optionsForColumn(stage)).toEqual([{ value: 'new' }, { value: 'old' }]);
+  });
+
+  it('resolves a named list through the host, in the reader\u2019s language', () => {
+    const facts = fact({ options: { list: 'builtin:countries' } });
+    expect(optionsForColumn(country, facts, lists)).toEqual([
+      { value: 'DE', label: 'Germany' },
+      { value: 'FR', label: 'France' },
+    ]);
+    // Two answers and required ⇒ the comp's segmented control, not a select:
+    // the rule decides the control as well as the answers.
+    expect(controlForColumn(country, facts, lists)).toBe('segmented');
+  });
+
+  it('a list nobody can resolve leaves the column as it was', () => {
+    /*
+     * The list was deleted, or the reader cannot see the store. Refusing to
+     * render the field would take a form down over a list somebody tidied up,
+     * and the WRITE path treats an unresolvable list the same way.
+     */
+    const facts = fact({ options: { list: 'gone' } });
+    expect(optionsForColumn(country, facts, lists)).toEqual([]);
+    expect(controlForColumn(country, facts, lists)).toBe('text');
   });
 });

@@ -77,6 +77,39 @@ export function FieldHelpModal({ open, onOpenChange }: FieldHelpModalProps) {
       ),
     },
     {
+      term: t('studio:design.help.default.term', 'Starts as'),
+      what: t(
+        'studio:design.help.default.what',
+        'What the field holds when nobody fills it in. The database puts the value there itself, so it is also what fills the field for rows created outside Adminium.',
+      ),
+      example: t(
+        'studio:design.help.default.example',
+        'A "created at" field that starts as the current date and time never has to be typed, and cannot be wrong.',
+      ),
+    },
+    {
+      term: t('studio:design.help.values.term', 'Allowed values'),
+      what: t(
+        'studio:design.help.values.what',
+        'The complete list of answers this field accepts. The database refuses anything else, and Adminium shows the list as buttons or a menu instead of a text box.',
+      ),
+      example: t(
+        'studio:design.help.values.example',
+        'A status of new, in progress or done. Nobody can type "in-progres" and create a fourth status by accident.',
+      ),
+    },
+    {
+      term: t('studio:design.help.keyGeneration.term', 'How the key is filled'),
+      what: t(
+        'studio:design.help.keyGeneration.what',
+        'Where each row’s id comes from. Counting up from the last row gives 1, 2, 3 and is what most tables want; a unique id is a long random one, which is harder to guess and harder to read out loud.',
+      ),
+      example: t(
+        'studio:design.help.keyGeneration.example',
+        'Only PostgreSQL can generate a unique id and hand it straight back, so on the other engines the key counts up.',
+      ),
+    },
+    {
       term: t('studio:design.help.link.term', 'Link to another table'),
       what: t(
         'studio:design.help.link.what',

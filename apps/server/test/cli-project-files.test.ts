@@ -218,7 +218,7 @@ describe('adminium check and page files', () => {
     await install.meta.db.destroy();
     const io = fakeIo({ interactive: false });
     await expect(runCli(['check'], { io, deps: realDeps(dir) })).resolves.toBe(0);
-    expect(io.stdout()).toMatch(/✓ \d+ page file\(s\) and 1 schema file\(s\) are valid/);
+    expect(io.stdout()).toMatch(/✓ \d+ page file\(s\), 1 schema file\(s\) and \d+ list file\(s\) are valid/);
 
     const orders = JSON.parse(readFileSync(join(dir, 'pages', 'orders.json'), 'utf8')) as Record<string, unknown>;
     (orders['source'] as Record<string, unknown>)['database'] = 'billing';

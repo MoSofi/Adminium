@@ -9,6 +9,7 @@
 import { z } from 'zod';
 
 import { MAX_COMPUTE_BYTES } from '../../crud/compute.js';
+import { MAX_CHILD_ROWS } from '../../crud/child-rows.js';
 import { MAX_WHERE_BYTES } from '../../crud/filters.js';
 import { boolFlag } from '../query-flag.js';
 
@@ -106,8 +107,102 @@ export const referencesReply = z.object({
   references: z.array(referenceCountSchema),
 });
 
-export const recordCreateBody = z.object({ values: rowSchema });
-export const recordUpdateBody = z.object({ values: rowSchema });
+/**
+ * The link sets a write replaces, keyed by relation id.
+ *
+ * A relation the body does not name is left ALONE — the same rule an absent
+ * column follows. `{ "<relationId>": [] }` is how a set is emptied, and the
+ * keys are target key values as they travel: strings, or numbers for an
+ * integer key.
+ *
+ * The cap is per relation. A thousand links added in one request is not a form
+ * filling itself in; it is an import, and an import has its own door.
+ */
+export const recordLinksBody = z
+  .record(z.string().min(1).max(200), z.array(z.union([z.string(), z.number()])).max(500))
+  .optional();
+
+/**
+ * Child rows written beside their parent: `{ <relationId>: [{ key?, values }] }`.
+ *
+ * A row with no `key` is being added; one with a key is being changed, and a
+ * key the request leaves out is being removed. The cap is per relation, and it
+ * is the leaf's — a dialog that can hold two hundred lines is already a page.
+ */
+export const recordChildrenBody = z
+  .record(z.string().min(1), z.array(z.object({ key: rowSchema.optional(), values: rowSchema })).max(MAX_CHILD_ROWS))
+  .optional();
+
+/**
+ * ONE ROW PER VALUE: the invitations field (comp 484–488).
+ *
+ * `values` carries what every row shares; `repeat.values` are the one thing
+ * that differs, written into `repeat.column`. All of them in one transaction
+ * under one undo token, because an invitation list half sent is worse than one
+ * refused.
+ */
+export const recordRepeatBody = z
+  .object({ column: z.string().min(1).max(120), values: z.array(z.string().min(1)).min(1).max(100) })
+  .optional();
+
+export const recordCreateBody = z.object({
+  values: rowSchema,
+  links: recordLinksBody,
+  children: recordChildrenBody,
+  repeat: recordRepeatBody,
+});
+export const recordUpdateBody = z.object({
+  values: rowSchema,
+  links: recordLinksBody,
+  children: recordChildrenBody,
+});
+
+/** `GET …/:recordId/links/:relationId`. */
+export const recordLinksParams = dataRecordParams.extend({
+  /** The relation id, URI-encoded by the caller. */
+  relationId: z.string().min(1).max(200),
+});
+
+export const recordLinksQuery = z.object({
+  /** The target column the picker shows as the name. */
+  name: z.string().min(1).max(120).optional(),
+  /** Up to two detail columns, comma-separated, joined by " · " on the client. */
+  detail: z.string().max(250).optional(),
+});
+
+export const recordLinksReply = z.object({
+  data: z.array(
+    z.object({
+      key: z.union([z.string(), z.number()]),
+      name: z.string(),
+      detail: z.string().optional(),
+    }),
+  ),
+  /** True when the record has more links than the cap returned. */
+  hasMore: z.boolean(),
+});
+
+/**
+ * The calendar's availability read. `from` / `to` are wire instants — the same
+ * shape the date and datetime controls send — and `to` is EXCLUSIVE, so a
+ * month is `[first, first-of-next)` with no last-millisecond arithmetic.
+ */
+export const availabilityQuery = z.object({
+  column: z.string().min(1).max(120),
+  from: z.string().min(4).max(40),
+  to: z.string().min(4).max(40),
+  /** A column whose value scopes the question — the room, the practitioner. */
+  resource: z.string().min(1).max(120).optional(),
+  resourceValue: z.string().max(200).optional(),
+  /** The record this read is for; its own instant is not "taken". */
+  exclude: z.string().min(1).max(400).optional(),
+});
+
+export const availabilityReply = z.object({
+  taken: z.array(z.string()),
+  /** The cap was reached, so nothing may be struck out from this reply. */
+  capped: z.boolean(),
+});
 
 export const recordDeleteQuery = z.object({
   /** Referential consequences only — no write happens. */
@@ -120,6 +215,12 @@ export const recordMutationReply = z.object({
   data: rowSchema.nullable(),
   /** Single-use undo token; null for non-undoable mutations. */
   undoToken: z.string().nullable(),
+  /**
+   * How many rows one create wrote. Present only for a `repeat` create — one
+   * row per value — where `data` is the FIRST of them and a caller counting
+   * replies would otherwise say "1 record added" about five.
+   */
+  created: z.number().int().min(1).optional(),
 });
 
 export const recordCascadeReply = z.object({

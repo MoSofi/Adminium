@@ -143,6 +143,7 @@ export default {
       "skippedEdited": "因為你編輯過而保持原樣：{pages}。"
     },
     "apply": "套用",
+    "brokenEnumValues": "{columns} 的每個允許值都必須填寫，且彼此不同。",
     "ceiling": {
       "authorise": "授權此次重寫",
       "body": "{table} 有超過 {rows} 列——超出 Adminium 自行重寫的規模。只有超級管理員可以授權，且重寫期間該資料表將被鎖定。",
@@ -151,8 +152,9 @@ export default {
       "prompt": "再次輸入 {table} 以授權重寫"
     },
     "column": {
+      "default": "初始值",
+      "defaultValue": "值",
       "help": "這些設定是什麼意思？",
-      "key": "主鍵",
       "length": "長度",
       "link": "連結到",
       "linkHelp": "將此連結到另一個資料表中的一列。",
@@ -176,8 +178,18 @@ export default {
       "prompt": "輸入 {word} 以確認",
       "title": "套用破壞性變更"
     },
+    "default": {
+      "autoincrement": "在最後一列之後遞增",
+      "false": "否",
+      "literal": "指定值",
+      "none": "無",
+      "now": "目前日期與時間",
+      "true": "是",
+      "uuid": "新的唯一 id"
+    },
     "designer": "資料表設計工具",
     "discard": "捨棄變更",
+    "discardTable": "捨棄這個新資料表",
     "dropping": "已標記為刪除",
     "empty": {
       "body": "建立一個資料表，或挑一個來編輯。在你檢視並套用這些陳述式之前，不會有任何內容寫入你的資料庫。",
@@ -201,6 +213,16 @@ export default {
     },
     "help": {
       "close": "關閉",
+      "default": {
+        "example": "以目前日期與時間開始的「建立時間」欄位不需手動填寫，也不會填錯。",
+        "term": "初始值",
+        "what": "沒有人填寫時欄位裡的內容。值由資料庫自行寫入，因此在 Adminium 之外建立的資料列也會被填上。"
+      },
+      "keyGeneration": {
+        "example": "只有 PostgreSQL 能產生唯一 id 並立即回傳，所以在其他引擎上主鍵採用遞增。",
+        "term": "主鍵如何填入",
+        "what": "每列的 id 從哪裡來。在最後一列之後遞增會得到 1、2、3，適合大多數資料表；唯一 id 則是又長又隨機，更難猜，也更難唸出來。"
+      },
       "link": {
         "example": "一筆預約連結到一位客戶。Adminium 接著會在預約上顯示該客戶，也會在客戶上顯示他的預約。",
         "term": "連結到另一個資料表",
@@ -227,6 +249,11 @@ export default {
         "example": "兩位客戶不該共用同一個電子郵件地址——把它標為唯一，他們就不能了。",
         "term": "唯一",
         "what": "任何兩個資料列都不能存放相同的值。資料庫會拒絕第二個。"
+      },
+      "values": {
+        "example": "狀態為新建、進行中或已完成。沒人能打成「進行種」而意外多出第四種狀態。",
+        "term": "允許的值",
+        "what": "這個欄位接受的完整答案清單。其他內容資料庫一律拒絕，Adminium 會把清單顯示為按鈕或選單，而不是文字方塊。"
       }
     },
     "keepTable": "保留 {table}",
@@ -256,15 +283,31 @@ export default {
       "columns": "欄位",
       "drop": "刪除此資料表",
       "dropHelp": "該資料表與其中所有資料列都會被銷毀。在執行任何動作前，您會看到具體會有什麼受影響。",
+      "keyCounted": "在最後一列之後遞增",
+      "keyGeneration": "主鍵如何填入",
+      "keyGenerationHelp": "每次新增後，Adminium 會以這個主鍵讀回新的資料列。",
+      "keyGenerationOne": "在 {dialect} 上，主鍵必須是遞增整數：資料庫產生的 id 在新增後無法讀回。",
+      "keyUnique": "新的唯一 id",
       "name": "資料表名稱",
       "nameHelp": "小寫字母、數字與底線。",
       "namePlaceholder": "reservations",
       "noKey": "此資料表沒有主鍵，因此 Adminium 會將其視為唯讀——可以列出資料列，但無法編輯。",
-      "renameHelp": "變更它會重新命名你資料庫中的資料表。",
-      "uuidKeyUnavailable": "在此引擎上，主鍵必須是產生的整數：資料庫產生的 uuid 在插入後無法讀回。"
+      "renameHelp": "變更它會重新命名你資料庫中的資料表。"
     },
     "unnamed": "為每個資料表和欄位命名後才能檢視變更。",
-    "unrepresentableDefaults": "這些欄位保留由資料庫產生的預設值，Adminium 無法在此編輯，將維持原樣：{columns}"
+    "unrepresentableDefaults": "這些欄位保留由資料庫產生的預設值，Adminium 無法在此編輯，將維持原樣：{columns}",
+    "valuelessEnum": "為 {columns} 至少設定一個允許的值，才能檢視變更。",
+    "values": {
+      "add": "新增值",
+      "addOnly": "這份清單是資料庫中的一種型別，值一旦存在，Postgres 就無法刪除或重新命名。您仍然可以新增值。",
+      "down": "下移 {value}",
+      "empty": "選擇欄位至少需要一個值，才能檢視這項變更。",
+      "label": "允許的值",
+      "placeholder": "in_progress",
+      "remove": "移除 {value}",
+      "up": "上移 {value}",
+      "value": "值 {n}"
+    }
   },
   "diagram": {
     "ceiling": "正在顯示關聯最多的 {shown} 個資料表。另有 {omitted} 個被隱藏——搜尋可將其叫出。",
@@ -1197,6 +1240,126 @@ export default {
       "width": "內容寬度",
       "widthHint": "在大螢幕上，頁面內容欄最多可以有多寬。"
     },
+    "filters": {
+      "add": "新增篩選",
+      "control": "{column} 的控制項",
+      "down": "下移 {column}",
+      "empty": "此頁面沒有篩選。在下方新增一個。",
+      "full": "一個頁面最多顯示 {max} 個篩選。",
+      "name": "{column} 的名稱",
+      "remove": "移除 {column} 篩選",
+      "reset": "回到建議的篩選",
+      "subtitle": "工具列可以對此資料表提出的問題。未變更時，它會跟隨資料表。",
+      "title": "篩選",
+      "up": "上移 {column}"
+    },
+    "form": {
+      "addLines": "{label}（明細列）",
+      "dialog": {
+        "cta": "按鈕",
+        "ctaIcon": "按鈕圖示",
+        "iconDefault": "預設",
+        "subtitle": "副標題",
+        "title": "標題",
+        "titleHelp": "留空則使用自動產生的文字。"
+      },
+      "field": {
+        "availability": "已被占用的條件",
+        "availabilityAny": "任一列占用該時間",
+        "availabilityHelp": "另一列占用了同一時間。選擇一個欄位可縮小到某個房間、某人或某台機器。不選則不顯示任何占用。",
+        "availabilityOff": "不檢查",
+        "control": "控制項",
+        "down": "將 {name} 下移",
+        "drag": "重新排序 {name}",
+        "help": "說明文字",
+        "initial": "初始值",
+        "initialHelp": "新增記錄時的初始內容。編輯時不會套用。",
+        "initialLiteral": "固定值",
+        "initialNone": "無",
+        "initialNow": "目前日期與時間",
+        "initialToday": "今天",
+        "initialUser": "目前登入的人",
+        "initialValue": "該值",
+        "label": "標籤",
+        "placeholder": "提示文字",
+        "recap": "摘要",
+        "recapHelp": "一個摘要方塊。目前其文案在頁面的 JSON 中編輯。",
+        "remove": "移除 {name}",
+        "required": "必須填寫",
+        "requiredHelp": "缺少此值時表單不會儲存。資料庫本身的要求在「結構」中設定。",
+        "ruleChecks": "另有額外檢查",
+        "ruleDatabase": "由資料庫填寫",
+        "ruleFilled": "由 Adminium 填寫",
+        "ruleList": "僅接受清單 {key} 中的值",
+        "ruleRequired": "資料庫要求填寫",
+        "ruleValues": "僅接受固定的一組值",
+        "rules": "此欄位：{rules}。",
+        "rulesLink": "在「結構」中修改",
+        "settings": "{name} 的設定",
+        "slotsEnd": "到",
+        "slotsEvery": "每",
+        "slotsHelp": "留空時間即為僅選擇日期。",
+        "slotsStart": "時間從",
+        "span": "寬度",
+        "spanHelp": "此欄位佔用本區段的幾個欄。",
+        "up": "將 {name} 上移"
+      },
+      "gallery": {
+        "choice": {
+          "body": "可選取的選項卡片、膠囊開關與滑桿。",
+          "title": "選項卡片"
+        },
+        "multi": {
+          "body": "電子郵件標籤輸入、角色選擇、權限勾選清單。",
+          "title": "多項輸入"
+        },
+        "quick": {
+          "body": "一個標題欄位，並在同一行顯示資訊標籤。沒有區段外框。",
+          "title": "快速建立"
+        },
+        "repeater": {
+          "body": "一個參照、可重複的明細列和即時合計。",
+          "title": "重複列與合計"
+        },
+        "sectioned": {
+          "body": "較長的記錄拆成具名區段，內容區可捲動。",
+          "title": "區段"
+        },
+        "segmented": {
+          "body": "分段式優先順序、長描述、附件清單、負責人。",
+          "title": "分段與檔案"
+        },
+        "split": {
+          "body": "兩欄：第一節在左，其餘在右。為日曆而設。",
+          "title": "分欄"
+        },
+        "upload": {
+          "body": "媒體拖放區、金額欄位、標籤與發佈開關。",
+          "title": "上傳與標籤"
+        },
+        "wizard": {
+          "body": "逐步精靈，含進度軌與「上一步 / 下一步」頁尾。",
+          "title": "精靈"
+        }
+      },
+      "missing": {
+        "title": "不在此表單中。資料庫要求的欄位會在對話框開啟時自動補回。"
+      },
+      "preview": "預覽",
+      "previewEntity": "記錄",
+      "reset": "還原為自動產生",
+      "section": {
+        "add": "新增區段",
+        "columnCount": "{count} 欄",
+        "columns": "欄數",
+        "empty": "這裡還沒有欄位——移一個進來，或在下方新增。",
+        "label": "區段名稱",
+        "remove": "移除此區段",
+        "unnamed": "未命名區段"
+      },
+      "subtitle": "「新增」與「編輯」對話框顯示的內容。未變更時，它跟隨資料表。",
+      "title": "建立表單"
+    },
     "icon": {
       "noMatches": "沒有圖示符合此搜尋。",
       "none": "選擇圖示",
@@ -1511,6 +1674,47 @@ export default {
       "suppressed": "已抑制",
       "toColumn": "目標欄位",
       "toTable": "目標資料表"
+    },
+    "rules": {
+      "fill": "初始值",
+      "fillDb": "由資料庫填寫（觸發器）",
+      "fillDefault": "交給資料庫處理",
+      "fillHelp": "沒有人填寫時，Adminium 會在這裡放什麼。",
+      "fillImplicit": "Adminium 會自動填寫。",
+      "fillLiteral": "固定值",
+      "fillNone": "不填——留空",
+      "fillNow": "目前日期與時間",
+      "fillText": "值",
+      "fillUser": "目前登入的人",
+      "fillUuid": "新的唯一 id",
+      "format": "格式",
+      "formatAny": "任意",
+      "formatEmail": "電子郵件地址",
+      "formatPhone": "電話號碼",
+      "formatUrl": "網址",
+      "help": "只要寫入資料列，這些規則都會生效——表單、匯入、自動化與 API，而不只是這個應用程式。",
+      "max": "最大值",
+      "maxLength": "最長長度",
+      "min": "最小值",
+      "minLength": "最短長度",
+      "onUpdate": "每次變更時重新填寫",
+      "optionsFromDatabase": "這個欄位的允許值由資料庫決定，請在「設計」中修改。",
+      "optionsHelp": "每行一個。留空表示接受任何值。",
+      "required": "必須填寫",
+      "requiredAlready": "您的資料庫已經要求這個欄位必填。",
+      "requiredHelp": "表單會要求填寫，缺少它的寫入會被拒絕。",
+      "title": "規則",
+      "optionsAnything": "任何內容",
+      "optionsInline": "這些值",
+      "optionsList": "一份清單",
+      "optionsListHelp": "清單本身可在 Studio → 清單 中編輯。",
+      "optionsListLabel": "清單",
+      "optionsListUnavailable": "無法讀取清單。",
+      "optionsMissingList": "{key}（不在此工作區中）",
+      "optionsPickList": "選擇一份清單…",
+      "optionsSource": "允許的值",
+      "optionsSourceHelp": "清單在 Studio 中寫一次，指向它的每個欄位都能使用。",
+      "optionsValues": "這些值"
     },
     "saveFailed": "儲存失敗：{message}",
     "subtitle": "{tables} 個資料表 · 已套用 {applied} 項覆寫",
@@ -1835,6 +2039,11 @@ export default {
       "body": "重寫 Adminium 中的任何文字，決定使用者可以選哪些語言，並加入你自己的語言。",
       "cta": "開啟翻譯",
       "heading": "語言與翻譯"
+    },
+    "listsCard": {
+      "body": "一個欄位所接受的答案——國家和地區、階段、部門——命名一次，處處可用。",
+      "cta": "開啟清單",
+      "heading": "清單"
     }
   },
   "source": {
@@ -2091,5 +2300,54 @@ export default {
       "test": "分析"
     },
     "title": "新增連線"
+  },
+  "lists": {
+    "addValue": "新增值",
+    "andMore": "另有 {count} 項",
+    "builtin": "內建",
+    "builtinCount": "{count} 個值",
+    "builtinSubtitle": "Adminium 內附的清單。它在每個工作區都相同，名稱會以各人自己的語言顯示。",
+    "cancel": "取消",
+    "close": "關閉",
+    "copiedFrom": "{key} 的副本",
+    "copyTitle": "{name} 的副本",
+    "create": "建立清單",
+    "delete": "刪除",
+    "deleteBody": "清單會被刪除。列中已儲存的值維持原樣——清單決定表單提供什麼，而不是欄位裡存著什麼。",
+    "deleteTitle": "刪除 {name}？",
+    "edit": "編輯",
+    "editSubtitle": "使用此清單的欄位所接受的答案，依表單提供的順序排列。",
+    "editTitle": "編輯 {name}",
+    "emptyBody": "清單就是一個欄位所接受的一組答案。",
+    "emptyTitle": "尚無清單",
+    "errorUnknown": "操作未成功，請再試一次。",
+    "inUseBody": "請先從 {columns} 移除它。",
+    "inUseNone": "請先從使用它的欄位移除它。",
+    "inUseTitle": "{name} 正被某個欄位使用",
+    "issueBlank": "其中一個值是空的。請填寫或刪除該列。",
+    "issueDuplicate": "「{value}」在清單中出現兩次。",
+    "issueEmpty": "清單至少需要一個值。",
+    "issueName": "為清單取個名稱。",
+    "key": "索引鍵",
+    "keyFixed": "規則以此名稱指向這份清單",
+    "keyHelper": "規則與專案檔用來指向這份清單的名稱，之後無法變更。",
+    "labelAt": "標籤 {n}",
+    "labelPlaceholder": "人們讀到的文字",
+    "makeCopy": "建立一份我可以編輯的副本",
+    "moveDown": "將 {value} 下移",
+    "moveUp": "將 {value} 上移",
+    "name": "名稱",
+    "namePlaceholder": "部門",
+    "new": "新增清單",
+    "removeValue": "移除 {value}",
+    "save": "儲存變更",
+    "storeLabel": "改為儲存標籤",
+    "storeLabelHelp": "副本儲存代碼，例如 DE。「改為儲存標籤」則儲存它在這裡的名稱，例如「德國」——採用本工作區的語言，自此生效。",
+    "subtitle": "一個欄位所接受的答案：命名一次，處處可用。",
+    "title": "清單",
+    "valueAt": "值 {n}",
+    "valueCount": "{count} 個值",
+    "values": "值",
+    "view": "檢視"
   }
 } as const;

@@ -354,6 +354,74 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     value: z.object({ masked: z.boolean(), kind: z.string().optional() }),
   }),
   z.object({ op: z.literal('column.hidden'), value: z.object({ hidden: z.boolean() }) }),
+  /*
+   * ─── The four column RULES ───────────────────────────────────────────────
+   *
+   * An override row is `(op, value)` with `value` as JSON, so these need no
+   * migration — the store has carried arbitrary ops since 0003. What they are
+   * NOT is display: every other `column.*` op changes what a reader sees, and
+   * these four change what the WRITE PATH does. That is why they are enforced
+   * inside `crud/write-service.ts` rather than by the form, and why the
+   * dialog, a CSV import, an automation and the public API all obey them.
+   */
+  z.object({
+    op: z.literal('column.default'),
+    value: z.object({
+      /**
+       * `database` and `none` store no value and exist to be SAID: `database`
+       * is "a trigger or an expression fills this, leave it alone" and `none`
+       * switches an implicit fill off (D14). Both are settings, not values.
+       */
+      kind: z.enum(['now', 'uuid', 'literal', 'current-user', 'database', 'none']),
+      /** `literal` only. */
+      text: z.string().max(1024).optional(),
+      /** `current-user` only. */
+      userField: z.enum(['id', 'name']).optional(),
+      /** Fill on an update too — an `updated_at`. */
+      onUpdate: z.boolean().optional(),
+    }),
+  }),
+  z.object({
+    op: z.literal('column.options'),
+    /*
+     * Either a named list (phase F's store, referenced BY KEY so a project file
+     * carries it) or the values themselves. 500 is the ceiling because a list
+     * longer than that is a lookup table, and the form says so.
+     */
+    value: z.union([
+      z.object({ list: z.string().min(1).max(120) }),
+      z.object({
+        values: z
+          .array(
+            z.object({
+              value: z.string().min(1).max(256),
+              label: z.string().max(256).optional(),
+              tone: toneSchema.optional(),
+              description: z.string().max(512).optional(),
+            }),
+          )
+          .min(1)
+          .max(500),
+      }),
+    ]),
+  }),
+  /*
+   * `required: true` only. "Not required" is the absence of the row, not a
+   * row saying false: a stored `false` would read as "this column is optional",
+   * which is a claim about the DATABASE that an override cannot make — the
+   * column's own NOT NULL still decides.
+   */
+  z.object({ op: z.literal('column.required'), value: z.object({ required: z.literal(true) }) }),
+  z.object({
+    op: z.literal('column.validation'),
+    value: z.object({
+      format: z.enum(['email', 'url', 'phone']).optional(),
+      min: z.number().optional(),
+      max: z.number().optional(),
+      minLength: z.number().int().nonnegative().optional(),
+      maxLength: z.number().int().positive().optional(),
+    }),
+  }),
   z.object({
     op: z.literal('relation.add'),
     value: z.object({

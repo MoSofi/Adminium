@@ -18,6 +18,35 @@ export const UNDO_TTL_MS = 60_000;
 
 export type UndoAction = 'create' | 'update' | 'delete';
 
+/**
+ * One relation's link set, before and after the write that changed it.
+ *
+ * Without this an undo is a HALF-undo: the parent's columns come back and the
+ * replaced links stay replaced — in the one path a person reaches for after a
+ * mistake. Keys are strings, because that is what a key travels as and what
+ * the diff compares.
+ */
+export interface UndoLinks {
+  relationId: string;
+  before: string[];
+  after: string[];
+}
+
+/**
+ * The child rows one write touched, as they were.
+ *
+ * `added` carries KEYS (what to delete to undo an add) while `removed` carries
+ * WHOLE ROWS (what to write back to undo a removal) — the two directions need
+ * different things, and storing only keys for both would make a removal
+ * unrecoverable the moment the row was gone.
+ */
+export interface UndoChildren {
+  relationId: string;
+  added: Row[];
+  removed: Row[];
+  changed: { key: Row; before: Row }[];
+}
+
 export interface UndoEntry {
   auditId: string | null;
   /** Only the issuing user may undo. */
@@ -41,6 +70,10 @@ export interface UndoEntry {
    * named them are gone, and the sidecar rows have already been trashed.
    */
   fileIds: string[];
+  /** Link sets this write replaced, per relation. Empty for every other write. */
+  links: UndoLinks[];
+  /** Child rows this write added, changed or removed. Empty for every other. */
+  children: UndoChildren[];
   expiresAt: number;
 }
 
@@ -70,12 +103,22 @@ export class UndoStore {
     // `fileIds` is optional at the door and always present on the stored entry:
     // every caller that predates 37 trashes no files, and making them all say
     // `fileIds: []` would be noise at ten call sites to state a default.
-    entry: Omit<UndoEntry, 'expiresAt' | 'fileIds'> & { fileIds?: string[] },
+    entry: Omit<UndoEntry, 'expiresAt' | 'fileIds' | 'links' | 'children'> & {
+      fileIds?: string[];
+      links?: UndoLinks[];
+      children?: UndoChildren[];
+    },
     ttlMs: number = UNDO_TTL_MS,
   ): IssuedUndo {
     this.#sweep();
     const token = `undo_${randomBytes(16).toString('hex')}`;
-    const stored: UndoEntry = { ...entry, fileIds: entry.fileIds ?? [], expiresAt: this.#now() + ttlMs };
+    const stored: UndoEntry = {
+      ...entry,
+      fileIds: entry.fileIds ?? [],
+      links: entry.links ?? [],
+      children: entry.children ?? [],
+      expiresAt: this.#now() + ttlMs,
+    };
     this.#entries.set(hashToken(token), stored);
     return { token, entry: stored };
   }

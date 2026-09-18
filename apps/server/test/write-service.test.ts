@@ -16,7 +16,9 @@ import {
   NO_RECORD_HOOKS,
   bindValue,
   createWriteService,
+  insertRows,
   requestWriteContext,
+  uncheckedForUndo,
   unknownColumn,
   type AfterWriteEvent,
   type BeforeWriteEvent,
@@ -126,7 +128,7 @@ describe('with no hooks', () => {
 
     sink.queries.length = 0;
     const prepared = await writes.beforeEach('update', target, context, [{ match: { id: 1 }, values: { qty: 4 } }]);
-    expect(prepared).toEqual([{ values: { qty: 4 }, record: undefined }]);
+    expect(prepared).toEqual([{ values: { qty: 4 }, record: undefined, issues: null }]);
     await writes.afterEach('update', target, context, [{ record: before, before }]);
     expect(sink.queries).toEqual([]);
   });
@@ -293,14 +295,16 @@ describe('with hooks', () => {
       { match: { id: 2 }, values: { status: 'z' } },
     ]);
     expect(prepared).toEqual([
-      { values: { status: 'x', total: 200 }, record: expect.objectContaining({ id: 1 }) },
-      { values: { status: 'y' }, record: null },
-      { values: { status: 'z', total: 100 }, record: expect.objectContaining({ id: 2 }) },
+      { values: { status: 'x', total: 200 }, record: expect.objectContaining({ id: 1 }), issues: null },
+      { values: { status: 'y' }, record: null, issues: null },
+      { values: { status: 'z', total: 100 }, record: expect.objectContaining({ id: 2 }), issues: null },
     ]);
     expect(sink.queries.every((sql) => sql.startsWith('select'))).toBe(true);
 
     const deletes = await writes.beforeEach('delete', target, context, [{ match: { id: 2 }, values: {} }]);
-    expect(deletes).toEqual([{ values: {}, record: expect.objectContaining({ status: 'shipped' }) }]);
+    expect(deletes).toEqual([
+      { values: {}, record: expect.objectContaining({ status: 'shipped' }), issues: null },
+    ]);
 
     await writes.afterEach('delete', target, context, [
       { record: { id: 1 }, before: null },
@@ -345,5 +349,181 @@ describe('requestWriteContext', () => {
     const key = { user: null, apiKeyPrincipal: { kind: 'api-key', id: 'key_1', label: 'CI', roleId: 'rol_1' } };
     expect(requestWriteContext(key as never, 'bulk').actor).toEqual({ kind: 'api-key', id: 'key_1', label: 'CI' });
     expect(requestWriteContext({ user: null, apiKeyPrincipal: null } as never, 'undo').actor).toBeNull();
+  });
+});
+
+/* --------------------------------------------------- the rules, and the brand */
+
+/**
+ * The same `orders` table, with an `EffectiveTable` behind it so the rule
+ * engine has facts to read: a NOT NULL `created_at` with no database default
+ * and a NOT NULL `updated_at`, which is the shape the column rules exist for.
+ */
+function ruledTarget(base: WriteTarget): WriteTarget {
+  const effective = {
+    id: 'main.orders',
+    schema: 'main',
+    name: 'orders',
+    primaryKey: ['id'],
+    checks: [],
+    columns: [
+      { name: 'id', logicalType: 'integer', nullable: false, isPrimaryKey: true, isGenerated: false, default: { kind: 'autoincrement' }, enumRef: null, semantics: null },
+      { name: 'qty', logicalType: 'integer', nullable: true, isPrimaryKey: false, isGenerated: false, default: null, enumRef: null, semantics: null },
+      { name: 'created_at', logicalType: 'timestamptz', nullable: false, isPrimaryKey: false, isGenerated: false, default: null, enumRef: null, semantics: { primary: 'created-at', flags: { secret: false, pii: null, maskedByDefault: false }, format: null, pair: null, confidence: 1, source: 'heuristic' } },
+      { name: 'updated_at', logicalType: 'timestamptz', nullable: false, isPrimaryKey: false, isGenerated: false, default: null, enumRef: null, semantics: { primary: 'updated-at', flags: { secret: false, pii: null, maskedByDefault: false }, format: null, pair: null, confidence: 1, source: 'heuristic' } },
+    ],
+  };
+  const columns = new Map(table.columns);
+  for (const name of ['created_at', 'updated_at']) {
+    columns.set(name, column(name, 'timestamptz'));
+  }
+  return { ...base, table: { ...table, columns, table: effective as never } };
+}
+
+/** `orders` with a `mood` column whose values the database itself fixes. */
+function moodTarget(base: WriteTarget): WriteTarget {
+  const effective = {
+    id: 'main.orders',
+    checks: [],
+    columns: [
+      {
+        name: 'mood',
+        logicalType: 'enum',
+        nullable: true,
+        isPrimaryKey: false,
+        isGenerated: false,
+        default: null,
+        enumRef: 'main.mood',
+        semantics: null,
+      },
+    ],
+  };
+  const columns = new Map(table.columns);
+  columns.set('mood', column('mood', 'text'));
+  return {
+    ...base,
+    view: { model: { enums: [{ id: 'main.mood', name: 'mood', values: ['calm'], source: 'native' }] } } as never,
+    table: { ...table, columns, table: effective as never },
+  };
+}
+
+describe('the column rules inside the write path', () => {
+  it('fills an absent created_at, and lets a supplied value win', async () => {
+    raw.exec('DROP TABLE orders');
+    raw.exec('CREATE TABLE orders (id INTEGER PRIMARY KEY, qty INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
+    const writes = createWriteService();
+    const ruled = ruledTarget(target);
+    const created = await writes.create({ target: ruled, values: { id: 2, qty: 1 }, context, announce: async () => {} });
+    expect(typeof created['created_at']).toBe('string');
+    expect(created['created_at']).toBe(created['updated_at']);
+
+    const supplied = await writes.create({
+      target: ruled,
+      values: { id: 3, qty: 1, created_at: '1999-01-01T00:00:00.000Z' },
+      context,
+      announce: async () => {},
+    });
+    expect(supplied['created_at']).toBe('1999-01-01T00:00:00.000Z');
+  });
+
+  it('puts the filled column in the outcome the undo entry is built from', async () => {
+    raw.exec('DROP TABLE orders');
+    raw.exec('CREATE TABLE orders (id INTEGER PRIMARY KEY, qty INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
+    const writes = createWriteService();
+    const ruled = ruledTarget(target);
+    await writes.create({ target: ruled, values: { id: 2, qty: 1 }, context, announce: async () => {} });
+    const outcome = await writes.update({
+      target: ruled,
+      pk: { id: 2 },
+      values: { qty: 5 },
+      context,
+      announce: async () => {},
+    });
+    // `routes/data` hands `Object.keys(outcome.values)` to the undo entry as
+    // its changed columns. Without `updated_at` here, an undo would restore
+    // the row with the timestamp of the edit it just took back.
+    expect(Object.keys(outcome.values).sort()).toEqual(['qty', 'updated_at']);
+    // `created_at` is not an onUpdate fill, ever.
+    expect(outcome.values).not.toHaveProperty('created_at');
+  });
+
+  it('runs the fill BEFORE the hooks and the check AFTER them', async () => {
+    raw.exec('DROP TABLE orders');
+    raw.exec('CREATE TABLE orders (id INTEGER PRIMARY KEY, qty INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
+    let seenByHook: Row | null = null;
+    const hooks = fakeHooks({
+      before: (event) => {
+        seenByHook = { ...event.values };
+        event.values['qty'] = 9;
+      },
+    });
+    const writes = createWriteService({ hooks: () => hooks });
+    const stored = await writes.create({
+      target: ruledTarget(target),
+      values: { id: 2, qty: 1 },
+      context,
+      announce: async () => {},
+    });
+    expect(seenByHook).not.toBeNull();
+    expect(Object.keys(seenByHook ?? {})).toContain('created_at');
+    expect(stored['qty']).toBe(9);
+  });
+
+  it('brands the very same object when the table has no rules', () => {
+    const writes = createWriteService();
+    const values: Row = { qty: 1 };
+    const { rows: checked, issues } = writes.check('create', target, context, [values]);
+    expect(checked[0]).toBe(values);
+    expect(issues[0]).toBeNull();
+  });
+
+  it('reports a refused row rather than throwing, so a bulk caller decides', () => {
+    const writes = createWriteService();
+    const { rows: checked, issues } = writes.check('create', moodTarget(target), context, [
+      { mood: 'wibble' },
+      { mood: 'calm' },
+    ]);
+    expect(checked[0]).toBeNull();
+    expect(issues[0]).toEqual({ mood: { code: 'not-allowed' } });
+    expect(checked[1]).not.toBeNull();
+    expect(issues[1]).toBeNull();
+  });
+
+  it('throws a refusal through the caller’s own mapError', async () => {
+    raw.exec('DROP TABLE orders');
+    raw.exec('CREATE TABLE orders (id INTEGER PRIMARY KEY, mood TEXT)');
+    const enumTarget = moodTarget(target);
+    const writes = createWriteService();
+    // The public surface collapses every refusal into one opaque answer; it
+    // does that in `mapError`, so a refusal that skipped `mapError` would name
+    // columns and legal values to an anonymous caller.
+    let collapsed = false;
+    const mapError = (): never => {
+      collapsed = true;
+      throw new Error('refused');
+    };
+    await expect(
+      writes.create({ target: enumTarget, values: { mood: 'wibble' }, context, mapError, announce: async () => {} }),
+    ).rejects.toThrow('refused');
+    expect(collapsed).toBe(true);
+
+    // With no mapError the caller gets the named fields the dashboard renders.
+    await expect(
+      writes.create({ target: enumTarget, values: { mood: 'wibble' }, context, announce: async () => {} }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED', details: { fields: { mood: { code: 'not-allowed' } } } });
+  });
+
+  it('does not let an unchecked row reach a statement', async () => {
+    /*
+     * The whole point of the brand, and the assertion IS the `@ts-expect-error`
+     * below: `tsc` fails this file if that line ever stops being an error.
+     * `values` is an ordinary Row — the kind the CSV import's fast path used
+     * to hand straight to `insertRows` with no rule in sight.
+     */
+    const values: Row = { id: 99, qty: 1 };
+    // @ts-expect-error a Row is not a CheckedRow: only check() and uncheckedForUndo() make one
+    await insertRows(db, table, [values]);
+    // The one named escape compiles, and says why in its name.
+    await expect(insertRows(db, table, uncheckedForUndo([{ id: 98, qty: 1 }]))).resolves.toBeUndefined();
   });
 });

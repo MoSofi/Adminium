@@ -5,9 +5,10 @@
  */
 import type { ComponentType } from 'react';
 import type { PageEnvelope } from '@adminium/engine/config';
-import type { WidgetEvent } from '@adminium/widgets';
+import type { ColumnFacts, WidgetEvent } from '@adminium/widgets';
 
 import type { BoundCrudApi } from '../api/crud.js';
+import type { FormChildFactReply, FormColumnFactReply, FormRelationFactReply } from '../api/pages.js';
 import type { DashboardData } from '../api/widgetData.js';
 
 /** Everything a template needs from the app — data adapters + event sinks. */
@@ -53,6 +54,30 @@ export interface PageTemplateProps {
    *  defaults CLOSED when absent: a reveal control is only honest when the
    *  server said it sent the values in clear. */
   canUnmask?: boolean | undefined;
+  /**
+   * The source table as the server sees it right now (`columnFacts` on the
+   * page reply): who fills each column and which ones the create form has to
+   * ask for. The stored `config.columns[]` froze the day the page was
+   * generated and regeneration will not touch a page anybody has edited, so
+   * the form reads these instead. Absent ⇒ the stored spec decides.
+   */
+  columnFacts?: ColumnFacts | undefined;
+  /**
+   * The same block unkeyed and whole, in table order: what the create dialog's
+   * FORM DOCUMENT is derived from. `columnFacts` answers what the
+   * server says about a column the page already lists; this carries the columns
+   * themselves, including the ones the grid's eight-column cap never listed.
+   */
+  formColumns?: readonly FormColumnFactReply[] | undefined;
+  /** The link relations the table can write through (a field of chips each). */
+  formRelations?: readonly FormRelationFactReply[] | undefined;
+  /**
+   * The tables this one can hold a LIST of rows from — an invoice's lines,
+   * with the child's own columns. What a `child-rows` field is rendered from.
+   */
+  formChildren?: readonly FormChildFactReply[] | undefined;
+  /** The table's own singular label, which the dialog's words are built on. */
+  tableLabelSingular?: string | null | undefined;
   /**
    * The owning connection's ISO-4217 currency, resolved once by
    * `PageRenderer` from the bootstrap nav item.

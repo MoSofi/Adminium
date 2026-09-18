@@ -119,12 +119,32 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Forms',
+              items: [
+                { label: 'The create dialog', link: '/guides/forms/' },
+                { label: 'Designing a form', link: '/guides/forms/designing-a-form/' },
+                { label: 'Field types', link: '/guides/forms/field-types/' },
+                { label: 'References', link: '/guides/forms/references/' },
+                { label: 'Option lists', link: '/guides/forms/option-lists/' },
+                { label: 'What a field refuses', link: '/guides/forms/validation/' },
+                {
+                  label: 'Line items, dates and invitations',
+                  link: '/guides/forms/line-items-and-dates/',
+                },
+              ],
+            },
+            {
+              label: 'Pages',
+              items: [{ label: 'Filters', link: '/guides/pages/filters/' }],
+            },
+            {
               label: 'Edit your schema',
               items: [
                 {
                   label: 'Editing your schema',
                   link: '/guides/schema/editing-your-schema/',
                 },
+                { label: 'Column rules', link: '/guides/schema/column-rules/' },
               ],
             },
             {

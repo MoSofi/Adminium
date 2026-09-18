@@ -46,6 +46,76 @@
     "close": "Close dialog",
     "confirmTitle": "Are you sure?"
   },
+  "formDialog": {
+    "calendar": {
+      "days": "Days in {month}",
+      "next": "Next month",
+      "noTimes": "No times on this day",
+      "previous": "Previous month",
+      "times": "Times",
+      "unchecked": "This month has too many bookings to check here."
+    },
+    "control": {
+      "fewer": "One fewer",
+      "hide": "Hide",
+      "more": "One more",
+      "removeChip": "Remove {value}",
+      "reveal": "Show",
+      "upTo": "up to {size} MB"
+    },
+    "cta": {
+      "add": "Add {entity}",
+      "create": "Create {entity}"
+    },
+    "footnote": {
+      "required": "Required fields marked *"
+    },
+    "issue": {
+      "required": "This field is required.",
+      "notAllowed": "Choose one of the listed values.",
+      "invalid": "This value is not valid here.",
+      "email": "Enter a valid email address.",
+      "url": "Enter a valid web address.",
+      "phone": "Enter a valid phone number.",
+      "number": "Enter a number.",
+      "integer": "Enter a whole number.",
+      "tooShort": "Use at least {n} characters.",
+      "tooLong": "Use at most {n} characters.",
+      "tooSmall": "Must be {min} or more.",
+      "tooLarge": "Must be {max} or less.",
+      "outOfRange": "This number is out of range.",
+      "duplicate": "Already added.",
+      "form": "Some values were refused. Check the marked fields."
+    },
+    "lines": {
+      "add": "Add line",
+      "remove": "Remove line {n}"
+    },
+    "quick": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "thisWeek": "This week",
+      "nextWeek": "Next week",
+      "pickDate": "Pick a date",
+      "clear": "No {field}"
+    },
+    "reference": {
+      "noAccess": "You cannot read {table}, so this cannot be changed here."
+    },
+    "subtitle": {
+      "sections": "{list} details"
+    },
+    "title": {
+      "create": "New {entity}",
+      "edit": "Edit {entity}"
+    },
+    "wizard": {
+      "rail": "Steps",
+      "step": "Step {n}",
+      "back": "Back",
+      "next": "Continue"
+    }
+  },
   "combobox": {
     "placeholder": "Select…",
     "search": "Search…",
@@ -1438,53 +1508,23 @@
   },
   "templates": {
     "crud": {
-      "newRow": "New row",
-      "exportAction": "Export",
-      "searchPlaceholder": "Search {table}…",
-      "removeFilter": "Remove {column} filter",
-      "queryFailed": "Query failed",
-      "loadingRows": "Loading rows",
-      "noMatchesTitle": "No matching rows",
-      "emptyTitle": "{count, plural, one {No {entity} yet} other {No {entity}s yet}}",
-      "createTitle": "Add {entity}",
-      "createSubtitle": "Creates one row in {table}.",
-      "createSubmit": "Add {entity}",
-      "createSuccessTitle": "{name} added",
-      "createSuccessBody": "You can undo this from the toast.",
-      "editTitle": "Edit {entity}",
-      "saveSubmit": "Save changes",
-      "deleteTitle": "Delete {entity}",
-      "deletePreflight": "Checking references…",
-      "deleteNoReferences": "This row has no inbound references.",
-      "deleteConsequencesIntro": "Deleting this row also affects:",
-      "referenceRows": "{count, plural, one {{n} row} other {{n} rows}}",
-      "confirmPrompt": "Type {value} to confirm",
-      "bulkDeleteTitle": "{count, plural, one {Delete {n} row} other {Delete {n} rows}}",
       "bulkDeleteBody": "Referential consequences apply to every selected row.",
       "bulkDeleteConfirm": "Delete rows",
-      "uniqueHelper": "Must be unique in {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}",
-      "toast": {
-        "created": "{entity} created.",
-        "createFailed": "Create failed.",
-        "saved": "Changes saved.",
-        "updateFailed": "Update failed.",
-        "deleted": "{name} deleted.",
-        "deleteFailed": "Delete failed.",
-        "bulkDeleted": "{count, plural, one {{n} row deleted.} other {{n} rows deleted.}}",
-        "bulkDeleteFailed": "Bulk delete failed.",
-        "exportIncomplete": "Exported {written, number} of {selected, number} selected rows — reload and try again.",
-        "undone": "Change undone.",
-        "undoFailed": "Undo failed."
-      },
+      "bulkDeleteTitle": "{count, plural, one {Delete {n} row} other {Delete {n} rows}}",
+      "confirmPrompt": "Type {value} to confirm",
+      "createSubtitle": "Creates one row in {table}.",
+      "deleteConsequencesIntro": "Deleting this row also affects:",
+      "deleteNoReferences": "This row has no inbound references.",
+      "deletePreflight": "Checking references…",
+      "deleteTitle": "Delete {entity}",
       "detail": {
         "fields": "Fields",
         "inboundReferences": "inbound references",
         "relatedCount": "{count, plural, one {{n} related record in {table}} other {{n} related records in {table}}}",
         "loadError": "Failed to load the record."
       },
-      "peekAction": "Peek",
-      "openPage": "Open page",
+      "emptyTitle": "{count, plural, one {No {entity} yet} other {No {entity}s yet}}",
+      "exportAction": "Export",
       "file": {
         "tooLarge": "That file is larger than the {limit} limit.",
         "uploading": "Uploading",
@@ -1495,7 +1535,44 @@
         "add": "Add files",
         "removeNamed": "Remove {name}",
         "capReached": "This record accepts at most {count, plural, one {# file} other {# files}}."
-      }
+      },
+      "filters": {
+        "chip": "{name}: {values}",
+        "custom": "Custom",
+        "days": "{days}d",
+        "from": "from {value}",
+        "no": "No",
+        "rangeFrom": "From",
+        "rangeTo": "To",
+        "to": "to {value}",
+        "yes": "Yes"
+      },
+      "loadingRows": "Loading rows",
+      "newRow": "New row",
+      "noMatchesTitle": "No matching rows",
+      "openPage": "Open page",
+      "peekAction": "Peek",
+      "queryFailed": "Query failed",
+      "referenceRows": "{count, plural, one {{n} row} other {{n} rows}}",
+      "removeFilter": "Remove {column} filter",
+      "saveSubmit": "Save changes",
+      "searchPlaceholder": "Search {table}…",
+      "toast": {
+        "bulkDeleteFailed": "Bulk delete failed.",
+        "bulkDeleted": "{count, plural, one {{n} row deleted.} other {{n} rows deleted.}}",
+        "createFailed": "Create failed.",
+        "created": "{entity} created.",
+        "createdMany": "{count, plural, one {# record created.} other {# records created.}}",
+        "deleteFailed": "Delete failed.",
+        "deleted": "{name} deleted.",
+        "exportIncomplete": "Exported {written, number} of {selected, number} selected rows — reload and try again.",
+        "saved": "Changes saved.",
+        "undoFailed": "Undo failed.",
+        "undone": "Change undone.",
+        "updateFailed": "Update failed."
+      },
+      "uniqueHelper": "Must be unique in {table}.",
+      "uniqueHelperCounted": "{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}"
     },
     "queue": {
       "allSegment": "All",
@@ -1842,6 +1919,18 @@
     "make": {
       "label": "Make a document",
       "one": "Make {name}"
+    }
+  },
+  "lists": {
+    "name": {
+      "countries": "Countries",
+      "us-states": "US states",
+      "gender": "Gender"
+    },
+    "gender": {
+      "female": "Female",
+      "male": "Male",
+      "other": "Other"
     }
   }
 }

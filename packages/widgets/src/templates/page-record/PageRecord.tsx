@@ -3,15 +3,13 @@ import {
   Badge,
   Button,
   ConfirmModal,
-  Drawer,
-  DrawerBody,
-  DrawerHeader,
   EmptyState,
   KeyValueList,
   KeyValueRow,
   MonoText,
   Spinner,
   Tabs,
+  Tag,
   TabsContent,
   TabsList,
   TabsTrigger,
@@ -22,7 +20,9 @@ import { useMaybeT } from '@adminium/i18n/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { RecordForm } from '../page-crud/RecordForm.js';
+import { RecordFormDialog } from '../page-crud/RecordFormDialog.js';
+import type { ControlOption } from '../page-crud/controls/index.js';
+import type { FormRelationFact } from '../../page-config/index.js';
 import { isDeletePreview } from '../page-crud/crud-api.js';
 import type {
   CrudApi,
@@ -225,6 +225,11 @@ export interface PageRecordProps {
   canUpdate?: boolean | undefined;
   canDelete?: boolean | undefined;
   canUnmask?: boolean | undefined;
+  /**
+   * The link relations this table can write through. The record shows what
+   * each one points at as chips, and the edit dialog offers the same field.
+   */
+  relations?: readonly FormRelationFact[] | undefined;
   onEvent?: ((event: WidgetEvent) => void) | undefined;
   /** The record was deleted — navigate off the page. */
   onDeleted?: ((undoToken: string | null) => void) | undefined;
@@ -493,35 +498,24 @@ function RelatedRecordsTab({
       {t('ui:templates.crud.newRow', 'New row')}
     </Button>
   ) : null;
+  /*
+   * The related tab's "New row" — the SAME dialog as the table page's create
+   * (D3). The parent key is still injected at submit and its column is still
+   * stripped from the form; what changed is the container it lives in.
+   */
   const createDrawer = creatable ? (
-    <Drawer open={createOpen} onOpenChange={(open) => !open && setCreateOpen(false)} size="md">
-      <DrawerHeader
-        title={t('ui:templates.crud.createTitle', 'Add {entity}', { entity: childEntity })}
-        closeLabel={t('ui:action.close', 'Close')}
-      />
-      <DrawerBody>
-        {createOpen && (
-          <RecordForm
-            formId={`page-record-add-${tab.table}`}
-            columns={createColumns}
-            mode="create"
-            errors={createErrors}
-            lookup={crud.lookup?.bind(crud)}
-            onSubmit={handleCreate}
-            footer={
-              <div className="flex justify-end gap-2 pt-1">
-                <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
-                  {t('ui:action.cancel', 'Cancel')}
-                </Button>
-                <Button type="submit">
-                  {t('ui:templates.crud.createSubmit', 'Add {entity}', { entity: childEntity })}
-                </Button>
-              </div>
-            }
-          />
-        )}
-      </DrawerBody>
-    </Drawer>
+    <RecordFormDialog
+      open={createOpen}
+      onOpenChange={(open) => !open && setCreateOpen(false)}
+      mode="create"
+      entity={childEntity}
+      tableName={tab.table}
+      formId={`page-record-add-${tab.table}`}
+      columns={createColumns}
+      errors={createErrors}
+      lookup={crud.lookup?.bind(crud)}
+      onSubmit={handleCreate}
+    />
   ) : null;
 
   if (fkColumn === undefined) {
@@ -918,6 +912,7 @@ export function PageRecord({
   canUpdate = true,
   canDelete = true,
   canUnmask = false,
+  relations,
   attachments,
   canAttach = false,
   maxFileBytes,
@@ -942,6 +937,11 @@ export function PageRecord({
 
   const [editOpen, setEditOpen] = useState(false);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  /**
+   * What each link relation points at, with names: the chips this record shows,
+   * and the set the edit dialog starts from. Re-read whenever the record is.
+   */
+  const [links, setLinks] = useState<Record<string, ControlOption[]>>({});
   const [deleteTarget, setDeleteTarget] = useState<{ references: CrudReferenceCount[]; loaded: boolean } | null>(null);
 
   useEffect(() => {
@@ -964,6 +964,44 @@ export function PageRecord({
       alive = false;
     };
   }, [api, recordId, reloadTick]);
+
+  /*
+   * The links, one read per relation, alongside the record's own. A table with
+   * no link relation — or a host whose api cannot read them — makes no request
+   * at all and renders exactly as it did before link fields existed.
+   */
+  useEffect(() => {
+    const readLinks = api.links?.bind(api);
+    if (relations === undefined || relations.length === 0 || readLinks === undefined) {
+      setLinks({});
+      return;
+    }
+    let alive = true;
+    void Promise.all(
+      relations.map(async (relation) => {
+        try {
+          const rows = await readLinks(recordId, relation.relationId);
+          return [
+            relation.relationId,
+            rows.map((row) => ({
+              value: row.key,
+              label: row.name,
+              ...(row.detail === undefined ? {} : { description: row.detail }),
+            })),
+          ] as const;
+        } catch {
+          // A relation this caller cannot read shows nothing rather than
+          // breaking the record; the write path refuses a save anyway.
+          return [relation.relationId, []] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (alive) setLinks(Object.fromEntries(entries));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [api, recordId, reloadTick, relations]);
 
   const cellContext: CellContext = useMemo(
     () => ({
@@ -1009,10 +1047,16 @@ export function PageRecord({
   const showEdit = writable && canUpdate;
   const showDelete = writable && canDelete;
 
-  const handleUpdate = (values: CrudRow) => {
+  const handleUpdate = (values: CrudRow, changedLinks?: Record<string, string[]>) => {
     setEditErrors({});
     api
-      .update(recordId, values)
+      .update(
+        ...((changedLinks === undefined ? [recordId, values] : [recordId, values, changedLinks]) as [
+          string,
+          CrudRow,
+          Record<string, string[]>?,
+        ]),
+      )
       .then((updated) => {
         setEditOpen(false);
         queue.push({
@@ -1200,6 +1244,32 @@ export function PageRecord({
         ))}
       </div>
 
+      {/*
+        * What this record is LINKED to (F8). Chips rather than a tab: a
+        * relation is a property of the record — "this booking's services" —
+        * and a tab would file it with the child rows that belong to it.
+        */}
+      {(relations ?? []).some((relation) => (links[relation.relationId] ?? []).length > 0) && (
+        <div className="flex flex-col gap-3" data-part="record-links">
+          {(relations ?? []).map((relation) => {
+            const rows = links[relation.relationId] ?? [];
+            if (rows.length === 0) return null;
+            return (
+              <div key={relation.relationId} className="flex flex-col gap-1.5">
+                <span className="text-caption text-fg-subtle">{relation.label}</span>
+                <ul className="flex flex-wrap gap-1.5">
+                  {rows.map((row) => (
+                    <li key={row.value}>
+                      <Tag tone="accent">{row.label ?? row.value}</Tag>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Related-record tabs + Activity (D4/D6). */}
       {(hasTabs || hasActivity || hasAttachments) && (
         <Tabs defaultValue={hasTabs ? `tab-0` : hasAttachments ? '__attachments' : '__activity'}>
@@ -1296,35 +1366,24 @@ export function PageRecord({
         </div>
       )}
 
-      {/* Edit — the existing generated-form flow (D4). */}
+      {/* Edit — the same dialog as every other form in the product (D3). */}
       {showEdit && (
-        <Drawer open={editOpen} onOpenChange={(open) => !open && setEditOpen(false)} size="md">
-          <DrawerHeader
-            title={t('ui:templates.crud.editTitle', 'Edit {entity}', { entity })}
-            closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
-          />
-          <DrawerBody>
-            {editOpen && (
-              <RecordForm
-                formId="page-record-edit-form"
-                columns={columns}
-                mode="edit"
-                initialValues={record}
-                errors={editErrors}
-                lookup={api.lookup?.bind(api)}
-                onSubmit={handleUpdate}
-                footer={
-                  <div className="flex justify-end gap-2 pt-1">
-                    <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
-                      {t('ui:action.cancel', 'Cancel')}
-                    </Button>
-                    <Button type="submit">{t('ui:templates.crud.saveSubmit', 'Save changes')}</Button>
-                  </div>
-                }
-              />
-            )}
-          </DrawerBody>
-        </Drawer>
+        <RecordFormDialog
+          open={editOpen}
+          onOpenChange={(open) => !open && setEditOpen(false)}
+          mode="edit"
+          entity={entity}
+          tableName={source.table}
+          formId="page-record-edit-form"
+          columns={columns}
+          {...(relations === undefined ? {} : { relations, initialLinks: links })}
+          initialValues={record}
+          errors={editErrors}
+          lookup={api.lookup?.bind(api)}
+          availability={api.availability?.bind(api)}
+          onSubmit={handleUpdate}
+          {...(labels?.close === undefined ? {} : { labels: { close: labels.close } })}
+        />
       )}
 
       {/* Cascade-aware type-to-confirm delete — same flow as the list (D4). */}

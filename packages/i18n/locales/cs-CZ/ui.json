@@ -46,6 +46,76 @@
     "close": "Zavřít dialog",
     "confirmTitle": "Opravdu?"
   },
+  "formDialog": {
+    "calendar": {
+      "days": "Dny v měsíci {month}",
+      "next": "Další měsíc",
+      "noTimes": "V tento den nejsou žádné časy",
+      "previous": "Předchozí měsíc",
+      "times": "Časy",
+      "unchecked": "Tento měsíc má příliš mnoho rezervací, než aby se dal zde ověřit."
+    },
+    "control": {
+      "fewer": "O jedna míň",
+      "hide": "Skrýt",
+      "more": "O jedna víc",
+      "removeChip": "Odebrat {value}",
+      "reveal": "Zobrazit",
+      "upTo": "až {size} MB"
+    },
+    "cta": {
+      "add": "Přidat {entity}",
+      "create": "Vytvořit {entity}"
+    },
+    "footnote": {
+      "required": "Povinná pole jsou označena *"
+    },
+    "issue": {
+      "required": "Toto pole je povinné.",
+      "notAllowed": "Vyberte jednu z uvedených hodnot.",
+      "invalid": "Tato hodnota zde není platná.",
+      "email": "Zadejte platnou e-mailovou adresu.",
+      "url": "Zadejte platnou webovou adresu.",
+      "phone": "Zadejte platné telefonní číslo.",
+      "number": "Zadejte číslo.",
+      "integer": "Zadejte celé číslo.",
+      "tooShort": "Použijte alespoň {n} znaků.",
+      "tooLong": "Použijte nejvýše {n} znaků.",
+      "tooSmall": "Musí být {min} nebo více.",
+      "tooLarge": "Musí být {max} nebo méně.",
+      "outOfRange": "Toto číslo je mimo rozsah.",
+      "duplicate": "Již přidáno.",
+      "form": "Některé hodnoty byly odmítnuty. Zkontrolujte označená pole."
+    },
+    "lines": {
+      "add": "Přidat řádek",
+      "remove": "Odebrat řádek {n}"
+    },
+    "quick": {
+      "today": "Dnes",
+      "tomorrow": "Zítra",
+      "thisWeek": "Tento týden",
+      "nextWeek": "Příští týden",
+      "pickDate": "Vybrat datum",
+      "clear": "Žádné {field}"
+    },
+    "reference": {
+      "noAccess": "Nemáte přístup ke čtení tabulky {table}, takže to zde nelze změnit."
+    },
+    "subtitle": {
+      "sections": "Údaje: {list}"
+    },
+    "title": {
+      "create": "Nový záznam: {entity}",
+      "edit": "Upravit {entity}"
+    },
+    "wizard": {
+      "rail": "Kroky",
+      "step": "Krok {n}",
+      "back": "Zpět",
+      "next": "Pokračovat"
+    }
+  },
   "combobox": {
     "placeholder": "Vyberte…",
     "search": "Hledat…",
@@ -1438,53 +1508,23 @@
   },
   "templates": {
     "crud": {
-      "newRow": "Nový řádek",
-      "exportAction": "Exportovat",
-      "searchPlaceholder": "Hledat v {table}…",
-      "removeFilter": "Odebrat filtr {column}",
-      "queryFailed": "Dotaz selhal",
-      "loadingRows": "Načítání řádků",
-      "noMatchesTitle": "Žádné odpovídající řádky",
-      "emptyTitle": "{count, plural, one {Zatím žádný záznam ({entity})} few {Zatím žádné záznamy ({entity})} many {Zatím žádné záznamy ({entity})} other {Zatím žádné záznamy ({entity})}}",
-      "createTitle": "Přidat {entity}",
-      "createSubtitle": "Vytvoří jeden řádek v {table}.",
-      "createSubmit": "Přidat {entity}",
-      "createSuccessTitle": "{name} přidáno",
-      "createSuccessBody": "Tuto změnu můžete vrátit zpět z oznámení.",
-      "editTitle": "Upravit {entity}",
-      "saveSubmit": "Uložit změny",
-      "deleteTitle": "Smazat {entity}",
-      "deletePreflight": "Kontrola odkazů…",
-      "deleteNoReferences": "Na tento řádek nic neodkazuje.",
-      "deleteConsequencesIntro": "Smazání tohoto řádku ovlivní také:",
-      "referenceRows": "{count, plural, one {{n} řádek} few {{n} řádky} many {{n} řádku} other {{n} řádků}}",
-      "confirmPrompt": "Potvrďte zadáním {value}",
-      "bulkDeleteTitle": "{count, plural, one {Smazat {n} řádek} few {Smazat {n} řádky} many {Smazat {n} řádku} other {Smazat {n} řádků}}",
       "bulkDeleteBody": "Důsledky pro odkazy platí pro každý vybraný řádek.",
       "bulkDeleteConfirm": "Smazat řádky",
-      "uniqueHelper": "Musí být jedinečné v {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Ověřeno proti {n} řádku.} few {Ověřeno proti {n} řádkům.} many {Ověřeno proti {n} řádku.} other {Ověřeno proti {n} řádkům.}}",
-      "toast": {
-        "created": "{entity} vytvořeno.",
-        "createFailed": "Vytvoření se nezdařilo.",
-        "saved": "Změny uloženy.",
-        "updateFailed": "Aktualizace se nezdařila.",
-        "deleted": "{name} smazáno.",
-        "deleteFailed": "Smazání se nezdařilo.",
-        "bulkDeleted": "{count, plural, one {Smazán {n} řádek.} few {Smazány {n} řádky.} many {Smazáno {n} řádku.} other {Smazáno {n} řádků.}}",
-        "bulkDeleteFailed": "Hromadné smazání se nezdařilo.",
-        "exportIncomplete": "Exportováno {written, number} z {selected, number} vybraných řádků — načtěte stránku znovu a zkuste to znovu.",
-        "undone": "Změna vrácena zpět.",
-        "undoFailed": "Vrácení zpět se nezdařilo."
-      },
+      "bulkDeleteTitle": "{count, plural, one {Smazat {n} řádek} few {Smazat {n} řádky} many {Smazat {n} řádku} other {Smazat {n} řádků}}",
+      "confirmPrompt": "Potvrďte zadáním {value}",
+      "createSubtitle": "Vytvoří jeden řádek v {table}.",
+      "deleteConsequencesIntro": "Smazání tohoto řádku ovlivní také:",
+      "deleteNoReferences": "Na tento řádek nic neodkazuje.",
+      "deletePreflight": "Kontrola odkazů…",
+      "deleteTitle": "Smazat {entity}",
       "detail": {
         "fields": "Pole",
         "inboundReferences": "příchozí odkazy",
         "relatedCount": "{count, plural, one {{n} související záznam v {table}} few {{n} související záznamy v {table}} many {{n} souvisejícího záznamu v {table}} other {{n} souvisejících záznamů v {table}}}",
         "loadError": "Záznam se nepodařilo načíst."
       },
-      "peekAction": "Náhled",
-      "openPage": "Otevřít stránku",
+      "emptyTitle": "{count, plural, one {Zatím žádný záznam ({entity})} few {Zatím žádné záznamy ({entity})} many {Zatím žádné záznamy ({entity})} other {Zatím žádné záznamy ({entity})}}",
+      "exportAction": "Exportovat",
       "file": {
         "tooLarge": "Soubor je větší než limit {limit}.",
         "uploading": "Nahrávání",
@@ -1495,7 +1535,44 @@
         "add": "Přidat soubory",
         "removeNamed": "Odebrat {name}",
         "capReached": "Tento záznam přijme nejvýše {count, plural, one {# soubor} few {# soubory} other {# souborů}}."
-      }
+      },
+      "filters": {
+        "chip": "{name}: {values}",
+        "custom": "Vlastní",
+        "days": "{days} d",
+        "from": "od {value}",
+        "no": "Ne",
+        "rangeFrom": "Od",
+        "rangeTo": "Do",
+        "to": "do {value}",
+        "yes": "Ano"
+      },
+      "loadingRows": "Načítání řádků",
+      "newRow": "Nový řádek",
+      "noMatchesTitle": "Žádné odpovídající řádky",
+      "openPage": "Otevřít stránku",
+      "peekAction": "Náhled",
+      "queryFailed": "Dotaz selhal",
+      "referenceRows": "{count, plural, one {{n} řádek} few {{n} řádky} many {{n} řádku} other {{n} řádků}}",
+      "removeFilter": "Odebrat filtr {column}",
+      "saveSubmit": "Uložit změny",
+      "searchPlaceholder": "Hledat v {table}…",
+      "toast": {
+        "bulkDeleteFailed": "Hromadné smazání se nezdařilo.",
+        "bulkDeleted": "{count, plural, one {Smazán {n} řádek.} few {Smazány {n} řádky.} many {Smazáno {n} řádku.} other {Smazáno {n} řádků.}}",
+        "createFailed": "Vytvoření se nezdařilo.",
+        "created": "{entity} vytvořeno.",
+        "createdMany": "{count, plural, one {# záznam vytvořen.} few {# záznamy vytvořeny.} many {# záznamu vytvořeno.} other {# záznamů vytvořeno.}}",
+        "deleteFailed": "Smazání se nezdařilo.",
+        "deleted": "{name} smazáno.",
+        "exportIncomplete": "Exportováno {written, number} z {selected, number} vybraných řádků — načtěte stránku znovu a zkuste to znovu.",
+        "saved": "Změny uloženy.",
+        "undoFailed": "Vrácení zpět se nezdařilo.",
+        "undone": "Změna vrácena zpět.",
+        "updateFailed": "Aktualizace se nezdařila."
+      },
+      "uniqueHelper": "Musí být jedinečné v {table}.",
+      "uniqueHelperCounted": "{count, plural, one {Ověřeno proti {n} řádku.} few {Ověřeno proti {n} řádkům.} many {Ověřeno proti {n} řádku.} other {Ověřeno proti {n} řádkům.}}"
     },
     "queue": {
       "allSegment": "Vše",
@@ -1842,6 +1919,18 @@
     "make": {
       "label": "Vytvořit doklad",
       "one": "Vytvořit {name}"
+    }
+  },
+  "lists": {
+    "name": {
+      "countries": "Země",
+      "us-states": "Státy USA",
+      "gender": "Pohlaví"
+    },
+    "gender": {
+      "female": "Žena",
+      "male": "Muž",
+      "other": "Jiné"
     }
   }
 }

@@ -56,6 +56,7 @@ import { up as up0031 } from './0031_documents.js';
 import { up as up0032 } from './0032_nav_group_width.js';
 import { up as up0033 } from './0033_connection_project_key.js';
 import { up as up0034 } from './0034_project_files.js';
+import { up as up0035 } from './0035_option_lists.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -99,4 +100,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0032_nav_group_width', up: up0032 },
   { name: '0033_connection_project_key', up: up0033 },
   { name: '0034_project_files', up: up0034 },
+  { name: '0035_option_lists', up: up0035 },
 ];

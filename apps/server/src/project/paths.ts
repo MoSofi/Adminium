@@ -1,22 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Where a project keeps its pages and schema customizations, and how a path
- * names what it holds. Paths are always written with `/`, whatever the
+ * Where a project keeps its pages, its schema customizations and its option
+ * lists, and how a path names what it holds. Paths are always written with `/`, whatever the
  * operating system, because they are stored and compared as keys.
  */
 
 import path from 'node:path';
 
 import { PROJECT_KEY_PATTERN } from './config.js';
+import { LIST_KEY_PATTERN } from './list-files.js';
 
 export const PAGES_DIR = 'pages';
 export const SCHEMA_DIR = 'schema';
+export const LISTS_DIR = 'lists';
 
 /** A page slug, as the page routes accept it: kebab-case, at most 31 characters. */
 export const PAGE_SLUG_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 export const PAGE_SLUG_MAX = 31;
 
-export type ProjectFileKind = { kind: 'page'; slug: string } | { kind: 'schema'; key: string };
+export type ProjectFileKind =
+  | { kind: 'page'; slug: string }
+  | { kind: 'schema'; key: string }
+  | { kind: 'list'; key: string };
 
 export function pagePath(slug: string): string {
   return `${PAGES_DIR}/${slug}.json`;
@@ -24,6 +29,10 @@ export function pagePath(slug: string): string {
 
 export function schemaPath(key: string): string {
   return `${SCHEMA_DIR}/${key}.json`;
+}
+
+export function listPath(key: string): string {
+  return `${LISTS_DIR}/${key}.json`;
 }
 
 export function isPageSlug(slug: string): boolean {
@@ -37,12 +46,15 @@ export function isPageSlug(slug: string): boolean {
  * `valid: false`, so `check` can say what is wrong with it.
  */
 export function parseProjectPath(path: string): (ProjectFileKind & { valid: boolean }) | null {
-  const match = /^(pages|schema)\/([^/]+)\.json$/.exec(path);
+  const match = /^(pages|schema|lists)\/([^/]+)\.json$/.exec(path);
   if (match === null) return null;
   const [, dir, name] = match as unknown as [string, string, string];
   // `_nav.json` and other underscore files are reserved for later formats.
   if (name.startsWith('_') || name.startsWith('.')) return null;
   if (dir === PAGES_DIR) return { kind: 'page', slug: name, valid: isPageSlug(name) };
+  // A list's file name is its KEY, which is the slug every rule that names the
+  // list spells — not a database key, which is what `schema/` holds.
+  if (dir === LISTS_DIR) return { kind: 'list', key: name, valid: LIST_KEY_PATTERN.test(name) };
   return { kind: 'schema', key: name, valid: PROJECT_KEY_PATTERN.test(name) };
 }
 

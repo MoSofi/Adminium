@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type * as React from 'react';
 
@@ -26,6 +26,20 @@ export interface NumberStepperProps
   decrementLabel: string;
   /** Danger border + focus ring + `aria-invalid`. */
   error?: boolean | undefined;
+  /**
+   * `field` (default) is the chevron column inside the input's chrome — the
+   * shape every existing caller renders. `buttons` is the design comp's own:
+   * a −, a big mono value and a ＋,
+   * each a 34px bordered square, with the unit beside them.
+   *
+   * Two layouts rather than two components because it is one control with one
+   * contract: the same value, the same bounds, the same step, the same
+   * `spinbutton` semantics. What differs is how much room the number is given,
+   * and that is a caller's decision.
+   */
+  layout?: 'field' | 'buttons' | undefined;
+  /** The word after the number in the `buttons` layout: "guests", "seats". */
+  unit?: string | undefined;
   /** Extra classes for the inner `<input>` (className styles the wrapper). */
   inputClassName?: string | undefined;
 }
@@ -55,6 +69,8 @@ export function NumberStepper({
   incrementLabel,
   decrementLabel,
   error = false,
+  layout = 'field',
+  unit,
   disabled,
   ref,
   ...inputProps
@@ -84,9 +100,75 @@ export function NumberStepper({
   const atMin = current !== null && min !== undefined && current <= min;
   const atMax = current !== null && max !== undefined && current >= max;
 
+  const bigButtonClasses =
+    'flex size-[34px] shrink-0 items-center justify-center rounded-md border border-border-strong bg-surface text-fg-muted ' +
+    'transition-colors hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-40 ' +
+    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+
   const stepperButtonClasses =
     'flex h-1/2 w-6 items-center justify-center text-fg-subtle transition-colors hover:bg-surface-3 hover:text-fg ' +
     'disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent';
+
+  if (layout === 'buttons') {
+    /*
+     * The value is a `spinbutton` in its own right — NOT a number input made to
+     * look like text. Arrow keys, Home/End and a typed value all have to keep
+     * working: the comp draws two buttons and a number, and a person who
+     * reaches it by keyboard still expects to type into it.
+     */
+    return (
+      <div className={cn('flex items-center gap-2.5', disabled === true && 'opacity-40', className)}>
+        <button
+          type="button"
+          aria-label={decrementLabel}
+          disabled={disabled === true || atMin}
+          onClick={() => stepBy(-1)}
+          className={bigButtonClasses}
+        >
+          <Minus aria-hidden="true" className="size-[15px]" />
+        </button>
+        <input
+          ref={setRef}
+          type="number"
+          inputMode="numeric"
+          value={current ?? ''}
+          onChange={(event) => {
+            const parsed = event.target.value === '' ? null : event.target.valueAsNumber;
+            commit(parsed === null || Number.isNaN(parsed) ? null : parsed);
+          }}
+          {...(min !== undefined ? { min } : {})}
+          {...(max !== undefined ? { max } : {})}
+          step={step}
+          disabled={disabled}
+          {...(error ? { 'aria-invalid': true as const } : {})}
+          className={cn(
+            'min-w-[3ch] bg-transparent text-center font-mono text-[15px] font-extrabold tabular-nums text-fg',
+            'focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+            'w-[var(--adm-stepper-width)]',
+            inputClassName,
+          )}
+          // The field grows with the number it holds, so the width is a value
+          // rather than a class — through a custom property, the one shape the
+          // tokens-only rule allows.
+          style={{ '--adm-stepper-width': `${String(Math.max(String(current ?? '').length, 2))}ch` }}
+          {...inputProps}
+        />
+        <button
+          type="button"
+          aria-label={incrementLabel}
+          disabled={disabled === true || atMax}
+          onClick={() => stepBy(1)}
+          className={bigButtonClasses}
+        >
+          <Plus aria-hidden="true" className="size-[15px]" />
+        </button>
+        {unit === undefined ? null : (
+          <span className="ms-0.5 text-caption text-fg-subtle">{unit}</span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

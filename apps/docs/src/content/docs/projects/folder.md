@@ -14,6 +14,8 @@ my-admin/
 │   └── revenue.tsx        a page you wrote
 ├── schema/
 │   └── main.json          labels, hidden columns and masks for database "main"
+├── lists/
+│   └── stages.json        the answers a column accepts, named once
 ├── hooks/                 code that runs before or after a record is saved
 ├── actions/               buttons on records that run your code
 ├── widgets/               your own table cells and dashboard cards
@@ -27,9 +29,9 @@ my-admin/
 └── package.json           @adminiumjs/adminium, pinned to one exact version
 ```
 
-`pages/`, `schema/`, `hooks/`, `actions/` and `widgets/` are all optional: a
-project with none of them still runs, and the first `npm run dev` fills the
-first two in.
+`pages/`, `schema/`, `lists/`, `hooks/`, `actions/` and `widgets/` are all
+optional: a project with none of them still runs, and the first `npm run dev`
+fills the first two in.
 
 ## `adminium.config.ts`
 
@@ -173,7 +175,7 @@ Everything except the four the template already ignores: `node_modules/`,
 | Schema customizations (`schema/`) | Settings, including email and branding |
 | Your hooks, actions, pages and widgets | Saved views and personal dashboard layouts |
 | The config, the Dockerfile, `.env.example` | Email and report templates, automations |
-| | Installed apps and add-ons, the audit log, jobs |
+| Option lists (`lists/`) | Installed apps and add-ons, the audit log, jobs |
 
 The split is deliberate: the folder holds what a developer reviews in a pull
 request, and the database holds what people change while using the admin.

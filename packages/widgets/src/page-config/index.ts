@@ -45,6 +45,76 @@ export {
   parseCrudLabels,
   type CrudLabelsConfig,
 } from './crud-labels.js';
+// `page-crud`'s stored `config.form` block (v2) and the ONE derivation every
+// caller shares. A page carries the block only when somebody designed a form;
+// with none, the document is derived from the reply's live column facts.
+// The built-in option lists. A leaf for the same
+// reason the rest of this module is one: the SERVER asks it about membership
+// through `@adminium/engine/config`, and the dashboard renders from it.
+export {
+  builtinOptionItems,
+  builtinOptionValues,
+  BUILTIN_OPTION_LIST_KEYS,
+  BUILTIN_PREFIX,
+  COUNTRY_CODES,
+  GENDER_VALUES,
+  isBuiltinOptionList,
+  optionListItemSchema,
+  optionListSchema,
+  US_STATES,
+  type BuiltinOptionListKey,
+  type OptionList,
+  type OptionListItem,
+} from './option-lists.js';
+export {
+  crudFiltersConfigSchema,
+  deriveFilters,
+  filterControlFor,
+  filtersFor,
+  legalFilterControls,
+  parseCrudFilters,
+  FILTER_CONTROLS,
+  MAX_DERIVED_FILTERS,
+  MAX_FILTERS,
+  type CrudFilterField,
+  type FilterColumnFact,
+  type FilterControl,
+} from './crud-filters.js';
+export {
+  computeTotals,
+  DEFAULT_TOTALS_SCALE,
+  type TotalsResult,
+  type TotalsRowSpec,
+  type TotalsSpec,
+} from './child-totals.js';
+export {
+  controlFor,
+  crudFormConfigSchema,
+  deriveFormDocument,
+  formDocumentFor,
+  FORM_CONTROLS,
+  FORM_PRESETS,
+  legalControls,
+  MAX_FORM_FIELDS,
+  MAX_FORM_SECTIONS,
+  parseCrudForm,
+  SEGMENTED_MAX_ARITY as FORM_SEGMENTED_MAX_ARITY,
+  type CrudFormChildColumn,
+  type CrudFormChildTotals,
+  type CrudFormColumnField,
+  type CrudFormRecapField,
+  type CrudFormConfig,
+  type CrudFormField,
+  type CrudFormRelationField,
+  type FormRelationFact,
+  type CrudFormSection,
+  type DeriveFormInput,
+  type FormColumnFact,
+  type FormColumnShape,
+  type FormControl,
+  type FormFieldInitial,
+  type FormPreset,
+} from './crud-form.js';
 // A `multiple` file column's stored value. The renderer's half of the
 // grammar `apps/server/src/files/refs.ts` owns; change the two together.
 export { formatRefList, parseRefList } from './file-refs.js';

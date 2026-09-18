@@ -329,7 +329,18 @@ describe('the files a folder holds', () => {
     });
     expect(checkProjectFile('schema/main.json', '{"overrides":[{"table":"orders"}]}', offline)).toMatchObject({ valid: false });
     expect(checkProjectFile('schema/main.json', '{"overrides":[]}', offline)).toMatchObject({ valid: true, kind: 'schema', key: 'main' });
-    expect(checkProjectFile('notes/main.json', '{}', offline)).toMatchObject({ valid: false, problems: ['not a page or schema file'] });
+    expect(checkProjectFile('notes/main.json', '{}', offline)).toMatchObject({
+      valid: false,
+      problems: ['not a page, schema or list file'],
+    });
+    // A list's file name is its key, which is a slug and not a database key.
+    expect(checkProjectFile('lists/Stages.json', '{}', offline)).toMatchObject({
+      valid: false,
+      problems: ['the file name must be the list key: lowercase letters, digits and "-"'],
+    });
+    expect(
+      checkProjectFile('lists/stages.json', '{"name":"Stages","items":[{"value":"new"}]}', offline),
+    ).toMatchObject({ valid: true, kind: 'list', key: 'stages' });
   });
 
   it('finds the databases the page files name, skipping what it cannot read', async () => {

@@ -18,6 +18,29 @@ export interface EffectiveColumn extends ColumnModel {
   masked?: boolean;
   enumLabels?: Record<string, string>;
   enumTones?: Record<string, string>;
+  /*
+   * The four column RULES (plan 50 phase C). Mirrored from the server's
+   * `EffectiveColumn` like every other field here. Unlike the rest they do not
+   * change what a reader sees: they are what the write path enforces, on every
+   * caller, which is why the inspector says so where it edits them.
+   */
+  fill?: {
+    kind: 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none';
+    text?: string;
+    userField?: 'id' | 'name';
+    onUpdate?: boolean;
+  };
+  options?:
+    | { list: string }
+    | { values: { value: string; label?: string; tone?: string; description?: string }[] };
+  requiredByRule?: boolean;
+  validation?: {
+    format?: 'email' | 'url' | 'phone';
+    min?: number;
+    max?: number;
+    minLength?: number;
+    maxLength?: number;
+  };
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {
@@ -103,9 +126,20 @@ export function tableById(model: EffectiveModel, tableId: string): EffectiveTabl
   return model.tables.find((table) => table.id === tableId);
 }
 
-/** Ordered values of the enum a column references ([] when not an enum). */
+/**
+ * Ordered values of the enum a column references ([] when it has none).
+ *
+ * `enumRef` is the whole question. It used to also demand
+ * `logicalType === 'enum'`, which is true of a NATIVE postgres enum and of
+ * nothing else: on all three engines an Adminium choice column is
+ * `varchar(64)` plus a CHECK (D32), and MySQL's own `enum()` and a
+ * hand-written `CHECK … IN` are the same shape. So the values were hidden for
+ * every choice column the product itself creates — the enum-label editor never
+ * appeared for one, and the schema designer opened it with an empty list.
+ * Found by the sqlite e2e leg.
+ */
 export function enumValuesFor(model: EffectiveModel, column: EffectiveColumn): string[] {
-  if (column.logicalType !== 'enum' || column.enumRef === null) return [];
+  if (column.enumRef === null) return [];
   return model.enums.find((def) => def.id === column.enumRef)?.values ?? [];
 }
 

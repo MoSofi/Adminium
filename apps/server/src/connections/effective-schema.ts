@@ -12,6 +12,34 @@
 import type { ColumnModel, DatabaseModel, Relation, SemanticTag, TableModel } from '@adminium/engine';
 import type { SchemaOverride } from '@adminium/meta';
 
+/** One answer a choice column accepts. */
+export interface ColumnOptionItem {
+  value: string;
+  label?: string;
+  tone?: string;
+  description?: string;
+}
+
+/** `column.options`: a named list, or the values themselves. */
+export type ColumnOptions = { list: string } | { values: ColumnOptionItem[] };
+
+/** `column.default`: how Adminium fills the column when nobody does. */
+export interface ColumnFillRule {
+  kind: 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none';
+  text?: string;
+  userField?: 'id' | 'name';
+  onUpdate?: boolean;
+}
+
+/** `column.validation`: the checks an admin asked for, beyond the column's type. */
+export interface ColumnValidation {
+  format?: 'email' | 'url' | 'phone';
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+}
+
 export interface EffectiveColumn extends ColumnModel {
   label?: string;
   hidden?: boolean;
@@ -19,6 +47,20 @@ export interface EffectiveColumn extends ColumnModel {
   masked?: boolean;
   enumLabels?: Record<string, string>;
   enumTones?: Record<string, string>;
+  /*
+   * ─── The four column rules (plan 50 phase C) ─────────────────────────────
+   *
+   * Unlike every other field here, these do not change what a reader SEES —
+   * they change what the write path does, on every caller. They ride the
+   * effective schema because that is what `ResolvedTable` already carries into
+   * `crud/write-service.ts`, so a rule reaches the CSV import and the public
+   * API without either of them knowing the rule exists.
+   */
+  fill?: ColumnFillRule;
+  options?: ColumnOptions;
+  /** An admin's `column.required`. The column's own NOT NULL is separate. */
+  requiredByRule?: boolean;
+  validation?: ColumnValidation;
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {
@@ -299,6 +341,27 @@ export function applyOverrides(
       case 'column.hidden': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.hidden = value.hidden === true;
+        break;
+      }
+      case 'column.default': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.fill = value as unknown as ColumnFillRule;
+        break;
+      }
+      case 'column.options': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.options = value as unknown as ColumnOptions;
+        break;
+      }
+      case 'column.required': {
+        const column = columnOf(table, row.columnName);
+        // Only `true` is storable, so the row's presence IS the rule.
+        if (column !== undefined) column.requiredByRule = value.required === true;
+        break;
+      }
+      case 'column.validation': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.validation = value as unknown as ColumnValidation;
         break;
       }
       case 'llm.label': {

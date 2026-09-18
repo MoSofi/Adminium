@@ -23,11 +23,11 @@ import nodePath from 'node:path';
 
 import { projectFilesRepo, type MetaDb } from '@adminium/meta';
 
-import { applyPageFile, applySchemaFile, deletePage } from './apply-files.js';
+import { applyListFile, applyPageFile, applySchemaFile, deleteListByKey, deletePage } from './apply-files.js';
 import { hasCodePage } from './client-build.js';
 import { diskFileStore, type ProjectFileStore } from './file-store.js';
 import { contentHash } from './json.js';
-import { PAGES_DIR, SCHEMA_DIR, fromProjectPath, parseProjectPath, type PathApi } from './paths.js';
+import { LISTS_DIR, PAGES_DIR, SCHEMA_DIR, fromProjectPath, parseProjectPath, type PathApi } from './paths.js';
 import { ABSENT, fileText, type OutsidePage } from './project-files.js';
 import { adoptAsProjectPage } from './project-pages.js';
 import {
@@ -48,12 +48,18 @@ export interface ProjectServerOptions {
 }
 
 /**
- * The API routes that can change pages or schema customizations: the page
- * routes, the connection routes (overrides, generation, schema changes,
- * deleting a connection) and AI assist's apply. A successful write to any of
- * them is the sync's signal that the database moved.
+ * The API routes that can change what the folder holds: the page routes, the
+ * connection routes (overrides, generation, schema changes, deleting a
+ * connection), AI assist's apply, and the option lists — which travel as
+ * `lists/<key>.json` beside the rules that name them. A successful write to any
+ * of them is the sync's signal that the database moved.
  */
-export const CONFIG_WRITE_ROUTES = ['/api/v1/pages', '/api/v1/connections', '/api/v1/llm'] as const;
+export const CONFIG_WRITE_ROUTES = [
+  '/api/v1/pages',
+  '/api/v1/connections',
+  '/api/v1/llm',
+  '/api/v1/option-lists',
+] as const;
 
 export function isConfigWrite(method: string, routeUrl: string | undefined): boolean {
   if (routeUrl === undefined || method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return false;
@@ -105,8 +111,8 @@ export interface ProjectServiceOptions {
 
 export interface ProjectStatusEntry {
   path: string;
-  kind: 'page' | 'schema';
-  /** The page's address, or the database key of a schema file. */
+  kind: 'page' | 'schema' | 'list';
+  /** The page's address, the database key of a schema file, or a list's key. */
   name: string;
   /** The page on this instance, when there is one. */
   pageId: string | null;
@@ -221,13 +227,20 @@ export function createProjectService(opts: ProjectServiceOptions): ProjectServic
 
   /** Cheap summary of both sides; a change means a run is due. */
   const takeFingerprint = async (): Promise<string> => {
-    const [pages, overrides, connections] = await Promise.all([
+    const [pages, overrides, lists, connections] = await Promise.all([
       meta.db
         .selectFrom('adminium_pages')
         .select((eb) => [eb.fn.countAll().as('count'), eb.fn.max('updatedAt').as('latest')])
         .executeTakeFirst(),
       meta.db
         .selectFrom('adminium_schema_overrides')
+        .select((eb) => [eb.fn.countAll().as('count'), eb.fn.max('updatedAt').as('latest')])
+        .executeTakeFirst(),
+      // A list is a project file too, so a list created in Studio has to move
+      // the fingerprint — otherwise `dev` writes `lists/<key>.json` only when
+      // something else happens to change.
+      meta.db
+        .selectFrom('adminium_option_lists')
         .select((eb) => [eb.fn.countAll().as('count'), eb.fn.max('updatedAt').as('latest')])
         .executeTakeFirst(),
       meta.db.selectFrom('adminium_connections').select(['id', 'projectKey']).where('projectKey', 'is not', null).execute(),
@@ -237,7 +250,7 @@ export function createProjectService(opts: ProjectServiceOptions): ProjectServic
       const info = await fs.stat(fromProjectPath(root, key, pathApi));
       files.push(`${key}:${String(info?.mtimeMs ?? 0)}:${String(info?.size ?? 0)}`);
     }
-    return contentHash({ pages, overrides, connections, files });
+    return contentHash({ pages, overrides, lists, connections, files });
   };
 
   const poll = async (): Promise<void> => {
@@ -259,7 +272,7 @@ export function createProjectService(opts: ProjectServiceOptions): ProjectServic
     start() {
       if (closed) return;
       if (mode === 'dev' && opts.watchFiles !== false) {
-        for (const dir of [PAGES_DIR, SCHEMA_DIR]) {
+        for (const dir of [PAGES_DIR, SCHEMA_DIR, LISTS_DIR]) {
           const absolute = pathApi.join(root, dir);
           void fs
             .mkdir(absolute)
@@ -344,6 +357,7 @@ export function createProjectService(opts: ProjectServiceOptions): ProjectServic
             const connectionId = snapshot.refs.connectionOf(kind.key);
             if (connectionId !== null) await applySchemaFile(meta, connectionId, [], now());
           }
+          if (kind?.kind === 'list') await deleteListByKey(meta, kind.key);
           await records.remove(path);
         } else if (state.file.kind === 'page') {
           const slugs = new Set(
@@ -353,6 +367,9 @@ export function createProjectService(opts: ProjectServiceOptions): ProjectServic
             }),
           );
           await applyPageFile(meta, state.file.doc, snapshot.refs, now(), (slug) => slugs.has(slug));
+          await records.record(path, state.file.hash, now());
+        } else if (state.file.kind === 'list') {
+          await applyListFile(meta, state.file.doc, now());
           await records.record(path, state.file.hash, now());
         } else {
           const connectionId = snapshot.refs.connectionOf(state.file.key);

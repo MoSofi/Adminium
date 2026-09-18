@@ -27,6 +27,13 @@ export interface ChipInputProps
   validate?: ((chip: string) => boolean) | undefined;
   /** Accessible name for each chip's ✕ button, built per chip (i18n-friendly). */
   removeLabel: (chip: string) => string;
+  /**
+   * The chips' tint. The comp draws both: accent for a short, meaningful set
+   * (tags, 254) and neutral for a long one the person is assembling (invite
+   * addresses, 486). Accent on fifty chips is a wall of colour; neutral on
+   * three is a list nobody reads as choices.
+   */
+  tone?: 'accent' | 'neutral' | undefined;
   /** Force the danger state from outside (form-level validation). */
   error?: boolean | undefined;
   /** Extra classes for the inline `<input>` (className styles the wrapper). */
@@ -47,6 +54,7 @@ export function ChipInput({
   onValueChange,
   validate,
   removeLabel,
+  tone = 'neutral',
   error = false,
   disabled,
   ref,
@@ -147,6 +155,7 @@ export function ChipInput({
         <Tag
           key={chip}
           mono
+          {...(tone === 'accent' ? { tone: 'accent' as const } : {})}
           onRemove={() => commitChips(chips.filter((existing) => existing !== chip))}
           removeLabel={removeLabel(chip)}
         >

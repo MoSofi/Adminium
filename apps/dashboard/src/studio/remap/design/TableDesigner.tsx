@@ -19,10 +19,13 @@
  * discovered as a refusal after Apply.
  */
 import { Button, FormField, IconButton, Input, Select, Switch } from '@adminium/ui';
+import { offerableDefaultKinds } from '@adminium/engine';
 import { useState } from 'react';
 import { Info, Trash2 } from 'lucide-react';
 
 import { t } from '../../../i18n/t.js';
+import { AllowedValuesEditor } from './AllowedValuesEditor.js';
+import { DefaultControl } from './DefaultControl.js';
 import { FieldHelpModal } from './FieldHelpModal.js';
 import { blankColumn } from './useDesignBuffer.js';
 import {
@@ -99,6 +102,12 @@ export interface TableDesignerProps {
     /** The key's type, so linking can make the two sides match. */
     keyType?: AuthorableType | null;
   }[];
+  /**
+   * Columns whose value list is a NATIVE postgres enum type, so its values can
+   * be added to and never removed. Adminium's own enum columns are
+   * CHECK-backed and carry neither limit.
+   */
+  nativeEnumColumns?: readonly string[];
   onChange: (table: DesiredTable) => void;
   /** True while this table already exists — its name becomes a rename. */
   existing: boolean;
@@ -108,14 +117,76 @@ export function TableDesigner({
   table,
   dialect,
   linkTargets = [],
+  nativeEnumColumns = [],
   onChange,
   existing,
 }: TableDesignerProps) {
+  const isSoleKey = (name: string): boolean =>
+    table.primaryKey.length === 1 && table.primaryKey[0] === name;
+
   const setColumn = (index: number, patch: Partial<DesiredColumn>): void => {
     onChange({
       ...table,
       columns: table.columns.map((column, i) => (i === index ? { ...column, ...patch } : column)),
     });
+  };
+
+  /**
+   * Retyping a column DROPS a default the new type cannot carry (B8).
+   *
+   * The generated `id` retyped to `uuid` kept `default: autoincrement`, which is
+   * legal on an integer and nowhere else, so the plan came back
+   * `UNSUPPORTED_DEFAULT` on a column the person had just changed on purpose —
+   * with no control anywhere to clear the offending value.
+   */
+  const retype = (index: number, logicalType: AuthorableType): void => {
+    const column = table.columns[index];
+    if (column === undefined) return;
+    const stillAllowed =
+      column.default !== null &&
+      offerableDefaultKinds({
+        logicalType,
+        dialect: dialect as never,
+        isSoleKey: isSoleKey(column.name),
+      }).includes(column.default.kind);
+    setColumn(index, {
+      logicalType,
+      ...(stillAllowed ? {} : { default: null }),
+      // Length and precision belong to the type that had them.
+      maxLength: null,
+      numericPrecision: null,
+      numericScale: null,
+    });
+  };
+
+  /** The table's single key column, when it has exactly one. */
+  const keyColumn =
+    table.primaryKey.length === 1
+      ? table.columns.find((c) => c.name === table.primaryKey[0])
+      : undefined;
+
+  const setKeyGeneration = (how: 'autoincrement' | 'uuid'): void => {
+    if (keyColumn === undefined) return;
+    onChange({
+      ...table,
+      columns: table.columns.map((c) =>
+        c.name === keyColumn.name
+          ? {
+              ...c,
+              logicalType: how === 'uuid' ? 'uuid' : 'integer',
+              nullable: false,
+              default: { kind: how },
+              maxLength: null,
+              numericPrecision: null,
+              numericScale: null,
+            }
+          : c,
+      ),
+    });
+  };
+
+  const setEnumValues = (name: string, values: string[]): void => {
+    onChange({ ...table, enumValues: { ...table.enumValues, [name]: values } });
   };
 
   const removeColumn = (index: number): void => {
@@ -304,9 +375,7 @@ export function TableDesigner({
                 <FormField className="w-32 shrink-0" label={t('studio:design.column.type', 'Type')}>
                   <Select
                     value={column.logicalType}
-                    onChange={(event) =>
-                      setColumn(index, { logicalType: event.target.value as AuthorableType })
-                    }
+                    onChange={(event) => retype(index, event.target.value as AuthorableType)}
                   >
                     {AUTHORABLE_TYPES.map((type) => (
                       <option key={type} value={type}>
@@ -342,6 +411,14 @@ export function TableDesigner({
                     />
                   </FormField>
                 ) : null}
+
+                <DefaultControl
+                  column={column}
+                  dialect={dialect}
+                  isSoleKey={isSoleKey(column.name)}
+                  enumValues={table.enumValues[column.name] ?? []}
+                  onChange={(next) => setColumn(index, { default: next })}
+                />
 
                 <div className="flex h-[34px] items-center gap-2 mt-[22px]">
                   <Switch
@@ -443,6 +520,22 @@ export function TableDesigner({
                   </div>
                 ) : null}
               </div>
+
+              {/*
+                * A CHOICE column, which is not the same as a column typed
+                * `enum`: `enum` compiles to `varchar(64)` plus a CHECK on all
+                * three engines (D32), so a column created as a choice reads
+                * back as varchar with a value list. Keying this off the type
+                * alone hid the editor for every choice column that had ever
+                * been through the database.
+                */}
+              {column.logicalType === 'enum' || (table.enumValues[column.name] ?? []).length > 0 ? (
+                <AllowedValuesEditor
+                  values={table.enumValues[column.name] ?? []}
+                  addOnly={nativeEnumColumns.includes(column.name)}
+                  onChange={(values) => setEnumValues(column.name, values)}
+                />
+              ) : null}
             </li>
           ))}
         </ul>
@@ -457,20 +550,50 @@ export function TableDesigner({
         </div>
       </div>
 
+      {!existing && keyColumn !== undefined ? (
+        <FormField
+          className="w-64"
+          label={t('studio:design.table.keyGeneration', 'How the key is filled')}
+          helper={
+            dialect === 'postgres'
+              ? t(
+                  'studio:design.table.keyGenerationHelp',
+                  'Adminium reads the new row back by this key after every insert.',
+                )
+              : t(
+                  'studio:design.table.keyGenerationOne',
+                  'On {dialect} a key must be a counted integer: a database-generated id cannot be read back after an insert.',
+                  { dialect },
+                )
+          }
+        >
+          <Select
+            value={keyColumn.logicalType === 'uuid' ? 'uuid' : 'autoincrement'}
+            onChange={(event) => setKeyGeneration(event.target.value as 'autoincrement' | 'uuid')}
+          >
+            <option value="autoincrement">
+              {t('studio:design.table.keyCounted', 'Count up from the last row')}
+            </option>
+            {/*
+              * D31, and the reason the option is ABSENT rather than disabled
+              * off postgres: MySQL reads a new row back by `insertId`, which
+              * only an auto-increment column has, and SQLite by the rowid. A
+              * uuid key on either is a row the CRUD path cannot fetch after it
+              * writes it. The static sentence that used to explain a choice
+              * nobody had is gone; this control carries the reason.
+              */}
+            {dialect === 'postgres' ? (
+              <option value="uuid">{t('studio:design.table.keyUnique', 'A new unique id')}</option>
+            ) : null}
+          </Select>
+        </FormField>
+      ) : null}
+
       {table.primaryKey.length === 0 ? (
         <p className="text-body-sm text-fg-muted">
           {t(
             'studio:design.table.noKey',
             'This table has no primary key, so Adminium will treat it as read-only — rows can be listed but not edited.',
-          )}
-        </p>
-      ) : null}
-
-      {dialect !== 'postgres' ? (
-        <p className="text-body-sm text-fg-muted">
-          {t(
-            'studio:design.table.uuidKeyUnavailable',
-            'On this engine a key must be a generated integer: a database-generated uuid cannot be read back after an insert.',
           )}
         </p>
       ) : null}

@@ -305,7 +305,8 @@ describe('in-tab create (30 follow-up — "Add item")', () => {
     expect(form).not.toBeNull();
     expect(within(form).queryByLabelText(/Invoice$/)).toBeNull();
     await user.type(within(form).getByLabelText(/Description/), 'Follow-up sprint');
-    await user.click(screen.getByRole('button', { name: 'Add invoice item' }));
+    // The dialog's own word for the action (D27): "Create {entity}".
+    await user.click(screen.getByRole('button', { name: 'Create invoice item' }));
 
     await waitFor(() => {
       expect(childApi.create).toHaveBeenCalledTimes(1);

@@ -30,6 +30,7 @@ import {
   Globe2,
   HardDrive,
   Languages,
+  ListChecks,
   Mail,
   ShieldCheck,
   Sparkles,
@@ -1404,6 +1405,8 @@ export interface StudioSettingsPageProps {
   onOpenPages: () => void;
   /** `/studio/storage`. */
   onOpenStorage: () => void;
+  /** `/studio/lists`: the answers a column accepts, named once. */
+  onOpenLists: () => void;
   /** `/studio/add-ons`. */
   onOpenAddOns: () => void;
   /** `/studio/public-api`. */
@@ -1418,6 +1421,7 @@ export function StudioSettingsPage({
   onOpenAiSettings,
   onOpenPages,
   onOpenStorage,
+  onOpenLists,
   onOpenAddOns,
   onOpenPublicApi,
   onOpenProject,
@@ -1506,6 +1510,21 @@ export function StudioSettingsPage({
           )}
           cta={t('studio:settingsHub.storageCard.cta', 'Open storage')}
           onOpen={onOpenStorage}
+        />
+
+        {/* Lists (/studio/lists) — Admin+ like this hub, and behind the same
+            `system:schema:remap` grant that writes the rule naming a list, so
+            the same reasoning as Pages and Storage applies: the page answers a
+            403 itself. A Studio route without a row here is born unreachable. */}
+        <LinkRow
+          icon={<ListChecks />}
+          heading={t('studio:settingsHub.listsCard.heading', 'Lists')}
+          body={t(
+            'studio:settingsHub.listsCard.body',
+            'The answers a column accepts \u2014 countries, stages, departments \u2014 named once and used from anywhere.',
+          )}
+          cta={t('studio:settingsHub.listsCard.cta', 'Open lists')}
+          onOpen={onOpenLists}
         />
 
         {/* Add-ons (/studio/add-ons) — the acquisition and runtime surface for

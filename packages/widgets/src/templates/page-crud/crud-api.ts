@@ -123,6 +123,12 @@ export interface CrudMutationResult {
   data: CrudRow | null;
   /** Single-use undo token; null when not undoable. */
   undoToken: string | null;
+  /**
+   * How many rows one create wrote. Present only for a `repeat` create, where
+   * `data` is the FIRST of them — a toast counting replies would otherwise say
+   * "1 added" about five.
+   */
+  created?: number;
 }
 
 /** `remove({ dryRun: true })` — the cascade-modal payload; no write happens. */
@@ -170,6 +176,25 @@ export interface CrudLookupOption {
   /** Display-column value ("Ada Lovelace"). */
   label: string;
   description?: string | undefined;
+  /**
+   * The detail line under the name, already joined: "Internal medicine · Bldg 2".
+   * The host joins it, because it is the host that read the columns.
+   */
+  detail?: string | undefined;
+}
+
+/**
+ * Which columns of the target a reference shows: the NAME line, and up to two
+ * DETAIL columns joined by " · ".
+ *
+ * They ride the lookup call rather than being read from the page, because they
+ * decide the request itself — the picker asks for these columns and no others,
+ * so a search does not pull whole rows (masked columns included) to render one
+ * label.
+ */
+export interface CrudLookupFields {
+  name?: string | undefined;
+  detail?: readonly string[] | undefined;
 }
 
 export interface CrudApi {
@@ -185,8 +210,41 @@ export interface CrudApi {
       compute?: string | undefined;
     },
   ): Promise<CrudGetResult>;
-  create(values: CrudRow): Promise<CrudMutationResult>;
-  update(recordId: string, patch: CrudRow): Promise<CrudMutationResult>;
+  /**
+   * `links` are the target keys each relation should end up pointing at — rows
+   * of a join table, written in the same transaction as this record. A
+   * relation the object does not name is left alone.
+   */
+  create(
+    values: CrudRow,
+    links?: Record<string, string[]>,
+    /**
+     * Rows of ANOTHER table written in the same transaction — an invoice's
+     * lines. A row with no `key` is being added; a key the object leaves out is
+     * being removed. A relation the object does not name is left alone.
+     */
+    children?: Record<string, { key?: CrudRow | undefined; values: CrudRow }[]>,
+    /**
+     * One record per value of this column, all in one transaction under one
+     * undo token — the invitations field. The rest of `values` is shared.
+     */
+    repeat?: { column: string; values: string[] },
+  ): Promise<CrudMutationResult>;
+  update(
+    recordId: string,
+    patch: CrudRow,
+    links?: Record<string, string[]>,
+    children?: Record<string, { key?: CrudRow | undefined; values: CrudRow }[]>,
+  ): Promise<CrudMutationResult>;
+  /**
+   * The records one relation links this record to, with their names — what the
+   * chips show before anybody searches. Optional: without it a link field
+   * renders the keys it was given and nothing else.
+   */
+  links?(
+    recordId: string,
+    relationId: string,
+  ): Promise<{ key: string; name: string; detail?: string | undefined }[]>;
   /**
    * Delete. `dryRun` returns the referential-consequence preview;
    * `confirm` is required once the preview reports inbound references.
@@ -199,16 +257,42 @@ export interface CrudApi {
   references(recordId: string): Promise<CrudReferenceCount[]>;
   /** Consume a single-use undo token from any mutation above. */
   undo(token: string): Promise<{ restoredIds: unknown[] }>;
+  /**
+   * Which instants a temporal column already holds in a window — the read
+   * behind a calendar's struck-out days and slots. DISTINCT, so the reply is
+   * bounded by the number of slots rather than by the number of rows, and
+   * `capped` says when even that was too many. Optional: without it a calendar
+   * strikes nothing out, which is the honest picture of "not checked".
+   */
+  availability?(query: {
+    column: string;
+    from: string;
+    to: string;
+    resource?: string | undefined;
+    resourceValue?: string | undefined;
+    exclude?: string | undefined;
+  }): Promise<{ taken: string[]; capped: boolean }>;
   /** Bulk update/delete — one transaction, one undo token (optional). */
   bulk?(action: 'update' | 'delete', ids: readonly unknown[], values?: CrudRow): Promise<CrudBulkResult>;
   /**
    * FK combobox feed: search the referenced table's display column
    * (debounced 200ms server-side search). Optional — FK fields degrade
    * to a plain input without it.
+   *
+   * `display` is the referenced table's own display column, which generation
+   * already stamps onto every FK spec as `fk.display` (`buildColumnDef` →
+   * `crudDisplayColumns`). Passing it is what stops the client GUESSING a
+   * label: before this, the picker scanned each row for `name`, `title`,
+   * `label`, `display_name`, `full_name` or `email` and fell back to the first
+   * non-empty string in the row — so a `companies` table keyed by `company`
+   * showed raw ids, and a table with an unrelated text column first showed
+   * that column's value.
    */
   lookup?(
-    fk: { table: string; column: string },
+    fk: { table: string; column: string; display?: string | undefined },
     query: string,
+    /** The field's reference settings; absent ⇒ the display column alone. */
+    fields?: CrudLookupFields | undefined,
   ): Promise<CrudLookupOption[]>;
   /**
    * Related records for detail tabs (inbound FKs): rows of `ref.table`

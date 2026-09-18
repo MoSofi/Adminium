@@ -111,6 +111,69 @@ export {
   parseCrudLabels,
   type CrudLabelsConfig,
 } from '@adminium/widgets/page-config';
+// `page-crud`'s stored `config.form` block. The server reads it
+// through this door for the same reason it reads the others: a page document is
+// validated on the way in, and the ONE derivation lives beside the schema so a
+// stored form and a derived one cannot describe different things.
+// The built-in option lists — the server asks this leaf whether a value is a
+// member, and never what it is CALLED (that is the reader's locale's business).
+export {
+  builtinOptionItems,
+  builtinOptionValues,
+  BUILTIN_OPTION_LIST_KEYS,
+  isBuiltinOptionList,
+  optionListItemSchema,
+  optionListSchema,
+  type BuiltinOptionListKey,
+  type OptionList,
+  type OptionListItem,
+} from '@adminium/widgets/page-config';
+// `page-crud`'s stored `config.filters` block, and the derivation that stands
+// in for it. Shared through this door so the Studio filters card, the page
+// binding and the server's page-config validation all agree on which controls
+// a column may legally wear — a filter whose control the reader's table cannot
+// answer is a menu that opens onto nothing.
+export {
+  crudFiltersConfigSchema,
+  deriveFilters,
+  filterControlFor,
+  filtersFor,
+  FILTER_CONTROLS,
+  legalFilterControls,
+  MAX_DERIVED_FILTERS,
+  MAX_FILTERS,
+  parseCrudFilters,
+  type CrudFilterField,
+  type FilterColumnFact,
+  type FilterControl,
+} from '@adminium/widgets/page-config';
+export {
+  controlFor,
+  crudFormConfigSchema,
+  deriveFormDocument,
+  formDocumentFor,
+  FORM_CONTROLS,
+  FORM_PRESETS,
+  legalControls,
+  MAX_FORM_FIELDS,
+  MAX_FORM_SECTIONS,
+  parseCrudForm,
+  type CrudFormChildColumn,
+  type CrudFormChildTotals,
+  type CrudFormColumnField,
+  type CrudFormRecapField,
+  type CrudFormConfig,
+  type CrudFormField,
+  type CrudFormRelationField,
+  type CrudFormSection,
+  type DeriveFormInput,
+  type FormColumnFact,
+  type FormColumnShape,
+  type FormControl,
+  type FormFieldInitial,
+  type FormPreset,
+  type FormRelationFact,
+} from '@adminium/widgets/page-config';
 // `page-crud`'s stored `config.derived` block, the exact decimal arithmetic it
 // is defined over, and the evaluator that reads it. This re-export is the ONLY
 // legal path by which the server sees this vocabulary: dependency-cruiser's

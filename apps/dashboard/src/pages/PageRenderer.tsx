@@ -20,11 +20,16 @@ import { useParams, useRouter } from '@tanstack/react-router';
 import { FileQuestion, PackageOpen, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Card, CardBody, CardHeader, IconTile, MonoText, Skeleton } from '@adminium/ui';
-import { WidgetErrorBoundary, isDeletePreview, type WidgetEvent } from '@adminium/widgets';
+import { WidgetErrorBoundary, isDeletePreview, type ColumnFacts, type WidgetEvent } from '@adminium/widgets';
 import type { PageEnvelope } from '@adminium/engine/config';
 
 import { createCrudApi, type BoundCrudApi, type CrudMutationResult } from '../api/crud.js';
-import { pageQuery } from '../api/pages.js';
+import {
+  pageQuery,
+  type FormChildFactReply,
+  type FormColumnFactReply,
+  type FormRelationFactReply,
+} from '../api/pages.js';
 import { useDashboardData } from '../api/widgetData.js';
 import { bootstrapQuery, findPageBySlug, slugForTable } from '../app/bootstrap.js';
 import { hrefForPage, hrefForRecord } from '../app/links.js';
@@ -114,6 +119,11 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
       canDelete={result.canDelete}
       canAttach={result.canAttach}
       canUnmask={result.canUnmask}
+      columnFacts={result.columnFacts}
+      formColumns={result.formColumns}
+      formRelations={result.formRelations}
+      formChildren={result.formChildren}
+      tableLabelSingular={result.tableLabelSingular}
     />
   );
 }
@@ -152,6 +162,11 @@ export function TemplateMount({
   canDelete,
   canAttach,
   canUnmask,
+  columnFacts,
+  formColumns,
+  formRelations,
+  formChildren,
+  tableLabelSingular,
 }: {
   page: PageEnvelope;
   slug: string;
@@ -162,6 +177,11 @@ export function TemplateMount({
   canDelete?: boolean | undefined;
   canAttach?: boolean | undefined;
   canUnmask?: boolean | undefined;
+  columnFacts?: ColumnFacts | undefined;
+  formColumns?: readonly FormColumnFactReply[] | undefined;
+  formRelations?: readonly FormRelationFactReply[] | undefined;
+  formChildren?: readonly FormChildFactReply[] | undefined;
+  tableLabelSingular?: string | null | undefined;
 }) {
   const [resolution, setResolution] = useState<TemplateResolution>({ phase: 'resolving' });
   const [attempt, setAttempt] = useState(0);
@@ -272,6 +292,11 @@ export function TemplateMount({
             canDelete={canDelete}
             canAttach={canAttach}
             canUnmask={canUnmask}
+            {...(columnFacts === undefined ? {} : { columnFacts })}
+            {...(formColumns === undefined ? {} : { formColumns })}
+            {...(formRelations === undefined ? {} : { formRelations })}
+            {...(formChildren === undefined ? {} : { formChildren })}
+            {...(tableLabelSingular === undefined ? {} : { tableLabelSingular })}
             {...(currency === null || currency === undefined ? {} : { currency })}
           />
         </PageHostContext.Provider>

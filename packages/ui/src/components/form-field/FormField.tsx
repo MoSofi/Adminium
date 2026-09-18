@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Slot } from '@radix-ui/react-slot';
+import { CircleAlert } from 'lucide-react';
 import { createContext, useContext, useId } from 'react';
 import type * as React from 'react';
 
@@ -102,8 +103,19 @@ export function FormField({
         {descriptionId ? (
           <p
             id={descriptionId}
-            className={cn('text-[11.5px] leading-4', invalid ? 'font-medium text-danger' : 'text-fg-muted')}
+            className={cn(
+              'text-[11.5px] leading-4',
+              invalid ? 'flex items-center gap-1 font-medium text-danger' : 'text-fg-muted',
+            )}
           >
+            {/*
+              The error caption carries the icon the UI Kit comp draws beside
+              it. Decorative: the message is the message, and `aria-invalid`
+              on the control is what assistive tech reads. Without it a
+              refused field and a helpful hint differ only by colour, which
+              is the one distinction a colour-blind reader cannot make.
+            */}
+            {invalid ? <CircleAlert aria-hidden="true" className="size-3.5 shrink-0" /> : null}
             {caption}
           </p>
         ) : null}

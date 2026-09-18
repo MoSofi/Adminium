@@ -2,3 +2,4 @@
 export { cn, cssVars } from './cn.js';
 export type { ClassValue, CssVarMap } from './cn.js';
 export { looksLikeEmail } from './email.js';
+export { dayKey, firstDayOfWeek, monthGrid, weekdayInitials } from './week.js';

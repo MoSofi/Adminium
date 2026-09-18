@@ -3,8 +3,9 @@
  * The two sides a project sync compares, both as project files:
  *
  * - what the database says (`exportProjectFiles`): every page of a project
- *   database (or with no database) and every project database's schema
- *   customizations, written the way `toPageFile` / `toSchemaFile` write them;
+ *   database (or with no database), every project database's schema
+ *   customizations and every custom option list, written the way `toPageFile`
+ *   / `toSchemaFile` / `toListFile` write them;
  * - what the folder says (`readProjectFiles`): each file parsed and checked.
  *
  * Both are compared by `fileHash`, which ignores what does not change a
@@ -16,6 +17,7 @@
 
 import { pageIdFor } from '@adminium/engine';
 import {
+  optionListsRepo,
   overridesRepo,
   pagesRepo,
   PROJECT_FILE_DELETED,
@@ -25,7 +27,8 @@ import {
 
 import { contentHash, parseJsonText, stableStringify } from './json.js';
 import { readPageFile, toPageFile, type PageFileDocument, type ProjectRefs } from './page-files.js';
-import { pagePath, parseProjectPath, schemaPath } from './paths.js';
+import { readListFile, toListFile, type ListFileDocument } from './list-files.js';
+import { listPath, pagePath, parseProjectPath, schemaPath } from './paths.js';
 import type { ProjectFileStore } from './file-store.js';
 import { readSchemaFile, toSchemaFile } from './schema-files.js';
 
@@ -96,6 +99,12 @@ export function normalizeForHash(projectPath: string, value: unknown): unknown {
   if (kind === null || file === null) return value;
   const out: Record<string, unknown> = { ...file };
   delete out['$schema'];
+  if (kind.kind === 'list') {
+    // `"origin": "custom"` is what a list with no history is; a file that says
+    // it and one that does not are the same list.
+    if (out['origin'] === 'custom') delete out['origin'];
+    return out;
+  }
   if (kind.kind === 'schema') {
     if (Array.isArray(out['overrides'])) {
       const rows = (out['overrides'] as unknown[]).map((item) => {
@@ -191,6 +200,15 @@ export async function exportProjectFiles(meta: MetaDb, refs: InstallRefs): Promi
     files.set(path, { value: result.file, hash: fileHash(path, result.file), pageId: page.id });
   }
 
+  // Every custom list, whatever database uses it: a list belongs to the
+  // workspace, not to one connection, which is why it sits beside `schema/`
+  // rather than inside it.
+  for (const row of await optionListsRepo(meta).list()) {
+    const path = listPath(row.key);
+    const value = toListFile(row);
+    files.set(path, { value, hash: fileHash(path, value), pageId: null });
+  }
+
   const overrides = overridesRepo(meta);
   for (const key of keys) {
     const connectionId = refs.connectionOf(key);
@@ -205,18 +223,23 @@ export async function exportProjectFiles(meta: MetaDb, refs: InstallRefs): Promi
 export type FolderFile =
   | { path: string; hash: string; valid: true; kind: 'page'; doc: PageFileDocument }
   | { path: string; hash: string; valid: true; kind: 'schema'; key: string; rows: ProjectOverrideInput[] }
+  | { path: string; hash: string; valid: true; kind: 'list'; key: string; doc: ListFileDocument }
   | { path: string; hash: string; valid: false; problems: string[] };
 
 /** Parse and check one file's text. Invalid files hash their raw text, so an edit still shows. */
 export function checkProjectFile(projectPath: string, text: string, refs: ProjectRefs): FolderFile {
   const kind = parseProjectPath(projectPath);
   const rawHash = (): string => contentHash(text);
-  if (kind === null) return { path: projectPath, hash: rawHash(), valid: false, problems: ['not a page or schema file'] };
+  if (kind === null) {
+    return { path: projectPath, hash: rawHash(), valid: false, problems: ['not a page, schema or list file'] };
+  }
   if (!kind.valid) {
     const problem =
       kind.kind === 'page'
         ? 'the file name must be a page address: lowercase letters, digits and "-", at most 31 characters'
-        : 'the file name must be a database key from adminium.config.ts';
+        : kind.kind === 'list'
+          ? 'the file name must be the list key: lowercase letters, digits and "-"'
+          : 'the file name must be a database key from adminium.config.ts';
     return { path: projectPath, hash: rawHash(), valid: false, problems: [problem] };
   }
   const parsed = parseJsonText(text);
@@ -225,6 +248,12 @@ export function checkProjectFile(projectPath: string, text: string, refs: Projec
     const result = readPageFile(parsed.value, kind.slug, refs);
     return result.ok
       ? { path: projectPath, hash: fileHash(projectPath, parsed.value), valid: true, kind: 'page', doc: result.doc }
+      : { path: projectPath, hash: rawHash(), valid: false, problems: result.problems };
+  }
+  if (kind.kind === 'list') {
+    const result = readListFile(parsed.value, kind.key);
+    return result.ok
+      ? { path: projectPath, hash: fileHash(projectPath, parsed.value), valid: true, kind: 'list', key: kind.key, doc: result.doc }
       : { path: projectPath, hash: rawHash(), valid: false, problems: result.problems };
   }
   if (refs.connectionOf(kind.key) === null) {

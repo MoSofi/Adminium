@@ -26,6 +26,44 @@ The SQL in the review pane is not a rendering of the change — it is the
 statement. The same function compiles it for the preview and executes it for
 the apply, so the two cannot drift.
 
+## What you can set on a column
+
+A column is a name, a type and four choices. The designer offers each of them
+only where your engine can actually keep the promise.
+
+**Required** means the database refuses a row that leaves the field empty.
+**Unique** means it refuses a second row with the same value. **Primary key**
+is the field that identifies the row — without one, Adminium can list a table
+but cannot edit a single row of it.
+
+**Starts as** is the value the database itself puts in the column when nobody
+fills it in, which is also what fills it for rows created outside Adminium. The
+list follows the type:
+
+| Starts as | Offered for | What the database does |
+|---|---|---|
+| Nothing | every column | The column is empty unless somebody fills it. |
+| A value | every column | The value you type, checked against the column's own type before it is sent. |
+| The current date and time | dates, times and timestamps | `CURRENT_TIMESTAMP` — the database's clock, not your browser's. |
+| A new unique id | uuid, text and varchar, **PostgreSQL only** | `gen_random_uuid()`. MySQL and SQLite have no equivalent that Adminium can read back after an insert. |
+| Count up from the last row | the table's own integer key | An identity column on PostgreSQL, `AUTO_INCREMENT` on MySQL, the rowid on SQLite. |
+
+Counting up belongs to the **key** on every engine, so it is offered only on a
+column that is the whole primary key. Turning it on for a key that already has
+rows is a real change and is planned as one: PostgreSQL attaches the sequence
+and restarts it past the highest value already in the table, MySQL rewrites the
+table to add the attribute, and SQLite rebuilds it.
+
+**Allowed values** turns a column into a choice. Type `enum`, list the answers,
+and the database refuses anything else — which is what lets the generated form
+show buttons or a menu instead of a text box. Adminium stores the list as a
+`CHECK` constraint on all three engines, so values can be added, renamed,
+reordered and removed.
+
+One exception: if the column already uses a **native PostgreSQL enum type**, the
+list is add-only. PostgreSQL has no statement that removes or renames a value in
+a type, so the editor says so rather than planning something no engine can do.
+
 ## What the hazard chips mean
 
 | Chip | What it means |
@@ -46,8 +84,8 @@ you which one you have.
 ## What it refuses, and why
 
 - **A `NOT NULL` column with no default, on a table that already has rows.** The
-  existing rows would have no value. Give the column a default, or make it
-  nullable.
+  existing rows would have no value. Give the column a starting value under
+  **Starts as**, or make it nullable.
 - **Adminium's own `adminium_*` tables**, and migration ledgers like
   `_prisma_migrations`. If you chose same-database meta storage, these sit
   beside your data — and they are not yours to edit through Adminium.
@@ -74,6 +112,8 @@ dialog says so, and the change history records exactly which statements ran.
 |---|---|---|---|
 | Roll back a failed apply | Yes | **No** — MySQL commits each DDL statement as it runs | Yes |
 | Change a column's type | Usually without rewriting | Always copies the whole table | Rebuilds the table |
+| Give an existing key auto-increment | Catalog only, then the sequence restarts past the last row | Copies the whole table | Rebuilds the table |
+| A database-generated unique id | Yes | No | No |
 | Add a foreign key to an existing table | Yes | Yes | Rebuilds the table |
 | Add a foreign key to a table you are creating | Part of the `CREATE` | Part of the `CREATE` | Part of the `CREATE` |
 

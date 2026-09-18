@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "What this list is called in Studio."
+    },
+    "origin": {
+      "description": "Where the list came from: \"custom\", or \"copy:<built-in key>\". Absent means custom.",
+      "type": "string",
+      "maxLength": 140
+    },
+    "items": {
+      "minItems": 1,
+      "maxItems": 500,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "What is stored in the column, e.g. \"DE\"."
+          },
+          "label": {
+            "description": "What the form shows. Absent shows the value.",
+            "type": "string",
+            "maxLength": 256
+          },
+          "tone": {
+            "description": "A colour name for the badge that shows this value.",
+            "type": "string",
+            "maxLength": 40
+          },
+          "description": {
+            "description": "The detail line of a choice card.",
+            "type": "string",
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "name",
+    "items"
+  ],
+  "additionalProperties": false,
+  "description": "One option list. The file name is the list key that rules name."
+}

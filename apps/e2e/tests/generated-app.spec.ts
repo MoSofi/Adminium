@@ -117,23 +117,72 @@ test.describe('generated app on the seeded Northwind connection', () => {
   // packages/adapter-sqlite/src/index.ts: read-only DETECTION now reflects the
   // connection (config `mode: 'readonly'`, file `W_OK`, `PRAGMA query_only`),
   // not the forced open mode — so writable sqlite/mysql connections allow CRUD.
-  test('(c5) create a customer via the modal wizard', async ({ page }) => {
+  test('(c5) create a customer in the designed dialog', async ({ page }) => {
     await signIn(page);
     await navLink(page, /Customers/).first().click();
 
     await page.getByRole('button', { name: 'New row' }).click();
-    const modal = page.getByRole('dialog');
-    await expect(modal).toBeVisible();
-    await modal.getByLabel('Customer Id').fill('E2E01');
-    await modal.getByLabel('Company Name').fill('E2E Markets');
-    await modal.getByRole('button', { name: 'Add customer' }).click();
-    await expect(modal).toContainText('added');
-    await modal.getByRole('button', { name: 'Done' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    // The dialog's own words: "New {entity}", "Create {entity}".
+    await expect(dialog.getByRole('heading', { name: 'New customer' })).toBeVisible();
+    await dialog.getByLabel('Customer Id').fill('E2E01');
+    await dialog.getByLabel('Company Name').fill('E2E Markets');
+    await dialog.getByRole('button', { name: 'Create customer' }).click();
+
+    /*
+     * The dialog CLOSES on success and the toast carries the Undo (D4). The
+     * second "added — Done" panel is gone: it confirmed, in front of the grid
+     * that now showed the row, something the toast had already said.
+     */
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible();
 
     // Scope to the grid quick-search (the topbar hosts a second, palette
     // searchbox — `page.getByRole('searchbox')` alone is ambiguous).
     await gridSearch(page, /customers/).fill('E2E Markets');
     await expect(gridRows(page)).toHaveCount(1);
+  });
+
+  /*
+   * GATE D (plan 50 T26): the same dialog at every door. It was four different
+   * containers — a two-phase modal for create and three 480px drawers for the
+   * edits — so editing a row looked like a different operation from adding one.
+   */
+  test('(c5b) the SAME dialog edits from the grid and from the record page', async ({ page }) => {
+    await signIn(page);
+    await navLink(page, /Customers/).first().click();
+
+    /*
+     * From the grid, the way the product actually gets there: the row's eye
+     * opens the PEEK — a preview, and deliberately still a drawer — and Edit
+     * inside it opens the dialog. A row click navigates to the record page, so
+     * the peek is the only in-place door.
+     */
+    // A SEEDED row, so this test stands on its own rather than on (c5)'s.
+    const row = gridRows(page).filter({ hasText: 'Alfreds Futterkiste' }).first();
+    await row.getByRole('button', { name: 'Peek' }).click();
+    await page.getByRole('button', { name: /^Edit/ }).first().click();
+    const fromGrid = page.getByRole('dialog').filter({ hasText: 'Edit customer' });
+    await expect(fromGrid.getByRole('heading', { name: 'Edit customer' })).toBeVisible();
+    await fromGrid.getByLabel('Company Name').fill('Alfreds Futterkiste GmbH');
+    await fromGrid.getByRole('button', { name: 'Save changes' }).click();
+    await expect(fromGrid).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible();
+
+    // The PEEK is still open behind the dialog — it is a preview the person
+    // came from, and closing it is theirs to do.
+    await page.keyboard.press('Escape');
+
+    // …and from the record page. (Which row it is does not matter — what
+    // matters is that the door opens the same dialog.)
+    await gridRows(page).filter({ hasText: 'Alfreds Futterkiste' }).first().click();
+    await expect(page).toHaveURL(/\/p\/customers\/r\//);
+    await recordPage(page).getByRole('button', { name: /^Edit/ }).first().click();
+    const fromRecord = page.getByRole('dialog');
+    await expect(fromRecord.getByRole('heading', { name: 'Edit customer' })).toBeVisible();
+    await fromRecord.getByRole('button', { name: /Cancel/ }).click();
+    await expect(fromRecord).toBeHidden();
   });
 
   test('(c6) row click opens the record page', async ({ page }) => {

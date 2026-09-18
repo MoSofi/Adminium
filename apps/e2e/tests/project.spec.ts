@@ -281,6 +281,63 @@ test('a Studio edit in dev lands in its page file, changing only the lines it to
   await expect(page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Product categories' })).toBeVisible();
 });
 
+test('an option list written in Studio becomes a file, and a file edited in the folder is enforced', async ({
+  page,
+}) => {
+  /*
+   * A `column.options` rule names a list by key and travels in
+   * `schema/<database>.json`. The list has to travel with it, or the rule means
+   * nothing in the next install — so this proves the round trip both ways.
+   */
+  await page.goto('/studio/lists');
+  await page.getByTestId('studio-lists-new').click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByTestId('option-list-name').fill('Stages');
+  await dialog.getByTestId('option-list-key').fill('stages');
+  await dialog.getByLabel('Value 1').fill('new');
+  await dialog.getByLabel('Label 1').fill('New');
+  await dialog.getByTestId('option-list-add-value').click();
+  await dialog.getByLabel('Value 2').fill('won');
+  await dialog.getByTestId('option-list-save').click();
+  await expect(dialog).toBeHidden();
+
+  // The folder has it, under its key, with no id and no timestamps in sight.
+  await expect.poll(() => project.exists('lists/stages.json')).toBe(true);
+  expect(project.readJson('lists/stages.json')).toEqual({
+    $schema: '../node_modules/@adminiumjs/adminium/schemas/list.json',
+    name: 'Stages',
+    items: [{ value: 'new', label: 'New' }, { value: 'won' }],
+  });
+
+  // …and an edit in the folder is the one in force, without a restart.
+  project.editJson('lists/stages.json', (doc) => {
+    (doc['items'] as unknown[]).push({ value: 'lost', label: 'Lost' });
+  });
+  await expect
+    .poll(async () => {
+      const reply = await page.request.get('/api/v1/option-lists/stages');
+      const body = (await reply.json()) as { items: { value: string }[] };
+      return body.items.map((item) => item.value);
+    })
+    .toEqual(['new', 'won', 'lost']);
+
+  // A rule naming a list the project does not carry is what `check` is for.
+  project.editJson('schema/main.json', (doc) => {
+    (doc['overrides'] as unknown[]).push({
+      table: 'public.customers',
+      column: 'country',
+      op: 'column.options',
+      value: { list: 'nowhere' },
+    });
+  });
+  const checked = project.cli(['check']);
+  expect(checked.status).toBe(2);
+  expect(checked.stderr).toContain('uses the list "nowhere", and there is no lists/nowhere.json');
+  project.editJson('schema/main.json', (doc) => {
+    doc['overrides'] = (doc['overrides'] as { op: string }[]).filter((row) => row.op !== 'column.options');
+  });
+});
+
 test('an action runs from the record page, the row menu and the bulk bar, and is audited', async ({ page }) => {
   await page.goto('/p/customers/r/ALFKI');
   const record = recordPage(page);
@@ -386,7 +443,8 @@ test("a hook's message shows on an edit, a new record and a bulk delete", async 
   const create = page.getByRole('dialog');
   await create.getByLabel('Customer Id').fill('BLOCK');
   await create.getByLabel(COMPANY).fill('Blocked Imports');
-  await create.getByRole('button', { name: 'Add customer' }).click();
+  // The dialog's own word for the action.
+  await create.getByRole('button', { name: 'Create customer' }).click();
   await expect(page.getByText(BLOCKED)).toBeVisible();
 
   await page.goto('/p/customers');

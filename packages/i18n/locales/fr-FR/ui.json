@@ -46,6 +46,76 @@
     "close": "Fermer la boîte de dialogue",
     "confirmTitle": "Êtes-vous sûr ?"
   },
+  "formDialog": {
+    "calendar": {
+      "days": "Jours de {month}",
+      "next": "Mois suivant",
+      "noTimes": "Aucun horaire ce jour-là",
+      "previous": "Mois précédent",
+      "times": "Horaires",
+      "unchecked": "Ce mois compte trop de réservations pour être vérifié ici."
+    },
+    "control": {
+      "fewer": "Un de moins",
+      "hide": "Masquer",
+      "more": "Un de plus",
+      "removeChip": "Supprimer {value}",
+      "reveal": "Afficher",
+      "upTo": "jusqu’à {size} Mo"
+    },
+    "cta": {
+      "add": "Ajouter {entity}",
+      "create": "Créer {entity}"
+    },
+    "footnote": {
+      "required": "Les champs obligatoires sont marqués *"
+    },
+    "issue": {
+      "required": "Ce champ est obligatoire.",
+      "notAllowed": "Choisissez une des valeurs proposées.",
+      "invalid": "Cette valeur n'est pas valide ici.",
+      "email": "Saisissez une adresse e-mail valide.",
+      "url": "Saisissez une adresse web valide.",
+      "phone": "Saisissez un numéro de téléphone valide.",
+      "number": "Saisissez un nombre.",
+      "integer": "Saisissez un nombre entier.",
+      "tooShort": "Utilisez au moins {n} caractères.",
+      "tooLong": "Utilisez au plus {n} caractères.",
+      "tooSmall": "Doit être supérieur ou égal à {min}.",
+      "tooLarge": "Doit être inférieur ou égal à {max}.",
+      "outOfRange": "Ce nombre est hors limites.",
+      "duplicate": "Déjà ajouté.",
+      "form": "Certaines valeurs ont été refusées. Vérifiez les champs signalés."
+    },
+    "lines": {
+      "add": "Ajouter une ligne",
+      "remove": "Supprimer la ligne {n}"
+    },
+    "quick": {
+      "today": "Aujourd’hui",
+      "tomorrow": "Demain",
+      "thisWeek": "Cette semaine",
+      "nextWeek": "La semaine prochaine",
+      "pickDate": "Choisir une date",
+      "clear": "Aucun {field}"
+    },
+    "reference": {
+      "noAccess": "Vous ne pouvez pas lire {table}, ce champ n’est donc pas modifiable ici."
+    },
+    "subtitle": {
+      "sections": "Détails : {list}"
+    },
+    "title": {
+      "create": "Nouveau {entity}",
+      "edit": "Modifier {entity}"
+    },
+    "wizard": {
+      "rail": "Étapes",
+      "step": "Étape {n}",
+      "back": "Retour",
+      "next": "Continuer"
+    }
+  },
   "combobox": {
     "placeholder": "Sélectionner…",
     "search": "Rechercher…",
@@ -1438,53 +1508,23 @@
   },
   "templates": {
     "crud": {
-      "newRow": "Nouvelle ligne",
-      "exportAction": "Exporter",
-      "searchPlaceholder": "Rechercher dans {table}…",
-      "removeFilter": "Supprimer le filtre {column}",
-      "queryFailed": "Échec de la requête",
-      "loadingRows": "Chargement des lignes",
-      "noMatchesTitle": "Aucune ligne correspondante",
-      "emptyTitle": "{count, plural, one {Pas encore de {entity}} other {Pas encore de {entity}}}",
-      "createTitle": "Ajouter {entity}",
-      "createSubtitle": "Crée une ligne dans {table}.",
-      "createSubmit": "Ajouter {entity}",
-      "createSuccessTitle": "{name} ajouté",
-      "createSuccessBody": "Vous pouvez annuler cette action depuis la notification.",
-      "editTitle": "Modifier {entity}",
-      "saveSubmit": "Enregistrer les modifications",
-      "deleteTitle": "Supprimer {entity}",
-      "deletePreflight": "Vérification des références…",
-      "deleteNoReferences": "Cette ligne n’a aucune référence entrante.",
-      "deleteConsequencesIntro": "Supprimer cette ligne affecte aussi :",
-      "referenceRows": "{count, plural, one {{n} ligne} other {{n} lignes}}",
-      "confirmPrompt": "Saisissez {value} pour confirmer",
-      "bulkDeleteTitle": "{count, plural, one {Supprimer {n} ligne} other {Supprimer {n} lignes}}",
       "bulkDeleteBody": "Les conséquences référentielles s’appliquent à chaque ligne sélectionnée.",
       "bulkDeleteConfirm": "Supprimer les lignes",
-      "uniqueHelper": "Doit être unique dans {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Vérifié sur {n} ligne.} other {Vérifié sur {n} lignes.}}",
-      "toast": {
-        "created": "{entity} créé.",
-        "createFailed": "Échec de la création.",
-        "saved": "Modifications enregistrées.",
-        "updateFailed": "Échec de la mise à jour.",
-        "deleted": "{name} supprimé.",
-        "deleteFailed": "Échec de la suppression.",
-        "bulkDeleted": "{count, plural, one {{n} ligne supprimée.} other {{n} lignes supprimées.}}",
-        "bulkDeleteFailed": "Échec de la suppression groupée.",
-        "exportIncomplete": "Export de {written, number} lignes sur {selected, number} sélectionnées — rechargez la page et réessayez.",
-        "undone": "Modification annulée.",
-        "undoFailed": "Échec de l’annulation."
-      },
+      "bulkDeleteTitle": "{count, plural, one {Supprimer {n} ligne} other {Supprimer {n} lignes}}",
+      "confirmPrompt": "Saisissez {value} pour confirmer",
+      "createSubtitle": "Crée une ligne dans {table}.",
+      "deleteConsequencesIntro": "Supprimer cette ligne affecte aussi :",
+      "deleteNoReferences": "Cette ligne n’a aucune référence entrante.",
+      "deletePreflight": "Vérification des références…",
+      "deleteTitle": "Supprimer {entity}",
       "detail": {
         "fields": "Champs",
         "inboundReferences": "références entrantes",
         "relatedCount": "{count, plural, one {{n} enregistrement lié dans {table}} other {{n} enregistrements liés dans {table}}}",
         "loadError": "Impossible de charger l’enregistrement."
       },
-      "peekAction": "Aperçu",
-      "openPage": "Ouvrir la page",
+      "emptyTitle": "{count, plural, one {Pas encore de {entity}} other {Pas encore de {entity}}}",
+      "exportAction": "Exporter",
       "file": {
         "tooLarge": "Ce fichier dépasse la limite de {limit}.",
         "uploading": "Envoi en cours",
@@ -1495,7 +1535,44 @@
         "add": "Ajouter des fichiers",
         "removeNamed": "Retirer {name}",
         "capReached": "Cet enregistrement accepte au maximum {count, plural, one {# fichier} other {# fichiers}}."
-      }
+      },
+      "filters": {
+        "chip": "{name} : {values}",
+        "custom": "Personnalisé",
+        "days": "{days} j",
+        "from": "à partir de {value}",
+        "no": "Non",
+        "rangeFrom": "De",
+        "rangeTo": "À",
+        "to": "jusqu'à {value}",
+        "yes": "Oui"
+      },
+      "loadingRows": "Chargement des lignes",
+      "newRow": "Nouvelle ligne",
+      "noMatchesTitle": "Aucune ligne correspondante",
+      "openPage": "Ouvrir la page",
+      "peekAction": "Aperçu",
+      "queryFailed": "Échec de la requête",
+      "referenceRows": "{count, plural, one {{n} ligne} other {{n} lignes}}",
+      "removeFilter": "Supprimer le filtre {column}",
+      "saveSubmit": "Enregistrer les modifications",
+      "searchPlaceholder": "Rechercher dans {table}…",
+      "toast": {
+        "bulkDeleteFailed": "Échec de la suppression groupée.",
+        "bulkDeleted": "{count, plural, one {{n} ligne supprimée.} other {{n} lignes supprimées.}}",
+        "createFailed": "Échec de la création.",
+        "created": "{entity} créé.",
+        "createdMany": "{count, plural, one {# enregistrement créé.} many {# enregistrements créés.} other {# enregistrements créés.}}",
+        "deleteFailed": "Échec de la suppression.",
+        "deleted": "{name} supprimé.",
+        "exportIncomplete": "Export de {written, number} lignes sur {selected, number} sélectionnées — rechargez la page et réessayez.",
+        "saved": "Modifications enregistrées.",
+        "undoFailed": "Échec de l’annulation.",
+        "undone": "Modification annulée.",
+        "updateFailed": "Échec de la mise à jour."
+      },
+      "uniqueHelper": "Doit être unique dans {table}.",
+      "uniqueHelperCounted": "{count, plural, one {Vérifié sur {n} ligne.} other {Vérifié sur {n} lignes.}}"
     },
     "queue": {
       "allSegment": "Tout",
@@ -1842,6 +1919,18 @@
     "make": {
       "label": "Établir un document",
       "one": "Établir {name}"
+    }
+  },
+  "lists": {
+    "name": {
+      "countries": "Pays",
+      "us-states": "États des États-Unis",
+      "gender": "Genre"
+    },
+    "gender": {
+      "female": "Femme",
+      "male": "Homme",
+      "other": "Autre"
     }
   }
 }

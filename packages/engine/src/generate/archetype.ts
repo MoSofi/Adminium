@@ -28,20 +28,25 @@
  */
 
 import {
+  buildColumnDef,
   composeTemplate,
+  crudDisplayColumns,
   emitCandidates,
+  fkDisplayFor,
   isRegisteredWidgetId,
   type ArchetypeSelection,
   type CandidateContext,
   type CandidateTable,
   type CandidateTableInput,
+  type ClassifiedColumnInput,
   type ClassifiedTableInput,
   type ComposeWarning,
+  type GridColumnSpecInput,
   type TemplateCandidate,
   type WidgetCandidate,
 } from '@adminium/widgets/generate';
 
-import { classifyModel, type ClassifiedTable } from '../classify/index.js';
+import { classifyModel, classifyTable, type ClassifiedTable } from '../classify/index.js';
 import type { ColumnSemantics, DatabaseModel, TableModel } from '../schema-model.js';
 import { ID_SLUG_BUDGET, humanize, pageIdFor } from './util.js';
 
@@ -201,6 +206,59 @@ export function toCandidateModel(
     });
   }
   return out;
+}
+
+/**
+ * EVERY column of one table as a `config.columns[]` spec — the same
+ * `buildColumnDef` a regeneration calls, over the same classification, with
+ * the same `fk.display` stamping.
+ *
+ * WHO ASKS. The server's page reply carries `columnFacts` so a create dialog
+ * describes the table as it is TODAY rather than as it was when the page was
+ * generated: a stored spec goes stale the moment a column is added (and
+ * regeneration skips an edited page for good), while these facts do not. The
+ * server may not import `@adminium/widgets`, so it reaches the composer the
+ * way generation already does — through here.
+ *
+ * NOT the generated page's column list: `composeCrudBody` ranks and CAPS at
+ * eight, which is right for a grid and wrong for a form, where a column that
+ * did not make the grid still has to be settable. This returns them all, in
+ * the table's own order, and the caller decides what to do with each.
+ *
+ * The FK targets are classified too, and only them: `fk.display` needs the
+ * referenced table's display column, and classifying a whole model to answer
+ * for one table would be the expensive way to get the same answer.
+ */
+export function columnSpecsForTable(model: DatabaseModel, table: TableModel): GridColumnSpecInput[] {
+  const wanted = new Set<string>([table.id]);
+  for (const column of table.columns) {
+    if (column.references !== null) wanted.add(column.references.tableId);
+  }
+  const tables = model.tables.filter((candidate) => wanted.has(candidate.id));
+  const classified = new Map<string, ClassifiedTable>(
+    tables.map((candidate) => [candidate.id, classifyTable(model, candidate)]),
+  );
+  const candidates = toCandidateModel(model, tables, classified);
+  const displayColumns = crudDisplayColumns(candidates);
+  const self = candidates.find((candidate) => candidate.table.id === table.id);
+  if (self === undefined) return [];
+  const semantics = new Map(self.classified.columns.map((column) => [column.column, column]));
+  const plain: ClassifiedColumnInput = {
+    column: '',
+    semantic: 'plain',
+    format: null,
+    secret: false,
+    pii: null,
+    maskedByDefault: false,
+    pair: null,
+  };
+  return self.table.columns.map((column) =>
+    buildColumnDef(
+      column,
+      semantics.get(column.name) ?? { ...plain, column: column.name },
+      fkDisplayFor(self.table, column, displayColumns),
+    ),
+  );
 }
 
 /**

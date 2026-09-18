@@ -1018,69 +1018,85 @@ export default {
       "openDocs": "開啟文件"
     },
     "article": {
-      "install": {
-        "title": "安裝 Adminium",
-        "excerpt": "用一道命令建立專案，或透過 docker run 或原始碼簽出執行 Adminium。"
-      },
-      "firstAdmin": {
-        "title": "建立第一位超級管理員",
-        "excerpt": "首次執行精靈會詢問什麼，以及它為何只能執行一次。"
-      },
-      "connectDb": {
-        "title": "連接你的第一個資料庫",
-        "excerpt": "將 Adminium 指向 PostgreSQL、MySQL 或 SQLite，產生後台管理應用。"
-      },
-      "schemaFile": {
-        "title": "從結構描述檔產生",
-        "excerpt": "上傳 Prisma schema、Django models.py、Rails schema.rb 或 .sql 傾印檔 —— 無需資料庫連線。"
-      },
-      "readOnly": {
-        "title": "使用唯讀角色",
-        "excerpt": "自省僅讀取結構描述中繼資料。請只授予 Adminium 必要的最小權限。"
-      },
       "apiKeys": {
         "title": "使用 API 金鑰驗證",
         "excerpt": "建立與撤銷金鑰，以及金鑰為何只向你顯示一次。"
-      },
-      "rest": {
-        "title": "REST API 參考",
-        "excerpt": "產生的應用所公開的每個端點，含請求與回應結構。"
-      },
-      "manifest": {
-        "title": "頁面資訊清單",
-        "excerpt": "頁面如何以組態描述，以及如何手動編輯。"
-      },
-      "roles": {
-        "title": "角色與權限",
-        "excerpt": "指派檢視者、編輯者與管理員，並以權限矩陣自訂角色。"
       },
       "audit": {
         "title": "閱讀稽核紀錄",
         "excerpt": "誰在何時、從何處更動了什麼。"
       },
-      "secrets": {
-        "title": "Adminium 如何保存你的機密",
-        "excerpt": "連線憑證以 ADMINIUM_SECRET 加密儲存，API 金鑰則以雜湊保存。"
-      },
-      "docker": {
-        "title": "以 Docker 自架",
-        "excerpt": "官方映像檔、docker-compose，以及獨立中繼資料庫的運行方式。"
-      },
       "backup": {
         "title": "備份與搬遷執行個體",
         "excerpt": "export-zip 會打包伺服器組態；匯入後可在他處重現同一套設定。"
       },
-      "telemetry": {
-        "title": "遙測與更新檢查",
-        "excerpt": "兩者皆為選擇性啟用，預設關閉。啟用後會送出哪些內容。"
+      "columnRules": {
+        "title": "欄位規則",
+        "excerpt": "什麼填入欄位、欄位接受什麼、限制為何——每次寫入都生效，而不只是某一個表單。"
+      },
+      "connectDb": {
+        "title": "連接你的第一個資料庫",
+        "excerpt": "將 Adminium 指向 PostgreSQL、MySQL 或 SQLite，產生後台管理應用。"
       },
       "connectionFails": {
         "title": "資料庫連線失敗",
         "excerpt": "查看診斷卡片：主機、連接埠、TLS，以及資料庫須放行的 IP。"
       },
+      "createDialog": {
+        "title": "「新增」與「編輯」對話框",
+        "excerpt": "每個欄位從何而來，以及如何自行設計而非使用產生的表單。"
+      },
+      "docker": {
+        "title": "以 Docker 自架",
+        "excerpt": "官方映像檔、docker-compose，以及獨立中繼資料庫的運行方式。"
+      },
+      "firstAdmin": {
+        "title": "建立第一位超級管理員",
+        "excerpt": "首次執行精靈會詢問什麼，以及它為何只能執行一次。"
+      },
+      "install": {
+        "title": "安裝 Adminium",
+        "excerpt": "用一道命令建立專案，或透過 docker run 或原始碼簽出執行 Adminium。"
+      },
+      "lineItems": {
+        "title": "明細列與預訂",
+        "excerpt": "帶即時合計的子列表格、了解既有預訂的日曆，以及每個標籤一筆記錄。"
+      },
+      "manifest": {
+        "title": "頁面資訊清單",
+        "excerpt": "頁面如何以組態描述，以及如何手動編輯。"
+      },
       "missingTables": {
         "title": "自省後缺少資料表",
         "excerpt": "結構描述可見性、被排除的資料表，以及重新執行產生。"
+      },
+      "readOnly": {
+        "title": "使用唯讀角色",
+        "excerpt": "自省僅讀取結構描述中繼資料。請只授予 Adminium 必要的最小權限。"
+      },
+      "rest": {
+        "title": "REST API 參考",
+        "excerpt": "產生的應用所公開的每個端點，含請求與回應結構。"
+      },
+      "roles": {
+        "title": "角色與權限",
+        "excerpt": "指派檢視者、編輯者與管理員，並以權限矩陣自訂角色。"
+      },
+      "schemaFile": {
+        "title": "從結構描述檔產生",
+        "excerpt": "上傳 Prisma schema、Django models.py、Rails schema.rb 或 .sql 傾印檔 —— 無需資料庫連線。"
+      },
+      "secrets": {
+        "title": "Adminium 如何保存你的機密",
+        "excerpt": "連線憑證以 ADMINIUM_SECRET 加密儲存，API 金鑰則以雜湊保存。"
+      },
+      "tableFilters": {
+        "title": "篩選資料表",
+        "excerpt": "六種篩選、頁面自動取得的兩個篩選，以及它們如何隨已儲存的檢視一起保留。"
+      },
+      "telemetry": {
+        "title": "遙測與更新檢查",
+        "excerpt": "兩者皆為選擇性啟用，預設關閉。啟用後會送出哪些內容。"
       }
     }
   },

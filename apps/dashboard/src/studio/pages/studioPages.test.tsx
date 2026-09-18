@@ -196,6 +196,18 @@ interface StubOptions {
     authorable: boolean;
     reason: 'NO_LIVE_DATABASE' | 'READ_ONLY_ROLE' | 'NO_DDL_PRIVILEGE' | 'READ_ONLY_INTENT' | null;
   };
+  /** `columnFacts` on the page reply — what the form designer draws from. */
+  columnFacts?: {
+    table: { labelSingular: string | null };
+    columns: {
+      spec: Record<string, unknown>;
+      ordinal: number;
+      writable: boolean;
+      filledBy: 'database' | 'adminium' | null;
+      required: boolean;
+    }[];
+    relations?: { relationId: string; label: string; targetTable: string; targetKey: string }[];
+  };
   /** `POST /connections/:id/schema/plan` — the column setup's preview. */
   planReply?: () => Response;
   /** `POST /connections/:id/schema/apply` — the column setup's confirm. */
@@ -332,6 +344,10 @@ function stubFetch(options: StubOptions = {}): Recorded[] {
         return jsonResponse(200, {
           data: makeCrudEnvelope({ id: rows[0]?.id as string, config: options.config }),
           canEditLayout: true,
+          // The live column facts the form designer derives its draft from.
+          // Absent by default, which is what an older server sends and what
+          // every test that predates the designer expects.
+          ...(options.columnFacts === undefined ? {} : { columnFacts: options.columnFacts }),
         });
       }
       if (method === 'DELETE') return jsonResponse(200, { data: { ok: true } });
@@ -773,6 +789,132 @@ describe('StudioPagesPage', () => {
     // The whole block goes, not just the key — a page with no overrides carries
     // no `labels`, exactly as a freshly generated one does.
     expect(body.config).not.toHaveProperty('labels');
+  });
+
+  /*
+   * THE FORM DESIGNER (plan 50 phase H).
+   *
+   * Two claims, and they are the two that decide whether a page keeps
+   * following its table: a form nobody really changed must not be STORED, and
+   * a form somebody designed must be.
+   */
+  const FACTS = {
+    table: { labelSingular: 'Customer' },
+    columns: [
+      {
+        spec: { name: 'id', logicalType: 'integer', primaryKey: true, hasDefault: true },
+        ordinal: 1,
+        writable: true,
+        filledBy: 'database' as const,
+        required: false,
+      },
+      {
+        spec: { name: 'name', logicalType: 'varchar' },
+        ordinal: 2,
+        writable: true,
+        filledBy: null,
+        required: true,
+      },
+      {
+        spec: { name: 'email', logicalType: 'varchar' },
+        ordinal: 3,
+        writable: true,
+        filledBy: null,
+        required: false,
+      },
+    ],
+  };
+
+  it('stores the form only once it says something the generated one does not', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: { columns: [] },
+      columnFacts: FACTS,
+    });
+
+    // The designer opens on the DERIVED form — what the dialog already draws —
+    // rather than on an empty canvas somebody has to rebuild.
+    const rows = await screen.findAllByTestId('form-field-row');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent).toContain('name');
+
+    await user.click(screen.getAllByTestId('form-field-down')[0] as HTMLElement);
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))).toBeDefined();
+    });
+    const body = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))
+      ?.body as { config: { form?: { sections: { fields: { column?: string }[] }[] } } };
+    expect(body.config.form?.sections[0]?.fields.map((field) => field.column)).toEqual(['email', 'name']);
+  });
+
+  it('deletes the stored form when the draft goes back to the generated one', async () => {
+    const stored = {
+      v: 2,
+      preset: 'sectioned',
+      sections: [
+        {
+          id: 'main',
+          columns: 2,
+          fields: [
+            { column: 'email', control: 'email' },
+            { column: 'name', control: 'text', required: true },
+          ],
+        },
+      ],
+    };
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: { columns: [], form: stored },
+      columnFacts: FACTS,
+    });
+
+    await screen.findAllByTestId('form-field-row');
+    await user.click(screen.getByTestId('form-reset'));
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))).toBeDefined();
+    });
+    const body = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))
+      ?.body as { config: Record<string, unknown> };
+    /*
+     * The block is REMOVED, not stored as today's derivation: a frozen copy
+     * stops following the table the day a column is added, which is the whole
+     * reason the form is derived in the first place.
+     */
+    expect(body.config).not.toHaveProperty('form');
+  });
+
+  it('offers a column the form does not name, and adds it back', async () => {
+    const stored = {
+      v: 2,
+      preset: 'sectioned',
+      sections: [
+        {
+          id: 'main',
+          label: 'Contact',
+          columns: 2,
+          fields: [{ column: 'name', control: 'text', required: true }],
+        },
+      ],
+    };
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: { columns: [], form: stored },
+      columnFacts: FACTS,
+    });
+
+    // F17: a designed form is a snapshot and the table moves.
+    const add = await screen.findByTestId('form-missing-add');
+    expect(add.textContent).toContain('email');
+    await user.click(add);
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))).toBeDefined();
+    });
+    const body = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))
+      ?.body as { config: { form?: { sections: { fields: { column?: string }[] }[] } } };
+    expect(body.config.form?.sections[0]?.fields.map((field) => field.column)).toEqual(['name', 'email']);
   });
 
   it('locks the label field while a retemplate is pending', async () => {

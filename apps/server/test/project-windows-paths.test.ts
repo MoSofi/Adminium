@@ -182,7 +182,7 @@ describe('the dev folder watch on Windows', () => {
     return { install: one, store, fs, watched, events, stats, logs, renameOrders, ordersTitle };
   }
 
-  it('watches pages\\ and schema\\, and applies a saved file under its / key', async () => {
+  it('watches pages\\, schema\\ and lists\\, and applies a saved file under its / key', async () => {
     const project = await windowsProject();
     service = createProjectService({
       meta: project.install.meta,
@@ -198,7 +198,11 @@ describe('the dev folder watch on Windows', () => {
     });
     service.start();
     await vi.waitFor(() => {
-      expect([...project.watched].sort()).toEqual([`${ROOT}\\pages`, `${ROOT}\\schema`]);
+      expect([...project.watched].sort()).toEqual([
+        `${ROOT}\\lists`,
+        `${ROOT}\\pages`,
+        `${ROOT}\\schema`,
+      ]);
     });
 
     project.renameOrders('Sales orders');

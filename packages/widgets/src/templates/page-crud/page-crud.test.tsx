@@ -106,15 +106,20 @@ describe('PageCrud template', () => {
     });
   });
 
-  it('create flow: TwoPhaseModal domain framing, generated form, undo toast', async () => {
+  it('create flow: the designed dialog, the generated form, the undo toast', async () => {
     const user = userEvent.setup();
     const api = makeApi(rows);
     renderPage(api);
     await screen.findByText('Initech');
 
     await user.click(screen.getByRole('button', { name: /New row/ }));
-    // domain framing in the modal (vs "New row" in the header)
-    expect(await screen.findByRole('heading', { name: 'Add customer' })).toBeDefined();
+    /*
+     * The dialog's own words (D27): "New {entity}" for the title and "Create
+     * {entity}" for the button, where this used to say "Add customer" twice.
+     * The toolbar keeps the database's framing ("New row"), which is right for
+     * a table nobody has named.
+     */
+    expect(await screen.findByRole('heading', { name: 'New customer' })).toBeDefined();
 
     const dialog = screen.getByRole('dialog');
     // enum arity 2 + required → SegmentedControl (radiogroup of segments)
@@ -126,7 +131,7 @@ describe('PageCrud template', () => {
     await user.type(within(dialog).getByRole('textbox', { name: /Email/ }), 'ops@acme.dev');
     await user.click(within(dialog).getByRole('radio', { name: /active/ }));
     await user.type(within(dialog).getByRole('spinbutton', { name: /MRR/ }), '1200');
-    await user.click(within(dialog).getByRole('button', { name: 'Add customer' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Create customer' }));
 
     await waitFor(() => {
       expect(api.create).toHaveBeenCalledWith({
@@ -136,8 +141,13 @@ describe('PageCrud template', () => {
         mrr: 1200,
       });
     });
-    // success phase echoes the harvested payload; undo toast fires
-    expect(await screen.findByText('Acme Holdings added')).toBeDefined();
+    /*
+     * The dialog CLOSES and the toast carries the Undo (D4). The second
+     * "added — Done" panel is gone: it confirmed, in front of the grid that now
+     * showed the row, something the toast had already said.
+     */
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await screen.findByText('Customer created.')).toBeDefined();
     expect(await screen.findByRole('button', { name: 'Undo' })).toBeDefined();
   });
 
@@ -820,7 +830,7 @@ describe('PageCrud file columns', () => {
     expect(within(dialog).queryByText('local-copy.pdf')).toBeNull();
 
     await user.type(within(dialog).getByRole('textbox', { name: /Customer/ }), 'Acme Holdings');
-    await user.click(within(dialog).getByRole('button', { name: 'Add customer' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Create customer' }));
 
     // The whole seam in one assertion: the reference the adapter returned is
     // what the column is written with.

@@ -143,6 +143,7 @@ export default {
       "skippedEdited": "Unangetastet gelassen, weil Sie sie bearbeitet haben: {pages}."
     },
     "apply": "Anwenden",
+    "brokenEnumValues": "Jeder erlaubte Wert bei {columns} muss ausgefüllt und von den anderen verschieden sein.",
     "ceiling": {
       "authorise": "Dieses Neuschreiben autorisieren",
       "body": "{table} enthält über {rows} Zeilen — mehr, als Adminium von sich aus neu schreibt. Nur eine Super-Admin-Rolle kann das autorisieren, und die Tabelle bleibt für die Dauer des Neuschreibens gesperrt.",
@@ -151,8 +152,9 @@ export default {
       "prompt": "Geben Sie {table} erneut ein, um das Neuschreiben zu autorisieren"
     },
     "column": {
+      "default": "Startwert",
+      "defaultValue": "Wert",
       "help": "Was bedeuten diese Einstellungen?",
-      "key": "Schlüssel",
       "length": "Länge",
       "link": "Verknüpft mit",
       "linkHelp": "Verknüpfen Sie dies mit einer Zeile in einer anderen Tabelle.",
@@ -176,8 +178,18 @@ export default {
       "prompt": "Geben Sie {word} ein, um zu bestätigen",
       "title": "Destruktive Änderung anwenden"
     },
+    "default": {
+      "autoincrement": "Vom letzten Datensatz aufwärts zählen",
+      "false": "Nein",
+      "literal": "Ein Wert",
+      "none": "Nichts",
+      "now": "Das aktuelle Datum und die Uhrzeit",
+      "true": "Ja",
+      "uuid": "Eine neue eindeutige ID"
+    },
     "designer": "Tabellen-Designer",
     "discard": "Änderungen verwerfen",
+    "discardTable": "Diese neue Tabelle verwerfen",
     "dropping": "Zum Löschen vorgemerkt",
     "empty": {
       "body": "Erstellen Sie eine Tabelle oder wählen Sie eine zum Bearbeiten. Nichts erreicht Ihre Datenbank, bevor Sie die Anweisungen geprüft und angewendet haben.",
@@ -201,6 +213,16 @@ export default {
     },
     "help": {
       "close": "Schließen",
+      "default": {
+        "example": "Ein Feld „Erstellt am“, das mit dem aktuellen Datum und der Uhrzeit beginnt, muss nie getippt werden und kann nicht falsch sein.",
+        "term": "Startwert",
+        "what": "Was im Feld steht, wenn es niemand ausfüllt. Die Datenbank trägt den Wert selbst ein — auch bei Datensätzen, die außerhalb von Adminium entstehen."
+      },
+      "keyGeneration": {
+        "example": "Nur PostgreSQL kann eine eindeutige ID erzeugen und direkt zurückgeben; auf den anderen Engines zählt der Schlüssel hoch.",
+        "term": "Wie der Schlüssel gefüllt wird",
+        "what": "Woher die ID jedes Datensatzes kommt. Aufwärtszählen ergibt 1, 2, 3 und passt für die meisten Tabellen; eine eindeutige ID ist lang und zufällig — schwerer zu erraten und schwerer vorzulesen."
+      },
       "link": {
         "example": "Eine Reservierung ist mit einem Kunden verknüpft. Adminium zeigt dann den Kunden bei der Reservierung und die Reservierungen beim Kunden.",
         "term": "Verknüpfung mit einer anderen Tabelle",
@@ -227,6 +249,11 @@ export default {
         "example": "Zwei Kunden sollten sich keine E-Mail-Adresse teilen — als eindeutig markiert, können sie es nicht.",
         "term": "Eindeutig",
         "what": "Keine zwei Zeilen dürfen denselben Wert enthalten. Die Datenbank weist die zweite ab."
+      },
+      "values": {
+        "example": "Ein Status: neu, in Arbeit oder erledigt. Niemand kann „in-arbet“ tippen und versehentlich einen vierten Status anlegen.",
+        "term": "Erlaubte Werte",
+        "what": "Die vollständige Liste der Antworten, die dieses Feld annimmt. Alles andere weist die Datenbank zurück, und Adminium zeigt die Liste als Schaltflächen oder Menü statt als Textfeld."
       }
     },
     "keepTable": "{table} behalten",
@@ -256,15 +283,31 @@ export default {
       "columns": "Spalten",
       "drop": "Diese Tabelle löschen",
       "dropHelp": "Die Tabelle und alle ihre Zeilen werden zerstört. Sie sehen genau, was dadurch kaputtgeht, bevor etwas ausgeführt wird.",
+      "keyCounted": "Vom letzten Datensatz aufwärts zählen",
+      "keyGeneration": "Wie der Schlüssel gefüllt wird",
+      "keyGenerationHelp": "Adminium liest den neuen Datensatz nach jedem Einfügen über diesen Schlüssel zurück.",
+      "keyGenerationOne": "Auf {dialect} muss ein Schlüssel eine hochgezählte Ganzzahl sein: eine von der Datenbank erzeugte ID lässt sich nach dem Einfügen nicht zurücklesen.",
+      "keyUnique": "Eine neue eindeutige ID",
       "name": "Tabellenname",
       "nameHelp": "Kleinbuchstaben, Ziffern und Unterstriche.",
       "namePlaceholder": "reservations",
       "noKey": "Diese Tabelle hat keinen Primärschlüssel, daher behandelt Adminium sie als schreibgeschützt — Zeilen lassen sich auflisten, aber nicht bearbeiten.",
-      "renameHelp": "Eine Änderung benennt die Tabelle in Ihrer Datenbank um.",
-      "uuidKeyUnavailable": "Auf dieser Engine muss ein Schlüssel eine generierte Ganzzahl sein: eine von der Datenbank generierte UUID kann nach einem Insert nicht zurückgelesen werden."
+      "renameHelp": "Eine Änderung benennt die Tabelle in Ihrer Datenbank um."
     },
     "unnamed": "Benennen Sie jede Tabelle und Spalte, um die Änderungen zu prüfen.",
-    "unrepresentableDefaults": "Diese Spalten behalten einen von der Datenbank erzeugten Standardwert, den Adminium hier nicht bearbeiten kann; er bleibt unverändert: {columns}"
+    "unrepresentableDefaults": "Diese Spalten behalten einen von der Datenbank erzeugten Standardwert, den Adminium hier nicht bearbeiten kann; er bleibt unverändert: {columns}",
+    "valuelessEnum": "Geben Sie {columns} mindestens einen erlaubten Wert, um die Änderungen zu prüfen.",
+    "values": {
+      "add": "Wert hinzufügen",
+      "addOnly": "Diese Liste ist ein Typ in Ihrer Datenbank, und Postgres kann einen vorhandenen Wert weder entfernen noch umbenennen. Hinzufügen können Sie weitere.",
+      "down": "{value} nach unten verschieben",
+      "empty": "Eine Auswahlspalte braucht mindestens einen Wert, bevor die Änderung geprüft werden kann.",
+      "label": "Erlaubte Werte",
+      "placeholder": "in_progress",
+      "remove": "{value} entfernen",
+      "up": "{value} nach oben verschieben",
+      "value": "Wert {n}"
+    }
   },
   "diagram": {
     "ceiling": "Es werden die {shown} am stärksten verbundenen Tabellen gezeigt. {omitted} weitere sind ausgeblendet — suchen Sie danach, um eine einzublenden.",
@@ -1197,6 +1240,126 @@ export default {
       "width": "Inhaltsbreite",
       "widthHint": "Wie breit die Inhaltsspalte der Seite auf einem großen Bildschirm werden darf."
     },
+    "filters": {
+      "add": "Filter hinzufügen",
+      "control": "Steuerelement für {column}",
+      "down": "{column} nach unten",
+      "empty": "Diese Seite hat keine Filter. Fügen Sie unten einen hinzu.",
+      "full": "Eine Seite zeigt höchstens {max} Filter.",
+      "name": "Name für {column}",
+      "remove": "Filter {column} entfernen",
+      "reset": "Zurück zu den vorgeschlagenen Filtern",
+      "subtitle": "Die Fragen, die die Symbolleiste zu dieser Tabelle stellen kann. Unverändert folgt sie der Tabelle.",
+      "title": "Filter",
+      "up": "{column} nach oben"
+    },
+    "form": {
+      "addLines": "{label} als Positionen",
+      "dialog": {
+        "cta": "Schaltfläche",
+        "ctaIcon": "Symbol der Schaltfläche",
+        "iconDefault": "Standard",
+        "subtitle": "Untertitel",
+        "title": "Titel",
+        "titleHelp": "Leer verwendet die erzeugten Wörter."
+      },
+      "field": {
+        "availability": "Belegt, wenn",
+        "availabilityAny": "Irgendeine Zeile belegt diese Zeit",
+        "availabilityHelp": "Eine andere Zeile belegt dieselbe Zeit. Wählen Sie eine Spalte, um auf einen Raum, eine Person, eine Maschine einzugrenzen. Ohne sie wird nichts als belegt angezeigt.",
+        "availabilityOff": "Nicht prüfen",
+        "control": "Steuerelement",
+        "down": "{name} nach unten verschieben",
+        "drag": "{name} umsortieren",
+        "help": "Hilfetext",
+        "initial": "Startwert",
+        "initialHelp": "Womit ein NEUER Datensatz beginnt. Beim Bearbeiten wird er nie angewendet.",
+        "initialLiteral": "Ein fester Wert",
+        "initialNone": "Nichts",
+        "initialNow": "Aktuelles Datum und Uhrzeit",
+        "initialToday": "Heute",
+        "initialUser": "Wer angemeldet ist",
+        "initialValue": "Der Wert",
+        "label": "Bezeichnung",
+        "placeholder": "Platzhalter",
+        "recap": "Zusammenfassung",
+        "recapHelp": "Ein Übersichtsfeld. Sein Text wird vorerst im JSON der Seite bearbeitet.",
+        "remove": "{name} entfernen",
+        "required": "Danach fragen",
+        "requiredHelp": "Das Formular speichert nicht ohne diesen Wert. Was die DATENBANK verlangt, wird im Schema festgelegt.",
+        "ruleChecks": "zusätzliche Prüfungen gelten",
+        "ruleDatabase": "die Datenbank füllt es aus",
+        "ruleFilled": "Adminium füllt es aus",
+        "ruleList": "nur Werte aus der Liste {key}",
+        "ruleRequired": "die Datenbank verlangt es",
+        "ruleValues": "nur eine feste Menge von Werten",
+        "rules": "Diese Spalte: {rules}.",
+        "rulesLink": "Im Schema ändern",
+        "settings": "Einstellungen für {name}",
+        "slotsEnd": "bis",
+        "slotsEvery": "alle",
+        "slotsHelp": "Lassen Sie die Zeiten leer für eine reine Tagesauswahl.",
+        "slotsStart": "Zeiten von",
+        "span": "Breite",
+        "spanHelp": "Wie viele Spalten des Abschnitts dieses Feld einnimmt.",
+        "up": "{name} nach oben verschieben"
+      },
+      "gallery": {
+        "choice": {
+          "body": "Auswählbare Auswahlkarten, ein Pill-Schalter und ein Schieberegler.",
+          "title": "Auswahlkarten"
+        },
+        "multi": {
+          "body": "E-Mail-Chips, Rollenauswahl, Berechtigungsliste.",
+          "title": "Mehrfacheingabe"
+        },
+        "quick": {
+          "body": "Ein Titelfeld mit Meta-Pills in einer Zeile. Ohne Abschnittsrahmen.",
+          "title": "Schnell anlegen"
+        },
+        "repeater": {
+          "body": "Eine Referenz, wiederholbare Positionen und laufende Summen.",
+          "title": "Wiederholung und Summen"
+        },
+        "sectioned": {
+          "body": "Langer Datensatz, aufgeteilt in beschriftete Abschnitte mit scrollendem Bereich.",
+          "title": "Abschnitte"
+        },
+        "segmented": {
+          "body": "Segmentierte Priorität, lange Beschreibung, Anhangsliste, zuständige Person.",
+          "title": "Segmente und Dateien"
+        },
+        "split": {
+          "body": "Zwei Bereiche: der erste Abschnitt neben dem Rest. Für einen Kalender gemacht.",
+          "title": "Geteilte Ansicht"
+        },
+        "upload": {
+          "body": "Medien-Dropzone, Währungsfelder, Tag-Chips und ein Veröffentlichen-Schalter.",
+          "title": "Upload und Chips"
+        },
+        "wizard": {
+          "body": "Schritt-für-Schritt-Assistent mit Fortschrittsleiste und Zurück/Weiter-Fußzeile.",
+          "title": "Assistent"
+        }
+      },
+      "missing": {
+        "title": "Nicht in diesem Formular. Eine Spalte, die die Datenbank verlangt, wird beim Öffnen des Dialogs automatisch ergänzt."
+      },
+      "preview": "Vorschau",
+      "previewEntity": "Datensatz",
+      "reset": "Auf erzeugt zurücksetzen",
+      "section": {
+        "add": "Abschnitt hinzufügen",
+        "columnCount": "{count} Spalten",
+        "columns": "Spalten",
+        "empty": "Noch keine Felder — verschieben Sie eines hierher oder fügen Sie unten eines hinzu.",
+        "label": "Abschnittsname",
+        "remove": "Diesen Abschnitt entfernen",
+        "unnamed": "Unbenannter Abschnitt"
+      },
+      "subtitle": "Was die Dialoge „Neu“ und „Bearbeiten“ zeigen. Unberührt folgt es der Tabelle.",
+      "title": "Formular zum Anlegen"
+    },
     "icon": {
       "noMatches": "Keine Symbole passen zu dieser Suche.",
       "none": "Symbol auswählen",
@@ -1511,6 +1674,47 @@ export default {
       "suppressed": "Unterdrückt",
       "toColumn": "Zielspalte",
       "toTable": "Zieltabelle"
+    },
+    "rules": {
+      "fill": "Startwert",
+      "fillDb": "Die Datenbank füllt es (ein Trigger)",
+      "fillDefault": "Der Datenbank überlassen",
+      "fillHelp": "Was Adminium hier einträgt, wenn es niemand ausfüllt.",
+      "fillImplicit": "Adminium füllt dies automatisch aus.",
+      "fillLiteral": "Ein fester Wert",
+      "fillNone": "Nichts — leer lassen",
+      "fillNow": "Das aktuelle Datum und die Uhrzeit",
+      "fillText": "Der Wert",
+      "fillUser": "Wer angemeldet ist",
+      "fillUuid": "Eine neue eindeutige ID",
+      "format": "Format",
+      "formatAny": "Beliebig",
+      "formatEmail": "Eine E-Mail-Adresse",
+      "formatPhone": "Eine Telefonnummer",
+      "formatUrl": "Eine Webadresse",
+      "help": "Diese gelten überall, wo ein Datensatz geschrieben wird — Formulare, Importe, Automatisierungen und die API —, nicht nur in dieser App.",
+      "max": "Größter Wert",
+      "maxLength": "Maximallänge",
+      "min": "Kleinster Wert",
+      "minLength": "Mindestlänge",
+      "onUpdate": "Bei jeder Änderung neu eintragen",
+      "optionsFromDatabase": "Ihre Datenbank legt die erlaubten Werte dieser Spalte fest. Ändern Sie sie unter Entwurf.",
+      "optionsHelp": "Einer pro Zeile. Leer lassen, um alles zuzulassen.",
+      "required": "Muss ausgefüllt werden",
+      "requiredAlready": "Ihre Datenbank verlangt diese Spalte bereits.",
+      "requiredHelp": "Das Formular fragt danach, und ein Schreibvorgang ohne diesen Wert wird abgelehnt.",
+      "title": "Regeln",
+      "optionsAnything": "Beliebig",
+      "optionsInline": "Diese Werte",
+      "optionsList": "Eine Liste",
+      "optionsListHelp": "Die Listen selbst bearbeiten Sie unter Studio → Listen.",
+      "optionsListLabel": "Liste",
+      "optionsListUnavailable": "Die Listen konnten nicht gelesen werden.",
+      "optionsMissingList": "{key} (nicht in diesem Arbeitsbereich)",
+      "optionsPickList": "Liste wählen…",
+      "optionsSource": "Erlaubte Werte",
+      "optionsSourceHelp": "Eine Liste wird einmal in Studio geschrieben und von jeder Spalte verwendet, die sie nennt.",
+      "optionsValues": "Die Werte"
     },
     "saveFailed": "Speichern fehlgeschlagen: {message}",
     "subtitle": "{tables} Tabellen · {applied} Überschreibungen angewendet",
@@ -1835,6 +2039,11 @@ export default {
       "body": "Formulieren Sie beliebige Texte in Adminium neu, legen Sie fest, welche Sprachen zur Auswahl stehen, und fügen Sie eigene hinzu.",
       "cta": "Übersetzungen öffnen",
       "heading": "Sprachen & Übersetzungen"
+    },
+    "listsCard": {
+      "body": "Die Antworten, die eine Spalte annimmt — Länder, Phasen, Abteilungen — einmal benannt und überall verwendbar.",
+      "cta": "Listen öffnen",
+      "heading": "Listen"
     }
   },
   "source": {
@@ -2091,5 +2300,54 @@ export default {
       "test": "Analysieren"
     },
     "title": "Neue Verbindung"
+  },
+  "lists": {
+    "addValue": "Wert hinzufügen",
+    "andMore": "und {count} weitere",
+    "builtin": "Eingebaut",
+    "builtinCount": "{count} Werte",
+    "builtinSubtitle": "Eine Liste, die Adminium mitliefert. Sie ist in jedem Arbeitsbereich dieselbe, und ihre Namen erscheinen in der Sprache der lesenden Person.",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "copiedFrom": "eine Kopie von {key}",
+    "copyTitle": "Eine Kopie von {name}",
+    "create": "Liste erstellen",
+    "delete": "Löschen",
+    "deleteBody": "Die Liste verschwindet. Die bereits gespeicherten Werte in Ihren Zeilen bleiben genau so, wie sie sind — eine Liste sagt, was ein Formular anbietet, nicht, was eine Spalte enthält.",
+    "deleteTitle": "{name} löschen?",
+    "edit": "Bearbeiten",
+    "editSubtitle": "Die Antworten, die eine Spalte mit dieser Liste annimmt, in der Reihenfolge, in der ein Formular sie anbietet.",
+    "editTitle": "{name} bearbeiten",
+    "emptyBody": "Eine Liste ist eine Menge von Antworten, die eine Spalte annimmt.",
+    "emptyTitle": "Noch keine Listen",
+    "errorUnknown": "Das hat nicht geklappt. Bitte erneut versuchen.",
+    "inUseBody": "Entfernen Sie sie zuerst aus {columns}.",
+    "inUseNone": "Entfernen Sie sie zuerst aus den Spalten, die sie verwenden.",
+    "inUseTitle": "{name} wird von einer Spalte verwendet",
+    "issueBlank": "Einer der Werte ist leer. Füllen Sie ihn aus oder entfernen Sie die Zeile.",
+    "issueDuplicate": "„{value}“ steht zweimal in der Liste.",
+    "issueEmpty": "Eine Liste braucht mindestens einen Wert.",
+    "issueName": "Geben Sie der Liste einen Namen.",
+    "key": "Schlüssel",
+    "keyFixed": "Regeln nennen diese Liste",
+    "keyHelper": "So nennen Regeln und Projektdateien diese Liste. Später nicht mehr änderbar.",
+    "labelAt": "Bezeichnung {n}",
+    "labelPlaceholder": "Was Menschen lesen",
+    "makeCopy": "Kopie erstellen, die ich bearbeiten kann",
+    "moveDown": "{value} nach unten verschieben",
+    "moveUp": "{value} nach oben verschieben",
+    "name": "Name",
+    "namePlaceholder": "Abteilungen",
+    "new": "Neue Liste",
+    "removeValue": "{value} entfernen",
+    "save": "Änderungen speichern",
+    "storeLabel": "Stattdessen die Bezeichnung speichern",
+    "storeLabelHelp": "Eine Kopie speichert den Code, z. B. DE. „Stattdessen die Bezeichnung speichern“ speichert, wie er hier heißt, z. B. Deutschland — in der Sprache dieses Arbeitsbereichs, ab jetzt.",
+    "subtitle": "Die Antworten, die eine Spalte annimmt: einmal benannt, überall verwendbar.",
+    "title": "Listen",
+    "valueAt": "Wert {n}",
+    "valueCount": "{count} Werte",
+    "values": "Werte",
+    "view": "Ansehen"
   }
 } as const;

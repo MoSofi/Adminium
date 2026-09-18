@@ -46,6 +46,76 @@
     "close": "إغلاق مربع الحوار",
     "confirmTitle": "هل أنت متأكد؟"
   },
+  "formDialog": {
+    "calendar": {
+      "days": "أيام {month}",
+      "next": "الشهر التالي",
+      "noTimes": "لا مواعيد في هذا اليوم",
+      "previous": "الشهر السابق",
+      "times": "المواعيد",
+      "unchecked": "هذا الشهر به حجوزات أكثر من أن يتم التحقق منها هنا."
+    },
+    "control": {
+      "fewer": "واحد أقل",
+      "hide": "إخفاء",
+      "more": "واحد أكثر",
+      "removeChip": "إزالة {value}",
+      "reveal": "إظهار",
+      "upTo": "حتى {size} ميغابايت"
+    },
+    "cta": {
+      "add": "إضافة {entity}",
+      "create": "إنشاء {entity}"
+    },
+    "footnote": {
+      "required": "الحقول المطلوبة معلّمة بـ *"
+    },
+    "issue": {
+      "required": "هذا الحقل مطلوب.",
+      "notAllowed": "اختر إحدى القيم المتاحة.",
+      "invalid": "هذه القيمة غير صالحة هنا.",
+      "email": "أدخل عنوان بريد إلكتروني صالحًا.",
+      "url": "أدخل عنوان ويب صالحًا.",
+      "phone": "أدخل رقم هاتف صالحًا.",
+      "number": "أدخل رقمًا.",
+      "integer": "أدخل عددًا صحيحًا.",
+      "tooShort": "استخدم {n} حرفًا على الأقل.",
+      "tooLong": "استخدم {n} حرفًا على الأكثر.",
+      "tooSmall": "يجب أن تكون {min} أو أكثر.",
+      "tooLarge": "يجب أن تكون {max} أو أقل.",
+      "outOfRange": "هذا الرقم خارج النطاق.",
+      "duplicate": "تمت إضافته بالفعل.",
+      "form": "تم رفض بعض القيم. راجع الحقول المحددة."
+    },
+    "lines": {
+      "add": "إضافة سطر",
+      "remove": "إزالة السطر {n}"
+    },
+    "quick": {
+      "today": "اليوم",
+      "tomorrow": "غدًا",
+      "thisWeek": "هذا الأسبوع",
+      "nextWeek": "الأسبوع المقبل",
+      "pickDate": "اختر تاريخًا",
+      "clear": "بدون {field}"
+    },
+    "reference": {
+      "noAccess": "لا يمكنك قراءة {table}، لذا لا يمكن تغيير هذا الحقل هنا."
+    },
+    "subtitle": {
+      "sections": "تفاصيل: {list}"
+    },
+    "title": {
+      "create": "{entity} جديد",
+      "edit": "تعديل {entity}"
+    },
+    "wizard": {
+      "rail": "الخطوات",
+      "step": "الخطوة {n}",
+      "back": "رجوع",
+      "next": "متابعة"
+    }
+  },
   "combobox": {
     "placeholder": "اختر…",
     "search": "بحث…",
@@ -1438,53 +1508,23 @@
   },
   "templates": {
     "crud": {
-      "newRow": "صف جديد",
-      "exportAction": "تصدير",
-      "searchPlaceholder": "ابحث في {table}…",
-      "removeFilter": "إزالة تصفية {column}",
-      "queryFailed": "فشل الاستعلام",
-      "loadingRows": "جارٍ تحميل الصفوف",
-      "noMatchesTitle": "لا توجد صفوف مطابقة",
-      "emptyTitle": "{count, plural, zero {لا توجد {entity} بعد} one {لا توجد {entity} بعد} two {لا توجد {entity} بعد} few {لا توجد {entity} بعد} many {لا توجد {entity} بعد} other {لا توجد {entity} بعد}}",
-      "createTitle": "إضافة {entity}",
-      "createSubtitle": "يُنشئ صفًا واحدًا في {table}.",
-      "createSubmit": "إضافة {entity}",
-      "createSuccessTitle": "تمت إضافة {name}",
-      "createSuccessBody": "يمكنك التراجع عن ذلك من الإشعار.",
-      "editTitle": "تعديل {entity}",
-      "saveSubmit": "حفظ التغييرات",
-      "deleteTitle": "حذف {entity}",
-      "deletePreflight": "جارٍ فحص المراجع…",
-      "deleteNoReferences": "لا توجد مراجع واردة إلى هذا الصف.",
-      "deleteConsequencesIntro": "حذف هذا الصف يؤثر أيضًا على:",
-      "referenceRows": "{count, plural, zero {{n} صف} one {صف واحد} two {صفان} few {{n} صفوف} many {{n} صفًا} other {{n} صف}}",
-      "confirmPrompt": "اكتب {value} للتأكيد",
-      "bulkDeleteTitle": "{count, plural, zero {حذف {n} صف} one {حذف صف واحد} two {حذف صفين} few {حذف {n} صفوف} many {حذف {n} صفًا} other {حذف {n} صف}}",
       "bulkDeleteBody": "تنطبق آثار المراجع على كل صف محدد.",
       "bulkDeleteConfirm": "حذف الصفوف",
-      "uniqueHelper": "يجب أن تكون القيمة فريدة في {table}.",
-      "uniqueHelperCounted": "{count, plural, zero {تم التحقق مقابل {n} صف.} one {تم التحقق مقابل صف واحد.} two {تم التحقق مقابل صفين.} few {تم التحقق مقابل {n} صفوف.} many {تم التحقق مقابل {n} صفًا.} other {تم التحقق مقابل {n} صف.}}",
-      "toast": {
-        "created": "تم إنشاء {entity}.",
-        "createFailed": "فشل الإنشاء.",
-        "saved": "تم حفظ التغييرات.",
-        "updateFailed": "فشل التحديث.",
-        "deleted": "تم حذف {name}.",
-        "deleteFailed": "فشل الحذف.",
-        "bulkDeleted": "{count, plural, zero {تم حذف {n} صف.} one {تم حذف صف واحد.} two {تم حذف صفين.} few {تم حذف {n} صفوف.} many {تم حذف {n} صفًا.} other {تم حذف {n} صف.}}",
-        "bulkDeleteFailed": "فشل الحذف الجماعي.",
-        "exportIncomplete": "تم تصدير {written, number} من أصل {selected, number} صفًا محددًا — أعد التحميل وحاول مرة أخرى.",
-        "undone": "تم التراجع عن التغيير.",
-        "undoFailed": "فشل التراجع."
-      },
+      "bulkDeleteTitle": "{count, plural, zero {حذف {n} صف} one {حذف صف واحد} two {حذف صفين} few {حذف {n} صفوف} many {حذف {n} صفًا} other {حذف {n} صف}}",
+      "confirmPrompt": "اكتب {value} للتأكيد",
+      "createSubtitle": "يُنشئ صفًا واحدًا في {table}.",
+      "deleteConsequencesIntro": "حذف هذا الصف يؤثر أيضًا على:",
+      "deleteNoReferences": "لا توجد مراجع واردة إلى هذا الصف.",
+      "deletePreflight": "جارٍ فحص المراجع…",
+      "deleteTitle": "حذف {entity}",
       "detail": {
         "fields": "الحقول",
         "inboundReferences": "مراجع واردة",
         "relatedCount": "{count, plural, zero {{n} سجل مرتبط في {table}} one {سجل واحد مرتبط في {table}} two {سجلان مرتبطان في {table}} few {{n} سجلات مرتبطة في {table}} many {{n} سجلًا مرتبطًا في {table}} other {{n} سجل مرتبط في {table}}}",
         "loadError": "تعذّر تحميل السجل."
       },
-      "peekAction": "معاينة",
-      "openPage": "فتح الصفحة",
+      "emptyTitle": "{count, plural, zero {لا توجد {entity} بعد} one {لا توجد {entity} بعد} two {لا توجد {entity} بعد} few {لا توجد {entity} بعد} many {لا توجد {entity} بعد} other {لا توجد {entity} بعد}}",
+      "exportAction": "تصدير",
       "file": {
         "tooLarge": "هذا الملف أكبر من الحد المسموح {limit}.",
         "uploading": "جارٍ الرفع",
@@ -1495,7 +1535,44 @@
         "add": "إضافة ملفات",
         "removeNamed": "إزالة {name}",
         "capReached": "يقبل هذا السجل {count, plural, zero {# ملف} one {ملفًا واحدًا} two {ملفين} few {# ملفات} many {# ملفًا} other {# ملف}} كحد أقصى."
-      }
+      },
+      "filters": {
+        "chip": "{name}: {values}",
+        "custom": "مخصص",
+        "days": "{days} يوم",
+        "from": "من {value}",
+        "no": "لا",
+        "rangeFrom": "من",
+        "rangeTo": "إلى",
+        "to": "إلى {value}",
+        "yes": "نعم"
+      },
+      "loadingRows": "جارٍ تحميل الصفوف",
+      "newRow": "صف جديد",
+      "noMatchesTitle": "لا توجد صفوف مطابقة",
+      "openPage": "فتح الصفحة",
+      "peekAction": "معاينة",
+      "queryFailed": "فشل الاستعلام",
+      "referenceRows": "{count, plural, zero {{n} صف} one {صف واحد} two {صفان} few {{n} صفوف} many {{n} صفًا} other {{n} صف}}",
+      "removeFilter": "إزالة تصفية {column}",
+      "saveSubmit": "حفظ التغييرات",
+      "searchPlaceholder": "ابحث في {table}…",
+      "toast": {
+        "bulkDeleteFailed": "فشل الحذف الجماعي.",
+        "bulkDeleted": "{count, plural, zero {تم حذف {n} صف.} one {تم حذف صف واحد.} two {تم حذف صفين.} few {تم حذف {n} صفوف.} many {تم حذف {n} صفًا.} other {تم حذف {n} صف.}}",
+        "createFailed": "فشل الإنشاء.",
+        "created": "تم إنشاء {entity}.",
+        "createdMany": "{count, plural, zero {لم يتم إنشاء سجلات.} one {تم إنشاء سجل واحد.} two {تم إنشاء سجلين.} few {تم إنشاء # سجلات.} many {تم إنشاء # سجلًا.} other {تم إنشاء # سجل.}}",
+        "deleteFailed": "فشل الحذف.",
+        "deleted": "تم حذف {name}.",
+        "exportIncomplete": "تم تصدير {written, number} من أصل {selected, number} صفًا محددًا — أعد التحميل وحاول مرة أخرى.",
+        "saved": "تم حفظ التغييرات.",
+        "undoFailed": "فشل التراجع.",
+        "undone": "تم التراجع عن التغيير.",
+        "updateFailed": "فشل التحديث."
+      },
+      "uniqueHelper": "يجب أن تكون القيمة فريدة في {table}.",
+      "uniqueHelperCounted": "{count, plural, zero {تم التحقق مقابل {n} صف.} one {تم التحقق مقابل صف واحد.} two {تم التحقق مقابل صفين.} few {تم التحقق مقابل {n} صفوف.} many {تم التحقق مقابل {n} صفًا.} other {تم التحقق مقابل {n} صف.}}"
     },
     "queue": {
       "allSegment": "الكل",
@@ -1842,6 +1919,18 @@
     "make": {
       "label": "إنشاء مستند",
       "one": "إنشاء {name}"
+    }
+  },
+  "lists": {
+    "name": {
+      "countries": "البلدان",
+      "us-states": "الولايات الأمريكية",
+      "gender": "النوع"
+    },
+    "gender": {
+      "female": "أنثى",
+      "male": "ذكر",
+      "other": "آخر"
     }
   }
 }

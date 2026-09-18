@@ -87,6 +87,7 @@ export function PageRecordBinding({
   canAttach,
   canDelete,
   canUnmask,
+  formRelations,
   currency,
 }: PageTemplateProps) {
   const crud = adapters.crud;
@@ -516,6 +517,9 @@ export function PageRecordBinding({
         canDelete={canDelete}
         // PII fields reveal only for callers the server sent clear values to.
         canUnmask={canUnmask}
+        // The link relations the table can write through: chips on the record,
+        // and the same field in its edit dialog.
+        {...(formRelations === undefined ? {} : { relations: formRelations })}
         // The connection's own currency for money cells.
         {...(currency === undefined ? {} : { currency })}
         tabs={detail?.tabs ?? []}

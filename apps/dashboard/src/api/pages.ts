@@ -22,9 +22,76 @@ import {
   type PageEnvelope,
 } from '@adminium/engine/config';
 
+import type { ColumnFact, ColumnFacts } from '@adminium/widgets';
+
 import { api } from '../app/api.js';
 
 export type { PageEnvelope } from '@adminium/engine/config';
+export type { ColumnFact, ColumnFacts };
+
+/** The `columnFacts` block as the page route sends it. */
+/** Mirrors `RelationFact` on the page reply. */
+export interface FormRelationFactReply {
+  relationId: string;
+  label: string;
+  targetTable: string;
+  targetKey: string;
+  /** The column a chip shows; absent ⇒ the key labels itself. */
+  targetName?: string;
+}
+
+interface ColumnFactsReply {
+  table: { labelSingular: string | null };
+  columns: FormColumnFactReply[];
+  relations?: FormRelationFactReply[];
+  children?: FormChildFactReply[];
+}
+
+/**
+ * One column of that block, WHOLE — the spec included.
+ *
+ * The keyed `ColumnFacts` record below answers "what does the server say about
+ * this column", which is all the old form needed because it rendered
+ * `config.columns[]`. The form DOCUMENT needs the other half: the columns
+ * themselves, in table order, including the ones the grid's eight-column cap
+ * never listed. A form that can only offer what the grid shows cannot set them.
+ */
+/** A table whose rows this one can hold a list of — an invoice's lines. */
+export interface FormChildFactReply {
+  relationId: string;
+  label: string;
+  childTable: string;
+  foreignColumn: string;
+  columns: FormColumnFactReply[];
+}
+
+export interface FormColumnFactReply {
+  spec: { name?: unknown } & Record<string, unknown>;
+  ordinal?: number;
+  filledBy: 'database' | 'adminium' | null;
+  required: boolean;
+  writable: boolean;
+  options?: { list: string } | { values: { value: string }[] } | undefined;
+  validation?: Record<string, unknown> | undefined;
+}
+
+/** The reply's array, keyed by column name — the shape the form reads. */
+function factsByColumn(block: ColumnFactsReply | undefined): ColumnFacts {
+  const facts: Record<string, ColumnFact> = {};
+  for (const column of block?.columns ?? []) {
+    const name = column.spec.name;
+    if (typeof name !== 'string' || name === '') continue;
+    facts[name] = {
+      filledBy: column.filledBy,
+      required: column.required,
+      writable: column.writable,
+      // The RULE, not its answers: a named list is resolved where the reader's
+      // language is known (`api/optionLists.ts`).
+      ...(column.options === undefined ? {} : { options: column.options }),
+    };
+  }
+  return facts;
+}
 
 export type PageDocumentResult =
   | {
@@ -45,6 +112,29 @@ export type PageDocumentResult =
        *  reveal affordance. Defaults CLOSED (false) when absent: the reveal is
        *  only honest when the server actually sent values in clear. */
       canUnmask: boolean;
+      /**
+       * The source table as it stands right now — who fills each column and
+       * which ones the create form has to ask for. Empty when the server did
+       * not compute them (no source table, no snapshot, an older server), and
+       * the form then falls back to the stored spec, exactly as before.
+       *
+       * Why not the stored `config.columns[]`: that list froze the day the
+       * page was generated, regeneration will not touch a page anybody has
+       * edited, and it is capped at eight columns — so a column added since
+       * is invisible to the form, and a NOT NULL column added since makes
+       * every create fail with no way for the form to say why.
+       */
+      columnFacts: ColumnFacts;
+      /**
+       * The same block unkeyed and whole, in table order: what the form
+       * document is derived from and rendered against.
+       */
+      formColumns: readonly FormColumnFactReply[];
+      /** The link relations this table can write through, as fields of chips. */
+      formRelations: readonly FormRelationFactReply[];
+      formChildren: readonly FormChildFactReply[];
+      /** The table's own singular label, for the dialog's title. */
+      tableLabelSingular: string | null;
     }
   | { status: 'too-new'; v: number; latest: number }
   | { status: 'invalid'; issues: string[] };
@@ -114,6 +204,11 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
     // Closed default, unlike the write capabilities: a reveal button is only
     // honest when the server said it sent PII in clear.
     canUnmask: false,
+    columnFacts: {},
+    formColumns: [],
+    formRelations: [],
+    formChildren: [],
+    tableLabelSingular: null,
   };
 }
 
@@ -133,6 +228,7 @@ export function pageQuery(pageId: string) {
         canDelete?: boolean;
         canAttach?: boolean;
         canUnmask?: boolean;
+        columnFacts?: ColumnFactsReply;
       }>(`/api/v1/pages/${encodeURIComponent(pageId)}`);
       const result = parsePageDocument(reply.data);
       return result.status === 'ok'
@@ -147,6 +243,11 @@ export function pageQuery(pageId: string) {
             canAttach: reply.canAttach !== false,
             // `=== true`: opposite polarity — absent means keep cells masked.
             canUnmask: reply.canUnmask === true,
+            columnFacts: factsByColumn(reply.columnFacts),
+            formColumns: reply.columnFacts?.columns ?? [],
+            formRelations: reply.columnFacts?.relations ?? [],
+            formChildren: reply.columnFacts?.children ?? [],
+            tableLabelSingular: reply.columnFacts?.table.labelSingular ?? null,
           }
         : result;
     },

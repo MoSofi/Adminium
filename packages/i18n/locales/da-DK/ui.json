@@ -46,6 +46,76 @@
     "close": "Luk dialog",
     "confirmTitle": "Er du sikker?"
   },
+  "formDialog": {
+    "calendar": {
+      "days": "Dage i {month}",
+      "next": "Næste måned",
+      "noTimes": "Ingen tidspunkter denne dag",
+      "previous": "Forrige måned",
+      "times": "Tidspunkter",
+      "unchecked": "Denne måned har for mange bookinger til at blive tjekket her."
+    },
+    "control": {
+      "fewer": "Én mindre",
+      "hide": "Skjul",
+      "more": "Én mere",
+      "removeChip": "Fjern {value}",
+      "reveal": "Vis",
+      "upTo": "op til {size} MB"
+    },
+    "cta": {
+      "add": "Tilføj {entity}",
+      "create": "Opret {entity}"
+    },
+    "footnote": {
+      "required": "Obligatoriske felter er markeret med *"
+    },
+    "issue": {
+      "required": "Dette felt er påkrævet.",
+      "notAllowed": "Vælg en af de viste værdier.",
+      "invalid": "Denne værdi er ikke gyldig her.",
+      "email": "Indtast en gyldig e-mailadresse.",
+      "url": "Indtast en gyldig webadresse.",
+      "phone": "Indtast et gyldigt telefonnummer.",
+      "number": "Indtast et tal.",
+      "integer": "Indtast et helt tal.",
+      "tooShort": "Brug mindst {n} tegn.",
+      "tooLong": "Brug højst {n} tegn.",
+      "tooSmall": "Skal være {min} eller derover.",
+      "tooLarge": "Skal være {max} eller derunder.",
+      "outOfRange": "Dette tal er uden for intervallet.",
+      "duplicate": "Allerede tilføjet.",
+      "form": "Nogle værdier blev afvist. Tjek de markerede felter."
+    },
+    "lines": {
+      "add": "Tilføj linje",
+      "remove": "Fjern linje {n}"
+    },
+    "quick": {
+      "today": "I dag",
+      "tomorrow": "I morgen",
+      "thisWeek": "Denne uge",
+      "nextWeek": "Næste uge",
+      "pickDate": "Vælg en dato",
+      "clear": "Ingen {field}"
+    },
+    "reference": {
+      "noAccess": "Du kan ikke læse {table}, så dette kan ikke ændres her."
+    },
+    "subtitle": {
+      "sections": "Oplysninger: {list}"
+    },
+    "title": {
+      "create": "Ny {entity}",
+      "edit": "Rediger {entity}"
+    },
+    "wizard": {
+      "rail": "Trin",
+      "step": "Trin {n}",
+      "back": "Tilbage",
+      "next": "Fortsæt"
+    }
+  },
   "combobox": {
     "placeholder": "Vælg…",
     "search": "Søg…",
@@ -1438,53 +1508,23 @@
   },
   "templates": {
     "crud": {
-      "newRow": "Ny række",
-      "exportAction": "Eksportér",
-      "searchPlaceholder": "Søg i {table}…",
-      "removeFilter": "Fjern filteret for {column}",
-      "queryFailed": "Forespørgslen mislykkedes",
-      "loadingRows": "Indlæser rækker",
-      "noMatchesTitle": "Ingen matchende rækker",
-      "emptyTitle": "{count, plural, one {Ingen {entity} endnu} other {Ingen {entity} endnu}}",
-      "createTitle": "Tilføj {entity}",
-      "createSubtitle": "Opretter én række i {table}.",
-      "createSubmit": "Tilføj {entity}",
-      "createSuccessTitle": "{name} tilføjet",
-      "createSuccessBody": "Du kan fortryde dette fra notifikationen.",
-      "editTitle": "Rediger {entity}",
-      "saveSubmit": "Gem ændringer",
-      "deleteTitle": "Slet {entity}",
-      "deletePreflight": "Tjekker referencer…",
-      "deleteNoReferences": "Denne række har ingen indgående referencer.",
-      "deleteConsequencesIntro": "Sletning af denne række påvirker også:",
-      "referenceRows": "{count, plural, one {{n} række} other {{n} rækker}}",
-      "confirmPrompt": "Skriv {value} for at bekræfte",
-      "bulkDeleteTitle": "{count, plural, one {Slet {n} række} other {Slet {n} rækker}}",
       "bulkDeleteBody": "Referencekonsekvenserne gælder for hver eneste valgt række.",
       "bulkDeleteConfirm": "Slet rækker",
-      "uniqueHelper": "Skal være unik i {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Kontrolleret mod {n} række.} other {Kontrolleret mod {n} rækker.}}",
-      "toast": {
-        "created": "{entity} oprettet.",
-        "createFailed": "Oprettelsen mislykkedes.",
-        "saved": "Ændringerne er gemt.",
-        "updateFailed": "Opdateringen mislykkedes.",
-        "deleted": "{name} slettet.",
-        "deleteFailed": "Sletningen mislykkedes.",
-        "bulkDeleted": "{count, plural, one {{n} række slettet.} other {{n} rækker slettet.}}",
-        "bulkDeleteFailed": "Massesletningen mislykkedes.",
-        "exportIncomplete": "Eksporterede {written, number} af {selected, number} valgte rækker — genindlæs, og prøv igen.",
-        "undone": "Ændring fortrudt.",
-        "undoFailed": "Fortrydelsen mislykkedes."
-      },
+      "bulkDeleteTitle": "{count, plural, one {Slet {n} række} other {Slet {n} rækker}}",
+      "confirmPrompt": "Skriv {value} for at bekræfte",
+      "createSubtitle": "Opretter én række i {table}.",
+      "deleteConsequencesIntro": "Sletning af denne række påvirker også:",
+      "deleteNoReferences": "Denne række har ingen indgående referencer.",
+      "deletePreflight": "Tjekker referencer…",
+      "deleteTitle": "Slet {entity}",
       "detail": {
         "fields": "Felter",
         "inboundReferences": "indgående referencer",
         "relatedCount": "{count, plural, one {{n} relateret post i {table}} other {{n} relaterede poster i {table}}}",
         "loadError": "Posten kunne ikke indlæses."
       },
-      "peekAction": "Forhåndsvisning",
-      "openPage": "Åbn side",
+      "emptyTitle": "{count, plural, one {Ingen {entity} endnu} other {Ingen {entity} endnu}}",
+      "exportAction": "Eksportér",
       "file": {
         "tooLarge": "Filen er større end grænsen på {limit}.",
         "uploading": "Uploader",
@@ -1495,7 +1535,44 @@
         "add": "Tilføj filer",
         "removeNamed": "Fjern {name}",
         "capReached": "Denne post accepterer højst {count, plural, one {# fil} other {# filer}}."
-      }
+      },
+      "filters": {
+        "chip": "{name}: {values}",
+        "custom": "Tilpasset",
+        "days": "{days} d",
+        "from": "fra {value}",
+        "no": "Nej",
+        "rangeFrom": "Fra",
+        "rangeTo": "Til",
+        "to": "til {value}",
+        "yes": "Ja"
+      },
+      "loadingRows": "Indlæser rækker",
+      "newRow": "Ny række",
+      "noMatchesTitle": "Ingen matchende rækker",
+      "openPage": "Åbn side",
+      "peekAction": "Forhåndsvisning",
+      "queryFailed": "Forespørgslen mislykkedes",
+      "referenceRows": "{count, plural, one {{n} række} other {{n} rækker}}",
+      "removeFilter": "Fjern filteret for {column}",
+      "saveSubmit": "Gem ændringer",
+      "searchPlaceholder": "Søg i {table}…",
+      "toast": {
+        "bulkDeleteFailed": "Massesletningen mislykkedes.",
+        "bulkDeleted": "{count, plural, one {{n} række slettet.} other {{n} rækker slettet.}}",
+        "createFailed": "Oprettelsen mislykkedes.",
+        "created": "{entity} oprettet.",
+        "createdMany": "{count, plural, one {# post oprettet.} other {# poster oprettet.}}",
+        "deleteFailed": "Sletningen mislykkedes.",
+        "deleted": "{name} slettet.",
+        "exportIncomplete": "Eksporterede {written, number} af {selected, number} valgte rækker — genindlæs, og prøv igen.",
+        "saved": "Ændringerne er gemt.",
+        "undoFailed": "Fortrydelsen mislykkedes.",
+        "undone": "Ændring fortrudt.",
+        "updateFailed": "Opdateringen mislykkedes."
+      },
+      "uniqueHelper": "Skal være unik i {table}.",
+      "uniqueHelperCounted": "{count, plural, one {Kontrolleret mod {n} række.} other {Kontrolleret mod {n} rækker.}}"
     },
     "queue": {
       "allSegment": "Alle",
@@ -1842,6 +1919,18 @@
     "make": {
       "label": "Lav et bilag",
       "one": "Lav {name}"
+    }
+  },
+  "lists": {
+    "name": {
+      "countries": "Lande",
+      "us-states": "Amerikanske delstater",
+      "gender": "Køn"
+    },
+    "gender": {
+      "female": "Kvinde",
+      "male": "Mand",
+      "other": "Andet"
     }
   }
 }

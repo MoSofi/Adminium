@@ -1018,69 +1018,85 @@ export default {
       "openDocs": "Ouvrir la documentation"
     },
     "article": {
-      "install": {
-        "title": "Installer Adminium",
-        "excerpt": "Créez un projet avec une seule commande, ou lancez Adminium via docker run ou depuis un dépôt source."
-      },
-      "firstAdmin": {
-        "title": "Créer votre premier super-administrateur",
-        "excerpt": "Ce que demande l’assistant de première exécution, et pourquoi il ne peut s’exécuter qu’une fois."
-      },
-      "connectDb": {
-        "title": "Connecter votre première base de données",
-        "excerpt": "Pointez Adminium vers PostgreSQL, MySQL ou SQLite et générez une application d’administration."
-      },
-      "schemaFile": {
-        "title": "Générer depuis un fichier de schéma",
-        "excerpt": "Importez un schéma Prisma, un models.py Django, un schema.rb Rails ou un dump .sql — sans aucune connexion."
-      },
-      "readOnly": {
-        "title": "Utiliser un rôle en lecture seule",
-        "excerpt": "L’introspection ne lit que les métadonnées du schéma. Donnez à Adminium le minimum de privilèges."
-      },
       "apiKeys": {
         "title": "S’authentifier avec des clés d’API",
         "excerpt": "Créer et révoquer des clés, et pourquoi une clé ne vous est montrée qu’une seule fois."
-      },
-      "rest": {
-        "title": "Référence de l’API REST",
-        "excerpt": "Tous les points d’accès exposés par l’application générée, avec les formats de requête et de réponse."
-      },
-      "manifest": {
-        "title": "Le manifeste de page",
-        "excerpt": "Comment une page se décrit en configuration, et comment en modifier une à la main."
-      },
-      "roles": {
-        "title": "Rôles et permissions",
-        "excerpt": "Attribuez Lecteur, Éditeur et Admin, et construisez vos propres rôles depuis la matrice de permissions."
       },
       "audit": {
         "title": "Lire le journal d’audit",
         "excerpt": "Qui a changé quoi, quand, et depuis où."
       },
-      "secrets": {
-        "title": "Comment Adminium stocke vos secrets",
-        "excerpt": "Les identifiants de connexion sont chiffrés au repos avec ADMINIUM_SECRET. Les clés d’API sont hachées."
-      },
-      "docker": {
-        "title": "Auto-héberger avec Docker",
-        "excerpt": "L’image officielle, docker-compose, et l’usage d’une base méta séparée."
-      },
       "backup": {
         "title": "Sauvegarder et déplacer une instance",
         "excerpt": "export-zip regroupe votre configuration serveur ; l’import rejoue la même installation ailleurs."
       },
-      "telemetry": {
-        "title": "Télémétrie et vérification des mises à jour",
-        "excerpt": "Les deux sont opt-in et désactivées par défaut. Ce qui est envoyé si vous les activez."
+      "columnRules": {
+        "title": "Règles sur une colonne",
+        "excerpt": "Ce qui remplit une colonne, ce qu’elle accepte et ses limites — à chaque écriture, pas seulement dans un formulaire."
+      },
+      "connectDb": {
+        "title": "Connecter votre première base de données",
+        "excerpt": "Pointez Adminium vers PostgreSQL, MySQL ou SQLite et générez une application d’administration."
       },
       "connectionFails": {
         "title": "Une connexion à la base échoue",
         "excerpt": "Lisez la carte de diagnostic : hôte, port, TLS, et l’IP que votre base doit autoriser."
       },
+      "createDialog": {
+        "title": "Les boîtes de dialogue Nouveau et Modifier",
+        "excerpt": "D'où vient chaque champ, et comment concevoir la vôtre au lieu de celle qui est générée."
+      },
+      "docker": {
+        "title": "Auto-héberger avec Docker",
+        "excerpt": "L’image officielle, docker-compose, et l’usage d’une base méta séparée."
+      },
+      "firstAdmin": {
+        "title": "Créer votre premier super-administrateur",
+        "excerpt": "Ce que demande l’assistant de première exécution, et pourquoi il ne peut s’exécuter qu’une fois."
+      },
+      "install": {
+        "title": "Installer Adminium",
+        "excerpt": "Créez un projet avec une seule commande, ou lancez Adminium via docker run ou depuis un dépôt source."
+      },
+      "lineItems": {
+        "title": "Lignes et réservations",
+        "excerpt": "Tableaux de lignes enfants avec totaux en direct, calendriers liés à ce qui est déjà réservé, et un enregistrement par puce."
+      },
+      "manifest": {
+        "title": "Le manifeste de page",
+        "excerpt": "Comment une page se décrit en configuration, et comment en modifier une à la main."
+      },
       "missingTables": {
         "title": "Des tables manquent après l’introspection",
         "excerpt": "Visibilité du schéma, tables exclues, et relance de la génération."
+      },
+      "readOnly": {
+        "title": "Utiliser un rôle en lecture seule",
+        "excerpt": "L’introspection ne lit que les métadonnées du schéma. Donnez à Adminium le minimum de privilèges."
+      },
+      "rest": {
+        "title": "Référence de l’API REST",
+        "excerpt": "Tous les points d’accès exposés par l’application générée, avec les formats de requête et de réponse."
+      },
+      "roles": {
+        "title": "Rôles et permissions",
+        "excerpt": "Attribuez Lecteur, Éditeur et Admin, et construisez vos propres rôles depuis la matrice de permissions."
+      },
+      "schemaFile": {
+        "title": "Générer depuis un fichier de schéma",
+        "excerpt": "Importez un schéma Prisma, un models.py Django, un schema.rb Rails ou un dump .sql — sans aucune connexion."
+      },
+      "secrets": {
+        "title": "Comment Adminium stocke vos secrets",
+        "excerpt": "Les identifiants de connexion sont chiffrés au repos avec ADMINIUM_SECRET. Les clés d’API sont hachées."
+      },
+      "tableFilters": {
+        "title": "Filtrer un tableau",
+        "excerpt": "Les six types de filtre, les deux qu’une page obtient d’elle-même, et leur place dans une vue enregistrée."
+      },
+      "telemetry": {
+        "title": "Télémétrie et vérification des mises à jour",
+        "excerpt": "Les deux sont opt-in et désactivées par défaut. Ce qui est envoyé si vous les activez."
       }
     }
   },

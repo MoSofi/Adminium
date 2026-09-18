@@ -1008,69 +1008,85 @@
       "openDocs": "Open the docs"
     },
     "article": {
-      "install": {
-        "title": "Install Adminium",
-        "excerpt": "Create a project with one command, or run Adminium from Docker or a source checkout."
-      },
-      "firstAdmin": {
-        "title": "Create your first super admin",
-        "excerpt": "What the first-run wizard asks for, and why it can only run once."
-      },
-      "connectDb": {
-        "title": "Connecting your first database",
-        "excerpt": "Point Adminium at PostgreSQL, MySQL or SQLite and generate an admin app."
-      },
-      "schemaFile": {
-        "title": "Generate from a schema file",
-        "excerpt": "Upload a Prisma schema, a Django models.py, a Rails schema.rb or a .sql dump — no connection needed."
-      },
-      "readOnly": {
-        "title": "Use a read-only role",
-        "excerpt": "Introspection reads schema metadata only. Give Adminium the least privilege it needs."
-      },
       "apiKeys": {
         "title": "Authenticating with API keys",
         "excerpt": "Create and revoke keys, and why a key is only ever shown to you once."
-      },
-      "rest": {
-        "title": "REST API reference",
-        "excerpt": "Every endpoint the generated app exposes, with request and response shapes."
-      },
-      "manifest": {
-        "title": "The page manifest",
-        "excerpt": "How a page is described as config, and how to hand-edit one."
-      },
-      "roles": {
-        "title": "Roles & permissions",
-        "excerpt": "Assign Viewer, Editor and Admin, and build your own roles from the permission matrix."
       },
       "audit": {
         "title": "Reading the audit log",
         "excerpt": "Who changed what, when, and from where."
       },
-      "secrets": {
-        "title": "How Adminium stores your secrets",
-        "excerpt": "Connection credentials are encrypted at rest with ADMINIUM_SECRET. API keys are hashed."
-      },
-      "docker": {
-        "title": "Self-host with Docker",
-        "excerpt": "The official image, docker-compose, and running a separate meta database."
-      },
       "backup": {
         "title": "Back up and move an instance",
         "excerpt": "export-zip bundles your server config; import it to replay the same setup elsewhere."
       },
-      "telemetry": {
-        "title": "Telemetry and update checks",
-        "excerpt": "Both are opt-in and off by default. What is sent if you turn them on."
+      "columnRules": {
+        "title": "Rules on a column",
+        "excerpt": "What fills a column, what it accepts and what its limits are — on every write, not just one form."
+      },
+      "connectDb": {
+        "title": "Connecting your first database",
+        "excerpt": "Point Adminium at PostgreSQL, MySQL or SQLite and generate an admin app."
       },
       "connectionFails": {
         "title": "A database connection fails",
         "excerpt": "Read the diagnostics card: host, port, TLS, and the IP your database must allow."
       },
+      "createDialog": {
+        "title": "The New and Edit dialogs",
+        "excerpt": "Where every field comes from, and how to design your own instead of the generated one."
+      },
+      "docker": {
+        "title": "Self-host with Docker",
+        "excerpt": "The official image, docker-compose, and running a separate meta database."
+      },
+      "firstAdmin": {
+        "title": "Create your first super admin",
+        "excerpt": "What the first-run wizard asks for, and why it can only run once."
+      },
+      "install": {
+        "title": "Install Adminium",
+        "excerpt": "Create a project with one command, or run Adminium from Docker or a source checkout."
+      },
+      "lineItems": {
+        "title": "Line items and bookings",
+        "excerpt": "Tables of child rows with live totals, calendars bound to what is already booked, and one record per chip."
+      },
+      "manifest": {
+        "title": "The page manifest",
+        "excerpt": "How a page is described as config, and how to hand-edit one."
+      },
       "missingTables": {
         "title": "Tables are missing after introspection",
         "excerpt": "Schema visibility, excluded tables, and re-running generation."
+      },
+      "readOnly": {
+        "title": "Use a read-only role",
+        "excerpt": "Introspection reads schema metadata only. Give Adminium the least privilege it needs."
+      },
+      "rest": {
+        "title": "REST API reference",
+        "excerpt": "Every endpoint the generated app exposes, with request and response shapes."
+      },
+      "roles": {
+        "title": "Roles & permissions",
+        "excerpt": "Assign Viewer, Editor and Admin, and build your own roles from the permission matrix."
+      },
+      "schemaFile": {
+        "title": "Generate from a schema file",
+        "excerpt": "Upload a Prisma schema, a Django models.py, a Rails schema.rb or a .sql dump — no connection needed."
+      },
+      "secrets": {
+        "title": "How Adminium stores your secrets",
+        "excerpt": "Connection credentials are encrypted at rest with ADMINIUM_SECRET. API keys are hashed."
+      },
+      "tableFilters": {
+        "title": "Filtering a table",
+        "excerpt": "The six kinds of filter, the two a page gets on its own, and how they ride into a saved view."
+      },
+      "telemetry": {
+        "title": "Telemetry and update checks",
+        "excerpt": "Both are opt-in and off by default. What is sent if you turn them on."
       }
     }
   },

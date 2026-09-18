@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The JSON Schemas a project's files point at with `$schema`, so an editor can
- * complete and check them: `schemas/page.json`, `schemas/schema.json` and
- * `schemas/config.json` in the published package.
+ * complete and check them: `schemas/page.json`, `schemas/schema.json`,
+ * `schemas/list.json` and `schemas/config.json` in the published package.
  *
  * They are generated from the Zod schemas the server validates with
  * (`scripts/project-schemas.mjs`, with a `--check` mode), so they cannot drift
  * from the code. They describe the file shape for editors; the real check is
- * `readPageFile` / `readSchemaFile`, which also validates each widget's
- * settings and every value a schema override holds.
+ * `readPageFile` / `readSchemaFile` / `readListFile`, which also validates each
+ * widget's settings and every value a schema override holds.
  */
 
 import {
@@ -89,11 +89,38 @@ export const schemaFileSchema = z
   .strict()
   .describe("One database's schema customizations: labels, hidden columns, masks and relations.");
 
+export const listFileSchema = z
+  .object({
+    $schema: z.string().optional(),
+    name: z.string().min(1).max(200).describe('What this list is called in Studio.'),
+    origin: z
+      .string()
+      .max(140)
+      .optional()
+      .describe('Where the list came from: "custom", or "copy:<built-in key>". Absent means custom.'),
+    items: z
+      .array(
+        z
+          .object({
+            value: z.string().min(1).max(256).describe('What is stored in the column, e.g. "DE".'),
+            label: z.string().max(256).optional().describe('What the form shows. Absent shows the value.'),
+            tone: z.string().max(40).optional().describe('A colour name for the badge that shows this value.'),
+            description: z.string().max(512).optional().describe('The detail line of a choice card.'),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(500),
+  })
+  .strict()
+  .describe('One option list. The file name is the list key that rules name.');
+
 /** File name → schema document, as the package ships them. */
 export function projectJsonSchemaDocuments(): Record<string, string> {
   const documents: Record<string, z.ZodType> = {
     'page.json': pageFileSchema,
     'schema.json': schemaFileSchema,
+    'list.json': listFileSchema,
     'config.json': projectConfigSchema,
   };
   const out: Record<string, string> = {};

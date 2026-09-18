@@ -6,18 +6,13 @@ import {
   DrawerBody,
   DrawerHeader,
   EmptyState,
-  FilterChip,
   IconButton,
   KeyValueList,
   KeyValueRow,
-  ModalBody,
-  ModalHeader,
   MonoText,
   SearchInput,
   Spinner,
   ToastStack,
-  TwoPhaseModal,
-  useModalFlow,
   useToastQueue,
 } from '@adminium/ui';
 import { getFormatters } from '@adminium/i18n';
@@ -28,7 +23,21 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { RecordDetail } from './RecordDetail.js';
 import { parseRefList } from '../../page-config/file-refs.js';
 import type { FileFieldUpload } from './FileField.js';
-import { RecordForm } from './RecordForm.js';
+import { MAX_CHILD_ROWS, type ChildFacts, type ChildRow } from './RecordForm.js';
+import { RecordFormDialog } from './RecordFormDialog.js';
+import {
+  filterControlFor,
+  formDocumentFor,
+  type CrudFilterField,
+  type CrudFormConfig,
+  type FormColumnFact,
+  type FormRelationFact,
+} from '../../page-config/index.js';
+import { FilterBar, ReferenceFilterPicker, type FilterSpec } from './filters/FilterBar.js';
+import type { ControlOption } from './controls/index.js';
+import { optionsForColumn } from './field-mapping.js';
+import type { ColumnFacts, ListOptionsResolver } from './field-mapping.js';
+import { fieldMessagesOf } from './field-issues.js';
 import { isDeletePreview } from './crud-api.js';
 import type {
   CrudApi,
@@ -53,7 +62,7 @@ import { describeDataError } from '../../lib/data-error.js';
  * filter chips + "New row" — DB framing) that morphs into
  * `bulk-action-toolbar` on selection (CSV export + cascade delete),
  * type-aware `data-grid` over the CRUD API, keyset `pagination-footer`,
- * generated create/edit forms (TwoPhaseModal create — domain framing),
+ * the designed create/edit dialog (`RecordFormDialog`),
  * references-preflight type-to-confirm cascade delete, and undo toasts on
  * every mutation.
  *
@@ -133,6 +142,50 @@ export interface PageCrudProps {
   canDelete?: boolean | undefined;
   /** Caller may reveal PII cells (server sends them unmasked). */
   canUnmask?: boolean | undefined;
+  /**
+   * The source table as the server sees it RIGHT NOW (`columnFacts` on the
+   * page reply): who fills each column and which ones the form has to ask
+   * for. Absent ⇒ the stored spec decides, exactly as before.
+   */
+  columnFacts?: ColumnFacts | undefined;
+  /**
+   * Resolves a `column.options` rule that names a LIST into the answers it
+   * holds, in the reader's own language. The host owns it because
+   * the host is what knows the reader.
+   */
+  listOptions?: ListOptionsResolver | undefined;
+  /**
+   * The link relations this table can write through (`columnFacts.relations`).
+   * Absent ⇒ a form of columns only, which is every form that predates them.
+   */
+  formRelations?: readonly FormRelationFact[] | undefined;
+  /**
+   * The tables this one can hold a LIST of rows from, by relation id — an
+   * invoice's lines. Absent ⇒ a `child-rows` field renders nothing, the same
+   * degradation every other fact-dependent control follows.
+   */
+  childFacts?: Readonly<Record<string, ChildFacts>> | undefined;
+  /**
+   * The filters this page offers: the ones an admin defined, else the two the
+   * table derives (D8). Absent ⇒ no bar at all, which is what every page
+   * rendered before filters existed.
+   */
+  filterFields?: readonly CrudFilterField[] | undefined;
+  /**
+   * The same block UNKEYED and whole, in table order.
+   *
+   * `columnFacts` answers "what does the server say about this column", which
+   * is all the flat form needed because it rendered `config.columns[]`. The
+   * form document needs the columns themselves — including the ones the grid's
+   * eight-column cap never listed, which a form has to be able to set.
+   */
+  formColumns?: readonly FormColumnFact[] | undefined;
+  /**
+   * The page's own `config.form` block, already parsed by the host (the binding
+   * parses `config.labels` the same way). `null` — the norm — means nobody has
+   * designed a form and the document is derived from `formColumns`.
+   */
+  form?: CrudFormConfig | null | undefined;
   /** Host event sink: row click/Enter and FK chips emit `record-open` here
    * (the host navigates to the record page), drill-through, mutate. */
   onEvent?: ((event: WidgetEvent) => void) | undefined;
@@ -226,21 +279,6 @@ function entityFromTable(table: string): string {
   return name.endsWith('s') ? name.slice(0, -1) : name;
 }
 
-const FILTER_OP_GLYPHS: Record<string, string> = {
-  eq: '=',
-  neq: '≠',
-  gt: '>',
-  gte: '≥',
-  lt: '<',
-  lte: '≤',
-  in: 'in',
-  like: '~',
-  ilike: '~',
-  is_null: 'is null',
-  not_null: 'not null',
-  between: '…',
-};
-
 export function PageCrud({
   api,
   columns,
@@ -256,6 +294,13 @@ export function PageCrud({
   canUpdate = true,
   canDelete = true,
   canUnmask = false,
+  columnFacts,
+  listOptions,
+  formRelations,
+  childFacts,
+  filterFields,
+  formColumns,
+  form,
   files,
   onEvent,
   locale,
@@ -457,11 +502,22 @@ export function PageCrud({
 
   // --- create ----------------------------------------------------------------
   const [createOpen, setCreateOpen] = useState(false);
-  const createFlow = useModalFlow<CrudRow>();
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
 
   // --- edit ------------------------------------------------------------------
   const [editRecord, setEditRecord] = useState<CrudRow | null>(null);
+  /**
+   * The links the record being edited already has, per relation, with their
+   * names — read when the dialog opens, so the chips say what they point at
+   * instead of showing raw keys, and so a save that touches nothing else
+   * replaces each set with itself.
+   */
+  const [editLinks, setEditLinks] = useState<Record<string, ControlOption[]>>({});
+  /**
+   * The child rows each line-items relation already holds, read when the edit
+   * dialog opens. A create has none — there is no parent to hold any.
+   */
+  const [editChildren, setEditChildren] = useState<Record<string, ChildRow[]> | undefined>(undefined);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
   // --- delete ----------------------------------------------------------------
@@ -567,23 +623,201 @@ export function PageCrud({
     [queue, api, refetch, labels?.undo, t],
   );
 
-  const fieldErrorsOf = (reason: unknown): Record<string, string> | null => {
-    if (typeof reason === 'object' && reason !== null && 'fieldErrors' in reason) {
-      return (reason as { fieldErrors: Record<string, string> }).fieldErrors;
-    }
-    return null;
-  };
+  /**
+   * A refused write, as messages under the fields it names.
+   *
+   * This path used to be UNREACHABLE: nothing produced `fieldErrors`, so every
+   * failed save — a missing required value, a value outside an enum, a number
+   * out of range — was a toast with the server's generic text, and the field
+   * that caused it stayed unmarked. The API client now attaches `fieldIssues`
+   * from the envelope's `details.fields` and the wording is chosen here, from
+   * the code, in the reader's language.
+   */
+  const fieldErrorsOf = (reason: unknown): Record<string, string> | null => fieldMessagesOf(t, reason);
 
-  const handleCreate = (values: CrudRow) => {
+  /*
+   * One read per relation when the edit dialog opens, and none at all for a
+   * table with no link fields or a host that cannot read them.
+   */
+  useEffect(() => {
+    const relations = formRelations ?? [];
+    const readLinks = api.links?.bind(api);
+    if (editRecord === null || relations.length === 0 || readLinks === undefined) {
+      setEditLinks({});
+      return;
+    }
+    let alive = true;
+    const recordId = rowIdOf(columns, editRecord);
+    void Promise.all(
+      relations.map(async (relation) => {
+        try {
+          const rows = await readLinks(recordId, relation.relationId);
+          return [
+            relation.relationId,
+            rows.map((row) => ({
+              value: row.key,
+              label: row.name,
+              ...(row.detail === undefined ? {} : { description: row.detail }),
+            })),
+          ] as const;
+        } catch {
+          // A relation this caller cannot read leaves the field empty rather
+          // than the dialog broken; the write path refuses the save anyway.
+          return [relation.relationId, []] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (alive) setEditLinks(Object.fromEntries(entries));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [editRecord, formRelations, api, columns]);
+
+  /*
+   * The lines each line-items field already holds. One read per relation when
+   * the edit dialog opens, and none at all for a form with no such field or a
+   * host that cannot read related rows.
+   */
+  useEffect(() => {
+    const facts = childFacts;
+    const readRelated = api.listRelated?.bind(api);
+    if (editRecord === null || facts === undefined || readRelated === undefined) {
+      setEditChildren(undefined);
+      return;
+    }
+    const wanted = Object.entries(facts);
+    if (wanted.length === 0) {
+      setEditChildren(undefined);
+      return;
+    }
+    let alive = true;
+    void Promise.all(
+      wanted.map(async ([relationId, fact]) => {
+        try {
+          const rows = await readRelated({
+            table: fact.table,
+            column: fact.foreignColumn,
+            value: editRecord[fact.parentKeyColumn],
+            limit: MAX_CHILD_ROWS,
+          });
+          return [
+            relationId,
+            rows.map((row) => ({
+              key: Object.fromEntries(fact.primaryKey.map((name: string) => [name, row[name]])),
+              values: row,
+            })),
+          ] as const;
+        } catch {
+          // A table this caller cannot read leaves the field empty rather than
+          // the dialog broken; the write path refuses the save anyway.
+          return [relationId, []] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (alive) setEditChildren(Object.fromEntries(entries));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [editRecord, childFacts, api]);
+
+  /**
+   * The bar's own view of each filter: what it is called, and what it offers.
+   *
+   * The options come from the SAME resolver the form's choice controls use, so
+   * a menu row and a field row say the same word for the same value — including
+   * a value whose label lives in an option list.
+   */
+  const filterSpecs = useMemo((): FilterSpec[] => {
+    const byName = new Map(columns.map((column) => [column.name, column]));
+    return (filterFields ?? []).flatMap((filter): FilterSpec[] => {
+      const column = byName.get(filter.column);
+      const fact = columnFacts?.[filter.column];
+      const shape = column ?? formColumns?.find((entry) => entry.spec.name === filter.column)?.spec;
+      if (shape === undefined) return [];
+      const control = filter.control ?? filterControlFor(shape as never);
+      if (control === null) return [];
+      /*
+       * The grid's eight-column cap is not a filter's business: a page may
+       * perfectly well be filtered by a column it does not SHOW, and reading
+       * the menu's values off the grid column alone left that filter opening
+       * onto nothing. The reply's own spec answers for it.
+       */
+      const spec = (column ?? shape) as typeof columns[number];
+      return [
+        {
+          column: filter.column,
+          control,
+          label: filter.label ?? (spec.label ?? filter.column),
+          options: optionsForColumn(spec, fact, listOptions),
+          ...(control === 'record'
+            ? {
+                picker: (
+                  <ReferenceFilterPicker
+                    column={spec}
+                    lookup={api.lookup?.bind(api)}
+                    value={filters.find((condition) => condition.column === filter.column)?.value}
+                    onChange={(next) =>
+                      setFilters((current) => [
+                        ...current.filter((condition) => condition.column !== filter.column),
+                        ...(next === null ? [] : [{ column: filter.column, op: 'eq' as const, value: next }]),
+                      ])
+                    }
+                  />
+                ),
+              }
+            : {}),
+        },
+      ];
+    });
+  }, [filterFields, columns, columnFacts, formColumns, listOptions, filters, api]);
+
+  const handleCreate = (
+    values: CrudRow,
+    links?: Record<string, string[]>,
+    children?: Record<string, { key?: CrudRow | undefined; values: CrudRow }[]>,
+    repeat?: { column: string; values: string[] },
+  ) => {
     setCreateErrors({});
     api
-      .create(values)
+      // One argument when the form has no relation fields: an adapter written
+      // before they existed takes exactly one, and handing it `undefined`
+      // would be a second argument it never asked for.
+      .create(
+        ...((repeat !== undefined
+          ? [values, undefined, undefined, repeat]
+          : children !== undefined
+            ? [values, links ?? {}, children]
+            : links === undefined
+              ? [values]
+              : [values, links]) as [
+          CrudRow,
+          Record<string, string[]>?,
+          Record<string, { key?: CrudRow | undefined; values: CrudRow }[]>?,
+          { column: string; values: string[] }?,
+        ]),
+      )
       .then((result) => {
-        createFlow.toSuccess(result.data ?? values);
+        /*
+         * The dialog CLOSES on success (D4). It used to stay open on a second
+         * "added — Done" panel, after the toast below had already said the row
+         * was added and offered the Undo — a second confirmation of something
+         * the person had just watched happen, in front of the grid that now
+         * shows it.
+         */
+        setCreateOpen(false);
         pushUndoToast(
-          t('ui:templates.crud.toast.created', '{entity} created.', {
-            entity: `${entity[0]?.toUpperCase() ?? ''}${entity.slice(1)}`,
-          }),
+          // A `repeat` create wrote several rows under one token, and a toast
+          // that said "Invite created" about five of them would be wrong in the
+          // one place somebody checks before pressing Undo.
+          result.created !== undefined && result.created > 1
+            ? t('ui:templates.crud.toast.createdMany', '{count} records created.', {
+                count: result.created,
+              })
+            : t('ui:templates.crud.toast.created', '{entity} created.', {
+                entity: `${entity[0]?.toUpperCase() ?? ''}${entity.slice(1)}`,
+              }),
           result.undoToken,
         );
         refetch();
@@ -601,12 +835,27 @@ export function PageCrud({
       });
   };
 
-  const handleUpdate = (values: CrudRow) => {
+  const handleUpdate = (
+    values: CrudRow,
+    links?: Record<string, string[]>,
+    children?: Record<string, { key?: CrudRow | undefined; values: CrudRow }[]>,
+  ) => {
     if (editRecord === null) return;
     const recordId = rowIdOf(columns, editRecord);
     setEditErrors({});
     api
-      .update(recordId, values)
+      .update(
+        ...((children !== undefined
+          ? [recordId, values, links ?? {}, children]
+          : links === undefined
+            ? [recordId, values]
+            : [recordId, values, links]) as [
+          string,
+          CrudRow,
+          Record<string, string[]>?,
+          Record<string, { key?: CrudRow | undefined; values: CrudRow }[]>?,
+        ]),
+      )
       .then((result) => {
         setEditRecord(null);
         pushUndoToast(t('ui:templates.crud.toast.saved', 'Changes saved.'), result.undoToken);
@@ -772,7 +1021,39 @@ export function PageCrud({
     }
   };
 
-  const editableColumns = columns;
+  /*
+   * THE FORM DOCUMENT (D10). A page carries one only when somebody designed a
+   * form; with none it is derived from the live column facts, which is what
+   * makes the dialog follow the table rather than the day the page was made.
+   *
+   * With no facts at all — an older server, a page with no source table — there
+   * is nothing to derive from and the form renders the flat stack of stored
+   * columns it always has.
+   */
+  const formDocument = useMemo(() => {
+    if (formColumns === undefined || formColumns.length === 0) return null;
+    return formDocumentFor(form ?? null, {
+      columns: formColumns,
+      ...(formRelations === undefined ? {} : { relations: formRelations }),
+    });
+  }, [form, formColumns, formRelations]);
+
+  /**
+   * The columns the FORM renders, which is not the same list as the grid's:
+   * every writable column of the table, in table order, with the spec the
+   * server built from the effective schema.
+   */
+  const editableColumns = useMemo(() => {
+    if (formColumns === undefined || formColumns.length === 0) return columns;
+    const stored = new Map(columns.map((column) => [column.name, column]));
+    return formColumns.map((fact) => {
+      const specced = fact.spec as unknown as GridColumnSpec;
+      // The STORED spec wins where there is one: it carries what an admin
+      // edited on this page (a label, a file block, an enum tone), which the
+      // server's freshly-built spec knows nothing about.
+      return stored.get(specced.name) ?? specced;
+    });
+  }, [columns, formColumns]);
   const selectedIds = useMemo(() => [...selected], [selected]);
   const rangeStart = list.rows.length === 0 ? 0 : cursorStack.length * pageSize + 1;
   const rangeEnd = cursorStack.length * pageSize + list.rows.length;
@@ -831,20 +1112,17 @@ export function PageCrud({
           />
           {toolbarAccessory}
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-            {filters.map((filter, index) => (
-              <FilterChip
-                key={`${filter.column}-${String(index)}`}
-                field={filter.column}
-                op={FILTER_OP_GLYPHS[filter.op] ?? filter.op}
-                value={filter.op === 'is_null' || filter.op === 'not_null' ? '' : String(filter.value)}
-                onRemove={() => {
-                  setFilters((current) => current.filter((_, i) => i !== index));
-                  setCursor('');
-                  setCursorStack([]);
-                }}
-                removeLabel={t('ui:templates.crud.removeFilter', 'Remove {column} filter', { column: filter.column })}
-              />
-            ))}
+            <FilterBar
+              filters={filterSpecs}
+              active={filters}
+              onChange={(next) => {
+                setFilters(next);
+                // A new question is a new first page: keeping the cursor would
+                // ask the server for page three of a result that has changed.
+                setCursor('');
+                setCursorStack([]);
+              }}
+            />
           </div>
           {selectedIds.length > 0 ? (
             <BulkActionToolbar
@@ -910,6 +1188,26 @@ export function PageCrud({
               preset="no-matches"
               title={t('ui:templates.crud.noMatchesTitle', 'No matching rows')}
               body={t('ui:templates.common.noMatchesBody', 'Try a different search or remove a filter.')}
+              // F18: the way out, where the person is looking. A filtered-away
+              // table with the only Clear button up in the toolbar is a screen
+              // that says "nothing here" and hides the reason.
+              {...(filters.length === 0
+                ? {}
+                : {
+                    actions: (
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setFilters([]);
+                          setCursor('');
+                          setCursorStack([]);
+                        }}
+                        data-testid="filter-clear-empty"
+                      >
+                        {t('ui:templates.common.clearFilters', 'Clear filters')}
+                      </Button>
+                    ),
+                  })}
             />
           ) : (
             <EmptyState
@@ -999,58 +1297,57 @@ export function PageCrud({
         />
       </div>
 
-      {/* Create — TwoPhaseModal, domain framing. */}
-      <TwoPhaseModal
-        flow={createFlow}
+      {/*
+        * CREATE — the designed dialog (D3, D4, D17).
+        *
+        * It was a `TwoPhaseModal` whose second phase said "added — Done" after
+        * the toast had already said so and offered the Undo. One dialog, one
+        * confirmation, and the row is in the grid behind it.
+        */}
+      <RecordFormDialog
         open={createOpen}
         onOpenChange={(open) => {
           setCreateOpen(open);
           if (!open) setCreateErrors({});
         }}
-        successTitle={(payload) =>
-          t('ui:templates.crud.createSuccessTitle', '{name} added', { name: displayValueOf(columns, payload) })
+        mode="create"
+        entity={entity}
+        tableName={source.table}
+        formId="page-crud-create-form"
+        document={formDocument}
+        columns={editableColumns}
+        {...(formRelations === undefined ? {} : { relations: formRelations })}
+        {...(childFacts === undefined ? {} : { childFacts })}
+        errors={createErrors}
+        {...(columnFacts === undefined ? {} : { facts: columnFacts })}
+        {...(listOptions === undefined ? {} : { listOptions })}
+        lookup={api.lookup?.bind(api)}
+        availability={api.availability?.bind(api)}
+        {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
+        {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
+        {...(currency === undefined ? {} : { currency })}
+        {...(locale === undefined ? {} : { locale })}
+        onSubmit={handleCreate}
+        {...(labels?.createTitle === undefined && labels?.createSubmit === undefined && labels?.close === undefined
+          ? {}
+          : {
+              labels: {
+                ...(labels?.createTitle === undefined ? {} : { title: labels.createTitle }),
+                ...(labels?.createSubmit === undefined ? {} : { submit: labels.createSubmit }),
+                ...(labels?.close === undefined ? {} : { close: labels.close }),
+              },
+            })}
+        uniqueHelper={() =>
+          total === null
+            ? t('ui:templates.crud.uniqueHelper', 'Must be unique in {table}.', { table: source.table })
+            : // `count` drives the ICU plural; `n` keeps the pre-formatted digits.
+              t(
+                'ui:templates.crud.uniqueHelperCounted',
+                '{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}',
+                { count: total, n: numberFormat.number(total) },
+              )
         }
-        successBody={() => t('ui:templates.crud.createSuccessBody', 'You can undo this from the toast.')}
-        doneLabel={t('ui:widgets.forms.modalWizard.done', 'Done')}
-      >
-        <ModalHeader
-          title={labels?.createTitle ?? t('ui:templates.crud.createTitle', 'Add {entity}', { entity })}
-          subtitle={t('ui:templates.crud.createSubtitle', 'Creates one row in {table}.', { table: source.table })}
-          closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
-        />
-        <ModalBody>
-          <RecordForm
-            formId="page-crud-create-form"
-            columns={editableColumns}
-            mode="create"
-            errors={createErrors}
-            lookup={api.lookup?.bind(api)}
-            {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
-            {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
-            onSubmit={handleCreate}
-            uniqueHelper={() =>
-              total === null
-                ? t('ui:templates.crud.uniqueHelper', 'Must be unique in {table}.', { table: source.table })
-                : // `count` drives the ICU plural; `n` keeps the pre-formatted digits.
-                  t(
-                    'ui:templates.crud.uniqueHelperCounted',
-                    '{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}',
-                    { count: total, n: numberFormat.number(total) },
-                  )
-            }
-            footer={
-              <div className="flex justify-end gap-2 pt-1">
-                <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
-                  {t('ui:action.cancel', 'Cancel')}
-                </Button>
-                <Button type="submit">
-                  {labels?.createSubmit ?? t('ui:templates.crud.createSubmit', 'Add {entity}', { entity })}
-                </Button>
-              </div>
-            }
-          />
-        </ModalBody>
-      </TwoPhaseModal>
+      />
 
       {/* Peek — ephemeral row preview behind the eye action. The
           header's "Open page" lands on the record page, so the peek is a step
@@ -1085,36 +1382,51 @@ export function PageCrud({
         </DrawerBody>
       </Drawer>
 
-      {/* Edit — generated form over the record. */}
-      <Drawer open={editRecord !== null} onOpenChange={(open) => !open && setEditRecord(null)} size="md">
-        <DrawerHeader
-          title={labels?.editTitle ?? t('ui:templates.crud.editTitle', 'Edit {entity}', { entity })}
-          closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
-        />
-        <DrawerBody>
-          {editRecord !== null && (
-            <RecordForm
-              formId="page-crud-edit-form"
-              columns={editableColumns}
-              mode="edit"
-              initialValues={editRecord}
-              errors={editErrors}
-              lookup={api.lookup?.bind(api)}
-            {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
-            {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
-              onSubmit={handleUpdate}
-              footer={
-                <div className="flex justify-end gap-2 pt-1">
-                  <Button type="button" variant="ghost" onClick={() => setEditRecord(null)}>
-                    {t('ui:action.cancel', 'Cancel')}
-                  </Button>
-                  <Button type="submit">{t('ui:templates.crud.saveSubmit', 'Save changes')}</Button>
-                </div>
-              }
-            />
-          )}
-        </DrawerBody>
-      </Drawer>
+      {/*
+        * EDIT — the same dialog as create (D3). It was a 480px drawer, which
+        * made editing a row look like a different operation from adding one.
+        * The PEEK below stays a drawer: it is a preview, not a form.
+        */}
+      <RecordFormDialog
+        open={editRecord !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditRecord(null);
+            setEditErrors({});
+          }
+        }}
+        mode="edit"
+        entity={entity}
+        tableName={source.table}
+        formId="page-crud-edit-form"
+        document={formDocument}
+        columns={editableColumns}
+        {...(formRelations === undefined ? {} : { relations: formRelations })}
+        {...(childFacts === undefined ? {} : { childFacts })}
+        {...(editChildren === undefined ? {} : { initialChildren: editChildren })}
+        initialLinks={editLinks}
+        {...(editRecord === null
+          ? {}
+          : { initialValues: editRecord, recordId: rowIdOf(columns, editRecord) })}
+        errors={editErrors}
+        {...(columnFacts === undefined ? {} : { facts: columnFacts })}
+        {...(listOptions === undefined ? {} : { listOptions })}
+        lookup={api.lookup?.bind(api)}
+        availability={api.availability?.bind(api)}
+        {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
+        {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
+        {...(currency === undefined ? {} : { currency })}
+        {...(locale === undefined ? {} : { locale })}
+        onSubmit={handleUpdate}
+        {...(labels?.editTitle === undefined && labels?.close === undefined
+          ? {}
+          : {
+              labels: {
+                ...(labels?.editTitle === undefined ? {} : { title: labels.editTitle }),
+                ...(labels?.close === undefined ? {} : { close: labels.close }),
+              },
+            })}
+      />
 
       {/* Cascade-aware type-to-confirm delete. */}
       <ConfirmModal

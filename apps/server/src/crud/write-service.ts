@@ -11,10 +11,12 @@
  * ─── The order of a write ──────────────────────────────────────────────────
  *
  *   1. the caller prepares the values (allow-listing, coercion, defaults);
- *   2. before hooks run, and may change the values or reject the write;
- *   3. the statement runs;
- *   4. the caller announces the write (audit, files, realtime, record events);
- *   5. after hooks run. Their errors are recorded and never undo the write.
+ *   2. FILL — a column rule puts a value in an absent key (`crud/column-rules.ts`);
+ *   3. before hooks run, and may change the values or reject the write;
+ *   4. CHECK — the filled values are judged; a refusal is 422 with the column named;
+ *   5. the statement runs;
+ *   6. the caller announces the write (audit, files, realtime, record events);
+ *   7. after hooks run. Their errors are recorded and never undo the write.
  *
  * {@link RecordWriteService.create}, `update` and `delete` hold that order for
  * one row. The multi-row paths (bulk, undo, import) keep their own
@@ -24,11 +26,24 @@
  * on purpose: a hook may read or write through its own connection, and on
  * SQLite that connection would wait for the transaction to finish.
  *
- * ─── With no hooks, nothing changes ────────────────────────────────────────
+ * ─── A row that skipped the rules does not compile ─────────────────────────
  *
- * Steps 2 and 5 ask {@link RecordHooks.wants} first. When nothing is loaded
- * they read no rows, copy no values and add no queries, so every path answers
- * exactly as it did before this module existed.
+ * The statements take a {@link CheckedRow} — a branded type only this module's
+ * check step produces. That is what covers the paths a behavioural test would
+ * miss: the CSV import's fast path writes a whole chunk without ever asking
+ * for a before hook, and a `beforeEach` that filled and checked would never
+ * have run for it. There is exactly one named escape,
+ * {@link uncheckedForUndo}: an undo restores HISTORY, including rows written
+ * before a rule existed, and refusing to put one back would be a data loss
+ * dressed as a validation.
+ *
+ * ─── With no hooks and no rules, nothing changes ───────────────────────────
+ *
+ * The hook steps ask {@link RecordHooks.wants} first, and the rule steps ask
+ * `tableRulesFor` — which answers `null` for a table with nothing to fill and
+ * nothing to check, and then brands the SAME OBJECT. No rows are read, no
+ * values copied and no queries added, so every path answers exactly as it did
+ * before this module existed.
  *
  * ─── What stays outside, and why ───────────────────────────────────────────
  *
@@ -46,35 +61,20 @@ import type { FastifyRequest } from 'fastify';
 import type { Kysely, UpdateQueryBuilder, UpdateResult } from 'kysely';
 import type { Dialect } from '@adminium/engine';
 
-import { AppError } from '../errors.js';
+import { AppError, ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { getPrincipal } from '../rbac/principal.js';
+import { checkRow, fillRow, tableRulesFor, type FieldIssues, type TableRules } from './column-rules.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
 import { fetchByPk } from './records.js';
 import { normalizeWriteValue } from './write-values.js';
+import type { WriteAction, WriteActor, WriteOrigin } from './write-context.js';
 
-export type WriteAction = 'create' | 'update' | 'delete';
-
-/** Where a write came from, as project hooks see it. */
-export type WriteOrigin =
-  | 'dashboard'
-  | 'bulk'
-  | 'undo'
-  | 'public'
-  | 'automation'
-  | 'import'
-  | 'hook'
-  | 'action';
-
-/** Who a write is attributed to. */
-export interface WriteActor {
-  kind: 'user' | 'api-key' | 'public' | 'automation' | 'system';
-  /** The user, API key or rule id; null for the public API and the system. */
-  id: string | null;
-  /** What the audit trail shows: a name, a key label, a rule's name. */
-  label: string;
-}
+// The write's own vocabulary lives in a leaf, because `column-rules.ts` reads
+// it and this module reads the rules — see `write-context.ts`. Re-exported so
+// every caller still finds them here.
+export type { WriteAction, WriteActor, WriteOrigin } from './write-context.js';
 
 export interface WriteContext {
   origin: WriteOrigin;
@@ -183,6 +183,32 @@ export class HookFailedError extends AppError {
   }
 }
 
+// --- the brand ---------------------------------------------------------------
+
+declare const checked: unique symbol;
+
+/**
+ * A row that has been through FILL and CHECK. Nothing outside this module can
+ * make one: the symbol is declared, never exported and never assigned, so the
+ * only ways to hold a `CheckedRow` are {@link RecordWriteService.check} and
+ * {@link uncheckedForUndo}.
+ */
+export type CheckedRow = Row & { readonly [checked]: true };
+
+function brand(row: Row): CheckedRow {
+  return row as CheckedRow;
+}
+
+/**
+ * THE ONE NAMED ESCAPE. An undo puts back a row exactly as it was, and a rule
+ * added since then must not stop it: the alternative is a restore that refuses
+ * history, which loses the row for good. Loud on purpose — a new caller of
+ * this function is a change somebody has to argue for.
+ */
+export function uncheckedForUndo(rows: readonly Row[]): CheckedRow[] {
+  return rows.map(brand);
+}
+
 // --- statements --------------------------------------------------------------
 
 type Db = Kysely<SourceDatabase>;
@@ -203,7 +229,12 @@ type AnyUpdate = UpdateQueryBuilder<SourceDatabase, string, string, UpdateResult
  * "generate it" spelling. If the new row is unaddressable (multi-column
  * DB-generated key, non-auto default), echo the payload rather than guess.
  */
-export async function insertRow(db: Db, dialect: Dialect, table: ResolvedTable, values: Row): Promise<Row> {
+export async function insertRow(
+  db: Db,
+  dialect: Dialect,
+  table: ResolvedTable,
+  values: CheckedRow,
+): Promise<Row> {
   if (dialect !== 'mysql') {
     return (await db
       .insertInto(table.id)
@@ -239,7 +270,7 @@ export async function insertRow(db: Db, dialect: Dialect, table: ResolvedTable, 
 }
 
 /** INSERT several rows in one statement, returning nothing (the CSV import's chunk). */
-export async function insertRows(db: Db, table: ResolvedTable, rows: Row[]): Promise<void> {
+export async function insertRows(db: Db, table: ResolvedTable, rows: readonly CheckedRow[]): Promise<void> {
   await db
     .insertInto(table.id)
     .values(rows as never)
@@ -253,7 +284,7 @@ export async function insertRows(db: Db, table: ResolvedTable, rows: Row[]): Pro
 export async function updateRows(
   db: Db,
   table: ResolvedTable,
-  values: Row,
+  values: CheckedRow,
   match: Row,
   refine?: (query: AnyUpdate) => AnyUpdate,
 ): Promise<number> {
@@ -383,11 +414,26 @@ export interface PlannedRow {
   record?: Row | null | undefined;
 }
 
-/** A multi-row write's row, after its before hooks. */
+/** A multi-row write's row, after its fill, its before hooks and its check. */
 export interface PreparedRow {
-  values: Row;
+  values: CheckedRow;
   /** The row the hooks saw; undefined when no hook ran. */
   record: Row | null | undefined;
+  /** What the check refused, or null. The caller decides what a bad row costs:
+   *  the bulk route fails the request, the import fails the row and goes on. */
+  issues: FieldIssues | null;
+}
+
+export interface BeforeEachOptions {
+  /**
+   * Fill and check every row (the default).
+   *
+   * `false` is the UNDO path and the only caller that passes it: a restore
+   * puts back history, so the rules that judge a NEW value must not judge an
+   * OLD one (see {@link uncheckedForUndo}). This flag is that escape, spelled
+   * where the undo route can reach it.
+   */
+  rules?: boolean;
 }
 
 export interface WrittenRow {
@@ -398,6 +444,18 @@ export interface WrittenRow {
 export interface RecordWriteService {
   /** The hooks in force right now. */
   readonly hooks: RecordHooks;
+  /**
+   * FILL + CHECK for rows written through the statements directly, with no
+   * before hook in the way — the CSV import's fast path. Reports per row and
+   * never throws for a bad row: a caller that writes a thousand rows decides
+   * for itself whether one refusal stops the other 999.
+   */
+  check(
+    action: WriteAction,
+    target: WriteTarget,
+    context: WriteContext,
+    rows: readonly Row[],
+  ): { rows: (CheckedRow | null)[]; issues: (FieldIssues | null)[] };
   create(input: CreateRecordInput): Promise<Row>;
   update(input: UpdateRecordInput): Promise<UpdateOutcome>;
   delete(input: DeleteRecordInput): Promise<number>;
@@ -408,7 +466,13 @@ export interface RecordWriteService {
    * A rejection stops the whole write. Rows that no longer exist are passed
    * through untouched; the caller reports them.
    */
-  beforeEach(action: WriteAction, target: WriteTarget, context: WriteContext, rows: PlannedRow[]): Promise<PreparedRow[]>;
+  beforeEach(
+    action: WriteAction,
+    target: WriteTarget,
+    context: WriteContext,
+    rows: PlannedRow[],
+    opts?: BeforeEachOptions,
+  ): Promise<PreparedRow[]>;
   /** After hooks for rows that were written, in order. Never throws. */
   afterEach(action: WriteAction, target: WriteTarget, context: WriteContext, rows: WrittenRow[]): Promise<void>;
 }
@@ -418,8 +482,46 @@ export interface WriteServiceOptions {
   hooks?: (() => RecordHooks) | undefined;
 }
 
+/**
+ * The refusal a failed check raises. It travels the caller's own `mapError`
+ * when there is one, because the surfaces disagree about how much a refusal
+ * may say: the dashboard wants the column named, and the public API must not
+ * name it — `details.fields` would tell an anonymous caller which columns are
+ * required and which enum values exist, a membership oracle `refuseWrite`
+ * exists to prevent.
+ */
+function refusal(fields: FieldIssues): ValidationFailedError {
+  return new ValidationFailedError('Some values were refused.', { fields });
+}
+
 export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteService {
   const current = (): RecordHooks => opts.hooks?.() ?? NO_RECORD_HOOKS;
+
+  const rulesOf = (target: WriteTarget): TableRules | null => tableRulesFor(target);
+
+  const fill = (
+    rules: TableRules | null,
+    action: WriteAction,
+    target: WriteTarget,
+    context: WriteContext,
+    values: Row,
+    now: Date,
+  ): Row => fillRow(rules, action, values, { dialect: target.dialect, now, actor: context.actor });
+
+  /** Check, or throw the caller's own version of the refusal. */
+  function checkOrThrow(
+    rules: TableRules | null,
+    action: WriteAction,
+    target: WriteTarget,
+    values: Row,
+    mapError: ((error: unknown) => never) | undefined,
+  ): CheckedRow {
+    const issues = checkRow(rules, action, values, { dialect: target.dialect });
+    if (issues === null) return brand(values);
+    const error = refusal(issues);
+    if (mapError !== undefined) mapError(error);
+    throw error;
+  }
 
   async function runBefore(
     hooks: RecordHooks,
@@ -450,14 +552,34 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     wants: (timing, action, target, context) => current().wants(timing, action, target, context),
 
+    check(action, target, context, rows) {
+      const rules = rulesOf(target);
+      const now = new Date();
+      const out: (CheckedRow | null)[] = [];
+      const issues: (FieldIssues | null)[] = [];
+      for (const row of rows) {
+        const values = fill(rules, action, target, context, row, now);
+        const issue = checkRow(rules, action, values, { dialect: target.dialect });
+        issues.push(issue);
+        out.push(issue === null ? brand(values) : null);
+      }
+      return { rows: out, issues };
+    },
+
     async create(input) {
       const { target, context } = input;
       const hooks = current();
+      const rules = rulesOf(target);
+      const filled = fill(rules, 'create', target, context, input.values, new Date());
       const values = (await hooks.wants('before', 'create', target, context))
-        ? await runBefore(hooks, 'create', target, context, input.values, null)
-        : input.values;
+        ? await runBefore(hooks, 'create', target, context, filled, null)
+        : filled;
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
-      const row = await statement(() => insertRow(target.db, target.dialect, target.table, values), input.mapError);
+      const checkedValues = checkOrThrow(rules, 'create', target, values, input.mapError);
+      const row = await statement(
+        () => insertRow(target.db, target.dialect, target.table, checkedValues),
+        input.mapError,
+      );
       await input.announce(row, values);
       if (await hooks.wants('after', 'create', target, context)) {
         await hooks.after({ action: 'create', target, record: row, before: null, context });
@@ -468,8 +590,16 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     async update(input) {
       const { target, context, pk } = input;
       const hooks = current();
+      const rules = rulesOf(target);
       let before = input.before ?? null;
-      let values = input.values;
+      /*
+       * The FILLED values, from here on. `UpdateOutcome.values` is what the
+       * PATCH route hands `issueUndo` as the entry's changed columns, so an
+       * `updated_at` that never reached this variable would be left OUT of the
+       * undo — and the restored row would come back carrying the timestamp of
+       * the edit that was just taken back.
+       */
+      let values = fill(rules, 'update', target, context, input.values, new Date());
       const wantsBefore = await hooks.wants('before', 'update', target, context);
       const wantsAfter = await hooks.wants('after', 'update', target, context);
       if ((wantsBefore || wantsAfter) && input.before === undefined) {
@@ -479,8 +609,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // matches nothing and the caller answers as it always has.
       if (wantsBefore && before !== null) values = await runBefore(hooks, 'update', target, context, values, before);
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
+      const checkedValues = checkOrThrow(rules, 'update', target, values, input.mapError);
       const count = await statement(
-        () => updateRows(target.db, target.table, values, pk, input.refine),
+        () => updateRows(target.db, target.table, checkedValues, pk, input.refine),
         input.mapError,
       );
       if (count === 0 && input.skipIfNone === true) return { before, after: null, values, count };
@@ -507,13 +638,25 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       return count;
     },
 
-    async beforeEach(action, target, context, rows) {
+    async beforeEach(action, target, context, rows, opts) {
       const hooks = current();
+      const withRules = opts?.rules !== false;
+      const rules = withRules ? rulesOf(target) : null;
+      const now = new Date();
+      const prepare = (values: Row): { values: CheckedRow; issues: FieldIssues | null } => {
+        if (!withRules) return { values: brand(values), issues: null };
+        const issues = checkRow(rules, action, values, { dialect: target.dialect });
+        return { values: brand(values), issues };
+      };
       if (!(await hooks.wants('before', action, target, context))) {
-        return rows.map((row) => ({ values: row.values, record: undefined }));
+        return rows.map((row) => {
+          const values = withRules ? fill(rules, action, target, context, row.values, now) : row.values;
+          return { ...prepare(values), record: undefined };
+        });
       }
       const prepared: PreparedRow[] = [];
       for (const row of rows) {
+        const filled = withRules ? fill(rules, action, target, context, row.values, now) : row.values;
         let record: Row | null = null;
         if (action !== 'create') {
           record =
@@ -523,12 +666,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                 ? null
                 : ((await fetchByPk(target.db, target.table, row.match)) ?? null);
           if (record === null) {
-            prepared.push({ values: row.values, record: null });
+            // The row is gone; the caller reports it. Nothing is checked,
+            // because nothing will be written.
+            prepared.push({ values: brand(filled), record: null, issues: null });
             continue;
           }
         }
-        const values = await runBefore(hooks, action, target, context, action === 'delete' ? {} : row.values, record);
-        prepared.push({ values: action === 'delete' ? row.values : values, record });
+        const values = await runBefore(hooks, action, target, context, action === 'delete' ? {} : filled, record);
+        prepared.push({ ...prepare(action === 'delete' ? filled : values), record });
       }
       return prepared;
     },

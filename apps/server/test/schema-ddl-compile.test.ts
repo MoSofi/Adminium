@@ -333,7 +333,7 @@ describe('compiled statements per step kind', () => {
 
   it('renames a table', () => {
     const step: DdlStep = {
-      id: 's1', kind: 'rename-table', table: 'public.old', column: null, hazard: 'safe',
+      id: 's1', kind: 'rename-table', table: 'public.old', column: null, constraint: null, hazard: 'safe',
       requiresSuperAdmin: false, summary: '', rationale: 'x', consequences: [], dependsOn: [],
       outsideTransaction: false, refusal: null,
     };
@@ -346,7 +346,7 @@ describe('compiled statements per step kind', () => {
 
   it('qualifies with the schema on postgres and not on mysql or sqlite', () => {
     const step: DdlStep = {
-      id: 's1', kind: 'drop-column', table: 'public.orders', column: 'note', hazard: 'lossy',
+      id: 's1', kind: 'drop-column', table: 'public.orders', column: 'note', constraint: null, hazard: 'lossy',
       requiresSuperAdmin: true, summary: '', rationale: 'x', consequences: [], dependsOn: [],
       outsideTransaction: false, refusal: null,
     };
@@ -383,7 +383,7 @@ describe('compiled statements per step kind', () => {
       confidence: 1, constraintName: 'orders_customer_id_fkey',
     };
     const add: DdlStep = {
-      id: 's1', kind: 'add-fk', table: 'public.orders', column: null, hazard: 'locking',
+      id: 's1', kind: 'add-fk', table: 'public.orders', column: null, constraint: null, hazard: 'locking',
       requiresSuperAdmin: false, summary: '', rationale: 'x', consequences: [], dependsOn: [],
       outsideTransaction: false, refusal: null,
     };

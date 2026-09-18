@@ -24,14 +24,16 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageCrud, rowIdOf, type PageCrudFiles, type PageCrudGridState } from '@adminium/widgets';
-import { parseCrudLabels } from '@adminium/engine/config';
+import { filtersFor, parseCrudFilters, parseCrudForm, parseCrudLabels } from '@adminium/engine/config';
 
 import { resolveFiles, uploadFile } from '../files/api.js';
+import { listKeysOf, useListOptions } from '../api/optionLists.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { parseColumns, projectionParamsOf, withFkDisplay, withLookups } from './columnSpecs.js';
 import { ProjectActionMenu, useProjectActions } from './projectActions.js';
 import { useAppToasts } from './toasts.js';
+import type { FormChildFactReply } from '../api/pages.js';
 import type { PageTemplateProps } from './template-types.js';
 import { ViewSwitcher } from './views/ViewSwitcher.js';
 import { useSavedViews } from './views/useSavedViews.js';
@@ -58,8 +60,21 @@ export function PageCrudBinding({
   canUpdate,
   canDelete,
   canUnmask,
+  columnFacts,
+  formColumns,
+  formRelations,
+  formChildren,
+  tableLabelSingular,
   currency,
 }: PageTemplateProps) {
+  /*
+   * A `column.options` rule that names a LIST is resolved here, where the
+   * reader's language is known: the built-ins from the browser's own data, a
+   * custom list from the workspace's store — and only when a column names one,
+   * so a page with no lists makes no request.
+   */
+  const listOptions = useListOptions(useMemo(() => listKeysOf(columnFacts), [columnFacts]));
+
   // Explicit lookup columns plus the derived FK-chip display lookups
   // (fk.display → `<name>__display` params + displayKey stamps), one plan so
   // the columns PageCrud renders and the params its reads carry never drift.
@@ -83,6 +98,77 @@ export function PageCrudBinding({
   // page stores none, which is what keeps the prop undefined and the template
   // on its own translated defaults.
   const labels = useMemo(() => parseCrudLabels(page.config), [page.config]);
+
+  /*
+   * The page's own form document, if somebody designed one.
+   * Parsed HERE for the same reason `labels` is: a stored block is a page
+   * document's business, and the template takes the parsed value rather than
+   * re-parsing a config it would have to know the shape of. `null` — the norm —
+   * means the dialog derives the form from the live column facts.
+   */
+  const form = useMemo(() => parseCrudForm(page.config), [page.config]);
+
+  /*
+   * The tables a line-items field draws from, keyed by relation. Built here
+   * rather than in the template because it is the page REPLY's shape being
+   * projected onto the template's — the same job `columns` and `form` do.
+   */
+  const childFacts = useMemo(() => {
+    if (formChildren === undefined || formChildren.length === 0) return undefined;
+    return Object.fromEntries(
+      formChildren.map((child: FormChildFactReply) => [
+        child.relationId,
+        {
+          label: child.label,
+          table: child.childTable,
+          foreignColumn: child.foreignColumn,
+          // The parent column the child points at is its own key: the server
+          // refuses a relation that points anywhere else.
+          parentKeyColumn: primaryKeyOf(columns)[0] ?? 'id',
+          primaryKey: primaryKeyOf(child.columns.map((column) => column.spec)),
+          columns: parseColumns({ columns: child.columns.map((column) => column.spec) }, page.id),
+          facts: Object.fromEntries(
+            child.columns.map((column) => [
+              String(column.spec['name'] ?? ''),
+              {
+                filledBy: column.filledBy,
+                required: column.required,
+                writable: column.writable,
+                ...(column.options === undefined ? {} : { options: column.options }),
+              },
+            ]),
+          ),
+        },
+      ]),
+    );
+  }, [formChildren, columns, page.id]);
+
+  /*
+   * The toolbar's filters. Stored when somebody defined them in Studio,
+   * DERIVED otherwise — a table nobody has configured still gets the one or two
+   * filters its own columns justify, which is what makes the affordance exist
+   * on the pages generation wrote.
+   *
+   * Masked columns are excluded unless this caller may unmask: a menu over a
+   * redacted column either lists what the mask exists to hide or lists dots
+   * nobody can choose between.
+   */
+  const filterFields = useMemo(
+    () =>
+      filtersFor(parseCrudFilters(page.config), {
+        columns: (formColumns ?? []).map((column, index) => ({
+          // `options` rides beside the spec in the reply; the leaf reads it
+          // inside. A column an admin gave allowed values is a CHOICE column.
+          spec: {
+            ...column.spec,
+            ...(column.options === undefined ? {} : { options: column.options }),
+          } as never,
+          ordinal: column.ordinal ?? index,
+          masked: canUnmask === true ? false : column.spec['pii'] === true,
+        })),
+      }),
+    [page.config, formColumns, canUnmask],
+  );
 
   const toasts = useAppToasts();
   const { views, createView, updateView, deleteView } = useSavedViews(page.id);
@@ -294,6 +380,16 @@ export function PageCrudBinding({
         // PII cells reveal only for callers the server actually sent the
         // values to in clear (pageReply.canUnmask; default stays masked).
         canUnmask={canUnmask}
+        {...(columnFacts === undefined ? {} : { columnFacts })}
+        listOptions={listOptions}
+        {...(formColumns === undefined ? {} : { formColumns: formColumns as never })}
+        filterFields={filterFields}
+        {...(formRelations === undefined ? {} : { formRelations })}
+        {...(childFacts === undefined ? {} : { childFacts })}
+        form={form}
+        {...(tableLabelSingular === undefined || tableLabelSingular === null
+          ? {}
+          : { entityName: tableLabelSingular })}
         // The connection's own currency for money cells. Spread so
         // an unset one leaves the prop absent and the historical USD fallback
         // in place.
@@ -333,4 +429,9 @@ export function PageCrudBinding({
       {projectActions.dialog}
     </>
   );
+}
+
+/** The key columns of a spec list, in order. */
+function primaryKeyOf(specs: readonly Record<string, unknown>[]): string[] {
+  return specs.filter((spec) => spec['primaryKey'] === true).map((spec) => String(spec['name']));
 }

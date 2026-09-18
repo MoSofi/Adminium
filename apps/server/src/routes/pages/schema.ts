@@ -168,6 +168,47 @@ export const pageConfigPatchBody = z.object({
 export const pageMutationReply = z.object({ data: pageSummary });
 export const okReply = z.object({ data: z.object({ ok: z.literal(true) }) });
 
+/** One column as the form reads it — shared by a table and by its children. */
+const columnFactSchema = z.object({
+  spec: z.record(z.string(), z.unknown()),
+  ordinal: z.number(),
+  writable: z.boolean(),
+  filledBy: z.enum(['database', 'adminium']).nullable(),
+  fill: z
+    .object({
+      kind: z.string(),
+      onUpdate: z.boolean().optional(),
+      implicit: z.boolean().optional(),
+    })
+    .optional(),
+  required: z.boolean(),
+  /* An admin's list, by key or by value. */
+  options: z
+    .union([
+      z.object({ list: z.string() }),
+      z.object({
+        values: z.array(
+          z.object({
+            value: z.string(),
+            label: z.string().optional(),
+            tone: z.string().optional(),
+            description: z.string().optional(),
+          }),
+        ),
+      }),
+    ])
+    .optional(),
+  validation: z
+    .object({
+      format: z.enum(['email', 'url', 'phone']).optional(),
+      min: z.number().optional(),
+      max: z.number().optional(),
+      minLength: z.number().optional(),
+      maxLength: z.number().optional(),
+    })
+    .optional(),
+});
+
 /**
  * The stored envelope is returned verbatim (the envelope persists into
  * `adminium_pages.config` unchanged) — the client validates it against
@@ -214,6 +255,58 @@ export const pageReply = z.object({
    * a 403).
    */
   canUnmask: z.boolean().optional(),
+  /**
+   * The envelope's source table as it stands RIGHT NOW: every non-secret
+   * column with the spec a regeneration would give it, its place in the
+   * table's own order, who fills it in when nobody types a value, and whether
+   * the dialog has to ask for one.
+   *
+   * Why live facts rather than the stored `config.columns[]`: that list was
+   * frozen when the page was generated, regeneration skips a page anybody has
+   * edited, and it is CAPPED at eight columns — so a column added since is
+   * invisible to the form, and a table with fifteen optional columns can only
+   * ever set about eight of them at create.
+   *
+   * Absent means "not computed" (no source table, no snapshot yet, a table the
+   * snapshot does not address) and the client falls back to the stored spec,
+   * the same polarity as the write capabilities above.
+   */
+  columnFacts: z
+    .object({
+      table: z.object({ labelSingular: z.string().nullable() }),
+      /** Link relations this table can write through (a field of chips). */
+      relations: z
+        .array(
+          z.object({
+            relationId: z.string(),
+            label: z.string(),
+            targetTable: z.string(),
+            targetKey: z.string(),
+            /** The column a chip shows; absent ⇒ the key is the label. */
+            targetName: z.string().optional(),
+          }),
+        )
+        .optional(),
+      /**
+       * Tables whose rows this one can hold a LIST of — an invoice's lines.
+       * The child's own columns ride along because a repeater edits real
+       * columns; reading them from a second page's reply would make a
+       * line-items field depend on a page existing for the child table.
+       */
+      children: z
+        .array(
+          z.object({
+            relationId: z.string(),
+            label: z.string(),
+            childTable: z.string(),
+            foreignColumn: z.string(),
+            columns: z.array(columnFactSchema),
+          }),
+        )
+        .optional(),
+      columns: z.array(columnFactSchema),
+    })
+    .optional(),
   /**
    * Present (true) only when the served layout is the caller's per-user
    * override AND the shared document's revision moved past the one stamped on

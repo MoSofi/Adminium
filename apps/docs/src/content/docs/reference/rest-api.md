@@ -94,7 +94,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
 | `/api/v1/connections/*` | 22 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
-| `/api/v1/data/*` | 8 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
+| `/api/v1/data/*` | 10 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
 | `/api/v1/documents/*` | 13 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
 | `/api/v1/email-runs` | 1 | Campaign sends — cancel a scheduled or running run |
@@ -111,6 +111,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/me/*` | 11 | The signed-in user — profile, preferences, notifications, saved layouts |
 | `/api/v1/meta/*` | 2 | Where the meta store lives, and relocating it |
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
+| `/api/v1/option-lists/*` | 5 | Named sets of answers a column accepts, written once and pointed at by as many columns as need them. Reading one needs only a session — a create dialog has to render the choices to anyone who may add a row — while writing needs the same grant that points a column at a list. The built-in lists live in code and are served with their labels in the caller's locale; editing one makes an ordinary copy rather than changing it. Deleting a list a column still names is refused with 409 and the columns using it. |
 | `/api/v1/pages/*` | 13 | Pages and dashboards — layout, config, nav order, shared views |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/project/*` | 7 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
@@ -304,6 +305,8 @@ GET /api/v1/data/{connectionId}/{table}/{recordId}/references
 GET /api/v1/data/{connectionId}/{table}/{recordId}
 PATCH /api/v1/data/{connectionId}/{table}/{recordId}
 DELETE /api/v1/data/{connectionId}/{table}/{recordId}
+GET /api/v1/data/{connectionId}/{table}/availability
+GET /api/v1/data/{connectionId}/{table}/{recordId}/links/{relationId}
 ```
 
 ### `/documents`
@@ -499,6 +502,16 @@ POST /api/v1/meta/relocate
 ```http
 GET /api/v1/onboarding
 POST /api/v1/onboarding/dismiss
+```
+
+### `/option-lists`
+
+```http
+GET /api/v1/option-lists
+POST /api/v1/option-lists
+GET /api/v1/option-lists/{key}
+PATCH /api/v1/option-lists/{key}
+DELETE /api/v1/option-lists/{key}
 ```
 
 ### `/pages`
