@@ -269,7 +269,17 @@ log(`✓ ${String(internal.length)} internal package(s) installed, 0 from the re
 const bin = join(PREFIX, 'node_modules/.bin/adminium');
 if (!existsSync(bin)) die('the tarball installed no `adminium` bin.');
 
+const secretFromEnv = process.env.ADMINIUM_SECRET !== undefined;
 const secret = process.env.ADMINIUM_SECRET ?? randomBytes(32).toString('hex');
+/**
+ * What to PRINT for the secret. When it came from the environment it is the
+ * operator's real one, and the command below is meant to be copied — into a
+ * terminal, and from there into scrollback, a screen share or a pasted bug
+ * report. Echo the variable instead of its value; the shell expands it and the
+ * secret never reaches stdout. A generated one is a throwaway for this
+ * rehearsal and is safe to show, which is the whole point of printing it.
+ */
+const secretForDisplay = secretFromEnv ? '$ADMINIUM_SECRET' : secret;
 const childEnv = {
   ...process.env,
   HOME: FAKE_HOME,
@@ -312,7 +322,7 @@ if (RUN_WIZARD || RUN_START) {
 log('Run it — a real terminal, so the TTY paths (the TUI, pretty logs) are exercised:');
 log('');
 log(`  cd ${RUN_DIR} \\`);
-log(`    && HOME=${FAKE_HOME} ADMINIUM_SECRET=${secret} \\`);
+log(`    && HOME=${FAKE_HOME} ADMINIUM_SECRET=${secretForDisplay} \\`);
 log(`       ${bin}`);
 log('');
 log('or let this script do it:  node scripts/release/rehearse-npx.mjs --skip-pack --wizard');
