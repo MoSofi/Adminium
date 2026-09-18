@@ -15,7 +15,7 @@ import { RecordForm, type RecordFormProps } from './RecordForm.js';
 import type { CrudFormConfig } from '../../page-config/index.js';
 
 /**
- * The dialog every create and edit form opens in (plan 50 D3, D4, D17, D27).
+ * The dialog every create and edit form opens in.
  *
  * ─── What this replaces, and why ───────────────────────────────────────────
  *

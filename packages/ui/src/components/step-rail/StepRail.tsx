@@ -21,7 +21,7 @@ export interface StepRailProps extends Omit<ComponentPropsWithRef<'nav'>, 'child
 }
 
 /**
- * StepRail — the wizard's progress band (`designs/Create Dialogs.dc.html`
+ * StepRail — the wizard's progress band (comp
  * 365–372, 660–667).
  *
  * ─── The number stays ──────────────────────────────────────────────────────

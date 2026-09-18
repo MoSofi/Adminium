@@ -12,7 +12,7 @@
  *
  * An empty list is refused because an enum with no values is not an enum.
  * REMOVING a value from a NATIVE postgres enum type is refused because postgres
- * has no `ALTER TYPE … DROP VALUE` at all (35 D32) — the values of a native type
+ * has no `ALTER TYPE … DROP VALUE` at all — the values of a native type
  * are add-only, and pretending otherwise plans a statement no engine has.
  * Adminium's own enum columns are CHECK-backed and have neither limit.
  */

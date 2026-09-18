@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * A `column.options` rule, in the FORM (plan 50 D19/D20, T36/T37).
+ * A `column.options` rule, in the FORM.
  *
  * The rule is what the server enforces on the write. This file is the other
  * end: the dialog has to OFFER exactly what the write path will accept, and for

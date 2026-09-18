@@ -2,7 +2,7 @@
 /**
  * optionListsRepo — `adminium_option_lists` (wave 0035).
  *
- * The answers a column accepts, named once (plan 50 D20). Everything that
+ * The answers a column accepts, named once. Everything that
  * references a list names its `key`; the id is internal, because a rule naming
  * a list travels in a project file and plan 49's gate refuses an instance id in
  * one.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The **Rules** section of the column inspector (plan 50, 50-T20).
+ * The **Rules** section of the column inspector.
  *
  * ─── What is really being tested ───────────────────────────────────────────
  *
@@ -123,7 +123,7 @@ describe('the Rules section writes the four ops', () => {
     /*
      * The rule stores the key. Copying the list's values into it would make
      * every column a snapshot of the list as it was the day somebody bound it,
-     * and editing the list would change nothing anywhere (plan 50 D20).
+     * and editing the list would change nothing anywhere.
      */
     const harness = installFetch({
       optionLists: () => [

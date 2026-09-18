@@ -22,7 +22,7 @@ import { z } from 'zod';
 
 import type { FormColumnShape } from './crud-form.js';
 
-/** The six controls a filter may use (D8, §3.13). */
+/** The six controls a filter may use. */
 export const FILTER_CONTROLS = [
   'one-of',
   'any-of',

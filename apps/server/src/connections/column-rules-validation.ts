@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What `PUT …/schema/overrides` will accept as a COLUMN RULE (plan 50 §3.4,
- * §5).
+ * What `PUT …/schema/overrides` will accept as a COLUMN RULE, and what it
+ * refuses by name.
  *
  * ─── Why the route checks more than the payload schema ─────────────────────
  *

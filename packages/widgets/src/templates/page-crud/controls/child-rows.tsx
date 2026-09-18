@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE LINE-ITEMS REPEATER — the comp's bordered table of child rows
- * (`designs/Create Dialogs.dc.html` 284–314).
+ * (comp 284–314).
  *
  * ─── A line is a record, and this is a form for several of them ────────────
  *

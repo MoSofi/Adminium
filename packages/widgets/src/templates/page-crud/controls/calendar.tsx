@@ -5,7 +5,7 @@
  * ─── One control, one column ───────────────────────────────────────────────
  *
  * The comp draws a day grid and a time grid as two panes of one dialog
- * (`designs/Create Dialogs.dc.html` 318–360). They are ONE value: the instant
+ * (comp 318–360). They are ONE value: the instant
  * the row holds. Two fields over one column is how a form ends up holding half
  * a booking — a day with no time, or a time on a day nobody picked — so this is
  * a single control whose two halves edit two ends of the same string.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Option lists — the answers a column accepts, named once (plan 50 D20).
+ * Option lists — the answers a column accepts, named once.
  *
  * ─── Who may read, and who may write ───────────────────────────────────────
  *

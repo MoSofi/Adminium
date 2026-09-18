@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Option lists over `/api/v1/option-lists` (plan 50 D20).
+ * Option lists over `/api/v1/option-lists`.
  *
  * Shapes mirror the route's Zod replies, the copied-mirror convention this app
  * uses everywhere: change both together.

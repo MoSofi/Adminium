@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * QUICK CREATE: a title, a detail box, and the rest as meta pills
- * (`designs/Create Dialogs.dc.html` 142–182, 561, 609–611, 739–750).
+ * (comp 142–182, 561, 609–611, 739–750).
  *
  * ─── Which field becomes what ──────────────────────────────────────────────
  *

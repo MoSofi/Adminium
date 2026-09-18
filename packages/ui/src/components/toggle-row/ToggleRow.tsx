@@ -19,7 +19,7 @@ export interface ToggleRowProps extends Omit<ComponentPropsWithRef<'div'>, 'styl
 
 /**
  * ToggleRow — a boolean as a bordered row: title, explanation, switch
- * (`designs/Create Dialogs.dc.html` 258–261; plan 50 D18).
+ * (comp 258–261).
  *
  * ─── Why a boolean is not a checkbox here ──────────────────────────────────
  *

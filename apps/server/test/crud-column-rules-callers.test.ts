@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A rule an admin wrote in Studio, enforced through the DOORS — not through
- * the function that enforces it (plan 50, 50-T19).
+ * the function that enforces it.
  *
  * ─── Why this file exists beside the unit tests ────────────────────────────
  *

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `FormDialog` — the shell, its behaviour, and the four places its anatomy
- * deliberately differs from `Modal`'s (plan 50 D17).
+ * deliberately differs from `Modal`'s.
  *
  * The anatomy assertions are not style nitpicking. Radius 16, 88vh, the 4px
  * blur and the footnote band are what the comp draws for a working form, and

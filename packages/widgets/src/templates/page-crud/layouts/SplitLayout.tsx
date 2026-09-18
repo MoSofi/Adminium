@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * THE SPLIT PANE — the comp's booking dialog (`designs/Create Dialogs.dc.html`
+ * THE SPLIT PANE — the booking dialog (comp
  * 318–360, 320–321).
  *
  * ─── It is a section boundary, not a pixel grid ────────────────────────────

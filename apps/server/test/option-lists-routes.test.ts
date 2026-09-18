@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/option-lists` — the named answers a column accepts (plan 50 D20).
+ * `/option-lists` — the named answers a column accepts.
  *
  * Three things are worth a test here and nothing else is: who may write one,
  * that the built-ins are served but not editable, and that a list a rule points
@@ -123,7 +123,7 @@ describe('option lists', () => {
      * The rule and the list are two stores, and the rule is written through the
      * remap route. Until phase F that route knew only the built-ins, so a rule
      * naming a workspace list was refused with "There is no list called…" — the
-     * defect the browser pass found (§6.1, gate F).
+     * defect the browser pass found.
      */
     await send('POST', '/option-lists', { key: 'tiers', name: 'Tiers', items: [{ value: 'gold' }] });
     const rule = (list: string) => ({

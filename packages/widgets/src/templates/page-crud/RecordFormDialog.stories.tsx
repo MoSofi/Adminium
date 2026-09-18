@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The create dialog as a person meets it (plan 50 D3/D10/D17).
+ * The create dialog as a person meets it.
  *
  * One story per shape wave 1 can render: the DERIVED form every table gets for
  * free, and a DESIGNED one with sections, spans and chosen controls. Both use

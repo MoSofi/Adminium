@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Option lists for the FORMS that render them (plan 50 D20, T36).
+ * Option lists, resolved for the FORMS that render them.
  *
  * A `column.options` rule either carries its values or names a list. The
  * server checks MEMBERSHIP against the list; what a value is CALLED is this
