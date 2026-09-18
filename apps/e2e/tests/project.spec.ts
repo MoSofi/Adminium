@@ -603,7 +603,20 @@ test('eject turns a generated page into code at the same address', async ({ page
   await expect.poll(async () => (await pageRow(page.request, 'shippers'))?.origin, { timeout: 30_000 }).toBe('project');
   expect((await pageRow(page.request, 'shippers'))?.id).toBe(before?.id);
   await page.goto('/p/shippers');
-  await expect(gridRows(page).filter({ hasText: 'Speedy Express' })).toBeVisible();
+  /*
+   * The `origin` poll above says the SERVER now calls this page code. It says
+   * nothing about the BUILD, and until the dashboard has rebuilt the project
+   * the address renders "This page is not in the running build" instead of the
+   * grid — which is what the mysql leg showed twice, with the placeholder in
+   * the page snapshot and `pages/shippers.tsx` named under it.
+   *
+   * So this waits a rebuild's worth, the way the test above waits 20s for a
+   * saved page to come back. The slow leg is mysql, which the CSV-import test
+   * in this file records for itself in the same words.
+   */
+  await expect(gridRows(page).filter({ hasText: 'Speedy Express' })).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(page.getByRole('button', { name: 'New row' })).toBeVisible();
 });
 
