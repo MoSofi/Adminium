@@ -55,9 +55,42 @@ function catalogued(key: string): string | null {
   return typeof node === 'string' ? node : null;
 }
 
+const ESCAPE = /\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|[\s\S])/g;
+
+const SHORT_ESCAPES: Readonly<Record<string, string>> = Object.freeze({
+  n: '\n',
+  t: '\t',
+  r: '\r',
+  b: '\b',
+  f: '\f',
+  v: '\v',
+  '0': '\0',
+});
+
+/**
+ * The value a source string literal denotes: quotes stripped, escapes resolved.
+ *
+ * One pass, consuming each `\X` whole, so a backslash is always spent by the
+ * escape it opens. Unescaping the quotes first and handing the rest to
+ * JSON.parse — what this did, and what the dashboard's namespace tests did —
+ * eats the backslash out of `\\'` and leaves JSON a dangling escape, and has
+ * no syntax for `\x41` or `\u{1f600}`; all of those throw. CodeQL flags that
+ * form as incomplete string escaping.
+ *
+ * The twin of `apps/dashboard/src/i18n/sourceLiteral.ts`, copied rather than
+ * imported: apps/server does not depend on apps/dashboard, and a test helper
+ * is no reason to make it.
+ */
 function literalText(raw: string): string {
-  const body = raw.slice(1, -1).replace(/\\'/g, "'").replace(/\\"/g, '"');
-  return JSON.parse(`"${body.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`) as string;
+  return raw.slice(1, -1).replace(ESCAPE, (_match, escape: string) => {
+    if (escape.startsWith('u{')) {
+      return String.fromCodePoint(Number.parseInt(escape.slice(2, -1), 16));
+    }
+    if (escape[0] === 'u' || escape[0] === 'x') {
+      return String.fromCharCode(Number.parseInt(escape.slice(1), 16));
+    }
+    return SHORT_ESCAPES[escape] ?? escape;
+  });
 }
 
 /**

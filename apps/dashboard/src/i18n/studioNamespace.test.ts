@@ -35,6 +35,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EN_US_RESOURCES, type ResourceBundle } from '@adminium/i18n/resources';
 
+import { literalText } from './sourceLiteral.js';
+
 // vitest runs with cwd = apps/dashboard (per-package, same under turbo). The
 // jsdom environment rewrites import.meta.url to a non-file scheme, so the scan
 // root is anchored on cwd instead.
@@ -72,12 +74,6 @@ function catalogued(key: string): string | null {
     node = node[part];
   }
   return typeof node === 'string' ? node : null;
-}
-
-/** The source text of a JS string literal, quotes and escapes resolved. */
-function literalText(raw: string): string {
-  const body = raw.slice(1, -1).replace(/\\'/g, "'").replace(/\\"/g, '"');
-  return JSON.parse(`"${body.replace(/"/g, '\\"')}"`) as string;
 }
 
 interface Site {

@@ -17,6 +17,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EN_US_RESOURCES, type ResourceBundle } from '@adminium/i18n/resources';
 
+import { literalText } from './sourceLiteral.js';
+
 const SRC = join(process.cwd(), 'src');
 const EMAIL = join(SRC, 'email');
 
@@ -40,11 +42,6 @@ function catalogued(key: string): string | null {
     node = node[part];
   }
   return typeof node === 'string' ? node : null;
-}
-
-function literalText(raw: string): string {
-  const body = raw.slice(1, -1).replace(/\\'/g, "'").replace(/\\"/g, '"');
-  return JSON.parse(`"${body.replace(/"/g, '\\"')}"`) as string;
 }
 
 interface Site {
