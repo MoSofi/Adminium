@@ -269,17 +269,24 @@ log(`✓ ${String(internal.length)} internal package(s) installed, 0 from the re
 const bin = join(PREFIX, 'node_modules/.bin/adminium');
 if (!existsSync(bin)) die('the tarball installed no `adminium` bin.');
 
-const secretFromEnv = process.env.ADMINIUM_SECRET !== undefined;
-const secret = process.env.ADMINIUM_SECRET ?? randomBytes(32).toString('hex');
+const generatedSecret = randomBytes(32).toString('hex');
+const secret = process.env.ADMINIUM_SECRET ?? generatedSecret;
 /**
- * What to PRINT for the secret. When it came from the environment it is the
- * operator's real one, and the command below is meant to be copied — into a
- * terminal, and from there into scrollback, a screen share or a pasted bug
- * report. Echo the variable instead of its value; the shell expands it and the
- * secret never reaches stdout. A generated one is a throwaway for this
- * rehearsal and is safe to show, which is the whole point of printing it.
+ * What to PRINT for the secret, which is never the one from the environment.
+ *
+ * The command below is meant to be copied — into a terminal, and from there
+ * into scrollback, a screen share or a pasted bug report. An operator's real
+ * `ADMINIUM_SECRET` must not ride along, so printing echoes the variable and
+ * lets their shell expand it. A generated secret is a throwaway for this
+ * rehearsal, and showing it is the point.
+ *
+ * This reads from `generatedSecret` rather than from `secret`, which would be
+ * the same value in the same branch. The environment's value has no path here
+ * at all, instead of one a reader — or a taint analysis — has to rule out by
+ * following the condition.
  */
-const secretForDisplay = secretFromEnv ? '$ADMINIUM_SECRET' : secret;
+const secretForDisplay =
+  process.env.ADMINIUM_SECRET === undefined ? generatedSecret : '$ADMINIUM_SECRET';
 const childEnv = {
   ...process.env,
   HOME: FAKE_HOME,
