@@ -8,7 +8,7 @@ import { IconTile, type Tone } from '../icon-tile/index.js';
 
 /**
  * FormDialog — the shell every create and edit form lives in
- * (`designs/Create Dialogs.dc.html` 117–138, 510–521; plan 50 D17).
+ * (comp 117–138, 510–521).
  *
  * ─── Why this is not `Modal` ───────────────────────────────────────────────
  *

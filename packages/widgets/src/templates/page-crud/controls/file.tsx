@@ -100,7 +100,7 @@ export function AvatarControl(props: ControlProps) {
  * What the current value looks like, when the host has resolved it.
  *
  * `contentPath` is a SAME-ORIGIN path by contract — never a destination's
- * public URL, which the CSP blocks (plan 38 D24) — so the preview asks for the
+ * public URL, which the CSP blocks — so the preview asks for the
  * resolved file rather than building a link of its own.
  *
  * Decorative: the file's name is already in the field beside it, so a second

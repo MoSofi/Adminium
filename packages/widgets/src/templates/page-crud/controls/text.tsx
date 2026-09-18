@@ -103,7 +103,7 @@ export function UrlControl(props: ControlProps) {
  * store a number nobody can dial; keeping it in the field would make every
  * edit re-type it.
  *
- * A per-entry country picker is not drawn and is refused (§5) — the prefix is
+ * A per-entry country picker is not drawn and is refused — the prefix is
  * a FIELD setting, the same for every row of the column.
  */
 export function PhoneControl(props: ControlProps) {

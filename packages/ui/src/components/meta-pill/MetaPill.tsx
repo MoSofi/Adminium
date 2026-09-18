@@ -15,7 +15,7 @@ export interface MetaPillProps extends Omit<ComponentPropsWithRef<'button'>, 'va
 }
 
 /**
- * MetaPill — quick-create's inline field (`designs/Create Dialogs.dc.html`
+ * MetaPill — quick-create's inline field (comp
  * 147–180, 609–610).
  *
  * A pill is a whole field in one 24px-tall control: the icon says what KIND of

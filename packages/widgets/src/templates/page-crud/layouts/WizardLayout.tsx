@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The wizard: one section per step, with the comp's rail above them
- * (`designs/Create Dialogs.dc.html` 362–412, 660–667).
+ * (comp 362–412, 660–667).
  *
  * ─── What a step IS ────────────────────────────────────────────────────────
  *

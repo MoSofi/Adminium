@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `config.form` — the FORM DOCUMENT of a `page-crud` body (plan 50 §3.6, D10).
+ * `config.form` — the FORM DOCUMENT of a `page-crud` body.
  *
  * ─── Absence is the norm, and that is the whole design ─────────────────────
  *
@@ -40,7 +40,7 @@ import { z } from 'zod';
  * `calendar` joined with phase L, `child-rows` with phase M and the `recap`
  * block with phase N. A document naming a control this build does not have
  * still fails to parse and falls back to the derived form, which is the
- * degradation §5 asks for.
+ * degradation a stored document ahead of the binary is owed.
  */
 export const FORM_CONTROLS = [
   'text',

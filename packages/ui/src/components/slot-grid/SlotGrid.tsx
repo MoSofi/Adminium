@@ -19,7 +19,7 @@ export interface SlotGridProps {
 }
 
 /**
- * SlotGrid — the comp's two-column grid of times (`designs/Create Dialogs.dc.html`
+ * SlotGrid — the two-column grid of times (comp
  * 342–346, 653–658).
  *
  * A taken slot is `disabled`, not merely struck through: the comp's own

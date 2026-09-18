@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `lists/<key>.json`: one option list as a file (plan 50 D20).
+ * `lists/<key>.json`: one option list as a file.
  *
  * A `column.options` rule either carries its values inline or NAMES a list, and
  * the rule travels in `schema/<database>.json`. A named list that lived only in

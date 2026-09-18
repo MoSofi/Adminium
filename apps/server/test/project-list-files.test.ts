@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `lists/<key>.json` — an option list as a project file (plan 50 D20).
+ * `lists/<key>.json` — an option list as a project file.
  *
  * The list has to travel because the RULE that names it travels: a
  * `column.options` row in `schema/<database>.json` says `{"list":"stages"}`,

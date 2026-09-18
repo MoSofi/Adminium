@@ -109,7 +109,7 @@ export interface ColumnCheck {
    *
    * A rule that names a LIST by key is resolved when the VIEW is built, not
    * here: the view's stamp carries the lists' revision, so an edited list is in
-   * force on the next request and no write pays a meta-store read (§3.9).
+   * force on the next request and no write pays a meta-store read.
    */
   options?: readonly string[];
   /** An admin's `column.required` — the one "required" the server enforces. */
@@ -237,7 +237,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
      *
      * Inline values are the rule's own; a NAMED list resolves through the view,
      * which carried the values in when it was built and whose stamp moves when a
-     * list is edited (§3.9). A list the view does not know — deleted since, or a
+     * list is edited. A list the view does not know — deleted since, or a
      * key that never existed — contributes NOTHING: the column goes back to
      * accepting anything, rather than refusing every write because of a list
      * somebody removed.

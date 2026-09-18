@@ -190,7 +190,7 @@ describe('column.options — answers the database knows nothing about', () => {
      * The rule stores a key, not a copy of the answers. The view resolves the
      * key once, when it is built, and its stamp carries the lists' revision — so
      * an edited list is in force on the next request and no write re-reads the
-     * store (§3.9).
+     * store.
      */
     const t = target(
       'postgres',
@@ -320,7 +320,7 @@ describe('column.validation — only what an admin typed', () => {
 });
 
 // ---------------------------------------------------------------------------
-// What the route refuses to STORE (§5)
+// What the route refuses to STORE
 // ---------------------------------------------------------------------------
 
 describe('a rule the engine could not keep is refused at the door', () => {

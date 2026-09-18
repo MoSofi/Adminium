@@ -19,7 +19,7 @@ export interface CheckRowProps extends Omit<ComponentPropsWithRef<'div'>, 'style
 
 /**
  * CheckRow — a bordered, tinted row with a box, a label and a detail or a mono
- * scope (`designs/Create Dialogs.dc.html` 402–407, 494–500; plan 50 D18/D19).
+ * scope (comp 402–407, 494–500).
  *
  * ─── What it is for, and what it is not ────────────────────────────────────
  *

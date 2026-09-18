@@ -11,7 +11,7 @@
  * select's options could not be applied at all: `enum` always ended in
  * `ENUM_ON_NON_ENUM_COLUMN` because there was nowhere to type values, and
  * retyping the generated key left `default: autoincrement` behind for
- * `UNSUPPORTED_DEFAULT`. 35-T12 is marked ✅ BUILT for exactly these controls.
+ * `UNSUPPORTED_DEFAULT`, with no control anywhere that writes one.
  *
  * So every test here goes through the screen and asserts what reaches the WIRE.
  */
@@ -101,7 +101,7 @@ describe('the value list of a column that already has one (B7)', () => {
   });
 
   it('refuses to remove a value from a native Postgres type, and says why', async () => {
-    // 35 D32: postgres has no `ALTER TYPE … DROP VALUE`. The fixture's
+    // Postgres has no `ALTER TYPE … DROP VALUE`. The fixture's
     // `order_status` is a native type, so the list is add-only.
     installFetch({ onPlan: () => jsonResponse(200, EMPTY_PLAN) });
     await openDesign();
@@ -294,7 +294,7 @@ describe('retyping a column (B8)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// T14 — key generation, honest per engine (the test 35-T12 promised)
+// Key generation, answered honestly per engine
 // ---------------------------------------------------------------------------
 
 describe('how a new table’s key is filled (D31)', () => {
@@ -309,7 +309,7 @@ describe('how a new table’s key is filled (D31)', () => {
 
   it('does not offer a unique id for a MySQL connection’s key', async () => {
     /*
-     * The test 35-T12 said existed. MySQL reads a new row back by `insertId`,
+     * What each engine can actually issue. MySQL reads a new row back by `insertId`,
      * which only an auto-increment column has — a uuid key is a row the CRUD
      * path cannot fetch after writing it (D31, `UNADDRESSABLE_KEY`). The option
      * is ABSENT, not disabled, and the reason is in the helper text.

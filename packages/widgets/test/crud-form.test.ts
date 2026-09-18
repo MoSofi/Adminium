@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The form document (plan 50, 50-T21): what a page may store, what it gets when
+ * The form document: what a page may store, what it gets when
  * it stores nothing, and what happens when the stored one has gone stale.
  *
  * ─── The three failures this file exists to hold shut ──────────────────────

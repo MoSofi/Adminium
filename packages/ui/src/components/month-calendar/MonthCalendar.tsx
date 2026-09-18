@@ -24,7 +24,7 @@ export interface MonthCalendarProps {
 }
 
 /**
- * MonthCalendar — the comp's month grid (`designs/Create Dialogs.dc.html`
+ * MonthCalendar — the month grid (comp
  * 322–334, 634–652).
  *
  * ─── A real calendar, in the reader's own week ─────────────────────────────

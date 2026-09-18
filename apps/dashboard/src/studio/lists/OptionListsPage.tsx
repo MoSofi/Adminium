@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/lists` — the workspace's option lists (plan 50 D20).
+ * `/studio/lists` — the workspace's option lists.
  *
  * A list is the answers a column accepts, named once. This page is where the
  * names live: the three Adminium ships, and every list this workspace wrote.

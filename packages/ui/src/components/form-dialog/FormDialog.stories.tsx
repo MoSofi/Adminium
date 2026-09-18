@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The dialog shell every create and edit form lives in (plan 50 D17). Dark,
+ * The dialog shell every create and edit form lives in. Dark,
  * RTL, density and accent are the Storybook globals and the VRT matrix, not
  * separate stories; the matrix renders with `modal={false}` + `defaultOpen` so
  * a screenshot needs no interaction.

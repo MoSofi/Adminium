@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0035 — `adminium_option_lists`: the answers a column accepts, named once
- * and used from anywhere (plan 50 D20).
+ * and used from anywhere.
  *
  * A `column.options` rule either carries its values inline or NAMES one of
  * these. Naming matters for the lists that repeat: a workspace has one list of

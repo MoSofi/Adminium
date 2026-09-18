@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The BUILT-IN option lists (plan 50 D6/D20, Appendix D).
+ * The BUILT-IN option lists.
  *
  * ─── Why these three live in code and not in the store ─────────────────────
  *
