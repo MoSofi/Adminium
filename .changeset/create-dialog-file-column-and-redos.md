@@ -15,7 +15,9 @@
 - **A text control names its type.** `TextControl` rendered an `<input>` with no
   `type` attribute. It behaves as a text box either way, but `input[type="text"]`
   matches an attribute, so anything selecting the form's text fields found none.
-- **`enumValuesFromCheck`'s double-quote regex is unrolled.** `(?:[^"\\]|\\.)*`
-  backtracks polynomially on an expression full of escaped quotes, and the
-  expression comes out of a database snapshot. The unrolled form matches the same
-  strings in linear time.
+- **`parseEnumCheck` reads quoted literals with a scanner, not a regex.**
+  `/"((?:[^"\\]|\\.)*)"/g` backtracks polynomially on an expression full of
+  escaped quotes — and so does the unrolled form, because `matchAll` RESTARTS at
+  every position and each restart rescans to the end when no closing quote
+  follows. A CHECK expression comes back from whatever the database stored, and
+  this runs on every table a diff opens. The scanner only ever moves forward.

@@ -111,7 +111,22 @@ test('a filter defined in Studio narrows the table and rides into a saved view',
     await card.getByTestId('filters-name-country').fill('Country');
 
     await page.getByTestId('studio-pages-save').click();
-    await expect(page.getByTestId('studio-pages-save')).toBeDisabled();
+    /*
+     * Wait for the SAVE, not for the button.
+     *
+     * A successful save leaves the editor, so "the button is disabled" is a
+     * state that exists for however long the navigation takes — on a slower
+     * runner the screen is already gone and the assertion fails on an element
+     * that is not there. The stored config is the thing this test depends on,
+     * and asking the server for it is not a race.
+     */
+    await expect
+      .poll(async () => {
+        const reply = await page.request.get(`/api/v1/pages/${customers}`);
+        const body = (await reply.json()) as { data: { config?: { filters?: unknown[] } } };
+        return body.data.config?.filters?.length ?? 0;
+      }, { message: 'the page stores the two filters' })
+      .toBe(2);
 
     // ── The page's toolbar now asks those questions ───────────────────────
     await page.goto('/p/customers');
