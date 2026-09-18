@@ -165,8 +165,18 @@ export function pickLocalized(
 
 /** An add-on key: the grammar the store, the payloads and the download path share. */
 export const ADD_ON_KEY_PATTERN = /^[a-z][a-z0-9-]{1,79}$/;
-/** EXACT — never a range, never `latest` (D9). */
-export const EXACT_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:[-+][0-9A-Za-z.-]+)*$/;
+/**
+ * EXACT — never a range, never `latest` (D9).
+ *
+ * The prerelease/build tail is ONE optional group, not a repeated one. Repeating
+ * `[-+][0-9A-Za-z.-]+` made the pattern ambiguous, because the tail class also
+ * contains `-`: `-a-b` could be one segment or two, and a version that fails to
+ * match backtracks through every split. `0.0.0+` followed by 22 `--` pairs took
+ * 9.7 SECONDS to reject; 4 pairs fewer took 207 ms, which is the doubling that
+ * gives it away. Since every accepted string is `[-+]` followed by more of the
+ * same alphabet, one group accepts exactly what the repeated form did.
+ */
+export const EXACT_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:[-+][0-9A-Za-z.+-]+)?$/;
 
 export const catalogEntrySchema = z
   .object({
