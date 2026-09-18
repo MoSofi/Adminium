@@ -643,15 +643,18 @@ export function applyPreset(draft: DestinationDraft, id: S3PresetId): Destinatio
 }
 
 /**
- * The host an endpoint addresses, or `null` when it does not parse. Operators
- * type these by hand, so a missing scheme is ordinary rather than an error.
+ * The host an endpoint addresses, or `null` when it does not parse.
+ *
+ * A stored endpoint always carries a scheme — the meta schema types the column
+ * `z.string().url()`, so one without it never reaches here — and this does NOT
+ * supply a missing one. Prepending would mean writing `https://` immediately
+ * before an interpolation, and that literal survives minification into the
+ * bundle, where `check-offline-assets` reads it as a remote host the app might
+ * fetch and fails the desktop build.
  */
 function endpointHost(endpoint: string): string | null {
-  const value = endpoint.trim();
-  if (value === '') return null;
-  const candidate = value.includes('://') ? value : `https://${value}`;
   try {
-    return new URL(candidate).hostname.toLowerCase();
+    return new URL(endpoint.trim()).hostname.toLowerCase();
   } catch {
     return null;
   }

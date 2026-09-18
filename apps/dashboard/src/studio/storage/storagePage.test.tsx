@@ -226,9 +226,10 @@ describe('storage draft algebra', () => {
     expect(presetIdFor({ endpoint: 'https://s3.eu-central-1.wasabisys.com' })).toBe('wasabi');
     expect(presetIdFor({})).toBe('aws');
     expect(presetIdFor({ endpoint: 'http://127.0.0.1:9000' })).toBe('minio');
-    // Typed without a scheme, which the endpoint field accepts.
-    expect(presetIdFor({ endpoint: 'nyc3.digitaloceanspaces.com' })).toBe('spaces');
     expect(presetIdFor({ endpoint: 'HTTPS://NYC3.DIGITALOCEANSPACES.COM' })).toBe('spaces');
+    // No scheme is not an endpoint: the meta schema types the column
+    // `z.string().url()`, so a stored one always has it.
+    expect(presetIdFor({ endpoint: 'nyc3.digitaloceanspaces.com' })).toBe('minio');
   });
 
   it('reads the host, so a provider domain elsewhere in the URL is not that provider', () => {
