@@ -1032,11 +1032,27 @@ export function PageCrud({
    */
   const formDocument = useMemo(() => {
     if (formColumns === undefined || formColumns.length === 0) return null;
+    /*
+     * THE STORED SPEC WINS over the server's freshly-built one, here as well as
+     * in `editableColumns` — and here is where it MATTERS, because the
+     * derivation stamps a control per column and a control chosen from the
+     * wrong spec is frozen into the document before any renderer sees it.
+     *
+     * What the page knows and the schema does not: an admin bound this page's
+     * attachments to a column, which makes it a FILE column for this page and
+     * a plain `text` column everywhere else. Deriving from the fact alone drew
+     * it as a text box.
+     */
+    const stored = new Map(columns.map((column) => [column.name, column]));
+    const merged = formColumns.map((fact) => {
+      const own = stored.get(String((fact.spec as { name?: unknown }).name ?? ''));
+      return own === undefined ? fact : { ...fact, spec: { ...fact.spec, ...own } };
+    });
     return formDocumentFor(form ?? null, {
-      columns: formColumns,
+      columns: merged,
       ...(formRelations === undefined ? {} : { relations: formRelations }),
     });
-  }, [form, formColumns, formRelations]);
+  }, [form, formColumns, formRelations, columns]);
 
   /**
    * The columns the FORM renders, which is not the same list as the grid's:

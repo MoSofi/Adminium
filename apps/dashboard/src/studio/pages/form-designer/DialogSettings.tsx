@@ -24,7 +24,7 @@ export function DialogSettings({
   return (
     <div className="grid gap-3 sm:grid-cols-2" data-testid="form-dialog-settings">
       <FormField
-        label={t('studio:pages.form.dialog.title', 'Title')}
+        label={t('studio:pages.form.dialog.title', 'Dialog title')}
         helper={t('studio:pages.form.dialog.titleHelp', 'Empty uses the generated words.')}
       >
         <Input

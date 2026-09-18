@@ -1260,7 +1260,7 @@ export default {
         "ctaIcon": "Knapikon",
         "iconDefault": "Standard",
         "subtitle": "Undertitel",
-        "title": "Titel",
+        "title": "Dialogtitel",
         "titleHelp": "Tom bruger de genererede ord."
       },
       "field": {

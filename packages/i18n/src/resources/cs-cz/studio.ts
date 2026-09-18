@@ -1260,7 +1260,7 @@ export default {
         "ctaIcon": "Ikona tlačítka",
         "iconDefault": "Výchozí",
         "subtitle": "Podtitul",
-        "title": "Titulek",
+        "title": "Název dialogu",
         "titleHelp": "Prázdné použije vygenerovaná slova."
       },
       "field": {

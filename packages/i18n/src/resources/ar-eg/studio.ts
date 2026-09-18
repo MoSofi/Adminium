@@ -1260,7 +1260,7 @@ export default {
         "ctaIcon": "أيقونة الزر",
         "iconDefault": "افتراضي",
         "subtitle": "العنوان الفرعي",
-        "title": "العنوان",
+        "title": "عنوان مربّع الحوار",
         "titleHelp": "الفراغ يستخدم الكلمات المولَّدة."
       },
       "field": {

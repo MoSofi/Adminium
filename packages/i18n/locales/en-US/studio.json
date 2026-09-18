@@ -1250,7 +1250,7 @@
         "ctaIcon": "Button icon",
         "iconDefault": "Default",
         "subtitle": "Subtitle",
-        "title": "Title",
+        "title": "Dialog title",
         "titleHelp": "Empty uses the generated words."
       },
       "field": {
