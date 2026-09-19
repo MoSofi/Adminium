@@ -14,21 +14,23 @@
  */
 
 import { requireAddOnHost } from './index.js';
-import type { AddOnAppNamespace } from './app-types.js';
+import type { AddOnAppNamespace, AddOnApiError } from './app-types.js';
 
 export type * from './app-types.js';
 
 const app = requireAddOnHost().app as unknown as AddOnAppNamespace;
 
 export const ApiError = app.ApiError;
+/** The same name as a TYPE, so `catch (e: ApiError)` compiles. */
+export type ApiError = AddOnApiError;
 export const PageActions = app.PageActions;
 export const PageSurface = app.PageSurface;
 export const api = app.api;
-export const bootstrapQuery = app.bootstrapQuery;
 export const formatSince = app.formatSince;
 export const lucideByName = app.lucideByName;
 export const registerMessages = app.registerMessages;
 export const t = app.t;
+export const useLocaleTag = app.useLocaleTag;
 export const useAppToasts = app.useAppToasts;
 export const useShortcut = app.useShortcut;
 

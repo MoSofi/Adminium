@@ -60,7 +60,6 @@ import {
 import { tagForLocale } from '@adminium/i18n';
 
 import { ApiError, api } from '../app/api.js';
-import { bootstrapQuery } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { lucideByName } from '../lib/lucide.js';
 import { useAppToasts } from '../pages/toasts.js';
@@ -68,6 +67,7 @@ import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { useShortcut } from '../shell/ShortcutsProvider.js';
 import { formatSince } from '../team/teamApi.js';
+import { useLocaleTag } from './locale.js';
 import { registerMessages } from './messages.js';
 import {
   HOST_API_VERSION,
@@ -107,11 +107,11 @@ export function ensureAddOnRuntime(): Promise<void> {
           PageActions,
           PageSurface,
           api,
-          bootstrapQuery,
           formatSince,
           lucideByName,
           registerMessages,
           t,
+          useLocaleTag,
           useAppToasts,
           useShortcut,
         } satisfies AddOnAppNamespace,

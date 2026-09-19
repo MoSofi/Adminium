@@ -38,7 +38,12 @@ export interface AddOnApiClient {
   delete<T>(path: string, payload?: unknown): Promise<T>;
 }
 
-/** What `api` rejects with. A page reads it through `instanceof`. */
+/**
+ * What `api` rejects with. A page reads it through `instanceof` AND annotates
+ * with it, so the shim exports the name as a value and a TYPE both — the first
+ * consumer wrote `catch (error: ApiError)` and the value-only export failed
+ * with "refers to a value, but is being used as a type here".
+ */
 export interface AddOnApiError extends Error {
   readonly status: number;
   /** SCREAMING_SNAKE canonical code, e.g. `SESSION_EXPIRED`. */
@@ -69,15 +74,29 @@ export type AddOnTranslate = (
   args?: Record<string, unknown>,
 ) => string;
 
-export interface AddOnToast {
-  variant: 'success' | 'error' | 'info' | 'warning';
-  title: string;
-  description?: string | undefined;
+/** The button a toast may carry — Undo, Download, Retry. */
+export interface AddOnToastAction {
+  label: string;
+  onAction: () => void;
 }
 
-/** What `useAppToasts()` answers with. */
+export interface AddOnToast {
+  variant?: 'success' | 'error' | 'info' | 'warning' | 'loading' | undefined;
+  title: ReactNode;
+  description?: ReactNode;
+  action?: AddOnToastAction | undefined;
+  /** `null` keeps the toast until it is dismissed. */
+  duration?: number | null | undefined;
+}
+
+/**
+ * What `useAppToasts()` answers with — a subset of the kit's queue, and the
+ * subset is the point: a page may raise a toast and dismiss one, and has no
+ * business reaching the stack's own props or its hover timers.
+ */
 export interface AddOnToastQueue {
-  push(toast: AddOnToast): void;
+  push(toast: AddOnToast): string;
+  dismiss(id?: string): void;
 }
 
 /** The topbar's title, subtitle and back link for the screen being rendered. */
@@ -153,23 +172,28 @@ export type AddOnFormatSince = (
 ) => string | null;
 
 /**
- * The whole `app` namespace, as one type the host can be checked against.
+ * The BCP-47 tag the viewer is reading in — `de-DE`, `ar-EG`.
  *
- * `bootstrapQuery` is deliberately loose: it hands back the host's own
- * react-query options object, which this package cannot name without taking a
- * dependency on react-query for a single signature. A page passes it straight
- * to `useQuery`, which is where its real shape is checked.
+ * THIS REPLACED `bootstrapQuery`, and the replacement is the better API for a
+ * reason worth keeping. Publishing the query options meant publishing a shape
+ * this package cannot name without depending on react-query, so it was typed
+ * `unknown` — and `useQuery(bootstrapQuery())` then did not compile at all.
+ * Looking at what the page actually wanted from the whole bootstrap payload,
+ * it was this one string, for a date formatter.
  */
+export type AddOnLocaleTag = () => string;
+
+/** The whole `app` namespace, as one type the host can be checked against. */
 export interface AddOnAppNamespace {
   ApiError: AddOnApiErrorConstructor;
   PageActions: ComponentType<AddOnPageActionsProps>;
   PageSurface: ComponentType<AddOnPageSurfaceProps>;
   api: AddOnApiClient;
-  bootstrapQuery: () => unknown;
   formatSince: AddOnFormatSince;
   lucideByName: AddOnIconLookup;
   registerMessages: AddOnRegisterMessages;
   t: AddOnTranslate;
+  useLocaleTag: AddOnLocaleTag;
   useAppToasts: () => AddOnToastQueue;
   useShortcut: (def: AddOnShortcutDef) => void;
 }

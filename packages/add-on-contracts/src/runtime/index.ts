@@ -296,11 +296,11 @@ export const ADD_ON_APP_EXPORTS = [
   'PageActions',
   'PageSurface',
   'api',
-  'bootstrapQuery',
   'formatSince',
   'lucideByName',
   'registerMessages',
   't',
+  'useLocaleTag',
   'useAppToasts',
   'useShortcut',
 ] as const;
