@@ -989,6 +989,15 @@ export interface AdminiumManifestsTable {
   status: string;
   /** app | add-on (`@adminium/manifest` MANIFEST_KINDS). Added by 0020. */
   kind: string;
+  /**
+   * `sha512-<base64>` of the copy held in the storage destination, or NULL when
+   * no copy is held — no destination configured, or a row predating 0037.
+   *
+   * The destination's own listing cannot stand in for this: it is not a record
+   * of what was installed, so a pruned or edited bucket would be obeyed rather
+   * than detected. Added by 0037.
+   */
+  packageIntegrity: string | null;
   installedBy: Id | null;
   installedAt: Ts;
   updatedAt: Ts;
