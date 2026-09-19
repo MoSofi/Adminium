@@ -17,7 +17,7 @@ the only correct install spec (`npx @adminiumjs/adminium`); the binary it
 installs is `adminium`. The unscoped npm name `adminium` is an unrelated
 third-party package, so never run `npx adminium`.
 
-On a server, add the version (`npx @adminiumjs/adminium@0.2.10 start`). Without
+On a server, add the version (`npx @adminiumjs/adminium@0.2.12 start`). Without
 one, npx installs any newer release it finds, and with no terminal attached it
 does so without asking. See
 [A VPS without Docker](/self-hosting/vps/) for a pinned install under systemd,
