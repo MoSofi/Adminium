@@ -131,7 +131,7 @@ function AddOnCard({
                 })}
               </Badge>
             )}
-            {/* 49-T27. Before the server grew this state such a row was either
+            {/* Before the server grew this state such a row was either
                 labelled `installed`, or absent from the reply altogether. */}
             {entry.state === 'missing' && (
               <Badge tone="danger">{t('studio:addOns.browse.missing', 'Missing')}</Badge>

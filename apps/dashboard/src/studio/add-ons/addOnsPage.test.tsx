@@ -375,7 +375,7 @@ describe('AddOnsPage', () => {
 
     it('marks an installed add-on whose files are gone, and offers the re-download', async () => {
       /*
-       * 49-T27. The server's catalog reply is assembled from bytes on disk plus
+       * The server's catalog reply is assembled from bytes on disk plus
        * the cached feed, so before the `missing` state this row was either
        * labelled `installed` or absent from the reply entirely.
        */

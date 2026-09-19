@@ -712,7 +712,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             // Installed with no package in the store is a damaged install, not
             // an available one; it is still named so the page shows it. This
             // loop only ever runs for keys with NOTHING on disk, so `installed`
-            // here always means exactly that — say so (49-T27) instead of
+            // here always means exactly that — say so instead of
             // labelling it the same as a healthy install.
             installed: current !== null,
             installedVersion: current === null || current === entry.version ? null : current,
@@ -730,7 +730,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          * the store, then the cached feed — so an installed app whose files a
          * redeploy wiped, and that the feed does not carry (every uploaded app,
          * and every install with no cached feed), reached this point in no list
-         * at all while the meta store still said installed. 49-T27.
+         * at all while the meta store still said installed.
          */
         const listed = new Set(apps.map((row) => row.key));
         for (const [key, version] of installedByKey) {

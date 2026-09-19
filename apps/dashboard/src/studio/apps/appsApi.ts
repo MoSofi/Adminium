@@ -32,9 +32,9 @@ export interface InstalledApp {
   connectionId: string | null;
   sides: InstalledAppSide[];
   /**
-   * Installed, but nothing of it is on this server, so none of it is served
-   * (49-T27) — a redeploy on a host with no disk keeps the row and loses the
-   * files. `sides` is empty then too, but an empty list reads as "no frontends".
+   * Installed, but nothing of it is on this server, so none of it is served: a
+   * redeploy on a host with no disk keeps the row and loses the files. `sides`
+   * is empty then too, but an empty list reads as "no frontends".
    */
   missing: boolean;
 }

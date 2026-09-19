@@ -756,7 +756,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          * labelled `installed` (if the feed happened to carry it) or not at all
          * (every uploaded add-on, and every install with no cached feed). The
          * meta store is the only witness that it was ever installed, so this
-         * pass is the one that reads from it. 49-T27.
+         * pass is the one that reads from it.
          */
         for (const [key, version] of installed) {
           if ((onDisk.get(key) ?? []).includes(version)) continue;
