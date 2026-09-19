@@ -7,10 +7,9 @@
  * PostgreSQL and MySQL, so a full-width path and hash are written there too.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  applyMigrations,
   connectionsRepo,
   MetaValidationError,
   overridesRepo,
@@ -19,24 +18,16 @@ import {
   projectFilesRepo,
   type DsnCrypto,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const HASH = 'a'.repeat(64);
 const OTHER = 'b'.repeat(64);
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`project files [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
 
-    beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
-    });
-    afterEach(async () => {
-      await t.destroy();
-    });
-
-    const repo = () => projectFilesRepo(t.meta);
+    const repo = () => projectFilesRepo(meta());
 
     it('records a version, then replaces it and clears the flags', async () => {
       await repo().record('pages/customers.json', HASH, 1000);
@@ -121,22 +112,17 @@ const testCrypto: DsnCrypto = {
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`writing what project files describe [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
     let connectionId: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
-      const connection = await connectionsRepo(t.meta, testCrypto).create({
+      const connection = await connectionsRepo(meta(), testCrypto).create({
         name: 'main',
         engine: 'sqlite',
         introspectDsn: 'sqlite:./shop.db',
         projectKey: 'main',
       });
       connectionId = connection.id;
-    });
-    afterEach(async () => {
-      await t.destroy();
     });
 
     const page = (overrides: Record<string, unknown> = {}) => ({
@@ -155,10 +141,10 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('inserts a page, then replaces every column the file decides', async () => {
-      const created = await pagesRepo(t.meta).putFromProject(page(), 1000);
+      const created = await pagesRepo(meta()).putFromProject(page(), 1000);
       expect(created).toMatchObject({ id: 'page_0123abcd_customers', revision: 1, createdAt: 1000, isEnabled: true });
 
-      const updated = await pagesRepo(t.meta).putFromProject(
+      const updated = await pagesRepo(meta()).putFromProject(
         page({ title: 'Clients', navGroup: null, navOrder: 3, isEnabled: false, origin: 'user', config: { v: 1, x: [1] } }),
         2000,
       );
@@ -176,15 +162,15 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('refuses an origin a file cannot have, and an id that does not fit', async () => {
-      await expect(pagesRepo(t.meta).putFromProject(page({ origin: 'imported' }))).rejects.toBeInstanceOf(MetaValidationError);
-      await expect(pagesRepo(t.meta).putFromProject(page({ id: 'p'.repeat(37) }))).rejects.toBeInstanceOf(MetaValidationError);
+      await expect(pagesRepo(meta()).putFromProject(page({ origin: 'imported' }))).rejects.toBeInstanceOf(MetaValidationError);
+      await expect(pagesRepo(meta()).putFromProject(page({ id: 'p'.repeat(37) }))).rejects.toBeInstanceOf(MetaValidationError);
     });
 
     it('keeps a page of code with an id of the full 36 characters, and lists every document by slug', async () => {
       // A page of code is `page_proj_` and at most 26 characters of its address.
       const codeId = `page_proj_${'a'.repeat(26)}`;
       expect(codeId).toHaveLength(36);
-      const pages = pagesRepo(t.meta);
+      const pages = pagesRepo(meta());
       await pages.putFromProject(page({ id: codeId, slug: 'a'.repeat(26), type: 'project-page', origin: 'project' }), 1000);
       await pages.putFromProject(page({ id: 'page_0123abcd_orders', slug: 'orders' }), 1000);
       await pages.putFromProject(page(), 1000);
@@ -199,7 +185,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('replaces the user and llm rows, and keeps the auto rows', async () => {
-      const overrides = overridesRepo(t.meta);
+      const overrides = overridesRepo(meta());
       await overrides.create({ connectionId, op: 'column.pii', origin: 'auto', tableName: 'main.customers', columnName: 'email', value: { masked: true } }, 10);
       await overrides.create({ connectionId, op: 'table.label', tableName: 'main.customers', value: { label: 'Old' } }, 20);
 
@@ -223,7 +209,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('checks every row before writing any', async () => {
-      const overrides = overridesRepo(t.meta);
+      const overrides = overridesRepo(meta());
       await overrides.create({ connectionId, op: 'table.label', tableName: 'main.customers', value: { label: 'Kept' } });
       const bad = [
         [{ op: 'table.label', tableName: 'main.customers', value: { label: '' }, origin: 'user', status: 'active' }],

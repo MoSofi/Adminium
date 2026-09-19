@@ -1,31 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   MetaValidationError,
   SESSION_TOUCH_INTERVAL_MS,
-  applyMigrations,
   sessionsRepo,
   usersRepo,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`usersRepo + sessionsRepo [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
 
-    beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
-    });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
     it('creates and finds users by (lowercased) email', async () => {
-      const users = usersRepo(t.meta);
+      const users = usersRepo(meta());
       const created = await users.create({ email: 'Ava.Reyes@Example.COM', name: 'Ava Reyes' }, T0);
       expect(created.email).toBe('ava.reyes@example.com');
       expect(created.status).toBe('active');
@@ -40,7 +32,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('rejects invalid emails and statuses', async () => {
-      const users = usersRepo(t.meta);
+      const users = usersRepo(meta());
       await expect(users.create({ email: 'not-an-email', name: 'X' })).rejects.toThrow(MetaValidationError);
       await expect(
         users.create({ email: 'a@b.co', name: 'X', status: 'weird' as never }),
@@ -48,7 +40,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('updates passwords and recovery codes', async () => {
-      const users = usersRepo(t.meta);
+      const users = usersRepo(meta());
       const u = await users.create({ email: 'a@b.co', name: 'A' }, T0);
       expect(await users.updatePassword(u.id, 'argon2id$hash', T0 + 10)).toBe(true);
       expect(await users.updatePassword('usr_missing', 'x')).toBe(false);
@@ -61,8 +53,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('session lifecycle: create → find valid → revoke', async () => {
-      const users = usersRepo(t.meta);
-      const sessions = sessionsRepo(t.meta);
+      const users = usersRepo(meta());
+      const sessions = sessionsRepo(meta());
       const u = await users.create({ email: 'a@b.co', name: 'A' }, T0);
 
       const s = await sessions.create(
@@ -79,8 +71,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('throttles last-seen touches to one per interval', async () => {
-      const users = usersRepo(t.meta);
-      const sessions = sessionsRepo(t.meta);
+      const users = usersRepo(meta());
+      const sessions = sessionsRepo(meta());
       const u = await users.create({ email: 'a@b.co', name: 'A' }, T0);
       const s = await sessions.create({ userId: u.id, tokenHash: 'h', expiresAt: T0 + 86_400_000 }, T0);
 
@@ -90,8 +82,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('gc removes expired and long-revoked sessions only', async () => {
-      const users = usersRepo(t.meta);
-      const sessions = sessionsRepo(t.meta);
+      const users = usersRepo(meta());
+      const sessions = sessionsRepo(meta());
       const u = await users.create({ email: 'a@b.co', name: 'A' }, T0);
 
       await sessions.create({ userId: u.id, tokenHash: 'expired', expiresAt: T0 + 1 }, T0);
@@ -107,13 +99,13 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('cascades sessions when the user row is deleted (real meta-internal FK)', async () => {
-      const users = usersRepo(t.meta);
-      const sessions = sessionsRepo(t.meta);
+      const users = usersRepo(meta());
+      const sessions = sessionsRepo(meta());
       const u = await users.create({ email: 'a@b.co', name: 'A' }, T0);
       await sessions.create({ userId: u.id, tokenHash: 'h', expiresAt: T0 + 1_000 }, T0);
 
-      await t.meta.db.deleteFrom('adminium_users').where('id', '=', u.id).execute();
-      const rows = await t.meta.db.selectFrom('adminium_sessions').selectAll().execute();
+      await meta().db.deleteFrom('adminium_users').where('id', '=', u.id).execute();
+      const rows = await meta().db.selectFrom('adminium_sessions').selectAll().execute();
       expect(rows).toHaveLength(0);
     });
   });

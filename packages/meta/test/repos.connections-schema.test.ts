@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   MetaValidationError,
@@ -10,7 +10,7 @@ import {
   snapshotsRepo,
   type DsnCrypto,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, useMetaDb } from './helpers/db.js';
 
 /** Reversible stand-in for the server's AES closures — meta stays crypto-agnostic. */
 const testCrypto: DsnCrypto = {
@@ -26,19 +26,12 @@ const MODEL_B = { dialect: 'postgres', name: 'northwind', tables: [{ name: 'cust
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`connections/snapshots/overrides repos [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, firstRun);
 
-    beforeEach(async () => {
-      t = await dialect.make();
-      await firstRun(t.meta);
-    });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
     describe('connectionsRepo', () => {
       it('encrypts DSNs at rest and round-trips them through getDsns()', async () => {
-        const repo = connectionsRepo(t.meta, testCrypto);
+        const repo = connectionsRepo(meta(), testCrypto);
         const created = await repo.create({
           name: 'prod-db',
           engine: 'postgres',
@@ -58,7 +51,7 @@ for (const dialect of TEST_DIALECTS) {
       });
 
       it('falls back dataDsn → introspectDsn for single-role setups', async () => {
-        const repo = connectionsRepo(t.meta, testCrypto);
+        const repo = connectionsRepo(meta(), testCrypto);
         const created = await repo.create({
           name: 'dev',
           engine: 'postgres',
@@ -69,7 +62,7 @@ for (const dialect of TEST_DIALECTS) {
       });
 
       it('rejects unknown engines, missing DSN, and bad settings payloads', async () => {
-        const repo = connectionsRepo(t.meta, testCrypto);
+        const repo = connectionsRepo(meta(), testCrypto);
         await expect(repo.create({ name: 'x', engine: 'oracle', introspectDsn: 'x' })).rejects.toThrow(
           MetaValidationError,
         );
@@ -85,7 +78,7 @@ for (const dialect of TEST_DIALECTS) {
       });
 
       it('update, recordTestResult, list ordering, and delete', async () => {
-        const repo = connectionsRepo(t.meta, testCrypto);
+        const repo = connectionsRepo(meta(), testCrypto);
         const a = await repo.create(
           { name: 'a', engine: 'postgres', introspectDsn: 'postgres://a@h/d' },
           1_000,
@@ -127,7 +120,7 @@ for (const dialect of TEST_DIALECTS) {
       });
 
       it('rejects every discriminator it does not recognise, before writing', async () => {
-        const repo = connectionsRepo(t.meta, testCrypto);
+        const repo = connectionsRepo(meta(), testCrypto);
         const base = { name: 'x', engine: 'postgres', introspectDsn: 'postgres://a@b/c' } as const;
 
         await expect(repo.create({ ...base, sourceKind: 'yaml' })).rejects.toThrow(/source_kind/);
@@ -155,8 +148,8 @@ for (const dialect of TEST_DIALECTS) {
       });
 
       it('stores a schema-file connection that never had a DSN to decrypt', async () => {
-        const repo = connectionsRepo(t.meta, testCrypto);
-        const schemaFile = await filesRepo(t.meta).create({
+        const repo = connectionsRepo(meta(), testCrypto);
+        const schemaFile = await filesRepo(meta()).create({
           filename: 'northwind.sql',
           mime: 'application/sql',
           sizeBytes: 2048,
@@ -192,7 +185,7 @@ for (const dialect of TEST_DIALECTS) {
         // The Studio form posts '' for a cleared field. Encrypting it would
         // produce a non-null ciphertext, and `getDsns` would then decrypt it to
         // '' — a DSN-shaped value the connector would actually try to dial.
-        const repo = connectionsRepo(t.meta, testCrypto);
+        const repo = connectionsRepo(meta(), testCrypto);
         const created = await repo.create({
           name: 'cleared',
           engine: 'postgres',
@@ -204,7 +197,7 @@ for (const dialect of TEST_DIALECTS) {
       });
 
       it('update validates each payload it is given and leaves the row alone when it refuses', async () => {
-        const repo = connectionsRepo(t.meta, testCrypto);
+        const repo = connectionsRepo(meta(), testCrypto);
         const conn = await repo.create(
           {
             name: 'prod',
@@ -266,7 +259,7 @@ for (const dialect of TEST_DIALECTS) {
         // a rejected promise with nothing quotable. An `error: null` next to
         // `status: 'error'` renders as an empty health chip, so the repo
         // supplies the fallback rather than the five call sites.
-        const repo = connectionsRepo(t.meta, testCrypto);
+        const repo = connectionsRepo(meta(), testCrypto);
         const conn = await repo.create(
           { name: 'flaky', engine: 'postgres', introspectDsn: 'postgres://ro@h/d' },
           1_000,
@@ -287,8 +280,8 @@ for (const dialect of TEST_DIALECTS) {
 
     describe('snapshotsRepo', () => {
       it('persists snapshots, keeps exactly one active, and no-ops on equal checksum', async () => {
-        const connections = connectionsRepo(t.meta, testCrypto);
-        const snapshots = snapshotsRepo(t.meta);
+        const connections = connectionsRepo(meta(), testCrypto);
+        const snapshots = snapshotsRepo(meta());
         const conn = await connections.create({
           name: 'prod',
           engine: 'postgres',
@@ -340,7 +333,7 @@ for (const dialect of TEST_DIALECTS) {
       });
 
       it('rejects invalid source and empty checksum', async () => {
-        const snapshots = snapshotsRepo(t.meta);
+        const snapshots = snapshotsRepo(meta());
         await expect(
           snapshots.create({ connectionId: 'conn_x', source: 'guess' as never, schema: {}, checksum: 'x' }),
         ).rejects.toThrow(MetaValidationError);
@@ -352,8 +345,8 @@ for (const dialect of TEST_DIALECTS) {
 
     describe('overridesRepo', () => {
       it('validates op payloads via the vocabulary and stores one row per op', async () => {
-        const connections = connectionsRepo(t.meta, testCrypto);
-        const overrides = overridesRepo(t.meta);
+        const connections = connectionsRepo(meta(), testCrypto);
+        const overrides = overridesRepo(meta());
         const conn = await connections.create({
           name: 'prod',
           engine: 'postgres',
@@ -436,8 +429,8 @@ for (const dialect of TEST_DIALECTS) {
       });
 
       it('replaceForConnection is transactional PUT; setStatus toggles without deleting', async () => {
-        const connections = connectionsRepo(t.meta, testCrypto);
-        const overrides = overridesRepo(t.meta);
+        const connections = connectionsRepo(meta(), testCrypto);
+        const overrides = overridesRepo(meta());
         const conn = await connections.create({
           name: 'prod',
           engine: 'postgres',
@@ -476,9 +469,9 @@ for (const dialect of TEST_DIALECTS) {
       });
 
       it('cascades with the parent connection', async () => {
-        const connections = connectionsRepo(t.meta, testCrypto);
-        const overrides = overridesRepo(t.meta);
-        const snapshots = snapshotsRepo(t.meta);
+        const connections = connectionsRepo(meta(), testCrypto);
+        const overrides = overridesRepo(meta());
+        const snapshots = snapshotsRepo(meta());
         const conn = await connections.create({
           name: 'prod',
           engine: 'postgres',

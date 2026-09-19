@@ -24,8 +24,12 @@
 import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 
+import { sql } from 'kysely';
+import { afterAll, beforeAll, beforeEach } from 'vitest';
+
 import type { MetaDb } from '../../src/index.js';
 import {
+  applyMigrations,
   createMysqlMetaDb,
   createPostgresMetaDb,
   createSqliteMetaDb,
@@ -167,4 +171,109 @@ export const TEST_DIALECTS: readonly TestDialect[] = [sqliteDialect, postgresDia
 export async function listTables(meta: MetaDb): Promise<string[]> {
   const tables = await meta.db.introspection.getTables();
   return tables.map((t) => t.name).sort();
+}
+
+
+/**
+ * The migration ledger, which a reset must NOT empty — the same table
+ * `RELOCATE_SKIP_TABLES` names, for the same reason: it is the record of what
+ * has been applied, not data the schema holds.
+ */
+const LEDGER = 'adminium_migrations';
+
+/**
+ * Empty every table but the ledger, leaving the schema in place.
+ *
+ * WHY THIS EXISTS. Provisioning is what this suite costs. Each live-engine
+ * test used to CREATE DATABASE, apply all migrations, and DROP DATABASE — on
+ * CI's MySQL that is seconds per test, and there are hundreds of them across
+ * postgres and mysql. Emptying the tables reaches the same starting state
+ * without rebuilding the schema to get there.
+ *
+ * Pinned to ONE connection on purpose. MySQL's `FOREIGN_KEY_CHECKS` is a
+ * SESSION variable, so disabling it on a pooled connection and truncating on
+ * another leaves the checks on where it matters — the truncations would fail
+ * in FK order and the reset would be silently partial.
+ */
+export async function resetMetaDb(meta: MetaDb): Promise<void> {
+  const tables = (await listTables(meta)).filter((name) => name !== LEDGER);
+  if (tables.length === 0) return;
+
+  if (meta.dialect === 'postgres') {
+    // One statement: CASCADE settles FK order, and it is atomic, so a failure
+    // cannot leave half the tables emptied.
+    const list = tables.map((name) => `"${name}"`).join(', ');
+    await sql.raw(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`).execute(meta.db);
+    return;
+  }
+
+  if (meta.dialect === 'mysql') {
+    await meta.db.connection().execute(async (db) => {
+      await sql.raw('SET FOREIGN_KEY_CHECKS = 0').execute(db);
+      try {
+        for (const name of tables) await sql.raw(`TRUNCATE TABLE \`${name}\``).execute(db);
+      } finally {
+        await sql.raw('SET FOREIGN_KEY_CHECKS = 1').execute(db);
+      }
+    });
+    return;
+  }
+
+  // SQLite has no TRUNCATE, and `PRAGMA foreign_keys` is per-connection too.
+  await meta.db.connection().execute(async (db) => {
+    await sql.raw('PRAGMA foreign_keys = OFF').execute(db);
+    try {
+      for (const name of tables) await sql.raw(`DELETE FROM "${name}"`).execute(db);
+    } finally {
+      await sql.raw('PRAGMA foreign_keys = ON').execute(db);
+    }
+  });
+}
+
+/**
+ * The first-boot call for a suite that wants the tables and nothing in them.
+ * The seeded counterpart is `firstRun`, which this package exports; both are
+ * idempotent, which is what lets {@link useMetaDb} re-run one after a reset.
+ */
+export function migrateOnly(meta: MetaDb): Promise<unknown> {
+  return applyMigrations(meta.db, { dialect: meta.dialect });
+}
+
+/**
+ * One database per FILE, emptied between tests.
+ *
+ * Registers the hooks itself, so a suite reads as `const db = useMetaDb(...)`
+ * and every test still starts from the state `init` leaves behind. `init` is
+ * the file's own first-boot call — `applyMigrations` for a suite that wants
+ * bare tables, `firstRun` for one that wants the seeded roles and settings —
+ * and it runs again after each reset because both are idempotent: the ledger
+ * survives, so the migrations no-op and only the seeding repeats.
+ *
+ * Call it in the describe body BEFORE the suite's own `beforeEach`; vitest
+ * runs hooks in registration order, so the reset then lands before whatever
+ * rows the suite sets up for itself.
+ */
+export function useMetaDb(dialect: TestDialect, init: (meta: MetaDb) => Promise<unknown>): () => MetaDb {
+  let handle: TestDb | null = null;
+
+  beforeAll(async () => {
+    handle = await dialect.make();
+    await init(handle.meta);
+  });
+
+  beforeEach(async () => {
+    if (handle === null) throw new Error('useMetaDb: the database was not provisioned');
+    await resetMetaDb(handle.meta);
+    await init(handle.meta);
+  });
+
+  afterAll(async () => {
+    if (handle !== null) await handle.destroy();
+    handle = null;
+  });
+
+  return () => {
+    if (handle === null) throw new Error('useMetaDb: read outside a test');
+    return handle.meta;
+  };
 }

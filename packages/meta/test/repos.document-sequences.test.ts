@@ -13,27 +13,22 @@
  * both rejected for not existing everywhere, and a test that only ran on
  * SQLite would not have noticed.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { applyMigrations, documentSequencesRepo } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { documentSequencesRepo } from '../src/index.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`documentSequencesRepo — ${dialect.name}`, () => {
-    let db: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
     let sequences: ReturnType<typeof documentSequencesRepo>;
 
     beforeEach(async () => {
-      db = await dialect.make();
-      await applyMigrations(db.meta.db, { dialect: db.meta.dialect });
-      sequences = documentSequencesRepo(db.meta);
+      sequences = documentSequencesRepo(meta());
     });
 
-    afterEach(async () => {
-      await db.destroy();
-    });
 
     it('starts at one and hands out consecutive numbers', async () => {
       expect(await sequences.claim('prof_1', T0)).toBe(1);

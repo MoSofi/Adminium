@@ -14,11 +14,10 @@
  *  - a secret setting is refused by the REPO, not by whichever route
  *    remembered.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   addOnSettingsRepo,
-  applyMigrations,
   connectionsRepo,
   documentProfilesRepo,
   documentsRepo,
@@ -28,7 +27,7 @@ import {
   type DsnCrypto,
   type RecordRef,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
 
@@ -47,19 +46,17 @@ const testCrypto: DsnCrypto = {
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`document register — ${dialect.name}`, () => {
-    let db: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
     let profiles: ReturnType<typeof documentProfilesRepo>;
     let documents: ReturnType<typeof documentsRepo>;
     let settings: ReturnType<typeof addOnSettingsRepo>;
     let connectionId: string;
 
     beforeEach(async () => {
-      db = await dialect.make();
-      await applyMigrations(db.meta.db, { dialect: db.meta.dialect });
-      profiles = documentProfilesRepo(db.meta);
-      documents = documentsRepo(db.meta);
-      settings = addOnSettingsRepo(db.meta);
-      const connection = await connectionsRepo(db.meta, testCrypto).create({
+      profiles = documentProfilesRepo(meta());
+      documents = documentsRepo(meta());
+      settings = addOnSettingsRepo(meta());
+      const connection = await connectionsRepo(meta(), testCrypto).create({
         name: 'main',
         engine: 'postgres',
         introspectDsn: 'postgres://ro@localhost/app',
@@ -67,9 +64,6 @@ for (const dialect of TEST_DIALECTS) {
       connectionId = connection.id;
     });
 
-    afterEach(async () => {
-      await db.destroy();
-    });
 
     const makeProfile = async (over: Partial<{ name: string; enabled: boolean }> = {}) =>
       await profiles.create(
@@ -314,7 +308,7 @@ for (const dialect of TEST_DIALECTS) {
          * one to an auditor two years later. A cascade here would destroy
          * business records as a side effect of tidying up an integration.
          */
-        const manifests = manifestsRepo(db.meta, testCredentialCrypto);
+        const manifests = manifestsRepo(meta(), testCredentialCrypto);
         const installed = await manifests.install(
           {
             manifestKey: 'invoices',

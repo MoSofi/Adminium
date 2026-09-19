@@ -9,7 +9,7 @@
  * filter (580), and a body carrying the block ARRAY — a kind repeating, a
  * float, unicode — round-trips through the open record unchanged.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   firstRun,
@@ -19,7 +19,7 @@ import {
   type ReportDocumentsRepo,
   type ReportSummary,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
 
@@ -59,18 +59,13 @@ function input(over: Partial<CreateReportDocumentInput> & { name: string }): Cre
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`report documents repo [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, firstRun);
     let repo: ReportDocumentsRepo;
     let userId: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await firstRun(t.meta);
-      repo = reportDocumentsRepo(t.meta);
-      userId = (await usersRepo(t.meta).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
-    });
-    afterEach(async () => {
-      await t.destroy();
+      repo = reportDocumentsRepo(meta());
+      userId = (await usersRepo(meta()).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
     });
 
     async function names(kind: 'template' | 'report'): Promise<string[]> {
@@ -187,7 +182,7 @@ for (const dialect of TEST_DIALECTS) {
 
     it('a deleted creator leaves the row with created_by null (the one FK)', async () => {
       const a = await repo.create(input({ name: 'A', createdBy: userId }), T0);
-      await t.meta.db.deleteFrom('adminium_users').where('id', '=', userId).execute();
+      await meta().db.deleteFrom('adminium_users').where('id', '=', userId).execute();
       expect((await repo.findById(a.id))?.createdBy).toBeNull();
     });
   });

@@ -10,16 +10,15 @@
  * rather than a driver error is what lets the operator see what they are about
  * to break).
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  applyMigrations,
   connectionsRepo,
   publicKeysRepo,
   publicScopesRepo,
   type DsnCrypto,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 /** Reversible stand-in; this suite never asserts on ciphertext. */
 const testCrypto: DsnCrypto = {
@@ -38,14 +37,12 @@ const DOC = JSON.stringify({
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`publicScopesRepo + publicKeysRepo [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
     let connectionId: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
       // The scope FK is `cascade` on the connection, so a real row is needed.
-      const conn = await connectionsRepo(t.meta, testCrypto).create({
+      const conn = await connectionsRepo(meta(), testCrypto).create({
         name: 'src',
         engine: 'postgres',
         introspectDsn: 'postgres://ro:s@db/prod',
@@ -53,12 +50,9 @@ for (const dialect of TEST_DIALECTS) {
       });
       connectionId = conn.id;
     });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
     async function seedScope() {
-      return publicScopesRepo(t.meta).create(
+      return publicScopesRepo(meta()).create(
         {
           connectionId,
           side: 'customer',
@@ -71,7 +65,7 @@ for (const dialect of TEST_DIALECTS) {
     }
 
     async function seedKey(scopeId: string, prefix = 'adm_pub_aaaaaaaa') {
-      return publicKeysRepo(t.meta).create(
+      return publicKeysRepo(meta()).create(
         {
           name: 'web',
           prefix,
@@ -89,7 +83,7 @@ for (const dialect of TEST_DIALECTS) {
       scopeId: string,
       opts: { prefix: string; appKey?: string; expiresAt?: number | null; at?: number },
     ) {
-      return publicKeysRepo(t.meta).create(
+      return publicKeysRepo(meta()).create(
         {
           name: `bound ${opts.prefix}`,
           prefix: opts.prefix,
@@ -109,12 +103,12 @@ for (const dialect of TEST_DIALECTS) {
       const unbound = await seedKey(scope.id);
       expect(unbound.appKey).toBeNull();
       const bound = await seedBoundKey(scope.id, { prefix: 'adm_pub_bound001' });
-      expect((await publicKeysRepo(t.meta).findById(bound.id))?.appKey).toBe('clients');
+      expect((await publicKeysRepo(meta()).findById(bound.id))?.appKey).toBe('clients');
     });
 
     it('newestLiveByApp picks the newest key that is neither revoked nor expired', async () => {
       const scope = await seedScope();
-      const repo = publicKeysRepo(t.meta);
+      const repo = publicKeysRepo(meta());
       const older = await seedBoundKey(scope.id, { prefix: 'adm_pub_older000', at: T0 });
       const newer = await seedBoundKey(scope.id, { prefix: 'adm_pub_newer000', at: T0 + 1000 });
       // Wrong side, wrong app, expired, revoked — none of these may ever win.
@@ -150,12 +144,12 @@ for (const dialect of TEST_DIALECTS) {
     it('rotation keeps the app binding (29 acceptance criterion 9)', async () => {
       const scope = await seedScope();
       const key = await seedBoundKey(scope.id, { prefix: 'adm_pub_rotate00' });
-      await publicKeysRepo(t.meta).rotate(key.id, {
+      await publicKeysRepo(meta()).rotate(key.id, {
         prefix: 'adm_pub_rotate11',
         tokenHash: 'i'.repeat(64),
         tokenEncrypted: 'sealed:next',
       });
-      const after = await publicKeysRepo(t.meta).findById(key.id);
+      const after = await publicKeysRepo(meta()).findById(key.id);
       expect(after?.appKey).toBe('clients');
       expect(after?.prefix).toBe('adm_pub_rotate11');
     });
@@ -168,7 +162,7 @@ for (const dialect of TEST_DIALECTS) {
       expect(scope.updatedAt).toBe(T0);
       expect(scope.proposedFromManifest).toBeNull();
 
-      const found = await publicScopesRepo(t.meta).findById(scope.id);
+      const found = await publicScopesRepo(meta()).findById(scope.id);
       // COMPARED AS JSON, NOT AS TEXT, and the difference is the storage's to
       // make. `document` is a `json` column, which postgres stores as `jsonb` —
       // it keeps the VALUE and not the bytes, so the keys come back ordered by
@@ -180,40 +174,40 @@ for (const dialect of TEST_DIALECTS) {
       // which broke on the two production stores until the repo normalised it.
       expect(typeof found?.document).toBe('string');
       expect(JSON.parse(found?.document ?? 'null')).toEqual(JSON.parse(DOC));
-      expect(await publicScopesRepo(t.meta).findById('psc_nope')).toBeNull();
+      expect(await publicScopesRepo(meta()).findById('psc_nope')).toBeNull();
     });
 
     it('lists scopes for a connection', async () => {
       await seedScope();
       await seedScope();
-      expect(await publicScopesRepo(t.meta).listByConnection(connectionId)).toHaveLength(2);
-      expect(await publicScopesRepo(t.meta).listByConnection('conn_other')).toEqual([]);
+      expect(await publicScopesRepo(meta()).listByConnection(connectionId)).toHaveLength(2);
+      expect(await publicScopesRepo(meta()).listByConnection('conn_other')).toEqual([]);
     });
 
     it('updates a scope and moves updatedAt', async () => {
       const scope = await seedScope();
-      expect(await publicScopesRepo(t.meta).update(scope.id, { name: 'renamed' }, T0 + 5)).toBe(true);
-      const after = await publicScopesRepo(t.meta).findById(scope.id);
+      expect(await publicScopesRepo(meta()).update(scope.id, { name: 'renamed' }, T0 + 5)).toBe(true);
+      const after = await publicScopesRepo(meta()).findById(scope.id);
       expect(after?.name).toBe('renamed');
       expect(after?.updatedAt).toBe(T0 + 5);
-      expect(await publicScopesRepo(t.meta).update('psc_nope', { name: 'x' })).toBe(false);
+      expect(await publicScopesRepo(meta()).update('psc_nope', { name: 'x' })).toBe(false);
     });
 
     it('refuses to delete a scope while a key still points at it', async () => {
       const scope = await seedScope();
       const key = await seedKey(scope.id);
 
-      expect(await publicScopesRepo(t.meta).remove(scope.id)).toBe(false);
-      expect(await publicScopesRepo(t.meta).findById(scope.id)).not.toBeNull();
+      expect(await publicScopesRepo(meta()).remove(scope.id)).toBe(false);
+      expect(await publicScopesRepo(meta()).findById(scope.id)).not.toBeNull();
 
       // Revoking is not enough — the row still references it. Deleting the key
       // is, which is the order that makes the operator see the consequence.
-      await publicKeysRepo(t.meta).revoke(key.id);
-      expect(await publicScopesRepo(t.meta).remove(scope.id)).toBe(false);
+      await publicKeysRepo(meta()).revoke(key.id);
+      expect(await publicScopesRepo(meta()).remove(scope.id)).toBe(false);
 
-      await t.meta.db.deleteFrom('adminium_public_keys').where('id', '=', key.id).execute();
-      expect(await publicScopesRepo(t.meta).remove(scope.id)).toBe(true);
-      expect(await publicScopesRepo(t.meta).findById(scope.id)).toBeNull();
+      await meta().db.deleteFrom('adminium_public_keys').where('id', '=', key.id).execute();
+      expect(await publicScopesRepo(meta()).remove(scope.id)).toBe(true);
+      expect(await publicScopesRepo(meta()).findById(scope.id)).toBeNull();
     });
 
     it('creates a key with an empty origin list and a sealed secret', async () => {
@@ -228,39 +222,39 @@ for (const dialect of TEST_DIALECTS) {
 
     it('returns EVERY prefix candidate, so the caller can compare in constant time', async () => {
       const scope = await seedScope();
-      await publicKeysRepo(t.meta).create(
+      await publicKeysRepo(meta()).create(
         { name: 'a', prefix: 'adm_pub_dupe', tokenHash: 'a'.repeat(64), tokenEncrypted: 's', scopeId: scope.id, side: 'customer' },
         T0,
       );
-      await publicKeysRepo(t.meta).create(
+      await publicKeysRepo(meta()).create(
         { name: 'b', prefix: 'adm_pub_dupe', tokenHash: 'b'.repeat(64), tokenEncrypted: 's', scopeId: scope.id, side: 'customer' },
         T0,
       );
       // Both, not "the one whose hash matches" — the hash never reaches SQL.
-      expect(await publicKeysRepo(t.meta).findByPrefix('adm_pub_dupe')).toHaveLength(2);
-      expect(await publicKeysRepo(t.meta).findByPrefix('adm_pub_none')).toEqual([]);
+      expect(await publicKeysRepo(meta()).findByPrefix('adm_pub_dupe')).toHaveLength(2);
+      expect(await publicKeysRepo(meta()).findByPrefix('adm_pub_none')).toEqual([]);
     });
 
     it('finds by id, lists, and lists by scope', async () => {
       const scope = await seedScope();
       const key = await seedKey(scope.id);
-      expect((await publicKeysRepo(t.meta).findById(key.id))?.name).toBe('web');
-      expect(await publicKeysRepo(t.meta).findById('pbk_nope')).toBeNull();
-      expect(await publicKeysRepo(t.meta).list()).toHaveLength(1);
-      expect(await publicKeysRepo(t.meta).listByScope(scope.id)).toHaveLength(1);
-      expect(await publicKeysRepo(t.meta).listByScope('psc_other')).toEqual([]);
+      expect((await publicKeysRepo(meta()).findById(key.id))?.name).toBe('web');
+      expect(await publicKeysRepo(meta()).findById('pbk_nope')).toBeNull();
+      expect(await publicKeysRepo(meta()).list()).toHaveLength(1);
+      expect(await publicKeysRepo(meta()).listByScope(scope.id)).toHaveLength(1);
+      expect(await publicKeysRepo(meta()).listByScope('psc_other')).toEqual([]);
     });
 
     it('rotates a live key in place, keeping its scope and origins', async () => {
       const scope = await seedScope();
       const key = await seedKey(scope.id);
-      const ok = await publicKeysRepo(t.meta).rotate(
+      const ok = await publicKeysRepo(meta()).rotate(
         key.id,
         { prefix: 'adm_pub_bbbbbbbb', tokenHash: 'z'.repeat(64), tokenEncrypted: 'sealed2' },
         T0 + 9,
       );
       expect(ok).toBe(true);
-      const after = await publicKeysRepo(t.meta).findById(key.id);
+      const after = await publicKeysRepo(meta()).findById(key.id);
       expect(after?.prefix).toBe('adm_pub_bbbbbbbb');
       expect(after?.scopeId).toBe(scope.id);
       expect(after?.updatedAt).toBe(T0 + 9);
@@ -269,9 +263,9 @@ for (const dialect of TEST_DIALECTS) {
     it('will not rotate a revoked key back into service', async () => {
       const scope = await seedScope();
       const key = await seedKey(scope.id);
-      await publicKeysRepo(t.meta).revoke(key.id, T0 + 1);
+      await publicKeysRepo(meta()).revoke(key.id, T0 + 1);
       expect(
-        await publicKeysRepo(t.meta).rotate(key.id, {
+        await publicKeysRepo(meta()).rotate(key.id, {
           prefix: 'adm_pub_cccccccc',
           tokenHash: 'y'.repeat(64),
           tokenEncrypted: 's',
@@ -282,17 +276,17 @@ for (const dialect of TEST_DIALECTS) {
     it('revokes once and only once', async () => {
       const scope = await seedScope();
       const key = await seedKey(scope.id);
-      expect(await publicKeysRepo(t.meta).revoke(key.id, T0 + 1)).toBe(true);
+      expect(await publicKeysRepo(meta()).revoke(key.id, T0 + 1)).toBe(true);
       // A second revoke is not an error and not a second write.
-      expect(await publicKeysRepo(t.meta).revoke(key.id, T0 + 2)).toBe(false);
-      expect((await publicKeysRepo(t.meta).findById(key.id))?.revokedAt).toBe(T0 + 1);
+      expect(await publicKeysRepo(meta()).revoke(key.id, T0 + 2)).toBe(false);
+      expect((await publicKeysRepo(meta()).findById(key.id))?.revokedAt).toBe(T0 + 1);
     });
 
     it('touches lastUsedAt', async () => {
       const scope = await seedScope();
       const key = await seedKey(scope.id);
-      await publicKeysRepo(t.meta).touchLastUsed(key.id, T0 + 3);
-      expect((await publicKeysRepo(t.meta).findById(key.id))?.lastUsedAt).toBe(T0 + 3);
+      await publicKeysRepo(meta()).touchLastUsed(key.id, T0 + 3);
+      expect((await publicKeysRepo(meta()).findById(key.id))?.lastUsedAt).toBe(T0 + 3);
     });
 
     it('cascades keys away when the connection goes', async () => {
@@ -301,9 +295,9 @@ for (const dialect of TEST_DIALECTS) {
       // both rather than deadlocking on the restrict.
       const scope = await seedScope();
       await seedKey(scope.id);
-      await t.meta.db.deleteFrom('adminium_public_keys').execute();
-      await t.meta.db.deleteFrom('adminium_connections').where('id', '=', connectionId).execute();
-      expect(await publicScopesRepo(t.meta).findById(scope.id)).toBeNull();
+      await meta().db.deleteFrom('adminium_public_keys').execute();
+      await meta().db.deleteFrom('adminium_connections').where('id', '=', connectionId).execute();
+      expect(await publicScopesRepo(meta()).findById(scope.id)).toBeNull();
     });
   });
 }

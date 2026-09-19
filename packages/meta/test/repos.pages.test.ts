@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   MetaValidationError,
@@ -11,7 +11,7 @@ import {
   type GeneratedPageInput,
   type Page,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, useMetaDb } from './helpers/db.js';
 
 const testCrypto: DsnCrypto = {
   encrypt: (plaintext) => `enc:test:${Buffer.from(plaintext, 'utf8').toString('base64')}`,
@@ -34,25 +34,20 @@ function crudPage(slug: string, overrides: Partial<GeneratedPageInput> = {}): Ge
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`pagesRepo [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, firstRun);
     let connectionId: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await firstRun(t.meta);
-      const connection = await connectionsRepo(t.meta, testCrypto).create({
+      const connection = await connectionsRepo(meta(), testCrypto).create({
         name: 'northwind',
         engine: 'postgres',
         introspectDsn: 'postgres://ro@localhost/northwind',
       });
       connectionId = connection.id;
     });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
     it('upsertGenerated inserts, is idempotent, and bumps revision on change', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       const first = await repo.upsertGenerated(connectionId, [crudPage('customers'), crudPage('orders')], {
         at: 1_000,
       });
@@ -80,7 +75,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('prunes generated rows missing from the new set, never user pages', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(connectionId, [crudPage('customers'), crudPage('legacy')], { at: 1_000 });
       await repo.create({
         connectionId,
@@ -98,10 +93,10 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('never overwrites a non-generated page that claimed the same id', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(connectionId, [crudPage('customers')], { at: 1_000 });
       // Simulate the user taking ownership of the page (M5 flow).
-      await t.meta.db
+      await meta().db
         .updateTable('adminium_pages')
         .set({ origin: 'user', title: 'Curated Customers' })
         .where('id', '=', 'page_customers')
@@ -150,7 +145,7 @@ for (const dialect of TEST_DIALECTS) {
     };
 
     it('upsertGenerated armed with hashEnvelope skips human-edited rows (user delta wins)', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(
         connectionId,
         [stamped('customers', 'v1'), stamped('orders', 'v1')],
@@ -186,9 +181,9 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('prune keeps human-edited orphans (user delta wins extends to deletion)', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       // Real snapshot rows — generatedFromSnapshotId is FK-constrained.
-      const snapshots = snapshotsRepo(t.meta);
+      const snapshots = snapshotsRepo(meta());
       const snap1 = (
         await snapshots.create({ connectionId, source: 'introspection', schema: { v: 1 }, checksum: 'c1' })
       ).snapshot.id;
@@ -230,7 +225,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('prune=false leaves every orphan alone and reports no keptEdited', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(
         connectionId,
         [stamped('customers', 'v1'), stamped('legacy', 'v1')],
@@ -248,7 +243,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('unarmed prune (no hashEnvelope) keeps the legacy behavior: edited orphans delete too', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(
         connectionId,
         [stamped('customers', 'v1'), stamped('legacy', 'v1')],
@@ -264,7 +259,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('setLayout bumps revision — a human edit is a tracked change', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(connectionId, [crudPage('customers')], { at: 1_000 });
       const updated = await repo.setLayout('page_customers', { version: 1, items: [] }, 2_000);
       expect(updated?.revision).toBe(2);
@@ -272,7 +267,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('replaceConfig swaps the document, bumps revision, back-fills only a missing icon', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       const seeded = await repo.create({
         connectionId,
         slug: 'orders-queue',
@@ -293,7 +288,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('rejects duplicate ids and ids over char(36)', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await expect(
         repo.upsertGenerated(connectionId, [crudPage('a'), crudPage('a')]),
       ).rejects.toBeInstanceOf(MetaValidationError);
@@ -307,7 +302,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('navRows + configVersion feed the bootstrap projection', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(
         connectionId,
         [
@@ -329,7 +324,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('navRows extracts source.table from the stored envelope', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(
         connectionId,
         [
@@ -350,7 +345,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('countGeneratedByConnection groups generated rows, skipping user pages', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(connectionId, [crudPage('customers'), crudPage('orders')]);
       // Non-generated origin on the same connection must not count.
       await repo.create({
@@ -375,7 +370,7 @@ for (const dialect of TEST_DIALECTS) {
       // generator emitted it used to raise a driver UNIQUE violation INSIDE
       // the run's transaction, rolling the whole generation back — a permanent
       // 500 on POST /connections/:id/generate with no delete route to recover.
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.create({
         connectionId,
         slug: 'orders',
@@ -405,7 +400,7 @@ for (const dialect of TEST_DIALECTS) {
       // `legacy` is pruned in this very run, so a page renaming INTO it is a
       // hand-off, not a clash. Naively indexing every existing row would have
       // blocked it.
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(connectionId, [crudPage('legacy')], { at: 1_000 });
 
       const result = await repo.upsertGenerated(
@@ -420,7 +415,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('updateMeta writes the row AND the envelope so regeneration cannot revert it', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       const envelope: Record<string, unknown> = {
         v: 1,
         kind: 'page',
@@ -476,7 +471,7 @@ for (const dialect of TEST_DIALECTS) {
        * document now remembers its placement while the ROW's null group stays
        * the single hidden predicate.
        */
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       const envelope: Record<string, unknown> = {
         v: 1,
         kind: 'page',
@@ -506,7 +501,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('updateMeta honours If-Match and reports a stale revision as a conflict', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       const page = await repo.create({
         connectionId,
         slug: 'notes',
@@ -524,7 +519,7 @@ for (const dialect of TEST_DIALECTS) {
     it('updateMeta leaves a document alone when it carries no title/nav blocks', async () => {
       // llm seed rows are `{source, llmRunId}`, not envelopes. Inventing a
       // partial `nav` block on one would fail pageEnvelopeSchema on next read.
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       const page = await repo.create({
         connectionId,
         slug: 'seed',
@@ -541,7 +536,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('reorderNav renumbers each group densely from zero', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(connectionId, [
         crudPage('a', { navOrder: 20 }),
         crudPage('b', { navOrder: 30 }),
@@ -565,7 +560,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('delete removes the row and listAll reports origin without the config blob', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(connectionId, [crudPage('customers')]);
       const mine = await repo.create({
         connectionId,
@@ -587,7 +582,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('setTemplateConfig replaces only the body, never the envelope frame', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       const page = await repo.create({
         connectionId,
         slug: 'grid',
@@ -615,7 +610,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('round-trips config JSON and lists pages in nav order', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(connectionId, [
         crudPage('zeta', { navOrder: 40 }),
         crudPage('alpha', { navOrder: 20 }),
@@ -626,7 +621,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('create rejects an unknown origin and an id past char(36), writing nothing', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await expect(
         repo.create({
           connectionId,
@@ -657,7 +652,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('upsertGenerated defaults a missing icon/navGroup/navOrder and still compares equal', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       const bare: GeneratedPageInput = {
         id: 'page_bare',
         slug: 'bare',
@@ -709,7 +704,7 @@ for (const dialect of TEST_DIALECTS) {
       // human-edited by every future run and could never be regenerated again.
       // Only the generator embeds `config.generatedHash`, so anything else —
       // an llm seed, a hand-authored row, a pre-M5 document — is "not edited".
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       const hashless: GeneratedPageInput[] = [
         crudPage('no-config', { config: { v: 1, kind: 'page', id: 'page_no-config' } }),
         crudPage('scalar-config', { config: { v: 1, kind: 'page', id: 'page_scalar-config', config: 'legacy' } }),
@@ -736,8 +731,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('updateMeta recomposes onto another template and connection in one write', async () => {
-      const repo = pagesRepo(t.meta);
-      const other = await connectionsRepo(t.meta, testCrypto).create({
+      const repo = pagesRepo(meta());
+      const other = await connectionsRepo(meta(), testCrypto).create({
         name: 'reporting',
         engine: 'postgres',
         introspectDsn: 'postgres://ro@localhost/reporting',
@@ -799,7 +794,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('setTemplateConfig honours If-Match and reports an unknown page', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       expect(await repo.setTemplateConfig('page_nope', { columns: [] })).toBe('not-found');
 
       const page = await repo.create({
@@ -824,7 +819,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('reorderNav does nothing for an empty list or for a group already in place', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       expect(await repo.reorderNav([])).toBe(0);
 
       await repo.upsertGenerated(
@@ -848,7 +843,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('setLayout returns null for an unknown page and copes with a non-envelope document', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       expect(await repo.setLayout('page_nope', { version: 1, items: [] })).toBeNull();
 
       // `config` is opaque by contract — hand-authored and llm-seed
@@ -882,7 +877,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('replaceConfig syncs the nav projection an expanded llm page needs', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       expect(await repo.replaceConfig('page_nope', { v: 1 })).toBeNull();
 
       const seeded = await repo.create({
@@ -916,7 +911,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('setEnabled parks a page without touching its document or revision', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(connectionId, [crudPage('customers')], { at: 1_000 });
       const before = await repo.findById('page_customers');
 
@@ -938,7 +933,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('findBySlug treats a null connection as its own scope, not as a wildcard', async () => {
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       await repo.upsertGenerated(connectionId, [crudPage('settings')], { at: 1_000 });
       const systemPage = await repo.create({
         connectionId: null,
@@ -957,7 +952,7 @@ for (const dialect of TEST_DIALECTS) {
     it('configVersion and navRows are defined on a store with no pages at all', async () => {
       // First boot: the bootstrap route stamps `configVersion` from this, and a
       // NULL max() must not surface as NaN or null to a client's cache key.
-      const repo = pagesRepo(t.meta);
+      const repo = pagesRepo(meta());
       expect(await repo.configVersion()).toBe(0);
       expect(await repo.navRows()).toEqual([]);
       expect(await repo.countGeneratedByConnection()).toEqual({});

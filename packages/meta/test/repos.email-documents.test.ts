@@ -8,7 +8,7 @@
  * language variation in one transaction, and an index that is valid on the
  * English document may be past the end of the German one.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   EmailTemplateExistsError,
@@ -22,7 +22,7 @@ import {
   usersRepo,
   type EmailTemplatesRepo,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
 
@@ -84,18 +84,13 @@ describe('pure helpers', () => {
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`email document repos [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, firstRun);
     let repo: EmailTemplatesRepo;
     let userId: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await firstRun(t.meta);
-      repo = emailTemplatesRepo(t.meta);
-      userId = (await usersRepo(t.meta).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
-    });
-    afterEach(async () => {
-      await t.destroy();
+      repo = emailTemplatesRepo(meta());
+      userId = (await usersRepo(meta()).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
     });
 
     async function family(): Promise<{ en: string; de: string; ar: string }> {
@@ -317,7 +312,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('saved blocks: create, list newest first, remove', async () => {
-      const blocks = emailBlocksRepo(t.meta);
+      const blocks = emailBlocksRepo(meta());
       const a = await blocks.create({ name: 'Signature', block: { id: 'x', block: 'email.text', data: { paras: ['— Us'] } }, createdBy: userId }, T0);
       const b = await blocks.create({ name: 'Legal', block: { id: 'y', block: 'email.legal', data: { text: 'Fine print' } } }, T0 + 1);
       expect((await blocks.list()).map((s) => s.id)).toEqual([b.id, a.id]);
@@ -329,7 +324,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('runs: create → update through the lifecycle, latest per campaign, active gate', async () => {
-      const runs = emailRunsRepo(t.meta);
+      const runs = emailRunsRepo(meta());
       const c1 = await repo.create({ kind: 'campaign', key: 'digest', locale: 'en_US', name: 'Digest', subject: 'D', blocks: [] }, T0);
       const c2 = await repo.create({ kind: 'campaign', key: 'launch', locale: 'en_US', name: 'Launch', subject: 'L', blocks: [] }, T0);
 

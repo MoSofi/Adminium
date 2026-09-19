@@ -8,10 +8,10 @@
  * the manifest and lets the FKs take the rest. Every step of that is checked
  * here by observing the other tables, not by trusting the method name.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { applyMigrations, manifestsRepo } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { manifestsRepo } from '../src/index.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
 
@@ -31,16 +31,11 @@ const DHL = {
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`manifestsRepo [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
     let repo: ReturnType<typeof manifestsRepo>;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
-      repo = manifestsRepo(t.meta, crypto);
-    });
-    afterEach(async () => {
-      await t.destroy();
+      repo = manifestsRepo(meta(), crypto);
     });
 
     it('installs a manifest with its attachments and reads the document back', async () => {
@@ -111,7 +106,7 @@ for (const dialect of TEST_DIALECTS) {
 
       // The stored bytes are ciphertext, and the plaintext appears nowhere in
       // the row — the assertion that matters for a secret at rest.
-      const raw = await t.meta.db
+      const raw = await meta().db
         .selectFrom('adminium_add_on_credentials')
         .selectAll()
         .executeTakeFirstOrThrow();
@@ -145,7 +140,7 @@ for (const dialect of TEST_DIALECTS) {
         T0 + 10,
       );
       expect((await repo.getCredential(installed.row.id))?.secret).toEqual({ apiKey: 'rotated' });
-      expect(await t.meta.db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toHaveLength(1);
+      expect(await meta().db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toHaveLength(1);
     });
 
     it('D5: disconnect deletes the keys and keeps everything else', async () => {
@@ -167,8 +162,8 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.uninstall(installed.row.id)).toBe(true);
 
       expect(await repo.findByKey('shipping-dhl')).toBeNull();
-      expect(await t.meta.db.selectFrom('adminium_manifest_attachments').selectAll().execute()).toEqual([]);
-      expect(await t.meta.db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toEqual([]);
+      expect(await meta().db.selectFrom('adminium_manifest_attachments').selectAll().execute()).toEqual([]);
+      expect(await meta().db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toEqual([]);
     });
 
     it('upgrades version and document in place, keeping attachments and keys', async () => {

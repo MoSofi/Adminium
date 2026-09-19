@@ -5,10 +5,10 @@
  * a project carry none, and any number of them may.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { applyMigrations, connectionsRepo, type DsnCrypto } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { connectionsRepo, type DsnCrypto } from '../src/index.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const testCrypto: DsnCrypto = {
   encrypt: (plaintext) => `enc:test:${Buffer.from(plaintext, 'utf8').toString('base64')}`,
@@ -17,17 +17,10 @@ const testCrypto: DsnCrypto = {
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`connection project key [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
 
-    beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
-    });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
-    const repo = () => connectionsRepo(t.meta, testCrypto);
+    const repo = () => connectionsRepo(meta(), testCrypto);
     const base = { name: 'src', engine: 'postgres' as const, introspectDsn: 'postgres://ro:s@db/prod' };
 
     it('stores the key given at create and finds the connection by it', async () => {

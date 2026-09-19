@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   connectionsRepo,
@@ -9,7 +9,7 @@ import {
   viewsRepo,
   type DsnCrypto,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, useMetaDb } from './helpers/db.js';
 
 const testCrypto: DsnCrypto = {
   encrypt: (plaintext) => `enc:test:${Buffer.from(plaintext, 'utf8').toString('base64')}`,
@@ -20,20 +20,18 @@ const gridConfig = (search: string) => ({ v: 1 as const, search, sort: null, fil
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`viewsRepo [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, firstRun);
     let pageId: string;
     let ava: string;
     let noah: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await firstRun(t.meta);
-      const connection = await connectionsRepo(t.meta, testCrypto).create({
+      const connection = await connectionsRepo(meta(), testCrypto).create({
         name: 'northwind',
         engine: 'postgres',
         introspectDsn: 'postgres://ro@localhost/northwind',
       });
-      const page = await pagesRepo(t.meta).create({
+      const page = await pagesRepo(meta()).create({
         connectionId: connection.id,
         slug: 'customers',
         type: 'page-crud',
@@ -41,15 +39,12 @@ for (const dialect of TEST_DIALECTS) {
         config: { v: 1, kind: 'page', id: 'page_customers', config: {} },
       });
       pageId = page.id;
-      ava = (await usersRepo(t.meta).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
-      noah = (await usersRepo(t.meta).create({ email: 'noah@adminium.test', name: 'Noah' })).id;
-    });
-    afterEach(async () => {
-      await t.destroy();
+      ava = (await usersRepo(meta()).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
+      noah = (await usersRepo(meta()).create({ email: 'noah@adminium.test', name: 'Noah' })).id;
     });
 
     it('creates and round-trips a view config verbatim', async () => {
-      const repo = viewsRepo(t.meta);
+      const repo = viewsRepo(meta());
       const config = gridConfig('acme');
       const view = await repo.create({ pageId, userId: ava, name: 'Acme', config });
       const fetched = await repo.findById(view.id);
@@ -59,7 +54,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('scopes listForPageUser to own + shared views', async () => {
-      const repo = viewsRepo(t.meta);
+      const repo = viewsRepo(meta());
       await repo.create({ pageId, userId: ava, name: 'Ava private', config: gridConfig('a') });
       await repo.create({ pageId, userId: noah, name: 'Noah private', config: gridConfig('n') });
       await repo.create({ pageId, userId: null, name: 'Shared', config: gridConfig('s') });
@@ -72,7 +67,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('finds by name only within the (page, user) scope', async () => {
-      const repo = viewsRepo(t.meta);
+      const repo = viewsRepo(meta());
       await repo.create({ pageId, userId: ava, name: 'Recent', config: gridConfig('a') });
       expect(await repo.findByName(pageId, ava, 'Recent')).not.toBeNull();
       // Same name, different owner is not a clash.
@@ -80,7 +75,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('keeps at most one default per (page, user) scope', async () => {
-      const repo = viewsRepo(t.meta);
+      const repo = viewsRepo(meta());
       const first = await repo.create({ pageId, userId: ava, name: 'First', config: gridConfig('a'), isDefault: true });
       const second = await repo.create({ pageId, userId: ava, name: 'Second', config: gridConfig('b'), isDefault: true });
 
@@ -92,7 +87,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it("promoting a view via update clears the previous default", async () => {
-      const repo = viewsRepo(t.meta);
+      const repo = viewsRepo(meta());
       const first = await repo.create({ pageId, userId: ava, name: 'First', config: gridConfig('a'), isDefault: true });
       const second = await repo.create({ pageId, userId: ava, name: 'Second', config: gridConfig('b') });
 
@@ -102,7 +97,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('updates name + config and deletes', async () => {
-      const repo = viewsRepo(t.meta);
+      const repo = viewsRepo(meta());
       const view = await repo.create({ pageId, userId: ava, name: 'Old', config: gridConfig('a') });
       const updated = await repo.update(view.id, { name: 'New', config: gridConfig('z') });
       expect(updated?.name).toBe('New');
@@ -113,17 +108,17 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('cascades views when the owning user or parent page row is deleted (real meta-internal FK)', async () => {
-      const repo = viewsRepo(t.meta);
+      const repo = viewsRepo(meta());
       const mine = await repo.create({ pageId, userId: ava, name: 'Mine', config: gridConfig('m') });
       const shared = await repo.create({ pageId, userId: null, name: 'Shared', config: gridConfig('s') });
 
       // views.user_id FK: the owner's views go, shared (user_id NULL) views stay.
-      await t.meta.db.deleteFrom('adminium_users').where('id', '=', ava).execute();
+      await meta().db.deleteFrom('adminium_users').where('id', '=', ava).execute();
       expect(await repo.findById(mine.id)).toBeNull();
       expect(await repo.findById(shared.id)).not.toBeNull();
 
       // views.page_id FK: deleting the page takes the remaining views with it.
-      await t.meta.db.deleteFrom('adminium_pages').where('id', '=', pageId).execute();
+      await meta().db.deleteFrom('adminium_pages').where('id', '=', pageId).execute();
       expect(await repo.findById(shared.id)).toBeNull();
     });
 
@@ -135,7 +130,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('upserts, reads, and deletes a per-user layout override', async () => {
-      const repo = viewsRepo(t.meta);
+      const repo = viewsRepo(meta());
       expect(await repo.findLayoutOverride(pageId, ava)).toBeNull();
 
       const first = await repo.upsertLayoutOverride(pageId, ava, layoutConfig('a'));
@@ -152,7 +147,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('keeps layout overrides out of the saved-filter listing (kind-scoped)', async () => {
-      const repo = viewsRepo(t.meta);
+      const repo = viewsRepo(meta());
       await repo.create({ pageId, userId: ava, name: 'Filter', config: gridConfig('a') });
       await repo.upsertLayoutOverride(pageId, ava, layoutConfig('a'));
 
@@ -162,7 +157,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('scopes layout overrides per user', async () => {
-      const repo = viewsRepo(t.meta);
+      const repo = viewsRepo(meta());
       await repo.upsertLayoutOverride(pageId, ava, layoutConfig('ava'));
       expect(await repo.findLayoutOverride(pageId, noah)).toBeNull();
       expect((await repo.findLayoutOverride(pageId, ava))?.config).toEqual(layoutConfig('ava'));

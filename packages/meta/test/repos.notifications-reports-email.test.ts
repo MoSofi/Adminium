@@ -5,7 +5,7 @@
  * dialect-parameterized harness as the sibling repo suites
  * (repos.files-exports-imports.test.ts).
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_NOTIFICATION_CHANNELS,
@@ -19,7 +19,7 @@ import {
   usersRepo,
   type ReportSchedule,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, useMetaDb } from './helpers/db.js';
 
 const WEEKLY: ReportSchedule = {
   frequency: 'weekly',
@@ -30,16 +30,14 @@ const WEEKLY: ReportSchedule = {
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`notifications/reports/email repos [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, firstRun);
     let userId: string;
     let pageId: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await firstRun(t.meta);
-      userId = (await usersRepo(t.meta).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
+      userId = (await usersRepo(meta()).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
       pageId = (
-        await pagesRepo(t.meta).create({
+        await pagesRepo(meta()).create({
           slug: 'orders',
           type: 'page-crud',
           title: 'Orders',
@@ -47,12 +45,9 @@ for (const dialect of TEST_DIALECTS) {
         })
       ).id;
     });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
     it('notifications: create → keyset list → unread count → read transitions', async () => {
-      const repo = notificationsRepo(t.meta);
+      const repo = notificationsRepo(meta());
       const first = await repo.create(
         { userId, kind: 'report.ready', title: 'Report ready', entity: { pageId } },
         1_000,
@@ -89,7 +84,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('notification prefs: defaults when missing, upsert stores deviations', async () => {
-      const repo = notificationPrefsRepo(t.meta);
+      const repo = notificationPrefsRepo(meta());
       expect(await repo.get(userId, 'report.ready')).toBeNull();
       expect(await repo.channelsFor(userId, 'report.ready')).toEqual(DEFAULT_NOTIFICATION_CHANNELS);
 
@@ -115,7 +110,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('scheduled reports: lifecycle create → update → recordRun → listDue', async () => {
-      const repo = scheduledReportsRepo(t.meta);
+      const repo = scheduledReportsRepo(meta());
       const report = await repo.create(
         {
           pageId,
@@ -156,7 +151,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('email templates: (key, locale) upsert, editor writes clear is_builtin_copy', async () => {
-      const repo = emailTemplatesRepo(t.meta);
+      const repo = emailTemplatesRepo(meta());
       const seeded = await repo.upsert(
         'welcome',
         'en_US',

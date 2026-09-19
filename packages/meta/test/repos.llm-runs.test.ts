@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   connectionsRepo,
@@ -9,7 +9,7 @@ import {
   usersRepo,
   type DsnCrypto,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, useMetaDb } from './helpers/db.js';
 
 const testCrypto: DsnCrypto = {
   encrypt: (plaintext) => `enc:test:${Buffer.from(plaintext, 'utf8').toString('base64')}`,
@@ -30,35 +30,30 @@ const ADDED_COLUMNS = [
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`llmRunsRepo + 0007 migration [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, firstRun);
     let connectionId: string;
     let snapshotId: string;
     let userId: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await firstRun(t.meta);
-      const connection = await connectionsRepo(t.meta, testCrypto).create({
+      const connection = await connectionsRepo(meta(), testCrypto).create({
         name: 'shop',
         engine: 'postgres',
         introspectDsn: 'postgres://ro@localhost/shop',
       });
       connectionId = connection.id;
-      const snapshot = await snapshotsRepo(t.meta).create({
+      const snapshot = await snapshotsRepo(meta()).create({
         connectionId,
         source: 'introspection',
         schema: { irVersion: 1, dialect: 'postgres', name: 'shop', tables: [] },
         checksum: 'sha-shop-1',
       });
       snapshotId = snapshot.snapshot.id;
-      userId = (await usersRepo(t.meta).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
-    });
-    afterEach(async () => {
-      await t.destroy();
+      userId = (await usersRepo(meta()).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
     });
 
     it('0007 adds every column to adminium_llm_runs', async () => {
-      const tables = await t.meta.db.introspection.getTables();
+      const tables = await meta().db.introspection.getTables();
       const runs = tables.find((table) => table.name === 'adminium_llm_runs');
       expect(runs).toBeDefined();
       const columns = new Set(runs?.columns.map((c) => c.name));
@@ -68,7 +63,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('creates a BYO draft with provider/model NULL and round-trips builder inputs', async () => {
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       const run = await repo.create({
         connectionId,
         snapshotId,
@@ -99,7 +94,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('records a provider run with sampling opt-in and tokens', async () => {
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       const run = await repo.create({
         connectionId,
         snapshotId,
@@ -118,7 +113,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('lists runs for a connection, newest first', async () => {
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       const first = await repo.create({
         connectionId,
         snapshotId,
@@ -138,7 +133,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('updateStatus honours the optimistic `expected` guard', async () => {
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       const run = await repo.create({
         connectionId,
         snapshotId,
@@ -155,7 +150,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('recordResponse persists the validated response + errors and advances status', async () => {
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       const run = await repo.create({
         connectionId,
         snapshotId,
@@ -181,7 +176,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('recordReview + markApplied stamp the terminal apply', async () => {
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       const run = await repo.create({
         connectionId,
         snapshotId,
@@ -206,7 +201,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('rejects an invalid mode / status / review payload', async () => {
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       await expect(
         repo.create({
           connectionId,
@@ -235,7 +230,7 @@ for (const dialect of TEST_DIALECTS) {
       // These arrive from the run-builder UI and are echoed back into the
       // prompt on a retry, so a payload that survives the write is a payload
       // that reaches a provider. Each is refused before the INSERT.
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       const base = {
         connectionId,
         snapshotId,
@@ -266,7 +261,7 @@ for (const dialect of TEST_DIALECTS) {
       // `validationErrors`; leaving them would keep the run-history UI showing
       // errors that no longer apply. `undefined` (key absent) is the "leave it
       // alone" signal, so null has to mean something different.
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       const run = await repo.create({
         connectionId,
         snapshotId,
@@ -314,7 +309,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('rejects a lifecycle status no state machine defines, on every write that takes one', async () => {
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       const run = await repo.create({
         connectionId,
         snapshotId,
@@ -352,7 +347,7 @@ for (const dialect of TEST_DIALECTS) {
       // The apply can run from a job worker rather than a request, where there
       // is no session user to attribute it to — and applied_by is FK'd to
       // adminium_users, so inventing one would fail the insert.
-      const repo = llmRunsRepo(t.meta);
+      const repo = llmRunsRepo(meta());
       const run = await repo.create({
         connectionId,
         snapshotId,

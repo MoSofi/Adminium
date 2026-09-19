@@ -1,33 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   AUDIT_CHANGES_MAX_BYTES,
   apiKeysRepo,
-  applyMigrations,
   auditRepo,
   passwordResetsRepo,
   rolesRepo,
   usersRepo,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`auditRepo + apiKeysRepo + passwordResetsRepo [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
 
-    beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
-    });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
     it('appends audit entries with the shape', async () => {
-      const audit = auditRepo(t.meta);
+      const audit = auditRepo(meta());
       const entry = await audit.append(
         {
           actorKind: 'user',
@@ -51,7 +43,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('denormalizes entity keys at append (30 WS-A): single, composite, and none', async () => {
-      const audit = auditRepo(t.meta);
+      const audit = auditRepo(meta());
       const single = await audit.append(
         {
           actorKind: 'user',
@@ -82,7 +74,7 @@ for (const dialect of TEST_DIALECTS) {
         T0 + 2,
       );
 
-      const rows = await t.meta.db
+      const rows = await meta().db
         .selectFrom('adminium_audit_log')
         .select(['id', 'entityTable', 'entityId'])
         .execute();
@@ -98,7 +90,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('rejects invalid categories/actor kinds and malformed RecordRefs', async () => {
-      const audit = auditRepo(t.meta);
+      const audit = auditRepo(meta());
       await expect(
         audit.append({ actorKind: 'user', actorLabel: 'A', category: 'nope' as never, action: 'x' }),
       ).rejects.toThrow();
@@ -114,7 +106,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('caps changes at 16 KB with the _truncated marker', async () => {
-      const audit = auditRepo(t.meta);
+      const audit = auditRepo(meta());
       const huge = { before: { blob: 'x'.repeat(AUDIT_CHANGES_MAX_BYTES) }, after: {} };
       const entry = await audit.append(
         { actorKind: 'system', actorLabel: 'Adminium', category: 'system', action: 'x', changes: huge },
@@ -124,7 +116,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('filters by category and orders newest first', async () => {
-      const audit = auditRepo(t.meta);
+      const audit = auditRepo(meta());
       await audit.append({ actorKind: 'system', actorLabel: 'A', category: 'auth', action: 'session.create' }, T0);
       await audit.append({ actorKind: 'system', actorLabel: 'A', category: 'rbac', action: 'role.create' }, T0 + 1);
       await audit.append({ actorKind: 'system', actorLabel: 'A', category: 'auth', action: 'session.revoke' }, T0 + 2);
@@ -134,7 +126,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('gc deletes entries older than the retention window', async () => {
-      const audit = auditRepo(t.meta);
+      const audit = auditRepo(meta());
       await audit.append({ actorKind: 'system', actorLabel: 'A', category: 'system', action: 'old' }, T0);
       await audit.append({ actorKind: 'system', actorLabel: 'A', category: 'system', action: 'new' }, T0 + 400 * 86_400_000);
       expect(await audit.gc(T0 + 400 * 86_400_000, 365)).toBe(1);
@@ -142,8 +134,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('api keys: create with hash, find by prefix, validity window, revoke', async () => {
-      const roles = rolesRepo(t.meta);
-      const keys = apiKeysRepo(t.meta);
+      const roles = rolesRepo(meta());
+      const keys = apiKeysRepo(meta());
       const role = await roles.create({ slug: 'admin', name: 'Admin' }, T0);
 
       const key = await keys.create(
@@ -160,8 +152,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('password resets: single-use consume and gc', async () => {
-      const users = usersRepo(t.meta);
-      const resets = passwordResetsRepo(t.meta);
+      const users = usersRepo(meta());
+      const resets = passwordResetsRepo(meta());
       const u = await users.create({ email: 'a@b.co', name: 'A' }, T0);
 
       const r = await resets.create({ userId: u.id, kind: 'reset', tokenHash: 'th', expiresAt: T0 + 7_200_000 }, T0);

@@ -8,7 +8,7 @@
  * remap vocabulary (a `origin: 'user'` row is never read or clobbered).
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   connectionsRepo,
@@ -18,7 +18,7 @@ import {
   overridesRepo,
   type DsnCrypto,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, useMetaDb } from './helpers/db.js';
 
 const testCrypto: DsnCrypto = {
   encrypt: (plaintext) => `enc:test:${Buffer.from(plaintext, 'utf8').toString('base64')}`,
@@ -27,25 +27,20 @@ const testCrypto: DsnCrypto = {
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`llmOverridesRepo [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, firstRun);
     let connectionId: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await firstRun(t.meta);
-      const connection = await connectionsRepo(t.meta, testCrypto).create({
+      const connection = await connectionsRepo(meta(), testCrypto).create({
         name: 'shop',
         engine: 'postgres',
         introspectDsn: 'postgres://ro@localhost/shop',
       });
       connectionId = connection.id;
     });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
     it('inserts a namespaced llm.* override row', async () => {
-      const repo = llmOverridesRepo(t.meta);
+      const repo = llmOverridesRepo(meta());
       const { override, action, before } = await repo.upsert({
         connectionId,
         field: 'label',
@@ -62,7 +57,7 @@ for (const dialect of TEST_DIALECTS) {
       expect(override.confidence).toBe(0.95);
 
       // Persisted under the namespaced op so it never collides with the user vocabulary.
-      const raw = await t.meta.db
+      const raw = await meta().db
         .selectFrom('adminium_schema_overrides')
         .selectAll()
         .where('id', '=', override.id)
@@ -72,7 +67,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('upsert is idempotent and supersedes the llm_run_id in place', async () => {
-      const repo = llmOverridesRepo(t.meta);
+      const repo = llmOverridesRepo(meta());
       const key = { connectionId, field: 'label', tableName: 'public.orders', value: { label: { en_US: 'Orders' } } } as const;
 
       const first = await repo.upsert({ ...key, llmRunId: 'run_a' });
@@ -92,7 +87,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('table- and column-scoped rows for the same field are distinct targets', async () => {
-      const repo = llmOverridesRepo(t.meta);
+      const repo = llmOverridesRepo(meta());
       await repo.upsert({ connectionId, field: 'label', tableName: 'public.orders', value: { label: { en_US: 'Orders' } } });
       await repo.upsert({
         connectionId,
@@ -105,7 +100,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('restore + deleteById revert a superseded / inserted row (undo)', async () => {
-      const repo = llmOverridesRepo(t.meta);
+      const repo = llmOverridesRepo(meta());
       const first = await repo.upsert({ connectionId, field: 'key', tableName: 'public.orders', value: { displayColumn: 'order_number', naturalKey: ['order_number'] }, llmRunId: 'run_a' });
       const second = await repo.upsert({ connectionId, field: 'key', tableName: 'public.orders', value: { displayColumn: 'id', naturalKey: null }, llmRunId: 'run_b' });
 
@@ -120,21 +115,21 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('stores an explicit null value (a PII rejection clear)', async () => {
-      const repo = llmOverridesRepo(t.meta);
+      const repo = llmOverridesRepo(meta());
       const { override } = await repo.upsert({ connectionId, field: 'pii', tableName: 'public.users', columnName: 'last_ip', value: null });
       expect(override.value).toBeNull();
       expect((await repo.listForConnection(connectionId))[0]?.value).toBeNull();
     });
 
     it('never reads a user override — the two namespaces are disjoint', async () => {
-      await overridesRepo(t.meta).create({
+      await overridesRepo(meta()).create({
         connectionId,
         op: 'table.label',
         tableName: 'public.orders',
         value: { label: 'Human orders' },
         origin: 'user',
       });
-      const repo = llmOverridesRepo(t.meta);
+      const repo = llmOverridesRepo(meta());
       await repo.upsert({ connectionId, field: 'label', tableName: 'public.orders', value: { label: { en_US: 'Orders' } } });
 
       // The llm view sees only its own row; the user row is untouched.
@@ -142,7 +137,7 @@ for (const dialect of TEST_DIALECTS) {
       expect(llmRows).toHaveLength(1);
       expect(llmRows[0]?.value).toEqual({ label: { en_US: 'Orders' } });
 
-      const allRows = await overridesRepo(t.meta).listForConnection(connectionId);
+      const allRows = await overridesRepo(meta()).listForConnection(connectionId);
       const userRow = allRows.find((o) => o.origin === 'user');
       expect(userRow?.value).toEqual({ label: 'Human orders' });
     });

@@ -1,33 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   MetaValidationError,
   UnknownSettingError,
-  applyMigrations,
   settingsRepo,
   userPrefsRepo,
   usersRepo,
   type SettingKey,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`settingsRepo + userPrefsRepo [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
 
-    beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
-    });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
     it('falls back to registry defaults when no override is stored', async () => {
-      const settings = settingsRepo(t.meta);
+      const settings = settingsRepo(meta());
       expect(await settings.get('appearance.accent')).toBe('indigo');
       expect(await settings.get('appearance.theme')).toBe('system');
       expect(await settings.get('locale.default')).toBe('en_US');
@@ -37,7 +29,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('stores validated overrides and returns them; unset restores the default', async () => {
-      const settings = settingsRepo(t.meta);
+      const settings = settingsRepo(meta());
       await settings.set('appearance.accent', 'violet', { at: T0 });
       expect(await settings.get('appearance.accent')).toBe('violet');
       expect(await settings.overrides()).toEqual({ 'appearance.accent': 'violet' });
@@ -50,15 +42,15 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('rejects invalid values and unknown keys', async () => {
-      const settings = settingsRepo(t.meta);
+      const settings = settingsRepo(meta());
       await expect(settings.set('appearance.accent', 'magenta' as never)).rejects.toThrow(MetaValidationError);
       await expect(settings.set('auth.sessionTtlHours', 0)).rejects.toThrow(MetaValidationError);
       await expect(settings.get('nope.key' as SettingKey)).rejects.toThrow(UnknownSettingError);
     });
 
     it('user prefs upsert with NULL = inherit and enum validation', async () => {
-      const users = usersRepo(t.meta);
-      const prefs = userPrefsRepo(t.meta);
+      const users = usersRepo(meta());
+      const prefs = userPrefsRepo(meta());
       const u = await users.create({ email: 'a@b.co', name: 'A' }, T0);
 
       expect(await prefs.get(u.id)).toBeNull();
@@ -74,9 +66,9 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('resolves BRIEF order: system default → global override → user override', async () => {
-      const users = usersRepo(t.meta);
-      const settings = settingsRepo(t.meta);
-      const prefs = userPrefsRepo(t.meta);
+      const users = usersRepo(meta());
+      const settings = settingsRepo(meta());
+      const prefs = userPrefsRepo(meta());
       const u = await users.create({ email: 'a@b.co', name: 'A' }, T0);
 
       // Fresh install: all system.
@@ -104,8 +96,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('derives dir from locale (ar_EG → rtl) unless explicitly overridden', async () => {
-      const users = usersRepo(t.meta);
-      const prefs = userPrefsRepo(t.meta);
+      const users = usersRepo(meta());
+      const prefs = userPrefsRepo(meta());
       const u = await users.create({ email: 'a@b.co', name: 'A' }, T0);
 
       await prefs.set(u.id, { locale: 'ar_EG' }, T0);
@@ -119,8 +111,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('resolves for anonymous (null user) from globals only', async () => {
-      const settings = settingsRepo(t.meta);
-      const prefs = userPrefsRepo(t.meta);
+      const settings = settingsRepo(meta());
+      const prefs = userPrefsRepo(meta());
       await settings.set('appearance.theme', 'dark', { at: T0 });
       const resolved = await prefs.resolve(null);
       expect(resolved.theme).toBe('dark');

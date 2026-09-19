@@ -11,10 +11,9 @@
  * - retention keeps a failed run twice as long (D23 /) and never sweeps
  *  work that has not happened yet.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  applyMigrations,
   automationRunsRepo,
   automationsRepo,
   connectionsRepo,
@@ -25,7 +24,7 @@ import {
   type AutomationTriggerEvent,
   type DsnCrypto,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
 const DAY = 86_400_000;
@@ -67,28 +66,23 @@ const TRACE: AutomationTrace = {
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`automations repos [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
     let rules: ReturnType<typeof automationsRepo>;
     let runs: ReturnType<typeof automationRunsRepo>;
     let connectionId: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
       // The row's `connection_id` carries a real FK (0006) — a rule belongs to
       // a source and dies with it.
       connectionId = (
-        await connectionsRepo(t.meta, testCrypto).create({
+        await connectionsRepo(meta(), testCrypto).create({
           name: 'northwind',
           engine: 'postgres',
           introspectDsn: 'postgres://ro@localhost/northwind',
         })
       ).id;
-      rules = automationsRepo(t.meta);
-      runs = automationRunsRepo(t.meta);
-    });
-    afterEach(async () => {
-      await t.destroy();
+      rules = automationsRepo(meta());
+      runs = automationRunsRepo(meta());
     });
 
     async function makeRule(patch: Partial<Parameters<typeof rules.create>[0]> = {}): Promise<Automation> {

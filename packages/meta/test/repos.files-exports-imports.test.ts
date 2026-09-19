@@ -3,7 +3,7 @@
  * filesRepo / exportsRepo / importsRepo — data-io wave. Same
  * dialect-parameterized harness as the sibling repo suites.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   connectionsRepo,
@@ -14,7 +14,7 @@ import {
   usersRepo,
   type DsnCrypto,
 } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, useMetaDb } from './helpers/db.js';
 
 const testCrypto: DsnCrypto = {
   encrypt: (plaintext) => `enc:test:${Buffer.from(plaintext, 'utf8').toString('base64')}`,
@@ -25,28 +25,23 @@ const SHA = 'a'.repeat(64);
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`data-io repos [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, firstRun);
     let userId: string;
     let connectionId: string;
 
     beforeEach(async () => {
-      t = await dialect.make();
-      await firstRun(t.meta);
-      userId = (await usersRepo(t.meta).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
+      userId = (await usersRepo(meta()).create({ email: 'ava@adminium.test', name: 'Ava' })).id;
       connectionId = (
-        await connectionsRepo(t.meta, testCrypto).create({
+        await connectionsRepo(meta(), testCrypto).create({
           name: 'northwind',
           engine: 'postgres',
           introspectDsn: 'postgres://ro@localhost/northwind',
         })
       ).id;
     });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
     it('files: creates, round-trips, soft-deletes, purges', async () => {
-      const files = filesRepo(t.meta);
+      const files = filesRepo(meta());
       const file = await files.create({
         filename: 'orders.csv',
         mime: 'text/csv',
@@ -71,7 +66,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('files: honours a pre-minted id from the storage layer', async () => {
-      const files = filesRepo(t.meta);
+      const files = filesRepo(meta());
       const { newId } = await import('../src/ids.js');
       const id = newId('file');
       const file = await files.create({
@@ -87,8 +82,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('exports: lifecycle processing → ready and retention expiry', async () => {
-      const exports = exportsRepo(t.meta);
-      const files = filesRepo(t.meta);
+      const exports = exportsRepo(meta());
+      const files = filesRepo(meta());
       const row = await exports.create({
         connectionId,
         requestedBy: userId,
@@ -130,8 +125,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('exports: list scopes to requestedBy, newest first', async () => {
-      const exports = exportsRepo(t.meta);
-      const other = (await usersRepo(t.meta).create({ email: 'noah@adminium.test', name: 'Noah' })).id;
+      const exports = exportsRepo(meta());
+      const other = (await usersRepo(meta()).create({ email: 'noah@adminium.test', name: 'Noah' })).id;
       await exports.create(
         { connectionId, requestedBy: userId, source: { kind: 'table', table: 'a' }, format: 'csv' },
         1000,
@@ -150,8 +145,8 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('imports: lifecycle validating → ready → running → succeeded with stats', async () => {
-      const imports = importsRepo(t.meta);
-      const files = filesRepo(t.meta);
+      const imports = importsRepo(meta());
+      const files = filesRepo(meta());
       const upload = await files.create({
         filename: 'customers.csv',
         mime: 'text/csv',
@@ -193,7 +188,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('imports: invalid mapping payloads never reach the database', async () => {
-      const imports = importsRepo(t.meta);
+      const imports = importsRepo(meta());
       await expect(
         imports.create({
           connectionId,

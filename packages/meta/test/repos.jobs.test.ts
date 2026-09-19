@@ -1,25 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { JOB_BACKOFF_BASE_MS, JOB_STALE_LOCK_MS, applyMigrations, jobsRepo } from '../src/index.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { JOB_BACKOFF_BASE_MS, JOB_STALE_LOCK_MS, jobsRepo } from '../src/index.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`jobsRepo [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
 
-    beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
-    });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
     it('enqueues with defaults and round-trips the payload', async () => {
-      const jobs = jobsRepo(t.meta);
+      const jobs = jobsRepo(meta());
       const job = await jobs.enqueue({ kind: 'export.run', payload: { exportId: 'exp_1' } }, T0);
       expect(job).toMatchObject({
         kind: 'export.run',
@@ -34,7 +27,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('dedupes by dedupe_key while pending', async () => {
-      const jobs = jobsRepo(t.meta);
+      const jobs = jobsRepo(meta());
       const a = await jobs.enqueue({ kind: 'retention.gc', payload: {}, dedupeKey: 'gc:sessions' }, T0);
       const b = await jobs.enqueue({ kind: 'retention.gc', payload: {}, dedupeKey: 'gc:sessions' }, T0 + 1);
       expect(b.id).toBe(a.id);
@@ -47,7 +40,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('claims by priority desc, then run_at asc, then id asc', async () => {
-      const jobs = jobsRepo(t.meta);
+      const jobs = jobsRepo(meta());
       await jobs.enqueue({ kind: 'low', payload: {}, priority: 0, runAt: T0 - 10 }, T0 - 10);
       const high = await jobs.enqueue({ kind: 'high', payload: {}, priority: 5, runAt: T0 - 5 }, T0 - 5);
       await jobs.enqueue({ kind: 'future', payload: {}, runAt: T0 + 60_000 }, T0);
@@ -65,7 +58,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('claim is race-safe: two claimers, exactly one wins the single job', async () => {
-      const jobs = jobsRepo(t.meta);
+      const jobs = jobsRepo(meta());
       await jobs.enqueue({ kind: 'once', payload: {} }, T0);
 
       // Both claimers run the full candidate-SELECT + UPDATE-guard flow
@@ -81,7 +74,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('reclaims stale running jobs (crashed worker) but not fresh locks', async () => {
-      const jobs = jobsRepo(t.meta);
+      const jobs = jobsRepo(meta());
       const job = await jobs.enqueue({ kind: 'x', payload: {} }, T0);
       await jobs.claim('worker-a', T0);
 
@@ -96,7 +89,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('fail retries with exponential backoff, then lands in failed', async () => {
-      const jobs = jobsRepo(t.meta);
+      const jobs = jobsRepo(meta());
       const job = await jobs.enqueue({ kind: 'x', payload: {}, maxAttempts: 2 }, T0);
 
       await jobs.claim('w', T0); // attempt 1
@@ -114,7 +107,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('complete marks succeeded and only from running', async () => {
-      const jobs = jobsRepo(t.meta);
+      const jobs = jobsRepo(meta());
       const job = await jobs.enqueue({ kind: 'x', payload: {} }, T0);
       expect(await jobs.complete(job.id, T0)).toBe(false); // not running yet
       await jobs.claim('w', T0);
@@ -123,7 +116,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('cancel works on pending jobs only', async () => {
-      const jobs = jobsRepo(t.meta);
+      const jobs = jobsRepo(meta());
       const job = await jobs.enqueue({ kind: 'x', payload: {} }, T0);
       expect(await jobs.cancel(job.id, T0)).toBe(true);
       expect(await jobs.cancel(job.id, T0)).toBe(false);
@@ -131,7 +124,7 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('gc keeps failed jobs twice as long as succeeded ones', async () => {
-      const jobs = jobsRepo(t.meta);
+      const jobs = jobsRepo(meta());
       const ok = await jobs.enqueue({ kind: 'ok', payload: {} }, T0);
       await jobs.claim('w', T0);
       await jobs.complete(ok.id, T0);

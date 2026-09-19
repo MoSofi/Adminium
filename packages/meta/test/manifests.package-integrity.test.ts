@@ -12,11 +12,11 @@
  * the full width so a later narrowing fails where it can be seen.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { applyMigrations, manifestsRepo } from '../src/index.js';
+import { manifestsRepo } from '../src/index.js';
 import { PACKAGE_INTEGRITY_MAX } from '../src/migrations/0037_manifest_package_integrity.js';
-import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
+import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const crypto = {
   encrypt: (plaintext: string) => `enc:test:${Buffer.from(plaintext, 'utf8').toString('base64')}`,
@@ -30,17 +30,10 @@ const FILE_ID = 'file_01JQ8ZC5X7R2M4K6N8P0Q2S4T6';
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`manifest package integrity [${dialect.name}]`, () => {
-    let t: TestDb;
+    const meta = useMetaDb(dialect, migrateOnly);
 
-    beforeEach(async () => {
-      t = await dialect.make();
-      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
-    });
-    afterEach(async () => {
-      await t.destroy();
-    });
 
-    const repo = () => manifestsRepo(t.meta, crypto);
+    const repo = () => manifestsRepo(meta(), crypto);
     const install = () =>
       repo().install({
         manifestKey: 'clinic',
