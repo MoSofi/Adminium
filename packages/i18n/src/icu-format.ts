@@ -36,15 +36,31 @@ export class IcuFormat {
     this.#onError =
       opts.onError ??
       ((key, error) => {
-        // Never throw at render time. The console warning is for developers;
-        // the ring is what the Translations editor reads, because the person
-        // who broke an admin-authored message is not looking at devtools
-        // .
-        console.warn(`[adminium/i18n] ICU parse failed for "${key}":`, error);
+        /*
+         * Never throw at render time. The console warning is for developers;
+         * the ring is what the Translations editor reads, because the person
+         * who broke an admin-authored message is not looking at devtools.
+         *
+         * THE REASON A STRING IS LOGGED AND NOT THE ERROR. Passing the object
+         * kept that promise under node and broke it under vitest: a
+         * `MissingValueError` — which is what an unsupplied argument produces,
+         * the single most ordinary failure on this path — took vitest's console
+         * capture 8 seconds to serialise and then threw `RangeError: Invalid
+         * string length` FROM THIS LINE. The object is not large: `node:util`
+         * inspects it to 1,189 characters at any depth. Some console
+         * implementations walk further than that, and this handler cannot know
+         * which one it is talking to.
+         *
+         * So it hands over something bounded. `recordFormatFailure` below
+         * already did exactly this; the two lines now agree, and the handler
+         * keeps its promise wherever it runs.
+         */
+        const reason = error instanceof Error ? error.message : String(error);
+        console.warn(`[adminium/i18n] ICU parse failed for "${key}": ${reason}`);
         recordFormatFailure({
           key,
           lng: this.#lastLng,
-          message: error instanceof Error ? error.message : String(error),
+          message: reason,
           at: Date.now(),
         });
       });
