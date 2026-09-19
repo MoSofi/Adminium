@@ -121,6 +121,9 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
         connectionId: input.connectionId ?? null,
         status: 'installed',
         kind: input.kind,
+        // No copy is held until one has actually been uploaded, which happens
+        // after this row exists. `setPackageIntegrity` writes it then.
+        packageIntegrity: null,
         installedBy: input.installedBy ?? null,
         installedAt: at,
         updatedAt: at,
@@ -202,7 +205,31 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     ): Promise<void> {
       await db
         .updateTable('adminium_manifests')
-        .set({ version: input.version, manifest: packJson(input.document), updatedAt: at })
+        .set({
+          version: input.version,
+          manifest: packJson(input.document),
+          // The held copy is of the OLD version's bytes, so it stops describing
+          // this row the moment the version moves. Clearing it is what makes a
+          // half-finished upgrade read as "no copy" rather than as a copy that
+          // would restore the wrong package.
+          packageIntegrity: null,
+          updatedAt: at,
+        })
+        .where('id', '=', id)
+        .execute();
+    },
+
+    /**
+     * Record the fingerprint of the copy now held in the storage destination.
+     *
+     * Written only after the upload has succeeded: the column's meaning is "a
+     * copy matching this exists", and writing it first would make a failed
+     * upload look like protection.
+     */
+    async setPackageIntegrity(id: string, integrity: string | null, at: number = Date.now()): Promise<void> {
+      await db
+        .updateTable('adminium_manifests')
+        .set({ packageIntegrity: integrity, updatedAt: at })
         .where('id', '=', id)
         .execute();
     },
