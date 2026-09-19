@@ -483,9 +483,9 @@ export const appManifestSchema = z
  * leaving the fields off a `.strict()` schema entirely is a stronger guarantee
  * than a lint rule.
  *
- * WHAT CHANGED IN 51a, AND WHAT DID NOT. An add-on may now own a dashboard page
- * (the owner's 2026-09-19 ruling, reversing 34 D43) — but it declares that page
- * as CODE, inside `addOn.pages`, never as a `pages` entry up here. The two are
+ * WHAT CHANGED, AND WHAT DID NOT. An add-on may now own a dashboard page — but
+ * it declares that page as CODE, inside `addOn.pages`, never as a `pages` entry
+ * up here. The two are
  * different things wearing one word: a `pages` row is a generated page, a
  * `template` the engine renders with `bindings` and `config`, and an add-on
  * still cannot install one. Roles and frontends remain refused outright.

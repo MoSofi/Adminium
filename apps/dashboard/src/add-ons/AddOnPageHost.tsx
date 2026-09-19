@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The host for a page an ADD-ON owns: `/add-ons/<key>/<ref>` (51 §1.3).
+ * The host for a page an ADD-ON owns: `/add-ons/<key>/<ref>`.
  *
  * One route serves every add-on page there will ever be, so this component
  * answers three questions before it renders anything: does this add-on

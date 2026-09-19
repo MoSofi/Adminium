@@ -3,7 +3,7 @@
  * THE RAIL'S BUILT-IN GROUPS — the canonical list, and as of 51a the only one
  * that is allowed to grow a copy.
  *
- * The same five keys were written out in five places (51 §0.3): the bootstrap
+ * The same five keys were written out in five places: the bootstrap
  * schema's `z.enum`, its handler, the dashboard's mirror, the Studio page
  * editor's options and `SidebarNav`, where a `satisfies` made a sixth group a
  * compile error. That closure was deliberate and it was right while the set

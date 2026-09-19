@@ -25,8 +25,8 @@ import { mePrefsResolvedView } from '../me/schema.js';
  * stays `NAV_GROUP_KEYS` so nothing downstream moves.
  *
  * It is still a CLOSED set for GENERATED pages — a page a person builds in
- * Studio goes in one of these five and nowhere else (51 D3). What 51b opens is
- * a separate axis: an add-on may bring a group of its own, and those ride
+ * Studio goes in one of these five and nowhere else. What opens here is a
+ * separate axis: an add-on may bring a group of its own, and those ride
  * `addOnNav.groups` below rather than widening this enum.
  */
 export const NAV_GROUP_KEYS = BUILTIN_NAV_GROUP_KEYS;

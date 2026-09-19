@@ -96,7 +96,7 @@ export const addOnNetworkSchema = z
   })
   .strict();
 
-// ── pages and navigation (51 §1.1) ───────────────────────────────────────────
+// ── pages and navigation ─────────────────────────────────────────────────────
 
 /**
  * An i18n message: a catalog key plus the English fallback rendered when the
@@ -149,7 +149,7 @@ export const navGroupKeySchema = z
   .regex(/^[a-z][a-z0-9-]{0,39}$/, 'a nav group key must be kebab-case, 1–40 characters');
 
 /**
- * The host API an add-on's client code is written against (51 §1.4).
+ * The host API an add-on's client code is written against.
  *
  * A version rather than a boolean because publishing `Modal` and `useNavigate`
  * to code the engine did not build makes them public API: the day that surface
@@ -168,7 +168,7 @@ export const addOnPageNavSchema = z
   .object({
     group: navGroupKeySchema.default(DEFAULT_NAV_GROUP),
     order: z.number().int(),
-    /** Same audience the engine's own admin rows have; 51 §1.5. */
+    /** Same audience the engine's own admin-only rail rows have. */
     adminOnly: z.boolean().optional(),
   })
   .strict();
@@ -231,8 +231,9 @@ export const addOnBlockSchema = z
     demoTransport: z.string().min(1).optional(),
     /**
      * Dashboard pages this add-on renders itself, and the groups it brings for
-     * them (51 §1.1). Both optional and additive: every manifest written before
-     * 51a validates unchanged, which is the same promise `kind` kept in wave 4.
+     * them. Both optional and additive: every manifest written before this
+     * validates unchanged, which is the same promise `kind` kept when the
+     * add-on branch itself was added.
      */
     pages: z.array(addOnPageSchema).min(1).optional(),
     navGroups: z.array(addOnNavGroupSchema).min(1).optional(),

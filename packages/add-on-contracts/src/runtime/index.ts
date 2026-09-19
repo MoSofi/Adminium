@@ -69,8 +69,8 @@ export interface AddOnRuntime {
  * one is writing new code against a small API. An add-on page is EXISTING code
  * moving across a repository boundary — 51d moves 11,100 lines of it — and a
  * curated kit would mean rewriting every one of those files to import
- * different names for the same components. The census that decided this is
- * 51 §0.4.
+ * different names for the same components. The lists below are a census of
+ * what that code actually imports, not a guess at what it might.
  *
  * WHAT THIS COSTS, SAID OUT LOUD. Every name in the four lists below is public
  * API from the moment a published add-on imports it. `version` is how that is
@@ -302,8 +302,8 @@ export type AddOnAppExport = (typeof ADD_ON_APP_EXPORTS)[number];
 /**
  * `@adminium/ui` — the components an add-on page may import (51c).
  *
- * This is the census of 51 §0.4, not a guess: every symbol the invoice surface
- * imports from the kit, which is the first and largest page to move. Adding a
+ * A census, not a guess: every symbol the invoice surface imports from the
+ * kit, which is the first and largest page to move. Adding a
  * name here is adding public API and is a deliberate act; `add-on-host.test.ts`
  * holds the shim and this list equal so neither can grow quietly.
  */

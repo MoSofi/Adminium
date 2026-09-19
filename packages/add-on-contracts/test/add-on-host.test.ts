@@ -93,9 +93,9 @@ describe('the shims export exactly what their lists promise', () => {
   }
 
   it('the UI list is the census of what a real page imports', () => {
-    // 51 §0.4 counted these off `apps/dashboard/src/invoices/**`. Moving the
-    // number is a deliberate act — every name here is public API the day a
-    // published add-on imports it.
+    // Counted off `apps/dashboard/src/invoices/**`, the first page to move.
+    // Moving the number is a deliberate act — every name here is public API the
+    // day a published add-on imports it.
     expect(ADD_ON_UI_EXPORTS).toHaveLength(22);
     expect(ADD_ON_UI_EXPORTS).toContain('Modal');
     expect(ADD_ON_UI_EXPORTS).not.toContain('Tone');

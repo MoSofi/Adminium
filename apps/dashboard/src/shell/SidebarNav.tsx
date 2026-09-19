@@ -445,8 +445,8 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
       !navGroupKeys.has(key) && !platformOnlyKeys.has(key) && addOnPagesFor(key).length > 0,
   );
   /*
-   * The trailing band of groups an add-on brought (51 D3): built-in groups keep
-   * their order and an add-on cannot push one down the rail. A group whose
+   * The trailing band of groups an add-on brought: built-in groups keep their
+   * order, and an add-on cannot push one of them down the rail. A group whose
    * every row is `adminOnly` renders NOTHING for a viewer who is not an admin —
    * the empty heading is the one thing the rail must not draw, and this is the
    * layer that can see it, because it is the layer that filtered the rows.
