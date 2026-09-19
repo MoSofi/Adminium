@@ -1148,6 +1148,16 @@ export const fileKindSchema = z.enum([
   'schema',
   'archive',
   'document',
+  /*
+   * A copy of an installed package, kept so a host that empties its data
+   * directory on every deploy can put the package back (0037).
+   *
+   * NOT `upload`, and the distinction is load-bearing: the daily sweep collects
+   * unattached uploads after 24 hours, and a package copy is attached to no
+   * record by design. Written as an upload it would be deleted overnight and
+   * the loss discovered only by the redeploy it existed to survive.
+   */
+  'package',
 ]);
 
 // --- storage destinations --------------------------------------

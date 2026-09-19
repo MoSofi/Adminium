@@ -998,6 +998,12 @@ export interface AdminiumManifestsTable {
    * than detected. Added by 0037.
    */
   packageIntegrity: string | null;
+  /**
+   * The `adminium_files` row holding that copy (`kind = 'package'`, which keeps
+   * it out of the upload sweep). NULL exactly when `packageIntegrity` is.
+   * Added by 0037.
+   */
+  packageFileId: Id | null;
   installedBy: Id | null;
   installedAt: Ts;
   updatedAt: Ts;

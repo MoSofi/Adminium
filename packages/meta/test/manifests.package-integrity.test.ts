@@ -25,6 +25,8 @@ const crypto = {
 
 /** The real shape: `sha512-` plus 88 base64 characters. */
 const INTEGRITY = `sha512-${'A'.repeat(87)}=`;
+/** A `file` id, the only shape a storage key may take (`isSafeStorageKey`). */
+const FILE_ID = 'file_01JQ8ZC5X7R2M4K6N8P0Q2S4T6';
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`manifest package integrity [${dialect.name}]`, () => {
@@ -52,15 +54,18 @@ for (const dialect of TEST_DIALECTS) {
     it('starts null, because no copy is held until one is uploaded', async () => {
       const installed = await install();
       expect(installed.row.packageIntegrity).toBeNull();
+      expect(installed.row.packageFileId).toBeNull();
       const [listed] = await repo().list('app');
       expect(listed?.row.packageIntegrity).toBeNull();
+      expect(listed?.row.packageFileId).toBeNull();
     });
 
-    it('stores the fingerprint and reads it back unchanged', async () => {
+    it('stores the copy and reads both halves back unchanged', async () => {
       const installed = await install();
-      await repo().setPackageIntegrity(installed.row.id, INTEGRITY);
+      await repo().setPackageCopy(installed.row.id, { fileId: FILE_ID, integrity: INTEGRITY });
       const [listed] = await repo().list('app');
       expect(listed?.row.packageIntegrity).toBe(INTEGRITY);
+      expect(listed?.row.packageFileId).toBe(FILE_ID);
     });
 
     it('accepts the full column width on every engine', async () => {
@@ -69,20 +74,22 @@ for (const dialect of TEST_DIALECTS) {
       const installed = await install();
       const atBound = `sha512-${'B'.repeat(PACKAGE_INTEGRITY_MAX - 'sha512-'.length)}`;
       expect(atBound).toHaveLength(PACKAGE_INTEGRITY_MAX);
-      await repo().setPackageIntegrity(installed.row.id, atBound);
+      await repo().setPackageCopy(installed.row.id, { fileId: FILE_ID, integrity: atBound });
       expect((await repo().list('app'))[0]?.row.packageIntegrity).toBe(atBound);
     });
 
-    it('clears it, because a cleared copy must not read as a held one', async () => {
+    it('clears both halves together, because half a copy cannot be acted on', async () => {
       const installed = await install();
-      await repo().setPackageIntegrity(installed.row.id, INTEGRITY);
-      await repo().setPackageIntegrity(installed.row.id, null);
-      expect((await repo().list('app'))[0]?.row.packageIntegrity).toBeNull();
+      await repo().setPackageCopy(installed.row.id, { fileId: FILE_ID, integrity: INTEGRITY });
+      await repo().setPackageCopy(installed.row.id, null);
+      const [listed] = await repo().list('app');
+      expect(listed?.row.packageIntegrity).toBeNull();
+      expect(listed?.row.packageFileId).toBeNull();
     });
 
     it('drops it when the version moves, so a copy never describes other bytes', async () => {
       const installed = await install();
-      await repo().setPackageIntegrity(installed.row.id, INTEGRITY);
+      await repo().setPackageCopy(installed.row.id, { fileId: FILE_ID, integrity: INTEGRITY });
       await repo().setVersion(installed.row.id, {
         version: '1.1.0',
         document: { kind: 'app', manifestVersion: 1, key: 'clinic', name: 'Clinic', version: '1.1.0' },
@@ -92,6 +99,7 @@ for (const dialect of TEST_DIALECTS) {
       // The held bytes are 1.0.0's. Keeping the fingerprint would advertise a
       // copy that restores the wrong package.
       expect(listed?.row.packageIntegrity).toBeNull();
+      expect(listed?.row.packageFileId).toBeNull();
     });
   });
 }
