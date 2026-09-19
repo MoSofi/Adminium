@@ -1,5 +1,138 @@
 # @adminium/widgets
 
+## 0.2.10
+
+### Patch Changes
+
+- 372a4a2: **A page's own file column reached the create dialog again, and a CHECK-expression regex stopped backtracking.**
+  
+  - **The derived form read the schema's spec and not the page's.** Binding a page's
+    attachments to a column makes it a file column *for that page* — a fact the page
+    config carries and the schema does not. The form document is derived from the
+    server's column facts, and the derivation stamps a control per column, so the
+    control was chosen before the stored spec was ever consulted and an attachments
+    column drew as a plain text box. `PageCrud` now merges the stored spec over the
+    fact before deriving, the same precedence `editableColumns` already applied.
+  - **A text control names its type.** `TextControl` rendered an `<input>` with no
+    `type` attribute. It behaves as a text box either way, but `input[type="text"]`
+    matches an attribute, so anything selecting the form's text fields found none.
+  - **`parseEnumCheck` reads quoted literals with a scanner, not a regex.**
+    `/"((?:[^"\\]|\\.)*)"/g` backtracks polynomially on an expression full of
+    escaped quotes — and so does the unrolled form, because `matchAll` RESTARTS at
+    every position and each restart rescans to the end when no closing quote
+    follows. A CHECK expression comes back from whatever the database stored, and
+    this runs on every table a diff opens. The scanner only ever moves forward.
+- 86535d5: **Comments stop pointing at documents a reader cannot open.**
+  
+  - **A new gate**, `pnpm check-private-citations`, in `pnpm preflight` and in CI's `verify` job. It
+    reads six forms — a plan document filename, a bare plan number with a section or decision, a
+    bare section, a plan or milestone task id, a design comp file, a research annex — and holds
+    every file with no baseline entry at zero, so new code cannot add one. A recorded count may
+    only shrink, and progress has to be recorded, which is what stops it being given back.
+  - **13,115 of 16,293 such references are gone**, across 1,679 of the 2,450 files that had one.
+    Where the reference was provenance the sentence now stands on its own; where it was doing the
+    work of a subject it was reworded. No behaviour changed: a rewrite is refused unless the file's
+    compiled output is byte-identical before and after.
+  - **The reasoning lives in public now**, one short page per decision under
+    [/anatomy/decisions/](https://docs.adminium.dev/anatomy/decisions/), which is what a comment
+    links to instead of carrying a backstory.
+  - **A citation of something a reader can open spells the section out** — `AGPL section 13`, not
+    the section sign, which is the glyph the gate reads.
+  - **Two generated files were regenerated from fixed templates** rather than hand-edited:
+    `packages/i18n/src/a11y-keys.ts` and the icon core and name list.
+  
+  **The strings a person actually reads went with them**: the two "not in this build yet" messages
+  in all 8 locales (and the dashboard's inline fallbacks, which a gate holds character-identical to
+  the bundle), the 31 widget-suggestion reasons Studio shows, the engine's generation notes, the
+  three adapters' role hints and not-implemented message, and a handful of validation errors. Six
+  lint rules now link the decision page instead of citing a document nobody has.
+  
+  **A third pass took the count from 3,210 to 1,493**, with non-code, markdown and user-visible
+  strings all at zero: 658 test names (AST-precise, so only a test declaration's own name is
+  touched), every CHANGELOG — each now carrying a note that its older entries were reworded — the
+  CI workflows, CSS, HTML, ignore files and `package.json` prose, and the engine's classification
+  reasons, which Studio shows a person to explain why a column was classified as it was.
+  
+  **The last 1,443 went by hand, and the surface is now 36 references in 10 files** — every one of
+  them inside a migration `up`/`down` body, where the bytes are part of a checksum a deployed
+  instance verifies at boot, so editing one would refuse to start. Those 36 are what the baseline
+  records. The hand pass also repaired what the earlier sweeps had left mid-sentence: a preposition
+  or an article against the next punctuation mark, two clauses welded together where the citation
+  had joined them, 45 comp markers whose document name had been removed from around them, and
+  three widget-suggestion reasons that lost a real descriptor (`team workload`, `shift scheduler`,
+  `directory trigger`) along with the citation beside it.
+- d95d39f: **Projects: hooks and actions.**
+  
+  - **One write path.** Every insert, update and delete Adminium makes in a connected database now
+    goes through one service: the data API (single rows, bulk and undo), the public API, automation
+    steps and CSV imports. A test fails when a new direct write appears anywhere else. With no hooks,
+    every path sends the same statements as before.
+  - **Hooks.** A file in a project's `hooks/` (`export default defineHook({ … })`) runs before or
+    after a record is created, changed or deleted. Before hooks may change the values or
+    `reject(message)`, which fails the write with 422 and the hook's message everywhere, including
+    bulk edits, CSV imports (in the error report) and the public API (the new code
+    `PUBLIC_WRITE_REJECTED`). After hooks run once the change is saved; their errors are logged and
+    shown in Studio. Imports run after hooks only for hooks that set `onImport`. Writes a hook makes
+    through `db` run hooks too, and a chain deeper than three is stopped.
+  - **Actions.** A file in `actions/` (`export default defineAction({ … })`) adds a button to the
+    record page, each row's Actions menu and, with `bulk`, the bulk bar. `GET /api/v1/project/actions`
+    lists the ones the caller may run, and `POST /api/v1/project/actions/:id` runs one with the
+    person's permission, a time limit and a `project.action` audit entry.
+  - **The `db` helper** gives project code `table(name).get/list/insert/update/delete`, which run
+    hooks, audit and automations, and `raw` Kysely, which skips them.
+  - **Build and reload.** `adminium build` bundles hooks and actions into `.adminium/build/server/`
+    with their npm packages. `adminium dev` rebuilds them on save and the server swaps them in
+    without a restart. `adminium check` loads them. The desktop app and `adminium try` never load
+    project code.
+  - **Studio → Settings → Project** (super admins, `GET /api/v1/project/overview`) shows the project
+    folder, the loaded hooks and actions, files that did not load, hook errors, and pages changed on
+    the server.
+  - **`@adminium/widgets`:** `PageCrud` takes `bulkActions`, placed between Export and Delete.
+  - **Automation run origins** gain `hook` and `action`.
+- d95d39f: **Projects: pages and widgets written in React.**
+  
+  - **Pages.** A project's `pages/<address>.tsx` (`export default definePage({ title, icon, nav,
+    component })`) is a page at `/p/<address>`, with a place in the sidebar and the same view grants
+    as any page. The server keeps a page row for it (origin `project`); Studio lists it as project
+    code and refuses to edit it. A page file and a React page cannot share an address.
+  - **Widgets.** `widgets/<name>.tsx` (`defineWidget({ kind: 'cell' | 'card', component })`) is
+    `project.<name>`: a page file names it on a table column (`"widget"`) or a dashboard layout item.
+    A cell that cannot be drawn shows the plain value with a warning mark; a card that does not load
+    shows the widget error state. `adminium check` fails on a widget name that does not exist, or a
+    card where a cell goes.
+  - **The UI kit**, `@adminiumjs/adminium/ui`: `Page`, `Card`, `Stack`, `Grid`, `Button`, `Input`,
+    `Select`, `Switch`, `DataTable`, `Stat`, `EmptyState`, `Icon`, `Link`, `GeneratedPage`, `toast`,
+    and the hooks `useRecords`, `useRecord`, `useMutation`, `useCurrentUser` and `useNavigate`. They
+    are the dashboard's own components, and the data hooks go through the data API as the person
+    looking.
+  - **One React.** The dashboard publishes its React, JSX runtime, `react-dom` and the kit on
+    `globalThis.__ADMINIUM_ADD_ON_RUNTIME__` (`@adminium/add-on-contracts/runtime`), and a project's
+    bundles read them from there, so hooks and context work across project code and the kit.
+  - **Build and serve.** `adminium build` bundles pages and widgets for the browser into
+    `.adminium/build/client/`, with hashed file names; the server serves them to signed-in people at
+    `GET /api/v1/project/client/*`, checks each file against the build before sending it, and lists
+    them in `GET /api/v1/bootstrap` (`project.client`) with their integrity. `adminium dev` rebuilds
+    them on save, and open dashboards load the new files.
+  - **Studio → Settings → Project** lists the project's pages and widgets.
+  - **Dashboard:** a page template whose code does not load shows the error card with a Retry
+    instead of a skeleton that never ends. The built-in template loaders are a chunk of their own,
+    which takes 2.1 KiB gz off the first load. What the dashboard says about a project's code is a
+    new, lazily loaded `project` message namespace.
+  - **`@adminium/widgets`:** table columns take a `widget`, drawn through `CustomCellProvider`; a
+    host app's own card widgets resolve through `ExternalWidgetsProvider`, after the registry.
+  - **The project Dockerfile** copies the whole project folder, without `node_modules`, so `start`
+    can tell the build is current.
+- Updated dependencies [74d5351]
+- Updated dependencies [86535d5]
+- Updated dependencies [d95d39f]
+- Updated dependencies [d95d39f]
+- Updated dependencies [d95d39f]
+- Updated dependencies [d95d39f]
+  - @adminium/i18n@0.2.10
+  - @adminium/ui@0.2.10
+  - @adminium/charts@0.2.10
+  - @adminium/tokens@0.2.10
+
 ## 0.2.9
 
 ### Patch Changes

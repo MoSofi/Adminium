@@ -1,5 +1,177 @@
 # @adminium/i18n
 
+## 0.2.10
+
+### Patch Changes
+
+- 74d5351: **Three findings from the CodeQL backlog, fixed rather than dismissed.** Each was checked against
+  the code before being acted on; the rest of the backlog is false positives in the same sweep and
+  is being dismissed separately.
+  
+  - **A version string could burn a minute of CPU.** `EXACT_VERSION_PATTERN` gates which add-on and
+    app versions the installer accepts from the catalogue. It repeated
+    `[-+][0-9A-Za-z.-]+`, and because that class also contains `-`, `-a-b` could be one segment or
+    two — so a version that fails to match backtracks through every split. `0.0.0+` followed by 24
+    `--` pairs took **74 seconds** to reject, 22 pairs took 9.7 s and 18 took 207 ms: a clean
+    doubling. The tail is now one optional group, which accepts exactly the same strings (checked
+    against 119 of them) and rejects the payload in microseconds. The input path is the first-party
+    catalogue over https, so this was not reachable by an ordinary caller — but it guarded the
+    add-on supply chain with an exponential regex.
+  
+  - **A translation key could reach `Object.prototype`.** `nestBundle` splits a dotted key and
+    assigns down the path, so a key containing `__proto__` wrote through to the prototype and gave
+    every object in the process the property. Keys are not always ours: the runtime-translations
+    feature stores them in the database, and this is an exported entry point of the package. Nodes
+    are now prototype-less, so such a key round-trips as an ordinary own property instead of being
+    dropped or escaping.
+  
+  - **The release rehearsal printed a real secret.** `rehearse-npx.mjs` prints a ready-to-copy
+    command including `ADMINIUM_SECRET=`. With the variable unset that is a throwaway value
+    generated for the run; with it set — and it is the production secret's own variable — the
+    script echoed the operator's real secret to stdout, and from there into scrollback, a screen
+    share or a pasted bug report. It now prints `$ADMINIUM_SECRET` when the value came from the
+    environment, so the shell expands it and the secret never reaches the terminal.
+  
+  Both library fixes carry a test that fails against the old code: the version test rejects the
+  backtracking payload under a time budget, and the bundle test asserts nothing outside the bundle
+  changed.
+- 86535d5: **Comments stop pointing at documents a reader cannot open.**
+  
+  - **A new gate**, `pnpm check-private-citations`, in `pnpm preflight` and in CI's `verify` job. It
+    reads six forms — a plan document filename, a bare plan number with a section or decision, a
+    bare section, a plan or milestone task id, a design comp file, a research annex — and holds
+    every file with no baseline entry at zero, so new code cannot add one. A recorded count may
+    only shrink, and progress has to be recorded, which is what stops it being given back.
+  - **13,115 of 16,293 such references are gone**, across 1,679 of the 2,450 files that had one.
+    Where the reference was provenance the sentence now stands on its own; where it was doing the
+    work of a subject it was reworded. No behaviour changed: a rewrite is refused unless the file's
+    compiled output is byte-identical before and after.
+  - **The reasoning lives in public now**, one short page per decision under
+    [/anatomy/decisions/](https://docs.adminium.dev/anatomy/decisions/), which is what a comment
+    links to instead of carrying a backstory.
+  - **A citation of something a reader can open spells the section out** — `AGPL section 13`, not
+    the section sign, which is the glyph the gate reads.
+  - **Two generated files were regenerated from fixed templates** rather than hand-edited:
+    `packages/i18n/src/a11y-keys.ts` and the icon core and name list.
+  
+  **The strings a person actually reads went with them**: the two "not in this build yet" messages
+  in all 8 locales (and the dashboard's inline fallbacks, which a gate holds character-identical to
+  the bundle), the 31 widget-suggestion reasons Studio shows, the engine's generation notes, the
+  three adapters' role hints and not-implemented message, and a handful of validation errors. Six
+  lint rules now link the decision page instead of citing a document nobody has.
+  
+  **A third pass took the count from 3,210 to 1,493**, with non-code, markdown and user-visible
+  strings all at zero: 658 test names (AST-precise, so only a test declaration's own name is
+  touched), every CHANGELOG — each now carrying a note that its older entries were reworded — the
+  CI workflows, CSS, HTML, ignore files and `package.json` prose, and the engine's classification
+  reasons, which Studio shows a person to explain why a column was classified as it was.
+  
+  **The last 1,443 went by hand, and the surface is now 36 references in 10 files** — every one of
+  them inside a migration `up`/`down` body, where the bytes are part of a checksum a deployed
+  instance verifies at boot, so editing one would refuse to start. Those 36 are what the baseline
+  records. The hand pass also repaired what the earlier sweeps had left mid-sentence: a preposition
+  or an article against the next punctuation mark, two clauses welded together where the citation
+  had joined them, 45 comp markers whose document name had been removed from around them, and
+  three widget-suggestion reasons that lost a real descriptor (`team workload`, `shift scheduler`,
+  `directory trigger`) along with the citation beside it.
+- d95d39f: **Projects: the docs section.**
+  
+  - **A new "Projects" section** on docs.adminium.dev: creating a project, the folder and every
+    `adminium.config.ts` field, page and schema files with the rules that keep the folder and a
+    running server in step, `pull` and `check` (with a CI workflow), hooks and actions, pages and
+    widgets, and deploying a project to Docker, Render, Fly.io, App Platform, Railway or a plain VPS.
+    The two guides written earlier move from `/guides/projects/` into it.
+  - **The quickstart is built around `adminium new`**, with `adminium try`, a plain `adminium start`
+    and a source checkout as its later sections; the docs home, the intro page, both anatomy pages
+    and the self-hosting overview say what a project is and where it fits.
+  - **The project a `new` writes** links the deploy page from its README, and the in-app Knowledge
+    Base's install article no longer describes only Docker and a source checkout (all 8 locales).
+  - **The CLI reference** gains `adminium try --bridge` and `--log-level`, exit code 78, and the
+    pinned-version examples name the release that ships project mode.
+  - **Two docs gates**, in `docs-contract.test.ts`: the Projects section must be published and fully
+    linked in the sidebar, and no page may tell anyone to run the unscoped `npx adminium`, which
+    installs an unrelated package.
+- d95d39f: **Projects: hooks and actions.**
+  
+  - **One write path.** Every insert, update and delete Adminium makes in a connected database now
+    goes through one service: the data API (single rows, bulk and undo), the public API, automation
+    steps and CSV imports. A test fails when a new direct write appears anywhere else. With no hooks,
+    every path sends the same statements as before.
+  - **Hooks.** A file in a project's `hooks/` (`export default defineHook({ … })`) runs before or
+    after a record is created, changed or deleted. Before hooks may change the values or
+    `reject(message)`, which fails the write with 422 and the hook's message everywhere, including
+    bulk edits, CSV imports (in the error report) and the public API (the new code
+    `PUBLIC_WRITE_REJECTED`). After hooks run once the change is saved; their errors are logged and
+    shown in Studio. Imports run after hooks only for hooks that set `onImport`. Writes a hook makes
+    through `db` run hooks too, and a chain deeper than three is stopped.
+  - **Actions.** A file in `actions/` (`export default defineAction({ … })`) adds a button to the
+    record page, each row's Actions menu and, with `bulk`, the bulk bar. `GET /api/v1/project/actions`
+    lists the ones the caller may run, and `POST /api/v1/project/actions/:id` runs one with the
+    person's permission, a time limit and a `project.action` audit entry.
+  - **The `db` helper** gives project code `table(name).get/list/insert/update/delete`, which run
+    hooks, audit and automations, and `raw` Kysely, which skips them.
+  - **Build and reload.** `adminium build` bundles hooks and actions into `.adminium/build/server/`
+    with their npm packages. `adminium dev` rebuilds them on save and the server swaps them in
+    without a restart. `adminium check` loads them. The desktop app and `adminium try` never load
+    project code.
+  - **Studio → Settings → Project** (super admins, `GET /api/v1/project/overview`) shows the project
+    folder, the loaded hooks and actions, files that did not load, hook errors, and pages changed on
+    the server.
+  - **`@adminium/widgets`:** `PageCrud` takes `bulkActions`, placed between Export and Delete.
+  - **Automation run origins** gain `hook` and `action`.
+- d95d39f: **Projects: pages and schema customizations are files.**
+  
+  - **The files.** A project keeps each page in `pages/<address>.json` and each database's
+    customizations in `schema/<database>.json`. Files name databases by their key in
+    `adminium.config.ts`, never by an id, so the same files work on every install. Each points at a
+    JSON Schema the package ships (`schemas/`), so editors can complete them.
+  - **In `adminium dev`** the files are the master copy. A saved file is applied at once without a
+    restart. A Studio edit is written back to its file. A file with a mistake is reported with its
+    field and not applied.
+  - **On a server** (`adminium start` in a project, or its Docker image), deployed files are applied
+    at start. A page edited in Studio there is kept and marked "changed on server". Studio → Pages
+    shows the command that pulls it, and settles a page changed on both sides.
+  - **`adminium pull`** writes the files from the project's database.
+    `adminium pull --from <url>` writes the pages a server changed (`GET /api/v1/project/export`,
+    with an `ADMINIUM_API_KEY` whose role has the new `system:project:read`, which Admin gets).
+  - **`adminium check`** validates every page and schema file with no database.
+  - **`adminium new`** in a folder that already holds an instance (or with
+    `--import <folder>`) makes its connections the project's databases and writes its pages as files.
+  - **New meta migration** `0034_project_files`.
+- d95d39f: **Projects: pages and widgets written in React.**
+  
+  - **Pages.** A project's `pages/<address>.tsx` (`export default definePage({ title, icon, nav,
+    component })`) is a page at `/p/<address>`, with a place in the sidebar and the same view grants
+    as any page. The server keeps a page row for it (origin `project`); Studio lists it as project
+    code and refuses to edit it. A page file and a React page cannot share an address.
+  - **Widgets.** `widgets/<name>.tsx` (`defineWidget({ kind: 'cell' | 'card', component })`) is
+    `project.<name>`: a page file names it on a table column (`"widget"`) or a dashboard layout item.
+    A cell that cannot be drawn shows the plain value with a warning mark; a card that does not load
+    shows the widget error state. `adminium check` fails on a widget name that does not exist, or a
+    card where a cell goes.
+  - **The UI kit**, `@adminiumjs/adminium/ui`: `Page`, `Card`, `Stack`, `Grid`, `Button`, `Input`,
+    `Select`, `Switch`, `DataTable`, `Stat`, `EmptyState`, `Icon`, `Link`, `GeneratedPage`, `toast`,
+    and the hooks `useRecords`, `useRecord`, `useMutation`, `useCurrentUser` and `useNavigate`. They
+    are the dashboard's own components, and the data hooks go through the data API as the person
+    looking.
+  - **One React.** The dashboard publishes its React, JSX runtime, `react-dom` and the kit on
+    `globalThis.__ADMINIUM_ADD_ON_RUNTIME__` (`@adminium/add-on-contracts/runtime`), and a project's
+    bundles read them from there, so hooks and context work across project code and the kit.
+  - **Build and serve.** `adminium build` bundles pages and widgets for the browser into
+    `.adminium/build/client/`, with hashed file names; the server serves them to signed-in people at
+    `GET /api/v1/project/client/*`, checks each file against the build before sending it, and lists
+    them in `GET /api/v1/bootstrap` (`project.client`) with their integrity. `adminium dev` rebuilds
+    them on save, and open dashboards load the new files.
+  - **Studio → Settings → Project** lists the project's pages and widgets.
+  - **Dashboard:** a page template whose code does not load shows the error card with a Retry
+    instead of a skeleton that never ends. The built-in template loaders are a chunk of their own,
+    which takes 2.1 KiB gz off the first load. What the dashboard says about a project's code is a
+    new, lazily loaded `project` message namespace.
+  - **`@adminium/widgets`:** table columns take a `widget`, drawn through `CustomCellProvider`; a
+    host app's own card widgets resolve through `ExternalWidgetsProvider`, after the registry.
+  - **The project Dockerfile** copies the whole project folder, without `node_modules`, so `start`
+    can tell the build is current.
+
 ## 0.2.9
 
 ### Patch Changes
