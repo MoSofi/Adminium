@@ -98,6 +98,7 @@ import {
   type OAuthFlowStore,
 } from '../../add-ons/oauth.js';
 import type { AddOnSchemaTarget } from '../../add-ons/schema-target.js';
+import { packageIsInStore } from '../../add-ons/store.js';
 import type { AddOnStore, StagedPackage } from '../../add-ons/store.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import {
@@ -321,6 +322,12 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       version: installed.row.version,
       connectKind: block.connect.kind,
       connected: credential !== null,
+      // The one disk read in this DTO. Without it the list is a pure meta read
+      // and cannot tell a running add-on from one a redeploy erased.
+      missing: !(await packageIsInStore(deps.store, {
+        key: manifest.key,
+        version: installed.row.version,
+      })),
       connectionExpiresAt: credential?.expiresAt ?? null,
       attachments: installed.attachments.map((a) => ({
         attachedTo: a.attachedTo,
@@ -616,8 +623,18 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
 
         const installed = new Map(installedList.map((m) => [m.row.manifestKey, m.row.version]));
         const staged = new Map<string, string>();
+        /*
+         * Every version on disk per key, not only the newest: an installed row
+         * is missing when THAT version is absent, which a newest-only map
+         * cannot tell apart from a key whose other version happens to be here.
+         * This is `packageIsInStore`'s question asked in bulk — one `versions`
+         * call per key rather than one per installed row — and it must stay
+         * the same question.
+         */
+        const onDisk = new Map<string, readonly string[]>();
         for (const key of stagedKeys) {
           const versions = await deps.store.versions(key);
+          onDisk.set(key, versions);
           const newest = versions[0];
           if (newest !== undefined) staged.set(key, newest);
         }
@@ -650,7 +667,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           name: string;
           version: string;
           source: 'bundled' | 'catalog';
-          state: 'installed' | 'staged' | 'available';
+          state: 'installed' | 'staged' | 'available' | 'missing';
           upgradeTo: string | null;
           tagline: string | null;
           categories: string[];
@@ -730,6 +747,39 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           // Already on disk, but the catalog may know a newer version.
           const current = installed.get(entry.key) ?? existing.version;
           if (compareSemver(entry.version, current) > 0) existing.upgradeTo = entry.version;
+        }
+
+        /*
+         * INSTALLED, BUT NOT HERE. Both loops above start from bytes — what is
+         * on disk, then what the last feed refresh cached — so an installed
+         * add-on whose files a redeploy wiped reached this point either
+         * labelled `installed` (if the feed happened to carry it) or not at all
+         * (every uploaded add-on, and every install with no cached feed). The
+         * meta store is the only witness that it was ever installed, so this
+         * pass is the one that reads from it. 49-T27.
+         */
+        for (const [key, version] of installed) {
+          if ((onDisk.get(key) ?? []).includes(version)) continue;
+          const listed = rows.get(key) ?? entries.find((entry) => entry.key === key);
+          if (listed !== undefined) {
+            listed.state = 'missing';
+            listed.version = version;
+            // Nothing to upgrade TO when there is nothing here to upgrade.
+            listed.upgradeTo = null;
+            continue;
+          }
+          const fromFeed = feed.get(key);
+          entries.push({
+            key,
+            name: pickLocalized(fromFeed?.name, locale) ?? key,
+            version,
+            source: fromFeed === undefined ? 'bundled' : 'catalog',
+            state: 'missing',
+            upgradeTo: null,
+            tagline: pickLocalized(fromFeed?.tagline, locale),
+            categories: fromFeed?.categories ?? [],
+            connectKind: fromFeed?.connect.kind ?? 'none',
+          });
         }
 
         entries.sort((a, b) => (a.key < b.key ? -1 : 1));

@@ -31,6 +31,12 @@ export interface InstalledApp {
   installedAt: number;
   connectionId: string | null;
   sides: InstalledAppSide[];
+  /**
+   * Installed, but nothing of it is on this server, so none of it is served
+   * (49-T27) — a redeploy on a host with no disk keeps the row and loses the
+   * files. `sides` is empty then too, but an empty list reads as "no frontends".
+   */
+  missing: boolean;
 }
 
 export interface AppListReply {
@@ -65,7 +71,7 @@ export interface CatalogApp {
   readable: boolean;
   /** `disk`: in the app store. `catalog`: offered online only, so installing downloads first. */
   source: 'disk' | 'catalog';
-  state: 'installed' | 'staged' | 'available';
+  state: 'installed' | 'staged' | 'available' | 'missing';
   /** For an installed app: the newest version above it this server can take. */
   updateTo: string | null;
   /** True when `updateTo` is already on disk, so updating needs no download. */

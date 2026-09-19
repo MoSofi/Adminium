@@ -76507,6 +76507,9 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "missing": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -76515,7 +76518,8 @@
                           "source",
                           "installedAt",
                           "connectionId",
-                          "sides"
+                          "sides",
+                          "missing"
                         ],
                         "additionalProperties": false
                       }
@@ -76717,7 +76721,8 @@
                             "enum": [
                               "installed",
                               "staged",
-                              "available"
+                              "available",
+                              "missing"
                             ]
                           },
                           "updateTo": {
@@ -77235,6 +77240,9 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "missing": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -77243,7 +77251,8 @@
                     "source",
                     "installedAt",
                     "connectionId",
-                    "sides"
+                    "sides",
+                    "missing"
                   ],
                   "additionalProperties": false
                 }
@@ -77348,6 +77357,9 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "missing": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -77356,7 +77368,8 @@
                         "source",
                         "installedAt",
                         "connectionId",
-                        "sides"
+                        "sides",
+                        "missing"
                       ],
                       "additionalProperties": false
                     },
@@ -77520,7 +77533,8 @@
                             "enum": [
                               "installed",
                               "staged",
-                              "available"
+                              "available",
+                              "missing"
                             ]
                           },
                           "upgradeTo": {
@@ -77891,563 +77905,7 @@
                         "connected": {
                           "type": "boolean"
                         },
-                        "connectionExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "number"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "attachments": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "attachedTo": {
-                                "type": "string",
-                                "pattern": "^[a-z][a-z0-9-]{1,79}$"
-                              },
-                              "enabled": {
-                                "type": "boolean"
-                              }
-                            },
-                            "required": [
-                              "attachedTo",
-                              "enabled"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "slots": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "slot": {
-                                "type": "string"
-                              },
-                              "client": {
-                                "type": "string"
-                              },
-                              "order": {
-                                "type": "number"
-                              }
-                            },
-                            "required": [
-                              "slot",
-                              "client",
-                              "order"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "provides": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "contract": {
-                                "type": "string"
-                              },
-                              "version": {
-                                "type": "number"
-                              }
-                            },
-                            "required": [
-                              "contract",
-                              "version"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "networkAllow": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "settings": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "key": {
-                                "type": "string"
-                              },
-                              "type": {
-                                "type": "string"
-                              },
-                              "required": {
-                                "type": "boolean"
-                              },
-                              "secret": {
-                                "type": "boolean"
-                              },
-                              "label": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "key": {
-                                        "type": "string"
-                                      },
-                                      "fallback": {
-                                        "type": "string"
-                                      }
-                                    },
-                                    "required": [
-                                      "key",
-                                      "fallback"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "help": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "key": {
-                                        "type": "string"
-                                      },
-                                      "fallback": {
-                                        "type": "string"
-                                      }
-                                    },
-                                    "required": [
-                                      "key",
-                                      "fallback"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "options": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            },
-                            "required": [
-                              "key",
-                              "type",
-                              "required",
-                              "secret",
-                              "label",
-                              "help",
-                              "options"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "settingValues": {
-                          "type": "object",
-                          "propertyNames": {
-                            "type": "string"
-                          },
-                          "additionalProperties": {}
-                        },
-                        "bundles": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "path": {
-                                "type": "string"
-                              },
-                              "url": {
-                                "type": "string"
-                              },
-                              "integrity": {
-                                "type": "string",
-                                "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
-                              }
-                            },
-                            "required": [
-                              "path",
-                              "url",
-                              "integrity"
-                            ],
-                            "additionalProperties": false
-                          }
-                        }
-                      },
-                      "required": [
-                        "key",
-                        "name",
-                        "version",
-                        "connectKind",
-                        "connected",
-                        "connectionExpiresAt",
-                        "attachments",
-                        "slots",
-                        "provides",
-                        "networkAllow",
-                        "settings",
-                        "settingValues",
-                        "bundles"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "from": {
-                      "type": "string"
-                    },
-                    "to": {
-                      "type": "string"
-                    },
-                    "pruned": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "required": [
-                    "addOn",
-                    "from",
-                    "to",
-                    "pruned"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/add-ons": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "addOns": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "key": {
-                            "type": "string",
-                            "pattern": "^[a-z][a-z0-9-]{1,79}$"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "version": {
-                            "type": "string"
-                          },
-                          "connectKind": {
-                            "type": "string",
-                            "enum": [
-                              "none",
-                              "api-key",
-                              "oauth2"
-                            ]
-                          },
-                          "connected": {
-                            "type": "boolean"
-                          },
-                          "connectionExpiresAt": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "attachments": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "attachedTo": {
-                                  "type": "string",
-                                  "pattern": "^[a-z][a-z0-9-]{1,79}$"
-                                },
-                                "enabled": {
-                                  "type": "boolean"
-                                }
-                              },
-                              "required": [
-                                "attachedTo",
-                                "enabled"
-                              ],
-                              "additionalProperties": false
-                            }
-                          },
-                          "slots": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "slot": {
-                                  "type": "string"
-                                },
-                                "client": {
-                                  "type": "string"
-                                },
-                                "order": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "slot",
-                                "client",
-                                "order"
-                              ],
-                              "additionalProperties": false
-                            }
-                          },
-                          "provides": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "contract": {
-                                  "type": "string"
-                                },
-                                "version": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "contract",
-                                "version"
-                              ],
-                              "additionalProperties": false
-                            }
-                          },
-                          "networkAllow": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "settings": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "key": {
-                                  "type": "string"
-                                },
-                                "type": {
-                                  "type": "string"
-                                },
-                                "required": {
-                                  "type": "boolean"
-                                },
-                                "secret": {
-                                  "type": "boolean"
-                                },
-                                "label": {
-                                  "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "key": {
-                                          "type": "string"
-                                        },
-                                        "fallback": {
-                                          "type": "string"
-                                        }
-                                      },
-                                      "required": [
-                                        "key",
-                                        "fallback"
-                                      ],
-                                      "additionalProperties": false
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
-                                "help": {
-                                  "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "key": {
-                                          "type": "string"
-                                        },
-                                        "fallback": {
-                                          "type": "string"
-                                        }
-                                      },
-                                      "required": [
-                                        "key",
-                                        "fallback"
-                                      ],
-                                      "additionalProperties": false
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
-                                "options": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "required": [
-                                "key",
-                                "type",
-                                "required",
-                                "secret",
-                                "label",
-                                "help",
-                                "options"
-                              ],
-                              "additionalProperties": false
-                            }
-                          },
-                          "settingValues": {
-                            "type": "object",
-                            "propertyNames": {
-                              "type": "string"
-                            },
-                            "additionalProperties": {}
-                          },
-                          "bundles": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "path": {
-                                  "type": "string"
-                                },
-                                "url": {
-                                  "type": "string"
-                                },
-                                "integrity": {
-                                  "type": "string",
-                                  "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
-                                }
-                              },
-                              "required": [
-                                "path",
-                                "url",
-                                "integrity"
-                              ],
-                              "additionalProperties": false
-                            }
-                          }
-                        },
-                        "required": [
-                          "key",
-                          "name",
-                          "version",
-                          "connectKind",
-                          "connected",
-                          "connectionExpiresAt",
-                          "attachments",
-                          "slots",
-                          "provides",
-                          "networkAllow",
-                          "settings",
-                          "settingValues",
-                          "bundles"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "addOns"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "key": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
-                  },
-                  "version": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 64
-                  },
-                  "attachTo": {
-                    "default": [],
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
-                    }
-                  }
-                },
-                "required": [
-                  "key",
-                  "version"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "addOn": {
-                      "type": "object",
-                      "properties": {
-                        "key": {
-                          "type": "string",
-                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "version": {
-                          "type": "string"
-                        },
-                        "connectKind": {
-                          "type": "string",
-                          "enum": [
-                            "none",
-                            "api-key",
-                            "oauth2"
-                          ]
-                        },
-                        "connected": {
+                        "missing": {
                           "type": "boolean"
                         },
                         "connectionExpiresAt": {
@@ -78648,6 +78106,574 @@
                         "version",
                         "connectKind",
                         "connected",
+                        "missing",
+                        "connectionExpiresAt",
+                        "attachments",
+                        "slots",
+                        "provides",
+                        "networkAllow",
+                        "settings",
+                        "settingValues",
+                        "bundles"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "pruned": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "addOn",
+                    "from",
+                    "to",
+                    "pruned"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addOns": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "connectKind": {
+                            "type": "string",
+                            "enum": [
+                              "none",
+                              "api-key",
+                              "oauth2"
+                            ]
+                          },
+                          "connected": {
+                            "type": "boolean"
+                          },
+                          "missing": {
+                            "type": "boolean"
+                          },
+                          "connectionExpiresAt": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "attachments": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "attachedTo": {
+                                  "type": "string",
+                                  "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "attachedTo",
+                                "enabled"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "slots": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "slot": {
+                                  "type": "string"
+                                },
+                                "client": {
+                                  "type": "string"
+                                },
+                                "order": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "slot",
+                                "client",
+                                "order"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "provides": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "contract": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "contract",
+                                "version"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "networkAllow": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "settings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                },
+                                "label": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "key": {
+                                          "type": "string"
+                                        },
+                                        "fallback": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "fallback"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "help": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "key": {
+                                          "type": "string"
+                                        },
+                                        "fallback": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "fallback"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "options": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "type",
+                                "required",
+                                "secret",
+                                "label",
+                                "help",
+                                "options"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "settingValues": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "bundles": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "path": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string"
+                                },
+                                "integrity": {
+                                  "type": "string",
+                                  "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                                }
+                              },
+                              "required": [
+                                "path",
+                                "url",
+                                "integrity"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "version",
+                          "connectKind",
+                          "connected",
+                          "missing",
+                          "connectionExpiresAt",
+                          "attachments",
+                          "slots",
+                          "provides",
+                          "networkAllow",
+                          "settings",
+                          "settingValues",
+                          "bundles"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "addOns"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "attachTo": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    }
+                  }
+                },
+                "required": [
+                  "key",
+                  "version"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addOn": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "connectKind": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "api-key",
+                            "oauth2"
+                          ]
+                        },
+                        "connected": {
+                          "type": "boolean"
+                        },
+                        "missing": {
+                          "type": "boolean"
+                        },
+                        "connectionExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "attachedTo": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "attachedTo",
+                              "enabled"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "slots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slot": {
+                                "type": "string"
+                              },
+                              "client": {
+                                "type": "string"
+                              },
+                              "order": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "client",
+                              "order"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "provides": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "contract": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "contract",
+                              "version"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "networkAllow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "settings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "secret": {
+                                "type": "boolean"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "help": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "type",
+                              "required",
+                              "secret",
+                              "label",
+                              "help",
+                              "options"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "settingValues": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "bundles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": "string"
+                              },
+                              "integrity": {
+                                "type": "string",
+                                "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              }
+                            },
+                            "required": [
+                              "path",
+                              "url",
+                              "integrity"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "version",
+                        "connectKind",
+                        "connected",
+                        "missing",
                         "connectionExpiresAt",
                         "attachments",
                         "slots",
@@ -79103,6 +79129,9 @@
                         "connected": {
                           "type": "boolean"
                         },
+                        "missing": {
+                          "type": "boolean"
+                        },
                         "connectionExpiresAt": {
                           "anyOf": [
                             {
@@ -79301,6 +79330,7 @@
                         "version",
                         "connectKind",
                         "connected",
+                        "missing",
                         "connectionExpiresAt",
                         "attachments",
                         "slots",
@@ -79510,293 +79540,7 @@
                         "connected": {
                           "type": "boolean"
                         },
-                        "connectionExpiresAt": {
-                          "anyOf": [
-                            {
-                              "type": "number"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "attachments": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "attachedTo": {
-                                "type": "string",
-                                "pattern": "^[a-z][a-z0-9-]{1,79}$"
-                              },
-                              "enabled": {
-                                "type": "boolean"
-                              }
-                            },
-                            "required": [
-                              "attachedTo",
-                              "enabled"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "slots": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "slot": {
-                                "type": "string"
-                              },
-                              "client": {
-                                "type": "string"
-                              },
-                              "order": {
-                                "type": "number"
-                              }
-                            },
-                            "required": [
-                              "slot",
-                              "client",
-                              "order"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "provides": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "contract": {
-                                "type": "string"
-                              },
-                              "version": {
-                                "type": "number"
-                              }
-                            },
-                            "required": [
-                              "contract",
-                              "version"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "networkAllow": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "settings": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "key": {
-                                "type": "string"
-                              },
-                              "type": {
-                                "type": "string"
-                              },
-                              "required": {
-                                "type": "boolean"
-                              },
-                              "secret": {
-                                "type": "boolean"
-                              },
-                              "label": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "key": {
-                                        "type": "string"
-                                      },
-                                      "fallback": {
-                                        "type": "string"
-                                      }
-                                    },
-                                    "required": [
-                                      "key",
-                                      "fallback"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "help": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "key": {
-                                        "type": "string"
-                                      },
-                                      "fallback": {
-                                        "type": "string"
-                                      }
-                                    },
-                                    "required": [
-                                      "key",
-                                      "fallback"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "options": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            },
-                            "required": [
-                              "key",
-                              "type",
-                              "required",
-                              "secret",
-                              "label",
-                              "help",
-                              "options"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "settingValues": {
-                          "type": "object",
-                          "propertyNames": {
-                            "type": "string"
-                          },
-                          "additionalProperties": {}
-                        },
-                        "bundles": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "path": {
-                                "type": "string"
-                              },
-                              "url": {
-                                "type": "string"
-                              },
-                              "integrity": {
-                                "type": "string",
-                                "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
-                              }
-                            },
-                            "required": [
-                              "path",
-                              "url",
-                              "integrity"
-                            ],
-                            "additionalProperties": false
-                          }
-                        }
-                      },
-                      "required": [
-                        "key",
-                        "name",
-                        "version",
-                        "connectKind",
-                        "connected",
-                        "connectionExpiresAt",
-                        "attachments",
-                        "slots",
-                        "provides",
-                        "networkAllow",
-                        "settings",
-                        "settingValues",
-                        "bundles"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "addOn"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/add-ons/{key}": {
-      "patch": {
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "attachedTo": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
-                  },
-                  "enabled": {
-                    "type": "boolean"
-                  }
-                },
-                "required": [
-                  "attachedTo",
-                  "enabled"
-                ]
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^[a-z][a-z0-9-]{1,79}$"
-            },
-            "in": "path",
-            "name": "key",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "addOn": {
-                      "type": "object",
-                      "properties": {
-                        "key": {
-                          "type": "string",
-                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "version": {
-                          "type": "string"
-                        },
-                        "connectKind": {
-                          "type": "string",
-                          "enum": [
-                            "none",
-                            "api-key",
-                            "oauth2"
-                          ]
-                        },
-                        "connected": {
+                        "missing": {
                           "type": "boolean"
                         },
                         "connectionExpiresAt": {
@@ -79997,6 +79741,300 @@
                         "version",
                         "connectKind",
                         "connected",
+                        "missing",
+                        "connectionExpiresAt",
+                        "attachments",
+                        "slots",
+                        "provides",
+                        "networkAllow",
+                        "settings",
+                        "settingValues",
+                        "bundles"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "addOn"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}": {
+      "patch": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "attachedTo": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "attachedTo",
+                  "enabled"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addOn": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "connectKind": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "api-key",
+                            "oauth2"
+                          ]
+                        },
+                        "connected": {
+                          "type": "boolean"
+                        },
+                        "missing": {
+                          "type": "boolean"
+                        },
+                        "connectionExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "attachedTo": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "attachedTo",
+                              "enabled"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "slots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slot": {
+                                "type": "string"
+                              },
+                              "client": {
+                                "type": "string"
+                              },
+                              "order": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "client",
+                              "order"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "provides": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "contract": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "contract",
+                              "version"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "networkAllow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "settings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "secret": {
+                                "type": "boolean"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "help": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "fallback": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "fallback"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "type",
+                              "required",
+                              "secret",
+                              "label",
+                              "help",
+                              "options"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "settingValues": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "bundles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": "string"
+                              },
+                              "integrity": {
+                                "type": "string",
+                                "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              }
+                            },
+                            "required": [
+                              "path",
+                              "url",
+                              "integrity"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "version",
+                        "connectKind",
+                        "connected",
+                        "missing",
                         "connectionExpiresAt",
                         "attachments",
                         "slots",

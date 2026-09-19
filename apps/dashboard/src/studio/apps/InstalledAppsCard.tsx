@@ -164,6 +164,14 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                         })}
                       </Badge>
                     )}
+                    {/* 49-T27: the row used to read exactly like a healthy
+                        install, because a lost app's only tell is an empty
+                        `sides` — which also means "no frontends". */}
+                    {app.missing && (
+                      <Badge tone="danger">
+                        {t('studio:hostedApps.installed.missing', 'Missing')}
+                      </Badge>
+                    )}
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-fg-subtle">
                     {category === null ? null : (
@@ -199,6 +207,14 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                           'studio:hostedApps.installed.needsNewer',
                           'v{version} needs Adminium {minimum} or later',
                           { version: blocked.version, minimum: blocked.minAdminiumVersion },
+                        )}
+                      </span>
+                    )}
+                    {app.missing && (
+                      <span className="text-danger">
+                        {t(
+                          'studio:hostedApps.installed.missingBody',
+                          'Its files are not on this server, so it is not served. Install the same version again, or uninstall it.',
                         )}
                       </span>
                     )}

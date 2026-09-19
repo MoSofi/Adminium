@@ -54,7 +54,7 @@ import { publicKeysRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
 
 import type { InstalledApps } from '../apps/installed.js';
 import type { HostedSurface, SurfaceSide } from '../cli/surfaces-root.js';
-import { NotFoundError } from '../errors.js';
+import { AppError, NotFoundError } from '../errors.js';
 import { openPublishableKey } from '../public-api/keys.js';
 import { normalizeHost } from '../security/csrf.js';
 import {
@@ -488,9 +488,34 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const surface = installed
           .current()
           .find((s) => s.appKey === parsed.appKey && s.side === parsed.side);
-        // Not installed either: the dashboard's own 404 answers, exactly as it
-        // does for any other unknown path.
-        if (surface === undefined) return;
+        /*
+         * INSTALLED, BUT NOTHING OF IT IS HERE (49-T27). Falling through here
+         * hands the request to the dashboard's SPA wildcard, which answers
+         * `index.html` with **200** — so a wiped data volume looked exactly
+         * like a working app that had navigated to its own 404, and the URL
+         * appeared to succeed. `missing()` is the meta store's account of what
+         * was installed, which is the only witness left once the files are
+         * gone.
+         *
+         * 503, not 404: 404 says "no such app", and this app exists. The coded
+         * envelope is deliberate and this hook invents no HTML fault page —
+         * the server renders none anywhere else, and a page a person can read
+         * belongs in the dashboard, where it can be localized. What is fixed
+         * here is the lie in the status code.
+         */
+        if (surface === undefined) {
+          if (installed.missing().some((ref) => ref.key === parsed.appKey)) {
+            throw new AppError(
+              503,
+              'APP_FILES_MISSING',
+              `The app "${parsed.appKey}" is installed but its files are not on this server, so it ` +
+                'cannot be served. Install the same version again, or uninstall it.',
+            );
+          }
+          // Not installed either: the dashboard's own 404 answers, exactly as
+          // it does for any other unknown path.
+          return;
+        }
 
         if (await app.surfaceGate(surface, request, reply)) return reply;
 

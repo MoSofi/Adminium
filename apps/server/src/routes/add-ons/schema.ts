@@ -63,6 +63,18 @@ export const addOnDto = z.object({
   connectKind: z.enum(['none', 'api-key', 'oauth2']),
   /** Whether a credential is stored. Never the credential itself. */
   connected: z.boolean(),
+  /**
+   * Installed according to the meta store, but its files are not on this
+   * server, so none of it loads (49-T27).
+   *
+   * This list used to be a pure meta read, so a redeploy on a host with no disk
+   * left it describing an add-on that was entirely gone — its version, its
+   * slots, and `connected: true`, because the credential row survives the
+   * volume. Everything else in this DTO stays as the meta store has it: it is
+   * what WAS installed, which is what the operator needs in order to put it
+   * back.
+   */
+  missing: z.boolean(),
   /** Epoch ms; null for a credential that does not expire, or none at all. */
   connectionExpiresAt: z.number().nullable(),
   attachments: z.array(addOnAttachmentDto),
@@ -262,8 +274,15 @@ export const catalogEntryDto = z.object({
    * `installed` — already running here.
    * `staged` — bytes verified and on disk, nothing installed yet.
    * `available` — would have to be downloaded.
+   * `missing` — installed according to the meta store, but its files are not
+   *   on this server, so none of it loads (49-T27). A redeploy on a host with
+   *   no disk is how this happens. Before this state existed such a row was
+   *   either labelled `installed`, or — when the cached feed did not carry it
+   *   either, which is every uploaded add-on and every air-gapped install —
+   *   left out of the reply altogether while the meta store still said
+   *   installed.
    */
-  state: z.enum(['installed', 'staged', 'available']),
+  state: z.enum(['installed', 'staged', 'available', 'missing']),
   /** Set when an installed add-on has a NEWER version staged or offered. */
   upgradeTo: z.string().nullable(),
   /**

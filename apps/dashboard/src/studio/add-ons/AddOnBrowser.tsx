@@ -131,7 +131,20 @@ function AddOnCard({
                 })}
               </Badge>
             )}
+            {/* 49-T27. Before the server grew this state such a row was either
+                labelled `installed`, or absent from the reply altogether. */}
+            {entry.state === 'missing' && (
+              <Badge tone="danger">{t('studio:addOns.browse.missing', 'Missing')}</Badge>
+            )}
           </div>
+          {entry.state === 'missing' && (
+            <p className="mt-0.5 text-caption text-danger">
+              {t(
+                'studio:addOns.browse.missingBody',
+                'Its files are not on this server, so none of it loads.',
+              )}
+            </p>
+          )}
           {/* `line-clamp-2`: a staged row's line comes from the manifest's
               `description.fallback`, which is a paragraph, while the feed's
               `tagline` is one sentence. The card holds its shape either way. */}
@@ -173,6 +186,20 @@ function AddOnCard({
         {entry.state === 'installed' && entry.upgradeTo !== null && (
           <Button size="sm" className="flex-1" disabled={busy} onClick={() => onUpgrade(entry)}>
             {t('studio:addOns.browse.upgradeAction', 'Upgrade')}
+          </Button>
+        )}
+        {/* Re-acquiring is the fix, and the catalog is the only place it can
+            come from: an add-on the feed does not carry (every uploaded one)
+            has nothing to offer here, and the line above says what to do. */}
+        {entry.state === 'missing' && entry.source === 'catalog' && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="flex-1"
+            disabled={busy}
+            onClick={() => onDownload(entry)}
+          >
+            {t('studio:addOns.browse.download', 'Download')}
           </Button>
         )}
       </div>

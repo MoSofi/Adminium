@@ -67,6 +67,7 @@ const INSTALLED: InstalledApp = {
   installedAt: 0,
   connectionId: 'con_1',
   sides: [{ side: 'staff', prefix: '/apps/clinic/staff', navAvailable: true }],
+  missing: false,
 };
 
 interface Call {
@@ -274,6 +275,42 @@ describe('installing an app only the catalogue offers', () => {
     expect(install.hasAttribute('disabled')).toBe(true);
     await userEvent.click(install);
     expect(posted('/api/v1/apps/download')).toHaveLength(0);
+  });
+});
+
+describe('an installed app whose files are gone (49-T27)', () => {
+  it('is marked missing and says what to do, instead of reading as healthy', async () => {
+    installed = { apps: [{ ...INSTALLED, sides: [], missing: true }], staged: [] };
+    await renderPage();
+    /*
+     * The row's only other tell is an empty `sides`, which also means "this
+     * build ships no frontends" — so without the badge a wiped data volume and
+     * a healthy headless install render identically.
+     */
+    expect(screen.getByText('Missing')).toBeTruthy();
+    expect(
+      screen.getByText(/Its files are not on this server, so it is not served/),
+    ).toBeTruthy();
+  });
+
+  it('shows Missing on the browse shelf instead of a green Installed', async () => {
+    installed = { apps: [{ ...INSTALLED, sides: [], missing: true }], staged: [] };
+    catalog = {
+      apps: [row({ version: '0.1.1', source: 'disk', state: 'missing', installed: true })],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    };
+    await renderPage();
+    // A green "Installed" on an app whose files are gone is the most
+    // misleading thing the shelf could say.
+    expect(screen.queryByText('Installed')).toBeNull();
+    expect(screen.getAllByText('Missing').length).toBeGreaterThan(0);
+  });
+
+  it('leaves a healthy install unmarked', async () => {
+    installed = { apps: [INSTALLED], staged: [] };
+    await renderPage();
+    expect(screen.queryByText('Missing')).toBeNull();
   });
 });
 

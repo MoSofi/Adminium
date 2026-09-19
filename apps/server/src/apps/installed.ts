@@ -38,6 +38,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { packageIsInStore } from '../add-ons/store.js';
+
 import {
   SURFACES_URL_ROOT,
   SURFACE_SIDES,
@@ -106,6 +108,21 @@ export function surfacesOfInstalled(store: AppStore, ref: InstalledAppRef): Host
  */
 export interface InstalledApps {
   current(): readonly HostedSurface[];
+  /**
+   * Installed rows whose FILES are not on this server — `packageIsInStore` is
+   * the shared definition, so this agrees with the boot log and with every list
+   * route rather than being a fourth opinion. Synchronous and read per request,
+   * like {@link current}; the store read happens in {@link refresh}.
+   *
+   * Deliberately NOT "contributes no surface": a package that is here but
+   * carries no `index.html` serves nothing either, and reporting that as
+   * missing files would send the operator looking for the wrong problem.
+   *
+   * Absence stays non-fatal everywhere else in this module (see the header);
+   * this is the one place that keeps a list of it, so the serve hook can answer
+   * the app's own URL honestly and Studio can stop calling the install fine.
+   */
+  missing(): readonly InstalledAppRef[];
   refresh(): Promise<readonly HostedSurface[]>;
 }
 
@@ -115,12 +132,15 @@ export function createInstalledApps(deps: {
   list: () => Promise<readonly InstalledAppRef[]>;
 }): InstalledApps {
   let surfaces: readonly HostedSurface[] = [];
+  let absent: readonly InstalledAppRef[] = [];
 
   return {
     current: () => surfaces,
+    missing: () => absent,
     async refresh() {
       const rows = await deps.list();
       const next: HostedSurface[] = [];
+      const gone: InstalledAppRef[] = [];
       /*
        * FIRST ROW WINS per `<key>/<side>`. `list('app')` is newest-first, so on
        * the brief overlap an upgrade creates — two rows for one key — the newer
@@ -129,7 +149,17 @@ export function createInstalledApps(deps: {
        */
       const seen = new Set<string>();
       for (const row of rows) {
-        for (const surface of surfacesOfInstalled(deps.store, row)) {
+        const own = surfacesOfInstalled(deps.store, row);
+        /*
+         * Asked of the STORE, not of `own`, and of the row's own identity
+         * rather than of what survived `seen`: an older row whose sides are all
+         * shadowed by the newer one during an upgrade contributes no surface
+         * either, and calling that a loss would report every upgrade as one.
+         */
+        if (!(await packageIsInStore(deps.store, row))) {
+          gone.push({ key: row.key, version: row.version });
+        }
+        for (const surface of own) {
           const id = `${surface.appKey}/${surface.side}`;
           if (seen.has(id)) continue;
           seen.add(id);
@@ -137,6 +167,7 @@ export function createInstalledApps(deps: {
         }
       }
       surfaces = next;
+      absent = gone;
       return surfaces;
     },
   };
