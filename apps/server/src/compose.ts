@@ -79,6 +79,7 @@ import {
 import { createDocumentPipeline } from './documents/compose.js';
 import { syncTriggersForAddOn } from './documents/trigger-sync.js';
 import { documentRoutes } from './routes/documents/index.js';
+import { adoptInvoicesAddOn } from './add-ons/adopt-invoices.js';
 import { createAddOnStore, installedNotInStore, seedBundledPackages } from './add-ons/store.js';
 import { createInstalledApps } from './apps/installed.js';
 import { createAppSchemaTarget } from './apps/schema-target.js';
@@ -803,6 +804,39 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       if (seed.seeded.length > 0) app.log.info({ seeded: seed.seeded }, 'seeded bundled add-ons');
       if (seed.failed.length > 0) app.log.error({ failed: seed.failed }, 'bundled add-ons failed to seed');
+
+      /*
+       * THE INVOICE SURFACE'S UPGRADE PATH.
+       *
+       * It was built into the dashboard through 0.2.11 and is an add-on's page
+       * now. A workspace that authored documents keeps its rows either way, so
+       * the upgrade installs the bundled add-on for those workspaces and leaves
+       * every other one alone. Runs after the seed because it installs what the
+       * seed just put on disk; wrapped, because an instance that cannot adopt
+       * must still boot.
+       */
+      try {
+        const outcome = await adoptInvoicesAddOn({
+          meta,
+          store: addOnStore,
+          crypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+          countDocuments: async () => {
+            const row = await meta.db
+              .selectFrom('adminium_invoice_documents')
+              .select((eb) => eb.fn.countAll<number>().as('count'))
+              .executeTakeFirst();
+            return Number(row?.count ?? 0);
+          },
+        });
+        if (outcome.adopted) {
+          app.log.info(
+            { addOn: 'invoices', version: outcome.version },
+            'installed the invoices add-on for this workspace: its documents were authored before the surface moved out of the dashboard',
+          );
+        }
+      } catch (err: unknown) {
+        app.log.warn({ err }, 'could not adopt the invoices add-on; install it from Studio');
+      }
     })
     .catch((err: unknown) => {
       app.log.warn({ err }, 'add-on store could not be prepared');
