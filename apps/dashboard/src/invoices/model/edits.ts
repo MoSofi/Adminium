@@ -63,3 +63,54 @@ export interface DocumentEdits {
   // ── images (always a history step) ─────────────────────────────────
   setImage: (field: ImageField, dataUrl: string) => void;
 }
+
+/**
+ * The implementation a PREVIEW is handed.
+ *
+ * Nothing calls it: the read-only sheet renders every field as text and every
+ * affordance as nothing, so no handler exists to reach these. It is here
+ * because the blocks build their `onChange` closures unconditionally, and
+ * making thirty of them optional would put a `?.` on a hundred call sites to
+ * describe a state none of them can be in. A single inert object says the
+ * same thing once.
+ *
+ * `addCustom` throws rather than returning a hollow section: reaching it
+ * would mean the read-only sheet grew an affordance, which is a defect, and
+ * a made-up return value would hide it.
+ */
+const inert = (): void => undefined;
+
+export const NO_EDITS: DocumentEdits = {
+  beginEdit: inert,
+  set: inert,
+  histSet: inert,
+  setName: inert,
+  histSetStatus: inert,
+  histSetTopic: inert,
+  histSetLang: inert,
+  updateLine: inert,
+  addLine: inert,
+  removeLine: inert,
+  updateRow: inert,
+  addRow: inert,
+  removeRow: inert,
+  updateItem: inert,
+  addItem: inert,
+  removeItem: inert,
+  reorderItems: inert,
+  enableSection: inert,
+  hideSection: inert,
+  addBuiltin: inert,
+  addCustom: () => {
+    throw new Error('the read-only sheet cannot add a section');
+  },
+  removeCustom: inert,
+  reorderBlocks: inert,
+  updateCustom: inert,
+  histUpdateCustom: inert,
+  updateCustomImage: inert,
+  updateCustomRow: inert,
+  addCustomRow: inert,
+  removeCustomRow: inert,
+  setImage: inert,
+};

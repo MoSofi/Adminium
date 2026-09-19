@@ -12,7 +12,7 @@ import { Check, Mail, Phone, Scale, UserRound } from 'lucide-react';
 import { cn } from '@adminium/ui';
 
 import { t } from '../../../../i18n/t.js';
-import { InlineInput, InlineTextarea, KICKER, Region, lineLabel } from '../inline.js';
+import { InlineInput, InlineTextarea, KICKER, Region, lineLabel, useSheetReadOnly } from '../inline.js';
 import type { BlockProps } from './types.js';
 
 const PROSE = 'text-[12px] leading-[1.6] text-[#6b6b76]';
@@ -63,21 +63,30 @@ export function SignatureBlock({ body, edits, section, onSelect }: BlockProps) {
 
 export function TermsBlock({ body, edits, section, onSelect }: BlockProps) {
   const checked = body.termsChecked;
+  const readOnly = useSheetReadOnly();
   return (
     <Region section="terms" selected={section} onSelect={onSelect}>
       <div className="flex items-start gap-[11px]">
+        {/*
+          * The box is a STATE, not an affordance: a preview must still show
+          * whether the terms were accepted. Disabled rather than dropped —
+          * it keeps its role and its `aria-checked`, and loses only the
+          * focus stop and the click.
+          */}
         <button
           type="button"
           role="checkbox"
           aria-checked={checked}
           aria-label={body.termsLabel.trim() === '' ? t('invoices:canvas.termsAccepted', 'Terms accepted') : body.termsLabel}
           data-testid="invoices-terms-check"
+          disabled={readOnly}
           onClick={(event) => {
             event.stopPropagation();
             edits.histSet('termsChecked', !checked);
           }}
           className={cn(
-            'mt-px flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md border-[1.5px] text-white',
+            'mt-px flex size-5 shrink-0 items-center justify-center rounded-md border-[1.5px] text-white',
+            readOnly ? 'cursor-default' : 'cursor-pointer',
             checked ? 'border-[var(--adm-invoice-accent)] bg-[var(--adm-invoice-accent)]' : 'border-[#e2e2e8] bg-transparent',
           )}
         >

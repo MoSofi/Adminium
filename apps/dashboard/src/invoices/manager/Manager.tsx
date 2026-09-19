@@ -25,11 +25,13 @@ import { Alert, Button, EmptyState, Spinner, Tabs, TabsContent } from '@adminium
 
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
+import { AskAssistant } from '../../assistant/AskAssistant.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { formatSince } from '../../team/teamApi.js';
 import { invoicesApi, type InvoiceDetail, type InvoiceDocumentKind, type InvoiceSummary } from '../api.js';
+import { useInvoiceManagerAssistant } from '../assistant.js';
 import { invalidateInvoices, invoicesQuery } from '../queries.js';
 import { DeleteModal } from './DeleteModal.js';
 import { GalleryCard, type DocumentActions, type RenameState } from './GalleryCard.js';
@@ -76,6 +78,9 @@ export function InvoiceManager({ initialTab = 'template' }: InvoiceManagerProps)
   const localeTag = tagForLocale((bootstrap?.prefs.locale ?? 'en_US') as LocaleId);
 
   const [tab, setTabState] = useState<InvoiceDocumentKind>(initialTab);
+  // The open tab travels: a question asked on the invoices tab is a question
+  // about invoices, not about the templates beside them.
+  const assistantHost = useInvoiceManagerAssistant(tab);
   const [search, setSearch] = useState('');
   const [prefs, updatePrefs] = useManagerPrefs();
   const [rename, setRenameState] = useState<{ id: string; value: string; original: string } | null>(null);
@@ -180,6 +185,7 @@ export function InvoiceManager({ initialTab = 'template' }: InvoiceManagerProps)
   return (
     <>
       <PageActions title={t('invoices:manager.title', 'Invoices')} subtitle={t('invoices:manager.subtitle', 'Reusable templates & the invoices you build from them.')}>
+        <AskAssistant host={assistantHost} slot="manager" />
         <Button size="topbar" iconLeft={<Plus />} onClick={() => setNewOpen(true)} data-testid="invoices-new">
           {primary}
         </Button>

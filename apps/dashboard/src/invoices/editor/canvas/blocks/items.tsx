@@ -22,7 +22,7 @@ import { cn } from '@adminium/ui';
 
 import { t } from '../../../../i18n/t.js';
 import { formatMoney, formatPercent, parseDecimal } from '../../../model/money.js';
-import { InlineInput, KICKER, Region } from '../inline.js';
+import { CELL, EditOnly, InlineInput, KICKER, Region } from '../inline.js';
 import type { BlockProps } from './types.js';
 
 const ROW_GRID = 'grid grid-cols-[22px_1fr_62px_92px_96px_30px] gap-0';
@@ -88,19 +88,21 @@ export function ItemsBlock({ body, totals, edits, section, onSelect }: BlockProp
                 over && 'shadow-[inset_0_2px_0_0_var(--adm-invoice-accent)]',
               )}
             >
-              <button
-                type="button"
-                draggable
-                title={t('invoices:canvas.items.reorder', 'Drag to reorder')}
-                aria-label={t('invoices:canvas.items.reorderOf', 'Drag to reorder: {name}', { name: rowName })}
-                onDragStart={(event) => onDragStart(index, event)}
-                onDragEnd={reset}
-                onKeyDown={(event) => onGripKey(index, event)}
-                onClick={(event) => event.stopPropagation()}
-                className="flex cursor-grab items-center justify-center rounded border-0 bg-transparent p-0 text-[#6b6b76] hover:text-[var(--adm-invoice-accent)]"
-              >
-                <GripVertical className="size-3.5" aria-hidden="true" />
-              </button>
+              <EditOnly placeholder={CELL}>
+                <button
+                  type="button"
+                  draggable
+                  title={t('invoices:canvas.items.reorder', 'Drag to reorder')}
+                  aria-label={t('invoices:canvas.items.reorderOf', 'Drag to reorder: {name}', { name: rowName })}
+                  onDragStart={(event) => onDragStart(index, event)}
+                  onDragEnd={reset}
+                  onKeyDown={(event) => onGripKey(index, event)}
+                  onClick={(event) => event.stopPropagation()}
+                  className="flex cursor-grab items-center justify-center rounded border-0 bg-transparent p-0 text-[#6b6b76] hover:text-[var(--adm-invoice-accent)]"
+                >
+                  <GripVertical className="size-3.5" aria-hidden="true" />
+                </button>
+              </EditOnly>
               <InlineInput
                 label={t('invoices:canvas.items.descriptionOf', 'Description of line {n}', { n: index + 1 })}
                 value={item.desc}
@@ -129,33 +131,37 @@ export function ItemsBlock({ body, totals, edits, section, onSelect }: BlockProp
               <span data-testid="invoices-item-amount" className="self-center text-end font-mono text-[13px] font-bold">
                 {money(totals.lines[index] ?? 0)}
               </span>
-              <button
-                type="button"
-                aria-label={t('invoices:canvas.items.remove', 'Remove line item: {name}', { name: rowName })}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  edits.removeItem(item.id);
-                }}
-                className="nb-ib flex size-6 cursor-pointer items-center justify-center justify-self-end self-center rounded-[7px] border-0 bg-transparent text-[#6b6b76] opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-focus-within/li:opacity-100 group-hover/li:opacity-100"
-              >
-                <X className="size-3.5" aria-hidden="true" />
-              </button>
+              <EditOnly placeholder={CELL}>
+                <button
+                  type="button"
+                  aria-label={t('invoices:canvas.items.remove', 'Remove line item: {name}', { name: rowName })}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    edits.removeItem(item.id);
+                  }}
+                  className="nb-ib flex size-6 cursor-pointer items-center justify-center justify-self-end self-center rounded-[7px] border-0 bg-transparent text-[#6b6b76] opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-focus-within/li:opacity-100 group-hover/li:opacity-100"
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              </EditOnly>
             </div>
           );
         })}
       </div>
-      <button
-        type="button"
-        data-testid="invoices-add-item"
-        onClick={(event) => {
-          event.stopPropagation();
-          edits.addItem();
-        }}
-        className="mt-3 flex cursor-pointer items-center gap-[7px] rounded-[9px] border border-dashed border-[#e2e2e8] bg-transparent px-3 py-2 text-[12.5px] font-bold text-[var(--adm-invoice-accent)]"
-      >
-        <Plus className="size-[15px]" aria-hidden="true" />
-        {t('invoices:canvas.items.add', 'Add line item')}
-      </button>
+      <EditOnly>
+        <button
+          type="button"
+          data-testid="invoices-add-item"
+          onClick={(event) => {
+            event.stopPropagation();
+            edits.addItem();
+          }}
+          className="mt-3 flex cursor-pointer items-center gap-[7px] rounded-[9px] border border-dashed border-[#e2e2e8] bg-transparent px-3 py-2 text-[12.5px] font-bold text-[var(--adm-invoice-accent)]"
+        >
+          <Plus className="size-[15px]" aria-hidden="true" />
+          {t('invoices:canvas.items.add', 'Add line item')}
+        </button>
+      </EditOnly>
     </Region>
   );
 }

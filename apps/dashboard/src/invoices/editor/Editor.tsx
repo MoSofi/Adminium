@@ -28,15 +28,17 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
+import { AskAssistant } from '../../assistant/AskAssistant.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { useShortcut } from '../../shell/ShortcutsProvider.js';
 import { invoicesApi, type InvoiceDetail } from '../api.js';
 import { DeleteModal } from '../manager/DeleteModal.js';
-import { customKeyOf, type OptionalSection, type SectionKey } from '../model/blocks.js';
-import type { CustomSectionType } from '../model/envelope.js';
+import { customKeyOf, visibleBlocks, type OptionalSection, type SectionKey } from '../model/blocks.js';
+import type { CustomSectionType, InvoiceBody } from '../model/envelope.js';
 import type { InvoiceLang } from '../model/languages.js';
+import { useInvoiceEditorAssistant } from '../assistant.js';
 import { totalsOf } from '../model/money.js';
 import { invalidateInvoices } from '../queries.js';
 import { InvoiceCanvas } from './canvas/InvoiceCanvas.js';
@@ -108,6 +110,31 @@ export function Editor({ detail }: EditorProps) {
 
   const draft = state.draft;
   const totals = useMemo(() => totalsOf(draft.body), [draft.body]);
+
+  /**
+   * A body the assistant proposed, put on the paper. ONE `histMutate`, so one
+   * undo takes the whole thing back — the right size of step for something
+   * that happened to your draft while you watched. Nothing is written: the
+   * chip goes to *Unsaved changes* and the primary still decides.
+   *
+   * The selection lands on the first section the new body has and the old one
+   * did not, because that is the part a reader has not seen; with nothing
+   * added it lands on the first section on the paper. An invoice body is ONE
+   * envelope rather than a list of independently comparable blocks, so "the
+   * first changed block" has no exact counterpart here and this is the
+   * nearest honest reading of it.
+   */
+  const applyBody = useCallback(
+    (body: InvoiceBody) => {
+      const before = new Set(visibleBlocks(draft.body).map((block) => block.key));
+      actions.histMutate({ body });
+      const blocks = visibleBlocks(body);
+      const landing = blocks.find((block) => !before.has(block.key)) ?? blocks[0];
+      if (landing !== undefined) setSection(landing.key as SectionKey);
+    },
+    [actions, draft.body],
+  );
+  const assistantHost = useInvoiceEditorAssistant({ documentId: detail.id, draft: draft.body, applyBody });
 
   const failToast = useCallback(
     (title: string, error: unknown) => {
@@ -278,6 +305,7 @@ export function Editor({ detail }: EditorProps) {
             onPrimary={() => {
               void save();
             }}
+            askAssistant={<AskAssistant host={assistantHost} slot="editor" />}
           />
           <div className="flex min-h-0 flex-1 items-start">
             <main className="min-w-0 flex-1 bg-bg px-7 pb-[60px] pt-[30px]">

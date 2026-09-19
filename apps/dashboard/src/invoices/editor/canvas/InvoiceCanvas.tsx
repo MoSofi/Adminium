@@ -18,6 +18,13 @@
  * keyboard path (ArrowUp / ArrowDown on the grip) moves a block past its
  * VISIBLE neighbour — the same landing a drop on that neighbour gives — an
  * a11y addition the comp's mouse-only grip lacks.
+ *
+ * READ-ONLY draws the same paper with nothing on it to operate: no rings, no
+ * selector buttons, no inline fields, no grips, no insert chips, no *Add
+ * section*. It exists so a preview elsewhere in the product is this sheet
+ * rather than a second one that would disagree with it the first time either
+ * changed. The flag reaches the blocks through a context (`ReadOnlySheet`),
+ * not through thirty props, and the editing callbacks all become optional.
  */
 import { Plus } from 'lucide-react';
 import { useState, type DragEvent } from 'react';
@@ -27,25 +34,27 @@ import { t } from '../../../i18n/t.js';
 import { invoiceIcon } from '../../icons.js';
 import { isBuiltinBlockKey, visibleBlocks, type SectionKey } from '../../model/blocks.js';
 import type { EditorDraft } from '../../model/doc.js';
-import type { DocumentEdits } from '../../model/edits.js';
+import { NO_EDITS, type DocumentEdits } from '../../model/edits.js';
 import type { Totals } from '../../model/money.js';
 import { BlockSlot } from './BlockSlot.js';
 import { CustomBlock, builtinBlockLabel, renderBuiltinBlock, type BlockProps } from './blocks/index.js';
-import { ACCENT_BG, InlineInput, Region, STATUS_TONE, statusText, type ImageRejection } from './inline.js';
+import { ACCENT_BG, InlineInput, ReadOnlySheet, Region, STATUS_TONE, statusText, type ImageRejection } from './inline.js';
 import { PaperShell } from './PaperShell.js';
 
 export interface InvoiceCanvasProps {
   draft: EditorDraft;
   totals: Totals;
-  edits: DocumentEdits;
-  section: SectionKey;
-  onSelect: (section: SectionKey) => void;
+  /** Draw the paper and nothing to operate it with; every prop below is then unused. */
+  readOnly?: boolean | undefined;
+  edits?: DocumentEdits | undefined;
+  section?: SectionKey | undefined;
+  onSelect?: ((section: SectionKey) => void) | undefined;
   /** The between-block chip: the modal opens at this pre-filter index. */
-  onInsertAt: (index: number) => void;
+  onInsertAt?: ((index: number) => void) | undefined;
   /** The trailing button: the modal opens in append mode. */
-  onAppend: () => void;
-  onRemoveCustom: (id: string) => void;
-  onImageRejected: (result: ImageRejection) => void;
+  onAppend?: (() => void) | undefined;
+  onRemoveCustom?: ((id: string) => void) | undefined;
+  onImageRejected?: ((result: ImageRejection) => void) | undefined;
 }
 
 interface DragState {
@@ -55,7 +64,18 @@ interface DragState {
 
 const NO_DRAG: DragState = { from: null, over: null };
 
-export function InvoiceCanvas({ draft, totals, edits, section, onSelect, onInsertAt, onAppend, onRemoveCustom, onImageRejected }: InvoiceCanvasProps) {
+export function InvoiceCanvas({
+  draft,
+  totals,
+  readOnly,
+  edits = NO_EDITS,
+  section = 'branding',
+  onSelect = () => undefined,
+  onInsertAt = () => undefined,
+  onAppend = () => undefined,
+  onRemoveCustom = () => undefined,
+  onImageRejected = () => undefined,
+}: InvoiceCanvasProps) {
   const body = draft.body;
   const [drag, setDrag] = useState<DragState>(NO_DRAG);
   const blocks = visibleBlocks(body);
@@ -90,7 +110,7 @@ export function InvoiceCanvas({ draft, totals, edits, section, onSelect, onInser
 
   const blockProps: BlockProps = { body, totals, edits, section, onSelect, onRemoveCustom, onImageRejected };
 
-  return (
+  const sheet = (
     <div data-testid="invoices-canvas">
       <PaperShell body={body}>
         <div className="mb-[30px] flex items-start justify-between gap-5">
@@ -159,17 +179,20 @@ export function InvoiceCanvas({ draft, totals, edits, section, onSelect, onInser
               </BlockSlot>
             );
           })}
-          <button
-            type="button"
-            data-testid="invoices-add-section"
-            onClick={onAppend}
-            className="nb-ib flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-[#e2e2e8] bg-[#fafafa] p-[13px] text-[12.5px] font-bold text-[#6b6b76]"
-          >
-            <Plus className="size-[15px]" aria-hidden="true" />
-            {t('invoices:canvas.addSection', 'Add section')}
-          </button>
+          {readOnly === true ? null : (
+            <button
+              type="button"
+              data-testid="invoices-add-section"
+              onClick={onAppend}
+              className="nb-ib flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-[#e2e2e8] bg-[#fafafa] p-[13px] text-[12.5px] font-bold text-[#6b6b76]"
+            >
+              <Plus className="size-[15px]" aria-hidden="true" />
+              {t('invoices:canvas.addSection', 'Add section')}
+            </button>
+          )}
         </div>
       </PaperShell>
     </div>
   );
+  return readOnly === true ? <ReadOnlySheet>{sheet}</ReadOnlySheet> : sheet;
 }

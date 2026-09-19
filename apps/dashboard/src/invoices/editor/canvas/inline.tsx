@@ -18,8 +18,16 @@
  * *Edit {label}* button so a keyboard selects what a click does; every
  * inline field carries an `aria-label`; every upload `<input type=file>` is
  * wrapped by its label.
+ *
+ * READ-ONLY IS A CONTEXT, not a prop threaded through thirty blocks. The
+ * sheet is drawn by the same components in a preview as in the editor, and
+ * the difference between the two is only ever "can this be operated" — so
+ * the three primitives every block is built from answer that question
+ * themselves, and a block that renders an affordance of its own wraps it in
+ * {@link EditOnly}. Nothing a block author has to remember at a call site is
+ * a rule that survives; a field that asks the context is.
  */
-import type { ChangeEvent, ComponentPropsWithoutRef, ReactNode } from 'react';
+import { createContext, use, type ChangeEvent, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { cn } from '@adminium/ui';
 
 import { t } from '../../../i18n/t.js';
@@ -29,6 +37,40 @@ import { fileFromInput, readImageFile, type ImageReadResult } from '../images.js
 import { fixedSectionHeader } from '../sectionText.js';
 
 export type ImageRejection = Extract<ImageReadResult, { ok: false }>;
+
+/**
+ * Is this sheet a preview? Default `false`, so the editor needs no provider
+ * and an unwrapped block behaves as it always has.
+ */
+const ReadOnlyContext = createContext(false);
+
+/** Wraps the sheet in read-only mode; `InvoiceCanvas readOnly` is its one caller. */
+export function ReadOnlySheet({ children }: { children: ReactNode }) {
+  return <ReadOnlyContext value={true}>{children}</ReadOnlyContext>;
+}
+
+/** True when this sheet is drawn as a preview and nothing on it may be operated. */
+export function useSheetReadOnly(): boolean {
+  return use(ReadOnlyContext);
+}
+
+/**
+ * An affordance that exists only while the sheet can be edited: a remove
+ * button, an upload drop, an add-a-row control. In a preview it renders
+ * nothing at all rather than a disabled control, because a preview is not a
+ * form somebody is locked out of.
+ *
+ * `placeholder` is for an affordance that occupies a GRID CELL — the line
+ * items' grip and remove columns, a key/value row's remove column. Dropping
+ * the element there would shift every cell after it into the wrong column,
+ * so those pass an empty span and the layout holds.
+ */
+export function EditOnly({ children, placeholder = null }: { children: ReactNode; placeholder?: ReactNode }) {
+  return useSheetReadOnly() ? placeholder : children;
+}
+
+/** The empty cell an `EditOnly` grid column leaves behind. */
+export const CELL = <span aria-hidden="true" />;
 
 /** The comp's kicker (10.5 px / 700, uppercase, .05em), in the WCAG-passing muted. */
 export const KICKER = 'text-[10.5px] font-bold uppercase tracking-[.05em] text-[#6b6b76]';
@@ -62,6 +104,17 @@ export interface InlineInputProps extends Omit<ComponentPropsWithoutRef<'input'>
 }
 
 export function InlineInput({ label, value, onChange, onFocus, mono = false, className, ...rest }: InlineInputProps) {
+  // A borderless input reads as text already; what it must not be in a
+  // preview is a focus stop that invites typing into a document nobody can
+  // save. `min-h` keeps an empty field's line box, so the sheet does not
+  // reflow between the editor and the preview.
+  if (useSheetReadOnly()) {
+    return (
+      <span aria-label={label} className={cn('block min-h-[1em] w-full min-w-0 truncate text-[#191920]', mono && 'font-mono', className)}>
+        {value}
+      </span>
+    );
+  }
   return (
     <input
       aria-label={label}
@@ -82,6 +135,13 @@ export interface InlineTextareaProps extends Omit<ComponentPropsWithoutRef<'text
 }
 
 export function InlineTextarea({ label, value, onChange, onFocus, className, rows = 3, ...rest }: InlineTextareaProps) {
+  if (useSheetReadOnly()) {
+    return (
+      <span aria-label={label} className={cn('block min-h-[1em] w-full min-w-0 whitespace-pre-wrap text-[#191920]', className)}>
+        {value}
+      </span>
+    );
+  }
   return (
     <textarea
       aria-label={label}
@@ -127,7 +187,18 @@ export interface RegionProps {
  */
 export function Region({ section, selected, onSelect, label, className, children }: RegionProps) {
   const name = label ?? (customIdOf(section) === null ? fixedSectionHeader(section as FixedSectionKey).title : t('invoices:section.custom.title', 'Custom section'));
-  const isSelected = selected === section;
+  const readOnly = useSheetReadOnly();
+  const isSelected = !readOnly && selected === section;
+  // The ring is the affordance for an inspector that is not on screen, and
+  // the selector button opens the same one. The group keeps its NAME: a
+  // preview still has a *Customer* region for anybody reading it aloud.
+  if (readOnly) {
+    return (
+      <div role="group" aria-label={name} data-testid="invoices-section" data-section={section} className={cn('relative rounded-[9px]', className)}>
+        {children}
+      </div>
+    );
+  }
   return (
     <div
       role="group"

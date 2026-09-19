@@ -26,7 +26,7 @@ import { cn } from '@adminium/ui';
 import { t } from '../../../../i18n/t.js';
 import { customKeyOf } from '../../../model/blocks.js';
 import type { CustomSection } from '../../../model/envelope.js';
-import { DROP_LABEL, InlineInput, InlineTextarea, KICKER, Region, pickImage } from '../inline.js';
+import { CELL, DROP_LABEL, EditOnly, InlineInput, InlineTextarea, KICKER, Region, pickImage } from '../inline.js';
 import type { BlockProps } from './types.js';
 
 export interface CustomBlockProps extends BlockProps {
@@ -51,19 +51,21 @@ export function CustomBlock({ custom, edits, section, onSelect, onRemoveCustom, 
           className={cn(KICKER, 'flex-1')}
           data-testid="invoices-canvas-custom-title"
         />
-        <button
-          type="button"
-          title={t('invoices:canvas.custom.remove', 'Remove section')}
-          aria-label={t('invoices:canvas.custom.removeOf', 'Remove section: {title}', { title })}
-          data-testid="invoices-canvas-custom-remove"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemoveCustom(id);
-          }}
-          className="nb-ib flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-[#ececef] bg-white text-[#6b6b76]"
-        >
-          <Trash2 className="size-[13px]" aria-hidden="true" />
-        </button>
+        <EditOnly>
+          <button
+            type="button"
+            title={t('invoices:canvas.custom.remove', 'Remove section')}
+            aria-label={t('invoices:canvas.custom.removeOf', 'Remove section: {title}', { title })}
+            data-testid="invoices-canvas-custom-remove"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemoveCustom(id);
+            }}
+            className="nb-ib flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-[#ececef] bg-white text-[#6b6b76]"
+          >
+            <Trash2 className="size-[13px]" aria-hidden="true" />
+          </button>
+        </EditOnly>
       </div>
 
       {custom.type === 'text' ? (
@@ -80,21 +82,23 @@ export function CustomBlock({ custom, edits, section, onSelect, onRemoveCustom, 
       {custom.type === 'image' ? (
         <>
           {custom.url === '' ? (
-            <label
-              onClick={(event) => event.stopPropagation()}
-              style={{ '--adm-invoice-image-h': `${String(custom.height)}px` }}
-              className={cn(DROP_LABEL, 'h-[var(--adm-invoice-image-h)] flex-col gap-[7px] p-3 text-center text-[11.5px] font-bold')}
-            >
-              <ImagePlus className="size-5" aria-hidden="true" />
-              {t('invoices:canvas.custom.upload', 'Click to upload an image')}
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                data-testid="invoices-custom-upload"
-                onChange={(event) => void pickImage(event, (url) => edits.histUpdateCustom(id, { url }), onImageRejected)}
-              />
-            </label>
+            <EditOnly>
+              <label
+                onClick={(event) => event.stopPropagation()}
+                style={{ '--adm-invoice-image-h': `${String(custom.height)}px` }}
+                className={cn(DROP_LABEL, 'h-[var(--adm-invoice-image-h)] flex-col gap-[7px] p-3 text-center text-[11.5px] font-bold')}
+              >
+                <ImagePlus className="size-5" aria-hidden="true" />
+                {t('invoices:canvas.custom.upload', 'Click to upload an image')}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  data-testid="invoices-custom-upload"
+                  onChange={(event) => void pickImage(event, (url) => edits.histUpdateCustom(id, { url }), onImageRejected)}
+                />
+              </label>
+            </EditOnly>
           ) : (
             <div className="relative">
               <img
@@ -104,18 +108,20 @@ export function CustomBlock({ custom, edits, section, onSelect, onRemoveCustom, 
                 style={{ '--adm-invoice-image-h': `${String(custom.height)}px` }}
                 className="h-[var(--adm-invoice-image-h)] w-full rounded-xl border border-[#ececef] object-cover"
               />
-              <button
-                type="button"
-                title={t('invoices:canvas.custom.clearImage', 'Remove image')}
-                aria-label={t('invoices:canvas.custom.clearImage', 'Remove image')}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  edits.histUpdateCustom(id, { url: '' });
-                }}
-                className={cn(CLEAR, 'end-[9px] top-[9px] size-7 rounded-lg')}
-              >
-                <X className="size-3.5" aria-hidden="true" />
-              </button>
+              <EditOnly>
+                <button
+                  type="button"
+                  title={t('invoices:canvas.custom.clearImage', 'Remove image')}
+                  aria-label={t('invoices:canvas.custom.clearImage', 'Remove image')}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    edits.histUpdateCustom(id, { url: '' });
+                  }}
+                  className={cn(CLEAR, 'end-[9px] top-[9px] size-7 rounded-lg')}
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              </EditOnly>
             </div>
           )}
           <InlineInput
@@ -136,31 +142,35 @@ export function CustomBlock({ custom, edits, section, onSelect, onRemoveCustom, 
           {custom.images.map((image, index) => (
             <div key={image.id} className="relative" data-testid="invoices-gallery-slot" data-filled={image.url === '' ? undefined : ''}>
               {image.url === '' ? (
-                <label onClick={(event) => event.stopPropagation()} className={cn(DROP_LABEL, 'h-28 rounded-[10px]')}>
-                  <ImagePlus className="size-[18px]" aria-hidden="true" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    aria-label={t('invoices:canvas.custom.uploadSlot', 'Upload image {n}', { n: index + 1 })}
-                    onChange={(event) => void pickImage(event, (url) => edits.updateCustomImage(id, image.id, url), onImageRejected)}
-                  />
-                </label>
+                <EditOnly>
+                  <label onClick={(event) => event.stopPropagation()} className={cn(DROP_LABEL, 'h-28 rounded-[10px]')}>
+                    <ImagePlus className="size-[18px]" aria-hidden="true" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      aria-label={t('invoices:canvas.custom.uploadSlot', 'Upload image {n}', { n: index + 1 })}
+                      onChange={(event) => void pickImage(event, (url) => edits.updateCustomImage(id, image.id, url), onImageRejected)}
+                    />
+                  </label>
+                </EditOnly>
               ) : (
                 <>
                   <img src={image.url} alt="" className="h-28 w-full rounded-[10px] border border-[#ececef] object-cover" />
-                  <button
-                    type="button"
-                    title={t('invoices:canvas.custom.clearSlot', 'Remove')}
-                    aria-label={t('invoices:canvas.custom.clearSlotOf', 'Remove image {n}', { n: index + 1 })}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      edits.updateCustomImage(id, image.id, '');
-                    }}
-                    className={cn(CLEAR, 'end-1.5 top-1.5 size-6 rounded-[7px]')}
-                  >
-                    <X className="size-3" aria-hidden="true" />
-                  </button>
+                  <EditOnly>
+                    <button
+                      type="button"
+                      title={t('invoices:canvas.custom.clearSlot', 'Remove')}
+                      aria-label={t('invoices:canvas.custom.clearSlotOf', 'Remove image {n}', { n: index + 1 })}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        edits.updateCustomImage(id, image.id, '');
+                      }}
+                      className={cn(CLEAR, 'end-1.5 top-1.5 size-6 rounded-[7px]')}
+                    >
+                      <X className="size-3" aria-hidden="true" />
+                    </button>
+                  </EditOnly>
                 </>
               )}
             </div>
@@ -187,33 +197,37 @@ export function CustomBlock({ custom, edits, section, onSelect, onRemoveCustom, 
                   onChange={(value) => edits.updateCustomRow(id, index, 'v', value)}
                   className="text-[12px] text-[#191920]"
                 />
-                <button
-                  type="button"
-                  title={t('invoices:canvas.custom.removeRow', 'Remove row')}
-                  aria-label={t('invoices:canvas.custom.removeRowOf', 'Remove row {n}', { n: index + 1 })}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    edits.removeCustomRow(id, index);
-                  }}
-                  className="nb-ib flex size-[26px] cursor-pointer items-center justify-center rounded-[7px] border border-[#ececef] bg-white text-[#6b6b76]"
-                >
-                  <X className="size-3" aria-hidden="true" />
-                </button>
+                <EditOnly placeholder={CELL}>
+                  <button
+                    type="button"
+                    title={t('invoices:canvas.custom.removeRow', 'Remove row')}
+                    aria-label={t('invoices:canvas.custom.removeRowOf', 'Remove row {n}', { n: index + 1 })}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      edits.removeCustomRow(id, index);
+                    }}
+                    className="nb-ib flex size-[26px] cursor-pointer items-center justify-center rounded-[7px] border border-[#ececef] bg-white text-[#6b6b76]"
+                  >
+                    <X className="size-3" aria-hidden="true" />
+                  </button>
+                </EditOnly>
               </div>
             ))}
           </div>
-          <button
-            type="button"
-            data-testid="invoices-kv-add"
-            onClick={(event) => {
-              event.stopPropagation();
-              edits.addCustomRow(id);
-            }}
-            className="nb-ib mt-2 flex cursor-pointer items-center gap-1.5 rounded-[9px] border border-dashed border-[#e2e2e8] bg-transparent px-[11px] py-[7px] text-[11.5px] font-bold text-[#6b6b76]"
-          >
-            <Plus className="size-[13px]" aria-hidden="true" />
-            {t('invoices:canvas.custom.addRow', 'Add row')}
-          </button>
+          <EditOnly>
+            <button
+              type="button"
+              data-testid="invoices-kv-add"
+              onClick={(event) => {
+                event.stopPropagation();
+                edits.addCustomRow(id);
+              }}
+              className="nb-ib mt-2 flex cursor-pointer items-center gap-1.5 rounded-[9px] border border-dashed border-[#e2e2e8] bg-transparent px-[11px] py-[7px] text-[11.5px] font-bold text-[#6b6b76]"
+            >
+              <Plus className="size-[13px]" aria-hidden="true" />
+              {t('invoices:canvas.custom.addRow', 'Add row')}
+            </button>
+          </EditOnly>
         </>
       ) : null}
     </Region>

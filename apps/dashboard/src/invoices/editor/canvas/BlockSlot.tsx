@@ -19,6 +19,7 @@ import type { DragEvent, KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@adminium/ui';
 
 import { t } from '../../../i18n/t.js';
+import { useSheetReadOnly } from './inline.js';
 
 export interface BlockSlotProps {
   /** The block's key, or `custom.<type>` for a user-authored one. */
@@ -40,6 +41,7 @@ export interface BlockSlotProps {
 }
 
 export function BlockSlot({ kind, index, label, dragging, over, onDragStart, onDragOver, onDrop, onDragEnd, onInsertAt, onMove, children }: BlockSlotProps) {
+  const readOnly = useSheetReadOnly();
   const onGripKey = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'ArrowUp') {
       event.preventDefault();
@@ -49,6 +51,16 @@ export function BlockSlot({ kind, index, label, dragging, over, onDragStart, onD
       onMove(index, 1);
     }
   };
+  // A preview has no drop target, no grip and no insert chip: both of this
+  // slot's affordances are ways to change the stack, and the stack is not
+  // this reader's to change.
+  if (readOnly) {
+    return (
+      <div data-testid="invoices-block" data-block={kind} data-index={index} className="relative rounded-lg">
+        {children}
+      </div>
+    );
+  }
   return (
     <div
       data-testid="invoices-block"

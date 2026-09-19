@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The editor's header row (comp 328-362): kind pill · inline name
- * · save chip · undo/redo · language menu · Images · Duplicate · Delete ·
+ * · save chip · undo/redo · Ask … · language menu · Images · Duplicate · Delete ·
  * primary. Sticky under the shell's topbar, blurred like the comp's.
  *
  * Back is NOT here: the shell's topbar owns the back affordance (published
@@ -18,7 +18,7 @@
  * saves. No Test, no device switch, no campaign chrome (E10).
  */
 import { Copy, FileText, Image, LayoutTemplate, Redo2, Save, Send, Trash2, Undo2 } from 'lucide-react';
-import type { FocusEvent, Ref } from 'react';
+import type { FocusEvent, ReactNode, Ref } from 'react';
 import { Button, IconButton, Tag, cn } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
@@ -50,6 +50,12 @@ export interface EditorHeaderProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onPrimary: () => void;
+  /**
+   * The comp's *Ask …* button, in its slot after the undo/redo tray. Passed
+   * as a node rather than built here: this header is presentational, and the
+   * button needs the page's assistant host, which only the editor holds.
+   */
+  askAssistant?: ReactNode;
   /** The editor measures the header for its sticky offsets. */
   ref?: Ref<HTMLElement> | undefined;
 }
@@ -81,6 +87,7 @@ export function EditorHeader({
   onDuplicate,
   onDelete,
   onPrimary,
+  askAssistant,
   ref,
 }: EditorHeaderProps) {
   const isTemplate = kind === 'template';
@@ -122,6 +129,7 @@ export function EditorHeader({
             <Redo2 className="size-[15px]" />
           </IconButton>
         </div>
+        {askAssistant}
         <LanguageMenu current={lang} languages={languages} adding={addingLang} onOpen={onOpenLanguage} onCreate={onCreateLanguage} />
         <IconButton variant="bordered" size="xl" label={t('invoices:editor.images', 'Images')} tooltip onClick={onImages} data-testid="invoices-images">
           <Image className="size-4" />
