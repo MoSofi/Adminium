@@ -58,6 +58,9 @@ const GATE_STRICT = ['common', 'ui', 'errors'];
 /** …and these need ≥95%. */
 const GATE_RELAXED = {
   studio: 0.95,
+  // The add-on page host's own states. Named here for the reason the note
+  // below gives: a namespace in neither gate list is held to nothing.
+  addOns: 0.95,
   generated: 0.95,
   email: 0.95,
   invoices: 0.95,

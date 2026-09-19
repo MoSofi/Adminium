@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/ar-EG/addOns.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "page": {
+    "notInstalled": {
+      "title": "هذا الـ Add-on غير مثبت",
+      "body": "الصفحة التي فتحتها تخص Add-on غير مثبت في مساحة العمل هذه، أو تم إيقافه. يمكن للمسؤول تثبيته من الاستوديو."
+    },
+    "unknown": {
+      "title": "لا توجد صفحة بهذا العنوان",
+      "body": "هذا الـ Add-on مثبت، لكن ليست لديه صفحة على هذا العنوان."
+    },
+    "retry": "حاول مرة أخرى",
+    "noBundle": {
+      "title": "تعذّر تحميل هذه الصفحة",
+      "body": "يعلن الـ Add-on عن هذه الصفحة لكنه لا يتضمن الملف الذي تشير إليه. إعادة التثبيت أو الترقية إلى إصدار أحدث تحل المشكلة."
+    },
+    "failed": {
+      "title": "تعذّر تحميل هذه الصفحة",
+      "body": "تعذّر جلب كود الـ Add-on، أو أنه لم يطابق البصمة المسجلة عند التثبيت. ولم يُنفَّذ أي جزء منه."
+    },
+    "listFailed": {
+      "body": "تعذّرت قراءة قائمة الـ Add-ons المثبتة، لذلك لا يمكن تحديد الملف الذي ينبغي لهذه الصفحة تحميله."
+    }
+  }
+} as const;

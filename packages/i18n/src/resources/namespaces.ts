@@ -27,6 +27,7 @@ export const NAMESPACES = [
   'reportBuilder',
   'onboarding',
   'project',
+  'addOns',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -128,6 +129,14 @@ export const DEFERRED_NAMESPACES = [
   'reportBuilder',
   'onboarding',
   'project',
+  /*
+   * What the DASHBOARD says about an add-on's own pages — the states a host
+   * draws when the add-on is absent, switched off, or its module will not load
+   * (51d). Deferred because every one of those strings is rendered by the lazy
+   * page host and by nothing else: in `common` they were 0.85 KiB of an entry
+   * chunk that is measured to the byte.
+   */
+  'addOns',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

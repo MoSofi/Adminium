@@ -1,0 +1,24 @@
+{
+  "page": {
+    "notInstalled": {
+      "title": "Tento add-on není nainstalovaný",
+      "body": "Stránka, kterou jste otevřeli, patří add-onu, který v tomto pracovním prostoru není nainstalovaný nebo byl vypnutý. Správce jej může nainstalovat ve Studiu."
+    },
+    "unknown": {
+      "title": "Taková stránka neexistuje",
+      "body": "Tento add-on je nainstalovaný, na této adrese ale žádnou stránku nemá."
+    },
+    "retry": "Zkusit znovu",
+    "noBundle": {
+      "title": "Tuto stránku se nepodařilo načíst",
+      "body": "Add-on tuto stránku ohlašuje, ale odpovídající soubor nedodává. Pomůže opětovná instalace nebo novější verze."
+    },
+    "failed": {
+      "title": "Tuto stránku se nepodařilo načíst",
+      "body": "Kód add-onu se nepodařilo stáhnout, nebo neodpovídal otisku zaznamenanému při instalaci. Nic z něj nebylo spuštěno."
+    },
+    "listFailed": {
+      "body": "Seznam nainstalovaných add-onů se nepodařilo načíst, takže nelze určit, který soubor má tato stránka načíst."
+    }
+  }
+}

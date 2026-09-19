@@ -1,7 +1,14 @@
 {
-  "entryJsGzBytes": 296902,
+  "entryJsGzBytes": 299329,
   "targetGzBytes": 358400,
   "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md. `history` is newest-first: it replaced a chain of loweredOn/previousLoweredOn/previouslyLoweredOn/priorLoweredOn keys that had run out of adjectives, and no key beyond the two numbers above is read by anything.",
+  "raisedOn": {
+    "when": "2026-09-19",
+    "by": "the add-on nav rail and its route (51b/51c) — owner-ratified, after both removable parts were removed and measured",
+    "from": 296902,
+    "measured": "297,329 bytes (290.4 KiB gz) against 296,902 (289.9 KiB) on the same inputs — +0.5 KiB gz — set to 299,329 with the usual 2,000-byte margin. 59.6 KiB under the 350 KiB v1.0 target.",
+    "why": "An add-on may now contribute a rail row and a page route, so SidebarNav gained a row list and the router two entries. Neither can be lazy-loaded: they ARE the shell, and a rail that arrives after the first paint is the regression this budget exists to prevent. Two parts of the first version's weight could be removed and were, before this raise was asked for: the host runtime used `import * as ui` on three libraries, which widened what its lazy chunk shared with the others until Rollup hoisted the page-builder into the entry (2.2 KiB gz, attributed through the source map after the first guess was wrong), and the host's own strings sat in the eager `common` namespace when only the lazy page host reads them (0.85 KiB raw, now the deferred `addOns` namespace). What is left is 1.2 KiB raw of SidebarNav and 0.4 KiB of router.tsx."
+  },
   "loweredOn": {
     "when": "2026-09-09",
     "by": "deferring the ⌘K palette, and moving three lazy-surface key groups out of the eagerly bundled `common` catalogue",
