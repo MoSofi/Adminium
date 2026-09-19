@@ -43,6 +43,12 @@ export interface AddOnDto {
   connectKind: ConnectKind;
   /** Whether a credential is stored. Never the credential. */
   connected: boolean;
+  /**
+   * Installed, but its files are not on this server (49-T27). Everything else
+   * on this row is the meta store's memory of what WAS installed — including
+   * `connected`, because the credential row outlives the volume.
+   */
+  missing: boolean;
   connectionExpiresAt: number | null;
   attachments: AddOnAttachment[];
   slots: { slot: string; client: string; order: number }[];
@@ -85,7 +91,7 @@ export interface CatalogEntry {
   name: string;
   version: string;
   source: 'bundled' | 'catalog';
-  state: 'installed' | 'staged' | 'available';
+  state: 'installed' | 'staged' | 'available' | 'missing';
   upgradeTo: string | null;
   /** One line, localized where the feed has it; null when nothing has one. */
   tagline: string | null;

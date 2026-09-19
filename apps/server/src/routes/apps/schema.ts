@@ -166,6 +166,13 @@ export const installedAppReply = z.object({
   installedAt: z.number(),
   connectionId: z.string().nullable(),
   sides: z.array(installedSide),
+  /**
+   * The row is installed but nothing of it is on this server, so none of it is
+   * served. A redeploy on a host with no disk is how this happens (49-T27):
+   * the meta row survives, the files do not. `sides` is empty then too, but
+   * an empty list reads as "no frontends", which is a different thing.
+   */
+  missing: z.boolean(),
 });
 
 export const appListReply = z.object({
@@ -222,7 +229,13 @@ export const appCatalogEntry = z.object({
    */
   source: z.enum(['disk', 'catalog']),
   /** `available` rows are catalog-only; `staged` rows are on disk and not installed. */
-  state: z.enum(['installed', 'staged', 'available']),
+  /**
+   * `missing` — installed according to the meta store, but its files are not
+   * on this server (49-T27). Before this state, such an app was labelled
+   * `installed` here, or left out of the reply when the cached feed did not
+   * carry it either.
+   */
+  state: z.enum(['installed', 'staged', 'available', 'missing']),
   /**
    * For an installed app: the newest version above the installed one that this
    * server can use, from disk or from the catalog. A catalog version whose

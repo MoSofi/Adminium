@@ -54,6 +54,8 @@ function makeEntry(over: Partial<CatalogEntry> = {}): CatalogEntry {
 
 function makeAddOn(over: Partial<AddOnDto> = {}): AddOnDto {
   return {
+    // The common case: its files are where the meta store says they are.
+    missing: false,
     // The manifest's declared settings; the panel generates its form from
     // these. Empty here so existing cases are unchanged.
     settings: [],
@@ -354,6 +356,47 @@ describe('AddOnsPage', () => {
       await waitFor(() => {
         expect(calls.filter((c) => c.url.startsWith('/api/v1/jobs/')).length).toBeGreaterThan(1);
       });
+    });
+
+    it('marks a gone add-on in the Installed list, which shows it as Connected', async () => {
+      /*
+       * This list is a pure meta read plus the credential table, and BOTH
+       * outlive a wiped volume — so the row rendered as a healthy install down
+       * to its green "Connected" badge.
+       */
+      await renderPage({
+        installed: [makeAddOn({ missing: true, connectKind: 'api-key', connected: true })],
+      });
+      expect(await screen.findByText('Missing')).toBeTruthy();
+      expect(
+        screen.getByText(/Its files are not on this server, so none of it loads/),
+      ).toBeTruthy();
+    });
+
+    it('marks an installed add-on whose files are gone, and offers the re-download', async () => {
+      /*
+       * 49-T27. The server's catalog reply is assembled from bytes on disk plus
+       * the cached feed, so before the `missing` state this row was either
+       * labelled `installed` or absent from the reply entirely.
+       */
+      await renderPage({
+        entries: [makeEntry({ state: 'missing', source: 'catalog' })],
+        onlineEnabled: true,
+      });
+      expect(await screen.findByText('Missing')).toBeTruthy();
+      expect(screen.getByText(/Its files are not on this server, so none of it loads/)).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy();
+    });
+
+    it('offers no re-download for a missing add-on the catalogue does not carry', async () => {
+      // Every uploaded add-on, and every install with no cached feed: there is
+      // nowhere to fetch it from, so the line is the whole answer.
+      await renderPage({
+        entries: [makeEntry({ state: 'missing', source: 'bundled' })],
+        onlineEnabled: true,
+      });
+      expect(await screen.findByText('Missing')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
     });
 
     it('surfaces a failed download as the failure it was, not as success', async () => {

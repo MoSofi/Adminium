@@ -73,7 +73,8 @@ empty data directory. After that:
 |---|---|
 | **Comes back by itself** | The add-ons bundled in the image, at the version the image bundles. |
 | **Is gone** | Every installed app, and every add-on the image does not carry at that exact version: one you uploaded, one you updated past the image's copy, or one a newer image now bundles at a newer version. In that last case the Add-ons page offers **Upgrade**, which brings it back. |
-| **What Studio shows** | Both still listed as installed. A lost app is not served: its `/apps/...` addresses show the dashboard's "page not found" page, with HTTP 200, so an uptime check that reads only the status stays green. A lost add-on shows as on, and none of it loads. |
+| **What Studio shows** | Both are listed, marked **Missing**, with a line saying their files are not on this server. The Apps shelf shows that badge in place of the green "Installed"; the installed add-ons list shows it beside the version, where a gone add-on used to read as healthy down to its green "Connected" badge (the credential outlives the volume, the files do not). |
+| **What a lost app's URL answers** | `503` with the code `APP_FILES_MISSING`. It used to answer the dashboard's "page not found" page with **HTTP 200**, so an uptime check reading only the status stayed green. A check on `/apps/<key>/<side>/` now goes red, which is the point. |
 | **What the log says** | One error per lost package, with its key and version: `installed add-on is not on this server …` or `installed app is not on this server …`. |
 | **Kept** | Everything in the managed database (users, settings, pages, the install records), the tables an app created in your database, and files in your storage destination. |
 
@@ -109,6 +110,13 @@ block in `do-app.yaml` at it, and install the app from the shelf as usual.
 Each boot then checks every file against its fingerprint and copies it back.
 Rebuild the image before you update a package: a version you install that the
 image does not carry is lost again at the next deploy.
+
+**Before 0.2.11 none of this was visible.** Studio listed every lost package as
+a healthy install, a lost app's URL answered 200, and an add-on or app that the
+cached catalog feed did not carry — which is every package you uploaded
+yourself — was left out of its own list entirely while the install record still
+said it was there. The server log named each one, and that was the only place.
+If you are on an older release, trust the log over the screen.
 
 **0.2.9 and earlier need two more steps after each deploy.** They copy the
 packages back, but load add-on code and read the list of served apps before the

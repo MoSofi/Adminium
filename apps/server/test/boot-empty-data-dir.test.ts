@@ -230,7 +230,14 @@ afterAll(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
+/**
+ * The owner's cookie, created once. `setup/super-admin` answers 409 the second
+ * time — there is only ever one first user — so a second caller would get a
+ * confusing failure in an unrelated assertion rather than a session.
+ */
+let ownerCookie: string | null = null;
 async function session(): Promise<string> {
+  if (ownerCookie !== null) return ownerCookie;
   const created = await composed.app.inject({
     method: 'POST',
     url: '/api/v1/setup/super-admin',
@@ -238,7 +245,8 @@ async function session(): Promise<string> {
   });
   expect(created.statusCode).toBe(201);
   const setCookie = created.headers['set-cookie'];
-  return String(Array.isArray(setCookie) ? setCookie[0] : setCookie).split(';')[0] ?? '';
+  ownerCookie = String(Array.isArray(setCookie) ? setCookie[0] : setCookie).split(';')[0] ?? '';
+  return ownerCookie;
 }
 
 describe('a boot on an empty data directory', () => {
@@ -291,5 +299,80 @@ describe('a boot on an empty data directory', () => {
     expect(missing).toHaveLength(2);
     expect(missing.find((line) => line.key === 'gone-kit')?.msg).toMatch(/add-on/);
     expect(missing.find((line) => line.key === 'lost-app')?.msg).toMatch(/app/);
+  });
+
+  /*
+   * 49-T27 (c). The log above is the only place the loss was said out loud, and
+   * an operator on a host with no disk is not reading it. These three pin the
+   * surfaces a person actually looks at.
+   */
+  it('marks an installed app whose files are gone as missing', async () => {
+    const cookie = await session();
+    const reply = await composed.app.inject({ method: 'GET', url: '/api/v1/apps', headers: { cookie } });
+    expect(reply.statusCode).toBe(200);
+    const { apps } = reply.json() as { apps: { key: string; missing: boolean }[] };
+    expect(apps.find((a) => a.key === 'lost-app')?.missing, 'a lost app must not read as fine').toBe(true);
+    expect(apps.find((a) => a.key === 'desk')?.missing, 'a restored app is not missing').toBe(false);
+  });
+
+  it('lists an installed add-on whose files are gone, as missing', async () => {
+    const cookie = await session();
+    const reply = await composed.app.inject({
+      method: 'GET',
+      url: '/api/v1/add-ons/catalog',
+      headers: { cookie },
+    });
+    expect(reply.statusCode).toBe(200);
+    const { addOns } = reply.json() as { addOns: { key: string; state: string }[] };
+    /*
+     * The catalog reply is assembled from what is ON DISK plus the last cached
+     * feed. `gone-kit` is in neither, so before this it was not in the reply at
+     * all — the meta store said installed and the page showed nothing, which is
+     * worse than showing it wrongly.
+     */
+    expect(addOns.map((a) => a.key), 'an installed add-on must not vanish from the list').toContain('gone-kit');
+    expect(addOns.find((a) => a.key === 'gone-kit')?.state).toBe('missing');
+    expect(addOns.find((a) => a.key === 'render-kit')?.state).toBe('installed');
+  });
+
+  it('marks a gone add-on in the INSTALLED list, which is a pure meta read', async () => {
+    const cookie = await session();
+    const reply = await composed.app.inject({
+      method: 'GET',
+      url: '/api/v1/add-ons',
+      headers: { cookie },
+    });
+    expect(reply.statusCode).toBe(200);
+    const { addOns } = reply.json() as { addOns: { key: string; missing: boolean }[] };
+    /*
+     * This list is what an operator reads, and it was built entirely from the
+     * meta store and the credential table — both of which survive a wiped
+     * volume — so a gone add-on listed with its version, its slots, and
+     * `connected: true`.
+     */
+    expect(addOns.find((a) => a.key === 'gone-kit')?.missing).toBe(true);
+    expect(addOns.find((a) => a.key === 'render-kit')?.missing).toBe(false);
+  });
+
+  it('marks a gone app on the browse shelf, and does not drop it', async () => {
+    const cookie = await session();
+    const reply = await composed.app.inject({
+      method: 'GET',
+      url: '/api/v1/apps/catalog',
+      headers: { cookie },
+    });
+    expect(reply.statusCode).toBe(200);
+    const { apps } = reply.json() as { apps: { key: string; state: string }[] };
+    // Neither on disk nor in a cached feed: before 49-T27's third pass it was
+    // in no list at all, while the meta store still said installed.
+    expect(apps.map((a) => a.key)).toContain('lost-app');
+    expect(apps.find((a) => a.key === 'lost-app')?.state).toBe('missing');
+    expect(apps.find((a) => a.key === 'desk')?.state).toBe('installed');
+  });
+
+  it('answers a lost app\'s own URL honestly, not with the dashboard', async () => {
+    const res = await composed.app.inject({ method: 'GET', url: '/apps/lost-app/staff/' });
+    expect(res.body, 'the dashboard answered in the lost app\'s place').not.toContain(DASHBOARD_MARKER);
+    expect(res.statusCode, 'a missing app must not answer 200').not.toBe(200);
   });
 });

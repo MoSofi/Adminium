@@ -13731,6 +13731,14 @@
     "status": "src",
     "srcHash": "fd6c3ebf7bef"
   },
+  "studio.addOns.browse.missing": {
+    "status": "mt",
+    "srcHash": "92185dc52f71"
+  },
+  "studio.addOns.browse.missingBody": {
+    "status": "mt",
+    "srcHash": "8fedc603c5f6"
+  },
   "studio.addOns.browse.noMatchBody": {
     "status": "mt",
     "srcHash": "5944cf85fd9f"
@@ -13902,6 +13910,14 @@
   "studio.addOns.installed.emptyTitle": {
     "status": "src",
     "srcHash": "94f5a84fa81b"
+  },
+  "studio.addOns.installed.missing": {
+    "status": "mt",
+    "srcHash": "92185dc52f71"
+  },
+  "studio.addOns.installed.missingBody": {
+    "status": "mt",
+    "srcHash": "b35a55793a66"
   },
   "studio.addOns.installed.notConnected": {
     "status": "src",
@@ -15339,6 +15355,10 @@
     "status": "mt",
     "srcHash": "7bb4405cdfc9"
   },
+  "studio.hostedApps.browse.missing": {
+    "status": "mt",
+    "srcHash": "92185dc52f71"
+  },
   "studio.hostedApps.browse.needsNewer": {
     "status": "mt",
     "srcHash": "9b6dfebd4b15"
@@ -15666,6 +15686,14 @@
   "studio.hostedApps.installed.installedAt": {
     "status": "mt",
     "srcHash": "1000d23ea658"
+  },
+  "studio.hostedApps.installed.missing": {
+    "status": "mt",
+    "srcHash": "92185dc52f71"
+  },
+  "studio.hostedApps.installed.missingBody": {
+    "status": "mt",
+    "srcHash": "ec7adabc6278"
   },
   "studio.hostedApps.installed.needsNewer": {
     "status": "mt",

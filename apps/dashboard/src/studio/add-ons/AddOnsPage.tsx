@@ -786,6 +786,14 @@ export function AddOnsPage() {
                   <span className="flex items-center gap-2">
                     <strong>{addOn.name}</strong>
                     <Badge tone="neutral">{addOn.version}</Badge>
+                    {/* Before the badge, a wiped volume left this row reading
+                        as a healthy install — down to "Connected", since the
+                        credential row survives it. */}
+                    {addOn.missing && (
+                      <Badge tone="danger">
+                        {t('studio:addOns.installed.missing', 'Missing')}
+                      </Badge>
+                    )}
                     {addOn.connectKind !== 'none' && (
                       <Badge tone={addOn.connected ? 'pos' : 'warn'}>
                         {addOn.connected
@@ -794,6 +802,15 @@ export function AddOnsPage() {
                       </Badge>
                     )}
                   </span>
+
+                  {addOn.missing && (
+                    <p className="text-xs text-danger">
+                      {t(
+                        'studio:addOns.installed.missingBody',
+                        'Its files are not on this server, so none of it loads. Install it again, or remove it.',
+                      )}
+                    </p>
+                  )}
 
                   {addOn.networkAllow.length > 0 && (
                     <p className="text-xs text-fg-muted">

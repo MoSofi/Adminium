@@ -297,7 +297,13 @@ function AppCard({
 
       <div className="flex items-center gap-2">
         <MonoText className="text-xs text-fg-subtle">{app.version}</MonoText>
-        {app.installed ? (
+        {app.state === 'missing' ? (
+          /* A green "Installed" on an app whose files are gone is the most
+             misleading thing this shelf could say, so it is checked first. */
+          <Badge tone="danger" className="ms-auto">
+            {t('studio:hostedApps.browse.missing', 'Missing')}
+          </Badge>
+        ) : app.installed ? (
           <Badge tone="pos" className="ms-auto">
             {t('studio:hostedApps.browse.installed', 'Installed')}
           </Badge>

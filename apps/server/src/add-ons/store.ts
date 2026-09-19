@@ -775,14 +775,35 @@ export async function seedBundledPackages(
  *
  * A key the grammar refuses counts as missing: nothing can be on disk under it.
  */
+/**
+ * THE predicate for "are this installed package's files on this server?".
+ *
+ * One definition, deliberately: the boot log, the installed-app registry and
+ * all four list routes ask this same question, and three of them used to answer
+ * it three different ways — `store.versions()`, a per-key disk map, and "does
+ * it contribute a surface". The last one is not the same question: a package
+ * that is present but carries no `index.html` serves nothing while its bytes
+ * are right there, and calling that "its files are gone" sends the operator
+ * looking for the wrong problem.
+ *
+ * Absence is the normal answer on a host with no disk, not an error, so a store
+ * that cannot even be read counts as "not here" rather than throwing.
+ */
+export async function packageIsInStore(
+  store: AddOnStore,
+  ref: PackageIdentity,
+): Promise<boolean> {
+  const versions = await store.versions(ref.key).catch(() => [] as string[]);
+  return versions.includes(ref.version);
+}
+
 export async function installedNotInStore(
   store: AddOnStore,
   installed: readonly PackageIdentity[],
 ): Promise<PackageIdentity[]> {
   const missing: PackageIdentity[] = [];
   for (const ref of installed) {
-    const versions = await store.versions(ref.key).catch(() => [] as string[]);
-    if (!versions.includes(ref.version)) missing.push({ key: ref.key, version: ref.version });
+    if (!(await packageIsInStore(store, ref))) missing.push({ key: ref.key, version: ref.version });
   }
   return missing;
 }
