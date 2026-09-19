@@ -87,10 +87,22 @@ beforeEach(async () => {
   copies = createPackageCopies({
     files: {
       defaultDestinationId: async () => destinationId,
+      /*
+       * BYTES ONLY, exactly like the real `FileStore.write`, which does NOT
+       * create the `adminium_files` row — the caller does. An earlier version
+       * of this fake created it too, which made `keep` look correct while it
+       * was writing bytes nothing could ever find again. The two-boot test
+       * caught that; this fake now refuses to hide it.
+       */
       write: async ({ id, bytes }: { id: string; bytes: Buffer | string }) => {
         objects.set(id, Buffer.from(bytes as Buffer));
-        rows.set(id, { id, storageKey: id, destinationId, deletedAt: null });
-        return { storageKey: id, sizeBytes: 0, sha256: '', destinationId, storage: 'fake' };
+        return {
+          storageKey: id,
+          sizeBytes: Buffer.from(bytes as Buffer).byteLength,
+          sha256: '',
+          destinationId,
+          storage: 'fake',
+        };
       },
       read: async (file: { storageKey: string }) => {
         const bytes = objects.get(file.storageKey);
@@ -99,7 +111,14 @@ beforeEach(async () => {
         return Readable.from([bytes]);
       },
     } as never,
-    filesRepo: { findById: async (id: string) => rows.get(id) ?? null } as never,
+    filesRepo: {
+      create: async (input: { id?: string; storageKey?: string }) => {
+        const id = input.id as string;
+        rows.set(id, { id, storageKey: input.storageKey ?? id, destinationId, deletedAt: null });
+        return { id };
+      },
+      findById: async (id: string) => rows.get(id) ?? null,
+    } as never,
     manifests: {
       setPackageCopy: async (id: string, copy: { fileId: string; integrity: string } | null) => {
         recorded.push({ id, copy });

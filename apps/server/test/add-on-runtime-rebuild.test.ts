@@ -200,10 +200,24 @@ describe('the add-on routes call the hooks at all', () => {
     expect(compose).toContain('rebuildRuntime: () => rebuildAddOnRuntime()');
     expect(compose).toContain('onAddOnRemoved:');
     // And the rebuild is ONE function, used by boot and by the routes alike.
-    // Boot calls it once the bundled seed has settled; what that ordering buys
-    // is `boot-empty-data-dir.test.ts`'s to prove.
+    // Boot calls it once the store has settled; what that ordering buys is
+    // `boot-empty-data-dir.test.ts`'s and `package-restore-boot.test.ts`'s to
+    // prove.
     expect(compose).toContain('rebuildAddOnRuntime = async () =>');
-    expect(compose).toMatch(/void addOnSeed\s*\.then\(\(\) => rebuildAddOnRuntime\(\)\)/);
+    /*
+     * THE GATE MOVED, AND IT MOVED OUTWARDS.
+     *
+     * It used to be `addOnSeed`: the bundled seed only. `packagesReady` is that
+     * seed AND the restore of installed packages from their off-disk copies,
+     * which is the later half of the same story — a package restored after the
+     * runtime was built stays dark exactly as one seeded after it did on 0.2.9.
+     * Asserted here, in source, because the defect is an ORDERING and a green
+     * runtime suite is what it looks like when the order is wrong.
+     */
+    expect(compose).toMatch(/void packagesReady\s*\.then\(\(\) => rebuildAddOnRuntime\(\)\)/);
+    // …and `packagesReady` is itself gated on BOTH seeds, so nothing here can
+    // quietly become "restore only".
+    expect(compose).toMatch(/const packagesReady = Promise\.all\(\[appSeed, addOnSeed\]\)/);
   });
 
   it('clears the provider map when the LAST add-on goes', async () => {
