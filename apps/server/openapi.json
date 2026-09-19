@@ -2192,6 +2192,100 @@
                             "additionalProperties": false
                           }
                         },
+                        "addOnNav": {
+                          "type": "object",
+                          "properties": {
+                            "groups": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9-]{0,39}$"
+                                  },
+                                  "labelKey": {
+                                    "type": "string"
+                                  },
+                                  "fallback": {
+                                    "type": "string"
+                                  },
+                                  "order": {
+                                    "type": "number"
+                                  },
+                                  "addOnKey": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "labelKey",
+                                  "fallback",
+                                  "order",
+                                  "addOnKey"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "pages": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "addOnKey": {
+                                    "type": "string"
+                                  },
+                                  "ref": {
+                                    "type": "string"
+                                  },
+                                  "labelKey": {
+                                    "type": "string"
+                                  },
+                                  "fallback": {
+                                    "type": "string"
+                                  },
+                                  "icon": {
+                                    "type": "string"
+                                  },
+                                  "client": {
+                                    "type": "string"
+                                  },
+                                  "group": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9-]{0,39}$"
+                                  },
+                                  "order": {
+                                    "type": "number"
+                                  },
+                                  "adminOnly": {
+                                    "type": "boolean"
+                                  },
+                                  "detail": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "addOnKey",
+                                  "ref",
+                                  "labelKey",
+                                  "fallback",
+                                  "icon",
+                                  "client",
+                                  "group",
+                                  "order",
+                                  "adminOnly",
+                                  "detail"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "groups",
+                            "pages"
+                          ],
+                          "additionalProperties": false
+                        },
                         "hiddenPages": {
                           "type": "array",
                           "items": {
@@ -2578,6 +2672,7 @@
                         "llm",
                         "csrfToken",
                         "hostedApps",
+                        "addOnNav",
                         "hiddenPages",
                         "pausedPages"
                       ],
@@ -72436,7 +72531,8 @@
                 "files",
                 "reportBuilder",
                 "onboarding",
-                "project"
+                "project",
+                "addOns"
               ]
             },
             "in": "path",
@@ -72568,7 +72664,8 @@
                 "files",
                 "reportBuilder",
                 "onboarding",
-                "project"
+                "project",
+                "addOns"
               ]
             },
             "in": "query",
@@ -72771,7 +72868,8 @@
                       "files",
                       "reportBuilder",
                       "onboarding",
-                      "project"
+                      "project",
+                      "addOns"
                     ]
                   },
                   "key": {
@@ -72922,7 +73020,8 @@
                 "files",
                 "reportBuilder",
                 "onboarding",
-                "project"
+                "project",
+                "addOns"
               ]
             },
             "in": "query",
@@ -73077,7 +73176,8 @@
                             "files",
                             "reportBuilder",
                             "onboarding",
-                            "project"
+                            "project",
+                            "addOns"
                           ]
                         },
                         "key": {

@@ -86,6 +86,9 @@ function lazyRoute(load: () => Promise<ComponentType>): () => ReactElement {
 }
 
 const AboutPageLazy = lazyRoute(async () => (await import('../about/AboutPage.js')).AboutPage);
+const AddOnPageHostLazy = lazyRoute(
+  async () => (await import('../add-ons/AddOnPageHost.js')).AddOnPageHost,
+);
 const AppSurfacePageLazy = lazyRoute(
   async () => (await import('../apps/AppSurfacePage.js')).AppSurfacePage,
 );
@@ -470,6 +473,30 @@ const appSurfaceRootRoute = createRoute({
   path: '/a/$appKey',
   beforeLoad: ({ params }) => {
     throw redirect({ to: '/a/$appKey/$', params: { appKey: params.appKey, _splat: '' } });
+  },
+});
+
+/**
+ * A page an ADD-ON owns (51b). One route for every add-on page there will ever
+ * be: what is installed is not knowable when this tree is built, and the splat
+ * carries the page's own sub-paths so an add-on can have a detail screen
+ * without the router being told about it.
+ *
+ * `/add-ons/` is the same defence `/a/` is for apps: an add-on key can never
+ * shadow a dashboard route, and a dashboard route added later can never shadow
+ * an add-on.
+ */
+const addOnPageRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/add-ons/$key/$',
+  component: AddOnPageHostLazy,
+});
+
+const addOnPageRootRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/add-ons/$key',
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/add-ons/$key/$', params: { key: params.key, _splat: '' } });
   },
 });
 
@@ -997,6 +1024,8 @@ const routeTree = rootRoute.addChildren([
     pageRoute,
     pageRecordRoute,
     appSurfaceRoute,
+    addOnPageRoute,
+    addOnPageRootRoute,
     appSurfaceRootRoute,
     accountRoute,
     welcomeRoute,

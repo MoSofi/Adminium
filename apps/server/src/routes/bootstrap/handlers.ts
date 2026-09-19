@@ -20,12 +20,15 @@ import type { FastifyRequest } from 'fastify';
 import {
   pagesRepo,
   readBool,
+  readJson,
   rolesRepo,
   settingsRepo,
   userPrefsRepo,
   type PageNavRow,
   type User,
 } from '@adminium/meta';
+import { DEFAULT_NAV_GROUP } from '@adminium/add-on-contracts';
+import { addOnManifestSchema } from '@adminium/manifest';
 
 import { UnauthorizedError } from '../../errors.js';
 import type { AuthContext } from '../../plugins/auth.js';
@@ -40,6 +43,9 @@ import {
 } from '../../surfaces/settings.js';
 import {
   NAV_GROUP_KEYS,
+  type BootstrapAddOnGroup,
+  type BootstrapAddOnNav,
+  type BootstrapAddOnPage,
   type BootstrapHostedApp,
   type BootstrapNavItem,
   type BootstrapNavTree,
@@ -224,6 +230,79 @@ export function buildHostedApps(
   return out;
 }
 
+/**
+ * The rail rows an installed add-on contributes (51b).
+ *
+ * PURE, over the rows the caller read, for the same reason `buildNavTree` is:
+ * what goes wrong here is ordering and grouping, and neither needs a database
+ * to reproduce.
+ *
+ * Three rules worth stating, because each is a decision rather than a detail:
+ *
+ *  - **A manifest that does not parse contributes NOTHING, and does not throw.**
+ *    An add-on can be installed, then upgraded past this server, then rolled
+ *    back; a rail that 500s on one bad row takes the whole dashboard with it.
+ *    The add-on is still listed in Studio, where its version is the answer.
+ *  - **Rows sort by `order`, then by add-on key**, so two add-ons landing in
+ *    Library at the same order do not swap places between boots.
+ *  - **Nothing here drops an "empty" group, and that is deliberate.** A filter
+ *    for it was written and removed: the manifest schema refuses a declared
+ *    group no page uses, and the page that justifies one necessarily has `nav`
+ *    (the rule keys on `p.nav?.group`), so a parsed manifest can never reach
+ *    this function with an orphaned group. The empty-heading case IS reachable,
+ *    but one layer up — a group whose every page is `adminOnly` renders a
+ *    heading with no rows for a viewer who is not an admin — so the rail is
+ *    where it is handled, over the rows it is actually about to draw.
+ */
+export function buildAddOnNav(installed: readonly { document: unknown }[]): BootstrapAddOnNav {
+  const pages: BootstrapAddOnPage[] = [];
+  const declared: BootstrapAddOnGroup[] = [];
+
+  for (const row of installed) {
+    const parsed = addOnManifestSchema.safeParse(row.document);
+    if (!parsed.success) continue;
+    const manifest = parsed.data;
+    const addOnKey = manifest.key;
+
+    for (const page of manifest.addOn.pages ?? []) {
+      if (page.nav === undefined) continue;
+      pages.push({
+        addOnKey,
+        ref: page.ref,
+        labelKey: page.title.key,
+        fallback: page.title.fallback,
+        icon: page.icon,
+        client: page.client,
+        group: page.nav.group ?? DEFAULT_NAV_GROUP,
+        order: page.nav.order,
+        adminOnly: page.nav.adminOnly ?? false,
+        detail: page.detail ?? false,
+      });
+    }
+
+    for (const group of manifest.addOn.navGroups ?? []) {
+      declared.push({
+        key: group.key,
+        labelKey: group.label.key,
+        fallback: group.label.fallback,
+        order: group.order,
+        addOnKey,
+      });
+    }
+  }
+
+  pages.sort((a, b) => a.order - b.order || a.addOnKey.localeCompare(b.addOnKey) || a.ref.localeCompare(b.ref));
+
+  const groups = declared
+    // First declarer owns the label: two add-ons may ask for one group, which
+    // is the feature working. `enabledForHost` orders by key, so the winner is
+    // stable rather than whichever row the database returned first.
+    .filter((group, i, all) => all.findIndex((other) => other.key === group.key) === i)
+    .sort((a, b) => a.order - b.order || a.key.localeCompare(b.key));
+
+  return { groups, pages };
+}
+
 export async function bootstrapHandler(
   ctx: AuthContext,
   request: FastifyRequest,
@@ -242,7 +321,8 @@ export async function bootstrapHandler(
   // the same reason: this route is registered before it exists.
   const projectClient = request.server.hasDecorator('projectClient') ? request.server.projectClient : null;
 
-  const [roles, prefs, pageRows, connectionRows, llmProvider, placements, project] = await Promise.all([
+  const [roles, prefs, pageRows, connectionRows, llmProvider, placements, project, addOns] =
+    await Promise.all([
     rolesRepo(ctx.meta).rolesForUser(user.id),
     userPrefsRepo(ctx.meta).resolve(user.id),
     // Shared query path with the generator wave (pagesRepo).
@@ -261,6 +341,22 @@ export async function bootstrapHandler(
     settingsRepo(ctx.meta).get('llm.provider'),
     surfaceSettings?.read() ?? Promise.resolve({ apps: {}, domains: {} } as SurfaceSettings),
     projectClient?.bootstrap() ?? Promise.resolve(null),
+    /*
+     * Read straight off the tables rather than through `manifestsRepo`, which
+     * takes a `CredentialCrypto` this route has no business holding: the rail
+     * needs manifest DOCUMENTS, never a credential. `adminium_connections`
+     * above is read the same way, for the same reason.
+     */
+    ctx.meta.db
+      .selectFrom('adminium_manifest_attachments as a')
+      .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
+      .select(['m.manifest as manifest'])
+      .where('a.attachedTo', '=', 'dashboard')
+      .where('a.disabledAt', 'is', null)
+      .where('m.kind', '=', 'add-on')
+      .where('m.status', '=', 'installed')
+      .orderBy('m.manifestKey', 'asc')
+      .execute(),
   ]);
 
   // Permission filter: drop rows the caller may not view. The
@@ -304,6 +400,7 @@ export async function bootstrapHandler(
       hostedApps: hasSurfaces
         ? buildHostedApps(request.server.surfaces, placements, prefs.locale)
         : [],
+      addOnNav: buildAddOnNav(addOns.map((row) => ({ document: readJson(row.manifest) }))),
       hiddenPages: hidden,
       pausedPages: paused,
       ...(project === null ? {} : { project }),

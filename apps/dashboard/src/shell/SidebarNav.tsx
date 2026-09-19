@@ -42,8 +42,11 @@ import { cn } from '@adminium/ui';
 import { unreadCountQuery } from '../api/notifications.js';
 import { BrandMark, useBranding } from './BrandMark.js';
 import {
+  NAV_GROUP_KEYS,
   activeHostedItem,
+  addOnNavOf,
   hostedAppsOf,
+  type AddOnNavPage,
   type BootstrapData,
   type HostedApp,
   type NavGroupKey,
@@ -258,6 +261,41 @@ function PlatformLinkList({ links }: { links: readonly PlatformNavLink[] }) {
 }
 
 /**
+ * An add-on's rail rows (51b).
+ *
+ * `/add-ons/$key/$` rather than a route per page: the set of pages is whatever
+ * is installed, which a code-based route tree cannot know at build time. The
+ * splat also carries a page's own sub-paths, so an editor at
+ * `/add-ons/invoices/documents/42` is the page's business and not the router's.
+ *
+ * Icons resolve through `lucideByName` exactly as a generated page's do, so an
+ * add-on naming an icon that does not exist gets the neutral glyph rather than
+ * a crash.
+ */
+function AddOnLinkList({ pages }: { pages: readonly AddOnNavPage[] }) {
+  if (pages.length === 0) return null;
+  return (
+    <ul className="m-0 flex list-none flex-col gap-1 p-0" data-part="nav-add-on-pages">
+      {pages.map((page) => {
+        const Icon = lucideByName(page.icon);
+        return (
+          <li key={`${page.addOnKey}/${page.ref}`}>
+            <Link
+              to="/add-ons/$key/$"
+              params={{ key: page.addOnKey, _splat: page.ref }}
+              className={NAV_LINK_CLASS}
+            >
+              <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate">{t(page.labelKey, page.fallback)}</span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
  * The `badge: 'unread-count'` live number: fed by `/me/notifications`'
  * `unreadCount` under the `['notifications']` query prefix, so WS
  * `notifications:<userId>` events (api/realtime.ts) keep it honest across
@@ -380,9 +418,42 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
     (PLATFORM_NAV.find((entry) => entry.group === group)?.links ?? []).filter(
       (link) => admin || link.adminOnly !== true,
     );
-  // Groups with only platform links (no generated pages yet) still render.
+  /*
+   * Add-on rows (51b). Filtered by the SAME rule the platform tail uses, so a
+   * page an add-on marked `adminOnly` is invisible to a non-admin rather than
+   * being a row that 403s when clicked.
+   */
+  const addOnNav = addOnNavOf(bootstrap);
+  const visibleAddOnPages = addOnNav.pages.filter((page) => admin || !page.adminOnly);
+  const addOnPagesFor = (group: string): readonly AddOnNavPage[] =>
+    visibleAddOnPages.filter((page) => page.group === group);
+
+  // Groups with only platform links or only add-on rows (no generated pages
+  // yet) still render — a built-in group is drawn when ANYTHING lands in it.
   const navGroupKeys = new Set(nav.groups.map((group) => group.key));
   const platformOnlyGroups = PLATFORM_NAV.filter((entry) => !navGroupKeys.has(entry.group));
+  const platformOnlyKeys = new Set(platformOnlyGroups.map((entry) => entry.group));
+  /*
+   * A built-in group an add-on landed in that neither of the two lists above
+   * would have drawn: no generated pages, and no platform links either
+   * (`planning` and `people` are empty on a stock instance). Without this the
+   * page installs, the rail has no heading to hang it under, and the row
+   * silently does not exist.
+   */
+  const addOnOnlyBuiltinGroups = NAV_GROUP_KEYS.filter(
+    (key) =>
+      !navGroupKeys.has(key) && !platformOnlyKeys.has(key) && addOnPagesFor(key).length > 0,
+  );
+  /*
+   * The trailing band of groups an add-on brought (51 D3): built-in groups keep
+   * their order and an add-on cannot push one down the rail. A group whose
+   * every row is `adminOnly` renders NOTHING for a viewer who is not an admin —
+   * the empty heading is the one thing the rail must not draw, and this is the
+   * layer that can see it, because it is the layer that filtered the rows.
+   */
+  const declaredGroups = addOnNav.groups.filter(
+    (group) => addOnPagesFor(group.key).length > 0,
+  );
 
   /*
    * Blended apps sit AFTER `workspace` (D7): they are the operator's daily
@@ -479,22 +550,41 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
                   <NavItemList items={group.items} />
                 )}
                 <PlatformLinkList links={platformLinksFor(group.key)} />
+                <AddOnLinkList pages={addOnPagesFor(group.key)} />
               </div>
               {hostedAfter === group.key ? hostedSections : null}
               </Fragment>
         ))}
         {platformOnlyGroups.map((entry) => {
           const links = platformLinksFor(entry.group);
-          if (links.length === 0) return null;
+          const pages = addOnPagesFor(entry.group);
+          if (links.length === 0 && pages.length === 0) return null;
           return (
             <div key={entry.group} className="mb-1" data-part="nav-platform-group">
               <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
                 {t(GROUP_LABEL_KEY[entry.group], GROUP_LABELS[entry.group])}
               </div>
               <PlatformLinkList links={links} />
+              <AddOnLinkList pages={pages} />
             </div>
           );
         })}
+        {addOnOnlyBuiltinGroups.map((key) => (
+          <div key={key} className="mb-1" data-part="nav-platform-group">
+            <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
+              {t(GROUP_LABEL_KEY[key], GROUP_LABELS[key])}
+            </div>
+            <AddOnLinkList pages={addOnPagesFor(key)} />
+          </div>
+        ))}
+        {declaredGroups.map((group) => (
+          <div key={group.key} className="mb-1" data-part="nav-add-on-group">
+            <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
+              {t(group.labelKey, group.fallback)}
+            </div>
+            <AddOnLinkList pages={addOnPagesFor(group.key)} />
+          </div>
+        ))}
       </nav>
     </aside>
   );
