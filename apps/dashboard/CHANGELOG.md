@@ -1,5 +1,48 @@
 # @adminium/dashboard
 
+## 0.3.0-rc.0
+
+### Patch Changes
+
+- c451e7d: **A page assistant that drafts in the page's own format, and never saves.**
+  
+  The pages that build documents — Email templates and Report builder — gain an
+  **Ask** button in the header. It opens an assistant
+  that already knows what that page holds: its documents, the format they are
+  written in, your branding, and the tables your role can read. Describe what you
+  need and it drafts it, showing its work: every tool it ran, every table it
+  touched, and what the draft would be.
+  
+  **It never writes.** The model's last move is a draft. Every button that would
+  change something is locked until you turn actions on for that session, needs the
+  same permission the page's own Save needs, and asks once more before it runs.
+  What it saves is a draft — an email template disabled, a report with status
+  `draft` — and every write leaves an audit row naming the session that proposed
+  it.
+  
+  **Reading rows is opt-in.** By default it works from your documents and schema
+  alone. An administrator can let it read rows your role can read — masked, at
+  most 50 per request, and listed under *Sources read* on every result. That
+  switch is not carried by an exported bundle: importing somebody else's
+  configuration can never turn it on for you.
+  
+  The permission is seeded to Super Admin and Admin only, and a role that may
+  draft but not save is the ordinary case: it can look, draft, preview, and put a
+  draft straight onto an editor's screen, with the writing buttons locked and a
+  sentence saying why.
+  
+  Settings → AI names the assistant and holds the row-data switch. It needs the
+  same AI provider schema enrichment uses; there is no copy-paste path here,
+  because a conversation is many round trips.
+- Updated dependencies [c451e7d]
+  - @adminium/i18n@0.3.0-rc.0
+  - @adminium/charts@0.3.0-rc.0
+  - @adminium/widgets@0.3.0-rc.0
+  - @adminium/engine@0.3.0-rc.0
+  - @adminium/add-on-contracts@0.3.0-rc.0
+  - @adminium/tokens@0.3.0-rc.0
+  - @adminium/ui@0.3.0-rc.0
+
 ## 0.2.12
 
 ### Patch Changes
@@ -32,8 +75,8 @@
   repositories, and in this release the bundled add-on does not carry the page
   yet. So **0.2.12 has no invoices screen at all** — the adoption deliberately
   declines rather than install an add-on that cannot render anything, and your
-  documents sit untouched until 0.2.13 bundles the add-on that provides it. If
-  you use invoices, upgrade to 0.2.13 rather than stopping here.
+  documents sit untouched until 0.3.0 bundles the add-on that provides it. If
+  you use invoices, upgrade to 0.3.0 rather than stopping here.
 
 - 5b84085: **An app or add-on whose files a redeploy wiped now says so, everywhere it is listed, instead of reading as installed and fine.**
   

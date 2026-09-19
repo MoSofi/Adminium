@@ -15,13 +15,13 @@ you change is stored.
 
 ## 1. What `npx @adminiumjs/adminium` actually runs
 
-One command, one binary and, from 0.2.10, one package. The package you name
+One command, one binary and, from 0.3.0, one package. The package you name
 holds the server, the CLI, the dashboard build and the internal packages the
 server loads:
 
 ```
 npm registry
-└── @adminiumjs/adminium@0.2.12       ← the published name of apps/server
+└── @adminiumjs/adminium@0.2.9       ← the published name of apps/server
     ├── dist/                          compiled server + CLI
     ├── dashboard/                     the pre-built React SPA (static files)
     ├── vocabulary/                    LLM allow-lists snapshotted at pack time
@@ -44,7 +44,7 @@ explains why).
 Their copies declare no dependencies of their own. The package declares the
 third-party libraries they load instead, found by tracing the built code
 (`scripts/release/server-runtime-deps.mjs`). So what `widgets` declares for the
-dashboard (React, Radix, Leaflet and the rest) is never installed. A 0.2.10
+dashboard (React, Radix, Leaflet and the rest) is never installed. A 0.3.0
 install comes to about 170 packages and 150 MB. Up to 0.2.9, npm downloaded 14
 separate Adminium packages and everything they declared: about 245 packages and
 220 MB.
@@ -145,7 +145,7 @@ project it is always resolved against the project root. The complete list is
 
 ## 2. The first run
 
-From 0.2.10, `adminium` with no command creates a project (`adminium new`), and
+From 0.3.0, `adminium` with no command creates a project (`adminium new`), and
 the wizard described here runs as `adminium try`. Its first question is which
 front door you want:
 
@@ -339,7 +339,7 @@ deliberately pure subpaths, `@adminium/widgets/page-config` and
 `@adminium/widgets/generate`, and the engine never imports the widgets barrel.
 So the server never *loads* React.
 
-From 0.2.10, npm does not install it either. The published CLI carries only
+From 0.3.0, npm does not install it either. The published CLI carries only
 the internal packages the server loads (`widgets` among them, for those two
 subpaths), with no dependency lists of their own, and declares only the
 third-party libraries that code imports. `ui`, `charts`, `tokens`, React, React
@@ -734,7 +734,7 @@ other package keeps its basename under the new scope, and internal
 `workspace:*` edges become npm aliases —
 
 ```json
-"@adminium/engine": "npm:@adminiumjs/engine@0.2.10"
+"@adminium/engine": "npm:@adminiumjs/engine@0.3.0"
 ```
 
 — so the compiled `import '@adminium/engine'` specifiers keep resolving without

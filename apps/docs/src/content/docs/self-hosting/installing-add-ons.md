@@ -133,7 +133,7 @@ only what the image bundles, at the bundled version:
   saying its files are not on this server. The boot log names it too: `installed add-on is not on
   this server …`, with its key and version.
 
-  Before 0.2.11 that row read as a healthy install — including its green **Connected** badge, since
+  Before 0.3.0 that row read as a healthy install — including its green **Connected** badge, since
   the stored credential outlives the volume while the files do not — and an add-on the cached
   catalog feed did not carry, which is every one you uploaded yourself, was left out of the browse
   list entirely. The log was the only place the loss was stated.

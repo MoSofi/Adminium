@@ -12,7 +12,7 @@ introspects the structure and relations, and generates a complete, professional,
 
 ## Run it
 
-**A project folder** (Node.js 22.14 or newer, from 0.2.10) — the way to work on
+**A project folder** (Node.js 22.14 or newer, from 0.3.0) — the way to work on
 an admin you want to change and commit:
 
 ```sh
@@ -53,7 +53,7 @@ export ADMINIUM_SECRET=${ADMINIUM_SECRET:-$(openssl rand -hex 32)}  # save this 
 adminium start   # → http://localhost:4600
 ```
 
-On a server, pin the version (`@adminiumjs/adminium@0.2.12`) and set
+On a server, pin the version (`@adminiumjs/adminium@0.2.9`) and set
 `ADMINIUM_DATA_DIR`. Do not run a server with plain `npx @adminiumjs/adminium`.
 Without a version, npx looks for a newer release on every run. With no
 terminal attached, it installs one without asking, and `start` then migrates

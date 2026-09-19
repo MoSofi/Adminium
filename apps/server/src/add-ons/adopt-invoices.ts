@@ -2,8 +2,8 @@
 /**
  * The upgrade path for a workspace that already has invoices.
  *
- * The invoice manager and editor were built into Adminium through 0.2.11 and
- * are an add-on's page from 0.2.12. The rows did not move — the documents
+ * The invoice manager and editor were built into Adminium through 0.2.9 and
+ * are an add-on's page from 0.3.0. The rows did not move — the documents
  * people authored are still in `adminium_invoice_documents`, in the meta store,
  * read by the same routes — but the SCREEN now arrives with the add-on. On an
  * instance that never installs it, those documents would have nothing to open

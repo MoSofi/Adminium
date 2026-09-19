@@ -1,5 +1,119 @@
 # @adminium/server
 
+## 0.3.0-rc.0
+
+### Minor Changes
+
+- **0.3.0 — add-ons own pages, and 0.2.10 through 0.2.12 are withdrawn.**
+  
+  The three releases between 0.2.9 and this one were cut as patches while a much
+  larger change was still landing, and each shipped a partial version of it. The
+  worst of them, 0.2.12, removed the invoices screen and bundled an add-on that
+  could not yet render its replacement. They have been unpublished. **0.2.9 is the
+  stable line**, and this release candidate is the whole change rather than a
+  fraction of it — everything those three releases described is in here.
+  
+  What this release is:
+  
+  - **An add-on can own a dashboard page.** A page declares a `ref`, the client
+    bundle that renders it, and where it would like to sit in the navigation — a
+    built-in group, or one the add-on brings with it. The host mounts it at
+    `/add-ons/<key>/<ref>`, gives it a rail row, and publishes a versioned runtime
+    for it to render against. Add-ons register their own message catalogues, so a
+    page speaks the operator's language rather than falling back to English.
+  
+  - **Invoices left the engine and became that add-on's page.** Ninety-seven
+    files, eight locale catalogues and the end-to-end specs moved out. **The
+    documents did not move** — same rows, same meta table, same routes; only the
+    screen that opens them arrives differently. A workspace with invoice rows has
+    the add-on adopted for it on the first boot after upgrading, with nobody
+    present and nothing to click.
+  
+  - **A page assistant that drafts in the page's own format.** The pages that
+    build documents read the page you opened it from and the connection's
+    readable tables through grant-checked tools, draft in that page's document
+    format, and preview with that page's own renderer. It saves nothing until an
+    operator enables actions and confirms, and the confirmation leaves an audit
+    row.
+  
+  - **A project folder developers can open, edit and commit.** The generated app
+    becomes a directory on disk you can put under version control, rather than
+    something that only exists inside the instance.
+  
+  - **Designed create dialogs, column rules, filters and line items.** The create
+    path across the product now matches the comps it was designed from.
+  
+  - **An installed app or add-on survives a deploy that empties the data
+    directory.** On a container without a volume, every deploy used to lose every
+    package that the image did not happen to bundle at exactly the installed
+    version. When a storage destination is configured, Adminium now keeps a copy
+    of each installed package there and stages it back at boot.
+  
+  Also in here: trusted proxies are configured explicitly rather than by hop
+  count, email links resolve against a configured public origin, and a revoked
+  role grant is no longer re-granted by the next boot's seed backfill.
+  
+  This is a release candidate. It publishes under the `next` dist-tag, so
+  `npx @adminiumjs/adminium` still installs the stable line; reach it with
+  `@adminiumjs/adminium@next`.
+
+### Patch Changes
+
+- c451e7d: **A page assistant that drafts in the page's own format, and never saves.**
+  
+  The pages that build documents — Email templates and Report builder — gain an
+  **Ask** button in the header. It opens an assistant
+  that already knows what that page holds: its documents, the format they are
+  written in, your branding, and the tables your role can read. Describe what you
+  need and it drafts it, showing its work: every tool it ran, every table it
+  touched, and what the draft would be.
+  
+  **It never writes.** The model's last move is a draft. Every button that would
+  change something is locked until you turn actions on for that session, needs the
+  same permission the page's own Save needs, and asks once more before it runs.
+  What it saves is a draft — an email template disabled, a report with status
+  `draft` — and every write leaves an audit row naming the session that proposed
+  it.
+  
+  **Reading rows is opt-in.** By default it works from your documents and schema
+  alone. An administrator can let it read rows your role can read — masked, at
+  most 50 per request, and listed under *Sources read* on every result. That
+  switch is not carried by an exported bundle: importing somebody else's
+  configuration can never turn it on for you.
+  
+  The permission is seeded to Super Admin and Admin only, and a role that may
+  draft but not save is the ordinary case: it can look, draft, preview, and put a
+  draft straight onto an editor's screen, with the writing buttons locked and a
+  sentence saying why.
+  
+  Settings → AI names the assistant and holds the row-data switch. It needs the
+  same AI provider schema enrichment uses; there is no copy-paste path here,
+  because a conversation is many round trips.
+- 874cae3: **The invoices screen comes back, as the add-on's page.**
+  
+  0.2.12 removed the invoice manager and editor from Adminium and left nothing to
+  replace them: the add-on it bundled was from before the page moved in, so an
+  upgraded instance had no invoices screen and nothing to adopt. The documents
+  were never touched, but there was no way to open them.
+  
+  The bundled set now carries the version that provides the page. On the first
+  boot after upgrading, an instance whose invoice table has rows installs it
+  once, unattended, and the rail row returns — under Library, where the add-on
+  asks to sit. An instance that never authored an invoice installs nothing.
+  
+  If you are on 0.2.12, this is the release to move to.
+- Updated dependencies [c451e7d]
+  - @adminium/llm@0.3.0-rc.0
+  - @adminium/meta@0.3.0-rc.0
+  - @adminium/i18n@0.3.0-rc.0
+  - @adminium/engine@0.3.0-rc.0
+  - @adminium/adapter-mysql@0.3.0-rc.0
+  - @adminium/adapter-postgres@0.3.0-rc.0
+  - @adminium/adapter-sqlite@0.3.0-rc.0
+  - @adminium/schema-import@0.3.0-rc.0
+  - @adminium/add-on-contracts@0.3.0-rc.0
+  - @adminium/manifest@0.3.0-rc.0
+
 ## 0.2.12
 
 ### Patch Changes
@@ -32,8 +146,8 @@
   repositories, and in this release the bundled add-on does not carry the page
   yet. So **0.2.12 has no invoices screen at all** — the adoption deliberately
   declines rather than install an add-on that cannot render anything, and your
-  documents sit untouched until 0.2.13 bundles the add-on that provides it. If
-  you use invoices, upgrade to 0.2.13 rather than stopping here.
+  documents sit untouched until 0.3.0 bundles the add-on that provides it. If
+  you use invoices, upgrade to 0.3.0 rather than stopping here.
 
 - 8e50f36: **An installed app or add-on now survives a deploy that empties the data directory.**
   

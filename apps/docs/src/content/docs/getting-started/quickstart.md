@@ -22,7 +22,7 @@ Always the **scoped** name. The binary it puts on your `PATH` is called
 `adminium`, but the unscoped npm name belongs to an unrelated project, so
 `npx adminium` installs someone else's package: never run it.
 
-`new`, `dev` and `try` arrive in **0.2.10**. Earlier releases have no project
+`new`, `dev` and `try` arrive in **0.3.0**. Earlier releases have no project
 mode; `npx @adminiumjs/adminium` started the setup wizard instead.
 :::
 
@@ -167,7 +167,7 @@ registry on every run and installs any newer release it finds — and with no
 terminal attached it does so without asking. `start` then migrates the meta
 store to that release, and the version you meant to run refuses to start against
 it. Write the version into the command
-(`npx @adminiumjs/adminium@0.2.12 start`), or install it into a fixed directory
+(`npx @adminiumjs/adminium@0.2.9 start`), or install it into a fixed directory
 as in [A VPS without Docker](/self-hosting/vps/). A project has this problem
 solved already: its `package.json` pins one exact version.
 

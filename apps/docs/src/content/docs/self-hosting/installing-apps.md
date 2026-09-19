@@ -118,14 +118,14 @@ or a container with no volume — **every installed app is lost at the next depl
 
 - Studio lists it under **Installed apps** marked **Missing**, with a line saying its files are not
   on this server. The shelf shows the same badge in place of the green "Installed".
-- Its `/apps/…` addresses answer `503` with the code `APP_FILES_MISSING`. Before 0.2.11 they
+- Its `/apps/…` addresses answer `503` with the code `APP_FILES_MISSING`. Before 0.3.0 they
   answered the dashboard's "page not found" page with **HTTP 200**, so an uptime check that read
   only the status code stayed green; a check on `/apps/<key>/<side>/` now goes red, which is what
   you want it to do.
 - The tables it created in your database are kept, with their rows.
 - The boot log names it: `installed app is not on this server …`, with its key and version.
 - The cached catalogue is gone too, so the shelf is empty until **Check for newer** runs again.
-  A lost app you uploaded yourself is never in that feed, so before 0.2.11 it appeared in no list
+  A lost app you uploaded yourself is never in that feed, so before 0.3.0 it appeared in no list
   at all while the install record still said it was there; it is now listed as Missing regardless.
 
 To bring an app back, choose **Install an app**, upload the same version's file with its

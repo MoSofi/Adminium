@@ -9,7 +9,7 @@ adminium [command] [options]
 
 Run with **no command** to create a project: it asks for a folder name and runs
 [`new`](#new). Inside a project, it lists the project's commands instead. The
-setup wizard that used to run here is now [`try`](#try). (From 0.2.10; before
+setup wizard that used to run here is now [`try`](#try). (From 0.3.0; before
 that, no command started the wizard.)
 
 On npm the CLI is published as **`@adminiumjs/adminium`** — the scoped name is
@@ -17,7 +17,7 @@ the only correct install spec (`npx @adminiumjs/adminium`); the binary it
 installs is `adminium`. The unscoped npm name `adminium` is an unrelated
 third-party package, so never run `npx adminium`.
 
-On a server, add the version (`npx @adminiumjs/adminium@0.2.12 start`). Without
+On a server, add the version (`npx @adminiumjs/adminium@0.2.9 start`). Without
 one, npx installs any newer release it finds, and with no terminal attached it
 does so without asking. See
 [A VPS without Docker](/self-hosting/vps/) for a pinned install under systemd,

@@ -41,7 +41,7 @@ volume. For anything you intend to keep, give it a real meta store: see
 Pin a version rather than `latest` for anything real:
 
 ```bash
-docker run --rm -p 4600:4600 ghcr.io/mosofi/adminium:0.2.12
+docker run --rm -p 4600:4600 ghcr.io/mosofi/adminium:0.2.9
 ```
 
 ## Compose

@@ -453,7 +453,7 @@ to an Adminium running on your own machine instead. It goes browser →
 `localhost`; adminium.dev is a static site with no server to receive it.
 
 `adminium try --bridge` sets this for you, to `https://adminium.dev` and
-nothing else (before 0.2.10 it was `adminium --bridge`). Set the variable
+nothing else (before 0.3.0 it was `adminium --bridge`). Set the variable
 directly only if you run your own copy of that page:
 
 ```bash

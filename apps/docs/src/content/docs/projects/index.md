@@ -21,9 +21,9 @@ the right choice if nobody is going to write code. Use a project when you want
 to review changes in a pull request, run the same admin on a laptop and on a
 server, or add code of your own.
 
-:::note[From 0.2.10]
+:::note[From 0.3.0]
 `adminium new`, `dev`, `build`, `check`, `pull`, `eject` and `try` arrive in
-0.2.10. Earlier releases have no project mode.
+0.3.0. Earlier releases have no project mode.
 :::
 
 ## What you need

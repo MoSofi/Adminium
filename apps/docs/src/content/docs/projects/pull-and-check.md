@@ -71,7 +71,7 @@ npm run check
 ✓ database "main" has a usable URL
 ✓ 20 page file(s), 1 schema file(s) and 2 list file(s) are valid
 ✓ 2 hook(s) and 1 action(s) load
-✓ the Dockerfile builds on @adminiumjs/adminium 0.2.10, the version package.json installs
+✓ the Dockerfile builds on @adminiumjs/adminium 0.3.0, the version package.json installs
 ```
 
 It checks, without connecting to anything:
