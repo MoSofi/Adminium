@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The mysql legs run here and nowhere else — see the `Test` step. Nightly,
+  # 03:00 UTC, so a mysql-only regression is caught within a day instead of
+  # costing every push the slowest engine in the matrix.
+  schedule:
+    - cron: '0 3 * * *'
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -20,10 +25,15 @@ jobs:
     # tests) pushed a cache-cold verify past the old ceiling and the job was cut
     # mid-`turbo run test` — GitHub reports that as "cancelled", which reads like
     # somebody pressed a button rather than like a budget. The leg is genuinely
-    # long: coverage everywhere, `--concurrency=2`, and TEST_POSTGRES_URL /
-    # TEST_MYSQL_URL un-skip the live adapter suites that a laptop never runs.
+    # long: coverage everywhere, `--concurrency=2`, and TEST_POSTGRES_URL
+    # un-skips the live suites a laptop never runs.
     # At the cut it had finished dashboard (179 files), server (206) and desktop
     # (18) in 14 minutes and was still inside the remaining packages.
+    #
+    # It happened a SECOND time on 2026-09-19, at 40m17s, and the same way: one
+    # package silent at the cut. The mysql legs moved to the nightly schedule
+    # after that (see the `Test` step), which is what the budget below now
+    # assumes — keep 40 as the headroom the scheduled run still needs.
     timeout-minutes: 40
     services:
       # M9 wave-1 follow-up: TEST_MYSQL_URL un-skips the @adminium/adapter-mysql
@@ -194,63 +204,6 @@ jobs:
       - name: Re-run the tests that read outside their cache key
         run: pnpm run cross-package-tests-check
 
-      # TEST_S3_URL un-skips the `s3` leg of the file-driver conformance
-      # suite (apps/server/test/files-drivers.test.ts) — the only place SigV4 is
-      # proved against a real S3 implementation rather than against AWS's
-      # published vectors. The vectors prove the signing math; MinIO proves
-      # interop with a target that actually VERIFIES it. That is why the
-      # replacement below is MinIO again and not an S3 mock: a mock that accepts
-      # any signature would keep this green while proving nothing.
-      #
-      # WHY A STEP AND NOT A `services:` CONTAINER. It was one until 2026-09-09,
-      # using `bitnami/minio` for the reason the old comment gave: a service
-      # container cannot be given a command, the upstream image needs
-      # `server /data`, and Bitnami's started from environment alone and created
-      # the bucket via MINIO_DEFAULT_BUCKETS. Bitnami then emptied their free
-      # Docker Hub catalog — `bitnami/minio` now has ZERO tags and every run
-      # failed on `manifest for bitnami/minio:latest not found`, so no pin could
-      # rescue it. The surviving `bitnamilegacy/minio` is an explicitly
-      # unsupported shelf frozen at 2025-08, i.e. the same failure again later.
-      # A step has none of the service block's limits: it can pass the command,
-      # so it runs the upstream image, which is the maintained one.
-      #
-      # The readiness probe runs on the RUNNER rather than as a container
-      # `--health-cmd`: the upstream image is UBI-micro based and is not
-      # guaranteed to carry curl, and a health check that cannot execute reports
-      # unhealthy forever.
-      #
-      # FROM quay.io, NOT DOCKER HUB. On 2026-09-13 `minio/minio` stopped
-      # existing on Docker Hub (repository 404, "pull access denied"), so this
-      # step exited 125 and `verify` ran nothing. quay.io is MinIO's own registry
-      # and carries this exact pinned tag, so the pin did not move, only where it
-      # is pulled from.
-      - name: Start MinIO (the S3 conformance target)
-        run: |
-          docker run -d --name minio -p 9000:9000 \
-            -e MINIO_ROOT_USER=minioadmin \
-            -e MINIO_ROOT_PASSWORD=minioadmin \
-            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
-          for i in $(seq 1 40); do
-            if curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null 2>&1; then
-              echo "minio ready after ${i} attempt(s)"
-              break
-            fi
-            if [ "$i" -eq 40 ]; then
-              echo "::error::MinIO did not become ready; logs follow"
-              docker logs minio || true
-              exit 1
-            fi
-            sleep 2
-          done
-          # The suite reads the bucket out of TEST_S3_URL and does NOT create it
-          # (files-drivers.test.ts:118). MINIO_DEFAULT_BUCKETS did this before;
-          # the AWS CLI is preinstalled on ubuntu-latest, so nothing new is
-          # fetched to replace it.
-          AWS_ACCESS_KEY_ID=minioadmin \
-          AWS_SECRET_ACCESS_KEY=minioadmin \
-          AWS_DEFAULT_REGION=us-east-1 \
-            aws --endpoint-url http://127.0.0.1:9000 s3 mb s3://adminium-test
-
       # Build at full concurrency, then run the SUITES with turbo bounded to two
       # tasks at a time. The split is the fix for a flake, and the reason is
       # measured rather than guessed.
@@ -283,15 +236,40 @@ jobs:
       - name: Lint, typecheck, build
         run: pnpm turbo run lint typecheck build
 
+      # The three heaviest suites run in the `suite` matrix below, on runners of
+      # their own. They were 1549s of this step's 1127s wall clock on
+      # 2026-09-19 — three tasks that cannot pack into two lanes without one of
+      # them running alone at the end (server did, for 5m19s). Splitting them
+      # out is not about making them faster; it is about taking them off a
+      # critical path they were serialising.
+      #
+      # Exclusions, not an allow-list: a package added later joins this step by
+      # default, which is the safe direction to be wrong in.
       - name: Test
-        run: pnpm turbo run test --concurrency=2
+        run: >-
+          pnpm turbo run test --concurrency=2
+          --filter='!@adminium/meta'
+          --filter='!@adminium/server'
+          --filter='!@adminium/dashboard'
         env:
-          TEST_MYSQL_URL: mysql://root:root@127.0.0.1:3306
+          # MYSQL IS NIGHTLY, NOT PER-PUSH, and the reason is measured. The
+          # live mysql legs are ~80% of what this step costs: @adminium/meta
+          # alone runs 512s of worker time with postgres AND mysql against 99s
+          # with postgres alone, because every one of its live-engine tests
+          # provisions a database and mysql's DDL is ~5x postgres's per
+          # provision. On 2026-09-19 that cost took `verify` past its 40-minute
+          # ceiling and the job was cut mid-`turbo run test`.
+          #
+          # Absent, not false: every mysql suite gates on `Boolean(TEST_MYSQL_URL)`
+          # and reports itself skipped by name, so a leg that stops running says
+          # so rather than vanishing. An empty string is falsy, which is why the
+          # expression yields '' rather than dropping the key.
+          #
+          # The service container above still starts on every run — a `services:`
+          # block cannot be made conditional — but an idle container costs
+          # seconds, and the scheduled run needs it.
+          TEST_MYSQL_URL: ${{ github.event_name == 'schedule' && 'mysql://root:root@127.0.0.1:3306' || '' }}
           TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
-          # The grammar is `http://<key>:<secret>@<host>/<bucket>`; the suite
-          # prints "SKIPPED (TEST_S3_URL is not set)" by name when it is
-          # absent, so a leg that stops running says so instead of vanishing.
-          TEST_S3_URL: http://minioadmin:minioadmin@127.0.0.1:9000/adminium-test
           # The psql-driven harnesses (apps/server + adapter-postgres) shell out
           # to `psql -h 127.0.0.1` and authenticate from the ambient PG env.
           PGUSER: postgres
@@ -432,6 +410,179 @@ jobs:
       # of what the release step depends on.
       - name: Derive desktop icons (release-path smoke)
         run: pnpm --filter @adminium/desktop run icons
+
+  # The three suites that dominated `verify`'s Test step, each on a runner of
+  # its own. Measured on 2026-09-19: meta 766s, dashboard 464s, server 319s
+  # against ~200s for the other eighteen packages combined — three tasks that
+  # `--concurrency=2` can only pack by leaving one to run alone at the end.
+  #
+  # Each leg runs ONE turbo task. `test` dependsOn `^build`, so turbo builds
+  # exactly that package's dependencies and nothing else; lint and typecheck
+  # stay in `verify`, which still runs them for every workspace.
+  #
+  # NOT REQUIRED STATUS CHECKS YET. `verify` no longer covers these three, so
+  # until `suite (meta)`, `suite (server)` and `suite (dashboard)` are added to
+  # the branch's required list they run without gating anything.
+  suite:
+    name: suite (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    # Well under verify's 40: the longest leg here is dashboard at ~8 minutes
+    # plus install and the dependency builds.
+    timeout-minutes: 25
+    strategy:
+      # One red suite must not hide the state of the other two.
+      fail-fast: false
+      matrix:
+        include:
+          - package: meta
+            workspace: '@adminium/meta'
+            s3: false
+          - package: server
+            workspace: '@adminium/server'
+            s3: true
+          - package: dashboard
+            workspace: '@adminium/dashboard'
+            s3: false
+    # Declared for every leg because a `services:` block cannot be made
+    # conditional. dashboard touches neither; an idle container costs seconds.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          # See the note on verify's postgres service: the psql harnesses mint
+          # throwaway roles and reconnect as them with no password.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Restore turbo cache
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}-${{ matrix.package }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # TEST_S3_URL un-skips the `s3` leg of the file-driver conformance
+      # suite (apps/server/test/files-drivers.test.ts) — the only place SigV4 is
+      # proved against a real S3 implementation rather than against AWS's
+      # published vectors. The vectors prove the signing math; MinIO proves
+      # interop with a target that actually VERIFIES it. That is why the
+      # replacement below is MinIO again and not an S3 mock: a mock that accepts
+      # any signature would keep this green while proving nothing.
+      #
+      # WHY A STEP AND NOT A `services:` CONTAINER. It was one until 2026-09-09,
+      # using `bitnami/minio` for the reason the old comment gave: a service
+      # container cannot be given a command, the upstream image needs
+      # `server /data`, and Bitnami's started from environment alone and created
+      # the bucket via MINIO_DEFAULT_BUCKETS. Bitnami then emptied their free
+      # Docker Hub catalog — `bitnami/minio` now has ZERO tags and every run
+      # failed on `manifest for bitnami/minio:latest not found`, so no pin could
+      # rescue it. The surviving `bitnamilegacy/minio` is an explicitly
+      # unsupported shelf frozen at 2025-08, i.e. the same failure again later.
+      # A step has none of the service block's limits: it can pass the command,
+      # so it runs the upstream image, which is the maintained one.
+      #
+      # The readiness probe runs on the RUNNER rather than as a container
+      # `--health-cmd`: the upstream image is UBI-micro based and is not
+      # guaranteed to carry curl, and a health check that cannot execute reports
+      # unhealthy forever.
+      #
+      # FROM quay.io, NOT DOCKER HUB. On 2026-09-13 `minio/minio` stopped
+      # existing on Docker Hub (repository 404, "pull access denied"), so this
+      # step exited 125 and `verify` ran nothing. quay.io is MinIO's own registry
+      # and carries this exact pinned tag, so the pin did not move, only where it
+      # is pulled from.
+      - name: Start MinIO (the S3 conformance target)
+        if: matrix.s3
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null 2>&1; then
+              echo "minio ready after ${i} attempt(s)"
+              break
+            fi
+            if [ "$i" -eq 40 ]; then
+              echo "::error::MinIO did not become ready; logs follow"
+              docker logs minio || true
+              exit 1
+            fi
+            sleep 2
+          done
+          # The suite reads the bucket out of TEST_S3_URL and does NOT create it
+          # (files-drivers.test.ts:118). MINIO_DEFAULT_BUCKETS did this before;
+          # the AWS CLI is preinstalled on ubuntu-latest, so nothing new is
+          # fetched to replace it.
+          AWS_ACCESS_KEY_ID=minioadmin \
+          AWS_SECRET_ACCESS_KEY=minioadmin \
+          AWS_DEFAULT_REGION=us-east-1 \
+            aws --endpoint-url http://127.0.0.1:9000 s3 mb s3://adminium-test
+
+      - name: Test
+        run: pnpm turbo run test --filter=${{ matrix.workspace }}
+        env:
+          # Nightly, exactly as in verify — read the note there before changing
+          # this one; the two must agree or a mysql leg runs on one runner and
+          # not the other.
+          TEST_MYSQL_URL: ${{ github.event_name == 'schedule' && 'mysql://root:root@127.0.0.1:3306' || '' }}
+          TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          # The grammar is `http://<key>:<secret>@<host>/<bucket>`; the suite
+          # prints "SKIPPED (TEST_S3_URL is not set)" by name when it is
+          # absent, so a leg that stops running says so instead of vanishing.
+          TEST_S3_URL: ${{ matrix.s3 && 'http://minioadmin:minioadmin@127.0.0.1:9000/adminium-test' || '' }}
+          # The psql-driven harnesses shell out to `psql -h 127.0.0.1` and
+          # authenticate from the ambient PG env.
+          PGUSER: postgres
+          PGPASSWORD: postgres
+
+      - name: Upload coverage summary
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.package }}
+          path: |
+            apps/*/coverage/
+            packages/*/coverage/
+          retention-days: 7
+          if-no-files-found: ignore
 
   a11y:
     name: a11y
