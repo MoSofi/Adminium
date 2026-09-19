@@ -1773,6 +1773,21 @@ export default {
     "workspaceSection": "Espace de travail"
   },
   "settingsAi": {
+    "assistant": {
+      "name": {
+        "label": "Nom de l’assistant",
+        "hint": "Affiché sur le bouton de demande et dans la fenêtre de l’assistant."
+      },
+      "rowData": {
+        "label": "Autoriser {name} à lire les lignes des tables",
+        "hint": "Quand c’est activé, {name} peut envoyer au fournisseur configuré les lignes que votre rôle peut lire — masquées, au plus 50 par requête, et listées sous « Sources lues ». Quand c’est désactivé, il travaille uniquement à partir des documents et du schéma."
+      },
+      "save": "Enregistrer",
+      "saveFailed": "Impossible d’enregistrer les paramètres de l’assistant. Réessayez.",
+      "saved": "Paramètres de l’assistant enregistrés",
+      "subtitle": "Son nom ici, et ce qu’il peut lire.",
+      "title": "Assistant"
+    },
     "byo": {
       "body": "Studio peut générer un prompt autonome à partir de votre schéma. Exécutez-le dans Claude Code, ChatGPT ou l’outil de votre choix, puis collez le JSON renvoyé dans l’assistant de connexion. Même validation, même revue, même résultat que la voie directe.",
       "guarantee1": "Le prompt ne contient que votre schéma et des statistiques agrégées — jamais de données de lignes par défaut.",

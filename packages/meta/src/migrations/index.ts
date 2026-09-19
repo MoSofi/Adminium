@@ -58,6 +58,7 @@ import { up as up0033 } from './0033_connection_project_key.js';
 import { up as up0034 } from './0034_project_files.js';
 import { up as up0035 } from './0035_option_lists.js';
 import { up as up0030 } from './0030_report_documents.js';
+import { up as up0036 } from './0036_assistant_sessions.js';
 
 export interface MetaMigration {
   /** Basename, e.g. `0001_core_auth` — the ledger PK. */
@@ -101,4 +102,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0033_connection_project_key', up: up0033 },
   { name: '0034_project_files', up: up0034 },
   { name: '0035_option_lists', up: up0035 },
+  { name: '0036_assistant_sessions', up: up0036 },
 ];

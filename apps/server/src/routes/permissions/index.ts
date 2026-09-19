@@ -92,6 +92,11 @@ const SYSTEM_PERMISSION_META: Record<
   // `workspace` beside `pages.manage`: it reads the pages and schema
   // customizations a project folder holds.
   'project.read': { label: 'Read pages and schema changes for a project pull', category: 'workspace' },
+  // `operations` beside `llm.run`: this is a model doing work on request, not
+  // a setting. It is a key of its own because it is what sends a page's
+  // documents and readable rows to a third-party model, which an operator may
+  // want to withhold from a role that still administers the provider.
+  'assistant.use': { label: 'Use the page assistant', category: 'operations' },
 };
 
 /** `users.manage` → `system:users:manage` (spells the dot as a colon). */

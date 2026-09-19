@@ -37,9 +37,11 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { useShortcut } from '../../shell/ShortcutsProvider.js';
 import { emailSettingsQuery } from '../../studio/settings/workspaceApi.js';
-import { emailApi, type EmailBlockRecord, type EmailDocumentDetail, type EmailMirrorOp, type EmailRunView, type EmailSavedBlock } from '../api.js';
+import { emailApi, type EmailBlockRecord, type EmailDocument, type EmailDocumentDetail, type EmailMirrorOp, type EmailRunView, type EmailSavedBlock } from '../api.js';
 import { api } from '../../app/api.js';
 import type { UsersListReply } from '../../team/teamApi.js';
+import { AskAssistant } from '../../assistant/AskAssistant.js';
+import { useEmailEditorAssistant } from '../assistant.js';
 import { DeleteModal } from '../manager/DeleteModal.js';
 import { localeFacts, statusOf } from '../manager/model.js';
 import { defaultBlockData, type EmailBlockKind } from '../model/blocks.js';
@@ -181,6 +183,26 @@ export function Editor({ detail }: EditorProps) {
     setInspectorTab('design');
   }, []);
   const selectedBlock = selection.kind === 'block' ? (blocks.find((block) => block.id === selection.id) ?? null) : null;
+
+  // --- the assistant -----------------------------------------------------------
+  /**
+   * A draft the assistant proposed, put on the screen. ONE `histMutate`, so
+   * one undo takes the whole thing back — which is the right size of step for
+   * something that happened to your draft while you watched. Nothing is
+   * written: the save chip goes to *Unsaved changes* and `Ctrl/⌘+S` still
+   * decides. The selection lands on the first block whose contents differ, so
+   * the inspector opens on something that actually changed.
+   */
+  const applyDocument = useCallback(
+    (next: EmailDocument) => {
+      actions.histMutate((current) => ({ ...current, document: next }));
+      const changed =
+        next.blocks.find((block, index) => JSON.stringify(blocks[index] ?? null) !== JSON.stringify(block)) ?? next.blocks[0];
+      selectFor(changed === undefined ? { kind: 'subject' } : { kind: 'block', id: changed.id });
+    },
+    [actions, blocks, selectFor],
+  );
+  const assistantHost = useEmailEditorAssistant({ documentId: detail.id, draft: draft.document, applyDocument });
 
   // --- structure ---------------------------------------------------------------
   const liveSiblings = detail.languages.filter((l) => !l.archived && l.id !== detail.id).length;
@@ -520,6 +542,7 @@ export function Editor({ detail }: EditorProps) {
             if (activeRun !== null) cancelRun.mutate(activeRun);
           }}
           cancelling={cancelRun.isPending}
+          askAssistant={<AskAssistant host={assistantHost} slot="editor" />}
         />
         <div className="flex min-h-0 flex-1 items-start">
           <main data-testid="email-canvas" className="min-w-0 flex-1 bg-bg px-7 pb-[60px] pt-[22px]">

@@ -9,7 +9,7 @@
  * the tracked data rather than a stale hand-edit.
  */
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -17,28 +17,20 @@ import { LOCALES, type BuiltinLocaleId } from './locales.js';
 import { REVIEW_STATUS, isReviewed, reviewedFraction } from './review-status.js';
 
 const ROOT = path.join(__dirname, '..');
-const NAMESPACES = [
-  'common',
-  'ui',
-  'studio',
-  'generated',
-  'errors',
-  'email',
-  'invoices',
-  'automations',
-  'dataio',
-  'files',
-  'reportBuilder',
-  /*
-   * `onboarding`. This list is the LAST hand-kept one: `meta.mjs` and
-   * `gen-resources.mjs` both read the directory, and `src/resources/
-   * namespaces.ts` was updated with the namespace — so a shipped bundle the
-   * tracker DID track looked orphaned to this gate alone, which is the failure
-   * `meta.mjs`'s own header warns about from the other direction.
-   */
-  'onboarding',
-  'project',
-] as const;
+/*
+ * Read off the directory, exactly as `meta.mjs` and `gen-resources.mjs` do.
+ *
+ * This used to be a hand-kept list, and its own comment called itself the last
+ * one — which is precisely how it failed: a namespace can be added to the
+ * locales, to `namespaces.ts`, to the lazy registry and to the tracker, and
+ * still look orphaned to this gate alone, because the gate was the one place
+ * nobody remembered. Two namespaces landed in the same week and both tripped
+ * it. The directory is the source of truth everywhere else; now it is here too.
+ */
+const NAMESPACES = readdirSync(path.join(__dirname, '..', 'locales', 'en-US'))
+  .filter((file) => file.endsWith('.json'))
+  .map((file) => path.basename(file, '.json'))
+  .sort();
 const TARGETS = LOCALES.filter((l) => l.id !== 'en_US');
 
 const hash = (s: string): string => createHash('sha1').update(s, 'utf8').digest('hex').slice(0, 12);

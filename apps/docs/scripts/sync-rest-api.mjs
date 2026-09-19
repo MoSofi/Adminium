@@ -56,6 +56,11 @@ const DESCRIPTIONS = {
     'Micro-SaaS apps installed into this instance — upload a built bundle or download one ' +
     'from the opt-in online catalog, browse what is staged or offered, plan its tables ' +
     'against a connection, install, update, discard a staged version, and uninstall',
+  assistant:
+    'The page assistant — open a session on a page, ask it something, read what the turn ' +
+    'came back with, and act on the draft it proposed. Every route needs the assistant ' +
+    'permission; saving what it drafts additionally needs the same permission the page’s ' +
+    'own save needs. The assistant reads; nothing it does writes a record on its own.',
   audit: 'The audit log — list and read single entries',
   automations:
     'Automation rules — the trigger, the steps and the branches between them; ' +

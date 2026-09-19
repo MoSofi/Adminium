@@ -1773,6 +1773,21 @@ export default {
     "workspaceSection": "Pracovní prostor"
   },
   "settingsAi": {
+    "assistant": {
+      "name": {
+        "label": "Jméno asistenta",
+        "hint": "Zobrazuje se na tlačítku dotazu a v okně asistenta."
+      },
+      "rowData": {
+        "label": "Povolit {name} číst řádky tabulek",
+        "hint": "Když je zapnuto, {name} smí poslat nakonfigurovanému poskytovateli řádky, které tvoje role může číst — maskované, nejvýše 50 na požadavek a vypsané pod „Přečtené zdroje“. Když je vypnuto, pracuje jen s dokumenty a schématem."
+      },
+      "save": "Uložit",
+      "saveFailed": "Nastavení asistenta se nepodařilo uložit. Zkuste to znovu.",
+      "saved": "Nastavení asistenta uloženo",
+      "subtitle": "Jak se tu jmenuje a co smí číst.",
+      "title": "Asistent"
+    },
     "byo": {
       "body": "Studio umí z vašeho schématu vygenerovat samostatný prompt. Spusťte jej v Claude Code, ChatGPT nebo libovolném nástroji a vrácené JSON vložte zpět do průvodce připojením. Stejná validace, stejná kontrola, stejný výsledek jako přímá cesta.",
       "guarantee1": "Prompt nese jen vaše schéma a agregované statistiky — ve výchozím stavu nikdy data řádků.",

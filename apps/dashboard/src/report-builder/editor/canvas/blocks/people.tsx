@@ -14,7 +14,7 @@ import { cn } from '@adminium/ui';
 import { t } from '../../../../i18n/t.js';
 import type { ApprovalStatus } from '../../../model/envelope.js';
 import { reportIcon } from '../../../icons.js';
-import { DANGER_SOFT_BG, DANGER_TEXT, InlineInput, POS_SOFT_BG, POS_TEXT, SHEET_MUTED, SHEET_SUBTLE, WARN_SOFT_BG, WARN_TEXT } from '../inline.js';
+import { DANGER_SOFT_BG, DANGER_TEXT, InlineInput, POS_SOFT_BG, POS_TEXT, SHEET_MUTED, SHEET_SUBTLE, WARN_SOFT_BG, WARN_TEXT, useSheetReadOnly } from '../inline.js';
 import type { BlockBodyProps } from './types.js';
 
 /** The comp's `apprMeta` (472): label, text colour, soft fill and glyph, per status. */
@@ -61,6 +61,10 @@ export function SignatureBlock({ block, edits }: BlockBodyProps<'signature'>) {
 /** 324: a 20 px checkbox that toggles as a history step, and the label inline beside it. */
 export function TermsBlock({ block, edits }: BlockBodyProps<'terms'>) {
   const CheckGlyph = reportIcon('check');
+  // The box is a STATE, not an affordance: a preview must still show whether
+  // the box is pre-checked. Disabled rather than dropped — it keeps its role
+  // and its `aria-checked`, and loses only the focus stop and the click.
+  const readOnly = useSheetReadOnly();
   return (
     <div data-testid="report-block-terms" className="flex items-start gap-[11px]">
       <button
@@ -69,6 +73,7 @@ export function TermsBlock({ block, edits }: BlockBodyProps<'terms'>) {
         aria-checked={block.termsChecked}
         aria-label={t('reportBuilder:inspector.prechecked', 'Pre-checked')}
         data-testid="report-terms-box"
+        disabled={readOnly}
         onClick={(event) => {
           event.stopPropagation();
           edits.histPatchBlock(block.id, { termsChecked: !block.termsChecked });

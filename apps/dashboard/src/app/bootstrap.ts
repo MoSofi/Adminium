@@ -11,6 +11,10 @@
  * `@adminium/server/api-types` subpath ships, this is the copied mirror).
  * Change both together.
  */
+// The narrow subpath, deliberately: the barrel makes the whole package
+// statically reachable from this module, and this module is in the entry
+// chunk. See the note in the package's `nav-groups.ts`.
+import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts/nav-groups';
 import { queryOptions } from '@tanstack/react-query';
 import type { Accent, Density, Dir, ThemePref } from '@adminium/tokens';
 import type { Locale } from '@adminium/ui';
@@ -28,9 +32,54 @@ export interface SessionUser {
   updatedAt: number;
 }
 
-/** The five fixed sidebar groups, in order. */
-export const NAV_GROUP_KEYS = ['workspace', 'library', 'planning', 'people', 'account'] as const;
+/**
+ * The five built-in sidebar groups, in rail order.
+ *
+ * RE-EXPORTED FROM `@adminium/add-on-contracts` (51b), which is where an add-on
+ * manifest's `nav.group` is validated against them. One list: a key the
+ * manifest accepts and the rail does not know is a page that installs and never
+ * appears. Generated pages still live in these five and nowhere else; an
+ * add-on's own group rides `addOnNav.groups`, not this type.
+ */
+export const NAV_GROUP_KEYS = BUILTIN_NAV_GROUP_KEYS;
 export type NavGroupKey = (typeof NAV_GROUP_KEYS)[number];
+
+/**
+ * A rail row an add-on contributes, and a group it brought for one (51b).
+ *
+ * `labelKey` + `fallback` rather than a resolved string, the shape a generated
+ * nav item already has: the server renders no add-on bundles, so it has the
+ * manifest's English fallback and nothing else. Until the add-on's own
+ * catalogue is merged into the client's i18n, `t()` returns that fallback.
+ */
+export interface AddOnNavPage {
+  addOnKey: string;
+  ref: string;
+  labelKey: string;
+  fallback: string;
+  /** lucide icon name (kebab-case). */
+  icon: string;
+  /** The module path inside the add-on's package (`pages[].client`). */
+  client: string;
+  /** Built-in or add-on-declared; resolved server-side (`library` by default). */
+  group: string;
+  order: number;
+  adminOnly: boolean;
+  detail: boolean;
+}
+
+export interface AddOnNavGroup {
+  key: string;
+  labelKey: string;
+  fallback: string;
+  order: number;
+  addOnKey: string;
+}
+
+export interface AddOnNav {
+  groups: AddOnNavGroup[];
+  pages: AddOnNavPage[];
+}
 
 export interface NavItem {
   pageId: string;
@@ -152,6 +201,17 @@ export interface BootstrapData {
   configVersion: number;
   llm: { enabled: boolean };
   /**
+   * Whether this session may open the page assistant — the only thing a host
+   * page knows before the modal's chunk loads, and therefore what decides
+   * whether its button renders at all.
+   *
+   * Optional here only so fixtures predating the field keep typechecking; the
+   * server always sends it (the field is required in the Zod reply schema).
+   * Read through {@link assistantAllowed} rather than directly, so no call
+   * site has to repeat the `?? false`.
+   */
+  assistant?: { allowed: boolean; name: string };
+  /**
    * The session-bound CSRF token every mutating call echoes in
    * `x-adminium-csrf`. Optional here only so fixtures predating it keep
    * typechecking; the server always sends it (the field is required in the
@@ -167,6 +227,12 @@ export interface BootstrapData {
    * to repeat the `?? []`.
    */
   hostedApps?: HostedApp[];
+  /**
+   * Rail rows contributed by installed, enabled add-ons (51b). Optional for the
+   * same reason as the fields around it — fixtures predating it — and read
+   * through {@link addOnNavOf}.
+   */
+  addOnNav?: AddOnNav;
   /**
    * Pages hidden from the sidebar but alive (follow-up): Studio's "Hide from
    * sidebar" and the generated cascade-child default both land pages here.
@@ -201,9 +267,29 @@ export interface BootstrapData {
   project?: BootstrapProject;
 }
 
+/** May this session open the page assistant? See the field's note. */
+export function assistantAllowed(bootstrap: BootstrapData): boolean {
+  return bootstrap.assistant?.allowed ?? false;
+}
+
+/**
+ * What the assistant is called here. The fallback is the shipped default,
+ * which is what a fixture predating the field describes anyway — and a button
+ * labelled *Ask* with nothing after it is worse than one naming the default.
+ */
+export function assistantName(bootstrap: BootstrapData): string {
+  const name = bootstrap.assistant?.name ?? '';
+  return name === '' ? 'Milo' : name;
+}
+
 /** The blended apps, never undefined — see the field's note. */
 export function hostedAppsOf(bootstrap: BootstrapData): HostedApp[] {
   return bootstrap.hostedApps ?? [];
+}
+
+/** The add-on rail rows and groups, never undefined — see the field's note. */
+export function addOnNavOf(bootstrap: BootstrapData): AddOnNav {
+  return bootstrap.addOnNav ?? { groups: [], pages: [] };
 }
 
 /** The hidden pages, never undefined — see the field's note. */

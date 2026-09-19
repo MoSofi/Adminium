@@ -129,7 +129,10 @@ import {
 } from './jobs/report-run.js';
 import type { ApplyService } from './llm/apply-service.js';
 import type { CollectRunStats } from './llm/prompt-service.js';
+import { sweepAssistantSessions } from './assistant/retention.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
+import { resolveProviderClient } from './routes/llm/config-service.js';
+import { assistantRoutes } from './routes/assistant/index.js';
 import type { RunService } from './llm/run-service.js';
 import { rbacPlugin } from './plugins/rbac.js';
 import { permissionSetAllows, resolvePermissionSet } from './rbac/resolver.js';
@@ -873,6 +876,28 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // `email.smtp` SETTING at enqueue time, not by boot configuration.
     email: { secret: env.ADMINIUM_SECRET, storage },
     ...(llm === null ? {} : { llm: { resolve: llm.resolve } }),
+    // The assistant's turn runner. The GUARDED resolver, not the enrichment
+    // job's: it re-checks the stored base URL against the outbound guard at the
+    // moment it dials, so a metadata address planted in settings is refused
+    // rather than fetched.
+    ...(llm === null
+      ? {}
+      : {
+          assistant: {
+            manager,
+            resolveClient: () => resolveProviderClient(settingsRepo(meta), llm.keyCrypto),
+            // The same resolver + decision function the route guards use, for
+            // a user rather than a request — a turn runs long after its
+            // request is gone.
+            can: async (userId: string | null, permission: string) =>
+              userId === null
+                ? false
+                : permissionSetAllows(
+                    await resolvePermissionSet(meta, { kind: 'user', id: userId, label: userId }),
+                    permission,
+                  ),
+          },
+        }),
   });
 
   // The `introspect` job kind: without this, POST
@@ -1349,6 +1374,19 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(permissionsRoutes);
       await api.register(apiKeysRoutes);
       await api.register(auditRoutes);
+      if (llm !== null) {
+        await api.register(
+          assistantRoutes({
+            meta,
+            manager,
+            networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+            secret: env.ADMINIUM_SECRET,
+            cancelJob: (jobId) => {
+              jobs.worker.requestCancel(jobId);
+            },
+          }),
+        );
+      }
       if (llm !== null && allowed !== null) {
         await api.register(
           llmRoutes({
@@ -1732,6 +1770,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const automationRunsDays = await settings.get('retention.automationRunsDays');
     const automationRuns = await automationRunsRepo(meta).gc(at, automationRunsDays);
 
+    // Assistant sessions: close what a closed browser left open, then delete
+    // the closed ones past their window, with their turns. A few lines in this
+    // callback rather than a schedule of its own — it is the same nightly
+    // tidy-up over the same store, and a second 03:00 job would only mean two
+    // places to look.
+    const assistantSessions = await sweepAssistantSessions(meta, at);
+
     app.log.info(
       {
         sessions,
@@ -1739,6 +1784,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         jobs: finishedJobs,
         auditEntries,
         automationRuns,
+        assistantSessions,
         jobsDays,
         auditLogDays,
         automationRunsDays,

@@ -1,0 +1,242 @@
+{
+  "ask": {
+    "continue": "继续",
+    "pick": "请在每组中各选一项",
+    "picked": "已选择：{labels}",
+    "ready": "就绪",
+    "waiting": "等你决定"
+  },
+  "audit": {
+    "note": "每一次操作都会记入审计日志"
+  },
+  "button": "询问 {name}",
+  "buttonTitle": "就此页面询问 {name}",
+  "close": "关闭",
+  "composer": {
+    "send": "发送",
+    "working": "处理中…"
+  },
+  "confirm": {
+    "cancel": "取消"
+  },
+  "details": {
+    "checks": "检查项",
+    "figures": "数字",
+    "figuresValue": "{blocks, plural, other {# 个含数字的区块}}",
+    "format": "格式",
+    "formatEmailValue": "Adminium 邮件 · {blocks, plural, other {# 个区块}}",
+    "formatInvoiceValue": "Adminium 发票模板 · {sections, plural, other {已启用 # 个板块}}",
+    "lines": "明细",
+    "linesValue": "{lines, plural, other {# 条明细}} · {total}",
+    "noChecks": "未声明",
+    "none": "无",
+    "notPublished": "未发布",
+    "notPublishedValue": "已保存为草稿",
+    "notTouched": "未改动",
+    "notTouchedValue": "不会改动任何客户数据行，也不会发送邮件",
+    "record": "记录",
+    "recordValue": "发票文档 · 新增 1 行 · 状态为草稿",
+    "sources": "已读取的来源",
+    "sourcesChosen": "选用的来源",
+    "taxLines": "税目",
+    "taxLinesValue": "{rate}%",
+    "tokens": "令牌",
+    "tokensValue": "输入 {in} · 输出 {out}",
+    "variables": "变量"
+  },
+  "diff": {
+    "adds": "+{n}",
+    "against": "与 {name} 对比",
+    "dels": "−{n}",
+    "new": "新建 {kind} — 将写入的字段",
+    "truncated": "对比结果已截断 — 打开草稿查看其余部分。"
+  },
+  "draft": {
+    "account": "账户",
+    "draft": "草稿",
+    "due": "到期",
+    "issued": "开具",
+    "lineCount": "{n, plural, other {# 条明细}}",
+    "lines": "提取的明细",
+    "notTouched": "不会改动任何客户数据行，也不会发送邮件。",
+    "status": "状态",
+    "template": "模板",
+    "total": "合计"
+  },
+  "echo": {
+    "applied": "已放入编辑器 — 请检查高亮的区块。"
+  },
+  "email": {
+    "action1": "发送测试邮件",
+    "action2": "在编辑器中打开",
+    "action3": "保存模板",
+    "blurb": "了解本页：{templates, plural, other {# 个模板}} · {campaigns, plural, other {# 个营销活动}} · 品牌设置",
+    "chip1": "为一张未付发票起草催款邮件",
+    "chip2": "创建提前 3 天的预约提醒",
+    "chip3": "把欢迎模板本地化为德语",
+    "confirm": {
+      "body": "{name} 会在邮件模板中创建“{title}”草稿。在你将其上线前不会发送给任何客户。",
+      "bodyOpen": "{name} 会在邮件模板中创建“{title}”草稿，并在编辑器中打开。",
+      "button": "保存为草稿",
+      "title": "保存为新模板？"
+    },
+    "echo": {
+      "editor": "已保存为草稿模板，正在编辑器中打开。",
+      "sample": "已为 {record} 渲染示例。",
+      "saved": "已保存为草稿模板。",
+      "test": "已用示例数据向 {email} 发送测试。"
+    },
+    "greeting": "我能看到你的邮件模板 — 区块格式、你的品牌设置，以及每个模板可用的变量。",
+    "greetingSub": "描述你需要的邮件，我会按 Adminium 的模板格式起草；保存前你可以先发一封测试邮件。",
+    "language": {
+      "saved": "已添加 {locale} 版本草稿。"
+    },
+    "page": "邮件模板",
+    "placeholder": "描述你需要的模板…",
+    "readPage": "邮件模板 · {templates, plural, other {# 个模板}} · 品牌设置",
+    "scopePrimary": "email_templates",
+    "workTitle": "已起草新的邮件模板"
+  },
+  "error": {
+    "generic": "这次没成功，请再问一次。",
+    "smtp": "尚未配置邮件。请在邮件设置中添加一个中继。",
+    "tooLong": "这段对话超出了模型的上下文 — 请开始新的会话。",
+    "tryAgain": "重试"
+  },
+  "invoiceTemplate": {
+    "action1": "换一个示例预览",
+    "action2": "在编辑器中打开",
+    "action3": "保存模板",
+    "blurb": "了解本页：{templates, plural, other {# 个模板}} · 编号 {pattern} · {invoices, plural, other {# 张发票}}",
+    "chip1": "为欧盟客户创建一个适用反向征收增值税的模板",
+    "chip2": "为我的某个模板添加滞纳金说明板块",
+    "chip3": "把我的某个模板调整为我们的品牌色",
+    "confirm": {
+      "body": "{name} 会把“{title}”作为草稿加入发票模板。现有发票不受影响。",
+      "bodyOpen": "{name} 会把“{title}”作为草稿加入发票模板，并在编辑器中打开。",
+      "button": "保存为草稿",
+      "title": "保存为新的发票模板？"
+    },
+    "echo": {
+      "editor": "已保存为草稿，正在编辑器中打开。",
+      "noSample": "这里没有可用来生成示例的发票。",
+      "sample": "已为 {record} 渲染示例。",
+      "saved": "已保存为草稿模板。",
+      "test": "已向 {email} 发送测试。"
+    },
+    "greeting": "我能看到你的发票模板、编号方案，以及模板使用的税目。",
+    "greetingSub": "告诉我你需要的模板，我会按 Adminium 的发票格式构建，然后用真实账户数据渲染一个示例。",
+    "language": {
+      "saved": "已添加 {locale} 版本草稿。"
+    },
+    "page": "发票模板",
+    "placeholder": "描述你需要的发票模板…",
+    "readPage": "发票模板 · {templates, plural, other {# 个模板}} · 编号 {pattern}",
+    "scopePrimary": "invoice_templates",
+    "workTitle": "已构建新的发票模板"
+  },
+  "invoices": {
+    "action1": "在编辑器中打开",
+    "action2": "创建发票草稿",
+    "blurb": "了解本页：{invoices, plural, other {# 张发票}} · {templates, plural, other {# 个模板}} · 你的角色可以{write, select, true {写入} other {读取}}",
+    "chip1": "为某位客户创建上个月的发票",
+    "chip2": "用上个月未开票的条目起草一张发票",
+    "chip3": "列出已过到期日的发票",
+    "confirm": {
+      "body": "{name} 会把这张发票作为草稿加入发票列表。在你发送之前不会改动任何客户数据行。",
+      "bodyOpen": "{name} 会把这张发票作为草稿加入发票列表，并在编辑器中打开。",
+      "button": "创建草稿",
+      "title": "创建这张发票草稿？"
+    },
+    "echo": {
+      "editor": "已创建为草稿，正在发票编辑器中打开。",
+      "sample": "已为 {record} 渲染示例。",
+      "saved": "已创建为草稿，就在表格顶部。",
+      "test": "已向 {email} 发送测试。"
+    },
+    "greeting": "我能看到发票表、你的模板，以及发票数据可能的来源。",
+    "greetingSub": "告诉我要向谁开票，我会先问用哪个模板、从哪里取明细，然后才起草。",
+    "language": {
+      "saved": "已添加 {locale} 版本草稿。"
+    },
+    "page": "发票",
+    "placeholder": "例如：为某位客户创建上个月的发票…",
+    "readPage": "发票 · {invoices, plural, other {# 条记录}} · 你的角色可以{write, select, true {写入} other {读取}}",
+    "scopePrimary": "invoices",
+    "workTitle": "已起草发票"
+  },
+  "readOnly": {
+    "enable": "启用操作",
+    "lockedTitle": "启用操作后 {name} 才能执行",
+    "noWrite": "你的角色在这里可以查看、起草和预览，但不能保存。",
+    "noWriteTitle": "你的角色在这里无法执行此操作",
+    "note": "{name} 目前是只读的 — 可以查看、起草和预览，但不能保存、发送或创建。"
+  },
+  "report": {
+    "action1": "运行完整预览",
+    "action2": "在构建器中打开",
+    "action3": "保存报告",
+    "blurb": "了解本页：{reports, plural, other {# 份报告}} · {connection} · {tables, plural, other {# 张可读表}}",
+    "chip1": "哪些客户占用的支持时间最多？来源由你来选",
+    "chip2": "用客户和订单构建一份留存报告",
+    "chip3": "创建一个月度运营回顾模板",
+    "confirm": {
+      "body": "{name} 会把“{title}”加入报告。它按需运行 — 在你设置计划之前不会定时执行。",
+      "bodyOpen": "{name} 会把“{title}”加入报告，并在构建器中打开。",
+      "button": "保存报告",
+      "title": "保存这份报告？"
+    },
+    "echo": {
+      "editor": "已保存到报告，正在构建器中打开。",
+      "resampled": "已重新运行数据源 — 更新了 {n, plural, other {# 项数据}}。",
+      "resampledRefused": "已重新运行数据源 — 更新了 {n, plural, other {# 项数据}}；{refused, plural, other {# 个数据源}}无法读取。",
+      "sample": "已为 {record} 运行完整查询。",
+      "saved": "已保存到报告。可在报告标题栏添加计划。",
+      "test": "已向 {email} 发送测试。"
+    },
+    "greeting": "我能看到你的报告库，以及你的角色在 {connection} 中可读取的 {tables, plural, other {# 张表}}。",
+    "greetingSub": "说出表和版式，或者直接把问题告诉我 — 我来挑选来源，并说明理由。",
+    "language": {
+      "saved": "已添加 {locale} 版本草稿。"
+    },
+    "page": "报告构建器",
+    "placeholder": "要一份报告，或说出要用哪些表…",
+    "readPage": "报表生成器 · {reports, plural, other {# 个报表}} · {tables, plural, other {# 张可读表}}",
+    "scopePrimary": "reports",
+    "workTitle": "已构建报告"
+  },
+  "scope": {
+    "connection": "{connection} · {n, plural, other {# 张表}}",
+    "extra": "+{n}",
+    "title": "本次会话可读取的数据"
+  },
+  "steps": {
+    "done": "完成",
+    "failed": "失败",
+    "note": {
+      "ready": "就绪",
+      "warning": "{n, plural, other {# 条警告}}"
+    },
+    "readPage": "已读取此页面",
+    "step": "第 {n} 步",
+    "working": "正在处理"
+  },
+  "tabs": {
+    "details": "详情",
+    "diff": "差异",
+    "preview": "预览"
+  },
+  "tokens": {
+    "hint": "约 {n} 令牌",
+    "title": "本次会话已用令牌",
+    "value": "{n} 令牌"
+  },
+  "try": "试试",
+  "unavailable": {
+    "askAdmin": "请让管理员配置一个。",
+    "forbidden": "你没有使用 {name} 的权限。",
+    "network": "本实例已关闭对外网络功能。",
+    "noProvider": "尚未配置 AI 服务商。",
+    "settings": "打开 设置 → AI"
+  }
+}

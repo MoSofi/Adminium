@@ -139,6 +139,13 @@ const SWEEP_IGNORE = [
   'apps/dashboard/src/automations/model/vocabulary.ts',
   'apps/dashboard/src/automations/AutomationRulesPage.tsx',
   'apps/dashboard/src/automations/WorkflowLogsPage.tsx',
+  // The page assistant (44): one modal, `lazy()`-loaded from three lazy
+  // routes, every name resolved through `apps/dashboard/src/assistant/
+  // icons.ts` (`assistantIcon` / `stepIcon`), the same local map. One file
+  // carries `icon:` literals — the three suggestion chips and the result
+  // card's actions, per page, in `contexts.ts`; everywhere else the slug is a
+  // positional argument the sweep never sees.
+  'apps/dashboard/src/assistant/contexts.ts',
 ];
 
 /** Files whose curated arrays are icon vocabularies in full. */

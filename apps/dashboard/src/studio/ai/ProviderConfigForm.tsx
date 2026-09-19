@@ -66,7 +66,8 @@ import {
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 
-const CONFIG_QUERY_KEY = ['llm', 'config'] as const;
+/** The one config cache key. The assistant card writes the same row, so it reads it too. */
+export const CONFIG_QUERY_KEY = ['llm', 'config'] as const;
 
 /**
  * The provider config, held under one key both hosts share: Settings suspends

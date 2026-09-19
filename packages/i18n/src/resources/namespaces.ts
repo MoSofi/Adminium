@@ -27,6 +27,8 @@ export const NAMESPACES = [
   'reportBuilder',
   'onboarding',
   'project',
+  'assistant',
+  'addOns',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -107,6 +109,15 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * a project folder at all; its readers are the lazily loaded project
  * modules, which await it before they render.
  *
+ * `assistant` is the page assistant's modal: everything it says on the four
+ * pages it can be opened from, including four sets of per-page copy. It is
+ * behind a `lazy()` import inside three already-lazy routes, and most sessions
+ * never open it — so the entry chunk pays only for this namespace's loader
+ * entries, which is the same bargain every namespace above it took. Its two
+ * BUTTON strings are the exception that shapes the rule: a host page renders
+ * the button before the modal's chunk exists, so each host route awaits this
+ * namespace beside its own.
+ *
  * The contract a deferred namespace owes: nothing outside its own surface may
  * read a key from it, and that surface must await {@link Namespace} loading
  * before it renders. See `apps/dashboard/src/studio/routes.tsx`,
@@ -116,7 +127,8 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * `apps/dashboard/src/data-io/dataIoMessages.ts`,
  * `apps/dashboard/src/files/filesMessages.ts`,
  * `apps/dashboard/src/report-builder/reportBuilderMessages.ts` and
- * `apps/dashboard/src/project/projectMessages.ts`.
+ * `apps/dashboard/src/project/projectMessages.ts` and
+ * `apps/dashboard/src/assistant/assistantMessages.ts`.
  */
 export const DEFERRED_NAMESPACES = [
   'studio',
@@ -128,6 +140,15 @@ export const DEFERRED_NAMESPACES = [
   'reportBuilder',
   'onboarding',
   'project',
+  'assistant',
+  /*
+   * What the DASHBOARD says about an add-on's own pages — the states a host
+   * draws when the add-on is absent, switched off, or its module will not load
+   * (51d). Deferred because every one of those strings is rendered by the lazy
+   * page host and by nothing else: in `common` they were 0.85 KiB of an entry
+   * chunk that is measured to the byte.
+   */
+  'addOns',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

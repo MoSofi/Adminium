@@ -1180,6 +1180,60 @@ export interface AdminiumOptionListsTable {
   updatedAt: Ts;
 }
 
+// ---------------------------------------------------------------------------
+// wave 0036 — the page assistant
+// ---------------------------------------------------------------------------
+
+/**
+ * One open assistant modal. See migration 0036 for why these are rows and why
+ * nothing lists them.
+ */
+export interface AdminiumAssistantSessionsTable {
+  id: Id;
+  /** `email` | `invoice-template` | `invoices` | `report`. */
+  context: string;
+  /** `{ documentId?, tab?, connectionIds[] }` — what the page was showing. */
+  host: JsonColumn;
+  /** The editor page's on-screen, unsaved document; NULL from a manager. */
+  draft: JsonColumn | null;
+  provider: string | null;
+  model: string | null;
+  tokensIn: number;
+  tokensOut: number;
+  /** `open` | `closed`. */
+  status: string;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+  closedAt: Ts | null;
+}
+
+/** One exchange inside a session: what was asked, what ran, what came back. */
+export interface AdminiumAssistantTurnsTable {
+  id: Id;
+  sessionId: Id;
+  /** 1-based position; the transcript replays in this order. */
+  seq: number;
+  askText: string | null;
+  picks: JsonColumn | null;
+  /** queued | running | awaiting_picks | done | failed | cancelled. */
+  status: string;
+  jobId: Id | null;
+  /** The provider messages of this turn — what the NEXT turn replays. */
+  transcript: JsonColumn;
+  steps: JsonColumn;
+  say: string | null;
+  ask: JsonColumn | null;
+  result: JsonColumn | null;
+  /** More than one shape lands here — a validation list, a provider failure. */
+  error: JsonColumn | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  durationMs: number | null;
+  createdAt: Ts;
+  finishedAt: Ts | null;
+}
+
 /** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
@@ -1234,6 +1288,8 @@ export interface MetaDB {
   adminium_public_challenges: AdminiumPublicChallengesTable;
   adminium_project_files: AdminiumProjectFilesTable;
   adminium_option_lists: AdminiumOptionListsTable;
+  adminium_assistant_sessions: AdminiumAssistantSessionsTable;
+  adminium_assistant_turns: AdminiumAssistantTurnsTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1290,4 +1346,6 @@ export const META_TABLE_NAMES = [
   'adminium_public_challenges',
   'adminium_project_files',
   'adminium_option_lists',
+  'adminium_assistant_sessions',
+  'adminium_assistant_turns',
 ] as const satisfies readonly (keyof MetaDB)[];

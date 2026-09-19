@@ -24,7 +24,7 @@ import type { ReportBlock } from '../../model/envelope.js';
 import type { Selection } from '../../model/ops.js';
 import { reportIcon } from '../../icons.js';
 import { blockLabel } from '../blockText.js';
-import { InlineInput } from './inline.js';
+import { EditOnly, InlineInput, useSheetReadOnly } from './inline.js';
 
 export interface BlockCardProps {
   block: ReportBlock;
@@ -58,7 +58,8 @@ function HeadAction({ label, glyph, onClick }: { label: string; glyph: string; o
 }
 
 export function BlockCard({ block, index, count, selection, edits, dragging, over, onDragState, children }: BlockCardProps) {
-  const selected = selection === block.id;
+  const readOnly = useSheetReadOnly();
+  const selected = !readOnly && selection === block.id;
   const isDragging = dragging === index;
   const isOver = over === index && dragging !== null && dragging !== index;
   const KindGlyph = reportIcon(BLOCK_KIND_META[block.kind].icon);
@@ -83,18 +84,23 @@ export function BlockCard({ block, index, count, selection, edits, dragging, ove
         data-id={block.id}
         data-selected={selected ? '' : undefined}
         data-hidden={block.show ? undefined : ''}
-        onClick={() => edits.select(block.id)}
-        onDragOver={(event) => {
-          event.preventDefault();
-          if (over !== index) onDragState({ over: index });
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          if (dragging !== null) edits.reorderBlock(dragging, index);
-          onDragState({ dragging: null, over: null });
-        }}
+        {...(readOnly
+          ? {}
+          : {
+              onClick: () => edits.select(block.id),
+              onDragOver: (event: DragEvent<HTMLElement>) => {
+                event.preventDefault();
+                if (over !== index) onDragState({ over: index });
+              },
+              onDrop: (event: DragEvent<HTMLElement>) => {
+                event.preventDefault();
+                if (dragging !== null) edits.reorderBlock(dragging, index);
+                onDragState({ dragging: null, over: null });
+              },
+            })}
         className={cn(
-          'group/block cursor-pointer rounded-[13px] border p-[15px] transition-[opacity,box-shadow] duration-[120ms]',
+          'group/block rounded-[13px] border p-[15px] transition-[opacity,box-shadow] duration-[120ms]',
+          !readOnly && 'cursor-pointer',
           selected ? 'border-[1.5px] border-[color:var(--adm-report-accent)] bg-[color-mix(in_srgb,var(--adm-report-accent)_3%,transparent)]' : 'border-[#ececef] bg-white',
           !block.show && 'opacity-50',
           isDragging && 'opacity-50',
@@ -105,25 +111,27 @@ export function BlockCard({ block, index, count, selection, edits, dragging, ove
           {/* The comp's grip is a bare `<span draggable>` (306). A real button
               carries the same drag handlers AND ArrowUp/ArrowDown, so a keyboard
               reorders too (D17); it looks identical at rest. */}
-          <button
-            type="button"
-            draggable
-            data-testid="report-block-grip"
-            title={t('reportBuilder:canvas.drag', 'Drag to reorder')}
-            aria-label={t('reportBuilder:canvas.drag', 'Drag to reorder')}
-            onDragStart={onDragStart}
-            onDragEnd={() => onDragState({ dragging: null, over: null })}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
-              event.preventDefault();
-              event.stopPropagation();
-              edits.swapBlock(block.id, event.key === 'ArrowUp' ? -1 : 1);
-            }}
-            className="flex cursor-grab items-center border-0 bg-transparent p-0 text-[#6b6b76]"
-          >
-            <GripGlyph className="size-3.5" aria-hidden="true" />
-          </button>
+          <EditOnly>
+            <button
+              type="button"
+              draggable
+              data-testid="report-block-grip"
+              title={t('reportBuilder:canvas.drag', 'Drag to reorder')}
+              aria-label={t('reportBuilder:canvas.drag', 'Drag to reorder')}
+              onDragStart={onDragStart}
+              onDragEnd={() => onDragState({ dragging: null, over: null })}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+                event.preventDefault();
+                event.stopPropagation();
+                edits.swapBlock(block.id, event.key === 'ArrowUp' ? -1 : 1);
+              }}
+              className="flex cursor-grab items-center border-0 bg-transparent p-0 text-[#6b6b76]"
+            >
+              <GripGlyph className="size-3.5" aria-hidden="true" />
+            </button>
+          </EditOnly>
           <KindGlyph className="size-[15px] shrink-0 text-[#6b6b76]" aria-hidden="true" />
           <InlineInput
             label={t('reportBuilder:canvas.blockTitle', 'Block title')}
@@ -133,35 +141,39 @@ export function BlockCard({ block, index, count, selection, edits, dragging, ove
             onChange={(value) => edits.patchBlock(block.id, { title: value })}
             className="flex-1 text-[12.5px] font-bold"
           />
-          <span
-            data-testid="report-block-actions"
-            className="flex gap-0.5 opacity-0 transition-opacity duration-[120ms] group-hover/block:opacity-100 group-focus-within/block:opacity-100"
-          >
-            <HeadAction
-              label={t('reportBuilder:canvas.moveUp', 'Move up')}
-              glyph="chevron-up"
-              onClick={() => index > 0 && edits.swapBlock(block.id, -1)}
-            />
-            <HeadAction
-              label={t('reportBuilder:canvas.moveDown', 'Move down')}
-              glyph="chevron-down"
-              onClick={() => index < count - 1 && edits.swapBlock(block.id, 1)}
-            />
-            <HeadAction label={t('reportBuilder:canvas.deleteBlock', 'Delete block')} glyph="trash-2" onClick={() => edits.deleteBlock(block.id)} />
-          </span>
+          <EditOnly>
+            <span
+              data-testid="report-block-actions"
+              className="flex gap-0.5 opacity-0 transition-opacity duration-[120ms] group-hover/block:opacity-100 group-focus-within/block:opacity-100"
+            >
+              <HeadAction
+                label={t('reportBuilder:canvas.moveUp', 'Move up')}
+                glyph="chevron-up"
+                onClick={() => index > 0 && edits.swapBlock(block.id, -1)}
+              />
+              <HeadAction
+                label={t('reportBuilder:canvas.moveDown', 'Move down')}
+                glyph="chevron-down"
+                onClick={() => index < count - 1 && edits.swapBlock(block.id, 1)}
+              />
+              <HeadAction label={t('reportBuilder:canvas.deleteBlock', 'Delete block')} glyph="trash-2" onClick={() => edits.deleteBlock(block.id)} />
+            </span>
+          </EditOnly>
         </div>
         {children}
         {/* The keyboard's way to point the inspector at this block, invisible at rest. */}
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            edits.select(block.id);
-          }}
-          className="sr-only focus:not-sr-only focus:mt-2 focus:inline-block focus:rounded-md focus:bg-white focus:px-2 focus:py-0.5 focus:text-[10.5px] focus:font-bold focus:text-[var(--adm-report-accent)] focus:shadow-[0_0_0_2px_var(--adm-report-accent)] focus:outline-none"
-        >
-          {t('reportBuilder:canvas.selectBlock', 'Edit {label}', { label })}
-        </button>
+        <EditOnly>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              edits.select(block.id);
+            }}
+            className="sr-only focus:not-sr-only focus:mt-2 focus:inline-block focus:rounded-md focus:bg-white focus:px-2 focus:py-0.5 focus:text-[10.5px] focus:font-bold focus:text-[var(--adm-report-accent)] focus:shadow-[0_0_0_2px_var(--adm-report-accent)] focus:outline-none"
+          >
+            {t('reportBuilder:canvas.selectBlock', 'Edit {label}', { label })}
+          </button>
+        </EditOnly>
       </div>
     </div>
   );

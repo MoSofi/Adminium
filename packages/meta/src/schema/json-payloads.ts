@@ -191,6 +191,16 @@ export const SYSTEM_ACTION_KEYS = [
   // only, but it reads every page and schema customization at once, which is
   // why it is a key of its own rather than riding `pages.manage`.
   'project.read',
+  // The page assistant. A key of its own rather than `llm.run`, which gates
+  // schema enrichment: opening the assistant sends the page's documents — and
+  // the rows the operator can already read — to a third-party model, and
+  // withholding THAT from a role without also withholding enrichment is an
+  // authority an operator must be able to exercise. It is checked by every
+  // `/api/v1/assistant/*` route in the same change that adds it here, so it is
+  // grantable from the start (see RESERVED_SYSTEM_ACTION_KEYS below for the
+  // rule). Saving what the assistant drafts is NOT this key: that rides
+  // `settings.manage`, the same grant the three host pages' own saves ride.
+  'assistant.use',
 ] as const;
 export type SystemActionKey = (typeof SYSTEM_ACTION_KEYS)[number];
 export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);
@@ -1492,3 +1502,96 @@ export const manifestDocSchema = z
     version: z.string(),
   })
   .loose();
+
+// --- the page assistant (wave 0036) -----------------------------------------
+
+/**
+ * Which page an assistant session was opened from. Deliberately a copy of the
+ * list `@adminium/llm` carries rather than an import of it: this store does not
+ * depend on that package, and the value here is a stored enum whose job is to
+ * keep round-tripping whatever an older server wrote.
+ */
+export const assistantContextSchema = z.enum(['email', 'invoice-template', 'invoices', 'report']);
+export type AssistantContextKey = z.infer<typeof assistantContextSchema>;
+
+/** `open` while a modal holds it; `closed` once the operator leaves or the sweep gives up. */
+export const assistantSessionStatusSchema = z.enum(['open', 'closed']);
+export type AssistantSessionStatus = z.infer<typeof assistantSessionStatusSchema>;
+
+/**
+ * A turn's lifecycle. `awaiting_picks` is terminal for the JOB and not for the
+ * turn: the work stopped to ask a question, and the answer arrives as the next
+ * turn rather than as an edit to this one.
+ */
+export const assistantTurnStatusSchema = z.enum([
+  'queued',
+  'running',
+  'awaiting_picks',
+  'done',
+  'failed',
+  'cancelled',
+]);
+export type AssistantTurnStatus = z.infer<typeof assistantTurnStatusSchema>;
+
+/**
+ * One row of the working card, as it is STORED. The icon is a free string
+ * here: the closed list of names a UI may draw belongs to the surface that
+ * draws them, and a stored row written by a newer server must still read back
+ * on an older one.
+ */
+export const assistantStepSchema = z.object({
+  id: z.string(),
+  /** started | done | failed — the last state this step reached. */
+  state: z.string(),
+  icon: z.string(),
+  label: z.string(),
+  detail: z.string(),
+  /** `connection.table` names this step read. */
+  tables: z.array(z.string()),
+  /**
+   * The page's named facts, on the one step the runner writes itself. Stored
+   * so a reloaded session draws the card it drew live; worded by the
+   * dashboard, never here.
+   */
+  facts: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+});
+export type AssistantStepRow = z.infer<typeof assistantStepSchema>;
+
+/** The steps of one turn, in the order they ran. */
+export const assistantStepsSchema = z.array(assistantStepSchema);
+
+/**
+ * The result — the OPEN record, for the same reason the email, invoice and
+ * report bodies are open: what a result holds is the drafted document in the
+ * HOST page's own format, and only the server's context adapters know those.
+ * The store's job is to hand back exactly what was written.
+ */
+export const assistantResultSchema = z.record(z.string(), z.unknown());
+export type AssistantResultRecord = z.infer<typeof assistantResultSchema>;
+
+/** The question back, stored as the surface sent it. Open, like the result. */
+export const assistantAskSchema = z.record(z.string(), z.unknown());
+
+/**
+ * Why a turn failed. More than one shape lands here — a list of validation
+ * errors, a scrubbed provider failure — exactly as `adminium_llm_runs
+ * .validation_errors` does, so it is open and the reader parses a union.
+ */
+export const assistantErrorSchema = z.record(z.string(), z.unknown());
+
+/** Where the session was opened: the document, the manager tab, the connections in view. */
+export const assistantHostSchema = z.object({
+  documentId: z.string().optional(),
+  tab: z.string().optional(),
+  connectionIds: z.array(z.string()).default([]),
+});
+export type AssistantHost = z.infer<typeof assistantHostSchema>;
+
+/** The provider messages of ONE turn — what the next turn replays as history. */
+export const assistantTranscriptSchema = z.array(
+  z.object({
+    role: z.string(),
+    content: z.string(),
+  }),
+);
+export type AssistantTranscriptMessage = z.infer<typeof assistantTranscriptSchema>[number];

@@ -22,6 +22,7 @@ import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
 import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
 
 import { dataIoRoutes } from '../data-io/routes.js';
+import { assistantMessagesReady } from '../assistant/assistantMessages.js';
 import { emailMessagesReady } from '../email/emailMessages.js';
 import { filesMessagesReady } from '../files/filesMessages.js';
 import { validateEmailTemplatesSearch } from '../email/search.js';
@@ -52,7 +53,7 @@ import { StudioGuard } from '../studio/StudioGuard.js';
 import { studioRoutes } from '../studio/routes.js';
 import { widgetRuntimeEnv } from '../lib/widget-runtime.js';
 import { api, ApiError } from './api.js';
-import { bootstrapQuery, defaultPageSlug, findPageBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
+import { assistantAllowed, bootstrapQuery, defaultPageSlug, findPageBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
 import { isHostedPlanSurface } from './capabilities.js';
 import { requestIdForError, stateIdForError } from './query.js';
 
@@ -86,6 +87,9 @@ function lazyRoute(load: () => Promise<ComponentType>): () => ReactElement {
 }
 
 const AboutPageLazy = lazyRoute(async () => (await import('../about/AboutPage.js')).AboutPage);
+const AddOnPageHostLazy = lazyRoute(
+  async () => (await import('../add-ons/AddOnPageHost.js')).AddOnPageHost,
+);
 const AppSurfacePageLazy = lazyRoute(
   async () => (await import('../apps/AppSurfacePage.js')).AppSurfacePage,
 );
@@ -473,6 +477,30 @@ const appSurfaceRootRoute = createRoute({
   },
 });
 
+/**
+ * A page an ADD-ON owns (51b). One route for every add-on page there will ever
+ * be: what is installed is not knowable when this tree is built, and the splat
+ * carries the page's own sub-paths so an add-on can have a detail screen
+ * without the router being told about it.
+ *
+ * `/add-ons/` is the same defence `/a/` is for apps: an add-on key can never
+ * shadow a dashboard route, and a dashboard route added later can never shadow
+ * an add-on.
+ */
+const addOnPageRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/add-ons/$key/$',
+  component: AddOnPageHostLazy,
+});
+
+const addOnPageRootRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/add-ons/$key',
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/add-ons/$key/$', params: { key: params.key, _splat: '' } });
+  },
+});
+
 const accountRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/account',
@@ -542,11 +570,28 @@ function EmailMessages({ children }: { children: ReactElement }) {
   return children;
 }
 
+/**
+ * The assistant's namespace, waited on beside a host page's own so its *Ask
+ * …* button never paints English and corrects itself a frame later.
+ *
+ * ONLY FOR A SESSION THAT COULD OPEN IT. On a stock install the grant is
+ * seeded to Super Admin and Admin, so for most people this chunk is text no
+ * button will ever render — and a fetch on every visit to a page that has no
+ * button is a cost with nothing on the other side of it.
+ */
+function AssistantMessages({ children }: { children: ReactElement }) {
+  const boot = useQuery({ ...bootstrapQuery(), enabled: false });
+  if (boot.data !== undefined && assistantAllowed(boot.data)) use(assistantMessagesReady());
+  return children;
+}
+
 function EmailTemplatesRouteComponent() {
   return (
     <Suspense fallback={null}>
       <EmailMessages>
-        <EmailTemplatesPageLazy />
+        <AssistantMessages>
+          <EmailTemplatesPageLazy />
+        </AssistantMessages>
       </EmailMessages>
     </Suspense>
   );
@@ -556,7 +601,9 @@ function EmailEditorRouteComponent() {
   return (
     <Suspense fallback={null}>
       <EmailMessages>
-        <EmailEditorPageLazy />
+        <AssistantMessages>
+          <EmailEditorPageLazy />
+        </AssistantMessages>
       </EmailMessages>
     </Suspense>
   );
@@ -602,7 +649,9 @@ function InvoicesRouteComponent() {
   return (
     <Suspense fallback={null}>
       <InvoicesMessages>
-        <InvoicesPageLazy />
+        <AssistantMessages>
+          <InvoicesPageLazy />
+        </AssistantMessages>
       </InvoicesMessages>
     </Suspense>
   );
@@ -612,7 +661,9 @@ function InvoiceEditorRouteComponent() {
   return (
     <Suspense fallback={null}>
       <InvoicesMessages>
-        <InvoiceEditorPageLazy />
+        <AssistantMessages>
+          <InvoiceEditorPageLazy />
+        </AssistantMessages>
       </InvoicesMessages>
     </Suspense>
   );
@@ -661,7 +712,9 @@ function ReportBuilderRouteComponent() {
   return (
     <Suspense fallback={null}>
       <ReportBuilderMessages>
-        <ReportBuilderPageLazy />
+        <AssistantMessages>
+          <ReportBuilderPageLazy />
+        </AssistantMessages>
       </ReportBuilderMessages>
     </Suspense>
   );
@@ -671,7 +724,9 @@ function ReportEditorRouteComponent() {
   return (
     <Suspense fallback={null}>
       <ReportBuilderMessages>
-        <ReportEditorPageLazy />
+        <AssistantMessages>
+          <ReportEditorPageLazy />
+        </AssistantMessages>
       </ReportBuilderMessages>
     </Suspense>
   );
@@ -997,6 +1052,8 @@ const routeTree = rootRoute.addChildren([
     pageRoute,
     pageRecordRoute,
     appSurfaceRoute,
+    addOnPageRoute,
+    addOnPageRootRoute,
     appSurfaceRootRoute,
     accountRoute,
     welcomeRoute,

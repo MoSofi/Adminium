@@ -9,13 +9,27 @@
  * `apps/dashboard/src/app/bootstrap.ts` (type-only copy — the dashboard may
  * not import server runtime code per the matrix). Change both together.
  */
+import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
 import { z } from 'zod';
 
 import { authUserView } from '../auth/schema.js';
 import { mePrefsResolvedView } from '../me/schema.js';
 
-/** The five fixed sidebar groups, in order. */
-export const NAV_GROUP_KEYS = ['workspace', 'library', 'planning', 'people', 'account'] as const;
+/**
+ * The five built-in sidebar groups, in rail order.
+ *
+ * RE-EXPORTED, NOT RE-TYPED (51b). The list is `BUILTIN_NAV_GROUP_KEYS` in
+ * `@adminium/add-on-contracts`, because an add-on manifest is validated against
+ * it there and the rail is rendered from it here: a key in one and not the
+ * other would be a page that installs cleanly and never appears. The name
+ * stays `NAV_GROUP_KEYS` so nothing downstream moves.
+ *
+ * It is still a CLOSED set for GENERATED pages — a page a person builds in
+ * Studio goes in one of these five and nowhere else (51 D3). What 51b opens is
+ * a separate axis: an add-on may bring a group of its own, and those ride
+ * `addOnNav.groups` below rather than widening this enum.
+ */
+export const NAV_GROUP_KEYS = BUILTIN_NAV_GROUP_KEYS;
 
 export const navGroupKey = z.enum(NAV_GROUP_KEYS);
 export type NavGroupKey = z.infer<typeof navGroupKey>;
@@ -59,6 +73,69 @@ export const bootstrapNavTree = z.object({
   groups: z.array(z.object({ key: navGroupKey, items: z.array(bootstrapNavItem) })),
 });
 export type BootstrapNavTree = z.infer<typeof bootstrapNavTree>;
+
+/**
+ * An add-on's rail rows and the groups it brings for them (51b).
+ *
+ * WHY A SEPARATE BRANCH AND NOT `nav.groups`. `nav` is the permission-filtered
+ * tree derived from `adminium_pages`; every item there has a `pageId`, a slug
+ * and a connection. An add-on page has none of those — it is a module in a
+ * package — and stuffing it into the same array would mean a nav item whose
+ * `pageId` is a lie and whose `slug` resolves to nothing.
+ *
+ * LABELS ARE NOT RESOLVED HERE, unlike `bootstrapHostedApp`. A hosted app's
+ * label comes from a `surface.json` this server reads at boot; an add-on's
+ * comes from a catalogue that ships INSIDE the add-on's bundle, which the
+ * server does not render (the same sentence the add-on list route already
+ * carries). So the wire carries `labelKey` + `fallback`, exactly as a generated
+ * nav item does, and the rail calls `t()`. The consequence, stated rather than
+ * discovered: until the add-on's catalogue is merged into the client's i18n,
+ * a non-English rail shows the English fallback for these rows. 51d's O4 ruling
+ * decides when that merge happens.
+ */
+const addOnNavGroupKey = z
+  .string()
+  .regex(/^[a-z][a-z0-9-]{0,39}$/, 'a nav group key must be kebab-case, 1\u201340 characters');
+
+export const bootstrapAddOnPage = z.object({
+  /** The add-on that owns it; `/add-ons/<addOnKey>/<ref>`. */
+  addOnKey: z.string(),
+  ref: z.string(),
+  labelKey: z.string(),
+  fallback: z.string(),
+  icon: z.string(),
+  /**
+   * The module path inside the add-on's package — the manifest's
+   * `pages[].client`. The host pairs it with the add-on list reply's `bundles`
+   * to get the URL and the integrity to pin; it is here because the rail
+   * already carries everything else about the page, and a second round trip to
+   * learn one string would be a round trip on every mount.
+   */
+  client: z.string(),
+  /** Built-in or add-on-declared; already resolved (`library` when omitted). */
+  group: addOnNavGroupKey,
+  order: z.number(),
+  adminOnly: z.boolean(),
+  /** The page owns `/add-ons/<key>/<ref>/*` as well as its own path. */
+  detail: z.boolean(),
+});
+export type BootstrapAddOnPage = z.infer<typeof bootstrapAddOnPage>;
+
+export const bootstrapAddOnGroup = z.object({
+  key: addOnNavGroupKey,
+  labelKey: z.string(),
+  fallback: z.string(),
+  order: z.number(),
+  /** The add-on that declared it, for a support answer about a stray heading. */
+  addOnKey: z.string(),
+});
+export type BootstrapAddOnGroup = z.infer<typeof bootstrapAddOnGroup>;
+
+export const bootstrapAddOnNav = z.object({
+  groups: z.array(bootstrapAddOnGroup),
+  pages: z.array(bootstrapAddOnPage),
+});
+export type BootstrapAddOnNav = z.infer<typeof bootstrapAddOnNav>;
 
 /**
  * One blended app section in the sidebar.
@@ -147,6 +224,28 @@ export const bootstrapReply = z.object({
     /** `llm.enabled` gates the ⌘K "Ask AI" affordance. */
     llm: z.object({ enabled: z.boolean() }),
     /**
+     * Whether this session may open the page assistant — the ONLY thing a
+     * host page knows before the modal's own chunk loads, and therefore what
+     * decides whether its button renders at all.
+     *
+     * It is here rather than derived in the browser because the dashboard
+     * holds no permission list: bootstrap carries role slugs, and a role slug
+     * cannot answer a question about a grant an operator may have moved. Like
+     * every other role fact here, it is read at sign-in: a changed grant shows
+     * after a reload.
+     */
+    assistant: z.object({
+      allowed: z.boolean(),
+      /**
+       * What the assistant is called here. The button's LABEL is *Ask
+       * {name}*, and a host page has to render it before the modal's chunk
+       * — let alone its availability call — exists, so the name travels
+       * with the permission rather than behind it. Settings → AI
+       * invalidates this reply when it changes the name.
+       */
+      name: z.string(),
+    }),
+    /**
      * The session-bound CSRF token every mutating call echoes in
      * `x-adminium-csrf` (security/csrf.ts). Issued here because this is the
      * one round trip the SPA is guaranteed to make before it can mutate
@@ -163,6 +262,12 @@ export const bootstrapReply = z.object({
      * sidebar renders nothing extra and the five fixed groups are untouched.
      */
     hostedApps: z.array(bootstrapHostedApp),
+    /**
+     * Rail rows contributed by INSTALLED, ENABLED add-ons (51b), and the groups
+     * they brought with them. Empty on an instance with no add-on that
+     * declares a page, which is every instance until one is installed.
+     */
+    addOnNav: bootstrapAddOnNav,
     /**
      * Pages hidden from the sidebar but very much alive (follow-up): same item
      * shape as the nav, no group. The dashboard resolves `/p/<slug>` URLs,

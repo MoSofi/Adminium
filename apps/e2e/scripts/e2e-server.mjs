@@ -33,6 +33,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { simpleParser } from 'mailparser';
 import { SMTPServer } from 'smtp-server';
 
+import { createFakeLlmServer } from './fake-llm.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..');
 const serverRoot = join(repoRoot, 'apps', 'server');
@@ -78,6 +80,14 @@ const E2E_DATABASE = process.env.E2E_DATABASE ?? 'adminium_e2e';
  */
 const SMTP_PORT = Number(process.env.E2E_SMTP_PORT ?? PORT + 100);
 const SINK_PORT = Number(process.env.E2E_SINK_PORT ?? PORT + 101);
+/**
+ * The scripted OpenAI-compatible endpoint the assistant specs point a provider
+ * at. It is UP for every run and CONFIGURED by none: `llm.enabled` is
+ * bootstrap state for the whole instance, so a spec that left a provider
+ * behind would change what every spec after it renders. Each assistant spec
+ * PUTs the config in `beforeAll` and clears it in `afterAll`.
+ */
+const FAKE_LLM_PORT = Number(process.env.E2E_FAKE_LLM_PORT ?? PORT + 102);
 
 const log = (msg) => console.log(`[e2e-server] ${msg}`);
 const die = (msg) => {
@@ -246,6 +256,7 @@ let app = null;
 let runtime = null;
 let smtpSink = null;
 let sinkHttp = null;
+let fakeLlm = null;
 const cleanup = () => {
   rmSync(tempDir, { recursive: true, force: true });
   rmSync(dataDirPointer, { force: true });
@@ -357,6 +368,11 @@ try {
   await new Promise((resolve) => sinkHttp.listen(SINK_PORT, HOST, resolve));
   log(`SMTP sink listening on ${HOST}:${String(SMTP_PORT)} — messages at http://${HOST}:${String(SINK_PORT)}/messages`);
 
+  // --- the scripted LLM: up beside the sink, configured by nobody ---------------
+  fakeLlm = createFakeLlmServer();
+  await new Promise((resolve) => fakeLlm.listen(FAKE_LLM_PORT, HOST, resolve));
+  log(`fake LLM listening on http://${HOST}:${String(FAKE_LLM_PORT)}/v1 (no provider is configured at boot)`);
+
   const composed = await composeServer({
     env,
     metaStore: runtime.metaStore,
@@ -459,6 +475,7 @@ try {
   if (runtime !== null) await runtime.close().catch(() => {});
   if (sinkHttp !== null) sinkHttp.close();
   if (smtpSink !== null) smtpSink.close();
+  if (fakeLlm !== null) fakeLlm.close();
   cleanup();
   process.exit(1);
 }
@@ -467,6 +484,7 @@ const shutdown = () => {
   const finish = () => {
     if (sinkHttp !== null) sinkHttp.close();
     if (smtpSink !== null) smtpSink.close();
+    if (fakeLlm !== null) fakeLlm.close();
     cleanup();
     process.exit(0);
   };

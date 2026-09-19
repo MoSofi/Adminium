@@ -1763,6 +1763,21 @@
     "workspaceSection": "Workspace"
   },
   "settingsAi": {
+    "assistant": {
+      "name": {
+        "label": "Assistant name",
+        "hint": "Shown on the Ask button and in the assistant window."
+      },
+      "rowData": {
+        "label": "Let {name} read table rows",
+        "hint": "When on, {name} may send rows your role can read to the configured provider — masked, at most 50 per request, and listed under Sources read. When off, it works from documents and schema only."
+      },
+      "save": "Save",
+      "saveFailed": "Could not save the assistant settings. Try again.",
+      "saved": "Assistant settings saved",
+      "subtitle": "What it is called here, and what it may read.",
+      "title": "Assistant"
+    },
     "byo": {
       "body": "Studio can generate a self-contained prompt from your schema. Run it in Claude Code, ChatGPT, or any tool you like, then paste the JSON it returns back into the connect wizard. Same validation, same review, same result as the direct path.",
       "guarantee1": "The prompt carries only your schema and aggregate stats — never row data by default.",

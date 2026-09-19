@@ -91,6 +91,15 @@ export const E2E_DATABASE = 'adminium_e2e';
 export const SMTP_PORT = Number(process.env['E2E_SMTP_PORT'] ?? PORT + 100);
 export const SINK_URL = `http://127.0.0.1:${String(process.env['E2E_SINK_PORT'] ?? PORT + 101)}`;
 
+/**
+ * The scripted OpenAI-compatible endpoint the assistant specs point at
+ * (`scripts/fake-llm.mjs`, started beside the sink). It is running for every
+ * run; NO provider is configured at boot, because `llm.enabled` is bootstrap
+ * state for the whole instance and one spec's leftovers change what every
+ * later spec renders.
+ */
+export const FAKE_LLM_URL = `http://127.0.0.1:${String(process.env['E2E_FAKE_LLM_PORT'] ?? PORT + 102)}/v1`;
+
 /** One captured message, as the sink's `GET /messages` returns it. */
 export interface SinkMessage {
   receivedAt: number;

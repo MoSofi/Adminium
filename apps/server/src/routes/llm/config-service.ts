@@ -83,13 +83,16 @@ export async function readLlmConfig(
   settings: SettingsRepo,
   keyCrypto: LlmKeyCrypto,
 ): Promise<LlmConfigReply> {
-  const [provider, model, baseUrl, storedKey, maxOutputTokens] = await Promise.all([
-    settings.get('llm.provider'),
-    settings.get('llm.model'),
-    settings.get('llm.baseUrl'),
-    settings.get('llm.apiKey'),
-    settings.get('llm.maxOutputTokens'),
-  ]);
+  const [provider, model, baseUrl, storedKey, maxOutputTokens, assistantName, assistantRowData] =
+    await Promise.all([
+      settings.get('llm.provider'),
+      settings.get('llm.model'),
+      settings.get('llm.baseUrl'),
+      settings.get('llm.apiKey'),
+      settings.get('llm.maxOutputTokens'),
+      settings.get('assistant.name'),
+      settings.get('assistant.rowData'),
+    ]);
 
   const plaintext = decryptStoredKey(storedKey, keyCrypto);
   const apiKeySet = plaintext !== null && plaintext.length > 0;
@@ -100,6 +103,8 @@ export async function readLlmConfig(
     maxOutputTokens,
     apiKeySet,
     apiKeyLast4: apiKeySet ? plaintext.slice(-KEY_LAST_N) : null,
+    assistantName,
+    assistantRowData,
   };
 }
 
@@ -143,6 +148,13 @@ export async function writeLlmConfig(
     // Empty string clears the key; otherwise store the AES-256-GCM token — never plaintext.
     const value = body.apiKey.length === 0 ? null : keyCrypto.encrypt(body.apiKey);
     await settings.set('llm.apiKey', value, opts);
+  }
+  // Absent means KEEP for both. The provider form is mounted in two places and
+  // sends neither; a write that defaulted them would rename the assistant every
+  // time somebody saved a model.
+  if (body.assistantName !== undefined) await settings.set('assistant.name', body.assistantName, opts);
+  if (body.assistantRowData !== undefined) {
+    await settings.set('assistant.rowData', body.assistantRowData, opts);
   }
 }
 

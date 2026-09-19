@@ -23,6 +23,15 @@ export function HeadingPreview({ block, label, onHeadingChange, onHeadingFocus }
   useEffect(() => {
     grow(ref.current);
   }, [text]);
+  // With no way to change it there is nothing for a text box to do, and a
+  // read-only one is still a focus stop a preview has no use for.
+  if (onHeadingChange === undefined) {
+    return (
+      <div aria-label={label} className="block w-full text-[1.42em] font-extrabold leading-[1.3] tracking-[-.01em] text-inherit">
+        {text}
+      </div>
+    );
+  }
   return (
     <textarea
       ref={ref}
@@ -30,11 +39,10 @@ export function HeadingPreview({ block, label, onHeadingChange, onHeadingFocus }
       data-testid="email-heading-input"
       rows={Math.max(1, Math.ceil((text.length + 1) / 26))}
       value={text}
-      readOnly={onHeadingChange === undefined}
       onFocus={onHeadingFocus}
       onChange={(event) => {
         grow(event.target);
-        onHeadingChange?.(event.target.value);
+        onHeadingChange(event.target.value);
       }}
       onClick={(event) => event.stopPropagation()}
       className="block w-full resize-none overflow-hidden bg-transparent text-[1.42em] font-extrabold leading-[1.3] tracking-[-.01em] text-inherit outline-none focus:rounded-[5px] focus:ring-[3px] focus:ring-[color-mix(in_srgb,var(--adm-email-accent)_14%,transparent)]"

@@ -1,4 +1,748 @@
 {
+  "addOns.failed.body": {
+    "status": "mt",
+    "srcHash": "9660c98e233c"
+  },
+  "addOns.failed.title": {
+    "status": "mt",
+    "srcHash": "8edc690bde6a"
+  },
+  "addOns.listFailed.body": {
+    "status": "mt",
+    "srcHash": "9f89ecaa07f8"
+  },
+  "addOns.noBundle.body": {
+    "status": "mt",
+    "srcHash": "5e2fa10fd5b7"
+  },
+  "addOns.noBundle.title": {
+    "status": "mt",
+    "srcHash": "8edc690bde6a"
+  },
+  "addOns.notInstalled.body": {
+    "status": "mt",
+    "srcHash": "5758c38c183d"
+  },
+  "addOns.notInstalled.title": {
+    "status": "mt",
+    "srcHash": "144a45d4d098"
+  },
+  "addOns.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "addOns.unknown.body": {
+    "status": "mt",
+    "srcHash": "a801eea2a378"
+  },
+  "addOns.unknown.title": {
+    "status": "mt",
+    "srcHash": "a6221da662ed"
+  },
+  "assistant.ask.continue": {
+    "status": "mt",
+    "srcHash": "2e02623966f9"
+  },
+  "assistant.ask.pick": {
+    "status": "mt",
+    "srcHash": "a09100a3d27e"
+  },
+  "assistant.ask.picked": {
+    "status": "mt",
+    "srcHash": "e5e00b9f7f48"
+  },
+  "assistant.ask.ready": {
+    "status": "mt",
+    "srcHash": "20c7c5522fc2"
+  },
+  "assistant.ask.waiting": {
+    "status": "mt",
+    "srcHash": "edab5b722e47"
+  },
+  "assistant.audit.note": {
+    "status": "mt",
+    "srcHash": "95a6e2add4d6"
+  },
+  "assistant.button": {
+    "status": "mt",
+    "srcHash": "23b48bef02ad"
+  },
+  "assistant.buttonTitle": {
+    "status": "mt",
+    "srcHash": "1891cdd96293"
+  },
+  "assistant.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "assistant.composer.send": {
+    "status": "mt",
+    "srcHash": "9bc2575c3930"
+  },
+  "assistant.composer.working": {
+    "status": "mt",
+    "srcHash": "13b7bfcac438"
+  },
+  "assistant.confirm.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "assistant.details.checks": {
+    "status": "mt",
+    "srcHash": "5098dd1999a4"
+  },
+  "assistant.details.figures": {
+    "status": "mt",
+    "srcHash": "55c78353fbcd"
+  },
+  "assistant.details.figuresValue": {
+    "status": "mt",
+    "srcHash": "365a39e4932c"
+  },
+  "assistant.details.format": {
+    "status": "mt",
+    "srcHash": "041a5dec481d"
+  },
+  "assistant.details.formatEmailValue": {
+    "status": "mt",
+    "srcHash": "653f6447fbcf"
+  },
+  "assistant.details.formatInvoiceValue": {
+    "status": "mt",
+    "srcHash": "4eb981def7ee"
+  },
+  "assistant.details.lines": {
+    "status": "mt",
+    "srcHash": "c6fd3870c86e"
+  },
+  "assistant.details.linesValue": {
+    "status": "mt",
+    "srcHash": "2b3e591ab220"
+  },
+  "assistant.details.noChecks": {
+    "status": "mt",
+    "srcHash": "569275086caf"
+  },
+  "assistant.details.none": {
+    "status": "mt",
+    "srcHash": "71f8e7976e4c"
+  },
+  "assistant.details.notPublished": {
+    "status": "mt",
+    "srcHash": "4008163b8c0d"
+  },
+  "assistant.details.notPublishedValue": {
+    "status": "mt",
+    "srcHash": "4a4e4ba8e0a5"
+  },
+  "assistant.details.notTouched": {
+    "status": "mt",
+    "srcHash": "a593847725aa"
+  },
+  "assistant.details.notTouchedValue": {
+    "status": "mt",
+    "srcHash": "1dd452a70a59"
+  },
+  "assistant.details.record": {
+    "status": "mt",
+    "srcHash": "1c54132b8e5a"
+  },
+  "assistant.details.recordValue": {
+    "status": "mt",
+    "srcHash": "bb5bd0df3a99"
+  },
+  "assistant.details.sources": {
+    "status": "mt",
+    "srcHash": "f0d09c3852c1"
+  },
+  "assistant.details.sourcesChosen": {
+    "status": "mt",
+    "srcHash": "75c9862d0f37"
+  },
+  "assistant.details.taxLines": {
+    "status": "mt",
+    "srcHash": "2ca102166ef0"
+  },
+  "assistant.details.taxLinesValue": {
+    "status": "mt",
+    "srcHash": "d8a5f1293add"
+  },
+  "assistant.details.tokens": {
+    "status": "mt",
+    "srcHash": "c38c6c1f3a27"
+  },
+  "assistant.details.tokensValue": {
+    "status": "mt",
+    "srcHash": "35c6bed1492e"
+  },
+  "assistant.details.variables": {
+    "status": "mt",
+    "srcHash": "ac018db1f7b0"
+  },
+  "assistant.diff.adds": {
+    "status": "src",
+    "srcHash": "7f088b9ecedf"
+  },
+  "assistant.diff.against": {
+    "status": "mt",
+    "srcHash": "b987750ad4e0"
+  },
+  "assistant.diff.dels": {
+    "status": "src",
+    "srcHash": "48217ab515f8"
+  },
+  "assistant.diff.new": {
+    "status": "mt",
+    "srcHash": "6821019f6d23"
+  },
+  "assistant.diff.truncated": {
+    "status": "mt",
+    "srcHash": "4dd0a77ea128"
+  },
+  "assistant.draft.account": {
+    "status": "mt",
+    "srcHash": "85dfa32c97d8"
+  },
+  "assistant.draft.draft": {
+    "status": "mt",
+    "srcHash": "0e7766b460fd"
+  },
+  "assistant.draft.due": {
+    "status": "mt",
+    "srcHash": "145caf292855"
+  },
+  "assistant.draft.issued": {
+    "status": "mt",
+    "srcHash": "deb5d5e2f038"
+  },
+  "assistant.draft.lineCount": {
+    "status": "mt",
+    "srcHash": "7f034670b03e"
+  },
+  "assistant.draft.lines": {
+    "status": "mt",
+    "srcHash": "8b59ce0c0fcf"
+  },
+  "assistant.draft.notTouched": {
+    "status": "mt",
+    "srcHash": "10f4b6d3d4d9"
+  },
+  "assistant.draft.status": {
+    "status": "mt",
+    "srcHash": "bae7d5be7082"
+  },
+  "assistant.draft.template": {
+    "status": "mt",
+    "srcHash": "3ec1ae061c27"
+  },
+  "assistant.draft.total": {
+    "status": "mt",
+    "srcHash": "b25928c69902"
+  },
+  "assistant.echo.applied": {
+    "status": "mt",
+    "srcHash": "b9272154d96f"
+  },
+  "assistant.email.action1": {
+    "status": "mt",
+    "srcHash": "fc552c754dd8"
+  },
+  "assistant.email.action2": {
+    "status": "mt",
+    "srcHash": "d47c851b56a7"
+  },
+  "assistant.email.action3": {
+    "status": "mt",
+    "srcHash": "0885fab21873"
+  },
+  "assistant.email.blurb": {
+    "status": "mt",
+    "srcHash": "d5ddd027db82"
+  },
+  "assistant.email.chip1": {
+    "status": "mt",
+    "srcHash": "6ee27d104da5"
+  },
+  "assistant.email.chip2": {
+    "status": "mt",
+    "srcHash": "30681f11be91"
+  },
+  "assistant.email.chip3": {
+    "status": "mt",
+    "srcHash": "fd4216e6aa1c"
+  },
+  "assistant.email.confirm.body": {
+    "status": "mt",
+    "srcHash": "e88f090fa87e"
+  },
+  "assistant.email.confirm.bodyOpen": {
+    "status": "mt",
+    "srcHash": "e551179af5b9"
+  },
+  "assistant.email.confirm.button": {
+    "status": "mt",
+    "srcHash": "77d9d7593ba8"
+  },
+  "assistant.email.confirm.title": {
+    "status": "mt",
+    "srcHash": "6c19445bb7c0"
+  },
+  "assistant.email.echo.editor": {
+    "status": "mt",
+    "srcHash": "d94817c1cc0f"
+  },
+  "assistant.email.echo.sample": {
+    "status": "mt",
+    "srcHash": "dfbb74489359"
+  },
+  "assistant.email.echo.saved": {
+    "status": "mt",
+    "srcHash": "59a9fff9a8ab"
+  },
+  "assistant.email.echo.test": {
+    "status": "mt",
+    "srcHash": "7f390a314bd9"
+  },
+  "assistant.email.greeting": {
+    "status": "mt",
+    "srcHash": "40674ce119c4"
+  },
+  "assistant.email.greetingSub": {
+    "status": "mt",
+    "srcHash": "37baf6b147b9"
+  },
+  "assistant.email.language.saved": {
+    "status": "mt",
+    "srcHash": "15a27c2ff02f"
+  },
+  "assistant.email.page": {
+    "status": "mt",
+    "srcHash": "5cdc6a6d5345"
+  },
+  "assistant.email.placeholder": {
+    "status": "mt",
+    "srcHash": "5e0fdb878ada"
+  },
+  "assistant.email.readPage": {
+    "status": "mt",
+    "srcHash": "45bbdfcc228b"
+  },
+  "assistant.email.scopePrimary": {
+    "status": "src",
+    "srcHash": "aa4acdfb53ae"
+  },
+  "assistant.email.workTitle": {
+    "status": "mt",
+    "srcHash": "645cf9bfac3c"
+  },
+  "assistant.error.generic": {
+    "status": "mt",
+    "srcHash": "b1ac3f12994f"
+  },
+  "assistant.error.smtp": {
+    "status": "mt",
+    "srcHash": "1a2ea7f39791"
+  },
+  "assistant.error.tooLong": {
+    "status": "mt",
+    "srcHash": "00780a5ca703"
+  },
+  "assistant.error.tryAgain": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "assistant.invoiceTemplate.action1": {
+    "status": "mt",
+    "srcHash": "3ade62446518"
+  },
+  "assistant.invoiceTemplate.action2": {
+    "status": "mt",
+    "srcHash": "d47c851b56a7"
+  },
+  "assistant.invoiceTemplate.action3": {
+    "status": "mt",
+    "srcHash": "0885fab21873"
+  },
+  "assistant.invoiceTemplate.blurb": {
+    "status": "mt",
+    "srcHash": "ea25ef9663ad"
+  },
+  "assistant.invoiceTemplate.chip1": {
+    "status": "mt",
+    "srcHash": "200cdcff0e04"
+  },
+  "assistant.invoiceTemplate.chip2": {
+    "status": "mt",
+    "srcHash": "5027fa784af3"
+  },
+  "assistant.invoiceTemplate.chip3": {
+    "status": "mt",
+    "srcHash": "99bb9dec8ce0"
+  },
+  "assistant.invoiceTemplate.confirm.body": {
+    "status": "mt",
+    "srcHash": "2374e30805bb"
+  },
+  "assistant.invoiceTemplate.confirm.bodyOpen": {
+    "status": "mt",
+    "srcHash": "20bf5d88c61f"
+  },
+  "assistant.invoiceTemplate.confirm.button": {
+    "status": "mt",
+    "srcHash": "77d9d7593ba8"
+  },
+  "assistant.invoiceTemplate.confirm.title": {
+    "status": "mt",
+    "srcHash": "4eb06de009a4"
+  },
+  "assistant.invoiceTemplate.echo.editor": {
+    "status": "mt",
+    "srcHash": "ed9d3696a8c0"
+  },
+  "assistant.invoiceTemplate.echo.noSample": {
+    "status": "mt",
+    "srcHash": "d27675c10299"
+  },
+  "assistant.invoiceTemplate.echo.sample": {
+    "status": "mt",
+    "srcHash": "dfbb74489359"
+  },
+  "assistant.invoiceTemplate.echo.saved": {
+    "status": "mt",
+    "srcHash": "59a9fff9a8ab"
+  },
+  "assistant.invoiceTemplate.echo.test": {
+    "status": "mt",
+    "srcHash": "63ffa8b1ff05"
+  },
+  "assistant.invoiceTemplate.greeting": {
+    "status": "mt",
+    "srcHash": "fbf02a65d67d"
+  },
+  "assistant.invoiceTemplate.greetingSub": {
+    "status": "mt",
+    "srcHash": "bdf7a8dfefe2"
+  },
+  "assistant.invoiceTemplate.language.saved": {
+    "status": "mt",
+    "srcHash": "15a27c2ff02f"
+  },
+  "assistant.invoiceTemplate.page": {
+    "status": "mt",
+    "srcHash": "79915a0bdd2b"
+  },
+  "assistant.invoiceTemplate.placeholder": {
+    "status": "mt",
+    "srcHash": "5f455244489b"
+  },
+  "assistant.invoiceTemplate.readPage": {
+    "status": "mt",
+    "srcHash": "53b41191affa"
+  },
+  "assistant.invoiceTemplate.scopePrimary": {
+    "status": "src",
+    "srcHash": "7705072ded45"
+  },
+  "assistant.invoiceTemplate.workTitle": {
+    "status": "mt",
+    "srcHash": "830ec5f4dc01"
+  },
+  "assistant.invoices.action1": {
+    "status": "mt",
+    "srcHash": "d47c851b56a7"
+  },
+  "assistant.invoices.action2": {
+    "status": "mt",
+    "srcHash": "1ef1fa236dcb"
+  },
+  "assistant.invoices.blurb": {
+    "status": "mt",
+    "srcHash": "168c43802748"
+  },
+  "assistant.invoices.chip1": {
+    "status": "mt",
+    "srcHash": "9c0bc0947550"
+  },
+  "assistant.invoices.chip2": {
+    "status": "mt",
+    "srcHash": "ed1a21beb0bc"
+  },
+  "assistant.invoices.chip3": {
+    "status": "mt",
+    "srcHash": "dc98b46c9f93"
+  },
+  "assistant.invoices.confirm.body": {
+    "status": "mt",
+    "srcHash": "a3b8600a8660"
+  },
+  "assistant.invoices.confirm.bodyOpen": {
+    "status": "mt",
+    "srcHash": "96d6ec066587"
+  },
+  "assistant.invoices.confirm.button": {
+    "status": "mt",
+    "srcHash": "08d405d09126"
+  },
+  "assistant.invoices.confirm.title": {
+    "status": "mt",
+    "srcHash": "6fe862460487"
+  },
+  "assistant.invoices.echo.editor": {
+    "status": "mt",
+    "srcHash": "986726007613"
+  },
+  "assistant.invoices.echo.sample": {
+    "status": "mt",
+    "srcHash": "dfbb74489359"
+  },
+  "assistant.invoices.echo.saved": {
+    "status": "mt",
+    "srcHash": "82a0aa781213"
+  },
+  "assistant.invoices.echo.test": {
+    "status": "mt",
+    "srcHash": "63ffa8b1ff05"
+  },
+  "assistant.invoices.greeting": {
+    "status": "mt",
+    "srcHash": "4fa8b64d958b"
+  },
+  "assistant.invoices.greetingSub": {
+    "status": "mt",
+    "srcHash": "862227ea0a8b"
+  },
+  "assistant.invoices.language.saved": {
+    "status": "mt",
+    "srcHash": "15a27c2ff02f"
+  },
+  "assistant.invoices.page": {
+    "status": "mt",
+    "srcHash": "35f8f37b92ae"
+  },
+  "assistant.invoices.placeholder": {
+    "status": "mt",
+    "srcHash": "c5f347d235dd"
+  },
+  "assistant.invoices.readPage": {
+    "status": "mt",
+    "srcHash": "c72691b4577c"
+  },
+  "assistant.invoices.scopePrimary": {
+    "status": "src",
+    "srcHash": "c3e815afba60"
+  },
+  "assistant.invoices.workTitle": {
+    "status": "mt",
+    "srcHash": "e5021a523d0c"
+  },
+  "assistant.readOnly.enable": {
+    "status": "mt",
+    "srcHash": "f84bd23a3b29"
+  },
+  "assistant.readOnly.lockedTitle": {
+    "status": "mt",
+    "srcHash": "47cffde83a82"
+  },
+  "assistant.readOnly.noWrite": {
+    "status": "mt",
+    "srcHash": "b2b6f7d6bbc5"
+  },
+  "assistant.readOnly.noWriteTitle": {
+    "status": "mt",
+    "srcHash": "4d94ab973f10"
+  },
+  "assistant.readOnly.note": {
+    "status": "mt",
+    "srcHash": "7dac85fc44a5"
+  },
+  "assistant.report.action1": {
+    "status": "mt",
+    "srcHash": "7bceddf21a1d"
+  },
+  "assistant.report.action2": {
+    "status": "mt",
+    "srcHash": "fbbebdd9c6bb"
+  },
+  "assistant.report.action3": {
+    "status": "mt",
+    "srcHash": "d54bdd02147e"
+  },
+  "assistant.report.blurb": {
+    "status": "mt",
+    "srcHash": "6a70838bb2cc"
+  },
+  "assistant.report.chip1": {
+    "status": "mt",
+    "srcHash": "23c4b869df4e"
+  },
+  "assistant.report.chip2": {
+    "status": "mt",
+    "srcHash": "d37de800009d"
+  },
+  "assistant.report.chip3": {
+    "status": "mt",
+    "srcHash": "02f3e739c176"
+  },
+  "assistant.report.confirm.body": {
+    "status": "mt",
+    "srcHash": "7b33c96a706b"
+  },
+  "assistant.report.confirm.bodyOpen": {
+    "status": "mt",
+    "srcHash": "b6b9675ab406"
+  },
+  "assistant.report.confirm.button": {
+    "status": "mt",
+    "srcHash": "d54bdd02147e"
+  },
+  "assistant.report.confirm.title": {
+    "status": "mt",
+    "srcHash": "e6bae8c913ab"
+  },
+  "assistant.report.echo.editor": {
+    "status": "mt",
+    "srcHash": "bd34be79e7a4"
+  },
+  "assistant.report.echo.resampled": {
+    "status": "mt",
+    "srcHash": "acdba90f1184"
+  },
+  "assistant.report.echo.resampledRefused": {
+    "status": "mt",
+    "srcHash": "9de97de3ca34"
+  },
+  "assistant.report.echo.sample": {
+    "status": "mt",
+    "srcHash": "d81896784b07"
+  },
+  "assistant.report.echo.saved": {
+    "status": "mt",
+    "srcHash": "9747da74633a"
+  },
+  "assistant.report.echo.test": {
+    "status": "mt",
+    "srcHash": "63ffa8b1ff05"
+  },
+  "assistant.report.greeting": {
+    "status": "mt",
+    "srcHash": "464f4f983a79"
+  },
+  "assistant.report.greetingSub": {
+    "status": "mt",
+    "srcHash": "1e798fff2f4d"
+  },
+  "assistant.report.language.saved": {
+    "status": "mt",
+    "srcHash": "15a27c2ff02f"
+  },
+  "assistant.report.page": {
+    "status": "mt",
+    "srcHash": "ac3fb892336e"
+  },
+  "assistant.report.placeholder": {
+    "status": "mt",
+    "srcHash": "04cbecbca13e"
+  },
+  "assistant.report.readPage": {
+    "status": "mt",
+    "srcHash": "f7f8ae7c7e2b"
+  },
+  "assistant.report.scopePrimary": {
+    "status": "src",
+    "srcHash": "0b7ec688eeb9"
+  },
+  "assistant.report.workTitle": {
+    "status": "mt",
+    "srcHash": "df81056d42c8"
+  },
+  "assistant.scope.connection": {
+    "status": "mt",
+    "srcHash": "7bebc6541190"
+  },
+  "assistant.scope.extra": {
+    "status": "src",
+    "srcHash": "7f088b9ecedf"
+  },
+  "assistant.scope.title": {
+    "status": "mt",
+    "srcHash": "9268b7604b20"
+  },
+  "assistant.steps.done": {
+    "status": "mt",
+    "srcHash": "e5fd9cfe0e80"
+  },
+  "assistant.steps.failed": {
+    "status": "mt",
+    "srcHash": "5f5f8758f5f2"
+  },
+  "assistant.steps.note.ready": {
+    "status": "mt",
+    "srcHash": "75c0533730ca"
+  },
+  "assistant.steps.note.warning": {
+    "status": "mt",
+    "srcHash": "078f22a5bc31"
+  },
+  "assistant.steps.readPage": {
+    "status": "mt",
+    "srcHash": "ec6d04e2b34a"
+  },
+  "assistant.steps.step": {
+    "status": "mt",
+    "srcHash": "bba82f993ac3"
+  },
+  "assistant.steps.working": {
+    "status": "mt",
+    "srcHash": "9f56551bed5c"
+  },
+  "assistant.tabs.details": {
+    "status": "mt",
+    "srcHash": "dc3decbb9384"
+  },
+  "assistant.tabs.diff": {
+    "status": "mt",
+    "srcHash": "d23a1c9fb35f"
+  },
+  "assistant.tabs.preview": {
+    "status": "mt",
+    "srcHash": "f1fbb2b43dca"
+  },
+  "assistant.tokens.hint": {
+    "status": "mt",
+    "srcHash": "173f7fba2db3"
+  },
+  "assistant.tokens.title": {
+    "status": "mt",
+    "srcHash": "09b61a6d883b"
+  },
+  "assistant.tokens.value": {
+    "status": "mt",
+    "srcHash": "79cd0cae577d"
+  },
+  "assistant.try": {
+    "status": "mt",
+    "srcHash": "72677028b4d0"
+  },
+  "assistant.unavailable.askAdmin": {
+    "status": "mt",
+    "srcHash": "574a5a47f385"
+  },
+  "assistant.unavailable.forbidden": {
+    "status": "mt",
+    "srcHash": "62cfca975fe0"
+  },
+  "assistant.unavailable.network": {
+    "status": "mt",
+    "srcHash": "e12c80d5e58c"
+  },
+  "assistant.unavailable.noProvider": {
+    "status": "mt",
+    "srcHash": "f55bf4abd850"
+  },
+  "assistant.unavailable.settings": {
+    "status": "mt",
+    "srcHash": "8dc2cdd52ffe"
+  },
   "automations.branch.ifMatches": {
     "status": "mt",
     "srcHash": "3947d16c419d"
@@ -19246,6 +19990,42 @@
   "studio.settings.workspaceSection": {
     "srcHash": "4ca0a75c2b7f",
     "status": "mt"
+  },
+  "studio.settingsAi.assistant.name.hint": {
+    "status": "mt",
+    "srcHash": "501c60b0b3a7"
+  },
+  "studio.settingsAi.assistant.name.label": {
+    "status": "mt",
+    "srcHash": "0befcf0ae153"
+  },
+  "studio.settingsAi.assistant.rowData.hint": {
+    "status": "mt",
+    "srcHash": "d14c5214189d"
+  },
+  "studio.settingsAi.assistant.rowData.label": {
+    "status": "mt",
+    "srcHash": "c7016a14bf6b"
+  },
+  "studio.settingsAi.assistant.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.settingsAi.assistant.saveFailed": {
+    "status": "mt",
+    "srcHash": "c04f7314e4c2"
+  },
+  "studio.settingsAi.assistant.saved": {
+    "status": "mt",
+    "srcHash": "ed3be7d9274f"
+  },
+  "studio.settingsAi.assistant.subtitle": {
+    "status": "mt",
+    "srcHash": "42f0dcc82cec"
+  },
+  "studio.settingsAi.assistant.title": {
+    "status": "mt",
+    "srcHash": "8010d1f4d069"
   },
   "studio.settingsAi.byo.body": {
     "srcHash": "743b71c41138",
