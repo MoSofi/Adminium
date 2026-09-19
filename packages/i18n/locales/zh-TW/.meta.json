@@ -1,41 +1,41 @@
 {
-  "addOns.page.failed.body": {
+  "addOns.failed.body": {
     "status": "mt",
     "srcHash": "9660c98e233c"
   },
-  "addOns.page.failed.title": {
+  "addOns.failed.title": {
     "status": "mt",
     "srcHash": "8edc690bde6a"
   },
-  "addOns.page.listFailed.body": {
+  "addOns.listFailed.body": {
     "status": "mt",
     "srcHash": "9f89ecaa07f8"
   },
-  "addOns.page.noBundle.body": {
+  "addOns.noBundle.body": {
     "status": "mt",
     "srcHash": "5e2fa10fd5b7"
   },
-  "addOns.page.noBundle.title": {
+  "addOns.noBundle.title": {
     "status": "mt",
     "srcHash": "8edc690bde6a"
   },
-  "addOns.page.notInstalled.body": {
+  "addOns.notInstalled.body": {
     "status": "mt",
     "srcHash": "5758c38c183d"
   },
-  "addOns.page.notInstalled.title": {
+  "addOns.notInstalled.title": {
     "status": "mt",
     "srcHash": "144a45d4d098"
   },
-  "addOns.page.retry": {
+  "addOns.retry": {
     "status": "mt",
     "srcHash": "042c862e4467"
   },
-  "addOns.page.unknown.body": {
+  "addOns.unknown.body": {
     "status": "mt",
     "srcHash": "a801eea2a378"
   },
-  "addOns.page.unknown.title": {
+  "addOns.unknown.title": {
     "status": "mt",
     "srcHash": "a6221da662ed"
   },

@@ -1,24 +1,22 @@
 {
-  "page": {
-    "notInstalled": {
-      "title": "尚未安裝此 Add-on",
-      "body": "您開啟的頁面屬於某個 Add-on，但該 Add-on 未安裝於此工作區，或已被關閉。管理員可以在 Studio 中安裝它。"
-    },
-    "unknown": {
-      "title": "頁面不存在",
-      "body": "此 Add-on 已安裝，但在該位址下沒有頁面。"
-    },
-    "retry": "重試",
-    "noBundle": {
-      "title": "無法載入此頁面",
-      "body": "該 Add-on 宣告了此頁面，卻沒有附帶它指向的檔案。重新安裝或升級到較新的版本即可解決。"
-    },
-    "failed": {
-      "title": "無法載入此頁面",
-      "body": "無法取得該 Add-on 的程式碼，或其內容與安裝時記錄的指紋不符。其中的程式碼未被執行。"
-    },
-    "listFailed": {
-      "body": "無法讀取已安裝的 Add-on 清單，因此無法確定此頁面應載入哪個檔案。"
-    }
+  "notInstalled": {
+    "title": "尚未安裝此 Add-on",
+    "body": "您開啟的頁面屬於某個 Add-on，但該 Add-on 未安裝於此工作區，或已被關閉。管理員可以在 Studio 中安裝它。"
+  },
+  "unknown": {
+    "title": "頁面不存在",
+    "body": "此 Add-on 已安裝，但在該位址下沒有頁面。"
+  },
+  "retry": "重試",
+  "noBundle": {
+    "title": "無法載入此頁面",
+    "body": "該 Add-on 宣告了此頁面，卻沒有附帶它指向的檔案。重新安裝或升級到較新的版本即可解決。"
+  },
+  "failed": {
+    "title": "無法載入此頁面",
+    "body": "無法取得該 Add-on 的程式碼，或其內容與安裝時記錄的指紋不符。其中的程式碼未被執行。"
+  },
+  "listFailed": {
+    "body": "無法讀取已安裝的 Add-on 清單，因此無法確定此頁面應載入哪個檔案。"
   }
 }

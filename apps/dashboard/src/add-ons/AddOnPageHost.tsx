@@ -141,7 +141,7 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
       <Failed
         title={t('addOns:failed.title', 'This page could not be loaded')}
         body={t(
-          'addOns.page.listFailed.body',
+          'addOns:listFailed.body',
           'The list of installed add-ons could not be read, so there is no way to tell which file this page should load.',
         )}
         onRetry={() => void addOns.refetch()}
@@ -160,7 +160,7 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
       <Failed
         title={t('addOns:noBundle.title', 'This page could not be loaded')}
         body={t(
-          'addOns.page.noBundle.body',
+          'addOns:noBundle.body',
           'The add-on declares this page but does not ship the file it points at. Installing it again, or upgrading it, is what fixes this.',
         )}
       />
@@ -172,7 +172,7 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
       <Failed
         title={t('addOns:failed.title', 'This page could not be loaded')}
         body={t(
-          'addOns.page.failed.body',
+          'addOns:failed.body',
           'The add-on’s code could not be fetched, or it did not match the fingerprint recorded when it was installed. Nothing from it has been run.',
         )}
         onRetry={() => setAttempt((value) => value + 1)}
@@ -252,7 +252,7 @@ function ResolvedAddOnPage() {
       <EmptyState
         title={t('addOns:notInstalled.title', 'This add-on is not installed')}
         body={t(
-          'addOns.page.notInstalled.body',
+          'addOns:notInstalled.body',
           'The page you followed belongs to an add-on this workspace does not have installed, or that has been switched off. An administrator can install it from Studio.',
         )}
       />
@@ -264,7 +264,7 @@ function ResolvedAddOnPage() {
       <EmptyState
         title={t('addOns:unknown.title', 'No such page')}
         body={t(
-          'addOns.page.unknown.body',
+          'addOns:unknown.body',
           'This add-on is installed, but it does not have a page at this address.',
         )}
       />

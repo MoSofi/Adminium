@@ -1,24 +1,22 @@
 {
-  "page": {
-    "notInstalled": {
-      "title": "Ce module n’est pas installé",
-      "body": "La page que vous avez ouverte appartient à un module qui n’est pas installé dans cet espace de travail, ou qui a été désactivé. Un administrateur peut l’installer depuis le Studio."
-    },
-    "unknown": {
-      "title": "Page introuvable",
-      "body": "Ce module est installé, mais il n’a aucune page à cette adresse."
-    },
-    "retry": "Réessayer",
-    "noBundle": {
-      "title": "Cette page n’a pas pu être chargée",
-      "body": "Le module annonce cette page mais ne fournit pas le fichier correspondant. Le réinstaller, ou passer à une version plus récente, corrige ce problème."
-    },
-    "failed": {
-      "title": "Cette page n’a pas pu être chargée",
-      "body": "Le code du module n’a pas pu être récupéré, ou il ne correspondait pas à l’empreinte enregistrée lors de l’installation. Rien n’en a été exécuté."
-    },
-    "listFailed": {
-      "body": "La liste des modules installés n’a pas pu être lue ; impossible donc de savoir quel fichier cette page doit charger."
-    }
+  "notInstalled": {
+    "title": "Ce module n’est pas installé",
+    "body": "La page que vous avez ouverte appartient à un module qui n’est pas installé dans cet espace de travail, ou qui a été désactivé. Un administrateur peut l’installer depuis le Studio."
+  },
+  "unknown": {
+    "title": "Page introuvable",
+    "body": "Ce module est installé, mais il n’a aucune page à cette adresse."
+  },
+  "retry": "Réessayer",
+  "noBundle": {
+    "title": "Cette page n’a pas pu être chargée",
+    "body": "Le module annonce cette page mais ne fournit pas le fichier correspondant. Le réinstaller, ou passer à une version plus récente, corrige ce problème."
+  },
+  "failed": {
+    "title": "Cette page n’a pas pu être chargée",
+    "body": "Le code du module n’a pas pu être récupéré, ou il ne correspondait pas à l’empreinte enregistrée lors de l’installation. Rien n’en a été exécuté."
+  },
+  "listFailed": {
+    "body": "La liste des modules installés n’a pas pu être lue ; impossible donc de savoir quel fichier cette page doit charger."
   }
 }
