@@ -1,6 +1,6 @@
 ---
 title: Why Adminium is built this way
-description: Ten decisions that are load-bearing across the whole codebase — what each one rules out, and what it means if you are about to change code that depends on it.
+description: Eleven decisions that are load-bearing across the whole codebase — what each one rules out, and what it means if you are about to change code that depends on it.
 ---
 
 Some decisions in Adminium show up in hundreds of files. They are not style
@@ -22,6 +22,7 @@ decision itself, and what it means for you if you are working in that area.
 | [Tokens only, no `style` props](/anatomy/decisions/tokens-only/) | Every colour, space and radius is a CSS custom property. |
 | [The i18n rules](/anatomy/decisions/i18n-rules/) | Eight locales from day one, and a key that exists in seven is a build failure. |
 | [The LLM never writes on its own](/anatomy/decisions/llm-never-writes/) | A model produces a proposal; a person accepts it; one transaction applies it. |
+| [The assistant proposes, a person saves](/anatomy/decisions/assistant-proposes/) | The page assistant's last move is a draft; saving is a separate, confirmed, audited act. |
 | [Project code is trusted](/anatomy/decisions/project-code-is-trusted/) | Code in a project folder is the operator's own, and runs unsandboxed. |
 | [One npm package](/anatomy/decisions/one-npm-package/) | The internal packages ship inside the flagship tarball, not beside it. |
 

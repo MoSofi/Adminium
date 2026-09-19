@@ -77,6 +77,14 @@ export const PERMISSIONS = {
   automationsManage: 'system:automations:manage',
   // Project folders: what `pull --from` reads (`GET /project/export`).
   projectRead: 'system:project:read',
+  // Schema enrichment and the Settings -> AI page. The canonical spelling of
+  // the constant `routes/llm/index.ts` carries locally.
+  llmRun: 'system:llm:run',
+  // The page assistant: opening it and running a turn. Saving what it drafts
+  // is NOT this key — that rides `settingsManage`, the same grant the host
+  // pages' own saves ride, so a role can be given the assistant without being
+  // given the authority to change what the workspace sends out.
+  assistantUse: 'system:assistant:use',
 } as const;
 
 export type ParsedGrant =

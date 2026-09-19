@@ -19,6 +19,7 @@
     "@adminium/config": "workspace:*",
     "@adminium/dashboard": "workspace:*",
     "@adminium/engine": "workspace:*",
+    "@adminium/llm": "workspace:*",
     "@adminium/meta": "workspace:*",
     "@adminium/server": "workspace:*",
     "@axe-core/playwright": "^4.13.0",

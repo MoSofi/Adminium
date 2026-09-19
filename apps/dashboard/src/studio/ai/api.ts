@@ -62,6 +62,10 @@ export interface LlmConfig {
   apiKeySet: boolean;
   /** The last 4 chars of the stored key, or `null` when unset (never the key). */
   apiKeyLast4: string | null;
+  /** What the page assistant is called wherever it introduces itself. */
+  assistantName: string;
+  /** Whether its tools may read masked rows from a connection at all. */
+  assistantRowData: boolean;
 }
 
 /**
@@ -74,6 +78,15 @@ export interface LlmConfigInput {
   baseUrl?: string | null;
   apiKey?: string;
   maxOutputTokens?: number | null;
+  /**
+   * The two assistant fields are OMITTED MEANS KEEP. That is what lets the
+   * provider form — which is also the connect wizard's inline panel — go on
+   * sending the body it sends today without renaming the assistant or
+   * switching its row-data policy back to the default every time somebody
+   * saves a model.
+   */
+  assistantName?: string;
+  assistantRowData?: boolean;
 }
 
 /** `POST /config/test` — provider `test()` ping outcome (never the key). */

@@ -226,6 +226,28 @@ export const bootstrapReply = z.object({
     /** `llm.enabled` gates the ⌘K "Ask AI" affordance. */
     llm: z.object({ enabled: z.boolean() }),
     /**
+     * Whether this session may open the page assistant — the ONLY thing a
+     * host page knows before the modal's own chunk loads, and therefore what
+     * decides whether its button renders at all.
+     *
+     * It is here rather than derived in the browser because the dashboard
+     * holds no permission list: bootstrap carries role slugs, and a role slug
+     * cannot answer a question about a grant an operator may have moved. Like
+     * every other role fact here, it is read at sign-in: a changed grant shows
+     * after a reload.
+     */
+    assistant: z.object({
+      allowed: z.boolean(),
+      /**
+       * What the assistant is called here. The button's LABEL is *Ask
+       * {name}*, and a host page has to render it before the modal's chunk
+       * — let alone its availability call — exists, so the name travels
+       * with the permission rather than behind it. Settings → AI
+       * invalidates this reply when it changes the name.
+       */
+      name: z.string(),
+    }),
+    /**
      * The session-bound CSRF token every mutating call echoes in
      * `x-adminium-csrf` (security/csrf.ts). Issued here because this is the
      * one round trip the SPA is guaranteed to make before it can mutate

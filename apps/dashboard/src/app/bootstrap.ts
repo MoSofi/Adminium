@@ -202,6 +202,17 @@ export interface BootstrapData {
   configVersion: number;
   llm: { enabled: boolean };
   /**
+   * Whether this session may open the page assistant — the only thing a host
+   * page knows before the modal's chunk loads, and therefore what decides
+   * whether its button renders at all.
+   *
+   * Optional here only so fixtures predating the field keep typechecking; the
+   * server always sends it (the field is required in the Zod reply schema).
+   * Read through {@link assistantAllowed} rather than directly, so no call
+   * site has to repeat the `?? false`.
+   */
+  assistant?: { allowed: boolean; name: string };
+  /**
    * The session-bound CSRF token every mutating call echoes in
    * `x-adminium-csrf`. Optional here only so fixtures predating it keep
    * typechecking; the server always sends it (the field is required in the
@@ -255,6 +266,21 @@ export interface BootstrapData {
    * through `project/client.ts`.
    */
   project?: BootstrapProject;
+}
+
+/** May this session open the page assistant? See the field's note. */
+export function assistantAllowed(bootstrap: BootstrapData): boolean {
+  return bootstrap.assistant?.allowed ?? false;
+}
+
+/**
+ * What the assistant is called here. The fallback is the shipped default,
+ * which is what a fixture predating the field describes anyway — and a button
+ * labelled *Ask* with nothing after it is worse than one naming the default.
+ */
+export function assistantName(bootstrap: BootstrapData): string {
+  const name = bootstrap.assistant?.name ?? '';
+  return name === '' ? 'Milo' : name;
 }
 
 /** The blended apps, never undefined — see the field's note. */

@@ -2137,6 +2137,22 @@
                           ],
                           "additionalProperties": false
                         },
+                        "assistant": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
                         "csrfToken": {
                           "type": "string"
                         },
@@ -2670,6 +2686,7 @@
                         "version",
                         "configVersion",
                         "llm",
+                        "assistant",
                         "csrfToken",
                         "hostedApps",
                         "addOnNav",
@@ -72541,6 +72558,7 @@
                 "reportBuilder",
                 "onboarding",
                 "project",
+                "assistant",
                 "addOns"
               ]
             },
@@ -72673,6 +72691,7 @@
                 "reportBuilder",
                 "onboarding",
                 "project",
+                "assistant",
                 "addOns"
               ]
             },
@@ -72876,6 +72895,7 @@
                       "reportBuilder",
                       "onboarding",
                       "project",
+                      "assistant",
                       "addOns"
                     ]
                   },
@@ -73027,6 +73047,7 @@
                 "reportBuilder",
                 "onboarding",
                 "project",
+                "assistant",
                 "addOns"
               ]
             },
@@ -73182,6 +73203,7 @@
                             "reportBuilder",
                             "onboarding",
                             "project",
+                            "assistant",
                             "addOns"
                           ]
                         },
@@ -82410,6 +82432,1013 @@
         }
       }
     },
+    "/api/v1/assistant/availability": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "email",
+                "invoice-template",
+                "invoices",
+                "report"
+              ]
+            },
+            "in": "query",
+            "name": "context",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "no-provider",
+                            "network-disabled",
+                            "forbidden"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "rowData": {
+                      "type": "boolean"
+                    },
+                    "canWrite": {
+                      "type": "boolean"
+                    },
+                    "canConfigure": {
+                      "type": "boolean"
+                    },
+                    "provider": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "model": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "reason",
+                    "name",
+                    "rowData",
+                    "canWrite",
+                    "canConfigure",
+                    "provider",
+                    "model"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/sessions": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "context": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "invoice-template",
+                      "invoices",
+                      "report"
+                    ]
+                  },
+                  "host": {
+                    "type": "object",
+                    "properties": {
+                      "documentId": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "tab": {
+                        "type": "string",
+                        "maxLength": 40
+                      },
+                      "connectionIds": {
+                        "default": [],
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 64
+                        }
+                      }
+                    }
+                  },
+                  "draft": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "context",
+                  "host"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "session": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "context": {
+                          "type": "string",
+                          "enum": [
+                            "email",
+                            "invoice-template",
+                            "invoices",
+                            "report"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "open",
+                            "closed"
+                          ]
+                        },
+                        "provider": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "model": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "tokensIn": {
+                          "type": "number"
+                        },
+                        "tokensOut": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "context",
+                        "status",
+                        "provider",
+                        "model",
+                        "tokensIn",
+                        "tokensOut",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "facts": {
+                      "type": "object",
+                      "properties": {
+                        "values": {
+                          "type": "object",
+                          "properties": {
+                            "templates": {
+                              "type": "number"
+                            },
+                            "campaigns": {
+                              "type": "number"
+                            },
+                            "invoices": {
+                              "type": "number"
+                            },
+                            "reports": {
+                              "type": "number"
+                            },
+                            "tables": {
+                              "type": "number"
+                            },
+                            "connection": {
+                              "type": "string"
+                            },
+                            "pattern": {
+                              "type": "string"
+                            },
+                            "write": {
+                              "type": "boolean"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "scope": {
+                          "type": "object",
+                          "properties": {
+                            "primary": {
+                              "type": "string"
+                            },
+                            "extra": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "primary",
+                            "extra"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "values",
+                        "scope"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "nextTurnTokens": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "session",
+                    "facts",
+                    "nextTurnTokens"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/sessions/{id}/turns": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  },
+                  "picks": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "maxLength": 24
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 24
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "turn": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "sessionId": {
+                          "type": "string"
+                        },
+                        "seq": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "queued",
+                            "running",
+                            "awaiting_picks",
+                            "done",
+                            "failed",
+                            "cancelled"
+                          ]
+                        },
+                        "jobId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "askText": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "say": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "steps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "type": "string"
+                              },
+                              "icon": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "detail": {
+                                "type": "string"
+                              },
+                              "tables": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "facts": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "state",
+                              "icon",
+                              "label",
+                              "detail",
+                              "tables"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "ask": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "result": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "error": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "tokensIn": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "tokensOut": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "finishedAt": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "sessionId",
+                        "seq",
+                        "status",
+                        "jobId",
+                        "askText",
+                        "say",
+                        "steps",
+                        "ask",
+                        "result",
+                        "error",
+                        "tokensIn",
+                        "tokensOut",
+                        "createdAt",
+                        "finishedAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "jobId": {
+                      "type": "string"
+                    },
+                    "nextTurnTokens": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "turn",
+                    "jobId",
+                    "nextTurnTokens"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/sessions/{id}/turns/{turnId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "turnId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "type": "string"
+                    },
+                    "seq": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "awaiting_picks",
+                        "done",
+                        "failed",
+                        "cancelled"
+                      ]
+                    },
+                    "jobId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "askText": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "say": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "detail": {
+                            "type": "string"
+                          },
+                          "tables": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "facts": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "boolean"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "state",
+                          "icon",
+                          "label",
+                          "detail",
+                          "tables"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "ask": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "result": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "error": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "tokensIn": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "tokensOut": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "finishedAt": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "sessionId",
+                    "seq",
+                    "status",
+                    "jobId",
+                    "askText",
+                    "say",
+                    "steps",
+                    "ask",
+                    "result",
+                    "error",
+                    "tokensIn",
+                    "tokensOut",
+                    "createdAt",
+                    "finishedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/sessions/{id}/turns/{turnId}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "turnId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/sessions/{id}/turns/{turnId}/actions": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "save",
+                      "test-send",
+                      "sample",
+                      "language.add"
+                    ]
+                  },
+                  "open": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "locale": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 10
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "turnId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "echo": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "created": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "kind",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sample": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "artefact": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "artefact",
+                            "label"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "echo",
+                    "created",
+                    "sample"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/sessions/{id}/close": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/v1/llm/config": {
       "get": {
         "responses": {
@@ -82481,6 +83510,12 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "assistantName": {
+                      "type": "string"
+                    },
+                    "assistantRowData": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -82489,7 +83524,9 @@
                     "baseUrl",
                     "maxOutputTokens",
                     "apiKeySet",
-                    "apiKeyLast4"
+                    "apiKeyLast4",
+                    "assistantName",
+                    "assistantRowData"
                   ],
                   "additionalProperties": false
                 }
@@ -82562,6 +83599,14 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "assistantName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "assistantRowData": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -82640,6 +83685,12 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "assistantName": {
+                      "type": "string"
+                    },
+                    "assistantRowData": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -82648,7 +83699,9 @@
                     "baseUrl",
                     "maxOutputTokens",
                     "apiKeySet",
-                    "apiKeyLast4"
+                    "apiKeyLast4",
+                    "assistantName",
+                    "assistantRowData"
                   ],
                   "additionalProperties": false
                 }

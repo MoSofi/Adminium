@@ -55,3 +55,35 @@ export interface DocumentEdits {
   // ── selection ──────────────────────────────────────────────────────
   select: (selection: Selection) => void;
 }
+
+/**
+ * The implementation a PREVIEW is handed.
+ *
+ * Nothing calls it: the read-only sheet renders every field as text and every
+ * affordance as nothing, so no handler exists to reach these. It is here
+ * because the blocks build their `onChange` closures unconditionally, and
+ * making the surface optional would put a `?.` on every call site to describe
+ * a state none of them can be in. One inert object says it once.
+ */
+const inert = (): void => undefined;
+
+export const NO_EDITS: DocumentEdits = {
+  beginEdit: inert,
+  setHeader: inert,
+  histSetHeader: inert,
+  setName: inert,
+  histSetStatus: inert,
+  patchBlock: inert,
+  histPatchBlock: inert,
+  addBlock: inert,
+  swapBlock: inert,
+  reorderBlock: inert,
+  deleteBlock: inert,
+  updateArrayItem: inert,
+  addArrayItem: inert,
+  removeArrayItem: inert,
+  updateRow: inert,
+  addRow: inert,
+  removeRow: inert,
+  select: inert,
+};

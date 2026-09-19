@@ -6,6 +6,7 @@ import { expect, type Page } from '@playwright/test';
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
+  FAKE_LLM_URL,
   SEED_CONNECTION_NAME,
   dataDirPointerPath,
 } from './constants.js';
@@ -101,4 +102,38 @@ export function serverDataDir(): string {
       `no data-dir pointer at ${dataDirPointerPath()} — is this run using scripts/e2e-server.mjs?`,
     );
   }
+}
+
+/**
+ * Point the instance at the scripted LLM (`scripts/fake-llm.mjs`) for one
+ * spec, and take it away again.
+ *
+ * NOT SEEDED AT BOOT, on purpose. `llm.enabled` is bootstrap state for the
+ * whole instance — it gates the ⌘K *Ask AI* affordance and the assistant
+ * button — and the suite shares one server, so a spec that left a provider
+ * configured would change what every spec after it renders. Each assistant
+ * spec calls {@link configureFakeProvider} in `beforeAll` and
+ * {@link clearProvider} in `afterAll`, the way `llm-enrichment.spec.ts` does.
+ *
+ * A LOOPBACK `baseUrl` is accepted for `openai-compatible` only because the
+ * e2e server runs with `NODE_ENV` unset — the outbound guard refuses one in
+ * production. The assertion below names that, so the day somebody sets
+ * `NODE_ENV` the failure explains itself instead of looking like a flake.
+ */
+export async function configureFakeProvider(page: Page): Promise<void> {
+  const res = await page.request.put('/api/v1/llm/config', {
+    data: { provider: 'openai-compatible', baseUrl: FAKE_LLM_URL, model: 'fake', apiKey: 'fake-key' },
+  });
+  expect(
+    res.ok(),
+    `configuring the scripted provider → ${String(res.status())}. A 422 here usually means the ` +
+      `e2e server was started with NODE_ENV set: the outbound guard refuses a loopback baseUrl ` +
+      `outside development.`,
+  ).toBeTruthy();
+}
+
+/** Remove it again — every assistant spec owes this in `afterAll` (trap 18). */
+export async function clearProvider(page: Page): Promise<void> {
+  const res = await page.request.put('/api/v1/llm/config', { data: { provider: null } });
+  expect(res.ok(), `clearing the provider → ${String(res.status())}`).toBeTruthy();
 }

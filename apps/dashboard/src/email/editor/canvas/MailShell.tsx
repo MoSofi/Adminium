@@ -44,6 +44,7 @@ export function MarkIcon({ mark, logoUrl, className }: { mark: string; logoUrl: 
 export function FixedSection({
   label,
   selected,
+  readOnly,
   onSelect,
   testId,
   className,
@@ -51,11 +52,20 @@ export function FixedSection({
 }: {
   label: string;
   selected: boolean;
+  /** A preview: the group keeps its name, and loses the ring and the selector. */
+  readOnly?: boolean | undefined;
   onSelect: () => void;
   testId: string;
   className?: string | undefined;
   children: ReactNode;
 }) {
+  if (readOnly === true) {
+    return (
+      <div role="group" aria-label={label} data-testid={testId} className={cn('block', className)}>
+        {children}
+      </div>
+    );
+  }
   return (
     <div role="group" aria-label={label} data-testid={testId} data-selected={selected ? '' : undefined} onClick={onSelect} className={cn(SECTION_RING, 'block', className)}>
       <SelectButton label={label} onSelect={onSelect} />

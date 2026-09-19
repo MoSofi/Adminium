@@ -24,6 +24,8 @@ export interface SectionSlotProps {
   index: number;
   selected: boolean;
   files: ReadonlyMap<string, FileDto | null>;
+  /** A preview: no insert pill, no ring, no selector, no inline heading. */
+  readOnly?: boolean | undefined;
   onSelect: () => void;
   onInsertAbove: () => void;
   onHeadingChange: (text: string) => void;
@@ -50,7 +52,16 @@ export function SelectButton({ label, onSelect }: { label: string; onSelect: () 
   );
 }
 
-export function SectionSlot({ block, def, label, index, selected, files, onSelect, onInsertAbove, onHeadingChange, onHeadingFocus }: SectionSlotProps) {
+export function SectionSlot({ block, def, label, index, selected, files, readOnly, onSelect, onInsertAbove, onHeadingChange, onHeadingFocus }: SectionSlotProps) {
+  if (readOnly === true) {
+    return (
+      <div role="group" aria-label={label} data-testid="email-block" data-block-id={block.id} data-kind={block.block} className="relative">
+        <div className={blockWrapperClasses(block.style, index === 0)}>
+          <BlockPreview block={block} def={def} label={label} files={files} />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="group/slot relative">
       <button

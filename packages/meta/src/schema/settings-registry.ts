@@ -360,6 +360,21 @@ export const SETTINGS_REGISTRY = {
   'retention.notificationsDays': def(z.number().int().min(1), 90, 'Read-notification retention in days', P),
   'retention.llmRunsDays': def(z.number().int().min(1), 90, 'Unapplied LLM run retention in days', P),
   'retention.jobsDays': def(z.number().int().min(1), 30, 'Finished job retention in days', P),
+  // ── the page assistant ────────────────────────────────────────────────────
+  //
+  // What the assistant is called wherever it introduces itself. Portable: it
+  // is a name the operator chose, and it means the same on any instance.
+  'assistant.name': def(z.string().min(1).max(40), 'Milo', 'What the page assistant is called', P),
+  /*
+   * May the assistant's tools read ROWS from a connected database — masked,
+   * grant-checked per table and capped per call — or only documents and schema?
+   *
+   * NOT portable, and that is the whole point of the flag being opt-in. This
+   * is one instance's privacy policy about its own customers' data. Importing
+   * a bundle somebody else exported must never be what switches it on.
+   */
+  'assistant.rowData': def(z.boolean(), true, 'Let the page assistant read masked rows from a connection'),
+  'retention.assistantSessionsDays': def(z.number().int().min(1), 30, 'Closed assistant session retention in days', P),
   // ── files & storage ───────────────────────────────────────────────────────
   //
   // `files.maxBytes` default is 200 MiB figure, which is also the number the
@@ -525,6 +540,25 @@ export const SETTINGS_REGISTRY = {
    * new instance's own seed — booting it to an empty dashboard with no
    * indication why.
    */
+  /*
+   * Which (built-in role, system key) pairs the seed has EVER granted, as
+   * `"<role slug>:<key>"` strings.
+   *
+   * It exists because the seed runs at every boot and used to grant any listed
+   * key whose row was missing — and Team → Roles revokes by DELETING that row.
+   * So taking a capability away from the built-in Admin lasted until the next
+   * restart, silently, which is the opposite of what a revocable permission
+   * means. With this ledger the seed asks "have I ever given this?" instead of
+   * "is it there now?": a revocation stays revoked, and a key a later version
+   * adds is still delivered to an existing install, because its pair has never
+   * been seeded.
+   *
+   * Not portable — it records what already happened on THIS instance, the bar
+   * the `portable` comment above sets. Carrying it into a fresh install would
+   * tell that install's seed it had already run, leaving every built-in role
+   * with no system grants at all.
+   */
+  'system.seededRoleGrants': def<string[]>(z.array(z.string()), [], 'Built-in (role, system key) pairs the seed has already granted once'),
   'system.sourceConnectionId': def<string | null>(z.string().nullable(), null, 'Connection id the first-boot source seed created'),
   'system.sourceSeededAt': def<number | null>(z.number().nullable(), null, 'First-boot source-connection seed claim, healthy probes only (epoch ms)'),
   /**

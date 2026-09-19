@@ -31,6 +31,7 @@ import { DEFAULT_NAV_GROUP } from '@adminium/add-on-contracts';
 import { addOnManifestSchema } from '@adminium/manifest';
 
 import { UnauthorizedError } from '../../errors.js';
+import { PERMISSIONS } from '../../rbac/permissions.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
 import { toUserView } from '../auth/handlers.js';
@@ -321,7 +322,7 @@ export async function bootstrapHandler(
   // the same reason: this route is registered before it exists.
   const projectClient = request.server.hasDecorator('projectClient') ? request.server.projectClient : null;
 
-  const [roles, prefs, pageRows, connectionRows, llmProvider, placements, project, addOns] =
+  const [roles, prefs, pageRows, connectionRows, llmProvider, assistantName, placements, project, addOns] =
     await Promise.all([
     rolesRepo(ctx.meta).rolesForUser(user.id),
     userPrefsRepo(ctx.meta).resolve(user.id),
@@ -339,6 +340,10 @@ export async function bootstrapHandler(
     // `llm.provider` row `resolveProviderClient` gates direct runs
     // on.
     settingsRepo(ctx.meta).get('llm.provider'),
+    // What the assistant is called. Read for every session, not only one
+    // that may open it: the value is an instance's own naming, and the
+    // branch would save one settings read out of the eight above.
+    settingsRepo(ctx.meta).get('assistant.name'),
     surfaceSettings?.read() ?? Promise.resolve({ apps: {}, domains: {} } as SurfaceSettings),
     projectClient?.bootstrap() ?? Promise.resolve(null),
     /*
@@ -396,6 +401,13 @@ export async function bootstrapHandler(
       version: APP_VERSION,
       configVersion,
       llm: { enabled: typeof llmProvider === 'string' && llmProvider.length > 0 },
+      // The same `typeof` guard the page filter above uses: a minimal harness
+      // mounts this route without the rbac plugin, and "no assistant" is the
+      // honest answer there rather than a crash.
+      assistant: {
+        allowed: typeof request.can === 'function' ? await request.can(PERMISSIONS.assistantUse) : false,
+        name: assistantName,
+      },
       csrfToken: csrfTokenFor(ctx, request),
       hostedApps: hasSurfaces
         ? buildHostedApps(request.server.surfaces, placements, prefs.locale)

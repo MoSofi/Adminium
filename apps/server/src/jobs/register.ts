@@ -45,6 +45,11 @@ import { EXPORT_RUN_KIND, registerExportRunHandler } from './export-run.js';
 import { FILES_MIGRATE_KIND, registerFilesMigrateHandler } from './files-migrate.js';
 import type { RecordWriteService } from '../crud/write-service.js';
 import { IMPORT_RUN_KIND, registerImportRunHandler } from './import-run.js';
+import {
+  ASSISTANT_TURN_KIND,
+  registerAssistantTurnHandler,
+  type AssistantTurnDeps,
+} from './assistant-turn.js';
 import { LLM_RUN_KIND, registerLlmRunHandler, type ResolveRun } from './llm-run.js';
 import { REPORT_RUN_KIND, registerReportRunHandler } from './report-run.js';
 import { createJobRegistry, registerNoopProgressHandler, type JobRegistry } from './registry.js';
@@ -118,6 +123,21 @@ export interface JobsAndRealtimeOptions {
         storageCrypto?: DsnCrypto | undefined;
         /** Where an import's rows go, with the project's hooks. */
         writes?: RecordWriteService | undefined;
+      }
+    | undefined;
+  /**
+   * Wire the page assistant's turn runner (`assistant.turn`). `resolveClient`
+   * must be the GUARDED resolver (`routes/llm/config-service.ts`), which
+   * re-checks the stored base URL against the outbound guard as it dials;
+   * `can` answers a system permission for the turn's own user, outside a
+   * request. Absent ⇒ the kind is never claimed, and nothing enqueues one
+   * either, because the routes are not registered without a provider layer.
+   */
+  assistant?:
+    | {
+        manager: ConnectionManager;
+        resolveClient: AssistantTurnDeps['resolveClient'];
+        can: AssistantTurnDeps['can'];
       }
     | undefined;
   /** Worker tuning knobs. */
@@ -197,6 +217,14 @@ export async function registerJobsAndRealtime(
   }
   if (opts.documents !== undefined && !registry.has(DOCUMENT_RENDER_KIND)) {
     registerDocumentRenderHandler(registry, opts.documents);
+  }
+  if (opts.assistant !== undefined && !registry.has(ASSISTANT_TURN_KIND)) {
+    registerAssistantTurnHandler(registry, {
+      meta,
+      manager: opts.assistant.manager,
+      resolveClient: opts.assistant.resolveClient,
+      can: opts.assistant.can,
+    });
   }
   if (opts.dataIo !== undefined) {
     const { manager, storage } = opts.dataIo;

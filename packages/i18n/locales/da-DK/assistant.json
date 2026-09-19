@@ -1,0 +1,242 @@
+{
+  "ask": {
+    "continue": "Fortsæt",
+    "pick": "Vælg én mulighed i hver gruppe",
+    "picked": "Valgt: {labels}",
+    "ready": "Klar",
+    "waiting": "Venter på dig"
+  },
+  "audit": {
+    "note": "Hver handling logges i auditloggen"
+  },
+  "button": "Spørg {name}",
+  "buttonTitle": "Spørg {name} om denne side",
+  "close": "Luk",
+  "composer": {
+    "send": "Send",
+    "working": "Arbejder …"
+  },
+  "confirm": {
+    "cancel": "Annullér"
+  },
+  "details": {
+    "checks": "Kontroller",
+    "figures": "Tal",
+    "figuresValue": "{blocks, plural, one {# blok med tal} other {# blokke med tal}}",
+    "format": "Format",
+    "formatEmailValue": "Adminium-e-mail · {blocks, plural, one {# blok} other {# blokke}}",
+    "formatInvoiceValue": "Adminium-fakturaskabelon · {sections, plural, one {# sektion slået til} other {# sektioner slået til}}",
+    "lines": "Linjer",
+    "linesValue": "{lines, plural, one {# linje} other {# linjer}} · {total}",
+    "noChecks": "ingen angivet",
+    "none": "ingen",
+    "notPublished": "Ikke udgivet",
+    "notPublishedValue": "gemt som kladde",
+    "notTouched": "Urørt",
+    "notTouchedValue": "ingen kunderækker ændres, ingen e-mail sendes",
+    "record": "Post",
+    "recordValue": "fakturadokument · 1 ny række · status kladde",
+    "sources": "Læste kilder",
+    "sourcesChosen": "Valgte kilder",
+    "taxLines": "Momslinjer",
+    "taxLinesValue": "{rate} %",
+    "tokens": "Tokens",
+    "tokensValue": "{in} ind · {out} ud",
+    "variables": "Variabler"
+  },
+  "diff": {
+    "adds": "+{n}",
+    "against": "Sammenlignet med {name}",
+    "dels": "−{n}",
+    "new": "Ny {kind} — felter den vil skrive",
+    "truncated": "Sammenligningen blev afkortet — åbn kladden for at se resten."
+  },
+  "draft": {
+    "account": "Konto",
+    "draft": "kladde",
+    "due": "Forfald",
+    "issued": "Udstedt",
+    "lineCount": "{n, plural, one {# linje} other {# linjer}}",
+    "lines": "Hentede linjer",
+    "notTouched": "Ingen kunderækker ændres, og der sendes ingen e-mail.",
+    "status": "Status",
+    "template": "Skabelon",
+    "total": "I alt"
+  },
+  "echo": {
+    "applied": "Sat ind i editoren — gennemgå de fremhævede blokke."
+  },
+  "email": {
+    "action1": "Send test-e-mail",
+    "action2": "Åbn i editor",
+    "action3": "Gem skabelon",
+    "blurb": "Kender denne side: {templates, plural, one {# skabelon} other {# skabeloner}} · {campaigns, plural, one {# kampagne} other {# kampagner}} · branding",
+    "chip1": "Skriv en rykker for en ubetalt faktura",
+    "chip2": "Lav en aftalepåmindelse, 3 dage før",
+    "chip3": "Oversæt velkomstskabelonen til tysk",
+    "confirm": {
+      "body": "{name} opretter „{title}“ som kladde i E-mailskabeloner. Der sendes intet til kunder, før du sætter den live.",
+      "bodyOpen": "{name} opretter „{title}“ som kladde i E-mailskabeloner og åbner den i editoren.",
+      "button": "Gem som kladde",
+      "title": "Gem som ny skabelon?"
+    },
+    "echo": {
+      "editor": "Gemt som kladdeskabelon. Åbner den i editoren.",
+      "sample": "Prøve gengivet for {record}.",
+      "saved": "Gemt som kladdeskabelon.",
+      "test": "Test sendt til {email} med prøvedata."
+    },
+    "greeting": "Jeg kan se dine e-mailskabeloner — blokformatet, din branding og de variabler, hver skabelon må bruge.",
+    "greetingSub": "Beskriv den e-mail, du har brug for, så skriver jeg den i Adminiums skabelonformat; derefter kan du sende en test, før du gemmer.",
+    "language": {
+      "saved": "Varianten {locale} blev tilføjet som kladde."
+    },
+    "page": "E-mailskabeloner",
+    "placeholder": "Beskriv den skabelon, du har brug for …",
+    "readPage": "E-mailskabeloner · {templates, plural, one {# skabelon} other {# skabeloner}} · branding",
+    "scopePrimary": "email_templates",
+    "workTitle": "Ny e-mailskabelon skrevet"
+  },
+  "error": {
+    "generic": "Det virkede ikke. Spørg igen.",
+    "smtp": "E-mail er ikke konfigureret endnu. Åbn e-mailindstillingerne for at tilføje et relay.",
+    "tooLong": "Denne samtale er for lang til modellen — start en ny session.",
+    "tryAgain": "Prøv igen"
+  },
+  "invoiceTemplate": {
+    "action1": "Se en anden prøve",
+    "action2": "Åbn i editor",
+    "action3": "Gem skabelon",
+    "blurb": "Kender denne side: {templates, plural, one {# skabelon} other {# skabeloner}} · nummerering {pattern} · {invoices, plural, one {# faktura} other {# fakturaer}}",
+    "chip1": "Lav en skabelon til EU-kunder med omvendt betalingspligt",
+    "chip2": "Tilføj et afsnit om rykkergebyr til en af mine skabeloner",
+    "chip3": "Tilpas en af mine skabeloner til vores brandfarver",
+    "confirm": {
+      "body": "{name} føjer „{title}“ til Fakturaskabeloner som kladde. Eksisterende fakturaer er urørte.",
+      "bodyOpen": "{name} føjer „{title}“ til Fakturaskabeloner som kladde og åbner den i editoren.",
+      "button": "Gem som kladde",
+      "title": "Gem som ny fakturaskabelon?"
+    },
+    "echo": {
+      "editor": "Gemt som kladde. Åbner den i editoren.",
+      "noSample": "Der er ingen faktura her at tegne en prøve ud fra.",
+      "sample": "Prøve gengivet for {record}.",
+      "saved": "Gemt som kladdeskabelon.",
+      "test": "Test sendt til {email}."
+    },
+    "greeting": "Jeg kan se dine fakturaskabeloner, dit nummereringsskema og de momslinjer, dine skabeloner bruger.",
+    "greetingSub": "Fortæl mig, hvilken skabelon du har brug for, så bygger jeg den i Adminiums fakturaformat og gengiver en prøve med rigtige kontodata.",
+    "language": {
+      "saved": "Varianten {locale} blev tilføjet som kladde."
+    },
+    "page": "Fakturaskabeloner",
+    "placeholder": "Beskriv den fakturaskabelon, du har brug for …",
+    "readPage": "Fakturaskabeloner · {templates, plural, one {# skabelon} other {# skabeloner}} · nummerering {pattern}",
+    "scopePrimary": "invoice_templates",
+    "workTitle": "Ny fakturaskabelon bygget"
+  },
+  "invoices": {
+    "action1": "Åbn i editor",
+    "action2": "Opret fakturakladde",
+    "blurb": "Kender denne side: {invoices, plural, one {# faktura} other {# fakturaer}} · {templates, plural, one {# skabelon} other {# skabeloner}} · din rolle kan {write, select, true {skrive} other {læse}}",
+    "chip1": "Opret en faktura til en kunde for sidste måned",
+    "chip2": "Skriv en faktura ud fra sidste måneds ikke-fakturerede poster",
+    "chip3": "Vis de fakturaer, der er forfaldne",
+    "confirm": {
+      "body": "{name} føjer denne faktura til Fakturaer som kladde. Ingen kunderækker ændres, før du sender den.",
+      "bodyOpen": "{name} føjer denne faktura til Fakturaer som kladde og åbner den i editoren.",
+      "button": "Opret kladde",
+      "title": "Opret denne fakturakladde?"
+    },
+    "echo": {
+      "editor": "Oprettet som kladde. Åbner den i fakturaeditoren.",
+      "sample": "Prøve gengivet for {record}.",
+      "saved": "Oprettet som kladde. Den ligger øverst i tabellen.",
+      "test": "Test sendt til {email}."
+    },
+    "greeting": "Jeg kan se fakturatabellen, dine skabeloner og de steder, fakturadata kan komme fra.",
+    "greetingSub": "Fortæl mig, hvem der skal faktureres, så spørger jeg om skabelon og datakilde, før jeg skriver noget.",
+    "language": {
+      "saved": "Varianten {locale} blev tilføjet som kladde."
+    },
+    "page": "Fakturaer",
+    "placeholder": "f.eks. opret en faktura til en kunde for sidste måned …",
+    "readPage": "Fakturaer · {invoices, plural, one {# post} other {# poster}} · din rolle kan {write, select, true {skrive} other {læse}}",
+    "scopePrimary": "invoices",
+    "workTitle": "Faktura skrevet"
+  },
+  "readOnly": {
+    "enable": "Aktivér handlinger",
+    "lockedTitle": "Aktivér handlinger, så {name} kan gøre det",
+    "noWrite": "Din rolle kan se, skrive udkast og forhåndsvise her, men ikke gemme.",
+    "noWriteTitle": "Din rolle kan ikke det her",
+    "note": "{name} er skrivebeskyttet lige nu — den kan se, skrive udkast og forhåndsvise, men ikke gemme, sende eller oprette."
+  },
+  "report": {
+    "action1": "Kør fuld forhåndsvisning",
+    "action2": "Åbn i bygger",
+    "action3": "Gem rapport",
+    "blurb": "Kender denne side: {reports, plural, one {# rapport} other {# rapporter}} · {connection} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "chip1": "Hvilke kunder bruger mest supporttid? Du vælger kilderne",
+    "chip2": "Byg en fastholdelsesrapport ud fra kunder og ordrer",
+    "chip3": "Lav en skabelon til månedlig driftsgennemgang",
+    "confirm": {
+      "body": "{name} føjer „{title}“ til Rapporter. Den kører på forespørgsel — ingen tidsplan, før du sætter en op.",
+      "bodyOpen": "{name} føjer „{title}“ til Rapporter og åbner den i byggeren.",
+      "button": "Gem rapport",
+      "title": "Gem denne rapport?"
+    },
+    "echo": {
+      "editor": "Gemt i Rapporter. Åbner den i byggeren.",
+      "resampled": "Kilderne blev kørt igen — {n, plural, one {# tal} other {# tal}} opdateret.",
+      "resampledRefused": "Kilderne blev kørt igen — {n, plural, one {# tal} other {# tal}} opdateret; {refused, plural, one {# kilde} other {# kilder}} kunne ikke læses.",
+      "sample": "Fuld forespørgsel kørt for {record}.",
+      "saved": "Gemt i Rapporter. Tilføj en tidsplan fra rapportens header.",
+      "test": "Test sendt til {email}."
+    },
+    "greeting": "Jeg kan se dit rapportbibliotek og de {tables, plural, one {# tabel} other {# tabeller}}, din rolle må læse i {connection}.",
+    "greetingSub": "Nævn tabellerne og layoutet — eller bare spørgsmålet, så vælger jeg kilderne og viser dig hvorfor.",
+    "language": {
+      "saved": "Varianten {locale} blev tilføjet som kladde."
+    },
+    "page": "Rapportbygger",
+    "placeholder": "Bed om en rapport, eller nævn de tabeller, der skal bruges …",
+    "readPage": "Rapportbygger · {reports, plural, one {# rapport} other {# rapporter}} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "scopePrimary": "reports",
+    "workTitle": "Rapport bygget"
+  },
+  "scope": {
+    "connection": "{connection} · {n, plural, one {# tabel} other {# tabeller}}",
+    "extra": "+{n}",
+    "title": "Data denne session må læse"
+  },
+  "steps": {
+    "done": "færdig",
+    "failed": "mislykkedes",
+    "note": {
+      "ready": "klar",
+      "warning": "{n, plural, one {# advarsel} other {# advarsler}}"
+    },
+    "readPage": "Læste denne side",
+    "step": "trin {n}",
+    "working": "Arbejder på det"
+  },
+  "tabs": {
+    "details": "Detaljer",
+    "diff": "Diff",
+    "preview": "Forhåndsvisning"
+  },
+  "tokens": {
+    "hint": "~{n} tokens",
+    "title": "Tokens brugt i denne session",
+    "value": "{n} tokens"
+  },
+  "try": "Prøv",
+  "unavailable": {
+    "askAdmin": "Bed en administrator om at sætte en op.",
+    "forbidden": "Du har ikke tilladelse til at bruge {name}.",
+    "network": "Udgående netværksfunktioner er slået fra på denne instans.",
+    "noProvider": "Der er endnu ikke konfigureret en AI-udbyder.",
+    "settings": "Åbn Indstillinger → AI"
+  }
+}

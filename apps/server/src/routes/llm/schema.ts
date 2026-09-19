@@ -66,12 +66,21 @@ export const llmConfigReply = z.object({
   maxOutputTokens: z.number().int().positive().nullable(),
   apiKeySet: z.boolean(),
   apiKeyLast4: z.string().nullable(),
+  /** What the page assistant is called wherever it introduces itself. */
+  assistantName: z.string(),
+  /** Whether its tools may read masked rows from a connection at all. */
+  assistantRowData: z.boolean(),
 });
 export type LlmConfigReply = z.infer<typeof llmConfigReply>;
 
 /**
  * `PUT /config` body. `apiKey` is write-only; the empty string clears it,
  * `undefined`/absent leaves the stored key untouched.
+ *
+ * The two assistant fields are optional and OMITTED MEANS KEEP, which is what
+ * lets the provider form keep sending the body it sends today. That form is
+ * also the connect wizard's inline panel; a PUT from there must not quietly
+ * rename the assistant or switch its row-data policy back to the default.
  */
 export const llmConfigPutBody = z.object({
   provider: llmProviderSchema.nullable(),
@@ -79,6 +88,8 @@ export const llmConfigPutBody = z.object({
   baseUrl: z.string().url().max(500).nullable().optional(),
   apiKey: z.string().max(500).optional(),
   maxOutputTokens: z.number().int().min(256).max(200_000).nullable().optional(),
+  assistantName: z.string().min(1).max(40).optional(),
+  assistantRowData: z.boolean().optional(),
 });
 export type LlmConfigPutBody = z.infer<typeof llmConfigPutBody>;
 

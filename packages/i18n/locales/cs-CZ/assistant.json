@@ -1,0 +1,242 @@
+{
+  "ask": {
+    "continue": "Pokračovat",
+    "pick": "Vyber jednu možnost v každé skupině",
+    "picked": "Vybráno: {labels}",
+    "ready": "Připraveno",
+    "waiting": "Čeká se na tebe"
+  },
+  "audit": {
+    "note": "Každá akce se zapisuje do auditního logu"
+  },
+  "button": "Zeptat se {name}",
+  "buttonTitle": "Zeptat se {name} na tuto stránku",
+  "close": "Zavřít",
+  "composer": {
+    "send": "Odeslat",
+    "working": "Pracuje se…"
+  },
+  "confirm": {
+    "cancel": "Zrušit"
+  },
+  "details": {
+    "checks": "Kontroly",
+    "figures": "Čísla",
+    "figuresValue": "{blocks, plural, one {# blok s čísly} few {# bloky s čísly} other {# bloků s čísly}}",
+    "format": "Formát",
+    "formatEmailValue": "E-mail Adminium · {blocks, plural, one {# blok} few {# bloky} other {# bloků}}",
+    "formatInvoiceValue": "Šablona faktury Adminium · {sections, plural, one {# zapnutá sekce} few {# zapnuté sekce} other {# zapnutých sekcí}}",
+    "lines": "Položky",
+    "linesValue": "{lines, plural, one {# položka} few {# položky} other {# položek}} · {total}",
+    "noChecks": "žádné uvedené",
+    "none": "žádné",
+    "notPublished": "Nepublikováno",
+    "notPublishedValue": "uloženo jako koncept",
+    "notTouched": "Nedotčeno",
+    "notTouchedValue": "žádné zákaznické řádky se nemění, žádný e-mail se neodesílá",
+    "record": "Záznam",
+    "recordValue": "dokument faktury · 1 nový řádek · stav koncept",
+    "sources": "Přečtené zdroje",
+    "sourcesChosen": "Vybrané zdroje",
+    "taxLines": "Daňové řádky",
+    "taxLinesValue": "{rate} %",
+    "tokens": "Tokeny",
+    "tokensValue": "{in} dovnitř · {out} ven",
+    "variables": "Proměnné"
+  },
+  "diff": {
+    "adds": "+{n}",
+    "against": "Porovnáno s {name}",
+    "dels": "−{n}",
+    "new": "Nový {kind} — pole, která zapíše",
+    "truncated": "Porovnání bylo zkráceno — otevři koncept a uvidíš zbytek."
+  },
+  "draft": {
+    "account": "Účet",
+    "draft": "koncept",
+    "due": "Splatnost",
+    "issued": "Vystaveno",
+    "lineCount": "{n, plural, one {# položka} few {# položky} other {# položek}}",
+    "lines": "Načtené položky",
+    "notTouched": "Žádné zákaznické řádky se nemění a žádný e-mail se neodesílá.",
+    "status": "Stav",
+    "template": "Šablona",
+    "total": "Celkem"
+  },
+  "echo": {
+    "applied": "Vloženo do editoru — zkontroluj zvýrazněné bloky."
+  },
+  "email": {
+    "action1": "Odeslat testovací e-mail",
+    "action2": "Otevřít v editoru",
+    "action3": "Uložit šablonu",
+    "blurb": "Zná tuhle stránku: {templates, plural, one {# šablona} few {# šablony} other {# šablon}} · {campaigns, plural, one {# kampaň} few {# kampaně} other {# kampaní}} · branding",
+    "chip1": "Napiš upomínku k neuhrazené faktuře",
+    "chip2": "Vytvoř připomínku schůzky 3 dny předem",
+    "chip3": "Přelož uvítací šablonu do němčiny",
+    "confirm": {
+      "body": "{name} vytvoří „{title}“ jako koncept v E-mailových šablonách. Zákazníkům se nic neodešle, dokud ji nespustíš.",
+      "bodyOpen": "{name} vytvoří „{title}“ jako koncept v E-mailových šablonách a otevře ji v editoru.",
+      "button": "Uložit jako koncept",
+      "title": "Uložit jako novou šablonu?"
+    },
+    "echo": {
+      "editor": "Uloženo jako koncept šablony. Otevírá se v editoru.",
+      "sample": "Vykreslena ukázka pro {record}.",
+      "saved": "Uloženo jako koncept šablony.",
+      "test": "Test odeslán na {email} s ukázkovými daty."
+    },
+    "greeting": "Vidím tvoje e-mailové šablony — formát bloků, tvůj branding a proměnné, které může každá šablona použít.",
+    "greetingSub": "Popiš e-mail, který potřebuješ, a já ho navrhnu ve formátu šablon Adminia; pak ho můžeš před uložením poslat testovacím e-mailem.",
+    "language": {
+      "saved": "Varianta {locale} byla přidána jako koncept."
+    },
+    "page": "E-mailové šablony",
+    "placeholder": "Popiš šablonu, kterou potřebuješ…",
+    "readPage": "E-mailové šablony · {templates, plural, one {# šablona} few {# šablony} other {# šablon}} · branding",
+    "scopePrimary": "email_templates",
+    "workTitle": "Navržena nová e-mailová šablona"
+  },
+  "error": {
+    "generic": "Tohle nevyšlo. Zkus se zeptat znovu.",
+    "smtp": "E-mail zatím není nastavený. Otevřete nastavení e-mailu a přidejte relay.",
+    "tooLong": "Tahle konverzace je pro model příliš dlouhá — začni novou relaci.",
+    "tryAgain": "Zkusit znovu"
+  },
+  "invoiceTemplate": {
+    "action1": "Zobrazit jinou ukázku",
+    "action2": "Otevřít v editoru",
+    "action3": "Uložit šablonu",
+    "blurb": "Zná tuhle stránku: {templates, plural, one {# šablona} few {# šablony} other {# šablon}} · číslování {pattern} · {invoices, plural, one {# faktura} few {# faktury} other {# faktur}}",
+    "chip1": "Vytvoř šablonu pro klienty z EU s přenesenou daňovou povinností",
+    "chip2": "Přidej do jedné z mých šablon sekci s úroky z prodlení",
+    "chip3": "Slaď jednu z mých šablon s našimi firemními barvami",
+    "confirm": {
+      "body": "{name} přidá „{title}“ do Šablon faktur jako koncept. Stávající faktury zůstanou beze změny.",
+      "bodyOpen": "{name} přidá „{title}“ do Šablon faktur jako koncept a otevře ji v editoru.",
+      "button": "Uložit jako koncept",
+      "title": "Uložit jako novou šablonu faktury?"
+    },
+    "echo": {
+      "editor": "Uloženo jako koncept. Otevírá se v editoru.",
+      "noSample": "Není tu žádná faktura, ze které by šlo vykreslit ukázku.",
+      "sample": "Vykreslena ukázka pro {record}.",
+      "saved": "Uloženo jako koncept šablony.",
+      "test": "Test odeslán na {email}."
+    },
+    "greeting": "Vidím tvoje šablony faktur, tvoje schéma číslování a daňové řádky, které tvoje šablony používají.",
+    "greetingSub": "Řekni mi, jakou šablonu potřebuješ, a já ji postavím ve fakturačním formátu Adminia; pak vykreslím ukázku se skutečnými daty účtu.",
+    "language": {
+      "saved": "Varianta {locale} byla přidána jako koncept."
+    },
+    "page": "Šablony faktur",
+    "placeholder": "Popiš šablonu faktury, kterou potřebuješ…",
+    "readPage": "Fakturační šablony · {templates, plural, one {# šablona} few {# šablony} other {# šablon}} · číslování {pattern}",
+    "scopePrimary": "invoice_templates",
+    "workTitle": "Postavena nová šablona faktury"
+  },
+  "invoices": {
+    "action1": "Otevřít v editoru",
+    "action2": "Vytvořit koncept faktury",
+    "blurb": "Zná tuhle stránku: {invoices, plural, one {# faktura} few {# faktury} other {# faktur}} · {templates, plural, one {# šablona} few {# šablony} other {# šablon}} · tvoje role může {write, select, true {zapisovat} other {číst}}",
+    "chip1": "Vytvoř fakturu pro zákazníka za minulý měsíc",
+    "chip2": "Navrhni fakturu z nevyfakturovaných záznamů za minulý měsíc",
+    "chip3": "Vypiš faktury po splatnosti",
+    "confirm": {
+      "body": "{name} přidá tuhle fakturu do Faktur jako koncept. Dokud ji neodešleš, žádné zákaznické řádky se nemění.",
+      "bodyOpen": "{name} přidá tuhle fakturu do Faktur jako koncept a otevře ji v editoru.",
+      "button": "Vytvořit koncept",
+      "title": "Vytvořit tenhle koncept faktury?"
+    },
+    "echo": {
+      "editor": "Vytvořeno jako koncept. Otevírá se v editoru faktur.",
+      "sample": "Vykreslena ukázka pro {record}.",
+      "saved": "Vytvořeno jako koncept. Je nahoře v tabulce.",
+      "test": "Test odeslán na {email}."
+    },
+    "greeting": "Vidím tabulku faktur, tvoje šablony a místa, odkud mohou fakturační data pocházet.",
+    "greetingSub": "Řekni mi, komu fakturovat; zeptám se, kterou šablonu použít a odkud vzít položky, než cokoli navrhnu.",
+    "language": {
+      "saved": "Varianta {locale} byla přidána jako koncept."
+    },
+    "page": "Faktury",
+    "placeholder": "např. vytvoř fakturu pro zákazníka za minulý měsíc…",
+    "readPage": "Faktury · {invoices, plural, one {# záznam} few {# záznamy} other {# záznamů}} · vaše role může {write, select, true {zapisovat} other {číst}}",
+    "scopePrimary": "invoices",
+    "workTitle": "Navržena faktura"
+  },
+  "readOnly": {
+    "enable": "Povolit akce",
+    "lockedTitle": "Povol akce, aby to {name} mohl udělat",
+    "noWrite": "Tvoje role si tu může prohlížet, navrhovat a zobrazovat náhledy, ale ne ukládat.",
+    "noWriteTitle": "Tvoje role tohle tady nemůže",
+    "note": "{name} je teď jen pro čtení — může se dívat, navrhovat a zobrazovat náhledy, ale ne ukládat, odesílat ani zakládat."
+  },
+  "report": {
+    "action1": "Spustit plný náhled",
+    "action2": "Otevřít v nástroji",
+    "action3": "Uložit sestavu",
+    "blurb": "Zná tuhle stránku: {reports, plural, one {# sestava} few {# sestavy} other {# sestav}} · {connection} · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} other {# čitelných tabulek}}",
+    "chip1": "Kteří zákazníci spotřebují nejvíc času podpory? Zdroje vyber ty",
+    "chip2": "Postav sestavu retence ze zákazníků a objednávek",
+    "chip3": "Vytvoř šablonu měsíčního provozního přehledu",
+    "confirm": {
+      "body": "{name} přidá „{title}“ do Sestav. Spouští se na vyžádání — bez plánu, dokud nějaký nenastavíš.",
+      "bodyOpen": "{name} přidá „{title}“ do Sestav a otevře ji v nástroji.",
+      "button": "Uložit sestavu",
+      "title": "Uložit tuhle sestavu?"
+    },
+    "echo": {
+      "editor": "Uloženo do Sestav. Otevírá se v nástroji.",
+      "resampled": "Zdroje znovu spuštěny — aktualizováno {n, plural, one {# číslo} few {# čísla} other {# čísel}}.",
+      "resampledRefused": "Zdroje znovu spuštěny — aktualizováno {n, plural, one {# číslo} few {# čísla} other {# čísel}}; {refused, plural, one {# zdroj nelze přečíst} few {# zdroje nelze přečíst} other {# zdrojů nelze přečíst}}.",
+      "sample": "Spuštěn plný dotaz pro {record}.",
+      "saved": "Uloženo do Sestav. Plán přidáš v záhlaví sestavy.",
+      "test": "Test odeslán na {email}."
+    },
+    "greeting": "Vidím tvoji knihovnu sestav a {tables, plural, one {# tabulku} few {# tabulky} other {# tabulek}}, které tvoje role může číst v {connection}.",
+    "greetingSub": "Jmenuj tabulky a rozvržení, nebo mi prostě řekni otázku — zdroje vyberu já a ukážu ti proč.",
+    "language": {
+      "saved": "Varianta {locale} byla přidána jako koncept."
+    },
+    "page": "Tvorba sestav",
+    "placeholder": "Požádej o sestavu nebo jmenuj tabulky…",
+    "readPage": "Tvůrce reportů · {reports, plural, one {# report} few {# reporty} other {# reportů}} · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} other {# čitelných tabulek}}",
+    "scopePrimary": "reports",
+    "workTitle": "Postavena sestava"
+  },
+  "scope": {
+    "connection": "{connection} · {n, plural, one {# tabulka} few {# tabulky} other {# tabulek}}",
+    "extra": "+{n}",
+    "title": "Data, která tato relace může číst"
+  },
+  "steps": {
+    "done": "hotovo",
+    "failed": "selhalo",
+    "note": {
+      "ready": "připraveno",
+      "warning": "{n, plural, one {# varování} few {# varování} other {# varování}}"
+    },
+    "readPage": "Přečteno na této stránce",
+    "step": "krok {n}",
+    "working": "Pracuje na tom"
+  },
+  "tabs": {
+    "details": "Podrobnosti",
+    "diff": "Rozdíl",
+    "preview": "Náhled"
+  },
+  "tokens": {
+    "hint": "~{n} tokenů",
+    "title": "Tokeny spotřebované v této relaci",
+    "value": "{n} tokenů"
+  },
+  "try": "Vyzkoušej",
+  "unavailable": {
+    "askAdmin": "Požádej správce, ať nějakého nastaví.",
+    "forbidden": "Nemáš oprávnění používat {name}.",
+    "network": "Odchozí síťové funkce jsou na této instanci vypnuté.",
+    "noProvider": "Zatím není nastavený žádný poskytovatel AI.",
+    "settings": "Otevřít Nastavení → AI"
+  }
+}

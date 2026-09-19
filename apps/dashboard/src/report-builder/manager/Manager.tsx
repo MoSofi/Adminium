@@ -25,11 +25,13 @@ import { Alert, Button, EmptyState, Spinner, Tabs, TabsContent } from '@adminium
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
+import { AskAssistant } from '../../assistant/AskAssistant.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { formatSince } from '../../team/teamApi.js';
 import { reportBuilderApi, type ReportDetail, type ReportDocumentKind, type ReportSummary } from '../api.js';
 import { reportIcon } from '../icons.js';
+import { useReportManagerAssistant } from '../assistant.js';
 import { invalidateReportDocuments, reportDocumentsQuery } from '../queries.js';
 import { DeleteModal } from './DeleteModal.js';
 import { GalleryCard, type DocumentActions, type RenameState } from './GalleryCard.js';
@@ -78,6 +80,9 @@ export function ReportManager({ initialTab = 'template' }: ReportManagerProps) {
   const localeTag = tagForLocale((bootstrap?.prefs.locale ?? 'en_US') as LocaleId);
 
   const [tab, setTabState] = useState<ReportDocumentKind>(initialTab);
+  // The open tab travels: a question asked on the reports tab is a question
+  // about reports, not about the layouts beside them.
+  const assistantHost = useReportManagerAssistant(tab);
   const [search, setSearch] = useState('');
   const [prefs, updatePrefs] = useManagerPrefs();
   const [rename, setRenameState] = useState<{ id: string; value: string; original: string } | null>(null);
@@ -186,6 +191,7 @@ export function ReportManager({ initialTab = 'template' }: ReportManagerProps) {
         title={t('reportBuilder:manager.title', 'Reports')}
         subtitle={t('reportBuilder:manager.subtitle', 'Reusable report layouts & the reports you build from them.')}
       >
+        <AskAssistant host={assistantHost} slot="manager" />
         <Button size="topbar" iconLeft={<PlusGlyph />} onClick={() => setNewOpen(true)} data-testid="report-new">
           {primary}
         </Button>
