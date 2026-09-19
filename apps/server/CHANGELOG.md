@@ -4,6 +4,37 @@
 
 ### Patch Changes
 
+- 4441e0b: **The invoice manager and editor are an add-on's page now, not Adminium's.**
+
+  Invoices were always meant to be an add-on. They were built into the engine
+  because an add-on had no way to own a dashboard page: it could fill a slot
+  inside someone else's screen, and that was all.
+
+  Add-ons can own pages now. A page declares a `ref`, the client bundle that
+  renders it, and where it would like to sit in the navigation — a built-in
+  group, or one the add-on brings with it, so an add-on with several pages can
+  keep them together. A page that names no group joins Library. The host mounts
+  it at `/add-ons/<key>/<ref>`, gives it a rail row, and publishes the runtime
+  it renders against.
+
+  So the surface moved out — ninety-seven files, its eight locale catalogues and
+  its end-to-end specs — and Adminium no longer ships an invoices screen of its
+  own. **The documents did not move.** They are the same rows in the same meta
+  table, read by the same routes; only the screen that opens them arrives
+  differently.
+
+  Workspaces already using invoices get the add-on adopted for them: on the
+  first boot after upgrading, an instance whose invoice table has rows installs
+  the bundled add-on once, with nobody present and nothing to click. An empty
+  table installs nothing, and the adoption creates no schema.
+
+  **Read this before upgrading.** The engine and the add-on ship from different
+  repositories, and in this release the bundled add-on does not carry the page
+  yet. So **0.2.12 has no invoices screen at all** — the adoption deliberately
+  declines rather than install an add-on that cannot render anything, and your
+  documents sit untouched until 0.2.13 bundles the add-on that provides it. If
+  you use invoices, upgrade to 0.2.13 rather than stopping here.
+
 - 8e50f36: **An installed app or add-on now survives a deploy that empties the data directory.**
   
   On DigitalOcean App Platform, or any container without a volume, every deploy

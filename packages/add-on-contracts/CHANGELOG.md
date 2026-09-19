@@ -2,6 +2,21 @@
 
 ## 0.2.12
 
+### Patch Changes
+
+- 4441e0b: **Add-ons can own dashboard pages.**
+
+  `addOn.pages` declares a page: a `ref`, the client bundle that renders it, and
+  the navigation row it would like — a built-in group, one the add-on brings
+  with it (`addOn.navGroups`), or none, which joins Library. An add-on with
+  several pages can therefore keep them together under its own heading.
+
+  A page also declares `hostApi`, the version of the runtime it renders
+  against. The host publishes that runtime — React, the UI kit, the router, the
+  query client, i18n and a small app namespace — so a page bundle imports
+  nothing: a browser cannot resolve a bare specifier from a served URL, and a
+  bundle that tried would 404 at mount.
+
 ## 0.2.11
 
 ### Patch Changes
