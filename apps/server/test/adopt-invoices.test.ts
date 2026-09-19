@@ -35,7 +35,7 @@ function manifestFor(version: string, requiredSchema?: unknown): string {
     license: 'AGPL-3.0-only',
     description: { key: 'addon.invoices.line', fallback: 'Invoices.' },
     categories: ['data'],
-    compatibility: { minAdminiumVersion: '0.2.12' },
+    compatibility: { minAdminiumVersion: '0.2.11' },
     addOn: {
       attaches: [{ app: '*' }],
       connect: { kind: 'none' },
@@ -105,6 +105,22 @@ describe('adopting the invoices add-on', () => {
 
   it('says so when the package is not bundled, rather than throwing at boot', async () => {
     expect(await adopt(storeWith([]), 7)).toEqual({ adopted: false, reason: 'not-bundled' });
+  });
+
+  it('declines a bundled version from before the page moved in', async () => {
+    /*
+     * The bundle can legitimately carry an older version than the release that
+     * removes the surface — the two ship from different repositories. Adopting
+     * it would leave the add-on installed, the rail row still missing and no
+     * way to open a document: present, and useless, and silent about it.
+     */
+    const noPage = JSON.parse(manifestFor('1.0.1')) as {
+      addOn: { pages?: unknown };
+    };
+    delete noPage.addOn.pages;
+    const store = storeWith(['1.0.1'], JSON.stringify(noPage));
+    expect(await adopt(store, 7)).toEqual({ adopted: false, reason: 'no-page' });
+    expect(await manifestsRepo(meta, crypto).findByKey(INVOICES_ADD_ON_KEY)).toBeNull();
   });
 
   it('refuses an add-on that wants tables, rather than creating them unattended', async () => {

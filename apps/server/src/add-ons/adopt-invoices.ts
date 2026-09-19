@@ -42,13 +42,16 @@ export const INVOICES_ADD_ON_KEY = 'invoices';
 const DASHBOARD_HOST = 'dashboard';
 
 export type AdoptionOutcome =
-  | { adopted: false; reason: 'already-installed' | 'no-documents' | 'not-bundled' | 'needs-tables' }
+  | {
+      adopted: false;
+      reason: 'already-installed' | 'no-documents' | 'not-bundled' | 'needs-tables' | 'no-page';
+    }
   | { adopted: true; version: string };
 
 export interface AdoptInvoicesDeps {
   meta: MetaDb;
   store: AddOnStore;
-  /** The same shape  demands, as  spells it. */
+  /** The credential codec the manifest repository takes, unchanged. */
   crypto: { encrypt(v: string): string; decrypt(v: string): string };
   /** Rows in `adminium_invoice_documents`; injected so this stays testable. */
   countDocuments: () => Promise<number>;
@@ -84,6 +87,20 @@ export async function adoptInvoicesAddOn(deps: AdoptInvoicesDeps): Promise<Adopt
   // See the header: adoption creates no tables, and refuses rather than guess.
   if (manifest.kind === 'add-on' && (manifest.requiredSchema?.tables.length ?? 0) > 0) {
     return { adopted: false, reason: 'needs-tables' };
+  }
+
+  /*
+   * THE VERSION HAS TO HAVE THE PAGE, and this is not hypothetical.
+   *
+   * The whole point of adopting is that a workspace keeps the screen its
+   * documents belong to. A bundled version from before the page moved in
+   * declares no `pages`, so installing it would leave the add-on present, the
+   * rail row still missing and nothing able to open a document — a worse answer
+   * than declining, and a silent one. The release that removes the surface must
+   * bundle a version that provides it; until it does, this says no.
+   */
+  if (manifest.kind === 'add-on' && (manifest.addOn.pages?.length ?? 0) === 0) {
+    return { adopted: false, reason: 'no-page' };
   }
 
   await manifests.install({
