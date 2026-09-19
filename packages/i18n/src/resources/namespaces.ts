@@ -20,7 +20,6 @@ export const NAMESPACES = [
   'generated',
   'errors',
   'email',
-  'invoices',
   'automations',
   'dataio',
   'files',
@@ -122,7 +121,6 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
 export const DEFERRED_NAMESPACES = [
   'studio',
   'email',
-  'invoices',
   'automations',
   'dataio',
   'files',

@@ -7,7 +7,9 @@
  * `money-fixture.json` is the table three trees assert against their own
  * copy of `money.ts`:
  *
- *   - `apps/dashboard/src/invoices/model/money-fixture.json`  the editor's
+ *   - (was `apps/dashboard/src/invoices/model/money-fixture.json`, the editor's
+ *     copy — gone with the surface, which now lives in the add-on)
+ *   - the editor's
  *     ladder (`money.test.ts` beside it)
  *   - `apps/server/src/invoices/money-fixture.json`           the summary the
  *     server writes on every save (`test/invoice-money.test.ts`)
@@ -35,9 +37,18 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const TRUTH = { label: 'dashboard', file: path.join(root, 'apps/dashboard/src/invoices/model/money-fixture.json') };
+/*
+ * THE SERVER IS THE TRUTH NOW, and the reason is the move.
+ *
+ * The dashboard's copy was this gate's reference until the invoice surface left
+ * the engine for the `invoices` add-on — so the file it named is gone, along
+ * with the editor arithmetic it belonged to. What remains in THIS repository is
+ * the summary the CRUD route computes, which is where the law is enforced for
+ * every write; the two copies that read it are the add-on's renderer and the
+ * widget family.
+ */
+const TRUTH = { label: 'server', file: path.join(root, 'apps/server/src/invoices/money-fixture.json') };
 const COPIES = [
-  { label: 'server', file: path.join(root, 'apps/server/src/invoices/money-fixture.json'), optional: false },
   /*
    * The add-on renderer (34e), which shipped on 2026-09-10 — so this row is no
    * longer optional, and the header's instruction to drop the flag "the day it

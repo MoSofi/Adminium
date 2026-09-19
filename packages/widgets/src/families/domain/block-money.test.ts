@@ -55,8 +55,15 @@ interface FixtureCase {
   };
 }
 
+/*
+ * The SERVER's copy: the dashboard's went with the invoice surface when it
+ * moved into the add-on, and the server's is the one this repository still
+ * enforces the law with. Byte-identical to the others by
+ * `scripts/check-invoice-money-fixture.mjs`, which is the point of reading a
+ * file rather than restating the cases here.
+ */
 const fixture = JSON.parse(
-  readFileSync(join(HERE, '../../../../../apps/dashboard/src/invoices/model/money-fixture.json'), 'utf8'),
+  readFileSync(join(HERE, '../../../../../apps/server/src/invoices/money-fixture.json'), 'utf8'),
 ) as { cases: FixtureCase[]; law: string };
 
 /** Minor units → the major-unit floats this tree speaks. */

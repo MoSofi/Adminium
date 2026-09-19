@@ -25,10 +25,8 @@ import { dataIoRoutes } from '../data-io/routes.js';
 import { emailMessagesReady } from '../email/emailMessages.js';
 import { filesMessagesReady } from '../files/filesMessages.js';
 import { validateEmailTemplatesSearch } from '../email/search.js';
-import { invoicesMessagesReady } from '../invoices/invoicesMessages.js';
 import { reportBuilderMessagesReady } from '../report-builder/reportBuilderMessages.js';
 import { validateReportBuilderSearch } from '../report-builder/search.js';
-import { validateInvoicesSearch } from '../invoices/search.js';
 import { automationsMessagesReady } from '../automations/automationsMessages.js';
 import {
   validateAutomationsSearch,
@@ -603,62 +601,6 @@ const emailEditorRoute = createRoute({
 });
 
 /**
- * Invoices — the authored surface: the same manager+editor machine as the
- * email surface, in the same shape — lazy
- * chunks, a deferred `invoices` message namespace gated under the Suspense
- * boundary that waits for the chunk, and the nav entry gating discovery.
- * Unconditional whether or not a `document-render` provider is installed:
- * authoring needs no provider; only rendering does.
- */
-const InvoicesPageLazy = lazy(async () => {
-  const mod = await import('../invoices/InvoicesPage.js');
-  return { default: mod.InvoicesPage };
-});
-
-const InvoiceEditorPageLazy = lazy(async () => {
-  const mod = await import('../invoices/InvoiceEditorPage.js');
-  return { default: mod.InvoiceEditorPage };
-});
-
-function InvoicesMessages({ children }: { children: ReactElement }) {
-  use(invoicesMessagesReady());
-  return children;
-}
-
-function InvoicesRouteComponent() {
-  return (
-    <Suspense fallback={null}>
-      <InvoicesMessages>
-        <InvoicesPageLazy />
-      </InvoicesMessages>
-    </Suspense>
-  );
-}
-
-function InvoiceEditorRouteComponent() {
-  return (
-    <Suspense fallback={null}>
-      <InvoicesMessages>
-        <InvoiceEditorPageLazy />
-      </InvoicesMessages>
-    </Suspense>
-  );
-}
-
-const invoicesRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/invoices',
-  validateSearch: validateInvoicesSearch,
-  component: InvoicesRouteComponent,
-});
-
-const invoiceEditorRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/invoices/$id',
-  component: InvoiceEditorRouteComponent,
-});
-
-/**
  * The report builder — the authored surface: the same manager+editor
  * machine as the invoice surface, in the
  * same shape — lazy chunks, a deferred `reportBuilder` message namespace
@@ -1048,8 +990,6 @@ const routeTree = rootRoute.addChildren([
     filesRoute,
     emailTemplatesRoute,
     emailEditorRoute,
-    invoicesRoute,
-    invoiceEditorRoute,
     reportBuilderRoute,
     reportEditorRoute,
     automationsRoute,

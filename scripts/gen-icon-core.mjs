@@ -118,14 +118,10 @@ const SWEEP_IGNORE = [
   'apps/dashboard/src/email/editor/canvas/blocks/index.tsx',
   'apps/dashboard/src/email/manager/model.ts',
   'apps/dashboard/src/email/manager/GroupHeader.tsx',
-  // The invoices surface (34): lazy routes, every name resolved through
-  // `apps/dashboard/src/invoices/icons.ts` (`invoiceIcon`), the same local
-  // map — the block registry, the inspector's section headers, the fixed
-  // image slots and the theme panel's status glyphs.
-  'apps/dashboard/src/invoices/model/blocks.ts',
-  'apps/dashboard/src/invoices/editor/inspector/Inspector.tsx',
-  'apps/dashboard/src/invoices/editor/inspector/panels/ImagesPanel.tsx',
-  'apps/dashboard/src/invoices/editor/inspector/panels/ThemePanel.tsx',
+  // The invoices surface had four entries here and no longer does: it moved
+  // into the `invoices` add-on, which builds its own bundle and resolves its
+  // own glyphs. An add-on's icons never reach this entry chunk, which is the
+  // outcome these entries existed to arrange.
   // The report builder (43): two lazy routes, every name resolved through
   // `apps/dashboard/src/report-builder/icons.ts` (`reportIcon`), the same
   // local map. One file carries `icon:` literals — the 25 kinds' glyphs in

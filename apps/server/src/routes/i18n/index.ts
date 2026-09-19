@@ -125,7 +125,6 @@ const BUDGETED_NAMESPACES: readonly Namespace[] = [
   'errors',
   'studio',
   'email',
-  'invoices',
   'automations',
   'dataio',
   'files',

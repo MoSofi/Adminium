@@ -25,7 +25,6 @@ import {
   Database,
   Download,
   FileChartColumn,
-  FileText,
   History,
   KeyRound,
   Mail,
@@ -133,10 +132,6 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
         icon: Mail,
         adminOnly: true,
       },
-      // `/invoices`: the comp's rail row is
-      // `{ key: 'invoices', label: 'Invoices', icon: 'file-text' }` (comp
-      // 1077); it sits beside `/email-templates`, the surface it mirrors.
-      { to: '/invoices', labelKey: 'nav.invoices', fallback: 'Invoices', icon: FileText, adminOnly: true },
       /*
        * `/report-builder`: the comp's rail row is `{ key: 'reports', label:
        * 'Report builder', icon: 'file-bar-chart-2' }` (comp 123) — in the

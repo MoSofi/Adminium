@@ -345,12 +345,6 @@ jobs:
 
       # Two vocabularies, three trees, one gate:
       # the same shape as the email gate above, with one difference the header
-      # of scripts/check-invoice-block-vocab.mjs spells out — the renderer of
-      # the authored body lives in ANOTHER repository (the invoices add-on),
-      # so the 27 kinds cross the boundary as data and every copy is held
-      # equal to it. Named separately so the failure says which copy moved.
-      - name: Check invoice block vocabulary
-        run: pnpm run check-invoice-block-vocab
 
       # The arithmetic law is a COPY
       # in each tree that computes money (the editor's ladder, the summary the

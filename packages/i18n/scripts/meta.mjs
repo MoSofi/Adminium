@@ -63,7 +63,6 @@ const GATE_RELAXED = {
   addOns: 0.95,
   generated: 0.95,
   email: 0.95,
-  invoices: 0.95,
   // Listed explicitly on the way out of `common`, where they had been held to
   // GATE_STRICT's 100%. Naming them here is the ruling; the alternative is the
   // `automations` shape, which is in NAMESPACES but in NEITHER gate list and so
