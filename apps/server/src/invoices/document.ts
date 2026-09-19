@@ -4,8 +4,8 @@
  * `adminium_invoice_documents` row's `body` MEANS (the comp's `base()`,
  * 1083-1115).
  *
- * A DELIBERATE COPY. The dashboard holds the same envelope in its
- * `model/envelope.ts` under `apps/dashboard/src/invoices`, and the two trees
+ * A DELIBERATE COPY. The invoices add-on's page holds the same envelope in
+ * its own `model/envelope.ts`, in another repository, and the two trees
  * may not import each other (01 2.3: the server never imports the dashboard,
  * the dashboard never imports server runtime code). So the type, the
  * defaults, `reconcileBlockOrder` and the normalizing algorithm are restated

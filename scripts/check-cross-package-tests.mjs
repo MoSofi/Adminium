@@ -166,12 +166,13 @@ const TESTS = [
     phase: 'dist',
   },
   {
-    // The block-* canvas against the one money fixture.
+    // The block-* canvas against the one money fixture — the SERVER's copy
+    // since the invoice surface left the engine; the dashboard's went with it.
     // check-invoice-money-fixture holds the copies byte-identical but never
     // runs computeTotals, so a fixture change copied to every tree replays.
     dir: 'packages/widgets',
     file: 'src/families/domain/block-money.test.ts',
-    reads: ['apps/dashboard/src/invoices/model/money-fixture.json'],
+    reads: ['apps/server/src/invoices/money-fixture.json'],
     phase: 'dist',
   },
   {

@@ -15,8 +15,8 @@
  * keeps its line items, addresses and optional blocks verbatim (the comp's
  * `addLangVariant`, 1237-1253).
  *
- * A COPY of the dashboard's `languages.ts` (its `invoices` model folder under
- * `apps/dashboard/src/invoices`): the server needs `localizeBody` for
+ * A COPY of the invoices add-on page's `languages.ts` (its model folder, in
+ * the Adminiumjs/add-ons repository): the server needs `localizeBody` for
  * `POST /invoices/:id/languages` and the two trees may not import each
  * other. A change lands in both files.
  */

@@ -111,7 +111,6 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * read a key from it, and that surface must await {@link Namespace} loading
  * before it renders. See `apps/dashboard/src/studio/routes.tsx`,
  * `apps/dashboard/src/email/emailMessages.ts`,
- * `apps/dashboard/src/invoices/invoicesMessages.ts` and
  * `apps/dashboard/src/automations/automationsMessages.ts`,
  * `apps/dashboard/src/data-io/dataIoMessages.ts`,
  * `apps/dashboard/src/files/filesMessages.ts`,

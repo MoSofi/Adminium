@@ -2,8 +2,8 @@
 /**
  * Invoice documents — templates and invoices
  * (`adminium_invoice_documents`, wave 0027), mounted under `/api/v1`. The
- * reply bodies are mirrored type-for-type by
- * `apps/dashboard/src/invoices/api.ts` (the copied-mirror convention; the
+ * reply bodies are mirrored type-for-type by the invoices add-on page's
+ * `api.ts` (the copied-mirror convention; the
  * SYNC NOTE is in `schema.ts`).
  *
  * THE AUTHORED SURFACE, NOT THE PIPELINE. Everything here lists, creates,

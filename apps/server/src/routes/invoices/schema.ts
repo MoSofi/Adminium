@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the invoice-documents resource. SYNC NOTE: the
- * client-side mirror of these shapes is
- * `apps/dashboard/src/invoices/api.ts` (type-only copy — the dashboard may
- * not import server runtime code). Change both together; the replies are
+ * client-side mirror of these shapes is the invoices add-on page's `api.ts`
+ * (type-only copy — a page may not import server runtime code, and it now
+ * ships from another repository). Change both together; the replies are
  * deliberately UN-enveloped (`{ items, counts }` / bare detail), the email
  * client's style.
  */

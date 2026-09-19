@@ -23,8 +23,8 @@
  * it (1712) — there is no balance model, so "due" would be a claim the
  * document cannot support (O25).
  *
- * THIS FILE IS A COPY of the dashboard's `money.ts` (its `invoices` model
- * folder under `apps/dashboard/src/invoices`), held equal by the fixture:
+ * THIS FILE IS THE REFERENCE COPY of the arithmetic law. The invoices
+ * add-on's page restates it in another repository, held equal by the fixture:
  * the two trees may not import each other, so the law is restated here with
  * identical exports and behaviour, and `invoice-money.test.ts` asserts the
  * same table the dashboard's test asserts. A change lands in both files.

@@ -1421,8 +1421,8 @@ export type InvoiceBodyRecord = z.infer<typeof invoiceBodySchema>;
 
 /**
  * What the manager's card and row read without decoding the body, written
- * by the server on every save. Mirrors `InvoiceSummaryFacts` in
- * `apps/dashboard/src/invoices/api.ts` exactly.
+ * by the server on every save. Mirrors `InvoiceSummaryFacts` in the invoices
+ * add-on page's `api.ts` exactly.
  */
 export const invoiceSummarySchema = z.object({
   number: z.string(),
