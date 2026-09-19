@@ -292,9 +292,21 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     return `sha256-${Buffer.from(sha256Hex, 'hex').toString('base64')}`;
   }
 
-  /** Distinct client paths the manifest declares, in first-declared order. */
+  /**
+   * Distinct client paths the manifest declares, in first-declared order.
+   *
+   * Slot fills AND page modules (51a): this list is both what the bundle route
+   * will serve and what the install report hashes, so a page whose module is
+   * missing from it is a 404 at mount — the page would be declared, listed in
+   * the rail, and unservable.
+   */
   function bundlePathsOf(block: AddOnBlock): string[] {
-    return [...new Set((block.slots ?? []).map((slot) => slot.client))];
+    return [
+      ...new Set([
+        ...(block.slots ?? []).map((slot) => slot.client),
+        ...(block.pages ?? []).map((page) => page.client),
+      ]),
+    ];
   }
 
   async function toDto(installed: InstalledManifest): Promise<AddOnDto> {

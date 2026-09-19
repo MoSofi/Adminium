@@ -733,6 +733,88 @@ describe('DELETE /add-ons/:key — uninstall', () => {
   });
 });
 
+/**
+ * 51a — a page module is a bundle path too.
+ *
+ * `bundlePathsOf` used to read `slots` alone, so an add-on's PAGE module was a
+ * file the manifest declared and the route refused: declared in the rail,
+ * listed nowhere, 404 at mount. The list reply and the serving route are both
+ * derived from that one function, which is why one test can hold both.
+ */
+describe('bundle serving for an add-on page', () => {
+  async function stageWithPage(): Promise<void> {
+    const manifest = manifestFor('holiday-calendars');
+    const tarball = packageTarball({
+      'manifest.json': JSON.stringify({
+        ...manifest,
+        addOn: {
+          ...manifest.addOn,
+          hostApi: 1,
+          pages: [
+            {
+              ref: 'holidays',
+              title: { key: 'addon.holiday-calendars.nav', fallback: 'Holidays' },
+              icon: 'calendar',
+              client: 'dist/pages/holidays.js',
+              nav: { order: 20 },
+            },
+          ],
+        },
+      }),
+      'package.json': JSON.stringify({ name: '@adminiumjs/add-on-holiday-calendars' }),
+      'dist/client.js': 'export const register = () => {};',
+      'dist/pages/holidays.js': 'export default () => null;',
+    });
+    await store.stage({
+      key: 'holiday-calendars',
+      version: '1.0.0',
+      tarball,
+      expectedIntegrity: sha512Integrity(tarball),
+    });
+  }
+
+  it('lists the page module beside the slot fill, and serves it', async () => {
+    await stageWithPage();
+    const app = await buildApp();
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/add-ons',
+      payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing'] },
+    });
+    const list = (await app.inject({ method: 'GET', url: '/api/v1/add-ons' })).json() as {
+      addOns: Array<{ bundles: Array<{ path: string; url: string; integrity: string }> }>;
+    };
+    const paths = list.addOns[0]!.bundles.map((b) => b.path);
+    expect(paths).toContain('dist/pages/holidays.js');
+
+    const page = list.addOns[0]!.bundles.find((b) => b.path === 'dist/pages/holidays.js')!;
+    const res = await app.inject({ method: 'GET', url: page.url });
+    expect(res.statusCode).toBe(200);
+    expect(res.payload).toBe('export default () => null;');
+    expect(res.headers['x-adminium-integrity']).toBe(page.integrity);
+    await app.close();
+  });
+
+  it('still refuses a path the manifest does not declare', async () => {
+    // The widening is to what the MANIFEST names, not to the package tree: a
+    // real file nobody declared stays a 404.
+    await stageWithPage();
+    const app = await buildApp();
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/add-ons',
+      payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing'] },
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/add-ons/holiday-calendars/bundle/package.json',
+    });
+    expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+});
+
 describe('bundle serving with SRI', () => {
   /** Installs `holiday-calendars` and returns its listed bundle. */
   async function installAndList(app: Awaited<ReturnType<typeof buildApp>>) {

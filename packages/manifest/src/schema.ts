@@ -13,8 +13,10 @@
 import {
   addOnBlockSchema,
   addOnCategorySchema,
+  i18nMessageSchema,
   isSlotId,
   type AddOnBlock,
+  type I18nMessage,
 } from '@adminium/add-on-contracts';
 import { z } from 'zod';
 
@@ -37,14 +39,16 @@ const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const semver = z.string().regex(SEMVER, 'must be strict semver (major.minor.patch)');
 
-/** An i18n message: a catalog key plus the English fallback rendered if absent. */
-export const i18nMessageSchema = z
-  .object({
-    key: z.string().min(1).max(120),
-    fallback: z.string().min(1).max(400),
-  })
-  .strict();
-export type I18nMessage = z.infer<typeof i18nMessageSchema>;
+/**
+ * An i18n message: a catalog key plus the English fallback rendered if absent.
+ *
+ * DEFINED IN `@adminium/add-on-contracts` since 51a and re-exported here under
+ * its own name, so every importer of `@adminium/manifest` is unchanged. It
+ * moved because an add-on's page title and nav-group label are written in a
+ * manifest and read by a host through the contracts package — one shape, one
+ * definition, rather than two that drift a `max()` apart.
+ */
+export { i18nMessageSchema, type I18nMessage };
 
 // ── identity ─────────────────────────────────────────────────────────────────
 
@@ -475,9 +479,20 @@ export const appManifestSchema = z
   .refine(sidesAreDistinct, { ...SIDES_MESSAGE, path: [...SIDES_MESSAGE.path] });
 
 /**
- * `pages` and `frontend` are absent from this branch on purpose: an add-on
- * cannot install pages, roles or a frontend, and leaving the fields off the
- * schema entirely is a stronger guarantee than a lint rule.
+ * `pages`, `roles` and `frontends` are absent from this branch on purpose, and
+ * leaving the fields off a `.strict()` schema entirely is a stronger guarantee
+ * than a lint rule.
+ *
+ * WHAT CHANGED IN 51a, AND WHAT DID NOT. An add-on may now own a dashboard page
+ * (the owner's 2026-09-19 ruling, reversing 34 D43) — but it declares that page
+ * as CODE, inside `addOn.pages`, never as a `pages` entry up here. The two are
+ * different things wearing one word: a `pages` row is a generated page, a
+ * `template` the engine renders with `bindings` and `config`, and an add-on
+ * still cannot install one. Roles and frontends remain refused outright.
+ *
+ * So the absence of `pages` from this object is no longer "an add-on has no
+ * pages". It is "an add-on's pages are not the engine's page templates", which
+ * is a narrower promise and the one this shape actually keeps.
  */
 export const addOnManifestSchema = z
   .object({
@@ -565,6 +580,21 @@ export function addOnIssues(
       });
     }
   });
+
+  /*
+   * THERE IS NO NAV_GROUP_UNKNOWN CHECK HERE, AND THAT IS DELIBERATE.
+   *
+   * A page whose group is neither built in nor declared is refused by
+   * `addOnBlockSchema` itself, and these cross-block rules run only on a
+   * manifest that has already parsed — so a check here could never fire. It was
+   * written, and removed once its own test proved it unreachable: the refusal
+   * arrived as a schema issue with no code.
+   *
+   * SLOT_UNKNOWN above is the same shape and is kept, labelled "belt and
+   * braces". One unreachable branch is not a reason for a second: this
+   * repository has shipped four features that passed every test and could not
+   * be called, and a validator branch nobody can reach is where that starts.
+   */
 
   // SCOPE_OUT_OF_RANGE — a `records:<table>:<verb>` scope must name a table this
   // add-on can actually reach: one of the host app's, or one of its own.

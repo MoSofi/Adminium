@@ -13,6 +13,7 @@ import { z } from 'zod';
 
 import { contractIdSchema, hasContractVersion } from './contracts.js';
 import { slotIdSchema } from './slots.js';
+import { BUILTIN_NAV_GROUP_KEYS, type BuiltinNavGroupKey } from './nav-groups.js';
 
 /**
  * Add-ons get their OWN closed category vocabulary (D2), because an add-on is
@@ -95,6 +96,124 @@ export const addOnNetworkSchema = z
   })
   .strict();
 
+// ── pages and navigation (51 §1.1) ───────────────────────────────────────────
+
+/**
+ * An i18n message: a catalog key plus the English fallback rendered when the
+ * key is absent.
+ *
+ * MOVED HERE FROM `@adminium/manifest` by 51a, which now re-exports it under
+ * the same name. One definition rather than two, because both ends need it: a
+ * page title and a nav-group label are written in a manifest and validated
+ * there, and read back by a host through the schemas in THIS package. Two
+ * four-line copies of the same shape are exactly the duplicate that drifts in a
+ * field nobody reads — `max(400)` here and `max(200)` there — and then the
+ * stricter copy refuses first, for a reason no message names.
+ */
+export const i18nMessageSchema = z
+  .object({
+    key: z.string().min(1).max(120),
+    fallback: z.string().min(1).max(400),
+  })
+  .strict();
+export type I18nMessage = z.infer<typeof i18nMessageSchema>;
+
+/**
+ * THE RAIL'S BUILT-IN GROUPS now live in `nav-groups.ts`, re-exported here so
+ * this module's public surface is unchanged. They moved so that a host needing
+ * only the five keys — the dashboard's entry-chunk `app/bootstrap.ts` — can
+ * import them without making this whole module, and everything the barrel
+ * reaches from it, statically reachable. See that file's note.
+ */
+export { BUILTIN_NAV_GROUP_KEYS, type BuiltinNavGroupKey } from './nav-groups.js';
+
+/**
+ * Where a page goes when its manifest asks for no group (the owner's ruling,
+ * 51 D-nav). Applied at PARSE, so what a host reads is already resolved and the
+ * rail never has to guess.
+ *
+ * The alternative is what generated pages do today, and it is worse: an app
+ * page whose `navGroup` is not in the closed set is dropped into `hidden` at
+ * `bootstrap/handlers.ts:146` — the page exists, nothing links to it, and
+ * nothing says why. An add-on that omits a group has not made a mistake, so it
+ * gets a home rather than a silence.
+ */
+export const DEFAULT_NAV_GROUP: BuiltinNavGroupKey = 'library';
+
+/**
+ * A group key, built-in or declared. Kebab-case, because it appears in no URL
+ * but is compared against the built-in five, which are kebab.
+ */
+export const navGroupKeySchema = z
+  .string()
+  .regex(/^[a-z][a-z0-9-]{0,39}$/, 'a nav group key must be kebab-case, 1–40 characters');
+
+/**
+ * The host API an add-on's client code is written against (51 §1.4).
+ *
+ * A version rather than a boolean because publishing `Modal` and `useNavigate`
+ * to code the engine did not build makes them public API: the day that surface
+ * changes shape, an add-on built against the old one must be REFUSED with its
+ * version named, not mounted into a blank screen. `z.literal(1)` becomes a
+ * union the first time there is a 2 — and there is deliberately no `"*"`.
+ */
+export const hostApiVersionSchema = z.literal(1);
+export const HOST_API_VERSION = 1;
+
+/**
+ * A rail row. Omit `nav` entirely and the page is routable but unlisted —
+ * a detail screen an add-on links to itself.
+ */
+export const addOnPageNavSchema = z
+  .object({
+    group: navGroupKeySchema.default(DEFAULT_NAV_GROUP),
+    order: z.number().int(),
+    /** Same audience the engine's own admin rows have; 51 §1.5. */
+    adminOnly: z.boolean().optional(),
+  })
+  .strict();
+
+/**
+ * A page an add-on renders from its OWN bundle.
+ *
+ * NOT `pageSchema` in `@adminium/manifest`, which is a generated page: a
+ * `template` the engine renders with `bindings` and `config`. This is code. The
+ * two deliberately do not share a name in the same document — an add-on's live
+ * under `addOn.pages` — because "page" meaning both a template row and a
+ * JavaScript module in one manifest is how a reader ends up writing `template`
+ * here and waiting for a screen that never comes.
+ */
+export const addOnPageSchema = z
+  .object({
+    /** The last segment of `/add-ons/<key>/<ref>`. */
+    ref: z.string().regex(/^[a-z][a-z0-9-]*$/, 'page ref must be a kebab-case identifier'),
+    title: i18nMessageSchema,
+    icon: z.string().min(1).max(60),
+    /** A path the bundle route will serve; its default export is the page. */
+    client: z.string().min(1),
+    nav: addOnPageNavSchema.optional(),
+    /** Reserve `/add-ons/<key>/<ref>/*` for the page's own sub-routes. */
+    detail: z.boolean().optional(),
+  })
+  .strict();
+export type AddOnPage = z.infer<typeof addOnPageSchema>;
+
+/**
+ * A group this add-on brings with it. Its label travels WITH the add-on — a key
+ * plus an English fallback, resolved against the add-on's own translations —
+ * which is the whole reason the engine does not have to own
+ * `nav.group.<whatever>` in eight locales to let somebody name a group.
+ */
+export const addOnNavGroupSchema = z
+  .object({
+    key: navGroupKeySchema,
+    label: i18nMessageSchema,
+    /** Orders the trailing add-on band only; built-in groups do not move. */
+    order: z.number().int(),
+  })
+  .strict();
+export type AddOnNavGroup = z.infer<typeof addOnNavGroupSchema>;
+
 export const addOnBlockSchema = z
   .object({
     attaches: z.array(attachTargetSchema).min(1),
@@ -110,8 +229,76 @@ export const addOnBlockSchema = z
     publicSettings: z.array(z.string().min(1)).optional(),
     /** D11 — required to ship a demo that makes no real third-party call. */
     demoTransport: z.string().min(1).optional(),
+    /**
+     * Dashboard pages this add-on renders itself, and the groups it brings for
+     * them (51 §1.1). Both optional and additive: every manifest written before
+     * 51a validates unchanged, which is the same promise `kind` kept in wave 4.
+     */
+    pages: z.array(addOnPageSchema).min(1).optional(),
+    navGroups: z.array(addOnNavGroupSchema).min(1).optional(),
+    /** Required once `pages` is present; see {@link hostApiVersionSchema}. */
+    hostApi: hostApiVersionSchema.optional(),
   })
   .strict()
+  // A ref is a URL segment, so two pages sharing one is two screens at one
+  // address — and the loser is whichever the host's lookup happens to find.
+  .refine((b) => new Set((b.pages ?? []).map((p) => p.ref)).size === (b.pages ?? []).length, {
+    message: 'duplicate page ref',
+    path: ['pages'],
+  })
+  .refine((b) => new Set((b.navGroups ?? []).map((g) => g.key)).size === (b.navGroups ?? []).length, {
+    message: 'duplicate nav group key',
+    path: ['navGroups'],
+  })
+  // A declared group may not shadow a built-in one: the built-in label comes
+  // from the engine's catalogue and the declared one from the add-on, so a
+  // collision is two labels for one heading with no rule about which wins.
+  .refine(
+    (b) =>
+      !(b.navGroups ?? []).some((g) =>
+        (BUILTIN_NAV_GROUP_KEYS as readonly string[]).includes(g.key),
+      ),
+    {
+      message: `a nav group key may not be one of the built-in groups (${BUILTIN_NAV_GROUP_KEYS.join(', ')})`,
+      path: ['navGroups'],
+    },
+  )
+  // NAV_GROUP_UNKNOWN, refused at parse rather than resolved at render. A group
+  // nobody defines is the one failure this whole block exists to prevent: the
+  // rail would draw a raw key as a heading, or drop the row into `hidden` the
+  // way an unknown app group is dropped today, and both look like the add-on
+  // simply not working.
+  .refine(
+    (b) =>
+      (b.pages ?? []).every(
+        (p) =>
+          p.nav === undefined ||
+          (BUILTIN_NAV_GROUP_KEYS as readonly string[]).includes(p.nav.group) ||
+          (b.navGroups ?? []).some((g) => g.key === p.nav?.group),
+      ),
+    {
+      message: 'a page names a nav group that is neither built in nor declared in navGroups',
+      path: ['pages'],
+    },
+  )
+  // The mirror of the rule above. A declared group no page uses renders as
+  // nothing, so it is a typo in one of the two places — and refusing here names
+  // it, where a silent empty heading would not.
+  .refine(
+    (b) =>
+      (b.navGroups ?? []).every((g) => (b.pages ?? []).some((p) => p.nav?.group === g.key)),
+    {
+      message: 'a declared nav group is used by none of this add-on’s pages',
+      path: ['navGroups'],
+    },
+  )
+  // Pages are code the host runs against a published API surface. An add-on
+  // that does not say which version it was built against cannot be refused
+  // later on version grounds, which is the entire point of having a version.
+  .refine((b) => b.pages === undefined || b.hostApi !== undefined, {
+    message: 'an add-on that declares pages must declare the hostApi version it is built against',
+    path: ['hostApi'],
+  })
   // Every `provides[].contract` must be in the registry AT the declared version.
   .refine((b) => (b.provides ?? []).every((p) => hasContractVersion(p.contract, p.version)), {
     message: 'CONTRACT_UNKNOWN: a provided contract is not in the registry at that version',
@@ -144,5 +331,12 @@ export const ADD_ON_ISSUE_CODES = [
   'CAPABILITY_CONFLICT',
   'FRONTEND_SECRET_LEAK',
   'SLOT_CONFLICT',
+  /*
+   * 51a adds no code for a bad nav group on purpose. `addOnBlockSchema` refuses
+   * an undeclared group itself, and the cross-block rules in
+   * `@adminium/manifest` run only after that schema has parsed — so a code here
+   * would name a state no manifest can be in. The refusal is a schema issue
+   * carrying the message, which is what a reader gets either way.
+   */
 ] as const;
 export type AddOnIssueCode = (typeof ADD_ON_ISSUE_CODES)[number];

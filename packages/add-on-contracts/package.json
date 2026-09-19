@@ -18,6 +18,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./nav-groups": {
+      "types": "./dist/nav-groups.d.ts",
+      "default": "./dist/nav-groups.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
@@ -37,6 +41,26 @@
     "./runtime/compiler-runtime": {
       "types": "./dist/runtime/compiler-runtime.d.ts",
       "default": "./dist/runtime/compiler-runtime.js"
+    },
+    "./runtime/ui": {
+      "types": "./dist/runtime/ui.d.ts",
+      "default": "./dist/runtime/ui.js"
+    },
+    "./runtime/router": {
+      "types": "./dist/runtime/router.d.ts",
+      "default": "./dist/runtime/router.js"
+    },
+    "./runtime/query": {
+      "types": "./dist/runtime/query.d.ts",
+      "default": "./dist/runtime/query.js"
+    },
+    "./runtime/i18n": {
+      "types": "./dist/runtime/i18n.d.ts",
+      "default": "./dist/runtime/i18n.js"
+    },
+    "./runtime/app": {
+      "types": "./dist/runtime/app.d.ts",
+      "default": "./dist/runtime/app.js"
     },
     "./runtime/react-dom": {
       "types": "./dist/runtime/react-dom.d.ts",

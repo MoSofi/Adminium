@@ -260,3 +260,79 @@ describe('the cross-block rules', () => {
     expect(validateManifest(withNonsense).ok).toBe(false);
   });
 });
+
+/**
+ * 51a — an add-on may own dashboard pages. These run through the whole
+ * envelope, not just the `addOn` block, because that is where the promise
+ * lives: the branch is `.strict()`, so a field the union does not know about is
+ * a refusal rather than a shrug.
+ */
+describe('add-on pages (51a)', () => {
+  const INVOICES = {
+    ...DHL,
+    addOn: {
+      ...DHL.addOn,
+      hostApi: 1,
+      pages: [
+        {
+          ref: 'documents',
+          title: { key: 'addon.invoices.nav', fallback: 'Invoices' },
+          icon: 'file-text',
+          client: 'dist/pages/invoices.js',
+          nav: { group: 'library', order: 20, adminOnly: true },
+          detail: true,
+        },
+      ],
+    },
+  };
+
+  it('validates a manifest whose add-on declares a page', () => {
+    const result = validateManifest(INVOICES);
+    expect(result.ok, JSON.stringify(result)).toBe(true);
+  });
+
+  it('still refuses a top-level `pages` row on the add-on branch', () => {
+    // An add-on's pages are CODE, under `addOn.pages`. A generated page —
+    // `template` + `bindings` — remains something only an app can install, and
+    // the strict branch is what keeps the two from blurring.
+    const result = validateManifest({
+      ...INVOICES,
+      pages: [{ ref: 'x', template: 'table', title: DESCRIPTION, nav: { group: 'library', icon: 'x', order: 1 } }],
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('refuses a page naming a group that is neither built in nor declared', () => {
+    const result = validateManifest({
+      ...INVOICES,
+      addOn: {
+        ...INVOICES.addOn,
+        pages: [{ ...INVOICES.addOn.pages[0], nav: { group: 'documents', order: 1 } }],
+      },
+    });
+    // The refusal comes from the block schema, so it arrives as a schema issue
+    // carrying the sentence rather than a code — see the note where the
+    // cross-block rules deliberately do NOT re-check this.
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(
+        result.issues.some((i) => i.message.includes('neither built in nor declared')),
+        JSON.stringify(result.issues),
+      ).toBe(true);
+    }
+  });
+
+  it('validates the same page once the add-on declares the group it names', () => {
+    const result = validateManifest({
+      ...INVOICES,
+      addOn: {
+        ...INVOICES.addOn,
+        pages: [{ ...INVOICES.addOn.pages[0], nav: { group: 'documents', order: 1 } }],
+        navGroups: [
+          { key: 'documents', label: { key: 'addon.invoices.group', fallback: 'Documents' }, order: 10 },
+        ],
+      },
+    });
+    expect(result.ok, JSON.stringify(result)).toBe(true);
+  });
+});
