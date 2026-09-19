@@ -67626,7 +67626,8 @@
                             "branding",
                             "schema",
                             "archive",
-                            "document"
+                            "document",
+                            "package"
                           ]
                         },
                         "destinationId": {
@@ -67766,7 +67767,8 @@
                 "branding",
                 "schema",
                 "archive",
-                "document"
+                "document",
+                "package"
               ]
             },
             "in": "query",
@@ -67913,7 +67915,8 @@
                               "branding",
                               "schema",
                               "archive",
-                              "document"
+                              "document",
+                              "package"
                             ]
                           },
                           "destinationId": {
@@ -68153,7 +68156,8 @@
                             "branding",
                             "schema",
                             "archive",
-                            "document"
+                            "document",
+                            "package"
                           ]
                         },
                         "destinationId": {
@@ -68336,7 +68340,8 @@
                             "branding",
                             "schema",
                             "archive",
-                            "document"
+                            "document",
+                            "package"
                           ]
                         },
                         "destinationId": {
@@ -68499,7 +68504,8 @@
                             "branding",
                             "schema",
                             "archive",
-                            "document"
+                            "document",
+                            "package"
                           ]
                         },
                         "destinationId": {
@@ -68684,7 +68690,8 @@
                                   "branding",
                                   "schema",
                                   "archive",
-                                  "document"
+                                  "document",
+                                  "package"
                                 ]
                               },
                               "destinationId": {
@@ -68914,7 +68921,8 @@
                             "branding",
                             "schema",
                             "archive",
-                            "document"
+                            "document",
+                            "package"
                           ]
                         },
                         "destinationId": {
@@ -69079,7 +69087,8 @@
                             "branding",
                             "schema",
                             "archive",
-                            "document"
+                            "document",
+                            "package"
                           ]
                         },
                         "destinationId": {
@@ -69244,7 +69253,8 @@
                             "branding",
                             "schema",
                             "archive",
-                            "document"
+                            "document",
+                            "package"
                           ]
                         },
                         "destinationId": {

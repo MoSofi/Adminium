@@ -135,17 +135,43 @@ export function createPackageCopies(deps: PackageCopiesDeps): PackageCopies {
 
       const integrity = sha512Integrity(packed.tarball);
       const fileId = newId('file');
+      const filename = filenameFor(row.manifestKey, row.version);
       try {
-        // Bytes first, row second: a crash between them leaves an object
-        // nothing points at, which the operator can ignore, rather than a row
-        // promising bytes that are not there, which the restore would trust.
-        await deps.files.write({
+        /*
+         * THREE STEPS, IN THIS ORDER, AND `write` IS NOT ONE THING.
+         *
+         * `FileStore.write` puts BYTES only — the id-first contract exists so
+         * "a failure leaves bytes with no row rather than a row with no bytes"
+         * — so the `adminium_files` row is a separate create, and without it
+         * `restore` looks the copy up and finds nothing. That is not a
+         * hypothetical: the first version of this function stopped after
+         * `write`, every unit test passed against a fake that created the row
+         * itself, and the two-boot test found it.
+         *
+         * The manifest pointer goes LAST for the same reason the bytes go
+         * first: each step is only claimed once the thing it names exists.
+         */
+        const stored = await deps.files.write({
           id: fileId,
           kind: 'package',
-          filename: filenameFor(row.manifestKey, row.version),
+          filename,
           mime: 'application/gzip',
           bytes: Buffer.from(packed.tarball),
           destinationId,
+        });
+        await deps.filesRepo.create({
+          id: fileId,
+          storageKey: stored.storageKey,
+          filename,
+          mime: 'application/gzip',
+          sizeBytes: stored.sizeBytes,
+          sha256: stored.sha256,
+          kind: 'package',
+          storage: stored.storage,
+          destinationId: stored.destinationId,
+          // No `entity` and no `attachedAt`: a copy belongs to an INSTALL, not
+          // to a record. It is safe unattached because the sweep only collects
+          // `kind = 'upload'`.
         });
         await deps.manifests.setPackageCopy(row.id, { fileId, integrity });
       } catch (error) {

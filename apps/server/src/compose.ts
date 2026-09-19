@@ -80,7 +80,14 @@ import { createDocumentPipeline } from './documents/compose.js';
 import { syncTriggersForAddOn } from './documents/trigger-sync.js';
 import { documentRoutes } from './routes/documents/index.js';
 import { adoptInvoicesAddOn } from './add-ons/adopt-invoices.js';
-import { createAddOnStore, installedNotInStore, seedBundledPackages } from './add-ons/store.js';
+import {
+  createAddOnStore,
+  installedNotInStore,
+  packageIsInStore,
+  seedBundledPackages,
+  type AddOnStore,
+} from './add-ons/store.js';
+import { createPackageCopies } from './add-ons/package-copies.js';
 import { createInstalledApps } from './apps/installed.js';
 import { createAppSchemaTarget } from './apps/schema-target.js';
 import { createAppCatalogClient } from './apps/catalog.js';
@@ -1583,7 +1590,74 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * boots measured. The seed settles either way (it catches its own failures),
    * so this always runs.
    */
-  void addOnSeed
+  /*
+   * PUT BACK WHAT THE DEPLOY TOOK, THEN KEEP A COPY OF WHAT IS LEFT.
+   *
+   * After the bundled seeds, because a package the image carries is already
+   * back by now and restoring over it would be work for nothing. BEFORE the
+   * runtime build and the missing report below, because both read the store:
+   * 0.2.9 built the runtime 60-90 ms ahead of the seed and an add-on restored
+   * afterwards stayed dark until an unrelated toggle, which is the same race
+   * one step further along.
+   *
+   * The keep pass runs on every boot and skips any row that already names a
+   * copy, so an instance that predates 0037 becomes protected without anyone
+   * reinstalling anything, and a later boot costs one `versions()` call per
+   * install.
+   */
+  const packagesReady = Promise.all([appSeed, addOnSeed])
+    .then(async () => {
+      const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
+      const storeFor = (kind: string): AddOnStore | null =>
+        kind === 'app' ? appStore : kind === 'add-on' ? addOnStore : null;
+      const copies = createPackageCopies({
+        files: storage,
+        filesRepo: filesRepo(meta),
+        manifests: repo,
+        storeFor,
+        log: (level, message, data) => {
+          app.log[level](data ?? {}, message);
+        },
+      });
+
+      let restoredApp = false;
+      for (const kind of ['add-on', 'app'] as const) {
+        for (const installed of await repo.list(kind)) {
+          const store = storeFor(kind);
+          if (store === null) continue;
+          const here = await packageIsInStore(store, {
+            key: installed.row.manifestKey,
+            version: installed.row.version,
+          });
+          if (here) {
+            await copies.keep(installed);
+            continue;
+          }
+          // Missing. A restore that fails is not fatal and not silent: the
+          // report below still names the package, and the operator still sees
+          // it as Missing in Studio.
+          if (await copies.restore(installed) && kind === 'app') restoredApp = true;
+        }
+      }
+
+      if (restoredApp) {
+        // Same reason the bundled app seed refreshes: the registry was read
+        // before these files existed, and an app nothing has re-read is an app
+        // nothing serves.
+        try {
+          await installedApps.refresh();
+        } catch (error) {
+          app.log.warn({ err: error }, 'could not read installed apps after a restore');
+        }
+      }
+    })
+    .catch((err: unknown) => {
+      // Never fatal: a boot that cannot reach its storage destination is still
+      // a boot, and every package it could not bring back reads as Missing.
+      app.log.warn({ err }, 'could not restore installed packages from their copies');
+    });
+
+  void packagesReady
     .then(() => rebuildAddOnRuntime())
     .catch((err: unknown) => {
       app.log.error({ err }, 'the add-on runtime could not be built');
@@ -1598,7 +1672,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * installed. The log is the one place an operator on such a host looks, so it
    * says which, and what to do.
    */
-  void Promise.all([appSeed, addOnSeed])
+  void packagesReady
     .then(async () => {
       const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
       const refs = (rows: readonly InstalledManifest[]) =>
