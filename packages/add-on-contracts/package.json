@@ -86,8 +86,9 @@
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
-    "typescript": "catalog:",
+    "@types/react": "^19.2.18",
     "eslint": "catalog:",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "files": [

@@ -14,19 +14,21 @@
  */
 
 import { requireAddOnHost } from './index.js';
+import type { AddOnAppNamespace } from './app-types.js';
 
-const app = requireAddOnHost().app;
+export type * from './app-types.js';
 
-export const ApiError = app['ApiError'] as never;
-export const PageActions = app['PageActions'] as never;
-export const PageSurface = app['PageSurface'] as never;
-export const api = app['api'] as never;
-export const bootstrapQuery = app['bootstrapQuery'] as never;
-export const deferredMessagesReady = app['deferredMessagesReady'] as never;
-export const formatSince = app['formatSince'] as never;
-export const lucideByName = app['lucideByName'] as never;
-export const t = app['t'] as never;
-export const useAppToasts = app['useAppToasts'] as never;
-export const useShortcut = app['useShortcut'] as never;
+const app = requireAddOnHost().app as unknown as AddOnAppNamespace;
+
+export const ApiError = app.ApiError;
+export const PageActions = app.PageActions;
+export const PageSurface = app.PageSurface;
+export const api = app.api;
+export const bootstrapQuery = app.bootstrapQuery;
+export const formatSince = app.formatSince;
+export const lucideByName = app.lucideByName;
+export const t = app.t;
+export const useAppToasts = app.useAppToasts;
+export const useShortcut = app.useShortcut;
 
 export default app;

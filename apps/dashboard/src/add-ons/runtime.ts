@@ -61,7 +61,6 @@ import { tagForLocale } from '@adminium/i18n';
 
 import { ApiError, api } from '../app/api.js';
 import { bootstrapQuery } from '../app/bootstrap.js';
-import { deferredMessagesReady } from '../i18n/deferredMessages.js';
 import { t } from '../i18n/t.js';
 import { lucideByName } from '../lib/lucide.js';
 import { useAppToasts } from '../pages/toasts.js';
@@ -69,7 +68,11 @@ import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { useShortcut } from '../shell/ShortcutsProvider.js';
 import { formatSince } from '../team/teamApi.js';
-import { HOST_API_VERSION, installAddOnRuntime } from '@adminium/add-on-contracts/runtime';
+import {
+  HOST_API_VERSION,
+  installAddOnRuntime,
+  type AddOnAppNamespace,
+} from '@adminium/add-on-contracts/runtime';
 
 let installing: Promise<void> | null = null;
 
@@ -91,19 +94,25 @@ export function ensureAddOnRuntime(): Promise<void> {
          * the shell's own chrome, translates through the running catalogue,
          * and calls the API with the session's CSRF token.
          */
+        /*
+         * `satisfies` is the proof, and it belongs here rather than in a test:
+         * the contract declares what an add-on page may call, and this is the
+         * one place that can show the running dashboard actually provides it.
+         * A signature that drifts fails THIS build, not an add-on's build in
+         * another repository after a release.
+         */
         app: {
           ApiError,
           PageActions,
           PageSurface,
           api,
           bootstrapQuery,
-          deferredMessagesReady,
           formatSince,
           lucideByName,
           t,
           useAppToasts,
           useShortcut,
-        },
+        } satisfies AddOnAppNamespace,
       },
     });
   });

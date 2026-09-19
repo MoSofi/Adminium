@@ -547,6 +547,9 @@ importers:
       '@adminium/config':
         specifier: workspace:*
         version: link:../config
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
       eslint:
         specifier: 'catalog:'
         version: 9.39.5(jiti@2.7.0)

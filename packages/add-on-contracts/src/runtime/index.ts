@@ -93,6 +93,13 @@ export interface AddOnHostApi {
   app: Readonly<Record<string, unknown>>;
 }
 
+/*
+ * The `app` namespace's own signatures. Re-exported from the runtime entry so a
+ * HOST can check itself against them (`satisfies AddOnAppNamespace`) without
+ * importing the shim, which would run `requireAddOnHost()` at module load.
+ */
+export type * from './app-types.js';
+
 /** The host API version this package defines; `addOn.hostApi` must equal it. */
 export const HOST_API_VERSION = 1;
 
@@ -290,7 +297,6 @@ export const ADD_ON_APP_EXPORTS = [
   'PageSurface',
   'api',
   'bootstrapQuery',
-  'deferredMessagesReady',
   'formatSince',
   'lucideByName',
   't',
