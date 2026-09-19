@@ -65,7 +65,7 @@ export const addOnDto = z.object({
   connected: z.boolean(),
   /**
    * Installed according to the meta store, but its files are not on this
-   * server, so none of it loads (49-T27).
+   * server, so none of it loads.
    *
    * This list used to be a pure meta read, so a redeploy on a host with no disk
    * left it describing an add-on that was entirely gone — its version, its
@@ -275,7 +275,7 @@ export const catalogEntryDto = z.object({
    * `staged` — bytes verified and on disk, nothing installed yet.
    * `available` — would have to be downloaded.
    * `missing` — installed according to the meta store, but its files are not
-   *   on this server, so none of it loads (49-T27). A redeploy on a host with
+   *   on this server, so none of it loads. A redeploy on a host with
    *   no disk is how this happens. Before this state existed such a row was
    *   either labelled `installed`, or — when the cached feed did not carry it
    *   either, which is every uploaded add-on and every air-gapped install —

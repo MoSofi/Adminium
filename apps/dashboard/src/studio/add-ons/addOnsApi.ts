@@ -44,7 +44,7 @@ export interface AddOnDto {
   /** Whether a credential is stored. Never the credential. */
   connected: boolean;
   /**
-   * Installed, but its files are not on this server (49-T27). Everything else
+   * Installed, but its files are not on this server. Everything else
    * on this row is the meta store's memory of what WAS installed — including
    * `connected`, because the credential row outlives the volume.
    */

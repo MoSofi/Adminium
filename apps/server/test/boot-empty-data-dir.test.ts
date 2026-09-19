@@ -302,7 +302,7 @@ describe('a boot on an empty data directory', () => {
   });
 
   /*
-   * 49-T27 (c). The log above is the only place the loss was said out loud, and
+   * The log above is the only place the loss was said out loud, and
    * an operator on a host with no disk is not reading it. These three pin the
    * surfaces a person actually looks at.
    */
@@ -363,7 +363,7 @@ describe('a boot on an empty data directory', () => {
     });
     expect(reply.statusCode).toBe(200);
     const { apps } = reply.json() as { apps: { key: string; state: string }[] };
-    // Neither on disk nor in a cached feed: before 49-T27's third pass it was
+    // Neither on disk nor in a cached feed: before the pass over the meta store it was
     // in no list at all, while the meta store still said installed.
     expect(apps.map((a) => a.key)).toContain('lost-app');
     expect(apps.find((a) => a.key === 'lost-app')?.state).toBe('missing');

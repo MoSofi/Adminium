@@ -278,7 +278,7 @@ describe('installing an app only the catalogue offers', () => {
   });
 });
 
-describe('an installed app whose files are gone (49-T27)', () => {
+describe('an installed app whose files are gone', () => {
   it('is marked missing and says what to do, instead of reading as healthy', async () => {
     installed = { apps: [{ ...INSTALLED, sides: [], missing: true }], staged: [] };
     await renderPage();

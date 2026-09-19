@@ -164,7 +164,7 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                         })}
                       </Badge>
                     )}
-                    {/* 49-T27: the row used to read exactly like a healthy
+                    {/* The row used to read exactly like a healthy
                         install, because a lost app's only tell is an empty
                         `sides` — which also means "no frontends". */}
                     {app.missing && (
