@@ -1,5 +1,80 @@
 # @adminium/i18n
 
+## 0.2.12
+
+### Patch Changes
+
+- e8f3d8f: **A message missing one of its arguments no longer takes the render down.**
+  
+  `IcuFormat`'s default error handler exists to make a broken message harmless:
+  warn the developer, record the failure for the Translations editor, and return
+  the raw string so something still renders. Its comment says "Never throw at
+  render time". It threw.
+  
+  The handler passed the raw error object to `console.warn`. Under plain node
+  that is fine. Under a console that serialises its arguments eagerly — vitest's
+  does — a `MissingValueError`, which is what an unsupplied argument produces and
+  the most ordinary failure on this path, took **8 seconds** to serialise and
+  then threw `RangeError: Invalid string length` from inside the handler. So the
+  one path whose entire job was to absorb a formatting failure turned it into a
+  crash, and reported the wrong culprit while doing it.
+  
+  The object is not large: `node:util` inspects it to 1,189 characters at any
+  depth. Some console implementations walk further, and a reporting path cannot
+  know which one is listening — so it now hands over a bounded string. The
+  failure ring two lines below already did exactly that; the two agree now.
+  
+  The same pattern in `bumpI18nRevision`'s subscriber guard is bounded for the
+  same reason.
+  
+  Nothing pinned the promise before. `icu-format.test.ts` now drives the handler
+  through a console that refuses anything but a string, which is the only kind of
+  test that would have caught this.
+- 5b84085: **An app or add-on whose files a redeploy wiped now says so, everywhere it is listed, instead of reading as installed and fine.**
+  
+  On a host with no persistent disk — App Platform, or any container without a
+  volume — every deploy starts with an empty data directory. The meta store
+  remembers each install; the files are gone. Until now the only place that was
+  said out loud was the server log, which is not where anyone looks.
+  
+  Everywhere else it looked like nothing had happened, and on four different
+  surfaces for three different reasons:
+  
+  - **Studio's installed-apps list** showed the app with its version and install
+    date, because a lost app's only tell was an empty `sides` — which also means
+    "this build ships no frontends".
+  - **The installed add-ons list** was a pure read of the meta store and the
+    credential table, and *both* outlive a wiped volume — so a gone add-on listed
+    with its version, its slots, and a green **Connected** badge.
+  - **Both browse shelves** are assembled from the packages on disk plus the last
+    cached catalog feed. A lost package is in neither, so it was either labelled
+    `installed` (when the feed happened to carry it) or **left out of the reply
+    altogether** — which is every uploaded package, and every install with no
+    cached feed. The meta store said installed and the page showed nothing at all.
+  - **The app's own URL answered 200.** Nothing was mounted for it, so
+    `/apps/<key>/staff/` fell through to the dashboard's SPA wildcard and got
+    `index.html`, which then painted the dashboard's own 404. The request looked
+    like it had succeeded.
+  
+  Now `GET /apps` and `GET /add-ons` carry `missing` per row, both catalogs have a
+  `missing` state plus a pass over the meta store so an installed package can no
+  longer vanish from its own list, and `/apps/<key>/…` answers **503
+  `APP_FILES_MISSING`** with the coded envelope rather than a page that pretends.
+  Studio marks every one with a badge and a line saying what to do; the browse
+  shelf shows that badge *instead of* the green "Installed" it used to show. A
+  missing add-on the catalog still carries offers its Download again, and one the
+  feed does not carry says so instead of offering a button that cannot work.
+  
+  All of it now asks one question — `packageIsInStore` — where three call sites
+  previously answered it three different ways, one of which ("does it contribute a
+  surface") is not the same question: a package that is present but carries no
+  `index.html` serves nothing while its bytes are right there, and reporting that
+  as missing files sends the operator looking for the wrong problem.
+  
+  This is the honest-reporting half of the fix. Bringing the packages back by
+  themselves — a copy in the storage destination, restored at boot — is separate
+  and still to come; what changes here is that the loss stops being silent.
+
 ## 0.2.11
 
 ## 0.2.10

@@ -1,5 +1,115 @@
 # @adminium/server
 
+## 0.2.12
+
+### Patch Changes
+
+- 8e50f36: **An installed app or add-on now survives a deploy that empties the data directory.**
+  
+  On DigitalOcean App Platform, or any container without a volume, every deploy
+  starts with an empty `ADMINIUM_DATA_DIR`. The meta store remembers each
+  install; the files do not survive. Until now the only packages that came back
+  were the ones the image happens to bundle at exactly the installed version —
+  so every app, every add-on you uploaded, and every add-on you had updated past
+  the image's copy was gone, and had to be installed again by hand after every
+  single deploy.
+  
+  When a storage destination is configured, Adminium now keeps a copy of each
+  installed package there and stages it back at boot.
+  
+  **What the copy is.** `stage()` verifies a tarball, unpacks it and discards it,
+  so by the time anything wants to keep a copy the bytes it arrived as are gone —
+  for a package installed a moment ago as much as for one installed last year.
+  The copy is therefore a repack of the staged tree, and its fingerprint is
+  recorded per install (`adminium_manifests.package_integrity`, migration 0037).
+  That fingerprint is of *our* repack, not of the publisher's tarball, so it is
+  deliberately never compared with a catalog row or the release ledger: it
+  answers only "are these the bytes this instance put there", which is the
+  question the restore asks.
+  
+  **Where it lives.** An ordinary file row of the new kind `package`, which keeps
+  it clear of the daily sweep — that collects unattached `upload` rows after 24
+  hours, and a package copy is attached to no record by design. A copy written as
+  an upload would have been deleted overnight and the loss discovered only by the
+  redeploy it existed to survive.
+  
+  **A local destination is not a copy.** If the default destination is this
+  server's own disk, nothing is written and nothing is recorded: that is the disk
+  being emptied, and a fingerprint there would claim a package was protected by a
+  copy that dies with the original.
+  
+  **Ordering.** The restore runs after the bundled seeds and before the add-on
+  runtime is built and before the missing-package report — all three behind one
+  promise. 0.2.9 built the runtime 60–90 ms ahead of the seed and the add-on
+  stayed dark until an unrelated toggle; a restore landing after the runtime
+  would be the same defect one step along, so `compose.ts`'s wiring is pinned in
+  source and a two-boot test drives it for real.
+  
+  **Instances that predate this** become protected without reinstalling anything:
+  the same boot pass uploads a copy of every installed package that does not
+  already have one, and skips the ones that do.
+  
+  A package that still cannot be restored — no copy held, the destination
+  unreachable, a fingerprint that does not match — is not silently ignored: the
+  boot says which and why, and it continues to read as **Missing** in Studio.
+- 5b84085: **An app or add-on whose files a redeploy wiped now says so, everywhere it is listed, instead of reading as installed and fine.**
+  
+  On a host with no persistent disk — App Platform, or any container without a
+  volume — every deploy starts with an empty data directory. The meta store
+  remembers each install; the files are gone. Until now the only place that was
+  said out loud was the server log, which is not where anyone looks.
+  
+  Everywhere else it looked like nothing had happened, and on four different
+  surfaces for three different reasons:
+  
+  - **Studio's installed-apps list** showed the app with its version and install
+    date, because a lost app's only tell was an empty `sides` — which also means
+    "this build ships no frontends".
+  - **The installed add-ons list** was a pure read of the meta store and the
+    credential table, and *both* outlive a wiped volume — so a gone add-on listed
+    with its version, its slots, and a green **Connected** badge.
+  - **Both browse shelves** are assembled from the packages on disk plus the last
+    cached catalog feed. A lost package is in neither, so it was either labelled
+    `installed` (when the feed happened to carry it) or **left out of the reply
+    altogether** — which is every uploaded package, and every install with no
+    cached feed. The meta store said installed and the page showed nothing at all.
+  - **The app's own URL answered 200.** Nothing was mounted for it, so
+    `/apps/<key>/staff/` fell through to the dashboard's SPA wildcard and got
+    `index.html`, which then painted the dashboard's own 404. The request looked
+    like it had succeeded.
+  
+  Now `GET /apps` and `GET /add-ons` carry `missing` per row, both catalogs have a
+  `missing` state plus a pass over the meta store so an installed package can no
+  longer vanish from its own list, and `/apps/<key>/…` answers **503
+  `APP_FILES_MISSING`** with the coded envelope rather than a page that pretends.
+  Studio marks every one with a badge and a line saying what to do; the browse
+  shelf shows that badge *instead of* the green "Installed" it used to show. A
+  missing add-on the catalog still carries offers its Download again, and one the
+  feed does not carry says so instead of offering a button that cannot work.
+  
+  All of it now asks one question — `packageIsInStore` — where three call sites
+  previously answered it three different ways, one of which ("does it contribute a
+  surface") is not the same question: a package that is present but carries no
+  `index.html` serves nothing while its bytes are right there, and reporting that
+  as missing files sends the operator looking for the wrong problem.
+  
+  This is the honest-reporting half of the fix. Bringing the packages back by
+  themselves — a copy in the storage destination, restored at boot — is separate
+  and still to come; what changes here is that the loss stops being silent.
+- Updated dependencies [e8f3d8f]
+- Updated dependencies [8e50f36]
+- Updated dependencies [5b84085]
+  - @adminium/i18n@0.2.12
+  - @adminium/meta@0.2.12
+  - @adminium/engine@0.2.12
+  - @adminium/llm@0.2.12
+  - @adminium/adapter-mysql@0.2.12
+  - @adminium/adapter-postgres@0.2.12
+  - @adminium/adapter-sqlite@0.2.12
+  - @adminium/schema-import@0.2.12
+  - @adminium/add-on-contracts@0.2.12
+  - @adminium/manifest@0.2.12
+
 ## 0.2.11
 
 ### Patch Changes
