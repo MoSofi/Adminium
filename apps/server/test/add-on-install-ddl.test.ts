@@ -840,7 +840,8 @@ describe.skipIf(POSTGRES_URL === undefined)('applyInstall against a real Postgre
  * primary key ("used in key specification without a key length"). Gated on
  * `TEST_MYSQL_URL` like every other engine leg; CI always sets it.
  */
-const MYSQL_URL = process.env.TEST_MYSQL_URL;
+// `''` means absent: CI leaves this empty on a push, where mysql runs nightly.
+const MYSQL_URL = process.env.TEST_MYSQL_URL || undefined;
 
 describe.skipIf(MYSQL_URL === undefined)('applyInstall against a real MySQL', () => {
   it("creates an app's int- and text-keyed tables, and enforces their FKs", async () => {

@@ -55,7 +55,8 @@ describe.skipIf(!pgAvailable())('estimatedTotal (live postgres, Northwind)', () 
   });
 });
 
-const MYSQL_URL = process.env.TEST_MYSQL_URL;
+// `''` means absent: CI leaves this empty on a push, where mysql runs nightly.
+const MYSQL_URL = process.env.TEST_MYSQL_URL || undefined;
 
 describe.skipIf(MYSQL_URL === undefined)('estimatedTotal (live mysql)', () => {
   const database = `adminium_test_est_${randomBytes(4).toString('hex')}`;

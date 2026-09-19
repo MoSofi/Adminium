@@ -362,7 +362,8 @@ async function grantAll(t: DataTestContext, connId: string): Promise<void> {
 
 // --- mysql (TEST_MYSQL_URL) --------------------------------------------------
 
-const MYSQL_URL = process.env.TEST_MYSQL_URL;
+// `''` means absent: CI leaves this empty on a push, where mysql runs nightly.
+const MYSQL_URL = process.env.TEST_MYSQL_URL || undefined;
 
 {
   const database = `adminium_test_links_${randomBytes(4).toString('hex')}`;

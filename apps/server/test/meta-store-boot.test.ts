@@ -107,7 +107,8 @@ const ENGINES: Engine[] = [
   },
   {
     name: 'mysql',
-    url: process.env.TEST_MYSQL_URL,
+    // `''` means absent: CI leaves this empty on a push, where mysql runs nightly.
+    url: process.env.TEST_MYSQL_URL || undefined,
     async make(base) {
       const mysqlP = await import('mysql2/promise');
       const database = freshDbName();

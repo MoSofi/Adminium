@@ -292,7 +292,8 @@ describe.skipIf(POSTGRES_URL === undefined)('generated defaults round-trip on po
   });
 });
 
-const MYSQL_URL = process.env.TEST_MYSQL_URL;
+// `''` means absent: CI leaves this empty on a push, where mysql runs nightly.
+const MYSQL_URL = process.env.TEST_MYSQL_URL || undefined;
 
 describe.skipIf(MYSQL_URL === undefined)('generated defaults round-trip on mysql', () => {
   const database = `adminium_test_generate_${randomBytes(4).toString('hex')}`;

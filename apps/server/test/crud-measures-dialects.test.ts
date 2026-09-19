@@ -322,7 +322,8 @@ describe.skipIf(POSTGRES_URL === undefined)('derived numbers on postgres', () =>
 
 // --- mysql (TEST_MYSQL_URL) --------------------------------------------------
 
-const MYSQL_URL = process.env.TEST_MYSQL_URL;
+// `''` means absent: CI leaves this empty on a push, where mysql runs nightly.
+const MYSQL_URL = process.env.TEST_MYSQL_URL || undefined;
 
 describe.skipIf(MYSQL_URL === undefined)('derived numbers on mysql', () => {
   const database = `adminium_test_derived_${randomBytes(4).toString('hex')}`;
