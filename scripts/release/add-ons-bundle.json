@@ -4,38 +4,38 @@
   "addOns": [
     {
       "key": "barcode-labels",
-      "version": "1.0.1",
-      "integrity": "sha512-HZ5fSpWh9DwEAKKg2wAkzVpw50IvRNn/GrZooNkoqiQ7iOi1UnyjdxZ+H1FumbFnSfqzAMwLUUCPAYBtZttpGA=="
+      "version": "1.0.2",
+      "integrity": "sha512-nJxg7sT0UPYQ9jUZMr9VcCxxqteiYq33CbazxvZPLegBkufyIRDAsixXQIgs/BAm9mDxTmSCf5dCIyVPOOhxaw=="
     },
     {
       "key": "design-studio",
-      "version": "1.0.1",
-      "integrity": "sha512-vm0SVJ/gJfOf8YQfrIAR/CzFsb1hI4bOOmKKwfvrLUDIefWoggj2yjigiScCemqp+7eSGx3Gmo9EFXrfa98L+Q=="
+      "version": "1.0.2",
+      "integrity": "sha512-qsj7P5BqSSp2XNzcj1LTBaCD94DzbFTScSIcqZTRR5lMmpGkzGsOPk1OZjgF0KCZCyhrHZmIs7ZbluTFdd1Hww=="
     },
     {
       "key": "holiday-calendars",
-      "version": "1.0.1",
-      "integrity": "sha512-CsMS3LhSw/yMuuhAOgv3SlT0U23JDGP0VCG5EPsi94goEr1lH8UJPV4VxSihW7ujcpIxYmgyEB7LVlV64HldfA=="
+      "version": "1.0.2",
+      "integrity": "sha512-ueKAgY2rNsmr5VmegRD0J2fD9slLcyPB0NuWkmg8N/kqo4eFMtB/L9CiFsAlvD6ElaM2ja+7z6JEhR4tE+fQ3Q=="
     },
     {
       "key": "import-canva",
-      "version": "1.0.1",
-      "integrity": "sha512-08ar6CoJ+xPlM8HFRvBscLDkXWpTbkqGX1NYBtnJ+u1840egaq9KaFPRu3zSJD3cri9k88QgQshvpgYyHjNz7A=="
+      "version": "1.0.2",
+      "integrity": "sha512-u9JyQf7z9hfydH53I/KbAhReU/v+0w5oJCkJ90TxBzjch1kr2doZQW7Ozu0s9N7B+iN3Vkd2pqd1CTU+xtt5+g=="
     },
     {
       "key": "invoices",
-      "version": "1.0.1",
-      "integrity": "sha512-0opqtFbBF1XBCNnRRm9cnQHA/Guct4eKG8aQYvcPJ0OIpiKZsjRO0t0u40s8oiUQWiX7Y4RjETe58aYltKHBeg=="
+      "version": "1.0.2",
+      "integrity": "sha512-53o/fbJmmNQat3UF6cewbUjegQ17BvLDnGohgh8euBJmjrwwTVTD6SHKkU1wH8tDlU7loLXGt1cHv3RsOA21lg=="
     },
     {
       "key": "personalizer",
-      "version": "1.0.1",
-      "integrity": "sha512-7RP1guJJ/z+5nMEn4TSlriPzV/f1ykiqjXaKqZ0KGZKa+6ja6GKQ0FEuQZdlPWHO2mSR5FnzM5WVWKM/9ZTk+Q=="
+      "version": "1.0.2",
+      "integrity": "sha512-P8y4Ux5af2ANVGrJZtY1bLHWsGHNwxpWhjWDOhKuJtc9bLNx9UQ6C/hUz636b4tqgljK/Qf27gEIOCme03eXRA=="
     },
     {
       "key": "shipping-dhl",
-      "version": "1.0.1",
-      "integrity": "sha512-+YijL3EDPETk3UNjJ1vq0JADoJRFzHDqiS2QH3p6vZ0MYPf9ceyNycIEjlVbI97L831NeAPt5BhFq6iaJ8K4Kg=="
+      "version": "1.0.2",
+      "integrity": "sha512-1Vtd34jOh1rpgYamqSA5lOmGNKhRSD9fT5EMwseq/BuNyedMKttFkspP/3U0o+W+8s214kZw8eQOXPwYG49eXQ=="
     }
   ]
 }
