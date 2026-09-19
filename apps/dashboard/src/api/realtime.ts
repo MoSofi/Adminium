@@ -23,6 +23,33 @@ import type { RealtimeEvent } from '../app/ws.js';
 
 const TABLE_CHANNEL = /^(?:table|widget-data):([^:]+):(.+)$/;
 
+/**
+ * Everything a generic `config-changed` refreshes.
+ *
+ * Exported because a (re)connect must run it with no event to react to.
+ * `app.realtime.publish` is fire-and-forget — one emit, no replay — so
+ * anything published while this tab had no live subscription reached nobody:
+ * the gap between a page's bootstrap fetch and its socket opening, or a
+ * backoff window after a drop. `['bootstrap']` is `staleTime: Infinity`, so
+ * nothing else ever refetches it, and a screen that read a stale payload (a
+ * project page "not in the running build", a project cell reported as an
+ * unknown widget) stays wrong until a reload rather than merely being late.
+ * AppShell's `onStatusChange` calls this on every open — the same
+ * at-least-once floor `resyncOverrides` already gives translations.
+ */
+export function invalidateConfigDependent(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
+  void queryClient.invalidateQueries({ queryKey: ['page'] });
+  // Connecting/generating changes the reactive onboarding checklist too.
+  void queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+  // A project server's page edits, and its `project-changed` (code rebuilt
+  // under `adminium dev`), change the project's actions and Studio's
+  // overview. Rebuilt pages and widgets need nothing more: the bootstrap
+  // lists them under new URLs, and open pages load those.
+  void queryClient.invalidateQueries({ queryKey: ['project'] });
+  void queryClient.invalidateQueries({ queryKey: ['studio', 'project'] });
+}
+
 export function invalidateForRealtimeEvent(queryClient: QueryClient, event: RealtimeEvent): void {
   if (event.channel === 'config-changed' && event.type === 'settings.defaults.updated') {
     // Global defaults changed: re-resolve prefs for
@@ -47,16 +74,7 @@ export function invalidateForRealtimeEvent(queryClient: QueryClient, event: Real
   }
 
   if (event.channel === 'config-changed') {
-    void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
-    void queryClient.invalidateQueries({ queryKey: ['page'] });
-    // Connecting/generating changes the reactive onboarding checklist too.
-    void queryClient.invalidateQueries({ queryKey: ['onboarding'] });
-    // A project server's page edits, and its `project-changed` (code rebuilt
-    // under `adminium dev`), change the project's actions and Studio's
-    // overview. Rebuilt pages and widgets need nothing more: the bootstrap
-    // lists them under new URLs, and open pages load those.
-    void queryClient.invalidateQueries({ queryKey: ['project'] });
-    void queryClient.invalidateQueries({ queryKey: ['studio', 'project'] });
+    invalidateConfigDependent(queryClient);
     return;
   }
 

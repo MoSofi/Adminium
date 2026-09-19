@@ -16,7 +16,7 @@ import { WifiOff } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useCommandK, useTheme, useThemePrefs } from '@adminium/ui';
 
-import { invalidateForRealtimeEvent } from '../api/realtime.js';
+import { invalidateConfigDependent, invalidateForRealtimeEvent } from '../api/realtime.js';
 import { bootstrapQuery, findPageBySlug, flattenNav } from '../app/bootstrap.js';
 import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
@@ -129,7 +129,17 @@ export function AppShell() {
         // window silently missed every event published in it. Comparing the
         // version on reconnect is what stops a tab serving stale strings
         // forever.
-        if (connected) void resyncOverrides();
+        if (!connected) return;
+        void resyncOverrides();
+        // The same floor for everything `config-changed` feeds, and it is
+        // needed on the FIRST open too, not only after a drop: this fires
+        // once the socket is up, which is strictly after the page fetched
+        // its bootstrap, so a build that landed in between published to
+        // nobody. `['bootstrap']` never goes stale on its own, so without
+        // this the page holds that payload for its whole life — which is how
+        // `/p/<slug>` could sit on "This page is not in the running build"
+        // until a reload.
+        invalidateConfigDependent(queryClient);
       },
     });
     client.start();
