@@ -119,7 +119,7 @@ export function requireAddOnHost(): AddOnHostApi {
   if (host.version !== HOST_API_VERSION) {
     throw new Error(
       `This page was built against host API ${HOST_API_VERSION}, and the host publishes ` +
-        `${host.version}. Upgrade whichever is older; mounting it anyway is how a blank ` +
+        `${host.version}. Bring whichever is older forward; mounting it anyway is how a blank ` +
         'screen with no error happens.',
     );
   }
