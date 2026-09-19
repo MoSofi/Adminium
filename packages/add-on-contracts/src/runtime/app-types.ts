@@ -128,6 +128,23 @@ export interface AddOnShortcutDef {
 /** A lucide icon resolved by name; an unknown name yields the neutral glyph. */
 export type AddOnIconLookup = (name: string) => ComponentType<{ className?: string }>;
 
+/** Flat, dotted keys per locale tag: `{ 'de-DE': { 'manager.title': '…' } }`. */
+export type AddOnMessageBundles = Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+/**
+ * Hand the host every locale this add-on ships and get back a translator bound
+ * to them.
+ *
+ * The add-on never names the namespace it lands in — the host derives one from
+ * the add-on's key — so two add-ons that both think of their words as
+ * `documents` cannot read each other's. Call it once, at module scope, and use
+ * the function it returns for every string.
+ */
+export type AddOnRegisterMessages = (
+  addOnKey: string,
+  bundles: AddOnMessageBundles,
+) => AddOnTranslate;
+
 /** Relative time in the session's locale, sharing the host's cached formatters. */
 export type AddOnFormatSince = (
   epochMs: number | null,
@@ -151,6 +168,7 @@ export interface AddOnAppNamespace {
   bootstrapQuery: () => unknown;
   formatSince: AddOnFormatSince;
   lucideByName: AddOnIconLookup;
+  registerMessages: AddOnRegisterMessages;
   t: AddOnTranslate;
   useAppToasts: () => AddOnToastQueue;
   useShortcut: (def: AddOnShortcutDef) => void;

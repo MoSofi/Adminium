@@ -68,6 +68,7 @@ import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { useShortcut } from '../shell/ShortcutsProvider.js';
 import { formatSince } from '../team/teamApi.js';
+import { registerMessages } from './messages.js';
 import {
   HOST_API_VERSION,
   installAddOnRuntime,
@@ -109,6 +110,7 @@ export function ensureAddOnRuntime(): Promise<void> {
           bootstrapQuery,
           formatSince,
           lucideByName,
+          registerMessages,
           t,
           useAppToasts,
           useShortcut,

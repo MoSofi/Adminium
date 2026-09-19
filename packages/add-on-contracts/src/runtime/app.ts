@@ -27,6 +27,7 @@ export const api = app.api;
 export const bootstrapQuery = app.bootstrapQuery;
 export const formatSince = app.formatSince;
 export const lucideByName = app.lucideByName;
+export const registerMessages = app.registerMessages;
 export const t = app.t;
 export const useAppToasts = app.useAppToasts;
 export const useShortcut = app.useShortcut;

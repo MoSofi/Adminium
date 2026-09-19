@@ -88,8 +88,25 @@ function formatPlaceable(body: string, args: Record<string, unknown>): string {
 
 /** Installs the stand-in; returns a restore function for afterAll. */
 export function installTestI18n(): () => void {
+  /*
+   * Resources REGISTERED at runtime — an add-on's own catalogue
+   * (`add-ons/messages.ts`), which is not in the compiled en-US bundle because
+   * it does not ship with the engine at all. Without this the stand-in answers
+   * every add-on string with its fallback, and a test could not tell a working
+   * catalogue from a broken one.
+   */
+  const registered = new Map<string, string>();
   const fake = {
     language: 'en-US',
+    /*
+     * Keyed by TAG as well as namespace. A first cut dropped the tag, so an
+     * add-on registering all eight of its locales at once had the last one
+     * overwrite English — and the stand-in then answered a German string to a
+     * test running in en-US.
+     */
+    addResources: (tag: string, ns: string, flat: Record<string, string>): void => {
+      for (const [key, value] of Object.entries(flat)) registered.set(`${tag}|${ns}:${key}`, value);
+    },
     // The stand-in reads the COMPLETE en-US catalogue below, deferred
     // namespaces included, so every namespace is already resolvable and there
     // is nothing to fetch. It still has to exist: the Studio waits on it
@@ -98,7 +115,10 @@ export function installTestI18n(): () => void {
     loadNamespaces: async (): Promise<void> => undefined,
     t: (key: string, options?: Record<string, unknown>): string => {
       const { defaultValue, ...args } = options ?? {};
-      const message = lookup(key) ?? (typeof defaultValue === 'string' ? defaultValue : key);
+      const message =
+        registered.get(`en-US|${key}`) ??
+        lookup(key) ??
+        (typeof defaultValue === 'string' ? defaultValue : key);
       return formatIcuLite(message, args);
     },
   };

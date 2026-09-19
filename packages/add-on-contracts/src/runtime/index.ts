@@ -299,6 +299,7 @@ export const ADD_ON_APP_EXPORTS = [
   'bootstrapQuery',
   'formatSince',
   'lucideByName',
+  'registerMessages',
   't',
   'useAppToasts',
   'useShortcut',
