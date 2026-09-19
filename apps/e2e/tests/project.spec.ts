@@ -145,6 +145,19 @@ async function json<T>(response: Awaited<ReturnType<APIRequestContext['get']>>):
   return (await response.json()) as T;
 }
 
+/**
+ * The page the running BUILD carries, or undefined. `pageRow` reads what the
+ * server routes; this reads what the client bundle actually holds, which is a
+ * separate fact that lands later — a page is routed to the folder's code
+ * before that code has been built.
+ */
+async function builtPage(request: APIRequestContext, slug: string): Promise<{ slug: string } | undefined> {
+  const bootstrap = await json<{ data: { project: { client: { pages: { slug: string }[] } | null } | null } }>(
+    await request.get('/api/v1/bootstrap'),
+  );
+  return bootstrap.data.project?.client?.pages.find((candidate) => candidate.slug === slug);
+}
+
 async function pageIdOf(request: APIRequestContext, slug: string): Promise<string> {
   const pages = await json<{ data: { id: string; slug: string }[] }>(await request.get('/api/v1/pages'));
   const found = pages.data.find((candidate) => candidate.slug === slug);
@@ -594,6 +607,9 @@ test('a saved page of code is rebuilt and shown again without a reload', async (
 });
 
 test('eject turns a generated page into code at the same address', async ({ page }) => {
+  // A CLI run and a full project rebuild. The file's 60s default is a budget
+  // for a test that clicks, not for one that waits on a build.
+  test.setTimeout(120_000);
   const before = await pageRow(page.request, 'shippers');
   const ejected = project.cli(['eject', 'shippers']);
   expect(ejected.status, `${ejected.stdout}${ejected.stderr}`).toBe(0);
@@ -602,21 +618,27 @@ test('eject turns a generated page into code at the same address', async ({ page
 
   await expect.poll(async () => (await pageRow(page.request, 'shippers'))?.origin, { timeout: 30_000 }).toBe('project');
   expect((await pageRow(page.request, 'shippers'))?.id).toBe(before?.id);
-  await page.goto('/p/shippers');
   /*
-   * The `origin` poll above says the SERVER now calls this page code. It says
-   * nothing about the BUILD, and until the dashboard has rebuilt the project
-   * the address renders "This page is not in the running build" instead of the
-   * grid — which is what the mysql leg showed twice, with the placeholder in
-   * the page snapshot and `pages/shippers.tsx` named under it.
+   * The `origin` poll above says the SERVER now calls this page's code. It
+   * says nothing about the BUILD, and `/p/shippers` renders "This page is not
+   * in the running build" until the bootstrap payload carries the built page.
    *
-   * So this waits a rebuild's worth, the way the test above waits 20s for a
-   * saved page to come back. The slow leg is mysql, which the CSV-import test
-   * in this file records for itself in the same words.
+   * Navigating first and then waiting on the grid is a race, and it is the one
+   * this test lost on the postgres leg. `['bootstrap']` is `staleTime:
+   * Infinity`, so the only thing that refreshes it is the single
+   * `project-changed` event `compose.ts` publishes when a build lands. Land in
+   * the gap between the page's bootstrap fetch and its WS subscription going
+   * live and that event is delivered to nobody: the placeholder is then stuck
+   * for good, which is why the wait burned its whole timeout instead of
+   * resolving late, and why a retry either passed at once or failed the same
+   * way.
+   *
+   * So wait for the BUILD, server-side, and navigate once it is there. Nothing
+   * then depends on an event arriving while this page happens to be listening.
    */
-  await expect(gridRows(page).filter({ hasText: 'Speedy Express' })).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect.poll(async () => (await builtPage(page.request, 'shippers'))?.slug, { timeout: 60_000 }).toBe('shippers');
+  await page.goto('/p/shippers');
+  await expect(gridRows(page).filter({ hasText: 'Speedy Express' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'New row' })).toBeVisible();
 });
 
