@@ -87,6 +87,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/add-ons/*` | 18 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
 | `/api/v1/apps/*` | 11 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install, update, discard a staged version, and uninstall |
+| `/api/v1/assistant/*` | 7 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
 | `/api/v1/automation-runs/*` | 3 | Every execution of a rule — the last seven days, the three status filters, one run’s full step-by-step trace, and today’s counters |
@@ -204,6 +205,18 @@ POST /api/v1/apps/install
 POST /api/v1/apps/{key}/update
 DELETE /api/v1/apps/staged/{key}/{version}
 DELETE /api/v1/apps/{key}
+```
+
+### `/assistant`
+
+```http
+GET /api/v1/assistant/availability
+POST /api/v1/assistant/sessions
+POST /api/v1/assistant/sessions/{id}/turns
+GET /api/v1/assistant/sessions/{id}/turns/{turnId}
+POST /api/v1/assistant/sessions/{id}/turns/{turnId}/cancel
+POST /api/v1/assistant/sessions/{id}/turns/{turnId}/actions
+POST /api/v1/assistant/sessions/{id}/close
 ```
 
 ### `/audit`

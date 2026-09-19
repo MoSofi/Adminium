@@ -1780,6 +1780,21 @@ export default {
     "workspaceSection": "Workspace"
   },
   "settingsAi": {
+    "assistant": {
+      "name": {
+        "label": "Name des Assistenten",
+        "hint": "Wird auf der Fragen-Schaltfläche und im Assistenzfenster angezeigt."
+      },
+      "rowData": {
+        "label": "{name} Tabellenzeilen lesen lassen",
+        "hint": "Wenn aktiv, darf {name} Zeilen, die deine Rolle lesen kann, an den konfigurierten Anbieter senden — maskiert, höchstens 50 pro Anfrage und unter „Gelesene Quellen“ aufgeführt. Wenn aus, arbeitet es nur mit Dokumenten und Schema."
+      },
+      "save": "Speichern",
+      "saveFailed": "Die Assistenteinstellungen konnten nicht gespeichert werden. Erneut versuchen.",
+      "saved": "Assistenteinstellungen gespeichert",
+      "subtitle": "Wie er hier heißt und was er lesen darf.",
+      "title": "Assistent"
+    },
     "byo": {
       "body": "Studio kann aus Ihrem Schema einen eigenständigen Prompt erzeugen. Führen Sie ihn in Claude Code, ChatGPT oder einem beliebigen Tool aus und fügen Sie das zurückgegebene JSON wieder in den Verbindungsassistenten ein. Gleiche Validierung, gleiche Prüfung, gleiches Ergebnis wie der direkte Weg.",
       "guarantee1": "Der Prompt enthält nur Ihr Schema und aggregierte Statistiken — standardmäßig nie Zeilendaten.",

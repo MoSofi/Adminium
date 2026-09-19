@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The editor's header row (comp 461-492, Appendix A §E1): kind pill · inline
- * name · language menu · save chip · undo/redo · Duplicate · Delete · Test ·
- * primary. Sticky under the shell's topbar, blurred like the comp's.
+ * name · language menu · save chip · undo/redo · Ask … · Duplicate · Delete ·
+ * Test · primary. Sticky under the shell's topbar, blurred like the comp's.
  *
  * Back is NOT here: the shell's topbar owns the back affordance (published
  * through `PageActions backTo`), and the D1 guard is a router blocker, so the
@@ -18,7 +18,7 @@
  * waits: the server refuses a second active run anyway.
  */
 import { CalendarClock, Copy, LayoutTemplate, Loader2, Redo2, Save, Send, Trash2, Undo2 } from 'lucide-react';
-import type { FocusEvent, Ref } from 'react';
+import type { FocusEvent, ReactNode, Ref } from 'react';
 import { Button, IconButton, Tag, cn } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
@@ -60,6 +60,12 @@ export interface EditorHeaderProps {
   localeTag: string;
   onCancelRun: () => void;
   cancelling: boolean;
+  /**
+   * The comp's *Ask …* button, in its slot after the undo/redo tray. Passed
+   * as a node rather than built here: this header is presentational, and the
+   * button needs the page's assistant host, which only the editor holds.
+   */
+  askAssistant?: ReactNode;
   /** The editor measures the header for its sticky offsets. */
   ref?: Ref<HTMLElement> | undefined;
 }
@@ -92,6 +98,7 @@ export function EditorHeader({
   localeTag,
   onCancelRun,
   cancelling,
+  askAssistant,
   ref,
 }: EditorHeaderProps) {
   const isTemplate = kind === 'template';
@@ -144,6 +151,7 @@ export function EditorHeader({
             <Redo2 className="size-[15px]" />
           </IconButton>
         </div>
+        {askAssistant}
         <IconButton variant="bordered" size="xl" label={t('email:card.duplicate', 'Duplicate')} tooltip onClick={onDuplicate}>
           <Copy className="size-4" />
         </IconButton>

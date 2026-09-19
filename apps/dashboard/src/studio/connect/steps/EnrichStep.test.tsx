@@ -39,6 +39,8 @@ const EMPTY_CONFIG: LlmConfig = {
   maxOutputTokens: 16000,
   apiKeySet: false,
   apiKeyLast4: null,
+  assistantName: 'Milo',
+  assistantRowData: false,
 };
 
 /** Script the `/api/v1/llm/*` routes the step touches. */
@@ -258,6 +260,19 @@ describe('inline provider setup', () => {
     );
     // Settings → AI remains one click away — the same form, plus run history.
     expect(screen.getByRole('link', { name: /Configure a provider in Settings/ })).toBeDefined();
+  });
+
+  it('carries no assistant settings — this is first-run setup, not Settings → AI', async () => {
+    scriptFetch();
+    renderStep({ providerConfigured: false });
+    await openSetup();
+
+    // The assistant card is mounted by `StudioAiPage`, NOT by the form this
+    // panel shares with it. A field added to the form would appear here,
+    // asking somebody to name an assistant they have not met yet.
+    expect(screen.queryByTestId('assistant-card')).toBeNull();
+    expect(screen.queryByTestId('assistant-name')).toBeNull();
+    expect(screen.queryByTestId('assistant-row-data')).toBeNull();
   });
 
   it('saving a provider enables the card without touching what the operator chose', async () => {

@@ -28,6 +28,8 @@ degraded mode — it is the same contract with you as the transport.
 
 - [BYO round-trip](/guides/llm-assist/byo-prompt/) — copy the prompt, paste the
   response.
+- [The page assistant](/guides/llm-assist/milo/) — the assistant in the header
+  of the pages that build documents. It drafts; it never saves.
 
 ## What is sent
 

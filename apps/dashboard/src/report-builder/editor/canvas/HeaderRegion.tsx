@@ -19,7 +19,7 @@ import { t } from '../../../i18n/t.js';
 import type { DocumentEdits } from '../../model/edits.js';
 import type { ReportBody } from '../../model/envelope.js';
 import type { Selection } from '../../model/ops.js';
-import { InlineInput, SHEET_MUTED } from './inline.js';
+import { EditOnly, InlineInput, SHEET_MUTED, useSheetReadOnly } from './inline.js';
 
 export interface HeaderRegionProps {
   body: ReportBody;
@@ -28,30 +28,36 @@ export interface HeaderRegionProps {
 }
 
 export function HeaderRegion({ body, edits, selection }: HeaderRegionProps) {
-  const selected = selection === 'header';
+  const readOnly = useSheetReadOnly();
+  // The outline is the affordance for an inspector that is not on screen, and
+  // the select button opens the same one. The group keeps its NAME: a preview
+  // still has a *Report header* for anybody reading it aloud.
+  const selected = !readOnly && selection === 'header';
   return (
     <div
       role="group"
       aria-label={t('reportBuilder:inspector.header.title', 'Report header')}
       data-testid="report-header-region"
       data-selected={selected ? '' : undefined}
-      onClick={() => edits.select('header')}
+      {...(readOnly ? {} : { onClick: () => edits.select('header') })}
       className={cn(
-        'relative cursor-pointer rounded-[10px] outline outline-[1.5px] outline-offset-[6px] outline-transparent transition-[outline-color] duration-150',
-        'hover:outline-[color:color-mix(in_srgb,var(--adm-report-accent)_50%,transparent)]',
+        'relative rounded-[10px] outline outline-[1.5px] outline-offset-[6px] outline-transparent transition-[outline-color] duration-150',
+        !readOnly && 'cursor-pointer hover:outline-[color:color-mix(in_srgb,var(--adm-report-accent)_50%,transparent)]',
         selected && 'outline-[color:var(--adm-report-accent)] hover:outline-[color:var(--adm-report-accent)]',
       )}
     >
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          edits.select('header');
-        }}
-        className="sr-only start-0 top-0 z-[2] focus:not-sr-only focus:absolute focus:rounded-md focus:bg-white focus:px-2 focus:py-0.5 focus:text-[10.5px] focus:font-bold focus:text-[var(--adm-report-accent)] focus:shadow-[0_0_0_2px_var(--adm-report-accent)] focus:outline-none"
-      >
-        {t('reportBuilder:canvas.selectHeader', 'Edit report header')}
-      </button>
+      <EditOnly>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            edits.select('header');
+          }}
+          className="sr-only start-0 top-0 z-[2] focus:not-sr-only focus:absolute focus:rounded-md focus:bg-white focus:px-2 focus:py-0.5 focus:text-[10.5px] focus:font-bold focus:text-[var(--adm-report-accent)] focus:shadow-[0_0_0_2px_var(--adm-report-accent)] focus:outline-none"
+        >
+          {t('reportBuilder:canvas.selectHeader', 'Edit report header')}
+        </button>
+      </EditOnly>
       <div className="mb-5 border-b border-[#ececef] pb-[18px]">
         <InlineInput
           label={t('reportBuilder:canvas.kicker', 'Kicker')}

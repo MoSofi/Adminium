@@ -26,3 +26,6 @@ export * from './providers/index.js';
 // Apply: EnrichmentSet normalization + field-by-field diff.
 export * from './apply/index.js';
 export { NAV_GROUP_MAX } from './nav-group.js';
+
+// The page assistant: turn contract, system prompt, line differ.
+export * from './assistant/index.js';

@@ -1770,6 +1770,21 @@
     "workspaceSection": "Arbejdsområde"
   },
   "settingsAi": {
+    "assistant": {
+      "name": {
+        "label": "Assistentens navn",
+        "hint": "Vises på spørgeknappen og i assistentvinduet."
+      },
+      "rowData": {
+        "label": "Lad {name} læse tabelrækker",
+        "hint": "Når det er slået til, må {name} sende de rækker, din rolle kan læse, til den konfigurerede udbyder — maskeret, højst 50 pr. forespørgsel og opført under „Læste kilder“. Når det er slået fra, arbejder den kun ud fra dokumenter og skema."
+      },
+      "save": "Gem",
+      "saveFailed": "Assistentindstillingerne kunne ikke gemmes. Prøv igen.",
+      "saved": "Assistentindstillinger gemt",
+      "subtitle": "Hvad den hedder her, og hvad den må læse.",
+      "title": "Assistent"
+    },
     "byo": {
       "body": "Studio kan generere en selvstændig prompt ud fra dit skema. Kør den i Claude Code, ChatGPT eller et hvilket som helst værktøj, og indsæt derefter den returnerede JSON tilbage i forbindelsesguiden. Samme validering, samme gennemgang, samme resultat som den direkte vej.",
       "guarantee1": "Prompten indeholder kun dit skema og aggregeret statistik — aldrig rækkedata som standard.",

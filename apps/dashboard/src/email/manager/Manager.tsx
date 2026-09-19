@@ -42,10 +42,12 @@ import {
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
+import { AskAssistant } from '../../assistant/AskAssistant.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { formatSince } from '../../team/teamApi.js';
 import { emailApi, emailExportUrl, type EmailDocumentDetail, type EmailDocumentKind, type EmailDocumentSummary, type EmailImportReply } from '../api.js';
+import { useEmailManagerAssistant } from '../assistant.js';
 import { emailDocumentsQuery, invalidateEmailDocuments } from '../queries.js';
 import { DeleteModal, type DeleteModalMode } from './DeleteModal.js';
 import { GalleryCard, type DocumentActions, type RenameState } from './GalleryCard.js';
@@ -114,6 +116,9 @@ export function EmailManager({ initialTab = 'template', initialArchived = false 
   const localeTag = tagForLocale((bootstrap?.prefs.locale ?? 'en_US') as LocaleId);
 
   const [tab, setTabState] = useState<EmailDocumentKind>(initialTab);
+  // What the assistant is told this page is showing. The tab travels: a
+  // question asked on the campaigns tab is a question about campaigns.
+  const assistantHost = useEmailManagerAssistant(tab);
   const [archived, setArchivedState] = useState(initialArchived);
   const [search, setSearch] = useState('');
   const [prefs, updatePrefs] = useManagerPrefs();
@@ -323,6 +328,7 @@ export function EmailManager({ initialTab = 'template', initialArchived = false 
         title={t('email:title', 'Email templates')}
         subtitle={t('email:subtitle', 'Design reusable emails & the campaigns you send from them.')}
       >
+        <AskAssistant host={assistantHost} slot="manager" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <IconButton variant="bordered" size="lg" label={t('email:actions.menu', 'More actions')} data-testid="email-actions-menu">

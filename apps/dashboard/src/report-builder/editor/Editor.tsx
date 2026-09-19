@@ -33,10 +33,12 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { useShortcut } from '../../shell/ShortcutsProvider.js';
 import { reportBuilderApi, type ReportDetail } from '../api.js';
+import { AskAssistant } from '../../assistant/AskAssistant.js';
 import { reportIcon } from '../icons.js';
 import { DeleteModal } from '../manager/DeleteModal.js';
-import type { ReportBlockKind } from '../model/envelope.js';
+import type { ReportBlockKind, ReportBody } from '../model/envelope.js';
 import type { Selection } from '../model/ops.js';
+import { useReportEditorAssistant } from '../assistant.js';
 import { invalidateReportDocuments } from '../queries.js';
 import { EditorHeader } from './EditorHeader.js';
 import { Palette, PaletteSheet } from './Palette.js';
@@ -101,6 +103,27 @@ export function Editor({ detail }: EditorProps) {
 
   const draft = state.draft;
   const kind = detail.kind;
+
+  /**
+   * A body the assistant proposed, put on the paper. ONE `histMutate`, so one
+   * undo takes the whole thing back. It carries the BODY alone — the
+   * document's status is not the assistant's to move, and *Publish* stays the
+   * person's own act on the primary beside this.
+   *
+   * The selection lands on the first block the new body has and the old one
+   * did not, which is the part a reader has not seen; with nothing added it
+   * lands on the header.
+   */
+  const applyBody = useCallback(
+    (body: ReportBody) => {
+      const before = new Set(draft.body.blocks.map((block) => block.id));
+      actions.histMutate({ body });
+      const landing = body.blocks.find((block) => !before.has(block.id));
+      select(landing === undefined ? 'header' : landing.id);
+    },
+    [actions, draft.body.blocks, select],
+  );
+  const assistantHost = useReportEditorAssistant({ documentId: detail.id, draft: draft.body, applyBody });
 
   const failToast = useCallback(
     (title: string, error: unknown) => {
@@ -230,6 +253,7 @@ export function Editor({ detail }: EditorProps) {
             onDuplicate={() => duplicate.mutate()}
             onDelete={() => setConfirmDelete(true)}
             onPrimary={onPrimary}
+            askAssistant={<AskAssistant host={assistantHost} slot="editor" />}
           />
           {/* `items-stretch` (the default), not `items-start`: the palette and the
               inspector paint the comp's full-height surface and side border, and

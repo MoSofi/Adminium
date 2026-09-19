@@ -11,29 +11,39 @@
  * The empty stack is the comp's dashed box (344). There is no between-block
  * insert chip and no trailing *Add section* button — blocks are appended from
  * the palette only (C8).
+ *
+ * READ-ONLY draws the same paper with nothing on it to operate: no outlines,
+ * no selector buttons, no inline fields, no grips, no head-row actions. It
+ * exists so a preview elsewhere in the product is this sheet rather than a
+ * second one that would disagree with it the first time either changed. The
+ * flag reaches the blocks through a context (`ReadOnlySheet`), not through
+ * every block's props, and `edits` and `selection` become optional.
  */
 import { useState } from 'react';
 
 import { t } from '../../../i18n/t.js';
-import type { DocumentEdits } from '../../model/edits.js';
+import { NO_EDITS, type DocumentEdits } from '../../model/edits.js';
 import type { ReportBody } from '../../model/envelope.js';
 import type { Selection } from '../../model/ops.js';
 import { BlockCard } from './BlockCard.js';
 import { HeaderRegion } from './HeaderRegion.js';
 import { PaperShell } from './PaperShell.js';
+import { ReadOnlySheet } from './inline.js';
 import { BlockBody } from './blocks/index.js';
 
 export interface ReportCanvasProps {
   body: ReportBody;
-  edits: DocumentEdits;
-  selection: Selection;
+  /** Draw the paper and nothing to operate it with; the two props below are then unused. */
+  readOnly?: boolean | undefined;
+  edits?: DocumentEdits | undefined;
+  selection?: Selection | undefined;
   /** BCP-47, from the viewer's preference (D11). */
   locale: string;
 }
 
-export function ReportCanvas({ body, edits, selection, locale }: ReportCanvasProps) {
+export function ReportCanvas({ body, readOnly, edits = NO_EDITS, selection = 'header', locale }: ReportCanvasProps) {
   const [drag, setDrag] = useState<{ dragging: number | null; over: number | null }>({ dragging: null, over: null });
-  return (
+  const sheet = (
     <PaperShell body={body}>
       <HeaderRegion body={body} edits={edits} selection={selection} />
       <div data-testid="report-stack" className="flex flex-wrap items-start gap-4">
@@ -60,4 +70,5 @@ export function ReportCanvas({ body, edits, selection, locale }: ReportCanvasPro
       ) : null}
     </PaperShell>
   );
+  return readOnly === true ? <ReadOnlySheet>{sheet}</ReadOnlySheet> : sheet;
 }

@@ -41,12 +41,15 @@ for (const dialect of TEST_DIALECTS) {
       expect(await settings.get('system.instanceId')).toBeTypeOf('string');
       expect(await settings.get('system.bootstrappedAt')).toBeTypeOf('number');
       expect(await settings.get('system.configVersion')).toBe(1);
-      // Behavioral settings stay unset — registry defaults only.
+      // Behavioral settings stay unset — registry defaults only. The fourth
+      // key is the role-seed ledger: what the seed has already given, so a
+      // later revocation is not undone at the next boot.
       const overrides = await settings.overrides();
       expect(Object.keys(overrides).sort()).toEqual([
         'system.bootstrappedAt',
         'system.configVersion',
         'system.instanceId',
+        'system.seededRoleGrants',
       ]);
     });
 
@@ -65,7 +68,15 @@ for (const dialect of TEST_DIALECTS) {
 
       const adminGrants = await permissions.listForRole(admin!.id);
       expect(adminGrants.map((g) => g.resourceRef).sort()).toEqual(
-        ['users.manage', 'audit.read', 'connections.manage', 'schema.remap', 'llm.run', 'project.read'].sort(),
+        [
+          'users.manage',
+          'audit.read',
+          'connections.manage',
+          'schema.remap',
+          'llm.run',
+          'project.read',
+          'assistant.use',
+        ].sort(),
       );
       // Admin invites people and reads the trail; GRANTING roles stays
       // super-admin-only (an inviter that picks roles can escalate itself).
@@ -176,6 +187,89 @@ for (const dialect of TEST_DIALECTS) {
         createFirstSuperAdmin(t.meta, { email: 'mallory@evil.test', passwordHash: 'h' }),
       ).rejects.toThrow(FirstUserExistsError);
       expect(await usersRepo(t.meta).count()).toBe(0);
+    });
+
+    it('a revoked built-in grant stays revoked across restarts', async () => {
+      // The whole point of a revocable key: an operator takes the page
+      // assistant away from Admin, and the next boot does not hand it back.
+      await firstRun(t.meta);
+      const roles = rolesRepo(t.meta);
+      const permissions = permissionsRepo(t.meta);
+      const admin = await roles.findBySlug('admin');
+      expect(await permissions.isAllowed(admin!.id, 'system', 'assistant.use')).toBe(true);
+
+      // Team -> Roles revokes by deleting the matrix row.
+      expect(await permissions.revoke(admin!.id, 'system', 'assistant.use')).toBe(true);
+
+      await firstRun(t.meta);
+      await firstRun(t.meta);
+      expect(await permissions.isAllowed(admin!.id, 'system', 'assistant.use')).toBe(false);
+      // Everything else Admin holds is untouched by the revocation.
+      expect(await permissions.isAllowed(admin!.id, 'system', 'llm.run')).toBe(true);
+    });
+
+    it('a key a later version adds still reaches an existing install', async () => {
+      await firstRun(t.meta);
+      const roles = rolesRepo(t.meta);
+      const permissions = permissionsRepo(t.meta);
+      const admin = await roles.findBySlug('admin');
+      const settings = settingsRepo(t.meta);
+
+      // Stand in for "this install upgraded from a version that did not have
+      // the key": the ledger carries no pair for it, and no row exists.
+      const ledger = (await settings.get('system.seededRoleGrants')).filter(
+        (pair) => pair !== 'admin:assistant.use',
+      );
+      await settings.set('system.seededRoleGrants', ledger);
+      await permissions.revoke(admin!.id, 'system', 'assistant.use');
+
+      await firstRun(t.meta);
+      expect(await permissions.isAllowed(admin!.id, 'system', 'assistant.use')).toBe(true);
+      expect(await settings.get('system.seededRoleGrants')).toContain('admin:assistant.use');
+    });
+
+    it('records every seeded pair once, and stops writing the ledger when nothing is new', async () => {
+      await firstRun(t.meta);
+      const settings = settingsRepo(t.meta);
+      const ledger = await settings.get('system.seededRoleGrants');
+      // One entry per (built-in role, key) the defs list — super admin holds
+      // the whole closed set, admin its own list, editor and viewer none.
+      const expected = BUILTIN_ROLES.flatMap((role) =>
+        role.systemActions.map((action) => `${role.slug}:${action}`),
+      ).sort();
+      expect(ledger).toEqual(expected);
+      expect(new Set(ledger).size).toBe(ledger.length);
+
+      const rows = await t.meta.db
+        .selectFrom('adminium_settings')
+        .select(['updatedAt'])
+        .where('key', '=', 'system.seededRoleGrants')
+        .execute();
+      const writtenAt = rows[0]?.updatedAt;
+      await firstRun(t.meta, Date.now() + 10_000);
+      const after = await t.meta.db
+        .selectFrom('adminium_settings')
+        .select(['updatedAt'])
+        .where('key', '=', 'system.seededRoleGrants')
+        .execute();
+      expect(after[0]?.updatedAt).toBe(writtenAt);
+    });
+
+    it('a built-in role deleted and re-seeded gets its baseline back', async () => {
+      // The ledger answers "have I given this to a role called admin?", so a
+      // role row that no longer exists must not leave its replacement empty.
+      await firstRun(t.meta);
+      const roles = rolesRepo(t.meta);
+      const permissions = permissionsRepo(t.meta);
+      const admin = await roles.findBySlug('admin');
+      await t.meta.db.deleteFrom('adminium_role_permissions').where('roleId', '=', admin!.id).execute();
+      await t.meta.db.deleteFrom('adminium_roles').where('id', '=', admin!.id).execute();
+
+      const again = await firstRun(t.meta);
+      expect(again.createdRoles).toEqual(['admin']);
+      const fresh = await roles.findBySlug('admin');
+      expect(await permissions.isAllowed(fresh!.id, 'system', 'assistant.use')).toBe(true);
+      expect(await permissions.isAllowed(fresh!.id, 'system', 'llm.run')).toBe(true);
     });
 
     it('createFirstSuperAdmin requires roles to be seeded first', async () => {

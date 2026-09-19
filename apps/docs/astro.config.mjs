@@ -183,6 +183,7 @@ export default defineConfig({
               items: [
                 { label: 'Overview', link: '/guides/llm-assist/' },
                 { label: 'BYO round-trip', link: '/guides/llm-assist/byo-prompt/' },
+                { label: 'The page assistant', link: '/guides/llm-assist/milo/' },
               ],
             },
           ],
@@ -217,6 +218,7 @@ export default defineConfig({
                 { label: 'Tokens only, no style props', link: '/anatomy/decisions/tokens-only/' },
                 { label: 'The i18n rules', link: '/anatomy/decisions/i18n-rules/' },
                 { label: 'The LLM never writes on its own', link: '/anatomy/decisions/llm-never-writes/' },
+                { label: 'The assistant proposes, a person saves', link: '/anatomy/decisions/assistant-proposes/' },
                 { label: 'Project code is trusted', link: '/anatomy/decisions/project-code-is-trusted/' },
                 { label: 'One npm package', link: '/anatomy/decisions/one-npm-package/' },
               ],

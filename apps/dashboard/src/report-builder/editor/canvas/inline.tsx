@@ -16,13 +16,47 @@
  *
  * A11Y additions invisible at rest: every inline field carries an
  * `aria-label`, and every upload `<input type=file>` is wrapped by its label.
+ *
+ * READ-ONLY IS A CONTEXT, not a prop threaded through the blocks. The sheet
+ * is drawn by the same components in a preview as in the editor, and the
+ * difference is only ever "can this be operated" — so the two field
+ * primitives answer that themselves and a block with an affordance of its
+ * own wraps it in {@link EditOnly}. A rule a block author has to remember at
+ * a call site survives until the next block; a field that asks does not need
+ * remembering.
  */
-import type { ChangeEvent, ComponentPropsWithoutRef } from 'react';
+import { createContext, use, type ChangeEvent, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { cn } from '@adminium/ui';
 
 import { fileFromInput, readImageFile, type ImageReadResult } from '../images.js';
 
 export type ImageRejection = Extract<ImageReadResult, { ok: false }>;
+
+/**
+ * Is this sheet a preview? Default `false`, so the editor needs no provider
+ * and an unwrapped block behaves as it always has.
+ */
+const ReadOnlyContext = createContext(false);
+
+/** Wraps the sheet in read-only mode; `ReportCanvas readOnly` is its one caller. */
+export function ReadOnlySheet({ children }: { children: ReactNode }) {
+  return <ReadOnlyContext value={true}>{children}</ReadOnlyContext>;
+}
+
+/** True when this sheet is drawn as a preview and nothing on it may be operated. */
+export function useSheetReadOnly(): boolean {
+  return use(ReadOnlyContext);
+}
+
+/**
+ * An affordance that exists only while the sheet can be edited: the grip, the
+ * head-row actions, a select button. In a preview it renders nothing rather
+ * than a disabled control, because a preview is not a form somebody is
+ * locked out of.
+ */
+export function EditOnly({ children }: { children: ReactNode }) {
+  return useSheetReadOnly() ? null : children;
+}
 
 /** The sheet's three greys, as the comp paints them minus DEP-16's lift. */
 export const SHEET_FG = 'text-[#191920]';
@@ -84,6 +118,17 @@ export interface InlineInputProps extends Omit<ComponentPropsWithoutRef<'input'>
 }
 
 export function InlineInput({ label, value, onChange, onFocus, mono = false, className, ...rest }: InlineInputProps) {
+  // A borderless input reads as text already; what it must not be in a
+  // preview is a focus stop that invites typing into a document nobody can
+  // save. `min-h` keeps an empty field's line box so the sheet does not
+  // reflow between the editor and the preview.
+  if (useSheetReadOnly()) {
+    return (
+      <span aria-label={label} className={cn('block min-h-[1em] w-full min-w-0 truncate text-[#191920]', mono && 'font-mono', className)}>
+        {value}
+      </span>
+    );
+  }
   return (
     <input
       aria-label={label}
@@ -107,6 +152,13 @@ export interface InlineTextareaProps extends Omit<ComponentPropsWithoutRef<'text
 }
 
 export function InlineTextarea({ label, value, onChange, onFocus, className, rows = 3, fixed = false, ...rest }: InlineTextareaProps) {
+  if (useSheetReadOnly()) {
+    return (
+      <span aria-label={label} className={cn('block min-h-[1em] w-full min-w-0 whitespace-pre-wrap text-[#191920]', className)}>
+        {value}
+      </span>
+    );
+  }
   return (
     <textarea
       aria-label={label}

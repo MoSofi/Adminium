@@ -1,22 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The editor's header row (comp 249-271; E1–E11): kind pill · inline
- * name · save chip · undo/redo · Duplicate · Delete · primary. Sticky
- * under the shell's topbar, blurred like the comp's.
+ * name · save chip · undo/redo · Ask … · Duplicate · Delete · primary.
+ * Sticky under the shell's topbar, blurred like the comp's.
  *
  * Back is NOT here: the shell's topbar owns the back affordance (published
  * through `PageActions backTo`), and the discard guard is a router blocker,
  * so the topbar's Back, the sidebar and the browser all run it — one Back on
  * screen, not two (34 DEP-13/14, kept). The comp's theme toggle (265) is
- * shell chrome, dropped at S2; so is its *Ask Milo* button, which belongs to
- * plan 44's modal and is not this surface's to mount.
+ * shell chrome, dropped at S2. Its *Ask …* button is now in the comp's own
+ * slot, handed in as a node: this header is presentational, and the button
+ * needs the page's assistant host, which only the editor holds.
  *
  * THE PRIMARY (comp 268, 686; D5/O2): a template's is *Save template* with
  * `save`; a report's is *Publish* with `send` — it saves AND sets
  * `status: 'sent'` (*Published*), which is the smallest thing the comp's own
  * status vocabulary supports. Nothing is rendered, printed or sent.
  */
-import type { FocusEvent, Ref } from 'react';
+import type { FocusEvent, ReactNode, Ref } from 'react';
 import { Button, IconButton, Tag, cn } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
@@ -39,6 +40,8 @@ export interface EditorHeaderProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onPrimary: () => void;
+  /** The comp's *Ask …* button, in its slot after the undo/redo tray. */
+  askAssistant?: ReactNode;
   /** The editor measures the header for its sticky offsets. */
   ref?: Ref<HTMLElement> | undefined;
 }
@@ -62,6 +65,7 @@ export function EditorHeader({
   onDuplicate,
   onDelete,
   onPrimary,
+  askAssistant,
   ref,
 }: EditorHeaderProps) {
   const isTemplate = kind === 'template';
@@ -108,6 +112,7 @@ export function EditorHeader({
             <RedoGlyph className="size-[15px]" />
           </IconButton>
         </div>
+        {askAssistant}
         <IconButton variant="bordered" size="xl" label={t('reportBuilder:editor.duplicate', 'Duplicate')} tooltip onClick={onDuplicate} data-testid="report-duplicate">
           <CopyGlyph className="size-4" />
         </IconButton>

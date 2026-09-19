@@ -22,6 +22,7 @@ import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
 import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
 
 import { dataIoRoutes } from '../data-io/routes.js';
+import { assistantMessagesReady } from '../assistant/assistantMessages.js';
 import { emailMessagesReady } from '../email/emailMessages.js';
 import { filesMessagesReady } from '../files/filesMessages.js';
 import { validateEmailTemplatesSearch } from '../email/search.js';
@@ -50,7 +51,7 @@ import { StudioGuard } from '../studio/StudioGuard.js';
 import { studioRoutes } from '../studio/routes.js';
 import { widgetRuntimeEnv } from '../lib/widget-runtime.js';
 import { api, ApiError } from './api.js';
-import { bootstrapQuery, defaultPageSlug, findPageBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
+import { assistantAllowed, bootstrapQuery, defaultPageSlug, findPageBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
 import { isHostedPlanSurface } from './capabilities.js';
 import { requestIdForError, stateIdForError } from './query.js';
 
@@ -562,6 +563,21 @@ const EmailEditorPageLazy = lazy(async () => {
  * bodies wait for it under the same Suspense boundary that waits for
  * their chunk, so a translated locale never paints the editor in English.
  */
+/**
+ * The assistant's namespace, waited on beside a host page's own so its *Ask
+ * …* button never paints English and corrects itself a frame later.
+ *
+ * ONLY FOR A SESSION THAT COULD OPEN IT. On a stock install the grant is
+ * seeded to Super Admin and Admin, so for most people this chunk is text no
+ * button will ever render — and a fetch on every visit to a page that has no
+ * button is a cost with nothing on the other side of it.
+ */
+function AssistantMessages({ children }: { children: ReactElement }) {
+  const boot = useQuery({ ...bootstrapQuery(), enabled: false });
+  if (boot.data !== undefined && assistantAllowed(boot.data)) use(assistantMessagesReady());
+  return children;
+}
+
 function EmailMessages({ children }: { children: ReactElement }) {
   use(emailMessagesReady());
   return children;
@@ -571,7 +587,9 @@ function EmailTemplatesRouteComponent() {
   return (
     <Suspense fallback={null}>
       <EmailMessages>
-        <EmailTemplatesPageLazy />
+        <AssistantMessages>
+          <EmailTemplatesPageLazy />
+        </AssistantMessages>
       </EmailMessages>
     </Suspense>
   );
@@ -581,7 +599,9 @@ function EmailEditorRouteComponent() {
   return (
     <Suspense fallback={null}>
       <EmailMessages>
-        <EmailEditorPageLazy />
+        <AssistantMessages>
+          <EmailEditorPageLazy />
+        </AssistantMessages>
       </EmailMessages>
     </Suspense>
   );
@@ -630,7 +650,9 @@ function ReportBuilderRouteComponent() {
   return (
     <Suspense fallback={null}>
       <ReportBuilderMessages>
-        <ReportBuilderPageLazy />
+        <AssistantMessages>
+          <ReportBuilderPageLazy />
+        </AssistantMessages>
       </ReportBuilderMessages>
     </Suspense>
   );
@@ -640,7 +662,9 @@ function ReportEditorRouteComponent() {
   return (
     <Suspense fallback={null}>
       <ReportBuilderMessages>
-        <ReportEditorPageLazy />
+        <AssistantMessages>
+          <ReportEditorPageLazy />
+        </AssistantMessages>
       </ReportBuilderMessages>
     </Suspense>
   );

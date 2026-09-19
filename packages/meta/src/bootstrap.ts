@@ -75,6 +75,13 @@ export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
       'schema.remap',
       'llm.run',
       'project.read',
+      // The page assistant, beside `llm.run` for the same reason: an Admin
+      // already administers the LLM connection, and is the role that can find
+      // the pages the assistant is opened from. Editor is deliberately absent
+      // — it holds no system key at all, those pages are hidden from its rail,
+      // and every save on them needs `settings.manage`, so the button would be
+      // an offer nothing behind it could honour.
+      'assistant.use',
     ],
   },
   {
@@ -102,32 +109,70 @@ export class BootstrapStateError extends Error {
   override name = 'BootstrapStateError';
 }
 
+/** The ledger key's own spelling, so the two readers cannot disagree about it. */
+const SEEDED_ROLE_GRANTS_KEY = 'system.seededRoleGrants';
+
+/** One ledger entry: the role that was given a key, and the key. */
+function grantPair(roleSlug: string, action: SystemActionKey): string {
+  return `${roleSlug}:${action}`;
+}
+
 /**
  * Seed the built-in roles and their permission baselines. Idempotent
  * natural-key upserts: existing roles are left untouched (user renames of
- * non-super-admin built-ins survive), and only missing permission rows are
- * inserted (user permission edits survive upgrades).
+ * non-super-admin built-ins survive), and user permission edits survive
+ * upgrades.
+ *
+ * SEEDED ONCE, NOT ENFORCED FOREVER. This used to grant any listed key whose
+ * permission row was MISSING, which made a revocation last exactly until the
+ * next restart: Team → Roles revokes by deleting that row, and the next boot
+ * put it straight back. So the question asked here is "has this pair ever been
+ * seeded?", answered by a ledger of `<role>:<key>` strings, rather than "is it
+ * there right now?". A revocation survives; a key a later version adds still
+ * reaches an existing install, because its pair has never been seeded.
+ *
+ * On the FIRST boot that knows about the ledger it is empty, so this behaves
+ * exactly as it always did — every listed pair whose row is missing is granted
+ * — and records what it found. That one boot cannot tell a key an operator
+ * revoked from one that was never granted at all, and the alternative reading
+ * (adopt everything, grant nothing) would permanently strand the keys added
+ * between an old install's version and this one.
  */
 export async function seedBuiltinRoles(meta: MetaDb, at: number = Date.now()): Promise<{ createdRoles: string[] }> {
   const roles = rolesRepo(meta);
   const permissions = permissionsRepo(meta);
+  const settings = settingsRepo(meta);
   const createdRoles: string[] = [];
+
+  const seeded = new Set(await settings.get(SEEDED_ROLE_GRANTS_KEY));
+  const before = seeded.size;
 
   for (const def of BUILTIN_ROLES) {
     let role: Role | null = await roles.findBySlug(def.slug);
+    let roleIsNew = false;
     if (!role) {
       role = await roles.create(
         { slug: def.slug, name: def.name, description: def.description, isBuiltin: true },
         at,
       );
       createdRoles.push(def.slug);
+      roleIsNew = true;
     }
     for (const action of def.systemActions) {
+      const pair = grantPair(def.slug, action);
+      // A role row that did not exist a moment ago has been given nothing,
+      // whatever the ledger remembers about an older row of the same name.
+      if (!roleIsNew && seeded.has(pair)) continue;
       const existing = await permissions.find(role.id, 'system', action);
       if (!existing) {
         await permissions.grant(role.id, 'system', action, { allowed: true });
       }
+      seeded.add(pair);
     }
+  }
+
+  if (seeded.size !== before) {
+    await settings.set(SEEDED_ROLE_GRANTS_KEY, [...seeded].sort(), { at });
   }
   return { createdRoles };
 }

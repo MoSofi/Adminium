@@ -16,6 +16,7 @@ import automations from './en-us/automations.js';
 import dataio from './en-us/dataio.js';
 import email from './en-us/email.js';
 import files from './en-us/files.js';
+import assistant from './en-us/assistant.js';
 import addOns from './en-us/addOns.js';
 import onboarding from './en-us/onboarding.js';
 import project from './en-us/project.js';
@@ -38,6 +39,7 @@ export { EN_US_EAGER } from './eager.js';
 
 export const EN_US_RESOURCES: Record<Namespace, ResourceBundle> = {
   ...EN_US_EAGER,
+  assistant,
   addOns,
   studio,
   email,

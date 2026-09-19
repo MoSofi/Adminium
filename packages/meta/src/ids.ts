@@ -118,6 +118,18 @@ export const ID_PREFIXES = {
    * instance id in one.
    */
   opl: 'adminium_option_lists',
+  /*
+   * wave 0036 — the page assistant. `ast` is one open modal and `atn` one
+   * exchange inside it. Two spaces rather than one: a session outlives every
+   * turn it held and a turn is meaningless without its session, so a stray id
+   * of either would look valid as the other. Neither collides with the
+   * neighbours a careless reader might reach for — `aud` (the audit log),
+   * `auto`/`arun` (automations and their runs) and `aoc` (an add-on
+   * credential) are all different objects that happen to start with the same
+   * letter.
+   */
+  ast: 'adminium_assistant_sessions',
+  atn: 'adminium_assistant_turns',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

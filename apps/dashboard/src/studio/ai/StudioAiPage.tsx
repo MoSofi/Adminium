@@ -42,6 +42,7 @@ import { connectionsQuery } from '../hub/ConnectionsHub.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import type { ConnectionDto } from '../api.js';
+import { AssistantCard } from './AssistantCard.js';
 import { ProviderConfigForm, aiConfigQuery } from './ProviderConfigForm.js';
 import { aiApi, type LlmRunDto, type LlmRunStatus } from './api.js';
 import { PROMPT_VERSION, SCHEMA_VERSION } from './providerCatalog.js';
@@ -347,6 +348,10 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
           air-gapped install) that has to be the round-trip. Keyed so React moves
           the nodes rather than remounting them and dropping the provider draft. */}
       {byoFirst ? [byo, provider] : [provider, byo]}
+      {/* Its own card, after the provider/BYO pair: the form above is also the
+          connect wizard's inline panel, and a field added there would ask
+          somebody to name an assistant in the middle of first-run setup. */}
+      <AssistantCard config={config} />
       <RunHistorySection connections={connections} onOpenReview={onOpenReview} />
     </PageSurface>
   );

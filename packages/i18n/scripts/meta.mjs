@@ -75,6 +75,10 @@ const GATE_RELAXED = {
   onboarding: 0.95,
   // What the dashboard says about a project's own code.
   project: 0.95,
+  // The page assistant's modal, including four sets of per-page copy. Named
+  // here for the reason the note above gives: a namespace in neither list is
+  // held to nothing.
+  assistant: 0.95,
 };
 
 /*

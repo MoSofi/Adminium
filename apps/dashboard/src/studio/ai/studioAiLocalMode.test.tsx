@@ -51,6 +51,8 @@ function stubFetch({ runtime, networkFeaturesAllowed = true }: Options) {
           maxOutputTokens: 16000,
           apiKeySet: false,
           apiKeyLast4: null,
+          assistantName: 'Milo',
+          assistantRowData: false,
         }),
       );
     }
