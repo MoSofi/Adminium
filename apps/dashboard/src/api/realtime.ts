@@ -19,6 +19,7 @@
  */
 import type { QueryClient } from '@tanstack/react-query';
 
+import type { BootstrapData } from '../app/bootstrap.js';
 import type { RealtimeEvent } from '../app/ws.js';
 
 const TABLE_CHANNEL = /^(?:table|widget-data):([^:]+):(.+)$/;
@@ -39,6 +40,11 @@ const TABLE_CHANNEL = /^(?:table|widget-data):([^:]+):(.+)$/;
  */
 export function invalidateConfigDependent(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
+  invalidateBesidesBootstrap(queryClient);
+}
+
+/** The rest of the set, for a caller that has just refetched the bootstrap itself. */
+function invalidateBesidesBootstrap(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ['page'] });
   // Connecting/generating changes the reactive onboarding checklist too.
   void queryClient.invalidateQueries({ queryKey: ['onboarding'] });
@@ -48,6 +54,39 @@ export function invalidateConfigDependent(queryClient: QueryClient): void {
   // lists them under new URLs, and open pages load those.
   void queryClient.invalidateQueries({ queryKey: ['project'] });
   void queryClient.invalidateQueries({ queryKey: ['studio', 'project'] });
+}
+
+/**
+ * What the two stamps in the bootstrap say about the server's config:
+ * `configVersion` moves on a regeneration, a nav or page edit; the project
+ * client digest moves on every build of a project's pages and widgets.
+ */
+function configStamp(bootstrap: BootstrapData | undefined): string | null {
+  if (bootstrap === undefined) return null;
+  return `${String(bootstrap.configVersion)}:${bootstrap.project?.client?.digest ?? ''}`;
+}
+
+/**
+ * The at-least-once floor for a socket that has just opened — see
+ * {@link invalidateConfigDependent} for what it is recovering from.
+ *
+ * Reads the bootstrap ONCE and escalates to the rest of the set only when a
+ * stamp actually moved. Blind-invalidating the whole set here instead is what
+ * a first version did, and it is not free: an invalidation refetches every
+ * ACTIVE query under the key, and `['page']` is a prefix over the open page's
+ * document. Every page load then paid for several calls it almost never
+ * needed, which on a slow engine was enough to trip the server's rate limiter
+ * mid-interaction ("Too many requests") — a regression the mysql e2e leg
+ * caught. Nothing changed is overwhelmingly the common case, so it is the one
+ * that has to be cheap.
+ */
+export async function resyncConfigOnConnect(queryClient: QueryClient): Promise<void> {
+  const before = configStamp(queryClient.getQueryData<BootstrapData>(['bootstrap']));
+  await queryClient.refetchQueries({ queryKey: ['bootstrap'] });
+  const after = configStamp(queryClient.getQueryData<BootstrapData>(['bootstrap']));
+  // No usable reading either side: the refetch already did the recovering part.
+  if (before === null || after === null || before === after) return;
+  invalidateBesidesBootstrap(queryClient);
 }
 
 export function invalidateForRealtimeEvent(queryClient: QueryClient, event: RealtimeEvent): void {

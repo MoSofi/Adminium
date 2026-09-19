@@ -16,7 +16,7 @@ import { WifiOff } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useCommandK, useTheme, useThemePrefs } from '@adminium/ui';
 
-import { invalidateConfigDependent, invalidateForRealtimeEvent } from '../api/realtime.js';
+import { invalidateForRealtimeEvent, resyncConfigOnConnect } from '../api/realtime.js';
 import { bootstrapQuery, findPageBySlug, flattenNav } from '../app/bootstrap.js';
 import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
@@ -138,8 +138,8 @@ export function AppShell() {
         // nobody. `['bootstrap']` never goes stale on its own, so without
         // this the page holds that payload for its whole life — which is how
         // `/p/<slug>` could sit on "This page is not in the running build"
-        // until a reload.
-        invalidateConfigDependent(queryClient);
+        // until a reload. One read, and it widens only if a stamp moved.
+        void resyncConfigOnConnect(queryClient);
       },
     });
     client.start();

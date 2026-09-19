@@ -7,7 +7,8 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
-import { invalidateForRealtimeEvent } from './realtime.js';
+import type { BootstrapData } from '../app/bootstrap.js';
+import { invalidateForRealtimeEvent, resyncConfigOnConnect } from './realtime.js';
 
 function makeEvent(channel: string, type = 'changed') {
   return { channel, type, data: null, ts: '2026-07-13T00:00:00Z' };
@@ -74,5 +75,49 @@ describe('invalidateForRealtimeEvent', () => {
     const { queryClient, invalidate } = spyClient();
     invalidateForRealtimeEvent(queryClient, makeEvent('jobs:job_01H'));
     expect(invalidate).not.toHaveBeenCalled();
+  });
+});
+
+describe('resyncConfigOnConnect', () => {
+  const bootstrapWith = (configVersion: number, digest: string) =>
+    ({ configVersion, project: { client: { digest, pages: [], widgets: [] }, databases: {} } }) as unknown as BootstrapData;
+
+  /**
+   * The cheap path is the one that matters: a socket opens on every page
+   * load, and almost never with config missed behind it. Widening
+   * unconditionally refetches the open page's document too, which tripped the
+   * server's rate limiter on the mysql e2e leg.
+   */
+  it('reads the bootstrap and nothing else when no stamp moved', async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(['bootstrap'], bootstrapWith(7, 'd1'));
+    const refetch = vi.spyOn(queryClient, 'refetchQueries').mockResolvedValue();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+
+    await resyncConfigOnConnect(queryClient);
+
+    expect(refetch.mock.calls.map((call) => call[0]?.queryKey)).toEqual([['bootstrap']]);
+    expect(invalidate.mock.calls).toEqual([]);
+  });
+
+  it('widens to the rest of the set when a stamp moved while nobody was listening', async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(['bootstrap'], bootstrapWith(7, 'd1'));
+    const refetch = vi.spyOn(queryClient, 'refetchQueries').mockImplementation(async () => {
+      // What the refetch brings back: a project rebuilt while disconnected.
+      queryClient.setQueryData(['bootstrap'], bootstrapWith(7, 'd2'));
+    });
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+
+    await resyncConfigOnConnect(queryClient);
+
+    expect(refetch.mock.calls.map((call) => call[0]?.queryKey)).toEqual([['bootstrap']]);
+    // Not ['bootstrap'] again — it was just read.
+    expect(invalidate.mock.calls.map((call) => call[0]?.queryKey)).toEqual([
+      ['page'],
+      ['onboarding'],
+      ['project'],
+      ['studio', 'project'],
+    ]);
   });
 });
