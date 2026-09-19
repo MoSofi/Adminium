@@ -4,10 +4,44 @@
  * (locale → en-US → defaultValue), lazy bundle loading, and the preloaded
  * live locale switch.
  */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { createI18n, switchLocale } from './create-i18n.js';
 import { loadLocaleBundle } from './resources/lazy.js';
+import { DEFERRED_NAMESPACES } from './resources/namespaces.js';
+
+/**
+ * The first string leaf in a bundle that takes no arguments, as `dotted.key`
+ * plus its value.
+ *
+ * Placeholder-free on purpose. The question here is whether a deferred
+ * namespace resolves in the active locale at all; calling `t()` on `{name}
+ * wurde wiederhergestellt` without a `name` would instead exercise the ICU
+ * error path, which is a different subject with its own tests — and, today,
+ * its own defect (the handler's `console.warn` throws `RangeError: Invalid
+ * string length` under vitest's console capture, so a missing argument fails
+ * as an unreadable crash rather than the warning it promises).
+ */
+function firstPlainLeaf(node: Record<string, unknown>, prefix = ''): [string, string] {
+  for (const [k, v] of Object.entries(node)) {
+    const key = prefix === '' ? k : `${prefix}.${k}`;
+    if (typeof v === 'string') {
+      if (!v.includes('{')) return [key, v];
+      continue;
+    }
+    if (v !== null && typeof v === 'object') {
+      try {
+        return firstPlainLeaf(v as Record<string, unknown>, key);
+      } catch {
+        continue; // nothing usable in this subtree; keep looking in the next
+      }
+    }
+  }
+  throw new Error(`no argument-free string leaf under ${prefix || '<root>'}`);
+}
 
 const DE_COMMON = {
   greeting: 'Hallo {name}',
@@ -120,6 +154,38 @@ describe('real locale bundles through loadLocaleBundle', () => {
     expect(i18n.t('account.title')).toBe('Konto');
     expect(i18n.t('ui:action.cancel')).toBe('Abbrechen');
     expect(i18n.t('errors:CONNECTION_FAILED')).toBe('Adminium konnte die Datenbank nicht erreichen.');
+  });
+
+  /*
+   * EVERY DEFERRED NAMESPACE, not just the eager three.
+   *
+   * The German test above reads `common`, `ui` and `errors`, which all ship in
+   * the entry chunk: they resolve whether or not a lazy loader exists for them.
+   * A deferred namespace only resolves if `lazy.ts` registers a loader AND the
+   * switch joins it, and nothing asked that until `addOns` shipped without a
+   * loader and rendered English in all seven locales while every gate stayed
+   * green. Parity caught it eventually, by comparing MODULES; this asks the
+   * question the user asks, which is whether the string comes out translated.
+   *
+   * Driven off DEFERRED_NAMESPACES rather than a list here, so a namespace
+   * added later is covered the day it is added.
+   */
+  it.each(DEFERRED_NAMESPACES)('resolves the deferred %s namespace in German', async (ns) => {
+    const bundle = JSON.parse(
+      readFileSync(path.join(__dirname, '..', 'locales', 'de-DE', `${ns}.json`), 'utf8'),
+    ) as Record<string, unknown>;
+    const [key, expected] = firstPlainLeaf(bundle);
+
+    const i18n = await createI18n({ locale: 'en_US', loadBundle: loadLocaleBundle });
+    await switchLocale(i18n, 'de_DE');
+    // Asked for explicitly: a deferred namespace is absent until something
+    // requests it, and a switch does not fetch one nobody wanted (the cases at
+    // the bottom of this file pin both halves). This is the screen opening.
+    await i18n.loadNamespaces(ns);
+    // Compared against the de-DE BUNDLE, not against "differs from English":
+    // some values are legitimately identical across locales (a product name),
+    // and that must not read as a failure.
+    expect(i18n.t(`${ns}:${key}`)).toBe(expected);
   });
 
   it('applies Czech plural categories (one/few/many/other)', async () => {
