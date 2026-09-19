@@ -61,5 +61,13 @@ export function registerMessages(addOnKey: string, bundles: AddOnMessageBundles)
    * `t()` itself makes, and it is why an add-on page renders readable English
    * in a test harness rather than raw keys.
    */
+  /*
+   * The rule wants the marker on the line DIRECTLY above the call — it reads
+   * comments ending on `line - 1`, so a reason five lines up does not count.
+   * What the rule protects against — a key that renders as raw dots — is
+   * covered here by the add-on's own eight-locale parity gate and by the
+   * fallback every call site passes.
+   */
+  // i18n-dynamic-key: the key is an add-on's and the namespace is derived from its key, so neither half can be a literal here
   return (key, fallback, args) => t(`${namespace}:${key}`, fallback, args);
 }
