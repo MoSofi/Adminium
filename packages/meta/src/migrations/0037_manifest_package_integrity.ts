@@ -29,6 +29,21 @@
  * of them without a conversion. 95 characters exactly (7 + 88); 120 leaves
  * room for a longer algorithm without another wave.
  *
+ * ─── AND WHERE THE COPY IS ────────────────────────────────────────────────
+ * `package_file_id` points at the `adminium_files` row holding the bytes. The
+ * copy is written through the ordinary file store rather than to a path of its
+ * own because a storage key is not a path: `isSafeStorageKey` is `isId(key,
+ * 'file')`, so `packages/app/clinic/1.0.0.tgz` is refused by every driver.
+ * Going through the store also means the destination, the spooling and the
+ * per-driver differences are already solved.
+ *
+ * The file row carries `kind = 'package'`, which keeps it clear of the daily
+ * sweep: `listUnattachedBefore` is scoped to `kind = 'upload'` precisely
+ * because every other kind is a system artifact with its own lifecycle. A copy
+ * written as an upload would be collected 24 hours later, having never been
+ * attached to a record.
+ *
+ * ─── BOTH NULL, OR NEITHER ────────────────────────────────────────────────
  * NULL means no copy is held, which is the honest state for every row that
  * predates this wave and for every instance with no storage destination
  * configured. There is deliberately no backfill in SQL: a fingerprint can only
@@ -52,5 +67,12 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
   await db.schema
     .alterTable(metaTable('manifests'))
     .addColumn('package_integrity', c.str(PACKAGE_INTEGRITY_MAX))
+    .execute();
+  // Two ALTERs rather than one: MySQL accepts multiple ADD COLUMN clauses,
+  // SQLite accepts exactly one per statement, and kysely emits what it is
+  // given. Separate statements are the shape all three engines take.
+  await db.schema
+    .alterTable(metaTable('manifests'))
+    .addColumn('package_file_id', c.id)
     .execute();
 }

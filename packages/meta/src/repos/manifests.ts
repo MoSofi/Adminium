@@ -122,8 +122,9 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
         status: 'installed',
         kind: input.kind,
         // No copy is held until one has actually been uploaded, which happens
-        // after this row exists. `setPackageIntegrity` writes it then.
+        // after this row exists. `setPackageCopy` writes both then.
         packageIntegrity: null,
+        packageFileId: null,
         installedBy: input.installedBy ?? null,
         installedAt: at,
         updatedAt: at,
@@ -211,8 +212,11 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
           // The held copy is of the OLD version's bytes, so it stops describing
           // this row the moment the version moves. Clearing it is what makes a
           // half-finished upgrade read as "no copy" rather than as a copy that
-          // would restore the wrong package.
+          // would restore the wrong package. The file row is left for the
+          // caller to remove: dropping the pointer inside a version change
+          // must not also delete bytes a rollback might still want.
           packageIntegrity: null,
+          packageFileId: null,
           updatedAt: at,
         })
         .where('id', '=', id)
@@ -220,16 +224,27 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     },
 
     /**
-     * Record the fingerprint of the copy now held in the storage destination.
+     * Record the copy now held in the storage destination, or clear it.
      *
-     * Written only after the upload has succeeded: the column's meaning is "a
-     * copy matching this exists", and writing it first would make a failed
+     * BOTH COLUMNS MOVE TOGETHER, which is why there is no setter for either
+     * one alone: a fingerprint with no file to fetch, or a file with nothing to
+     * verify it against, is a state the restore cannot act on and would have to
+     * interpret. Written only after the upload has succeeded — the columns mean
+     * "a copy matching this exists", and writing them first would make a failed
      * upload look like protection.
      */
-    async setPackageIntegrity(id: string, integrity: string | null, at: number = Date.now()): Promise<void> {
+    async setPackageCopy(
+      id: string,
+      copy: { fileId: string; integrity: string } | null,
+      at: number = Date.now(),
+    ): Promise<void> {
       await db
         .updateTable('adminium_manifests')
-        .set({ packageIntegrity: integrity, updatedAt: at })
+        .set({
+          packageIntegrity: copy?.integrity ?? null,
+          packageFileId: copy?.fileId ?? null,
+          updatedAt: at,
+        })
         .where('id', '=', id)
         .execute();
     },
