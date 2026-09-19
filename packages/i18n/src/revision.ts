@@ -49,7 +49,13 @@ export function bumpI18nRevision(): void {
     try {
       listener();
     } catch (error) {
-      console.error('[i18n] revision subscriber threw', error);
+      // Bounded, for the reason `icu-format.ts`'s handler spells out: a raw
+      // error object handed to `console.*` is serialised by whatever console
+      // is listening, and at least one of them builds a string large enough to
+      // throw. A reporting path that throws reports nothing.
+      console.error(
+        `[i18n] revision subscriber threw: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 }
