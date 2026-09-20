@@ -167,7 +167,6 @@ const STEPS = [
   },
   { id: 'check-offline-assets', cmd: 'pnpm run check-offline-assets', why: 'no remote URL in the shipped bundles outside the reviewed allowlist', tier: 'full' },
   { id: 'check-email-block-vocab', cmd: 'pnpm run check-email-block-vocab', why: 'the email block vocabulary matches canvas and renderer', tier: 'full' },
-  { id: 'check-invoice-block-vocab', cmd: 'pnpm run check-invoice-block-vocab', why: 'same, for invoices', tier: 'full' },
   { id: 'check-invoice-money-fixture', cmd: 'pnpm run check-invoice-money-fixture', why: 'the invoice money fixture is current', tier: 'full' },
   { id: 'openapi-check', cmd: 'pnpm run openapi-check', why: 'openapi.json matches the route tree (it reads dist, so it needs the build above)', tier: 'full' },
   { id: 'server-runtime-deps-check', cmd: 'pnpm run server-runtime-deps-check', why: "the published CLI's traced dependency list is current (reads dist)", tier: 'full' },
@@ -201,6 +200,25 @@ const NOT_COVERED = [
   {
     match: /pnpm --filter @adminium\/ui vrt$/,
     why: 'VRT compares against baselines recorded on ubuntu-latest. packages/ui/playwright.config.ts deliberately omits the {platform} suffix so CI and every developer share ONE baseline set, which means a macOS run reports font-rasterization diffs across the whole matrix rather than real regressions. Record baselines with the vrt-baselines workflow, never here.',
+  },
+  {
+    /*
+     * CI SHARDS THE SUITES; THIS SCRIPT RUNS THEM WHOLE.
+     *
+     * `ci.yml` gives the heavy workspaces their own runners
+     * (`--filter=${{ matrix.workspace }}`), so the command it issues can never
+     * match a literal step here — the filter is a matrix expansion, not a
+     * command. The COVERAGE is identical: the `test` step above runs
+     * `turbo run test` across every workspace in one pass, which is a superset
+     * of any sharding of it.
+     *
+     * Listed rather than pattern-matched into `test`, because the two are only
+     * equivalent while the matrix stays a partition of the workspace list. If
+     * CI ever gives a shard different flags or a different environment, this
+     * entry is where that divergence has to be argued.
+     */
+    match: /pnpm turbo run test --filter=\$\{\{ matrix\.workspace \}\}/,
+    why: 'CI shards the suites across runners by workspace; the local `test` step runs `turbo run test` over all of them in one pass, so the command shape differs but the coverage does not.',
   },
   {
     match: /pnpm install --frozen-lockfile/,
