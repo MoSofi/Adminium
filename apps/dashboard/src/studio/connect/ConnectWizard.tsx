@@ -9,6 +9,7 @@
  * table inclusion → meta placement → generate/success.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { RotateCcw } from 'lucide-react';
 import { Alert, Button, Stepper, type Step } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
@@ -18,6 +19,7 @@ import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, waitForRestart, type MetaStoreLocation, type SchemaTable } from '../api.js';
 import { redeemBridgeSeed } from './bridgeSeed.js';
 import { wizardCapabilitySource } from './capabilityNotes.js';
+import { StartOverModal } from './StartOverModal.js';
 import { EnrichStep } from './steps/EnrichStep.js';
 import { GenerateStep } from './steps/GenerateStep.js';
 import { IntentStep } from './steps/IntentStep.js';
@@ -28,12 +30,15 @@ import { TestStep, type TestStatus } from './steps/TestStep.js';
 import {
   INITIAL_WIZARD_STATE,
   WIZARD_STEP_IDS,
+  applySourcePatch,
+  clearWizardState,
   loadWizardState,
   saveWizardState,
   effectiveDsn,
   engineForDsn,
   sameDbDisabledReason,
   sourceStepValid,
+  wizardHasProgress,
   wizardStepLabel,
   type WizardState,
   type WizardStepId,
@@ -147,7 +152,38 @@ export function ConnectWizard({
   /** The store is embedded and this server can move it — the step can act. */
   const canMoveMetaStore = placement !== null && placement.embedded && placement.canRelocate;
 
+  /** Non-null while the header's "Start over" confirm is open. */
+  const [startOverOpen, setStartOverOpen] = useState(false);
+
   const patch = (partial: Partial<WizardState>) => setState((current) => ({ ...current, ...partial }));
+
+  /**
+   * Put the wizard back to its first step with nothing carried over.
+   *
+   * The component-memory halves have to go with the persisted ones or the reset
+   * is a half-reset: `testStatus` still reading 'done' would make step 3 skip
+   * its own run on the way back through, and `fileTables` would hand the next
+   * source someone else's parsed schema. `clearWizardState` is belt-and-braces
+   * — the persist effect rewrites the key with the pristine state on the next
+   * render anyway — but it means the stored blob is never momentarily stale.
+   */
+  const startOver = () => {
+    clearWizardState();
+    setState(INITIAL_WIZARD_STATE);
+    setTestStatus('idle');
+    setFileTables(null);
+    setPersistError(null);
+    setBridgeNotice(null);
+    setStartOverOpen(false);
+  };
+
+  /**
+   * The source step's own patcher: an edit that re-points the wizard at a
+   * different database drops the connection step 3 created, which would
+   * otherwise be reused and introspected in its place (`applySourcePatch`).
+   */
+  const patchSource = (partial: Partial<WizardState>) =>
+    setState((current) => applySourcePatch(current, partial));
 
   const stepIndex = WIZARD_STEP_IDS.indexOf(state.step);
   const steps: Step[] = useMemo(
@@ -267,7 +303,29 @@ export function ConnectWizard({
 
   return (
     <PageSurface width="page" className="flex min-h-full flex-col gap-6">
-      <PageActions title={t('studio:wizard.title', 'New connection')} />
+      <PageActions title={t('studio:wizard.title', 'New connection')}>
+        {/*
+         * The way out. Shown only once there is something to leave behind, so a
+         * freshly opened wizard is not greeted by a discard control.
+         */}
+        {wizardHasProgress(state) ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            iconLeft={<RotateCcw className="size-4" />}
+            onClick={() => setStartOverOpen(true)}
+          >
+            {t('studio:wizard.startOver.action', 'Start over')}
+          </Button>
+        ) : null}
+      </PageActions>
+      {startOverOpen ? (
+        <StartOverModal
+          connectionCreated={state.connectionId !== null}
+          onKeep={() => setStartOverOpen(false)}
+          onStartOver={startOver}
+        />
+      ) : null}
       <header className="flex flex-col gap-4">
         <Stepper
           steps={steps}
@@ -311,7 +369,7 @@ export function ConnectWizard({
           <IntentStep value={state.intent} onChange={(intent) => patch({ intent })} />
         ) : null}
         {state.step === 'source' ? (
-          <SourceStep state={state} onPatch={patch} onFileTablesCapture={setFileTables} />
+          <SourceStep state={state} onPatch={patchSource} onFileTablesCapture={setFileTables} />
         ) : null}
         {state.step === 'test' ? (
           <TestStep

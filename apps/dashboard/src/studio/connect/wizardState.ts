@@ -489,6 +489,35 @@ export function clearWizardState(): void {
   }
 }
 
+/**
+ * Rewind a persisted resume that points at a connection which no longer exists.
+ *
+ * Called when a connection is deleted. Without it the wizard keeps the dangling
+ * id for the life of the TAB — sessionStorage survives reloads, server restarts
+ * and even a sign-out/sign-in (a same-origin document navigation) — and step 3
+ * then skips the create and introspects a row that is gone, failing 404 on every
+ * retry with no in-app way out.
+ *
+ * Rewinding rather than clearing: the DSN the operator typed is still worth
+ * something (a delete is often followed by re-adding the same database), so the
+ * source step keeps its fields and only what the connection produced is dropped.
+ * This helps the tab that performed the delete; other tabs are covered by step
+ * 3's own 404 recovery, which is why both exist.
+ */
+export function forgetWizardConnection(connectionId: string): void {
+  const state = loadWizardState();
+  if (state.connectionId !== connectionId) return;
+  saveWizardState({
+    ...state,
+    step: 'source',
+    connectionId: null,
+    readOnly: false,
+    privileges: null,
+    includedTables: null,
+    metaPlacement: null,
+  });
+}
+
 // --- engine picker rules -----------------------------------------------------
 
 /**
@@ -527,6 +556,51 @@ export function effectiveEngine(state: WizardState): ConnectionEngine | null {
   if (state.mode === 'file') return null;
   if (state.mode === 'fields') return state.engine;
   return engineForDsn(state.dsn) ?? state.engine;
+}
+
+/**
+ * WHICH database a created connection points at — everything `POST /connections`
+ * derives its DSN from, and nothing else.
+ *
+ * The connection NAME is deliberately outside it: renaming after the connection
+ * exists should not strand that row and mint a second one for the same database.
+ */
+export function sourceIdentity(state: WizardState): string {
+  return `${state.mode}|${effectiveEngine(state) ?? ''}|${effectiveDsn(state)}`;
+}
+
+/**
+ * Apply a source-step edit, dropping the created connection when the edit
+ * re-points the wizard at a DIFFERENT database.
+ *
+ * Step 3 reuses `connectionId` when it is already set, so without this a walk
+ * back to step 2 and a new DSN would probe the new database (green) and then
+ * introspect the OLD connection — generating pages against a database the
+ * operator never chose, with no error anywhere. `includedTables` goes with it:
+ * table ids from one schema mean nothing in another.
+ */
+export function applySourcePatch(state: WizardState, patch: Partial<WizardState>): WizardState {
+  const next = { ...state, ...patch };
+  if (state.connectionId === null || sourceIdentity(next) === sourceIdentity(state)) return next;
+  return { ...next, connectionId: null, readOnly: false, privileges: null, includedTables: null };
+}
+
+/**
+ * Whether the wizard is carrying anything a "Start over" would throw away —
+ * what decides whether the header offers one at all.
+ *
+ * Deliberately NOT a deep compare against the initial state: picking a
+ * different intent on step 1 is not progress, and offering to discard it would
+ * put a destructive-looking control on a screen where nothing has happened yet.
+ */
+export function wizardHasProgress(state: WizardState): boolean {
+  return (
+    state.step !== 'intent' ||
+    state.connectionId !== null ||
+    state.name.trim().length > 0 ||
+    state.dsn.trim().length > 0 ||
+    state.filePreview !== null
+  );
 }
 
 /** Whether Continue is enabled on the `source` step. */

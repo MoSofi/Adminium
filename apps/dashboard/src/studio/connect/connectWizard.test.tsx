@@ -14,8 +14,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { PageActionsProvider, PageActionsSlot } from '../../shell/PageActionsProvider.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import { ConnectWizard } from './ConnectWizard.js';
+import { INITIAL_WIZARD_STATE, saveWizardState } from './wizardState.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -135,11 +137,20 @@ function scriptFetch(overrides: Partial<Record<string, (call: Call) => Response>
   return { calls, patches };
 }
 
+/**
+ * The provider + slot pair come along because the wizard publishes header
+ * chrome through them ("Start over"): without the channel the portal has
+ * nowhere to land and the action is simply absent, which is not what the shell
+ * does.
+ */
 function renderWizard(onOpenApp: () => void = () => undefined) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <ConnectWizard onOpenApp={onOpenApp} lineDelayMs={0} pollIntervalMs={1} />
+      <PageActionsProvider>
+        <PageActionsSlot />
+        <ConnectWizard onOpenApp={onOpenApp} lineDelayMs={0} pollIntervalMs={1} />
+      </PageActionsProvider>
     </QueryClientProvider>,
   );
 }
@@ -536,6 +547,142 @@ describe('full walk: test → include → meta → generate (read-only source)',
 
     expect(await screen.findByText(/drop `-pooler` from the host/)).toBeDefined();
     expect(screen.queryByText(/verify the DSN and retry/)).toBeNull();
+  });
+});
+
+/**
+ * The persisted `connectionId` is a POINTER into sessionStorage, and the row it
+ * names can be deleted from the hub while the tab that created it is still open.
+ * Reusing it blindly wedged the wizard: `/connections/test` passes (it is a
+ * stateless pre-create probe), the create is skipped, and introspect 404s — on
+ * every Retry, surviving reloads and server restarts, because sessionStorage
+ * outlives both. Resumes must therefore be able to heal.
+ */
+describe('resuming onto a connection that no longer exists', () => {
+  const STORAGE_KEY = 'adminium-studio-connect';
+
+  it('re-creates the connection when the resumed id 404s, instead of failing forever', async () => {
+    // What the tab still held after the connection was deleted elsewhere.
+    saveWizardState({
+      ...INITIAL_WIZARD_STATE,
+      step: 'test',
+      name: 'Prod',
+      dsn: 'postgres://ava@db.acme.io:5432/prod',
+      connectionId: 'conn_DELETED',
+      readOnly: true,
+    });
+
+    const { calls } = scriptFetch({
+      'POST /api/v1/connections/conn_DELETED/introspect': () =>
+        jsonResponse(404, {
+          error: { code: 'NOT_FOUND', message: 'Connection not found.', requestId: 'req_t' },
+        }),
+    });
+    renderWizard();
+
+    // It heals within the same run: no error alert, and the log reaches Ready.
+    expect(await screen.findByText('Ready')).toBeDefined();
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    const posted = calls.filter((call) => call.method === 'POST').map((call) => call.url);
+    expect(posted).toContain('/api/v1/connections');
+    expect(posted).toContain('/api/v1/connections/conn_1/introspect');
+    // The healed id replaces the dead one in the persisted state.
+    expect(JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) ?? '{}')).toHaveProperty(
+      'connectionId',
+      'conn_1',
+    );
+  });
+
+  it('still reports a 404 against a connection this run just created', async () => {
+    // Not a stale pointer — a real fault, and it must not loop on re-creating.
+    const { calls } = scriptFetch({
+      'POST /api/v1/connections/conn_1/introspect': () =>
+        jsonResponse(404, {
+          error: { code: 'NOT_FOUND', message: 'Connection not found.', requestId: 'req_t' },
+        }),
+    });
+    renderWizard();
+    await userEvent.click(continueButton());
+    await userEvent.type(screen.getByLabelText(/Connection name/), 'Prod');
+    await userEvent.type(
+      screen.getByPlaceholderText('postgres://user:password@host:5432/database'),
+      'postgres://ava@db.acme.io:5432/prod',
+    );
+    await userEvent.click(continueButton());
+
+    await screen.findByRole('alert');
+    expect(screen.getByText('Connection not found.')).toBeDefined();
+    expect(calls.filter((call) => call.url === '/api/v1/connections' && call.method === 'POST')).toHaveLength(1);
+  });
+
+  it('offers Start over only once there is something to discard, and resets everything', async () => {
+    saveWizardState({
+      ...INITIAL_WIZARD_STATE,
+      step: 'test',
+      name: 'Prod',
+      dsn: 'postgres://ava@db.acme.io:5432/prod',
+      connectionId: 'conn_DELETED',
+      includedTables: ['public.customers'],
+    });
+
+    scriptFetch({
+      'POST /api/v1/connections/conn_DELETED/introspect': () =>
+        jsonResponse(404, {
+          error: { code: 'NOT_FOUND', message: 'Connection not found.', requestId: 'req_t' },
+        }),
+    });
+    renderWizard();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Start over' }));
+    // A connection exists, so the copy says what happens to it.
+    expect(screen.getByTestId('wizard-start-over-body').textContent).toMatch(/is not deleted/);
+
+    // Backing out changes nothing.
+    await userEvent.click(screen.getByTestId('wizard-start-over-keep'));
+    expect(screen.queryByTestId('wizard-start-over-body')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Start over' })).toBeDefined();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Start over' }));
+    await userEvent.click(screen.getByTestId('wizard-start-over-confirm'));
+
+    // Back to step 1, with nothing carried over — and the offer withdrawn,
+    // because a pristine wizard has nothing to discard.
+    expect(screen.getByText('What do you need?')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Start over' })).toBeNull();
+    expect(JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      step: 'intent',
+      connectionId: null,
+      dsn: '',
+      name: '',
+      includedTables: null,
+    });
+  });
+
+  it('drops the resumed connection when the operator retypes the DSN', async () => {
+    saveWizardState({
+      ...INITIAL_WIZARD_STATE,
+      step: 'source',
+      name: 'Prod',
+      dsn: 'postgres://ava@db.acme.io:5432/prod',
+      connectionId: 'conn_OLD',
+      readOnly: true,
+    });
+
+    const { calls } = scriptFetch();
+    renderWizard();
+
+    const field = screen.getByPlaceholderText('postgres://user:password@host:5432/database');
+    await userEvent.clear(field);
+    await userEvent.type(field, 'postgres://ava@db.acme.io:5432/staging');
+    await userEvent.click(continueButton());
+
+    // The new database is introspected, NOT the connection bound to the old one.
+    expect(await screen.findByText('Ready')).toBeDefined();
+    const posted = calls.filter((call) => call.method === 'POST').map((call) => call.url);
+    expect(posted).toContain('/api/v1/connections');
+    expect(posted).toContain('/api/v1/connections/conn_1/introspect');
+    expect(posted).not.toContain('/api/v1/connections/conn_OLD/introspect');
   });
 });
 

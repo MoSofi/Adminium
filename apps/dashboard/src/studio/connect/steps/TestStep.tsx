@@ -20,7 +20,7 @@ import { Alert, Button } from '@adminium/ui';
 
 import { ApiError } from '../../../app/api.js';
 import { t } from '../../../i18n/t.js';
-import { studioApi, type SchemaTable } from '../../api.js';
+import { studioApi, type IntrospectResult, type SchemaTable } from '../../api.js';
 import { capabilityNotes, wizardCapabilitySource } from '../capabilityNotes.js';
 import { LogConsole, type LogLine } from '../LogConsole.js';
 import { effectiveDsn, effectiveEngine, hintForErrorCode, type WizardState } from '../wizardState.js';
@@ -191,20 +191,40 @@ export function TestStep({
       );
       await wait(lineDelayMs);
 
-      let connectionId = state.connectionId;
-      if (connectionId === null) {
+      const create = async (): Promise<string> => {
         const created = await studioApi.createConnection({
           name: state.name.trim(),
           engine,
           dsn,
           settings: { intent: state.intent },
         });
-        connectionId = created.id;
-        onPatch({ connectionId, readOnly: created.readOnly });
-      }
+        onPatch({ connectionId: created.id, readOnly: created.readOnly });
+        return created.id;
+      };
+
+      /*
+       * A resumed `connectionId` is a POINTER, and the row it points at can be
+       * gone: the wizard state is sessionStorage-backed, so it outlives reloads,
+       * server restarts and sign-outs, while the connection it names can be
+       * deleted from the hub at any time. Reusing it blindly meant `/test`
+       * passed (a stateless pre-create probe), the create was skipped, and
+       * introspect 404'd — on every Retry, for the life of the tab, with no
+       * in-app way out. So a 404 on a REUSED id is treated as what it is, a
+       * stale pointer, and the connection is created after all. A 404 on an id
+       * this run just created is a real fault and still fails.
+       */
+      const resumed = state.connectionId;
+      let connectionId = resumed ?? (await create());
 
       push('running', t('studio:test.log.readingSchema', 'Reading schema: public'));
-      const result = await studioApi.introspect(connectionId);
+      let result: IntrospectResult;
+      try {
+        result = await studioApi.introspect(connectionId);
+      } catch (cause) {
+        if (!(connectionId === resumed && cause instanceof ApiError && cause.status === 404)) throw cause;
+        connectionId = await create();
+        result = await studioApi.introspect(connectionId);
+      }
       if (result.kind === 'job') {
         await pollJob(connectionId, result.jobId);
         return;

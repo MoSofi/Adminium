@@ -13,6 +13,7 @@ import type { SchemaTable } from '../api.js';
 import {
   HIGH_VOLUME_ROWS,
   INITIAL_WIZARD_STATE,
+  applySourcePatch,
   composeDsn,
   defaultIncludedIds,
   dsnInputPatch,
@@ -23,6 +24,7 @@ import {
   engineForDsn,
   enginePickPatch,
   fileFormatFromImportFormat,
+  forgetWizardConnection,
   formatRowEstimate,
   hintForErrorCode,
   loadWizardState,
@@ -254,6 +256,59 @@ describe('persistence + step gating', () => {
 
     window.sessionStorage.setItem('adminium-studio-connect', '{broken json');
     expect(loadWizardState()).toEqual(INITIAL_WIZARD_STATE);
+  });
+
+  it('drops the created connection when a source edit re-points the database', () => {
+    const connected: WizardState = {
+      ...INITIAL_WIZARD_STATE,
+      step: 'source',
+      name: 'Prod',
+      dsn: 'postgres://ava@db.acme.io:5432/prod',
+      connectionId: 'conn_1',
+      readOnly: true,
+      includedTables: ['public.customers'],
+    };
+
+    // A different database — the connection no longer describes what is typed.
+    const moved = applySourcePatch(connected, { dsn: 'postgres://ava@db.acme.io:5432/staging' });
+    expect(moved.connectionId).toBeNull();
+    expect(moved.includedTables).toBeNull();
+    expect(moved.readOnly).toBe(false);
+
+    // Same database, different label — the row that exists is still the right one.
+    expect(applySourcePatch(connected, { name: 'Production' }).connectionId).toBe('conn_1');
+    // A no-op edit keeps it too.
+    expect(applySourcePatch(connected, { dsn: connected.dsn }).connectionId).toBe('conn_1');
+    // Switching input mode re-points at a different source shape.
+    expect(applySourcePatch(connected, { mode: 'file' }).connectionId).toBeNull();
+  });
+
+  it('forgets a resume that points at a deleted connection, keeping the typed source', () => {
+    saveWizardState({
+      ...INITIAL_WIZARD_STATE,
+      step: 'tables',
+      name: 'Prod',
+      dsn: 'postgres://ava@db.acme.io:5432/prod',
+      connectionId: 'conn_1',
+      readOnly: true,
+      includedTables: ['public.customers'],
+      metaPlacement: 'separate-db',
+    });
+
+    // A different connection's delete leaves this resume alone.
+    forgetWizardConnection('conn_other');
+    expect(loadWizardState().connectionId).toBe('conn_1');
+
+    forgetWizardConnection('conn_1');
+    const rewound = loadWizardState();
+    expect(rewound.connectionId).toBeNull();
+    expect(rewound.step).toBe('source');
+    expect(rewound.includedTables).toBeNull();
+    expect(rewound.metaPlacement).toBeNull();
+    expect(rewound.readOnly).toBe(false);
+    // What the operator typed survives — a delete is often followed by re-adding.
+    expect(rewound.dsn).toBe('postgres://ava@db.acme.io:5432/prod');
+    expect(rewound.name).toBe('Prod');
   });
 
   it('backfills fields persisted before a shape change (pre-M9 state without file)', () => {
