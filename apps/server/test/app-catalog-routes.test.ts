@@ -413,7 +413,11 @@ describe('GET /apps/catalog', () => {
     // A cache written while the switch was on outlives it being turned off.
     catalogState = { enabled: false, networkFeatures: true };
     await userPrefsRepo(meta).set(user.id, { locale: 'fr_FR' });
-    const app = await buildApp('0.2.7');
+    // 0.2.8, not 0.2.7: this asserts that the SWITCH hides the cached rows,
+    // so every one of them — including `clinic`, whose floor is 0.2.8 — must
+    // be one this server could otherwise take. On 0.2.7 the floor would be
+    // doing the hiding and the test would pass without the switch.
+    const app = await buildApp('0.2.8');
     await upload(app, 'sample-desk', '1.0.0');
     await install(app, 'sample-desk', '1.0.0');
     await store.writeCatalogCache(

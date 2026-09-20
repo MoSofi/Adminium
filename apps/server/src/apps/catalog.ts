@@ -24,6 +24,14 @@
  *    server's version is a real "not yet" and is listed that way rather than
  *    offered.
  *
+ * WHAT IS NO LONGER DIFFERENT. That last point used to be this feed's alone,
+ * and the add-on feed's silence is how an add-on built against unreleased host
+ * support came to be offered to servers that did not have it. Both feeds now
+ * carry the floor and both refuse on the same `meetsMinimum` — which now lives
+ * in `../add-ons/catalog.ts` and is re-exported here. The add-on side had to
+ * buy the field with a v3 address because, unlike this one, its document was
+ * already in service.
+ *
  * THE FINGERPRINT is the row's `integrity`: the release ledger's value, carried
  * by a feed the website builds from the ledger at a pinned commit. The app
  * store checks the downloaded bytes against it before unpacking anything.
@@ -34,7 +42,6 @@
  */
 
 import { settingsRepo, type MetaDb } from '@adminium/meta';
-import { compareSemver } from '@adminium/manifest';
 import { z } from 'zod';
 
 import {
@@ -47,7 +54,6 @@ import {
   boundedRequest,
   downloadUrlFor,
 } from '../add-ons/catalog.js';
-import { APP_VERSION } from '../version.js';
 
 /** The static app feed the website emits. Never serves files. */
 export const APP_CATALOG_ENDPOINT = 'https://adminium.dev/marketplace/v2/apps.json';
@@ -101,12 +107,14 @@ export function isCurrentAppCatalogFormat(document: unknown): boolean {
 }
 
 /**
- * Whether this server meets a release's declared minimum. `current` is a
- * parameter for tests; production always asks about the running version.
+ * Whether this server meets a release's declared minimum.
+ *
+ * Re-exported, not defined: it moved to `../add-ons/catalog.ts` when the
+ * add-on side grew a floor of its own, so that both feeds, both download jobs
+ * and both upload paths refuse on the same comparison. Every existing importer
+ * reads it from here.
  */
-export function meetsMinimum(minimum: string, current: string = APP_VERSION): boolean {
-  return compareSemver(current, minimum) >= 0;
-}
+export { meetsMinimum } from '../add-ons/catalog.js';
 
 /** The address one app release is downloaded from: `/apps/<key>/<key>-<version>.tgz`. */
 export function appDownloadUrlFor(key: string, version: string, base = `https://${DOWNLOAD_HOST}`): string {

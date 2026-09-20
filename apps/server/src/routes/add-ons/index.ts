@@ -83,9 +83,11 @@ import {
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import {
+  AddOnCatalogError,
   CATALOG_ENABLED_SETTING,
   catalogSchema,
   isCurrentCatalogFormat,
+  meetsMinimum,
   pickLocalized,
   type CatalogClient,
 } from '../../add-ons/catalog.js';
@@ -102,12 +104,14 @@ import { packageIsInStore } from '../../add-ons/store.js';
 import type { AddOnStore, StagedPackage } from '../../add-ons/store.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import {
+  addOnEntryFromCache,
   enqueueAddOnDownload,
   enqueueCatalogRefresh,
 } from '../../jobs/add-on-acquire.js';
 import { audited } from '../../audit/coverage.js';
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { APP_VERSION } from '../../version.js';
 import {
   addOnBundleParams,
   addOnKeyParams,
@@ -185,6 +189,8 @@ export interface AddOnRoutesDeps {
    * provider that is already gone.
    */
   onAddOnRemoved?: ((key: string) => Promise<void>) | undefined;
+  /** Tests only; production checks declared minimums against the running version. */
+  serverVersion?: string | undefined;
 }
 
 /** The add-on block of a validated manifest, narrowed for reading. */
@@ -277,6 +283,7 @@ function asOAuthRefusal(error: unknown): never {
 
 export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
+  const serverVersion = deps.serverVersion ?? APP_VERSION;
   // One store per composed server: in memory, single-use, short-lived, bounded
   // (see `add-ons/oauth.ts` on why, and on the multi-process limitation).
   const oauthFlows: OAuthFlowStore = deps.oauthFlows ?? createOAuthFlowStore();
@@ -535,6 +542,30 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
               { reason: 'VERSION_MISMATCH' },
             );
           }
+          /*
+           * THE FLOOR, ON THE PATH THAT HAS NO CATALOG.
+           *
+           * A minimum only the catalogue checks is not a minimum — the same
+           * release arrives here as a file, and this is the path an operator
+           * reaches for precisely when the catalogue has said no. The manifest
+           * is the authority either way: the feed row only copies what this
+           * document declares, so refusing on the document refuses the
+           * identical fact one step closer to the bytes.
+           *
+           * LAST OF THE THREE, and the order is deliberate. A caller who
+           * asserted the wrong key or version has not established that they
+           * meant this package at all, so "you uploaded a different add-on"
+           * is the correction to give them; "this needs a newer Adminium" is
+           * only true of a package they meant to send.
+           */
+          const minimum = manifest.compatibility.minAdminiumVersion;
+          if (!meetsMinimum(minimum, serverVersion)) {
+            throw new ValidationFailedError(
+              `"${manifest.key}" ${manifest.version} needs Adminium ${minimum} or later; this ` +
+                `server is ${serverVersion}. Upgrade Adminium before uploading it.`,
+              { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: minimum, serverVersion },
+            );
+          }
           return { key: manifest.key, version: manifest.version };
         },
       });
@@ -669,10 +700,28 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           source: 'bundled' | 'catalog';
           state: 'installed' | 'staged' | 'available' | 'missing';
           upgradeTo: string | null;
+          needsNewerAdminium: { version: string; minAdminiumVersion: string } | null;
           tagline: string | null;
           categories: string[];
           connectKind: 'none' | 'api-key' | 'oauth2';
         }> = [];
+
+        /**
+         * A feed row this server is too old for, or null.
+         *
+         * LISTED, NOT HIDDEN. Dropping such a row would leave an operator
+         * searching for an add-on the site advertises and finding nothing,
+         * with no way to learn that the answer is "upgrade Adminium". Saying
+         * which version it needs turns a mystery into a decision — the app
+         * shelf's ruling, applied to the same question.
+         */
+        function blockedBy(
+          entry: { version: string; minAdminiumVersion: string },
+        ): { version: string; minAdminiumVersion: string } | null {
+          return meetsMinimum(entry.minAdminiumVersion, serverVersion)
+            ? null
+            : { version: entry.version, minAdminiumVersion: entry.minAdminiumVersion };
+        }
 
         // Everything on disk first: it needs no network to be true.
         for (const [key, version] of staged) {
@@ -709,6 +758,11 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             state: (current === undefined ? 'staged' : 'installed') as 'staged' | 'installed',
             upgradeTo:
               current !== undefined && compareSemver(version, current) > 0 ? version : null,
+            // Filled by the feed pass below, which is the only thing that
+            // knows a version this server cannot take. A package already on
+            // disk got here through a download or an upload, and both of
+            // those refuse a floor above this server.
+            needsNewerAdminium: null,
             // D3's order: the feed's localized line, else this tree's own.
             tagline: pickLocalized(listed?.tagline, locale) ?? described,
             categories: categories.length > 0 ? categories : (listed?.categories ?? []),
@@ -721,9 +775,16 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // Then anything the last refresh offered that is not already accounted
         // for. `source: 'catalog'` is the honest label: these need the network.
         for (const entry of feed.values()) {
+          const blocked = blockedBy(entry);
           const existing = rows.get(entry.key);
           if (existing === undefined) {
             const current = installed.get(entry.key);
+            // A newer release, offered only when this server can take it.
+            // `upgradeTo` is what the Upgrade button acts on, so pointing it
+            // at a version the download route refuses would be an action that
+            // cannot succeed; the refusal goes in `needsNewerAdminium`, which
+            // is a sentence rather than a button.
+            const newer = current !== undefined && compareSemver(entry.version, current) > 0;
             entries.push({
               key: entry.key,
               // This used to read `entry.name['en_US']` — a key the feed
@@ -734,10 +795,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
               version: current ?? entry.version,
               source: 'catalog',
               state: current === undefined ? 'available' : 'installed',
-              upgradeTo:
-                current !== undefined && compareSemver(entry.version, current) > 0
-                  ? entry.version
-                  : null,
+              upgradeTo: newer && blocked === null ? entry.version : null,
+              // For a row with nothing installed the blocked release IS the
+              // row; for an installed one it is the upgrade it cannot take.
+              needsNewerAdminium: current === undefined || newer ? blocked : null,
               tagline: pickLocalized(entry.tagline, locale),
               categories: entry.categories,
               connectKind: entry.connect.kind,
@@ -746,7 +807,17 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           }
           // Already on disk, but the catalog may know a newer version.
           const current = installed.get(entry.key) ?? existing.version;
-          if (compareSemver(entry.version, current) > 0) existing.upgradeTo = entry.version;
+          if (compareSemver(entry.version, current) > 0) {
+            if (blocked === null) existing.upgradeTo = entry.version;
+            // A blocked release no newer than one already on disk and usable
+            // is not news — the operator has a version to move to either way.
+            else if (
+              existing.upgradeTo === null ||
+              compareSemver(entry.version, existing.upgradeTo) > 0
+            ) {
+              existing.needsNewerAdminium = blocked;
+            }
+          }
         }
 
         /*
@@ -760,15 +831,20 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          */
         for (const [key, version] of installed) {
           if ((onDisk.get(key) ?? []).includes(version)) continue;
+          const fromFeed = feed.get(key);
           const listed = rows.get(key) ?? entries.find((entry) => entry.key === key);
           if (listed !== undefined) {
             listed.state = 'missing';
             listed.version = version;
             // Nothing to upgrade TO when there is nothing here to upgrade.
             listed.upgradeTo = null;
+            // Re-stated for what this row now is. Whatever the feed pass
+            // decided was about an UPGRADE from a version that turns out not
+            // to be here; the only question left is whether the release the
+            // feed offers can be downloaded back at all.
+            listed.needsNewerAdminium = fromFeed === undefined ? null : blockedBy(fromFeed);
             continue;
           }
-          const fromFeed = feed.get(key);
           entries.push({
             key,
             name: pickLocalized(fromFeed?.name, locale) ?? key,
@@ -776,6 +852,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             source: fromFeed === undefined ? 'bundled' : 'catalog',
             state: 'missing',
             upgradeTo: null,
+            // Re-acquiring is this row's only action, and it is a download —
+            // so a feed row above this server's floor must say so here too,
+            // or the button is one the download route will refuse.
+            needsNewerAdminium: fromFeed === undefined ? null : blockedBy(fromFeed),
             tagline: pickLocalized(fromFeed?.tagline, locale),
             categories: fromFeed?.categories ?? [],
             connectKind: fromFeed?.connect.kind ?? 'none',
@@ -875,13 +955,41 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             { code: 'CATALOG_DISABLED' },
           );
         }
+
+        const { key, version } = request.body;
+        /*
+         * The cached row and the minimum it declares, checked before a job
+         * exists, so the page is told at once instead of watching a job fail.
+         * The job checks both again: the cache may be refreshed in between.
+         */
+        let entry;
+        try {
+          entry = await addOnEntryFromCache(deps.store, key, version);
+        } catch (error) {
+          if (error instanceof AddOnCatalogError) {
+            throw new ValidationFailedError(error.message, { code: error.reason });
+          }
+          throw error;
+        }
+        if (!meetsMinimum(entry.minAdminiumVersion, serverVersion)) {
+          throw new ValidationFailedError(
+            `"${key}" ${version} needs Adminium ${entry.minAdminiumVersion} or later; this ` +
+              `server is ${serverVersion}. Upgrade Adminium to install it.`,
+            {
+              code: 'REQUIRES_NEWER_ADMINIUM',
+              minAdminiumVersion: entry.minAdminiumVersion,
+              serverVersion,
+            },
+          );
+        }
+
         // Enqueued through the repo, NEVER through `POST /jobs`: the kind is
         // internal-only because its integrity value comes from the cached
         // catalog, and a caller who could hand-craft the payload would be
         // choosing their own.
         const job = await enqueueAddOnDownload(deps.meta, {
-          key: request.body.key,
-          version: request.body.version,
+          key,
+          version,
           userId: request.user?.id ?? undefined,
         });
         return { jobId: job.id };

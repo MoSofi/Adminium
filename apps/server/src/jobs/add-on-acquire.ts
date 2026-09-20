@@ -32,10 +32,12 @@ import {
   AddOnCatalogError,
   catalogSchema,
   isCurrentCatalogFormat,
+  meetsMinimum,
   type CatalogClient,
   type CatalogEntry,
 } from '../add-ons/catalog.js';
 import type { AddOnStore } from '../add-ons/store.js';
+import { APP_VERSION } from '../version.js';
 import { JobCancelledError, type JobHandlerContext, type JobRegistry } from './registry.js';
 
 export const ADD_ON_DOWNLOAD_KIND = 'add-on-download';
@@ -65,6 +67,8 @@ export interface AddOnAcquireDeps {
   store: AddOnStore;
   catalog: CatalogClient;
   now?: (() => number) | undefined;
+  /** Tests only; production checks minimums against the running version. */
+  serverVersion?: string | undefined;
 }
 
 /**
@@ -103,8 +107,14 @@ async function audit(
   );
 }
 
-/** Pulls the entry for `(key, version)` out of the last cached catalog. */
-async function entryFromCache(
+/**
+ * Pulls the entry for `(key, version)` out of the last cached catalog.
+ *
+ * Exported so the download ROUTE resolves the row the same way: it checks the
+ * declared minimum before a job exists, and the job checks it again because
+ * the cache may be refreshed in between. One reader, one set of refusals.
+ */
+export async function addOnEntryFromCache(
   store: AddOnStore,
   key: string,
   version: string,
@@ -116,9 +126,11 @@ async function entryFromCache(
       'no catalog has been fetched yet; refresh the catalog before downloading',
     );
   }
-  // A server upgraded from 0.2.8 or earlier still holds the v1 feed it last
-  // fetched. That is not a malformed catalog, it is an old one — and the fix
-  // is the operator's one click, so say that rather than "not readable".
+  // A server upgraded from 0.2.12 or earlier still holds the v1 or v2 feed it
+  // last fetched. That is not a malformed catalog, it is an old one — and the
+  // fix is the operator's one click, so say that rather than "not readable".
+  // It is also the only honest answer for a v2 row, which carries no declared
+  // minimum at all: there is no floor to check it against.
   if (!isCurrentCatalogFormat(cached.document)) {
     throw new AddOnCatalogError(
       'UNKNOWN_ADD_ON',
@@ -144,6 +156,7 @@ export function registerAddOnAcquireHandlers(
   deps: AddOnAcquireDeps,
 ): void {
   const now = deps.now ?? Date.now;
+  const serverVersion = deps.serverVersion ?? APP_VERSION;
 
   registry.registerJobHandler(
     ADD_ON_DOWNLOAD_KIND,
@@ -153,7 +166,35 @@ export function registerAddOnAcquireHandlers(
       const label = `${key}@${version}`;
 
       ctx.progress(5, { step: 'catalog', message: `Looking up ${label}` });
-      const entry = await entryFromCache(deps.store, key, version);
+      const entry = await addOnEntryFromCache(deps.store, key, version);
+      /*
+       * THE MINIMUM, BEFORE A BYTE IS FETCHED. The route checks it too, so the
+       * page can say so at once; this checks again because the cache it reads
+       * may have been refreshed between the click and the run.
+       *
+       * Refusing here rather than at install is what makes the refusal
+       * truthful: an add-on's host support lives in the engine, so a package
+       * that installs cleanly against a server too old for it fails later, at
+       * runtime, in a place that says nothing about the version.
+       */
+      if (!meetsMinimum(entry.minAdminiumVersion, serverVersion)) {
+        await audit(
+          deps,
+          'add-on.download-failed',
+          key,
+          {
+            version,
+            reason: 'REQUIRES_NEWER_ADMINIUM',
+            minAdminiumVersion: entry.minAdminiumVersion,
+            serverVersion,
+          },
+          payload.userId,
+        );
+        throw new AddOnCatalogError(
+          'REQUIRES_NEWER_ADMINIUM',
+          `${label} needs Adminium ${entry.minAdminiumVersion} or later; this server is ${serverVersion}`,
+        );
+      }
       if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
       // The client builds the address from the row's key and exact version.

@@ -113,6 +113,9 @@ function AddOnCard({
   onDiscard: (entry: CatalogEntry) => void;
   onUpgrade: (entry: CatalogEntry) => void;
 }) {
+  // Listed, not offered: the server refuses the download, and the card says
+  // which version it needs rather than leaving a dead button.
+  const blocked = entry.needsNewerAdminium;
   return (
     <li className="flex flex-col gap-3 rounded-lg border border-border p-4">
       <div className="flex items-start gap-3">
@@ -145,6 +148,13 @@ function AddOnCard({
               )}
             </p>
           )}
+          {blocked !== null && (
+            <p className="mt-0.5 text-caption font-semibold text-warn">
+              {t('studio:addOns.browse.needsNewer', 'Needs Adminium {version} or later', {
+                version: blocked.minAdminiumVersion,
+              })}
+            </p>
+          )}
           {/* `line-clamp-2`: a staged row's line comes from the manifest's
               `description.fallback`, which is a paragraph, while the feed's
               `tagline` is one sentence. The card holds its shape either way. */}
@@ -167,7 +177,7 @@ function AddOnCard({
             size="sm"
             variant="secondary"
             className="flex-1"
-            disabled={busy}
+            disabled={busy || blocked !== null}
             onClick={() => onDownload(entry)}
           >
             {t('studio:addOns.browse.download', 'Download')}
@@ -196,7 +206,7 @@ function AddOnCard({
             size="sm"
             variant="secondary"
             className="flex-1"
-            disabled={busy}
+            disabled={busy || blocked !== null}
             onClick={() => onDownload(entry)}
           >
             {t('studio:addOns.browse.download', 'Download')}

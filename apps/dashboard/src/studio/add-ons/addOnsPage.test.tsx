@@ -45,6 +45,7 @@ function makeEntry(over: Partial<CatalogEntry> = {}): CatalogEntry {
     source: 'bundled',
     state: 'staged',
     upgradeTo: null,
+    needsNewerAdminium: null,
     tagline: 'Public holidays for 30 countries, ready to attach.',
     categories: ['data'],
     connectKind: 'none',

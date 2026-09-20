@@ -109,7 +109,7 @@ function manifestFor(
     license: 'AGPL-3.0-only',
     description: { key: `addon.${key}.line`, fallback: 'x' },
     categories: ['data'],
-    compatibility: { minAdminiumVersion: '1.0.0', requires: [] },
+    compatibility: { minAdminiumVersion: '0.1.0', requires: [] },
     ...(capabilities === undefined ? {} : { capabilities }),
     addOn: {
       attaches: attaches.map((app) => ({ app, range: '^1.0.0' })),
@@ -204,7 +204,7 @@ let sourceDb: Kysely<Record<string, Record<string, unknown>>>;
 async function buildApp(
   existingTables: { ref: string; columns: { ref: string }[] }[] = [],
   catalog?: Partial<CatalogClient>,
-  opts: { schemaTarget?: boolean } = {},
+  opts: { schemaTarget?: boolean; serverVersion?: string } = {},
 ) {
   created.length = 0;
   rebuilds = 0;
@@ -256,6 +256,9 @@ async function buildApp(
       meta,
       store,
       credentialCrypto: crypto,
+      // Pinned so a declared minimum is asserted against a version this file
+      // states, not against whatever the build happens to be.
+      serverVersion: opts.serverVersion ?? '0.3.0',
       rebuildRuntime: async () => {
         rebuilds += 1;
       },
@@ -1322,7 +1325,7 @@ describe('acquisition routes', () => {
       });
       await store.writeCatalogCache(
         {
-          schemaVersion: 2,
+          schemaVersion: 3,
           generatedAt: '2026-08-29T00:00:00Z',
           addOns: [
             {
@@ -1337,6 +1340,7 @@ describe('acquisition routes', () => {
               network: { allow: [] },
               name: { en_US: 'Holiday Calendars' },
               tagline: { en_US: 'x' },
+              minAdminiumVersion: '0.1.0',
             },
             {
               key: 'shipping-dhl',
@@ -1350,6 +1354,7 @@ describe('acquisition routes', () => {
               network: { allow: [] },
               name: { en_US: 'DHL Shipping' },
               tagline: { en_US: 'y' },
+              minAdminiumVersion: '0.1.0',
             },
           ],
         },
@@ -1425,7 +1430,7 @@ describe('acquisition routes', () => {
       const app = await buildApp();
       await store.writeCatalogCache(
         {
-          schemaVersion: 2,
+          schemaVersion: 3,
           generatedAt: '2026-09-01T13:10:59.915Z',
           addOns: [
             {
@@ -1440,6 +1445,7 @@ describe('acquisition routes', () => {
               network: { allow: [] },
               name: { en: 'Barcode Labels', de: 'Barcode-Etiketten', 'zh-cn': '条形码标签' },
               tagline: { en: 'Print a sheet of labels from the row.', de: 'Etiketten drucken.' },
+              minAdminiumVersion: '0.1.0',
             },
           ],
         },
@@ -1488,12 +1494,103 @@ describe('acquisition routes', () => {
       await app.close();
     });
 
+    it('lists a release this server is too old for, blocked rather than hidden', async () => {
+      const app = await buildApp([], undefined, { serverVersion: '0.2.9' });
+      await store.writeCatalogCache(
+        {
+          schemaVersion: 3,
+          generatedAt: '2026-09-20T00:00:00Z',
+          addOns: [
+            {
+              key: 'invoices',
+              version: '1.0.2',
+              integrity: 'sha512-AAAA',
+              provides: [],
+              attaches: [{ app: '*' }],
+              categories: ['data'],
+              capabilities: [],
+              connect: { kind: 'none' },
+              network: { allow: [] },
+              name: { en: 'Invoices' },
+              tagline: { en: 'Invoice documents for any table.' },
+              minAdminiumVersion: '0.3.0',
+            },
+          ],
+        },
+        1_700_000_000_000,
+      );
+      const body = (await app.inject({ method: 'GET', url: '/api/v1/add-ons/catalog' })).json() as {
+        addOns: Array<{
+          key: string;
+          state: string;
+          upgradeTo: string | null;
+          needsNewerAdminium: { version: string; minAdminiumVersion: string } | null;
+        }>;
+      };
+      // LISTED. Dropping the row would leave an operator hunting for an add-on
+      // the site advertises with no way to learn that the answer is an upgrade.
+      expect(body.addOns.map((a) => a.key)).toContain('invoices');
+      expect(body.addOns.find((a) => a.key === 'invoices')).toMatchObject({
+        state: 'available',
+        needsNewerAdminium: { version: '1.0.2', minAdminiumVersion: '0.3.0' },
+      });
+      await app.close();
+    });
+
+    it('withholds an upgrade this server cannot take, and says which version it needs', async () => {
+      await stage('holiday-calendars');
+      const app = await buildApp([], undefined, { serverVersion: '0.2.9' });
+      await app.inject({
+        method: 'POST',
+        url: '/api/v1/add-ons',
+        payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing'] },
+      });
+      await store.writeCatalogCache(
+        {
+          schemaVersion: 3,
+          generatedAt: '2026-09-20T00:00:00Z',
+          addOns: [
+            {
+              key: 'holiday-calendars',
+              version: '2.0.0',
+              integrity: 'sha512-AAAA',
+              provides: [],
+              attaches: [{ app: 'printing' }],
+              categories: [],
+              capabilities: [],
+              connect: { kind: 'none' },
+              network: { allow: [] },
+              name: { en: 'Holiday Calendars' },
+              tagline: { en: 'x' },
+              minAdminiumVersion: '0.4.0',
+            },
+          ],
+        },
+        1_700_000_000_000,
+      );
+      const body = (await app.inject({ method: 'GET', url: '/api/v1/add-ons/catalog' })).json() as {
+        addOns: Array<{
+          key: string;
+          upgradeTo: string | null;
+          needsNewerAdminium: { version: string; minAdminiumVersion: string } | null;
+        }>;
+      };
+      // `upgradeTo` is what the Upgrade button acts on, and the download route
+      // refuses this release — so offering it would be a button that cannot
+      // succeed. The refusal is a sentence instead.
+      expect(body.addOns.find((a) => a.key === 'holiday-calendars')).toMatchObject({
+        upgradeTo: null,
+        needsNewerAdminium: { version: '2.0.0', minAdminiumVersion: '0.4.0' },
+      });
+      await app.close();
+    });
+
     it('prefers the feed tagline over the manifest one for a staged row (D3)', async () => {
       await stage('holiday-calendars');
       const app = await buildApp();
       await store.writeCatalogCache(
         {
-          schemaVersion: 2,
+          schemaVersion: 3,
           generatedAt: '2026-09-01T13:10:59.915Z',
           addOns: [
             {
@@ -1508,6 +1605,7 @@ describe('acquisition routes', () => {
               network: { allow: [] },
               name: { en: 'Holiday Calendars' },
               tagline: { en: 'Public holidays for 30 countries.' },
+              minAdminiumVersion: '0.1.0',
             },
           ],
         },
@@ -1526,6 +1624,40 @@ describe('acquisition routes', () => {
   });
 
   describe('refresh and download refuse when the catalog is off (D8)', () => {
+    /**
+     * One catalogue row, cached, for the download route to resolve.
+     *
+     * The route reads the cache now rather than enqueueing blind: the
+     * declared minimum is checked before a job exists, so the page is told at
+     * once instead of watching one fail. `0.1.0` is a floor every build meets.
+     */
+    async function cacheRow(over: Record<string, unknown> = {}): Promise<void> {
+      await store.writeCatalogCache(
+        {
+          schemaVersion: 3,
+          generatedAt: '2026-09-01T13:10:59.915Z',
+          addOns: [
+            {
+              key: 'shipping-dhl',
+              version: '1.0.0',
+              integrity: 'sha512-BBBB',
+              provides: [],
+              attaches: [{ app: 'printing' }],
+              categories: [],
+              capabilities: [],
+              connect: { kind: 'api-key' },
+              network: { allow: [] },
+              name: { en: 'DHL Shipping' },
+              tagline: { en: 'y' },
+              minAdminiumVersion: '0.1.0',
+              ...over,
+            },
+          ],
+        },
+        1_700_000_000_000,
+      );
+    }
+
     it('refuses a refresh with a reason, not a silent no-op', async () => {
       const app = await buildApp([], { isEnabled: async () => false });
       const res = await app.inject({ method: 'POST', url: '/api/v1/add-ons/catalog/refresh' });
@@ -1548,6 +1680,7 @@ describe('acquisition routes', () => {
 
     it('enqueues a download when the catalog is on', async () => {
       const app = await buildApp([], {});
+      await cacheRow();
       const res = await app.inject({
         method: 'POST',
         url: '/api/v1/add-ons/download',
@@ -1563,8 +1696,49 @@ describe('acquisition routes', () => {
       await app.close();
     });
 
+    it('refuses at once a release the cache does not offer, or that needs a newer Adminium', async () => {
+      const app = await buildApp([], {}, { serverVersion: '0.2.9' });
+
+      // Nothing cached at all: the route answers rather than enqueueing a job
+      // whose only outcome is the same refusal, twenty seconds later.
+      const none = await app.inject({
+        method: 'POST',
+        url: '/api/v1/add-ons/download',
+        payload: { key: 'shipping-dhl', version: '1.0.0' },
+      });
+      expect(none.statusCode).toBe(422);
+      expect(none.json().error.details.code).toBe('UNKNOWN_ADD_ON');
+
+      /*
+       * The live case this closed. `add-on-invoices@1.0.2` declares a minimum
+       * of 0.3.0: the rail rows an installed add-on contributes landed in the
+       * engine, not in the add-on, so a 0.2.9 server downloaded it, installed
+       * it and then failed at runtime with nothing saying why.
+       */
+      await cacheRow({ key: 'invoices', minAdminiumVersion: '0.3.0' });
+      const newer = await app.inject({
+        method: 'POST',
+        url: '/api/v1/add-ons/download',
+        payload: { key: 'invoices', version: '1.0.0' },
+      });
+      expect(newer.statusCode).toBe(422);
+      expect(newer.json().error).toMatchObject({
+        message: expect.stringContaining('needs Adminium 0.3.0 or later; this server is 0.2.9'),
+        details: {
+          code: 'REQUIRES_NEWER_ADMINIUM',
+          minAdminiumVersion: '0.3.0',
+          serverVersion: '0.2.9',
+        },
+      });
+      // And no job: a refusal the route can make is a refusal that leaves no
+      // download to cancel and no failed row for an operator to interpret.
+      expect(await meta.db.selectFrom('adminium_jobs').selectAll().execute()).toEqual([]);
+      await app.close();
+    });
+
     it('collapses two downloads of the same version into one job', async () => {
       const app = await buildApp([], {});
+      await cacheRow();
       const payload = { key: 'shipping-dhl', version: '1.0.0' };
       const a = (await app.inject({ method: 'POST', url: '/api/v1/add-ons/download', payload })).json() as { jobId: string };
       const b = (await app.inject({ method: 'POST', url: '/api/v1/add-ons/download', payload })).json() as { jobId: string };
@@ -1683,6 +1857,53 @@ describe('acquisition routes', () => {
       await app.close();
     });
 
+    it('refuses a package that needs a newer Adminium, and stages nothing', async () => {
+      /*
+       * THE BYPASS THIS CLOSES. A floor only the catalogue checks is not a
+       * floor: the identical release arrives here as a file, and this is the
+       * route an operator reaches for precisely when the catalogue has said
+       * no. The manifest inside the package is the authority either way — the
+       * feed row only copies what this document declares.
+       */
+      const app = await buildApp([], undefined, { serverVersion: '0.2.9' });
+      const tarball = packageTarball({
+        'manifest.json': JSON.stringify({
+          ...manifestFor('holiday-calendars'),
+          compatibility: { minAdminiumVersion: '0.3.0', requires: [] },
+        }),
+        'package.json': JSON.stringify({ name: '@adminiumjs/add-on-holiday-calendars' }),
+        'dist/client.js': 'export const register = () => {};',
+      });
+
+      const res = await sideload(app, tarball);
+      expect(res.statusCode).toBe(422);
+      expect(res.json().error).toMatchObject({
+        message: expect.stringContaining('needs Adminium 0.3.0 or later; this server is 0.2.9'),
+        details: {
+          reason: 'REQUIRES_NEWER_ADMINIUM',
+          minAdminiumVersion: '0.3.0',
+          serverVersion: '0.2.9',
+        },
+      });
+      // Refused inside `identify`, so the unpack is abandoned rather than
+      // undone: nothing reached the store to have to be cleaned up.
+      expect(await store.keys()).toEqual([]);
+
+      const rows = await auditRepo(meta).list({ category: 'add-on', limit: 10 });
+      expect(
+        rows.map((row) => ({ action: row.action, ...(row.changes as { after: object }).after })),
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            action: 'add-on.unpack-refused',
+            key: 'holiday-calendars',
+            reason: 'REQUIRES_NEWER_ADMINIUM',
+          }),
+        ]),
+      );
+      await app.close();
+    });
+
     it('checks a key or version the caller asserts, and stages nothing when it is wrong', async () => {
       const app = await buildApp();
       const tarball = tarballFor('holiday-calendars');
@@ -1772,7 +1993,7 @@ describe('acquisition routes', () => {
             license: 'AGPL-3.0-only',
             description: { key: 'mft.sample.desc', fallback: 'A sample desk.' },
             categories: ['operations'],
-            compatibility: { minAdminiumVersion: '1.0.0' },
+            compatibility: { minAdminiumVersion: '0.1.0' },
             requiredSchema: {
               tables: [{ ref: 'clinicians', columns: [{ ref: 'id', type: 'int', role: 'pk' }] }],
             },

@@ -91,10 +91,11 @@ const ENTRY: CatalogEntry = {
   network: { allow: [] },
   name: { en_US: 'Design Studio' },
   tagline: { en_US: 'A small in-browser artwork editor.' },
+  minAdminiumVersion: '0.1.0',
 };
 
 const CATALOG: Catalog = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   generatedAt: '2026-08-29T00:00:00Z',
   addOns: [ENTRY],
 };
@@ -143,9 +144,9 @@ afterEach(async () => {
   await rm(dataDir, { recursive: true, force: true });
 });
 
-function registryWith(catalog: CatalogClient) {
+function registryWith(catalog: CatalogClient, serverVersion = '0.3.0') {
   const registry = createJobRegistry();
-  registerAddOnAcquireHandlers(registry, { meta, store, catalog });
+  registerAddOnAcquireHandlers(registry, { meta, store, catalog, serverVersion });
   return registry;
 }
 
@@ -235,6 +236,62 @@ describe('add-on-download', () => {
     expect(rows[0]?.changes).toMatchObject({
       after: { key: 'design-studio', version: '1.0.0', source: 'download' },
     });
+  });
+
+  it('refuses a release above this server, before fetching a byte', async () => {
+    /*
+     * The route checks this too, so the page is told at once. The job checks
+     * again because the cache it reads may have been refreshed between the
+     * click and the run — and because refusing here, rather than at install,
+     * is the only place the refusal can still name a version: an add-on's
+     * host support lives in the engine, so a package that installs cleanly
+     * against a server too old for it fails later with nothing to go on.
+     */
+    await store.writeCatalogCache(
+      { ...CATALOG, addOns: [{ ...ENTRY, minAdminiumVersion: '0.4.0' }] },
+      1_700_000_000_000,
+    );
+    const fetchTarball = vi.fn();
+    const registry = registryWith(stubCatalog({ fetchTarball: fetchTarball as never }), '0.3.0');
+
+    const failure = registry
+      .get(ADD_ON_DOWNLOAD_KIND)!
+      .run({ key: 'design-studio', version: '1.0.0' }, context());
+    await expect(failure).rejects.toMatchObject({ reason: 'REQUIRES_NEWER_ADMINIUM' });
+    await expect(failure).rejects.toThrow(/needs Adminium 0\.4\.0 or later; this server is 0\.3\.0/);
+    expect(fetchTarball).not.toHaveBeenCalled();
+    expect(await store.keys()).toEqual([]);
+
+    const rows = await auditRows();
+    expect(rows.map((r) => r.action)).toEqual(['add-on.download-failed']);
+    expect(rows[0]?.changes).toMatchObject({
+      after: {
+        key: 'design-studio',
+        reason: 'REQUIRES_NEWER_ADMINIUM',
+        minAdminiumVersion: '0.4.0',
+        serverVersion: '0.3.0',
+      },
+    });
+  });
+
+  it('accepts a server exactly at the minimum, and an rc of it', async () => {
+    // `compareSemver` reads the numeric triple and ignores the prerelease
+    // tail. An rc is built from the release it is a candidate for and carries
+    // the same host support; treating it as older would block every add-on
+    // release against the very builds that exist to test them.
+    await store.writeCatalogCache(
+      { ...CATALOG, addOns: [{ ...ENTRY, minAdminiumVersion: '0.3.0' }] },
+      1_700_000_000_000,
+    );
+    for (const serverVersion of ['0.3.0', '0.3.0-rc.0', '0.4.1']) {
+      await store.removeVersion('design-studio', '1.0.0').catch(() => {});
+      await expect(
+        registryWith(stubCatalog(), serverVersion)
+          .get(ADD_ON_DOWNLOAD_KIND)!
+          .run({ key: 'design-studio', version: '1.0.0' }, context()),
+        `expected ${serverVersion} to meet a 0.3.0 minimum`,
+      ).resolves.toMatchObject({ key: 'design-studio' });
+    }
   });
 
   it('refuses a version the cached catalog does not offer', async () => {

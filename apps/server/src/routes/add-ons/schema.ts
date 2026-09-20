@@ -283,8 +283,27 @@ export const catalogEntryDto = z.object({
    *   installed.
    */
   state: z.enum(['installed', 'staged', 'available', 'missing']),
-  /** Set when an installed add-on has a NEWER version staged or offered. */
+  /**
+   * Set when an installed add-on has a NEWER version staged or offered.
+   *
+   * Never a version this server is too old for: the button acts on this, and
+   * the download route refuses such a release, so offering it would be an
+   * action that cannot succeed. That case is `needsNewerAdminium` instead.
+   */
   upgradeTo: z.string().nullable(),
+  /**
+   * A catalogue release this server cannot take, and the version it needs.
+   *
+   * Either the row itself (nothing installed, and the only release offered is
+   * above this server's version) or an installed add-on's newer release.
+   * LISTED RATHER THAN HIDDEN, the app shelf's ruling: an operator who cannot
+   * find an add-on the site advertises has no way to discover that the answer
+   * is an Adminium upgrade, while a row that says which version it needs is a
+   * decision they can act on.
+   */
+  needsNewerAdminium: z
+    .object({ version: z.string(), minAdminiumVersion: z.string() })
+    .nullable(),
   /**
    * One line about what it does, in the CALLER'S locale where the feed has one.
    * Null rather than a placeholder when neither the cached feed nor the staged

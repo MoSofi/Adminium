@@ -106,7 +106,7 @@ function manifestFor(key: string, tables?: unknown[]): Record<string, unknown> {
     description: { key: 'mft.sample.desc', fallback: 'A sample desk.' },
     categories: ['operations'],
     compatibility: {
-      minAdminiumVersion: '1.0.0',
+      minAdminiumVersion: '0.1.0',
       engines: ['postgres', 'mysql', 'sqlite'],
     },
     requiredSchema: {
@@ -207,7 +207,7 @@ afterEach(async () => {
 });
 
 /** The route surface, behind a real `requireAuth` and a stubbed RBAC. */
-async function buildApp() {
+async function buildApp(serverVersion = '0.3.0') {
   const Fastify = (await import('fastify')).default;
   const { serializerCompiler, validatorCompiler } = await import('fastify-type-provider-zod');
   const app = Fastify();
@@ -246,6 +246,9 @@ async function buildApp() {
       installed,
       credentialCrypto: { encrypt: (v) => v, decrypt: (v) => v },
       directoryKeys: () => directoryKeys,
+      // Pinned so a declared minimum is asserted against a version this file
+      // states, not against whatever the build happens to be.
+      serverVersion,
       /*
        * The REAL `applyInstall`, against a real (in-memory) source database —
        * only the connection-picking half is stubbed out, the same split
@@ -317,6 +320,48 @@ describe('uploading a surface bundle', () => {
       payload: { key: staged.key, version: staged.version, connectionId: CONNECTION },
     });
     expect(res.statusCode, res.body).toBe(200);
+    await app.close();
+  });
+
+  it('refuses a bundle that needs a newer Adminium, and stages nothing', async () => {
+    /*
+     * `/apps/download` has checked the declared minimum since the app feed
+     * grew the field, and this route never did — so the release the
+     * catalogue refuses installed without a word as a file, which is the
+     * route an operator reaches for precisely when the catalogue has said no.
+     */
+    const app = await buildApp('0.2.9');
+    const files = {
+      ...bundleFor('sample-desk'),
+      'manifest.json': JSON.stringify({
+        ...manifestFor('sample-desk'),
+        compatibility: { minAdminiumVersion: '0.3.0', engines: ['sqlite'] },
+      }),
+    };
+    const res = await upload(app, 'sample-desk', files);
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toMatchObject({
+      message: expect.stringContaining('needs Adminium 0.3.0 or later; this server is 0.2.9'),
+      details: {
+        reason: 'REQUIRES_NEWER_ADMINIUM',
+        minAdminiumVersion: '0.3.0',
+        serverVersion: '0.2.9',
+      },
+    });
+    expect(await store.keys()).toEqual([]);
+
+    const rows = await auditRepo(meta).list({ category: 'app', limit: 10 });
+    expect(
+      rows.map((row) => ({ action: row.action, ...(row.changes as { after: object }).after })),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: 'app.unpack-refused',
+          key: 'sample-desk',
+          reason: 'REQUIRES_NEWER_ADMINIUM',
+        }),
+      ]),
+    );
     await app.close();
   });
 

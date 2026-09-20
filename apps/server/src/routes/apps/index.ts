@@ -471,6 +471,30 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                   { reason: 'VERSION_MISMATCH' },
                 );
               }
+              /*
+               * THE FLOOR, ON THE PATH THAT HAS NO CATALOG (G8-D2).
+               *
+               * `/apps/download` has checked `minAdminiumVersion` since the
+               * feed grew the field, and this route never did — so the same
+               * release the catalogue refuses installed without a word as a
+               * file, which is the route an operator reaches for precisely
+               * when the catalogue has said no. Checked HERE rather than in
+               * `appManifestFrom`, which plan and install also call: a
+               * package already on disk arrived through a path that checked,
+               * and re-refusing it would break putting one back.
+               *
+               * After the caller's own assertions, for the sideload route's
+               * reason: a mismatched key or version means they have not
+               * established that they meant this bundle at all.
+               */
+              const minimum = manifest.compatibility.minAdminiumVersion;
+              if (!meetsMinimum(minimum, serverVersion)) {
+                throw new ValidationFailedError(
+                  `"${manifest.key}" ${manifest.version} needs Adminium ${minimum} or later; ` +
+                    `this server is ${serverVersion}. Upgrade Adminium before uploading it.`,
+                  { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: minimum, serverVersion },
+                );
+              }
               return { key: manifest.key, version: manifest.version };
             },
           });

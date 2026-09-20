@@ -92,7 +92,14 @@ export interface CatalogEntry {
   version: string;
   source: 'bundled' | 'catalog';
   state: 'installed' | 'staged' | 'available' | 'missing';
+  /** Never a release the server is too old for — see `needsNewerAdminium`. */
   upgradeTo: string | null;
+  /**
+   * A catalogue release this server cannot take, and the version it needs.
+   * The row is still listed: an add-on that simply vanished would leave an
+   * operator with no way to learn that the answer is an Adminium upgrade.
+   */
+  needsNewerAdminium: { version: string; minAdminiumVersion: string } | null;
   /** One line, localized where the feed has it; null when nothing has one. */
   tagline: string | null;
   /** Category slugs, verbatim — an unknown one renders as itself. */

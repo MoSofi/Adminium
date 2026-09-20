@@ -117,6 +117,7 @@ const ENTRY: CatalogEntry = {
   network: { allow: [] },
   name: { en_US: 'Design Studio' },
   tagline: { en_US: 'A small in-browser artwork editor.' },
+  minAdminiumVersion: '0.1.0',
 };
 
 let meta: MetaDb;
@@ -220,7 +221,7 @@ describe('add-on catalog: on, it talks to exactly two hostnames', () => {
     const { client, calls } = recording(
       () =>
         new Response(
-          JSON.stringify({ schemaVersion: 2, generatedAt: '2026-09-15T00:00:00Z', addOns: [ENTRY] }),
+          JSON.stringify({ schemaVersion: 3, generatedAt: '2026-09-15T00:00:00Z', addOns: [ENTRY] }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
     );
@@ -228,7 +229,7 @@ describe('add-on catalog: on, it talks to exactly two hostnames', () => {
     const catalog = await client.fetchCatalog();
     expect(catalog.addOns[0]?.key).toBe('design-studio');
     expect(calls.map((c) => c.url)).toEqual([CATALOG_ENDPOINT]);
-    expect(CATALOG_ENDPOINT).toBe('https://adminium.dev/marketplace/v2/catalog.json');
+    expect(CATALOG_ENDPOINT).toBe('https://adminium.dev/marketplace/v3/catalog.json');
   });
 
   it('downloads from the one address it builds from the row: downloads host, key, exact version', async () => {
@@ -435,7 +436,7 @@ describe('add-on catalog: the transport itself is bounded', () => {
 });
 
 describe('add-on catalog: the feed schema defers monetization by construction', () => {
-  const base = { schemaVersion: 2, generatedAt: '2026-09-15T00:00:00Z' };
+  const base = { schemaVersion: 3, generatedAt: '2026-09-15T00:00:00Z' };
 
   it('refuses a feed carrying a price, tier, or licence-key field', () => {
     for (const extra of [
@@ -451,17 +452,22 @@ describe('add-on catalog: the feed schema defers monetization by construction', 
     }
   });
 
-  it('accepts the exact documented v2 entry shape', () => {
+  it('accepts the exact documented v3 entry shape', () => {
     expect(catalogSchema.safeParse({ ...base, addOns: [ENTRY] }).success).toBe(true);
   });
 
-  it('refuses the v1 document, including a row that still names an npm package', () => {
-    // Released servers keep reading v1 at its own address. A v2 server that
-    // took a v1 row would be taking an instruction about where to download
-    // from — the one thing a v2 row can no longer carry.
-    expect(
-      catalogSchema.safeParse({ schemaVersion: 1, generatedAt: base.generatedAt, addOns: [ENTRY] }).success,
-    ).toBe(false);
+  it('refuses a document at an earlier schema version', () => {
+    // Released servers keep reading the feed they were built against, at its
+    // own address. Reading an earlier one here would mean either inventing a
+    // `minAdminiumVersion` a v2 row does not carry, or — for a v1 row — taking
+    // an instruction about where to download from.
+    for (const schemaVersion of [1, 2]) {
+      expect(
+        catalogSchema.safeParse({ schemaVersion, generatedAt: base.generatedAt, addOns: [ENTRY] })
+          .success,
+        `expected schemaVersion ${schemaVersion} to be refused`,
+      ).toBe(false);
+    }
     for (const extra of [
       { npmPackage: '@adminiumjs/add-on-design-studio' },
       { url: 'https://evil.example/design-studio.tgz' },

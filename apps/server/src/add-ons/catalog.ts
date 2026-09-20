@@ -44,6 +44,7 @@
  * be discovered.
  */
 
+import { compareSemver } from '@adminium/manifest';
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
@@ -52,12 +53,20 @@ import { APP_VERSION } from '../version.js';
 /**
  * The static feed the website emits. Never serves files.
  *
- * `v2` IS A NEW ADDRESS, NOT A NEW FIELD. Released servers (0.2.3–0.2.8) parse
- * `/marketplace/catalog.json` with a `.strict()` v1 schema, so any change to
- * that document breaks every one of them at once. They keep reading the frozen
- * v1 address; this version reads its own.
+ * A NEW ADDRESS, NOT A NEW FIELD — TWICE NOW. Released servers parse the feed
+ * they were built against with a `.strict()` schema, so a field added to a
+ * document already in service breaks every one of them at once, and none of
+ * them can be upgraded by us. 0.2.3–0.2.8 keep reading the frozen
+ * `/marketplace/catalog.json`; 0.2.9–0.2.12 keep reading the frozen
+ * `/marketplace/v2/catalog.json`; this version reads its own.
+ *
+ * WHAT v3 ADDS is one field, `minAdminiumVersion`, which is the whole reason
+ * the address moved: the add-on feed had no floor at all, so a server offered
+ * and installed releases built against host support it does not have. The app
+ * feed (`v2/apps.json`) carried one from its first byte and could therefore
+ * stay where it was.
  */
-export const CATALOG_ENDPOINT = 'https://adminium.dev/marketplace/v2/catalog.json';
+export const CATALOG_ENDPOINT = 'https://adminium.dev/marketplace/v3/catalog.json';
 
 /** The only host this client downloads a file from. */
 export const DOWNLOAD_HOST = 'downloads.adminium.dev';
@@ -197,12 +206,31 @@ export const catalogEntrySchema = z
     network: z.object({ allow: z.array(z.string()).default([]) }).strict().default({ allow: [] }),
     name: localizedSchema,
     tagline: localizedSchema,
+    /**
+     * The minimum the release manifest declares; this server refuses a row
+     * above its own version.
+     *
+     * v3's one new field, and the reason the feed moved address. An add-on's
+     * host support lands in the ENGINE, not in the add-on: `add-on-invoices`
+     * 1.0.2 needs the rail rows an installed add-on contributes, which is
+     * engine code first released in 0.3.0. Without a floor in the feed a 0.2.9
+     * server downloaded it, installed it, and failed at runtime — the worst of
+     * the three available outcomes, because nothing in the failure named a
+     * version.
+     *
+     * WHAT THIS FIELD CANNOT DO is correct a manifest. It carries what the
+     * release DECLARES, and `add-on-invoices` 1.0.2 declares 0.2.12 while
+     * needing 0.3.0, so a 0.2.12 server is still told yes. The floor is only
+     * as good as the number the publisher put in it; this makes the number
+     * mean something, it does not verify it.
+     */
+    minAdminiumVersion: z.string().regex(EXACT_VERSION_PATTERN),
   })
   .strict();
 
 export const catalogSchema = z
   .object({
-    schemaVersion: z.literal(2),
+    schemaVersion: z.literal(3),
     generatedAt: z.string().min(1),
     addOns: z.array(catalogEntrySchema),
   })
@@ -215,15 +243,41 @@ export type Catalog = z.infer<typeof catalogSchema>;
  * Whether a cached document is in the format this server reads.
  *
  * The cache outlives an upgrade: a server that last refreshed on 0.2.8 holds a
- * v1 feed. Callers treat that as NO catalog — prompting a refresh — rather than
- * as a malformed one, which is what a failed parse alone would report.
+ * v1 feed, and one that last refreshed on 0.2.12 holds a v2. Callers treat
+ * either as NO catalog — prompting a refresh — rather than as a malformed one,
+ * which is what a failed parse alone would report. That matters more for v3
+ * than it did for v2: a v2 row carries no `minAdminiumVersion`, so reading one
+ * would mean either inventing a floor or reinstating the hole.
  */
 export function isCurrentCatalogFormat(document: unknown): boolean {
   return (
     typeof document === 'object' &&
     document !== null &&
-    (document as { schemaVersion?: unknown }).schemaVersion === 2
+    (document as { schemaVersion?: unknown }).schemaVersion === 3
   );
+}
+
+/**
+ * Whether this server meets a release's declared minimum — the one rule behind
+ * every `REQUIRES_NEWER_ADMINIUM` refusal, for add-ons and for apps.
+ *
+ * IT LIVES HERE, in the module both catalog clients already share, rather than
+ * in either one of them. `apps/catalog.ts` imports this file for its
+ * transport, its grammars and its error type; the add-on side importing the
+ * comparison back out of it would be a cycle, and a second copy of a
+ * version comparison is how the two halves of a rule drift apart.
+ *
+ * `compareSemver` reads the numeric triple and ignores any prerelease tail, so
+ * a `0.3.0-rc.0` server meets a `0.3.0` floor. That is deliberate: an rc is
+ * built from the release it is a candidate for and carries the same host
+ * support, and treating it as older would block every add-on release against
+ * the very builds that exist to test them.
+ *
+ * `current` is a parameter for tests; production always asks about the
+ * running version.
+ */
+export function meetsMinimum(minimum: string, current: string = APP_VERSION): boolean {
+  return compareSemver(current, minimum) >= 0;
 }
 
 /**
