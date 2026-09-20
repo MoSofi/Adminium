@@ -54,6 +54,9 @@ function makeSurface(over: Partial<SurfaceSummaryDto> = {}): SurfaceSummaryDto {
     staffPlacement: 'internal',
     connectionId: null,
     boundKey: null,
+    nameOverride: null,
+    // What the app is called with no override: its own baked label.
+    appName: 'Outline',
     domains: [],
     ...over,
   };
@@ -127,6 +130,10 @@ function stubFetch(options: StubOptions = {}) {
     }
     if (url.endsWith('/connection') && method === 'PUT') {
       return Promise.resolve(jsonResponse(200, { appKey: 'clients', connectionId: 'con_2' }));
+    }
+    if (url.endsWith('/name') && method === 'PUT') {
+      const body = JSON.parse(String(init?.body)) as { name: string | null };
+      return Promise.resolve(jsonResponse(200, { appKey: 'clients', name: body.name }));
     }
     if (url.endsWith('/placement') && method === 'PUT') {
       return Promise.resolve(jsonResponse(200, { appKey: 'clients', staff: 'external' }));
@@ -250,6 +257,98 @@ describe('HostedAppsPage', () => {
     });
     expect(await screen.findByText(/take effect within a few seconds/i)).toBeTruthy();
     expect(screen.getByText(/DNS and your proxy/i)).toBeTruthy();
+
+    /*
+     * THE THREE STEPS, asserted individually rather than as one blob.
+     *
+     * Saving is the moment the operator thinks they are finished and are not:
+     * DNS, the proxy reload and the per-host sign-in are all still theirs to do,
+     * and none of them is something this screen can detect or perform. A
+     * mapping with those undone presents as a host that answers NOTHING, with
+     * a perfectly correct mapping sitting behind it — so losing any one of
+     * these lines costs a debugging session, not a nicety. One assertion each,
+     * because a regression that drops a single step should name that step.
+     */
+    expect(screen.getByText(/Point the host at this server in your DNS/i)).toBeTruthy();
+    expect(screen.getByText(/then reload the proxy/i)).toBeTruthy();
+    expect(screen.getByText(/session cookies belong to one host/i)).toBeTruthy();
+  });
+
+  /*
+   * The card had no way out to the docs at all, which is what left its
+   * one-sentence subtitle as the entire guidance for a three-layer setup.
+   */
+  it("renames an app, and offers the app's own name as the placeholder", async () => {
+    /*
+     * The field every app needed and none had: the name is baked into each
+     * bundle, so "Outline" sat in the sidebar of a real business's portal
+     * because that is what the sample was called.
+     *
+     * The PLACEHOLDER is half the feature. Empty means "use what the app
+     * ships", and showing that name greyed out is what says so — pre-filling
+     * it would make the app's own name look like somebody's decision, and the
+     * next save would freeze it there.
+     */
+    const { calls } = await renderPage();
+    await screen.findByRole('heading', { name: 'App names' });
+
+    const field = screen.getByLabelText('Name for clients') as HTMLInputElement;
+    expect(field.value).toBe('');
+    expect(field.getAttribute('placeholder')).toBe('Outline');
+
+    await userEvent.type(field, 'Acme Client Hub');
+    await userEvent.click(screen.getByRole('button', { name: 'Save name' }));
+
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'PUT' && c.url.endsWith('/surfaces/clients/name'))).toBe(
+        true,
+      );
+    });
+    expect(calls.find((c) => c.url.endsWith('/surfaces/clients/name'))?.body).toEqual({
+      name: 'Acme Client Hub',
+    });
+  });
+
+  it('shows ONE name field per app, not one per surface', async () => {
+    // The name belongs to the app; the surfaces list has a row per side. Two
+    // fields for one name is two answers waiting to disagree.
+    await renderPage();
+    await screen.findByRole('heading', { name: 'App names' });
+    expect(screen.getAllByLabelText(/^Name for /)).toHaveLength(1);
+  });
+
+  it('clearing the field sends null, which restores the built-in name', async () => {
+    // Null is an instruction, not an empty value — the server drops the
+    // override rather than storing "".
+    const { calls } = await renderPage({
+      reply: makeReply({
+        surfaces: [makeSurface({ nameOverride: 'Acme Client Hub', appName: 'Acme Client Hub' })],
+      }),
+    });
+    await screen.findByRole('heading', { name: 'App names' });
+
+    const field = screen.getByLabelText('Name for clients') as HTMLInputElement;
+    expect(field.value).toBe('Acme Client Hub');
+    await userEvent.clear(field);
+    await userEvent.click(screen.getByRole('button', { name: 'Save name' }));
+
+    await waitFor(() => {
+      expect(calls.some((c) => c.url.endsWith('/surfaces/clients/name'))).toBe(true);
+    });
+    expect(calls.find((c) => c.url.endsWith('/surfaces/clients/name'))?.body).toEqual({
+      name: null,
+    });
+  });
+
+  it('links to the domain guide, and does so through the docs base', async () => {
+    await renderPage();
+    await screen.findByRole('heading', { name: 'Domains' });
+    const link = screen.getByRole('link', { name: 'How to set up a domain' });
+    expect(link.getAttribute('href')).toBe('https://docs.adminium.dev/self-hosting/app-domains');
+    // Opens away from an unsaved editor, and `noreferrer` is the rule for
+    // every outbound link in the dashboard.
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noreferrer');
   });
 
   it('shows EVERY issue a refused domain map came back with', async () => {

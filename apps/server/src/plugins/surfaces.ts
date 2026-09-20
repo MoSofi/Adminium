@@ -58,9 +58,9 @@ import { AppError, NotFoundError } from '../errors.js';
 import { openPublishableKey } from '../public-api/keys.js';
 import { normalizeHost } from '../security/csrf.js';
 import {
+  appNameOverrideOf,
   connectionForMount,
   type SurfaceSettings,
-  staffConnectionOf,
   createSurfaceSettings,
   domainMappingFor,
   type SurfaceSettingsCache,
@@ -359,7 +359,23 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       slug: string | null,
     ): Promise<Record<string, unknown> | null> {
       const connectionId = connectionForMount(settings, appKey, slug);
-      if (side === 'staff') return { connectionId };
+      /*
+       * WHAT THIS APP IS CALLED, served to the app itself.
+       *
+       * Every app ships its own name baked into its bundle, which made the one
+       * thing an operator most wants to change the one thing they could not:
+       * "Outline" sat in the sidebar of a real business's portal because that
+       * is what the sample was called. The override travels here so the app's
+       * OWN chrome agrees with the sidebar Adminium draws around it.
+       *
+       * Null when the operator has set nothing — the app then keeps the name it
+       * was built with, which it already has and does not need to be told.
+       * Sending the app's own label back to it would be a round trip to learn
+       * something it knows, and would make an old bundle's name outrank its
+       * new one after an upgrade.
+       */
+      const appName = appNameOverrideOf(settings, appKey);
+      if (side === 'staff') return { connectionId, appName };
       const metaDb = opts.metaDb;
       const crypto = opts.crypto;
       if (metaDb === undefined || crypto === undefined) return null;
@@ -376,7 +392,11 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
           ...(slug === null ? {} : { instance: slug }),
         });
       }
-      return { baseUrl: '', publishableKey: openPublishableKey(crypto, key.tokenEncrypted) };
+      return {
+        baseUrl: '',
+        publishableKey: openPublishableKey(crypto, key.tokenEncrypted),
+        appName,
+      };
     }
 
     app.addHook('onRequest', async (request, reply) => {
@@ -560,32 +580,28 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
          */
         const metaDb = opts.metaDb;
         const crypto = opts.crypto;
-        if (surface.side === 'staff') {
+        /*
+         * THROUGH `configFor`, like the other two mounts.
+         *
+         * This used to be a second implementation of the same document, and it
+         * drifted the first time the document grew a field: the instance and
+         * mapped-host paths served the app's name while this one — the plain
+         * `/apps/<key>/<side>/` URL, the one almost every install actually uses
+         * — did not. That is precisely the failure `configFor`'s own comment
+         * describes, so there is now one builder and three callers.
+         *
+         * `null` from it means this server cannot answer (no meta store); the
+         * missing-key case throws from inside, as it always did.
+         */
+        if (surface.side === 'staff' || (metaDb !== undefined && crypto !== undefined)) {
           scope.get(`${surface.prefix}/surface-config.json`, async (_request, reply) => {
             const settings = (await app.surfaceSettings?.read()) ?? { apps: {}, domains: {} };
+            const doc = await configFor(settings, surface.appKey, surface.side, null);
+            if (doc === null) throw new NotFoundError('This surface has no configuration.', {
+              appKey: surface.appKey,
+            });
             void reply.header('cache-control', 'no-store');
-            /*
-             * `null` is a complete answer, not a missing one: it means nobody
-             * has bound this surface and the app should keep inferring. So this
-             * never 404s the way the customer variant does over a missing key —
-             * there is nothing here that has to exist for the app to work.
-             */
-            return { connectionId: staffConnectionOf(settings, surface.appKey) };
-          });
-        }
-
-        if (surface.side === 'customer' && metaDb !== undefined && crypto !== undefined) {
-          scope.get(`${surface.prefix}/surface-config.json`, async (_request, reply) => {
-            const key = await publicKeysRepo(metaDb).newestLiveByApp(surface.appKey, 'customer');
-            if (key === null) {
-              // The standard coded envelope; the app's hard-stop renders it as
-              // the legible "not connected" screen (failure surface).
-              throw new NotFoundError('No live publishable key is bound to this surface.', {
-                appKey: surface.appKey,
-              });
-            }
-            void reply.header('cache-control', 'no-store');
-            return { baseUrl: '', publishableKey: openPublishableKey(crypto, key.tokenEncrypted) };
+            return doc;
           });
         }
 

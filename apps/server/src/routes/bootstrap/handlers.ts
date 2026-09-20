@@ -38,6 +38,7 @@ import { toUserView } from '../auth/handlers.js';
 import { APP_VERSION } from '../../version.js';
 import { resolveLabel, type HostedSurface } from '../../cli/surfaces-root.js';
 import {
+  appNameOf,
   instancesOf,
   staffPlacementOf,
   type SurfaceSettings,
@@ -211,7 +212,10 @@ export function buildHostedApps(
       ...(item.icon === undefined ? {} : { icon: item.icon }),
       ...(item.persona === undefined ? {} : { persona: item.persona }),
     }));
-    const label = resolveLabel(manifest.appLabels, locale);
+    // The operator's name for the app beats the one it was built with, and the
+    // sidebar is the most visible place that has to agree with the app's own
+    // chrome — both resolve through `appNameOf`.
+    const label = appNameOf(settings, surface.appKey, resolveLabel(manifest.appLabels, locale));
     out.push({ appKey: surface.appKey, label, items });
     /*
      * ONE SECTION PER INSTANCE — the shape the dashboard's own pages

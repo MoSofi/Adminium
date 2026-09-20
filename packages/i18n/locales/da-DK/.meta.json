@@ -12571,6 +12571,10 @@
     "status": "mt",
     "srcHash": "8fedc603c5f6"
   },
+  "studio.addOns.browse.needsNewer": {
+    "status": "mt",
+    "srcHash": "9b6dfebd4b15"
+  },
   "studio.addOns.browse.noMatchBody": {
     "status": "mt",
     "srcHash": "5944cf85fd9f"
@@ -14239,6 +14243,10 @@
     "status": "mt",
     "srcHash": "83def9170faa"
   },
+  "studio.hostedApps.domains.docsLink": {
+    "status": "mt",
+    "srcHash": "0c7ec9c66f87"
+  },
   "studio.hostedApps.domains.hostLabel": {
     "status": "mt",
     "srcHash": "3960ec4ca5fb"
@@ -14274,6 +14282,18 @@
   "studio.hostedApps.domains.savedTitle": {
     "status": "mt",
     "srcHash": "c0ae8f6ea841"
+  },
+  "studio.hostedApps.domains.stepDns": {
+    "status": "mt",
+    "srcHash": "bdca3e49cc15"
+  },
+  "studio.hostedApps.domains.stepProxy": {
+    "status": "mt",
+    "srcHash": "bbe79efedce6"
+  },
+  "studio.hostedApps.domains.stepSignIn": {
+    "status": "mt",
+    "srcHash": "2615ee8ecb7b"
   },
   "studio.hostedApps.domains.subtitle": {
     "status": "mt",
@@ -14615,6 +14635,22 @@
     "status": "mt",
     "srcHash": "62f5f6b2e4f2"
   },
+  "studio.hostedApps.names.label": {
+    "status": "mt",
+    "srcHash": "002dea3d3315"
+  },
+  "studio.hostedApps.names.save": {
+    "status": "mt",
+    "srcHash": "8ce686405ae9"
+  },
+  "studio.hostedApps.names.subtitle": {
+    "status": "mt",
+    "srcHash": "9d723f7f8ec3"
+  },
+  "studio.hostedApps.names.title": {
+    "status": "mt",
+    "srcHash": "63593d0d5d43"
+  },
   "studio.hostedApps.subtitle": {
     "status": "mt",
     "srcHash": "b0cd48941807"
@@ -14798,6 +14834,10 @@
   "studio.hub.card.timezoneGuessed": {
     "status": "mt",
     "srcHash": "e1034bec2e2f"
+  },
+  "studio.hub.card.timezoneNone": {
+    "status": "mt",
+    "srcHash": "53e60b439deb"
   },
   "studio.hub.connectNew": {
     "srcHash": "ac979fe42d47",
@@ -19698,6 +19738,30 @@
   "studio.wizard.progress": {
     "srcHash": "1a8adefd3247",
     "status": "mt"
+  },
+  "studio.wizard.startOver.action": {
+    "status": "mt",
+    "srcHash": "51dd91dc98a9"
+  },
+  "studio.wizard.startOver.body": {
+    "status": "mt",
+    "srcHash": "ef07c9e881b4"
+  },
+  "studio.wizard.startOver.bodyCreated": {
+    "status": "mt",
+    "srcHash": "7097cf5a4f64"
+  },
+  "studio.wizard.startOver.confirm": {
+    "status": "mt",
+    "srcHash": "51dd91dc98a9"
+  },
+  "studio.wizard.startOver.keep": {
+    "status": "mt",
+    "srcHash": "6902b083a9c1"
+  },
+  "studio.wizard.startOver.title": {
+    "status": "mt",
+    "srcHash": "20d37506af47"
   },
   "studio.wizard.step.enrich": {
     "srcHash": "2ba569889400",

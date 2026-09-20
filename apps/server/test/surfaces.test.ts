@@ -278,6 +278,30 @@ describe('bootstrap hostedApps', () => {
     ]);
   });
 
+  it("uses the operator's name for the app over the one it was built with", () => {
+    /*
+     * The rename has to reach the SIDEBAR, not just the app. An operator who
+     * renames "Outline" to their own business and still reads "Outline" in
+     * Adminium's own navigation has been given half a feature — and the half
+     * they see most often.
+     *
+     * One string for every locale, unlike the app's own labels: an operator
+     * types one business name, and translating it is not Adminium's to do.
+     */
+    const settings = { apps: { clients: { name: 'Acme Client Hub' } }, domains: {} };
+    expect(buildHostedApps([staffSurface(MANIFEST)], settings, 'en-US')[0]?.label).toBe(
+      'Acme Client Hub',
+    );
+    expect(buildHostedApps([staffSurface(MANIFEST)], settings, 'de-DE')[0]?.label).toBe(
+      'Acme Client Hub',
+    );
+    // The nav ITEMS still follow the reader's locale — only the app's name is
+    // the operator's to fix.
+    expect(buildHostedApps([staffSurface(MANIFEST)], settings, 'de-DE')[0]?.items[0]?.label).toBe(
+      'Start',
+    );
+  });
+
   it('resolves labels to the session locale', () => {
     const apps = buildHostedApps([staffSurface(MANIFEST)], NONE, 'de-DE');
     expect(apps[0]?.label).toBe('Kontur');

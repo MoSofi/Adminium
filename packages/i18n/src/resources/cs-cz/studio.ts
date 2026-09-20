@@ -22,6 +22,7 @@ export default {
       "install": "Install",
       "missing": "Chybí",
       "missingBody": "Jeho soubory na tomto serveru nejsou, takže se z něj nenačte nic.",
+      "needsNewer": "Vyžaduje Adminium {version} nebo novější",
       "noMatchBody": "Tomuto hledání a kategorii neodpovídá žádný doplněk.",
       "noMatchTitle": "Žádná shoda",
       "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
@@ -530,8 +531,32 @@ export default {
     "title": "Vygenerujte svou aplikaci"
   },
   "hostedApps": {
+    "browse": {
+      "title": "Aplikace k instalaci",
+      "subtitle": "Hotové aplikace dodané s tímto buildem. Instalace vytvoří potřebné tabulky a začne servírovat obrazovky — dokud plán nepotvrdíte, nic se nestane.",
+      "search": "Hledat aplikace…",
+      "clear": "Vymazat hledání",
+      "all": "Vše",
+      "by": "od {publisher}",
+      "install": "Nainstalovat",
+      "installed": "Nainstalováno",
+      "missing": "Chybí",
+      "noMatch": "Hledání neodpovídá žádná aplikace",
+      "noMatchBody": "Zkuste jiný výraz nebo jinou kategorii.",
+      "emptyTitle": "Není k dispozici žádná aplikace",
+      "emptyBody": "Aplikace dodané s tímto buildem se objeví zde. Nasměrujte ADMINIUM_BUNDLED_APPS na adresář s balíčky, nebo nějaký nahrajte.",
+      "unreadable": "Manifest tohoto balíčku nelze přečíst. Nelze jej nainstalovat — níže jej zahoďte.",
+      "subtitleOnline": "Aplikace dodané s tímto buildem a k tomu ty z online katalogu. Instalace aplikaci v případě potřeby stáhne a vytvoří potřebné tabulky — dokud plán nepotvrdíte, nic se nestane.",
+      "neverChecked": "Online katalog je zapnutý, ale ještě nebyl zkontrolován. Vyhledejte novinky a zobrazí se jeho aplikace.",
+      "refresh": "Vyhledat novinky",
+      "toggle": "Procházet online katalog aplikací",
+      "emptyOnlineBody": "Online katalog je zapnutý, ale zatím v něm nic není. Vyhledejte novinky a načtěte ho.",
+      "fromCatalog": "Online",
+      "needsNewer": "Vyžaduje Adminium {version} nebo novější"
+    },
     "domains": {
       "add": "Připojit doménu",
+      "docsLink": "Jak nastavit doménu",
       "hostLabel": "Host",
       "instanceLabel": "Instance",
       "instanceOwn": "Samotná aplikace",
@@ -541,6 +566,9 @@ export default {
       "save": "Uložit domény",
       "savedBody": "Přiřazení se projeví během několika sekund. Host odpovídá, až když jeho DNS a váš proxy server tuto instanci skutečně dosáhnou.",
       "savedTitle": "Uloženo",
+      "stepDns": "Nasměrujte hosta na tento server ve svém DNS — stejný typ záznamu a cíl jako u adresy, přes kterou otevíráte tento přehled.",
+      "stepProxy": "Dejte hostovi vlastní blok webu na reverzním proxy serveru, který beze změny předá hlavičku Host — a proxy poté znovu načtěte. Úprava konfiguračního souboru neovlivní už běžící proces.",
+      "stepSignIn": "Personální plochy vyžadují nové přihlášení: cookies relace patří jedinému hostovi, takže přiřazený host vás nejdřív pošle na svou vlastní přihlašovací stránku.",
       "subtitle": "Nasměrujte DNS domény na svůj proxy server, předávejte hlavičku Host do Adminia a připojte ji zde — tento host pak obsluhuje plochu místo tohoto dashboardu. Certifikáty zůstávají na vašem proxy serveru.",
       "surfaceLabel": "Plocha",
       "title": "Domény"
@@ -548,35 +576,6 @@ export default {
     "emptyBody": "Nasměrujte ADMINIUM_SURFACES_DIR na adresář sestavených ploch — složka pro každou aplikaci a stranu, každá se svým index.html — a restartujte. Poté se obsluhují pod /apps/ a objeví se zde.",
     "emptyTitle": "Žádné aplikační plochy se neobsluhují",
     "error": "Něco se pokazilo",
-    "instances": {
-      "add": "Přidat instanci",
-      "appLabel": "Aplikace",
-      "body": "Poskytujte stejnou aplikaci nad více databázemi. Každá instance je dostupná na /apps/<app>/<segment>/<side>/ a čte jen připojení, které jí dáte.",
-      "empty": "Žádné další instance.",
-      "failed": "Instance se nepodařilo uložit",
-      "readsLabel": "Čte",
-      "remove": "Odebrat",
-      "save": "Uložit instance",
-      "slugLabel": "Segment URL",
-      "title": "Instance"
-    },
-    "subtitle": "Aplikační plochy, které tato instance obsluhuje — kde se každá zobrazuje a které domény na ně míří.",
-    "surfaces": {
-      "boundKey": "Obsluhuje klíč",
-      "connectionLabel": "Čte",
-      "connectionUnset": "Kterékoli aktivní",
-      "customer": "Zákazník",
-      "mintLink": "Vytvořit ve Veřejném API",
-      "noKey": "Není navázán žádný klíč — dokud se pro tuto plochu nevytvoří, nemůže číst data.",
-      "noNav": "Interní umístění není dostupné — sestavte tuto plochu znovu aktuálním toolkitem, aby vydávala surface.json.",
-      "placementExternal": "Externí (jen vlastní URL)",
-      "placementInternal": "V bočním panelu (vsazená)",
-      "placementLabel": "Umístění",
-      "staff": "Tým",
-      "subtitle": "Plocha pro tým se může vsadit do bočního panelu tohoto dashboardu, nebo stát samostatně; zákaznická plocha je veřejná a čte přes svůj navázaný klíč.",
-      "title": "Plochy"
-    },
-    "title": "Hostované aplikace",
     "install": {
       "steps": {
         "bundle": "Balíček",
@@ -662,28 +661,17 @@ export default {
       "missingBody": "Její soubory na tomto serveru nejsou, takže se neservíruje. Nainstalujte stejnou verzi znovu, nebo ji odinstalujte.",
       "update": "Aktualizovat"
     },
-    "browse": {
-      "title": "Aplikace k instalaci",
-      "subtitle": "Hotové aplikace dodané s tímto buildem. Instalace vytvoří potřebné tabulky a začne servírovat obrazovky — dokud plán nepotvrdíte, nic se nestane.",
-      "search": "Hledat aplikace…",
-      "clear": "Vymazat hledání",
-      "all": "Vše",
-      "by": "od {publisher}",
-      "install": "Nainstalovat",
-      "installed": "Nainstalováno",
-      "missing": "Chybí",
-      "noMatch": "Hledání neodpovídá žádná aplikace",
-      "noMatchBody": "Zkuste jiný výraz nebo jinou kategorii.",
-      "emptyTitle": "Není k dispozici žádná aplikace",
-      "emptyBody": "Aplikace dodané s tímto buildem se objeví zde. Nasměrujte ADMINIUM_BUNDLED_APPS na adresář s balíčky, nebo nějaký nahrajte.",
-      "unreadable": "Manifest tohoto balíčku nelze přečíst. Nelze jej nainstalovat — níže jej zahoďte.",
-      "subtitleOnline": "Aplikace dodané s tímto buildem a k tomu ty z online katalogu. Instalace aplikaci v případě potřeby stáhne a vytvoří potřebné tabulky — dokud plán nepotvrdíte, nic se nestane.",
-      "neverChecked": "Online katalog je zapnutý, ale ještě nebyl zkontrolován. Vyhledejte novinky a zobrazí se jeho aplikace.",
-      "refresh": "Vyhledat novinky",
-      "toggle": "Procházet online katalog aplikací",
-      "emptyOnlineBody": "Online katalog je zapnutý, ale zatím v něm nic není. Vyhledejte novinky a načtěte ho.",
-      "fromCatalog": "Online",
-      "needsNewer": "Vyžaduje Adminium {version} nebo novější"
+    "instances": {
+      "add": "Přidat instanci",
+      "appLabel": "Aplikace",
+      "body": "Poskytujte stejnou aplikaci nad více databázemi. Každá instance je dostupná na /apps/<app>/<segment>/<side>/ a čte jen připojení, které jí dáte.",
+      "empty": "Žádné další instance.",
+      "failed": "Instance se nepodařilo uložit",
+      "readsLabel": "Čte",
+      "remove": "Odebrat",
+      "save": "Uložit instance",
+      "slugLabel": "Segment URL",
+      "title": "Instance"
     },
     "job": {
       "refreshTitle": "Kontrola online katalogu aplikací",
@@ -691,6 +679,29 @@ export default {
       "body": "Stahování a ověřování. Nic se nenainstaluje ani nezmění, dokud to neschválíte.",
       "failed": "Úloha nebyla dokončena. Nic se nenainstalovalo ani nezměnilo."
     },
+    "names": {
+      "label": "Název pro {app}",
+      "save": "Uložit název",
+      "subtitle": "Jak se která aplikace jmenuje — na svých vlastních obrazovkách i v postranním panelu tohoto přehledu. Nechte prázdné, chcete-li použít název, se kterým byla aplikace sestavena.",
+      "title": "Názvy aplikací"
+    },
+    "subtitle": "Aplikační plochy, které tato instance obsluhuje — kde se každá zobrazuje a které domény na ně míří.",
+    "surfaces": {
+      "boundKey": "Obsluhuje klíč",
+      "connectionLabel": "Čte",
+      "connectionUnset": "Kterékoli aktivní",
+      "customer": "Zákazník",
+      "mintLink": "Vytvořit ve Veřejném API",
+      "noKey": "Není navázán žádný klíč — dokud se pro tuto plochu nevytvoří, nemůže číst data.",
+      "noNav": "Interní umístění není dostupné — sestavte tuto plochu znovu aktuálním toolkitem, aby vydávala surface.json.",
+      "placementExternal": "Externí (jen vlastní URL)",
+      "placementInternal": "V bočním panelu (vsazená)",
+      "placementLabel": "Umístění",
+      "staff": "Tým",
+      "subtitle": "Plocha pro tým se může vsadit do bočního panelu tohoto dashboardu, nebo stát samostatně; zákaznická plocha je veřejná a čte přes svůj navázaný klíč.",
+      "title": "Plochy"
+    },
+    "title": "Hostované aplikace",
     "update": {
       "title": "Aktualizovat {app} na v{version}",
       "subtitle": "Tato verze potřebuje tabulky, které nainstalovaná verze neměla.",
@@ -730,7 +741,8 @@ export default {
       "readOnly": "Jen pro čtení",
       "tables": "Tabulky",
       "timezone": "Časové pásmo",
-      "timezoneGuessed": "z tohoto serveru"
+      "timezoneGuessed": "z tohoto serveru",
+      "timezoneNone": "nenastaveno — data se zobrazují v {zone}, což je pásmo tohoto serveru"
     },
     "connectNew": "Nové připojení",
     "delete": {
@@ -2312,6 +2324,14 @@ export default {
     "persistFailed": "Výběr tabulek se nepodařilo uložit — zkuste to znovu.",
     "persistFailedTitle": "Uložení se nezdařilo",
     "progress": "Průběh nastavení",
+    "startOver": {
+      "action": "Začít znovu",
+      "body": "Vše zde zadané se smaže a průvodce se vrátí na první krok.",
+      "bodyCreated": "Vše zde zadané se smaže a průvodce se vrátí na první krok. Připojení, které už Adminium vytvořilo, se nesmaže — zůstane v Datových připojeních.",
+      "confirm": "Začít znovu",
+      "keep": "Pokračovat",
+      "title": "Začít tohoto průvodce znovu?"
+    },
     "step": {
       "enrich": "Obohatit",
       "generate": "Generovat",

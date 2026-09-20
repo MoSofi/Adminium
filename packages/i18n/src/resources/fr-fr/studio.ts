@@ -22,6 +22,7 @@ export default {
       "install": "Installer",
       "missing": "Introuvable",
       "missingBody": "Ses fichiers ne sont pas sur ce serveur, rien n'en est donc chargé.",
+      "needsNewer": "Nécessite Adminium {version} ou plus récent",
       "noMatchBody": "Aucun module ne correspond à cette recherche et à cette catégorie.",
       "noMatchTitle": "Aucun résultat",
       "offline": "Affiche les modules livrés avec cette version. La navigation en ligne est désactivée et rien ici n’a contacté Internet.",
@@ -530,8 +531,32 @@ export default {
     "title": "Générez votre application"
   },
   "hostedApps": {
+    "browse": {
+      "title": "Applications installables",
+      "subtitle": "Des applications prêtes à l’emploi livrées avec cette version. En installer une crée les tables nécessaires et sert ses écrans — rien ne se passe avant que vous confirmiez le plan.",
+      "search": "Rechercher des applications…",
+      "clear": "Effacer la recherche",
+      "all": "Toutes",
+      "by": "par {publisher}",
+      "install": "Installer",
+      "installed": "Installée",
+      "missing": "Introuvable",
+      "noMatch": "Aucune application ne correspond",
+      "noMatchBody": "Essayez un autre terme, ou une autre catégorie.",
+      "emptyTitle": "Aucune application à installer",
+      "emptyBody": "Les applications livrées avec cette version apparaissent ici. Faites pointer ADMINIUM_BUNDLED_APPS vers un dossier de paquets, ou téléversez-en un.",
+      "unreadable": "Le manifeste de ce paquet n’a pas pu être lu. Il ne peut pas être installé — écartez-le ci-dessous.",
+      "subtitleOnline": "Les applications livrées avec cette version, plus celles du catalogue en ligne. En installer une la télécharge si besoin et crée les tables nécessaires — rien ne se passe avant que vous confirmiez le plan.",
+      "neverChecked": "Le catalogue en ligne est activé mais n’a pas encore été consulté. Recherchez des nouveautés pour afficher ses applications.",
+      "refresh": "Rechercher des nouveautés",
+      "toggle": "Parcourir le catalogue d’applications en ligne",
+      "emptyOnlineBody": "Le catalogue en ligne est activé, mais rien n’est encore listé. Recherchez des nouveautés pour le récupérer.",
+      "fromCatalog": "En ligne",
+      "needsNewer": "Nécessite Adminium {version} ou plus récent"
+    },
     "domains": {
       "add": "Attacher un domaine",
+      "docsLink": "Comment configurer un domaine",
       "hostLabel": "Hôte",
       "instanceLabel": "Instance",
       "instanceOwn": "L'application elle-même",
@@ -541,6 +566,9 @@ export default {
       "save": "Enregistrer les domaines",
       "savedBody": "Les attributions prennent effet en quelques secondes. Un hôte ne répond que lorsque son DNS et votre proxy atteignent réellement cette instance.",
       "savedTitle": "Enregistré",
+      "stepDns": "Dirigez l’hôte vers ce serveur dans votre DNS — même type d’enregistrement et même cible que l’adresse par laquelle vous accédez à ce tableau de bord.",
+      "stepProxy": "Donnez à l’hôte son propre bloc de site sur votre proxy inverse, en transmettant l’en-tête Host tel quel — puis rechargez le proxy. Modifier son fichier de configuration ne change rien à un processus déjà en cours d’exécution.",
+      "stepSignIn": "Les surfaces personnel demandent une nouvelle connexion : les cookies de session appartiennent à un seul hôte, donc un hôte attribué vous envoie d’abord vers sa propre page de connexion.",
       "subtitle": "Pointez le DNS d’un domaine vers votre proxy, transmettez l’en-tête Host à Adminium, puis attachez-le ici — cet hôte sert alors la surface au lieu de ce tableau de bord. Les certificats restent sur votre proxy.",
       "surfaceLabel": "Surface",
       "title": "Domaines"
@@ -548,35 +576,6 @@ export default {
     "emptyBody": "Pointez ADMINIUM_SURFACES_DIR vers un répertoire de surfaces compilées — un dossier par app et par côté, chacun avec son index.html — puis redémarrez. Elles sont alors servies sous /apps/ et apparaissent ici.",
     "emptyTitle": "Aucune surface d’app n’est servie",
     "error": "Un problème est survenu",
-    "instances": {
-      "add": "Ajouter une instance",
-      "appLabel": "Application",
-      "body": "Servir la même application sur plusieurs bases. Chaque instance est accessible à /apps/<app>/<segment>/<side>/ et ne lit que la connexion que vous lui donnez.",
-      "empty": "Aucune instance supplémentaire.",
-      "failed": "Les instances n'ont pas été enregistrées",
-      "readsLabel": "Lit",
-      "remove": "Retirer",
-      "save": "Enregistrer les instances",
-      "slugLabel": "Segment d'URL",
-      "title": "Instances"
-    },
-    "subtitle": "Les surfaces d’app que cette instance sert — où chacune apparaît, et les domaines qui pointent vers elles.",
-    "surfaces": {
-      "boundKey": "Sert la clé",
-      "connectionLabel": "Lit",
-      "connectionUnset": "Celle qui est active",
-      "customer": "Client",
-      "mintLink": "En créer une sous API publique",
-      "noKey": "Aucune clé liée — cette surface ne peut pas lire de données tant qu’une clé n’est pas créée pour elle.",
-      "noNav": "Placement interne indisponible — recompilez cette surface avec le toolkit actuel pour qu’elle émette surface.json.",
-      "placementExternal": "Externe (URL propre uniquement)",
-      "placementInternal": "Dans la barre latérale (fondue)",
-      "placementLabel": "Placement",
-      "staff": "Équipe",
-      "subtitle": "Une surface équipe peut se fondre dans la barre latérale de ce tableau de bord ou rester autonome ; une surface client est publique et lit via sa clé liée.",
-      "title": "Surfaces"
-    },
-    "title": "Apps hébergées",
     "install": {
       "steps": {
         "bundle": "Paquet",
@@ -662,28 +661,17 @@ export default {
       "missingBody": "Ses fichiers ne sont pas sur ce serveur, elle n'est donc pas servie. Réinstallez la même version, ou désinstallez-la.",
       "update": "Mettre à jour"
     },
-    "browse": {
-      "title": "Applications installables",
-      "subtitle": "Des applications prêtes à l’emploi livrées avec cette version. En installer une crée les tables nécessaires et sert ses écrans — rien ne se passe avant que vous confirmiez le plan.",
-      "search": "Rechercher des applications…",
-      "clear": "Effacer la recherche",
-      "all": "Toutes",
-      "by": "par {publisher}",
-      "install": "Installer",
-      "installed": "Installée",
-      "missing": "Introuvable",
-      "noMatch": "Aucune application ne correspond",
-      "noMatchBody": "Essayez un autre terme, ou une autre catégorie.",
-      "emptyTitle": "Aucune application à installer",
-      "emptyBody": "Les applications livrées avec cette version apparaissent ici. Faites pointer ADMINIUM_BUNDLED_APPS vers un dossier de paquets, ou téléversez-en un.",
-      "unreadable": "Le manifeste de ce paquet n’a pas pu être lu. Il ne peut pas être installé — écartez-le ci-dessous.",
-      "subtitleOnline": "Les applications livrées avec cette version, plus celles du catalogue en ligne. En installer une la télécharge si besoin et crée les tables nécessaires — rien ne se passe avant que vous confirmiez le plan.",
-      "neverChecked": "Le catalogue en ligne est activé mais n’a pas encore été consulté. Recherchez des nouveautés pour afficher ses applications.",
-      "refresh": "Rechercher des nouveautés",
-      "toggle": "Parcourir le catalogue d’applications en ligne",
-      "emptyOnlineBody": "Le catalogue en ligne est activé, mais rien n’est encore listé. Recherchez des nouveautés pour le récupérer.",
-      "fromCatalog": "En ligne",
-      "needsNewer": "Nécessite Adminium {version} ou plus récent"
+    "instances": {
+      "add": "Ajouter une instance",
+      "appLabel": "Application",
+      "body": "Servir la même application sur plusieurs bases. Chaque instance est accessible à /apps/<app>/<segment>/<side>/ et ne lit que la connexion que vous lui donnez.",
+      "empty": "Aucune instance supplémentaire.",
+      "failed": "Les instances n'ont pas été enregistrées",
+      "readsLabel": "Lit",
+      "remove": "Retirer",
+      "save": "Enregistrer les instances",
+      "slugLabel": "Segment d'URL",
+      "title": "Instances"
     },
     "job": {
       "refreshTitle": "Consultation du catalogue d’applications en ligne",
@@ -691,6 +679,29 @@ export default {
       "body": "Récupération et vérification. Rien n’est installé ni modifié sans votre accord.",
       "failed": "La tâche ne s’est pas terminée. Rien n’a été installé ni modifié."
     },
+    "names": {
+      "label": "Nom pour {app}",
+      "save": "Enregistrer le nom",
+      "subtitle": "Le nom de chaque application — dans ses propres écrans et dans la barre latérale de ce tableau de bord. Laissez vide pour utiliser le nom avec lequel l’application a été créée.",
+      "title": "Noms des applications"
+    },
+    "subtitle": "Les surfaces d’app que cette instance sert — où chacune apparaît, et les domaines qui pointent vers elles.",
+    "surfaces": {
+      "boundKey": "Sert la clé",
+      "connectionLabel": "Lit",
+      "connectionUnset": "Celle qui est active",
+      "customer": "Client",
+      "mintLink": "En créer une sous API publique",
+      "noKey": "Aucune clé liée — cette surface ne peut pas lire de données tant qu’une clé n’est pas créée pour elle.",
+      "noNav": "Placement interne indisponible — recompilez cette surface avec le toolkit actuel pour qu’elle émette surface.json.",
+      "placementExternal": "Externe (URL propre uniquement)",
+      "placementInternal": "Dans la barre latérale (fondue)",
+      "placementLabel": "Placement",
+      "staff": "Équipe",
+      "subtitle": "Une surface équipe peut se fondre dans la barre latérale de ce tableau de bord ou rester autonome ; une surface client est publique et lit via sa clé liée.",
+      "title": "Surfaces"
+    },
+    "title": "Apps hébergées",
     "update": {
       "title": "Mettre à jour {app} vers v{version}",
       "subtitle": "Cette version a besoin de tables que la version installée n’avait pas.",
@@ -730,7 +741,8 @@ export default {
       "readOnly": "Lecture seule",
       "tables": "Tables",
       "timezone": "Fuseau horaire",
-      "timezoneGuessed": "depuis ce serveur"
+      "timezoneGuessed": "depuis ce serveur",
+      "timezoneNone": "non défini — les dates s’affichent en {zone}, le fuseau de ce serveur"
     },
     "connectNew": "Nouvelle connexion",
     "delete": {
@@ -2312,6 +2324,14 @@ export default {
     "persistFailed": "Impossible d’enregistrer votre sélection de tables — réessayez.",
     "persistFailedTitle": "Échec de l’enregistrement",
     "progress": "Progression de la configuration",
+    "startOver": {
+      "action": "Recommencer",
+      "body": "Tout ce qui a été saisi ici est effacé et l’assistant revient à la première étape.",
+      "bodyCreated": "Tout ce qui a été saisi ici est effacé et l’assistant revient à la première étape. La connexion déjà créée par Adminium n’est pas supprimée — elle reste dans « Connexions de données ».",
+      "confirm": "Recommencer",
+      "keep": "Continuer",
+      "title": "Recommencer cet assistant ?"
+    },
     "step": {
       "enrich": "Enrichir",
       "generate": "Générer",

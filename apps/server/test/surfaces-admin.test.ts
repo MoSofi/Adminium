@@ -168,6 +168,10 @@ describe('GET /api/v1/surfaces', () => {
         staffPlacement: 'internal',
         connectionId: null,
         boundKey: null,
+        // No override set, so the name falls through to the app's own label
+        // from the fixture's surface.json.
+        nameOverride: null,
+        appName: expect.any(String),
         domains: [],
       },
       {
@@ -179,6 +183,10 @@ describe('GET /api/v1/surfaces', () => {
         staffPlacement: null,
         connectionId: null,
         boundKey: { id: expect.any(String), name: 'portal key', prefix: generated.prefix },
+        nameOverride: null,
+        // This side's build emitted no surface.json, so the fallback chain
+        // reaches its last link: the app key.
+        appName: 'clients',
         domains: ['shop.example.test'],
       },
     ]);
@@ -285,6 +293,127 @@ describe('PUT /api/v1/surfaces/:appKey/connection', () => {
       .where('action', '=', 'surfaces.connection')
       .execute();
     expect(audit).toHaveLength(1);
+  });
+
+  it('renames an app, serves the new name to the app and the sidebar, and audits it', async () => {
+    /*
+     * The end-to-end shape of the rename, because the name has THREE readers
+     * and a fix that reached only one is the bug this closes: the app's own
+     * chrome (`surface-config.json`), the dashboard sidebar (`/bootstrap`) and
+     * the Studio row. An operator who renames an app and still sees "Outline"
+     * in the sidebar has not been given what they asked for.
+     */
+    const { app, fixture } = await build();
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/surfaces/clients/name',
+      headers: asUser(fixture.admin),
+      payload: { name: 'Acme Client Hub' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ appKey: 'clients', name: 'Acme Client Hub' });
+
+    // 1. The Studio row, which shows the override and what it falls back to.
+    // (The third reader, `surface-config.json`, is asserted in
+    // surfaces-domains.test.ts — this app registers only the admin routes.)
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/v1/surfaces',
+      headers: asUser(fixture.admin),
+    });
+    const staff = list.json().surfaces.find(
+      (s: { appKey: string; side: string }) => s.appKey === 'clients' && s.side === 'staff',
+    );
+    expect(staff.nameOverride).toBe('Acme Client Hub');
+    expect(staff.appName).toBe('Acme Client Hub');
+
+    // (The sidebar section is asserted against `buildHostedApps` in
+    // surfaces.test.ts, and the served config in surfaces-domains.test.ts —
+    // this app registers neither route.)
+
+    const audit = await fixture.meta.db
+      .selectFrom('adminium_audit_log')
+      .selectAll()
+      .where('action', '=', 'surfaces.name')
+      .execute();
+    expect(audit).toHaveLength(1);
+  });
+
+  it('clearing the name restores the name the app was built with', async () => {
+    /*
+     * Null is an instruction, not an empty value. Nothing stores a copy of the
+     * app's own label, so clearing has to reach back through to the bundle —
+     * and the sidebar has to follow, or an operator who undoes a rename is
+     * stuck with it.
+     */
+    const { app, fixture } = await build();
+    const rename = async (name: string | null) =>
+      app.inject({
+        method: 'PUT',
+        url: '/api/v1/surfaces/clients/name',
+        headers: asUser(fixture.admin),
+        payload: { name },
+      });
+
+    await rename('Acme Client Hub');
+    const cleared = await rename(null);
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json()).toEqual({ appKey: 'clients', name: null });
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/v1/surfaces',
+      headers: asUser(fixture.admin),
+    });
+    const staff = list.json().surfaces.find(
+      (s: { appKey: string; side: string }) => s.appKey === 'clients' && s.side === 'staff',
+    );
+    expect(staff.nameOverride).toBeNull();
+    // Back to the fixture's own label, not the key and not the cleared value.
+    expect(staff.appName).not.toBe('Acme Client Hub');
+  });
+
+  it('a rename leaves the placement and connection stored beside it alone', async () => {
+    // One record holds all three. A rename that clobbered the placement would
+    // take a blended app out of the sidebar as a side effect of naming it.
+    const { app, fixture } = await build();
+    const conn = await connectionsRepo(fixture.meta, dsnCryptoFromSecret(makeEnv().ADMINIUM_SECRET)).create({
+      name: 'clients db',
+      engine: 'postgres',
+      introspectDsn: 'postgres://ro:s@db/clients',
+    });
+    await app.inject({
+      method: 'PUT',
+      url: '/api/v1/surfaces/clients/connection',
+      headers: asUser(fixture.admin),
+      payload: { connectionId: conn.id },
+    });
+    await app.inject({
+      method: 'PUT',
+      url: '/api/v1/surfaces/clients/placement',
+      headers: asUser(fixture.admin),
+      payload: { staff: 'external' },
+    });
+
+    await app.inject({
+      method: 'PUT',
+      url: '/api/v1/surfaces/clients/name',
+      headers: asUser(fixture.admin),
+      payload: { name: 'Acme Client Hub' },
+    });
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/v1/surfaces',
+      headers: asUser(fixture.admin),
+    });
+    const staff = list.json().surfaces.find(
+      (s: { appKey: string; side: string }) => s.appKey === 'clients' && s.side === 'staff',
+    );
+    expect(staff.connectionId).toBe(conn.id);
+    expect(staff.staffPlacement).toBe('external');
+    expect(staff.nameOverride).toBe('Acme Client Hub');
   });
 
   it('leaves the placement stored beside it alone', async () => {

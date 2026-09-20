@@ -42,6 +42,8 @@ export interface SurfaceSettings {
     string,
     {
       staff?: StaffPlacement | undefined;
+      /** The operator's own name for the app; absent means "use the app's own". */
+      name?: string | undefined;
       connectionId?: string | undefined;
       /** Extra tenants of the same app, each at `/apps/<key>/<slug>/<side>/`. */
       instances?: { slug: string; connectionId: string }[] | undefined;
@@ -141,6 +143,46 @@ export function staffPlacementOf(settings: SurfaceSettings, appKey: string): Sta
  */
 export function staffConnectionOf(settings: SurfaceSettings, appKey: string): string | null {
   return settings.apps[appKey]?.connectionId ?? null;
+}
+
+/**
+ * The operator's own name for an app, or null when they have not set one.
+ *
+ * Null is not a missing value to be filled in — it is the live instruction
+ * "keep using whatever the app calls itself", which is why nothing seeds this
+ * from the app's label. A seeded copy would look identical on screen and then
+ * quietly stop tracking the app's own name the first time a new version
+ * shipped with a different one.
+ */
+export function appNameOverrideOf(settings: SurfaceSettings, appKey: string): string | null {
+  return settings.apps[appKey]?.name ?? null;
+}
+
+/**
+ * What an app is CALLED, for one locale — the single answer every surface,
+ * sidebar and Studio row resolves through.
+ *
+ * Three sources in strict order, and the order is the whole point:
+ *
+ *   1. the operator's override, which is a decision and beats everything;
+ *   2. the app's own label for this locale, from the `surface.json` its build
+ *      emitted;
+ *   3. the app key, so a surface built by a toolkit too old to emit labels
+ *      still renders a name rather than an empty heading.
+ *
+ * ONE FUNCTION because three callers need the same answer — the dashboard
+ * sidebar, the Studio row and the `surface-config.json` the app itself reads.
+ * Three copies of this precedence is three chances for the sidebar to disagree
+ * with the app's own header about what the app is called.
+ */
+export function appNameOf(
+  settings: SurfaceSettings,
+  appKey: string,
+  ownLabel: string | null,
+): string {
+  const override = appNameOverrideOf(settings, appKey);
+  if (override !== null) return override;
+  return ownLabel !== null && ownLabel !== '' ? ownLabel : appKey;
 }
 
 /** Extra instances declared for an app, in declaration order. Never null. */

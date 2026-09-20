@@ -23,7 +23,7 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
-import { AppWindow, Globe2, PanelsTopLeft } from 'lucide-react';
+import { AppWindow, Globe2, PanelsTopLeft, Tag } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -40,6 +40,7 @@ import {
 
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
+import { docsUrl } from '../../kb/docsLinks.js';
 import { t } from '../../i18n/t.js';
 import {
   SURFACES_QUERY_KEY,
@@ -47,6 +48,7 @@ import {
   domainsFromRows,
   rowsFromDomains,
   saveSurfaceDomains,
+  setAppName,
   instancesFromRows,
   rowsFromInstances,
   saveSurfaceInstances,
@@ -199,6 +201,16 @@ export function HostedAppsPage() {
           }}
           onConnection={(appKey, connectionId) => {
             void run(() => setStaffConnection(appKey, connectionId));
+          }}
+        />
+      )}
+
+      {data.surfaces.length > 0 && (
+        <AppNamesCard
+          surfaces={data.surfaces}
+          busy={busy}
+          onSave={(appKey, name) => {
+            void run(() => setAppName(appKey, name));
           }}
         />
       )}
@@ -390,6 +402,107 @@ function SurfacesCard({
               )}
             </li>
           ))}
+        </ul>
+      </CardBody>
+    </Card>
+  );
+}
+
+/* ---------------------------------------------------------- the app names */
+
+/**
+ * WHAT THE OPERATOR CALLS EACH APP.
+ *
+ * Its own card, and one row per APP rather than per surface, because the name
+ * belongs to the app and the surfaces list has a row per side — an editable
+ * name on each would be the same field twice, disagreeing the moment one was
+ * saved.
+ *
+ * Every app ships a name baked into its bundle ("Outline", "Wren House"). That
+ * is a fine default and a poor permanent answer: it is the business's name, and
+ * rebuilding a bundle to change a word is not something an operator can do.
+ *
+ * EMPTY MEANS "use the app's own", shown as the placeholder rather than
+ * pre-filled. Pre-filling would make the app's name look like a decision
+ * somebody made, and the next save would freeze it — so the app would stop
+ * tracking its own name across upgrades without anyone choosing that.
+ */
+function AppNamesCard({
+  surfaces,
+  busy,
+  onSave,
+}: {
+  surfaces: SurfaceSummaryDto[];
+  busy: boolean;
+  onSave: (appKey: string, name: string | null) => void;
+}) {
+  // One entry per app, in discovery order; the staff row wins where both exist
+  // only because it comes first — either carries the same name.
+  const apps = new Map<string, SurfaceSummaryDto>();
+  for (const surface of surfaces) if (!apps.has(surface.appKey)) apps.set(surface.appKey, surface);
+
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const draftFor = (surface: SurfaceSummaryDto): string =>
+    drafts[surface.appKey] ?? surface.nameOverride ?? '';
+
+  return (
+    <Card>
+      <CardHeader className="flex items-start justify-start gap-3">
+        <IconTile tone="accent" size="md" icon={<Tag />} />
+        <div>
+          <h2 className="text-section text-fg">
+            {t('studio:hostedApps.names.title', 'App names')}
+          </h2>
+          <p className="text-sm text-fg-muted">
+            {t(
+              'studio:hostedApps.names.subtitle',
+              'What each app is called — in its own screens and in this dashboard’s sidebar. Leave it empty to use the name the app was built with.',
+            )}
+          </p>
+        </div>
+      </CardHeader>
+      <CardBody>
+        <ul className="flex flex-col gap-3">
+          {[...apps.values()].map((surface) => {
+            const draft = draftFor(surface);
+            const trimmed = draft.trim();
+            const next = trimmed === '' ? null : trimmed;
+            return (
+              <li
+                key={surface.appKey}
+                className="flex flex-wrap items-end gap-3"
+              >
+                <FormField
+                  label={t('studio:hostedApps.names.label', 'Name for {app}', {
+                    app: surface.appKey,
+                  })}
+                  className="min-w-64 flex-1"
+                >
+                  <Input
+                    value={draft}
+                    // The app's own name, so the field reads as "this is what
+                    // you get if you leave it alone" rather than as blank.
+                    placeholder={surface.appName}
+                    maxLength={60}
+                    onChange={(event) => {
+                      setDrafts((current) => ({
+                        ...current,
+                        [surface.appKey]: event.target.value,
+                      }));
+                    }}
+                  />
+                </FormField>
+                <Button
+                  disabled={busy || next === surface.nameOverride}
+                  onClick={() => {
+                    onSave(surface.appKey, next);
+                  }}
+                >
+                  {t('studio:hostedApps.names.save', 'Save name')}
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       </CardBody>
     </Card>
@@ -589,6 +702,20 @@ function DomainsCard({
               'Point a domain’s DNS at your proxy, pass the Host header through to Adminium, and attach it here — that host then serves the surface instead of this dashboard. Certificates stay on your proxy.',
             )}
           </p>
+          {/*
+            The procedure lives in the docs and did not used to be reachable
+            from here, which left the subtitle above as the whole of the
+            guidance. Resolved through `docsUrl` so a self-hoster pointing at
+            their own mirror changes one file (kb/docsLinks.ts).
+          */}
+          <a
+            className="mt-1 inline-block text-body-sm text-accent underline"
+            href={docsUrl('self-hosting/app-domains')}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t('studio:hostedApps.domains.docsLink', 'How to set up a domain')}
+          </a>
         </div>
       </CardHeader>
       <CardBody className="flex flex-col gap-4">
@@ -606,10 +733,46 @@ function DomainsCard({
         )}
         {savedNote && (
           <Alert tone="info" title={t('studio:hostedApps.domains.savedTitle', 'Saved')}>
-            {t(
-              'studio:hostedApps.domains.savedBody',
-              'Mappings take effect within a few seconds. A host only answers once its DNS and your proxy actually reach this instance.',
-            )}
+            <p>
+              {t(
+                'studio:hostedApps.domains.savedBody',
+                'Mappings take effect within a few seconds. A host only answers once its DNS and your proxy actually reach this instance.',
+              )}
+            </p>
+            {/*
+              THE THREE STEPS THIS SCREEN CANNOT DO FOR YOU, named at the moment
+              they become the operator's next move.
+
+              Saving a mapping looks finished and is not: DNS and TLS are the
+              operator's, and Adminium states the prerequisite rather than
+              probing it. Without this list the card's own subtitle is
+              the only guidance, and the failure it leads to is silent — a host
+              that answers nothing, with a correct mapping behind it.
+
+              Ordered because the order matters: an ACME challenge cannot
+              succeed before the name resolves, so a proxy reloaded first just
+              fails and retries.
+            */}
+            <ol className="mt-2 flex list-decimal flex-col gap-1 ps-5">
+              <li>
+                {t(
+                  'studio:hostedApps.domains.stepDns',
+                  'Point the host at this server in your DNS — the same record type and target as the address you use for this dashboard.',
+                )}
+              </li>
+              <li>
+                {t(
+                  'studio:hostedApps.domains.stepProxy',
+                  'Give the host its own site block on your reverse proxy, passing the Host header through unchanged — then reload the proxy. Editing its config file does not change a process that is already running.',
+                )}
+              </li>
+              <li>
+                {t(
+                  'studio:hostedApps.domains.stepSignIn',
+                  'Staff surfaces ask you to sign in again: session cookies belong to one host, so a mapped host sends you to its own login page first.',
+                )}
+              </li>
+            </ol>
           </Alert>
         )}
 

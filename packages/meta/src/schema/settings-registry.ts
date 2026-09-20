@@ -268,6 +268,21 @@ export const SETTINGS_REGISTRY = {
    * and slugs, so refusing those two names as slugs makes the ambiguity
    * impossible rather than merely unlikely.
    *
+   * `name` is what the operator CALLS this app, overriding the name the app
+   * was built with. Every app ships its own — "Outline", "Wren House" — baked
+   * into its bundle as an i18n string and emitted into `surface.json` in all
+   * eight locales. That is a fine default and a poor permanent answer: the
+   * name belongs to the business running the app, not to the sample it was
+   * shipped as, and rebuilding a bundle to change a word is not something an
+   * operator can do.
+   *
+   * ONE STRING, NOT EIGHT. The app's own labels are localized because the app
+   * ships them; this one is typed by an operator who has one name for their
+   * business and uses it in every language. Absent means "use what the app
+   * ships", which is why it is optional rather than seeded with the app's
+   * label — a stored copy would silently stop tracking the app's own name
+   * across upgrades.
+   *
    * `surfaces.domains` — `host → {appKey, side}`. A request whose `Host`
    * matches serves that surface at `/` instead of the dashboard.
    *
@@ -286,6 +301,7 @@ export const SETTINGS_REGISTRY = {
       string,
       {
         staff?: 'internal' | 'external' | undefined;
+        name?: string | undefined;
         connectionId?: string | undefined;
         instances?: { slug: string; connectionId: string }[] | undefined;
       }
@@ -295,6 +311,7 @@ export const SETTINGS_REGISTRY = {
       z.string(),
       z.object({
         staff: z.enum(['internal', 'external']).optional(),
+        name: z.string().trim().min(1).max(60).optional(),
         connectionId: z.string().min(1).optional(),
         instances: z
           .array(
@@ -312,7 +329,7 @@ export const SETTINGS_REGISTRY = {
       }),
     ),
     {},
-    'Per-app surface placement, connection binding and extra instances',
+    'Per-app surface placement, display name, connection binding and extra instances',
   ),
   'surfaces.domains': def<
     Record<string, { appKey: string; side: 'staff' | 'customer'; instance?: string | undefined }>

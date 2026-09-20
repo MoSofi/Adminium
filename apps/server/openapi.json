@@ -4177,6 +4177,9 @@
                               }
                             ]
                           },
+                          "serverTimezone": {
+                            "type": "string"
+                          },
                           "currency": {
                             "anyOf": [
                               {
@@ -4294,6 +4297,7 @@
                           "lastErrorHint",
                           "timezone",
                           "timezoneSource",
+                          "serverTimezone",
                           "currency",
                           "disabled",
                           "disabledAt",
@@ -4485,6 +4489,9 @@
                         }
                       ]
                     },
+                    "serverTimezone": {
+                      "type": "string"
+                    },
                     "currency": {
                       "anyOf": [
                         {
@@ -4602,6 +4609,7 @@
                     "lastErrorHint",
                     "timezone",
                     "timezoneSource",
+                    "serverTimezone",
                     "currency",
                     "disabled",
                     "disabledAt",
@@ -4872,6 +4880,9 @@
                         }
                       ]
                     },
+                    "serverTimezone": {
+                      "type": "string"
+                    },
                     "currency": {
                       "anyOf": [
                         {
@@ -4989,6 +5000,7 @@
                     "lastErrorHint",
                     "timezone",
                     "timezoneSource",
+                    "serverTimezone",
                     "currency",
                     "disabled",
                     "disabledAt",
@@ -5183,6 +5195,9 @@
                         }
                       ]
                     },
+                    "serverTimezone": {
+                      "type": "string"
+                    },
                     "currency": {
                       "anyOf": [
                         {
@@ -5300,6 +5315,7 @@
                     "lastErrorHint",
                     "timezone",
                     "timezoneSource",
+                    "serverTimezone",
                     "currency",
                     "disabled",
                     "disabledAt",
@@ -76018,6 +76034,19 @@
                               }
                             ]
                           },
+                          "nameOverride": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "appName": {
+                            "type": "string"
+                          },
                           "domains": {
                             "type": "array",
                             "items": {
@@ -76034,6 +76063,8 @@
                           "staffPlacement",
                           "boundKey",
                           "connectionId",
+                          "nameOverride",
+                          "appName",
                           "domains"
                         ],
                         "additionalProperties": false
@@ -76169,6 +76200,81 @@
                   "required": [
                     "appKey",
                     "staff"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/surfaces/{appKey}/name": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "appKey",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "appKey": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "appKey",
+                    "name"
                   ],
                   "additionalProperties": false
                 }
@@ -77574,6 +77680,29 @@
                               }
                             ]
                           },
+                          "needsNewerAdminium": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "version": {
+                                    "type": "string"
+                                  },
+                                  "minAdminiumVersion": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "version",
+                                  "minAdminiumVersion"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "tagline": {
                             "anyOf": [
                               {
@@ -77606,6 +77735,7 @@
                           "source",
                           "state",
                           "upgradeTo",
+                          "needsNewerAdminium",
                           "tagline",
                           "categories",
                           "connectKind"

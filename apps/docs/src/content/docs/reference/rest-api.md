@@ -129,7 +129,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/settings/*` | 10 | Instance settings — defaults, branding, email, security, telemetry, workspace |
 | `/api/v1/setup/*` | 4 | First-boot super-admin creation, whether setup is still open, and — in that same window — checking a database for an Adminium store already in it and adopting that store |
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
-| `/api/v1/surfaces/*` | 5 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
+| `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
 | `/api/v1/system` | 1 | Version and instance information |
 | `/api/v1/users/*` | 9 | People in the workspace — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 2 | The queries widgets run, singly and in batches |
@@ -699,6 +699,7 @@ POST /api/v1/storage/migrate
 ```http
 GET /api/v1/surfaces
 PUT /api/v1/surfaces/{appKey}/placement
+PUT /api/v1/surfaces/{appKey}/name
 PUT /api/v1/surfaces/{appKey}/connection
 PUT /api/v1/surfaces/instances
 PUT /api/v1/surfaces/domains

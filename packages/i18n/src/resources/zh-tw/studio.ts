@@ -22,6 +22,7 @@ export default {
       "install": "Install",
       "missing": "遺失",
       "missingBody": "它的檔案不在此伺服器上，因此其中任何部分都不會載入。",
+      "needsNewer": "需要 Adminium {version} 或更新版本",
       "noMatchBody": "沒有外掛符合該搜尋與分類。",
       "noMatchTitle": "沒有相符項目",
       "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
@@ -530,8 +531,32 @@ export default {
     "title": "產生你的應用程式"
   },
   "hostedApps": {
+    "browse": {
+      "title": "可安裝的應用程式",
+      "subtitle": "隨此建置附帶的現成應用程式。安裝會建立它需要的資料表並開始提供其畫面——在你確認計畫之前不會發生任何事。",
+      "search": "搜尋應用程式…",
+      "clear": "清除搜尋",
+      "all": "全部",
+      "by": "來自 {publisher}",
+      "install": "安裝",
+      "installed": "已安裝",
+      "missing": "遺失",
+      "noMatch": "沒有符合的應用程式",
+      "noMatchBody": "換個關鍵字，或換個分類試試。",
+      "emptyTitle": "沒有可安裝的應用程式",
+      "emptyBody": "隨此建置附帶的應用程式會顯示在這裡。把 ADMINIUM_BUNDLED_APPS 指向一個應用程式包目錄，或自行上傳一個。",
+      "unreadable": "無法讀取這個包的資訊清單，因此無法安裝——請在下方捨棄它。",
+      "subtitleOnline": "隨此建置附帶的應用程式，以及線上目錄中的應用程式。安裝時會視需要下載並建立所需的資料表——在你確認計畫之前不會發生任何事。",
+      "neverChecked": "線上目錄已開啟，但尚未檢查。檢查更新以列出其中的應用程式。",
+      "refresh": "檢查更新",
+      "toggle": "瀏覽線上應用程式目錄",
+      "emptyOnlineBody": "線上目錄已開啟，但還沒有列出任何內容。檢查更新以取得目錄。",
+      "fromCatalog": "線上",
+      "needsNewer": "需要 Adminium {version} 或更新版本"
+    },
     "domains": {
       "add": "附加網域",
+      "docsLink": "如何設定網域",
       "hostLabel": "主機",
       "instanceLabel": "執行個體",
       "instanceOwn": "應用本身",
@@ -541,6 +566,9 @@ export default {
       "save": "儲存網域",
       "savedBody": "對應會在數秒內生效。只有當其 DNS 與你的代理伺服器真正到達此執行個體時，主機才會回應。",
       "savedTitle": "已儲存",
+      "stepDns": "在你的 DNS 中將該主機指向這台伺服器——記錄類型與目標和你存取本主控台所用的位址相同。",
+      "stepProxy": "在你的反向代理上為該主機新增獨立的站台設定區塊，並原樣傳遞 Host 標頭——然後重新載入代理。只修改設定檔不會影響已在執行的處理程序。",
+      "stepSignIn": "員工介面會要求你重新登入：工作階段 Cookie 只屬於一個主機，因此對應的主機會先帶你到它自己的登入頁。",
       "subtitle": "將網域的 DNS 指向你的代理伺服器，把 Host 標頭透傳給 Adminium，然後在此附加——該主機隨後會提供此介面而非本儀表板。憑證保留在你的代理伺服器上。",
       "surfaceLabel": "介面",
       "title": "網域"
@@ -548,35 +576,6 @@ export default {
     "emptyBody": "將 ADMINIUM_SURFACES_DIR 指向存放已建置介面的目錄——每個應用程式和端各一個資料夾，各含其 index.html——然後重新啟動。之後它們會在 /apps/ 下提供，並顯示在這裡。",
     "emptyTitle": "目前沒有提供任何應用介面",
     "error": "發生了一些問題",
-    "instances": {
-      "add": "新增執行個體",
-      "appLabel": "應用",
-      "body": "讓同一個應用服務於多個資料庫。每個執行個體可透過 /apps/<app>/<segment>/<side>/ 存取，且只讀取你指定的連線。",
-      "empty": "沒有額外的執行個體。",
-      "failed": "執行個體未儲存",
-      "readsLabel": "讀取",
-      "remove": "移除",
-      "save": "儲存執行個體",
-      "slugLabel": "URL 片段",
-      "title": "執行個體"
-    },
-    "subtitle": "此執行個體所提供的應用介面——每個介面出現的位置，以及指向它們的網域。",
-    "surfaces": {
-      "boundKey": "提供金鑰",
-      "connectionLabel": "讀取",
-      "connectionUnset": "目前提供服務的連線",
-      "customer": "客戶",
-      "mintLink": "在「公開 API」中建立",
-      "noKey": "未綁定金鑰——為其建立金鑰之前，此介面無法讀取資料。",
-      "noNav": "內嵌位置無法使用——請用目前的工具鏈重新建置此介面，使其產生 surface.json。",
-      "placementExternal": "外部（僅自有網址）",
-      "placementInternal": "在側邊欄中（內嵌）",
-      "placementLabel": "位置",
-      "staff": "員工",
-      "subtitle": "員工介面可以融入此儀表板的側邊欄，也可以獨立存在；客戶介面是公開的，透過其綁定的金鑰讀取資料。",
-      "title": "介面"
-    },
-    "title": "託管應用程式",
     "install": {
       "steps": {
         "bundle": "安裝包",
@@ -662,28 +661,17 @@ export default {
       "missingBody": "它的檔案不在此伺服器上，因此無法提供服務。請重新安裝相同版本，或將其解除安裝。",
       "update": "更新"
     },
-    "browse": {
-      "title": "可安裝的應用程式",
-      "subtitle": "隨此建置附帶的現成應用程式。安裝會建立它需要的資料表並開始提供其畫面——在你確認計畫之前不會發生任何事。",
-      "search": "搜尋應用程式…",
-      "clear": "清除搜尋",
-      "all": "全部",
-      "by": "來自 {publisher}",
-      "install": "安裝",
-      "installed": "已安裝",
-      "missing": "遺失",
-      "noMatch": "沒有符合的應用程式",
-      "noMatchBody": "換個關鍵字，或換個分類試試。",
-      "emptyTitle": "沒有可安裝的應用程式",
-      "emptyBody": "隨此建置附帶的應用程式會顯示在這裡。把 ADMINIUM_BUNDLED_APPS 指向一個應用程式包目錄，或自行上傳一個。",
-      "unreadable": "無法讀取這個包的資訊清單，因此無法安裝——請在下方捨棄它。",
-      "subtitleOnline": "隨此建置附帶的應用程式，以及線上目錄中的應用程式。安裝時會視需要下載並建立所需的資料表——在你確認計畫之前不會發生任何事。",
-      "neverChecked": "線上目錄已開啟，但尚未檢查。檢查更新以列出其中的應用程式。",
-      "refresh": "檢查更新",
-      "toggle": "瀏覽線上應用程式目錄",
-      "emptyOnlineBody": "線上目錄已開啟，但還沒有列出任何內容。檢查更新以取得目錄。",
-      "fromCatalog": "線上",
-      "needsNewer": "需要 Adminium {version} 或更新版本"
+    "instances": {
+      "add": "新增執行個體",
+      "appLabel": "應用",
+      "body": "讓同一個應用服務於多個資料庫。每個執行個體可透過 /apps/<app>/<segment>/<side>/ 存取，且只讀取你指定的連線。",
+      "empty": "沒有額外的執行個體。",
+      "failed": "執行個體未儲存",
+      "readsLabel": "讀取",
+      "remove": "移除",
+      "save": "儲存執行個體",
+      "slugLabel": "URL 片段",
+      "title": "執行個體"
     },
     "job": {
       "refreshTitle": "正在檢查線上應用程式目錄",
@@ -691,6 +679,29 @@ export default {
       "body": "正在取得並驗證。在你同意之前不會安裝或變更任何東西。",
       "failed": "工作未完成。沒有安裝或變更任何東西。"
     },
+    "names": {
+      "label": "{app} 的名稱",
+      "save": "儲存名稱",
+      "subtitle": "每個應用程式的名稱——既用於它自己的畫面，也用於本主控台的側邊欄。留空則使用應用程式建置時自帶的名稱。",
+      "title": "應用程式名稱"
+    },
+    "subtitle": "此執行個體所提供的應用介面——每個介面出現的位置，以及指向它們的網域。",
+    "surfaces": {
+      "boundKey": "提供金鑰",
+      "connectionLabel": "讀取",
+      "connectionUnset": "目前提供服務的連線",
+      "customer": "客戶",
+      "mintLink": "在「公開 API」中建立",
+      "noKey": "未綁定金鑰——為其建立金鑰之前，此介面無法讀取資料。",
+      "noNav": "內嵌位置無法使用——請用目前的工具鏈重新建置此介面，使其產生 surface.json。",
+      "placementExternal": "外部（僅自有網址）",
+      "placementInternal": "在側邊欄中（內嵌）",
+      "placementLabel": "位置",
+      "staff": "員工",
+      "subtitle": "員工介面可以融入此儀表板的側邊欄，也可以獨立存在；客戶介面是公開的，透過其綁定的金鑰讀取資料。",
+      "title": "介面"
+    },
+    "title": "託管應用程式",
     "update": {
       "title": "將 {app} 更新至 v{version}",
       "subtitle": "此版本需要已安裝版本沒有的資料表。",
@@ -730,7 +741,8 @@ export default {
       "readOnly": "唯讀",
       "tables": "資料表",
       "timezone": "時區",
-      "timezoneGuessed": "來自此伺服器"
+      "timezoneGuessed": "來自此伺服器",
+      "timezoneNone": "未設定——日期以 {zone} 顯示，即此伺服器的時區"
     },
     "connectNew": "新增連線",
     "delete": {
@@ -2312,6 +2324,14 @@ export default {
     "persistFailed": "無法儲存你的資料表選擇——請重試。",
     "persistFailedTitle": "儲存失敗",
     "progress": "設定進度",
+    "startOver": {
+      "action": "重新開始",
+      "body": "這裡輸入的所有內容都會被清除，精靈將回到第一步。",
+      "bodyCreated": "這裡輸入的所有內容都會被清除，精靈將回到第一步。Adminium 已建立的連線不會被刪除——它仍保留在「資料連線」中。",
+      "confirm": "重新開始",
+      "keep": "繼續",
+      "title": "重新開始此精靈？"
+    },
     "step": {
       "enrich": "豐富",
       "generate": "產生",

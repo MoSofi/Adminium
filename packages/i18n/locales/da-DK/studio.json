@@ -12,6 +12,7 @@
       "install": "Install",
       "missing": "Mangler",
       "missingBody": "Dens filer findes ikke på denne server, så intet af den indlæses.",
+      "needsNewer": "Kræver Adminium {version} eller nyere",
       "noMatchBody": "Ingen tilføjelse her matcher den søgning og kategori.",
       "noMatchTitle": "Ingen match",
       "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
@@ -520,8 +521,32 @@
     "title": "Generér din app"
   },
   "hostedApps": {
+    "browse": {
+      "title": "Apps du kan installere",
+      "subtitle": "Færdige apps, der fulgte med dette build. En installation opretter de nødvendige tabeller og serverer appens skærme — der sker intet, før du bekræfter planen.",
+      "search": "Søg efter apps…",
+      "clear": "Ryd søgningen",
+      "all": "Alle",
+      "by": "af {publisher}",
+      "install": "Installér",
+      "installed": "Installeret",
+      "missing": "Mangler",
+      "noMatch": "Ingen apps matcher den søgning",
+      "noMatchBody": "Prøv et andet ord eller en anden kategori.",
+      "emptyTitle": "Ingen apps er tilgængelige",
+      "emptyBody": "Apps, der følger med dette build, vises her. Lad ADMINIUM_BUNDLED_APPS pege på en mappe med app-pakker, eller upload selv en.",
+      "unreadable": "Pakkens manifest kunne ikke læses. Den kan ikke installeres — kassér den nedenfor.",
+      "subtitleOnline": "Apps, der fulgte med dette build, plus dem i onlinekataloget. En installation downloader appen efter behov og opretter de nødvendige tabeller — der sker intet, før du bekræfter planen.",
+      "neverChecked": "Onlinekataloget er slået til, men er ikke tjekket endnu. Søg efter nyere for at vise dets apps.",
+      "refresh": "Søg efter nyere",
+      "toggle": "Gennemse onlinekataloget over apps",
+      "emptyOnlineBody": "Onlinekataloget er slået til, men intet er vist endnu. Søg efter nyere for at hente det.",
+      "fromCatalog": "Online",
+      "needsNewer": "Kræver Adminium {version} eller nyere"
+    },
     "domains": {
       "add": "Tilknyt et domæne",
+      "docsLink": "Sådan opsætter du et domæne",
       "hostLabel": "Vært",
       "instanceLabel": "Instans",
       "instanceOwn": "Appens egen",
@@ -531,6 +556,9 @@
       "save": "Gem domæner",
       "savedBody": "Tilknytninger træder i kraft inden for få sekunder. En vært svarer først, når dens DNS og din proxy faktisk når denne instans.",
       "savedTitle": "Gemt",
+      "stepDns": "Peg værten mod denne server i dit DNS — samme posttype og mål som den adresse, du bruger til dette dashboard.",
+      "stepProxy": "Giv værten sin egen site-blok på din reverse proxy, der sender Host-headeren uændret videre — og genindlæs derefter proxyen. At redigere dens konfigurationsfil ændrer ikke en proces, der allerede kører.",
+      "stepSignIn": "Personaleflader beder dig logge ind igen: sessionscookies hører til én vært, så en tilknyttet vært sender dig først til sin egen loginside.",
       "subtitle": "Peg et domænes DNS på din proxy, send Host-headeren videre til Adminium, og tilknyt det her — værten serverer så fladen i stedet for dette dashboard. Certifikater bliver på din proxy.",
       "surfaceLabel": "Flade",
       "title": "Domæner"
@@ -538,35 +566,6 @@
     "emptyBody": "Peg ADMINIUM_SURFACES_DIR på en mappe med byggede flader — én mappe pr. app og side, hver med sin index.html — og genstart. De serveres derefter under /apps/ og vises her.",
     "emptyTitle": "Der serveres ingen app-flader",
     "error": "Noget gik galt",
-    "instances": {
-      "add": "Tilføj en instans",
-      "appLabel": "App",
-      "body": "Server den samme app over flere databaser. Hver instans er tilgængelig på /apps/<app>/<segment>/<side>/ og læser kun den forbindelse, du giver den.",
-      "empty": "Ingen ekstra instanser.",
-      "failed": "Instanserne blev ikke gemt",
-      "readsLabel": "Læser",
-      "remove": "Fjern",
-      "save": "Gem instanser",
-      "slugLabel": "URL-segment",
-      "title": "Instanser"
-    },
-    "subtitle": "De app-flader denne instans serverer — hvor hver enkelt vises, og hvilke domæner der peger på dem.",
-    "surfaces": {
-      "boundKey": "Serverer nøgle",
-      "connectionLabel": "Læser",
-      "connectionUnset": "Den der kører",
-      "customer": "Kunde",
-      "mintLink": "Opret en under Offentligt API",
-      "noKey": "Ingen nøgle tilknyttet — denne flade kan ikke læse data, før der oprettes en til den.",
-      "noNav": "Intern placering utilgængelig — byg denne flade igen med det aktuelle toolkit, så den udsender surface.json.",
-      "placementExternal": "Ekstern (kun egen URL)",
-      "placementInternal": "I sidepanelet (indlejret)",
-      "placementLabel": "Placering",
-      "staff": "Medarbejder",
-      "subtitle": "En medarbejderflade kan glide ind i dette dashboards sidepanel eller stå for sig selv; en kundeflade er offentlig og læser gennem sin tilknyttede nøgle.",
-      "title": "Flader"
-    },
-    "title": "Hostede apps",
     "install": {
       "steps": {
         "bundle": "Pakke",
@@ -652,28 +651,17 @@
       "missingBody": "Dens filer findes ikke på denne server, så den serveres ikke. Installer den samme version igen, eller afinstaller den.",
       "update": "Opdatér"
     },
-    "browse": {
-      "title": "Apps du kan installere",
-      "subtitle": "Færdige apps, der fulgte med dette build. En installation opretter de nødvendige tabeller og serverer appens skærme — der sker intet, før du bekræfter planen.",
-      "search": "Søg efter apps…",
-      "clear": "Ryd søgningen",
-      "all": "Alle",
-      "by": "af {publisher}",
-      "install": "Installér",
-      "installed": "Installeret",
-      "missing": "Mangler",
-      "noMatch": "Ingen apps matcher den søgning",
-      "noMatchBody": "Prøv et andet ord eller en anden kategori.",
-      "emptyTitle": "Ingen apps er tilgængelige",
-      "emptyBody": "Apps, der følger med dette build, vises her. Lad ADMINIUM_BUNDLED_APPS pege på en mappe med app-pakker, eller upload selv en.",
-      "unreadable": "Pakkens manifest kunne ikke læses. Den kan ikke installeres — kassér den nedenfor.",
-      "subtitleOnline": "Apps, der fulgte med dette build, plus dem i onlinekataloget. En installation downloader appen efter behov og opretter de nødvendige tabeller — der sker intet, før du bekræfter planen.",
-      "neverChecked": "Onlinekataloget er slået til, men er ikke tjekket endnu. Søg efter nyere for at vise dets apps.",
-      "refresh": "Søg efter nyere",
-      "toggle": "Gennemse onlinekataloget over apps",
-      "emptyOnlineBody": "Onlinekataloget er slået til, men intet er vist endnu. Søg efter nyere for at hente det.",
-      "fromCatalog": "Online",
-      "needsNewer": "Kræver Adminium {version} eller nyere"
+    "instances": {
+      "add": "Tilføj en instans",
+      "appLabel": "App",
+      "body": "Server den samme app over flere databaser. Hver instans er tilgængelig på /apps/<app>/<segment>/<side>/ og læser kun den forbindelse, du giver den.",
+      "empty": "Ingen ekstra instanser.",
+      "failed": "Instanserne blev ikke gemt",
+      "readsLabel": "Læser",
+      "remove": "Fjern",
+      "save": "Gem instanser",
+      "slugLabel": "URL-segment",
+      "title": "Instanser"
     },
     "job": {
       "refreshTitle": "Tjekker onlinekataloget over apps",
@@ -681,6 +669,29 @@
       "body": "Henter og kontrollerer. Intet installeres eller ændres, før du siger til.",
       "failed": "Jobbet blev ikke færdigt. Intet blev installeret eller ændret."
     },
+    "names": {
+      "label": "Navn til {app}",
+      "save": "Gem navn",
+      "subtitle": "Hvad hver app hedder — på dens egne skærme og i dette dashboards sidepanel. Lad feltet stå tomt for at bruge det navn, appen blev bygget med.",
+      "title": "App-navne"
+    },
+    "subtitle": "De app-flader denne instans serverer — hvor hver enkelt vises, og hvilke domæner der peger på dem.",
+    "surfaces": {
+      "boundKey": "Serverer nøgle",
+      "connectionLabel": "Læser",
+      "connectionUnset": "Den der kører",
+      "customer": "Kunde",
+      "mintLink": "Opret en under Offentligt API",
+      "noKey": "Ingen nøgle tilknyttet — denne flade kan ikke læse data, før der oprettes en til den.",
+      "noNav": "Intern placering utilgængelig — byg denne flade igen med det aktuelle toolkit, så den udsender surface.json.",
+      "placementExternal": "Ekstern (kun egen URL)",
+      "placementInternal": "I sidepanelet (indlejret)",
+      "placementLabel": "Placering",
+      "staff": "Medarbejder",
+      "subtitle": "En medarbejderflade kan glide ind i dette dashboards sidepanel eller stå for sig selv; en kundeflade er offentlig og læser gennem sin tilknyttede nøgle.",
+      "title": "Flader"
+    },
+    "title": "Hostede apps",
     "update": {
       "title": "Opdatér {app} til v{version}",
       "subtitle": "Denne version kræver tabeller, som den installerede ikke havde.",
@@ -720,7 +731,8 @@
       "readOnly": "Skrivebeskyttet",
       "tables": "Tabeller",
       "timezone": "Tidszone",
-      "timezoneGuessed": "fra denne server"
+      "timezoneGuessed": "fra denne server",
+      "timezoneNone": "ikke angivet — datoer vises i {zone}, denne servers zone"
     },
     "connectNew": "Ny forbindelse",
     "delete": {
@@ -2302,6 +2314,14 @@
     "persistFailed": "Dit tabelvalg kunne ikke gemmes — prøv igen.",
     "persistFailedTitle": "Kunne ikke gemme",
     "progress": "Opsætningsforløb",
+    "startOver": {
+      "action": "Start forfra",
+      "body": "Alt det indtastede ryddes, og guiden vender tilbage til første trin.",
+      "bodyCreated": "Alt det indtastede ryddes, og guiden vender tilbage til første trin. Den forbindelse, Adminium allerede har oprettet, slettes ikke — den bliver i Dataforbindelser.",
+      "confirm": "Start forfra",
+      "keep": "Fortsæt",
+      "title": "Start guiden forfra?"
+    },
     "step": {
       "enrich": "Berig",
       "generate": "Generér",

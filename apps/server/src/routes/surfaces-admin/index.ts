@@ -27,6 +27,7 @@ import {
   publicKeysRepo,
   settingsRepo,
   surfaceInstanceSlug,
+  userPrefsRepo,
   type MetaDb,
 } from '@adminium/meta';
 
@@ -34,13 +35,18 @@ import { audited } from '../../audit/coverage.js';
 import { NotFoundError, ValidationFailedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { normalizeHost } from '../../security/csrf.js';
+import { resolveLabel } from '../../cli/surfaces-root.js';
 import {
+  appNameOf,
+  appNameOverrideOf,
   instancesOf,
   staffConnectionOf,
   staffPlacementOf,
   type SurfaceSettings,
 } from '../../surfaces/settings.js';
 import {
+  surfaceNameBody,
+  surfaceNameReply,
   surfaceConnectionBody,
   surfaceInstancesBody,
   surfaceInstancesReply,
@@ -100,8 +106,19 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
         preHandler: app.rbac.require(PERMISSIONS.settingsManage),
         schema: { response: { 200: surfacesListReply } },
       },
-      async () => {
+      async (request) => {
         const current = await readSettings();
+        /*
+         * The reader's own locale, for the app-supplied fallback name only.
+         *
+         * An app ships its label in all eight locales; Studio shows whichever
+         * one this operator reads in, exactly as the sidebar does. The
+         * OVERRIDE is never localized — one operator types one business name —
+         * so this affects only what the field falls back to.
+         */
+        const userId = (request as unknown as { user?: { id?: string } }).user?.id ?? null;
+        const locale =
+          userId === null ? 'en' : (await userPrefsRepo(deps.meta).resolve(userId)).locale;
         const surfaces: SurfaceSummaryDto[] = [];
         for (const surface of app.surfaces) {
           const mapped = Object.entries(current.domains)
@@ -129,6 +146,14 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
             connectionId:
               surface.side === 'staff' ? staffConnectionOf(current, surface.appKey) : null,
             boundKey,
+            nameOverride: appNameOverrideOf(current, surface.appKey),
+            appName: appNameOf(
+              current,
+              surface.appKey,
+              surface.manifest === null
+                ? null
+                : resolveLabel(surface.manifest.appLabels, locale),
+            ),
             domains: mapped,
           });
         }
@@ -197,6 +222,58 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
      * at nothing, and the operator would be debugging the app instead of the
      * setting they just saved.
      */
+    /*
+     * WHAT THE OPERATOR CALLS THIS APP.
+     *
+     * Stored beside the placement rather than in the app's own bundle, because
+     * the name belongs to the business running it and the bundle is not theirs
+     * to rebuild. `null` clears the override and the app goes back to the name
+     * its build carries — `appNameOf` is the one place that precedence lives.
+     *
+     * No staff-surface requirement, unlike `/placement` and `/connection`: a
+     * customer-only app has a name too, and it is the name a mapped storefront
+     * domain renders.
+     */
+    app.put(
+      '/surfaces/:appKey/name',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        config: { audit: audited('rbac') },
+        schema: {
+          params: surfacePlacementParams,
+          body: surfaceNameBody,
+          response: { 200: surfaceNameReply },
+        },
+      },
+      async (request) => {
+        const { appKey } = request.params;
+        const known = app.surfaces.some((surface) => surface.appKey === appKey);
+        if (!known) {
+          throw new NotFoundError('No surface is discovered for this app.', { appKey });
+        }
+        const { name } = request.body;
+        const current = await readSettings();
+        const before = appNameOverrideOf(current, appKey);
+        const nextApps = {
+          ...current.apps,
+          // Spread first: this must not disturb the placement, connection or
+          // instances stored on the same record.
+          [appKey]: { ...current.apps[appKey], ...(name === null ? {} : { name }) },
+        };
+        if (name === null) delete nextApps[appKey]?.name;
+        await settings.set('surfaces.apps', nextApps, {
+          updatedBy: (request as unknown as { user?: { id?: string } }).user?.id ?? null,
+        });
+        app.surfaceSettings?.invalidate();
+        await app.rbac.audit(request, {
+          category: 'system',
+          action: 'surfaces.name',
+          changes: { before: { appKey, name: before }, after: { appKey, name } },
+        });
+        return { appKey, name };
+      },
+    );
+
     app.put(
       '/surfaces/:appKey/connection',
       {

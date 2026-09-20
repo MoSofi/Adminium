@@ -302,7 +302,7 @@ describe('surface-config.json (D10)', () => {
     const res = await app.inject({ method: 'GET', url: CONFIG_URL });
     expect(res.statusCode).toBe(200);
     expect(res.headers['cache-control']).toBe('no-store');
-    expect(res.json()).toEqual({ baseUrl: '', publishableKey: newer.token });
+    expect(res.json()).toEqual({ baseUrl: '', publishableKey: newer.token, appName: null });
 
     // Rotation-by-revocation: the older live key takes over on the next load —
     // zero rebuilds, which is the whole point of serving this (criterion 9).
@@ -310,6 +310,7 @@ describe('surface-config.json (D10)', () => {
     expect((await app.inject({ method: 'GET', url: CONFIG_URL })).json()).toEqual({
       baseUrl: '',
       publishableKey: older.token,
+      appName: null,
     });
   });
 
@@ -319,7 +320,7 @@ describe('surface-config.json (D10)', () => {
     await setDomains(t!, { [CUSTOMER_HOST]: { appKey: 'clients', side: 'customer' } });
     const res = await get(app, CONFIG_URL, CUSTOMER_HOST);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ baseUrl: '', publishableKey: seeded.token });
+    expect(res.json()).toEqual({ baseUrl: '', publishableKey: seeded.token, appName: null });
   });
 
   it('the staff variant carries NO key — that half is still customer-only', async () => {
@@ -342,7 +343,7 @@ describe('surface-config.json (D10)', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.body).not.toContain('adm_pub_');
-    expect(res.json()).toEqual({ connectionId: null });
+    expect(res.json()).toEqual({ connectionId: null, appName: null });
   });
 
   it('serves an INSTANCE its own connection, at /apps/<key>/<slug>/<side>/', async () => {
@@ -374,14 +375,14 @@ describe('surface-config.json (D10)', () => {
       url: '/apps/clients/staff/surface-config.json',
       headers: { cookie: cookie ?? '' },
     });
-    expect(rootRes.json()).toEqual({ connectionId: root.id });
+    expect(rootRes.json()).toEqual({ connectionId: root.id, appName: null });
 
     const instRes = await app.inject({
       method: 'GET',
       url: '/apps/clients/berlin/staff/surface-config.json',
       headers: { cookie: cookie ?? '' },
     });
-    expect(instRes.json()).toEqual({ connectionId: berlin.id });
+    expect(instRes.json()).toEqual({ connectionId: berlin.id, appName: null });
 
     // The instance serves the app itself, from the SAME bundle on disk.
     const page = await app.inject({
@@ -420,7 +421,7 @@ describe('surface-config.json (D10)', () => {
       url: '/surface-config.json',
       headers: { host: 'berlin.example.test', cookie: cookie ?? '' },
     });
-    expect(res.json()).toEqual({ connectionId: berlin.id });
+    expect(res.json()).toEqual({ connectionId: berlin.id, appName: null });
   });
 
   it('an UNMAPPED-to-instance host keeps serving the app\'s own connection', async () => {
@@ -440,7 +441,7 @@ describe('surface-config.json (D10)', () => {
       url: '/surface-config.json',
       headers: { host: 'plain.example.test', cookie: cookie ?? '' },
     });
-    expect(res.json()).toEqual({ connectionId: own.id });
+    expect(res.json()).toEqual({ connectionId: own.id, appName: null });
   });
 
   it('serves a CUSTOMER instance the key bound to its own connection', async () => {
@@ -564,7 +565,45 @@ describe('surface-config.json (D10)', () => {
       url: '/apps/clients/staff/surface-config.json',
       headers: { cookie: cookie ?? '' },
     });
-    expect(res.json()).toEqual({ connectionId: conn.id });
+    expect(res.json()).toEqual({ connectionId: conn.id, appName: null });
     expect(res.headers['cache-control']).toBe('no-store');
+  });
+
+  it("serves the operator's name for the app, at the plain /apps mount", async () => {
+    /*
+     * THE MOUNT ALMOST EVERY INSTALL USES, and the one a second copy of this
+     * document used to skip. The instance and mapped-host paths built their
+     * config through `configFor`; this one had its own implementation, so it
+     * would have served the app's old name while the other two served the new
+     * one — the same surface disagreeing with itself depending on the URL.
+     *
+     * Asserted on the plain mount deliberately: the other two already have
+     * coverage above, and this is the path that was wrong.
+     */
+    const { app } = await build();
+    await settingsRepo(t!.meta).set('surfaces.apps', { clients: { name: 'Acme Client Hub' } });
+    t!.app.surfaceSettings?.invalidate();
+
+    const { cookie } = await login(app);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/apps/clients/staff/surface-config.json',
+      headers: { cookie: cookie ?? '' },
+    });
+    expect(res.json()).toEqual({ connectionId: null, appName: 'Acme Client Hub' });
+  });
+
+  it('serves a null name when the operator has set none', async () => {
+    // Null is the instruction "keep the name you were built with". Nothing
+    // echoes the app's own label back at it: the app already has that, and a
+    // stored copy would outrank a newer bundle's name after an upgrade.
+    const { app } = await build();
+    const { cookie } = await login(app);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/apps/clients/staff/surface-config.json',
+      headers: { cookie: cookie ?? '' },
+    });
+    expect(res.json().appName).toBeNull();
   });
 });

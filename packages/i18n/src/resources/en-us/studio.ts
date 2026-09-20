@@ -22,6 +22,7 @@ export default {
       "install": "Install",
       "missing": "Missing",
       "missingBody": "Its files are not on this server, so none of it loads.",
+      "needsNewer": "Needs Adminium {version} or later",
       "noMatchBody": "No add-on here matches that search and category.",
       "noMatchTitle": "Nothing matches",
       "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
@@ -530,8 +531,32 @@ export default {
     "title": "Generate your app"
   },
   "hostedApps": {
+    "browse": {
+      "title": "Apps you can install",
+      "subtitle": "Ready-made apps that came with this build. Installing one creates the tables it needs and serves its screens — nothing happens until you confirm the plan.",
+      "search": "Search apps…",
+      "clear": "Clear the search",
+      "all": "All",
+      "by": "by {publisher}",
+      "install": "Install",
+      "installed": "Installed",
+      "missing": "Missing",
+      "noMatch": "No apps match that search",
+      "noMatchBody": "Try a different term, or another category.",
+      "emptyTitle": "No apps are available to install",
+      "emptyBody": "Apps shipped with this build appear here. Point ADMINIUM_BUNDLED_APPS at a directory of app bundles, or upload one yourself.",
+      "unreadable": "This package’s manifest could not be read. It cannot be installed — discard it below.",
+      "subtitleOnline": "Apps that came with this build, plus those in the online catalogue. Installing one downloads it if needed and creates the tables it needs — nothing happens until you confirm the plan.",
+      "neverChecked": "The online catalogue is on but has not been checked yet. Check for newer to list its apps.",
+      "refresh": "Check for newer",
+      "toggle": "Browse the online app catalogue",
+      "emptyOnlineBody": "The online catalogue is on, but nothing is listed yet. Check for newer to fetch it.",
+      "fromCatalog": "Online",
+      "needsNewer": "Needs Adminium {version} or later"
+    },
     "domains": {
       "add": "Attach a domain",
+      "docsLink": "How to set up a domain",
       "hostLabel": "Host",
       "instanceLabel": "Instance",
       "instanceOwn": "The app's own",
@@ -541,6 +566,9 @@ export default {
       "save": "Save domains",
       "savedBody": "Mappings take effect within a few seconds. A host only answers once its DNS and your proxy actually reach this instance.",
       "savedTitle": "Saved",
+      "stepDns": "Point the host at this server in your DNS — the same record type and target as the address you use for this dashboard.",
+      "stepProxy": "Give the host its own site block on your reverse proxy, passing the Host header through unchanged — then reload the proxy. Editing its config file does not change a process that is already running.",
+      "stepSignIn": "Staff surfaces ask you to sign in again: session cookies belong to one host, so a mapped host sends you to its own login page first.",
       "subtitle": "Point a domain’s DNS at your proxy, pass the Host header through to Adminium, and attach it here — that host then serves the surface instead of this dashboard. Certificates stay on your proxy.",
       "surfaceLabel": "Surface",
       "title": "Domains"
@@ -548,35 +576,6 @@ export default {
     "emptyBody": "Point ADMINIUM_SURFACES_DIR at a directory of built surfaces — one folder per app and side, each with its index.html — and restart. They are then served under /apps/ and appear here.",
     "emptyTitle": "No app surfaces are being served",
     "error": "Something went wrong",
-    "instances": {
-      "add": "Add an instance",
-      "appLabel": "App",
-      "body": "Serve the same app over more than one database. Each instance is reachable at /apps/<app>/<segment>/<side>/ and reads only the connection you give it.",
-      "empty": "No extra instances.",
-      "failed": "Instances were not saved",
-      "readsLabel": "Reads",
-      "remove": "Remove",
-      "save": "Save instances",
-      "slugLabel": "URL segment",
-      "title": "Instances"
-    },
-    "subtitle": "The app surfaces this instance serves — where each one appears, and the domains pointed at them.",
-    "surfaces": {
-      "boundKey": "Serves key",
-      "connectionLabel": "Reads",
-      "connectionUnset": "Whichever is serving",
-      "customer": "Customer",
-      "mintLink": "Mint one under Public API",
-      "noKey": "No key bound — this surface cannot read data until one is minted for it.",
-      "noNav": "Internal placement unavailable — rebuild this surface with the current toolkit so it emits surface.json.",
-      "placementExternal": "External (own URL only)",
-      "placementInternal": "In the sidebar (blended)",
-      "placementLabel": "Placement",
-      "staff": "Staff",
-      "subtitle": "A staff surface can blend into this dashboard’s sidebar or stand on its own; a customer surface is public and reads through its bound key.",
-      "title": "Surfaces"
-    },
-    "title": "Hosted apps",
     "install": {
       "steps": {
         "bundle": "Bundle",
@@ -662,28 +661,17 @@ export default {
       "missingBody": "Its files are not on this server, so it is not served. Install the same version again, or uninstall it.",
       "update": "Update"
     },
-    "browse": {
-      "title": "Apps you can install",
-      "subtitle": "Ready-made apps that came with this build. Installing one creates the tables it needs and serves its screens — nothing happens until you confirm the plan.",
-      "search": "Search apps…",
-      "clear": "Clear the search",
-      "all": "All",
-      "by": "by {publisher}",
-      "install": "Install",
-      "installed": "Installed",
-      "missing": "Missing",
-      "noMatch": "No apps match that search",
-      "noMatchBody": "Try a different term, or another category.",
-      "emptyTitle": "No apps are available to install",
-      "emptyBody": "Apps shipped with this build appear here. Point ADMINIUM_BUNDLED_APPS at a directory of app bundles, or upload one yourself.",
-      "unreadable": "This package’s manifest could not be read. It cannot be installed — discard it below.",
-      "subtitleOnline": "Apps that came with this build, plus those in the online catalogue. Installing one downloads it if needed and creates the tables it needs — nothing happens until you confirm the plan.",
-      "neverChecked": "The online catalogue is on but has not been checked yet. Check for newer to list its apps.",
-      "refresh": "Check for newer",
-      "toggle": "Browse the online app catalogue",
-      "emptyOnlineBody": "The online catalogue is on, but nothing is listed yet. Check for newer to fetch it.",
-      "fromCatalog": "Online",
-      "needsNewer": "Needs Adminium {version} or later"
+    "instances": {
+      "add": "Add an instance",
+      "appLabel": "App",
+      "body": "Serve the same app over more than one database. Each instance is reachable at /apps/<app>/<segment>/<side>/ and reads only the connection you give it.",
+      "empty": "No extra instances.",
+      "failed": "Instances were not saved",
+      "readsLabel": "Reads",
+      "remove": "Remove",
+      "save": "Save instances",
+      "slugLabel": "URL segment",
+      "title": "Instances"
     },
     "job": {
       "refreshTitle": "Checking the online app catalogue",
@@ -691,6 +679,29 @@ export default {
       "body": "Fetching and verifying. Nothing is installed or changed until you say so.",
       "failed": "The job did not finish. Nothing was installed or changed."
     },
+    "names": {
+      "label": "Name for {app}",
+      "save": "Save name",
+      "subtitle": "What each app is called — in its own screens and in this dashboard’s sidebar. Leave it empty to use the name the app was built with.",
+      "title": "App names"
+    },
+    "subtitle": "The app surfaces this instance serves — where each one appears, and the domains pointed at them.",
+    "surfaces": {
+      "boundKey": "Serves key",
+      "connectionLabel": "Reads",
+      "connectionUnset": "Whichever is serving",
+      "customer": "Customer",
+      "mintLink": "Mint one under Public API",
+      "noKey": "No key bound — this surface cannot read data until one is minted for it.",
+      "noNav": "Internal placement unavailable — rebuild this surface with the current toolkit so it emits surface.json.",
+      "placementExternal": "External (own URL only)",
+      "placementInternal": "In the sidebar (blended)",
+      "placementLabel": "Placement",
+      "staff": "Staff",
+      "subtitle": "A staff surface can blend into this dashboard’s sidebar or stand on its own; a customer surface is public and reads through its bound key.",
+      "title": "Surfaces"
+    },
+    "title": "Hosted apps",
     "update": {
       "title": "Update {app} to v{version}",
       "subtitle": "This version needs tables the installed one did not have.",
@@ -730,7 +741,8 @@ export default {
       "readOnly": "Read-only",
       "tables": "Tables",
       "timezone": "Timezone",
-      "timezoneGuessed": "from this server"
+      "timezoneGuessed": "from this server",
+      "timezoneNone": "not set — dates render in {zone}, this server’s zone"
     },
     "connectNew": "New connection",
     "delete": {
@@ -2312,6 +2324,14 @@ export default {
     "persistFailed": "Could not save your table selection — retry.",
     "persistFailedTitle": "Save failed",
     "progress": "Setup progress",
+    "startOver": {
+      "action": "Start over",
+      "body": "Everything entered here is cleared and the wizard returns to the first step.",
+      "bodyCreated": "Everything entered here is cleared and the wizard returns to the first step. The connection Adminium already created is not deleted — it stays in Data connections.",
+      "confirm": "Start over",
+      "keep": "Keep going",
+      "title": "Start this wizard over?"
+    },
     "step": {
       "enrich": "Enrich",
       "generate": "Generate",

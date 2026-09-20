@@ -22,6 +22,7 @@ export default {
       "install": "Installieren",
       "missing": "Fehlt",
       "missingBody": "Seine Dateien liegen nicht auf diesem Server, daher wird nichts davon geladen.",
+      "needsNewer": "Benötigt Adminium {version} oder neuer",
       "noMatchBody": "Kein Add-on hier passt zu dieser Suche und Kategorie.",
       "noMatchTitle": "Keine Treffer",
       "offline": "Zeigt die mit dieser Version gelieferten Add-ons. Das Online-Stöbern ist ausgeschaltet, und nichts hier hat das Internet kontaktiert.",
@@ -530,8 +531,32 @@ export default {
     "title": "Generieren Sie Ihre App"
   },
   "hostedApps": {
+    "browse": {
+      "title": "Apps, die Sie installieren können",
+      "subtitle": "Fertige Apps, die mit diesem Build geliefert wurden. Eine Installation legt die benötigten Tabellen an und liefert die Oberflächen aus — bis Sie den Plan bestätigen, passiert nichts.",
+      "search": "Apps suchen…",
+      "clear": "Suche leeren",
+      "all": "Alle",
+      "by": "von {publisher}",
+      "install": "Installieren",
+      "installed": "Installiert",
+      "missing": "Fehlt",
+      "noMatch": "Keine App passt zu dieser Suche",
+      "noMatchBody": "Versuchen Sie einen anderen Begriff oder eine andere Kategorie.",
+      "emptyTitle": "Keine Apps zum Installieren verfügbar",
+      "emptyBody": "Apps, die mit diesem Build geliefert werden, erscheinen hier. Lassen Sie ADMINIUM_BUNDLED_APPS auf ein Verzeichnis mit App-Paketen zeigen, oder laden Sie selbst eines hoch.",
+      "unreadable": "Das Manifest dieses Pakets konnte nicht gelesen werden. Es lässt sich nicht installieren — verwerfen Sie es unten.",
+      "subtitleOnline": "Apps, die mit diesem Build geliefert wurden, dazu die aus dem Online-Katalog. Eine Installation lädt die App bei Bedarf herunter und legt die benötigten Tabellen an — bis Sie den Plan bestätigen, passiert nichts.",
+      "neverChecked": "Der Online-Katalog ist aktiv, wurde aber noch nicht geprüft. Suchen Sie nach Neuerem, um seine Apps aufzulisten.",
+      "refresh": "Nach Neuerem suchen",
+      "toggle": "Online-App-Katalog durchsuchen",
+      "emptyOnlineBody": "Der Online-Katalog ist aktiv, aber noch ist nichts aufgelistet. Suchen Sie nach Neuerem, um ihn abzurufen.",
+      "fromCatalog": "Online",
+      "needsNewer": "Benötigt Adminium {version} oder neuer"
+    },
     "domains": {
       "add": "Domain anhängen",
+      "docsLink": "So richten Sie eine Domain ein",
       "hostLabel": "Host",
       "instanceLabel": "Instanz",
       "instanceOwn": "Die App selbst",
@@ -541,6 +566,9 @@ export default {
       "save": "Domains speichern",
       "savedBody": "Zuordnungen greifen innerhalb weniger Sekunden. Ein Host antwortet erst, wenn sein DNS und Ihr Proxy diese Instanz tatsächlich erreichen.",
       "savedTitle": "Gespeichert",
+      "stepDns": "Richten Sie den Host in Ihrem DNS auf diesen Server — mit demselben Eintragstyp und Ziel wie die Adresse, über die Sie dieses Dashboard aufrufen.",
+      "stepProxy": "Geben Sie dem Host einen eigenen Site-Block auf Ihrem Reverse-Proxy, der den Host-Header unverändert durchreicht — und laden Sie den Proxy anschließend neu. Das Bearbeiten der Konfigurationsdatei ändert nichts an einem bereits laufenden Prozess.",
+      "stepSignIn": "Bei Mitarbeiter-Oberflächen müssen Sie sich erneut anmelden: Sitzungs-Cookies gehören zu genau einem Host, deshalb führt ein zugeordneter Host Sie zuerst auf seine eigene Anmeldeseite.",
       "subtitle": "Richten Sie das DNS einer Domain auf Ihren Proxy, reichen Sie den Host-Header an Adminium durch und hängen Sie sie hier an — dieser Host liefert dann die Oberfläche statt dieses Dashboards. Zertifikate bleiben auf Ihrem Proxy.",
       "surfaceLabel": "Oberfläche",
       "title": "Domains"
@@ -548,35 +576,6 @@ export default {
     "emptyBody": "Setzen Sie ADMINIUM_SURFACES_DIR auf ein Verzeichnis gebauter Oberflächen — ein Ordner je App und Seite, jeweils mit index.html — und starten Sie neu. Sie werden dann unter /apps/ ausgeliefert und erscheinen hier.",
     "emptyTitle": "Es werden keine App-Oberflächen ausgeliefert",
     "error": "Etwas ist schiefgelaufen",
-    "instances": {
-      "add": "Instanz hinzufügen",
-      "appLabel": "App",
-      "body": "Dieselbe App über mehrere Datenbanken bereitstellen. Jede Instanz ist unter /apps/<app>/<segment>/<side>/ erreichbar und liest nur die Verbindung, die Sie ihr geben.",
-      "empty": "Keine weiteren Instanzen.",
-      "failed": "Instanzen wurden nicht gespeichert",
-      "readsLabel": "Liest",
-      "remove": "Entfernen",
-      "save": "Instanzen speichern",
-      "slugLabel": "URL-Segment",
-      "title": "Instanzen"
-    },
-    "subtitle": "Die App-Oberflächen, die diese Instanz ausliefert — wo jede erscheint und welche Domains auf sie zeigen.",
-    "surfaces": {
-      "boundKey": "Liefert Schlüssel",
-      "connectionLabel": "Liest",
-      "connectionUnset": "Was gerade bedient",
-      "customer": "Kunden",
-      "mintLink": "Unter „Öffentliche API“ erstellen",
-      "noKey": "Kein Schlüssel gebunden — diese Oberfläche kann keine Daten lesen, bis einer für sie erstellt wird.",
-      "noNav": "Interne Platzierung nicht verfügbar — bauen Sie diese Oberfläche mit dem aktuellen Toolkit neu, damit sie surface.json ausgibt.",
-      "placementExternal": "Extern (nur eigene URL)",
-      "placementInternal": "In der Seitenleiste (eingebettet)",
-      "placementLabel": "Platzierung",
-      "staff": "Mitarbeiter",
-      "subtitle": "Eine Mitarbeiter-Oberfläche kann sich in die Seitenleiste dieses Dashboards einfügen oder für sich stehen; eine Kunden-Oberfläche ist öffentlich und liest über ihren gebundenen Schlüssel.",
-      "title": "Oberflächen"
-    },
-    "title": "Gehostete Apps",
     "install": {
       "steps": {
         "bundle": "Paket",
@@ -662,28 +661,17 @@ export default {
       "missingBody": "Ihre Dateien liegen nicht auf diesem Server, daher wird sie nicht ausgeliefert. Installieren Sie dieselbe Version erneut oder deinstallieren Sie sie.",
       "update": "Aktualisieren"
     },
-    "browse": {
-      "title": "Apps, die Sie installieren können",
-      "subtitle": "Fertige Apps, die mit diesem Build geliefert wurden. Eine Installation legt die benötigten Tabellen an und liefert die Oberflächen aus — bis Sie den Plan bestätigen, passiert nichts.",
-      "search": "Apps suchen…",
-      "clear": "Suche leeren",
-      "all": "Alle",
-      "by": "von {publisher}",
-      "install": "Installieren",
-      "installed": "Installiert",
-      "missing": "Fehlt",
-      "noMatch": "Keine App passt zu dieser Suche",
-      "noMatchBody": "Versuchen Sie einen anderen Begriff oder eine andere Kategorie.",
-      "emptyTitle": "Keine Apps zum Installieren verfügbar",
-      "emptyBody": "Apps, die mit diesem Build geliefert werden, erscheinen hier. Lassen Sie ADMINIUM_BUNDLED_APPS auf ein Verzeichnis mit App-Paketen zeigen, oder laden Sie selbst eines hoch.",
-      "unreadable": "Das Manifest dieses Pakets konnte nicht gelesen werden. Es lässt sich nicht installieren — verwerfen Sie es unten.",
-      "subtitleOnline": "Apps, die mit diesem Build geliefert wurden, dazu die aus dem Online-Katalog. Eine Installation lädt die App bei Bedarf herunter und legt die benötigten Tabellen an — bis Sie den Plan bestätigen, passiert nichts.",
-      "neverChecked": "Der Online-Katalog ist aktiv, wurde aber noch nicht geprüft. Suchen Sie nach Neuerem, um seine Apps aufzulisten.",
-      "refresh": "Nach Neuerem suchen",
-      "toggle": "Online-App-Katalog durchsuchen",
-      "emptyOnlineBody": "Der Online-Katalog ist aktiv, aber noch ist nichts aufgelistet. Suchen Sie nach Neuerem, um ihn abzurufen.",
-      "fromCatalog": "Online",
-      "needsNewer": "Benötigt Adminium {version} oder neuer"
+    "instances": {
+      "add": "Instanz hinzufügen",
+      "appLabel": "App",
+      "body": "Dieselbe App über mehrere Datenbanken bereitstellen. Jede Instanz ist unter /apps/<app>/<segment>/<side>/ erreichbar und liest nur die Verbindung, die Sie ihr geben.",
+      "empty": "Keine weiteren Instanzen.",
+      "failed": "Instanzen wurden nicht gespeichert",
+      "readsLabel": "Liest",
+      "remove": "Entfernen",
+      "save": "Instanzen speichern",
+      "slugLabel": "URL-Segment",
+      "title": "Instanzen"
     },
     "job": {
       "refreshTitle": "Online-App-Katalog wird geprüft",
@@ -691,6 +679,29 @@ export default {
       "body": "Wird geladen und geprüft. Installiert oder geändert wird erst auf Ihr Wort.",
       "failed": "Der Vorgang wurde nicht abgeschlossen. Es wurde nichts installiert oder geändert."
     },
+    "names": {
+      "label": "Name für {app}",
+      "save": "Namen speichern",
+      "subtitle": "Wie jede App heißt — in ihren eigenen Ansichten und in der Seitenleiste dieses Dashboards. Leer lassen, um den Namen zu verwenden, mit dem die App gebaut wurde.",
+      "title": "App-Namen"
+    },
+    "subtitle": "Die App-Oberflächen, die diese Instanz ausliefert — wo jede erscheint und welche Domains auf sie zeigen.",
+    "surfaces": {
+      "boundKey": "Liefert Schlüssel",
+      "connectionLabel": "Liest",
+      "connectionUnset": "Was gerade bedient",
+      "customer": "Kunden",
+      "mintLink": "Unter „Öffentliche API“ erstellen",
+      "noKey": "Kein Schlüssel gebunden — diese Oberfläche kann keine Daten lesen, bis einer für sie erstellt wird.",
+      "noNav": "Interne Platzierung nicht verfügbar — bauen Sie diese Oberfläche mit dem aktuellen Toolkit neu, damit sie surface.json ausgibt.",
+      "placementExternal": "Extern (nur eigene URL)",
+      "placementInternal": "In der Seitenleiste (eingebettet)",
+      "placementLabel": "Platzierung",
+      "staff": "Mitarbeiter",
+      "subtitle": "Eine Mitarbeiter-Oberfläche kann sich in die Seitenleiste dieses Dashboards einfügen oder für sich stehen; eine Kunden-Oberfläche ist öffentlich und liest über ihren gebundenen Schlüssel.",
+      "title": "Oberflächen"
+    },
+    "title": "Gehostete Apps",
     "update": {
       "title": "{app} auf v{version} aktualisieren",
       "subtitle": "Diese Version braucht Tabellen, die die installierte nicht hatte.",
@@ -730,7 +741,8 @@ export default {
       "readOnly": "Schreibgeschützt",
       "tables": "Tabellen",
       "timezone": "Zeitzone",
-      "timezoneGuessed": "von diesem Server"
+      "timezoneGuessed": "von diesem Server",
+      "timezoneNone": "nicht gesetzt — Datumsangaben erscheinen in {zone}, der Zeitzone dieses Servers"
     },
     "connectNew": "Neue Verbindung",
     "delete": {
@@ -2312,6 +2324,14 @@ export default {
     "persistFailed": "Ihre Tabellenauswahl konnte nicht gespeichert werden — versuchen Sie es erneut.",
     "persistFailedTitle": "Speichern fehlgeschlagen",
     "progress": "Einrichtungsfortschritt",
+    "startOver": {
+      "action": "Von vorn beginnen",
+      "body": "Alle Eingaben werden verworfen und der Assistent kehrt zum ersten Schritt zurück.",
+      "bodyCreated": "Alle Eingaben werden verworfen und der Assistent kehrt zum ersten Schritt zurück. Die bereits von Adminium angelegte Verbindung wird nicht gelöscht — sie bleibt unter „Datenverbindungen“.",
+      "confirm": "Von vorn beginnen",
+      "keep": "Weitermachen",
+      "title": "Diesen Assistenten von vorn beginnen?"
+    },
     "step": {
       "enrich": "Anreichern",
       "generate": "Generieren",

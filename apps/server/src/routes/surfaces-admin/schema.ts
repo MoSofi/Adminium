@@ -53,6 +53,19 @@ export const surfaceSummary = z.object({
    * on a single-connection instance and a guess on any other.
    */
   connectionId: z.string().nullable(),
+  /**
+   * The operator's own name for this app, or null when they have not set one.
+   * Distinct from {@link appName}: null here is what makes the field render
+   * empty with the app's own name as its placeholder, rather than pre-filling
+   * a value nobody chose and freezing it on the next save.
+   */
+  nameOverride: z.string().nullable(),
+  /**
+   * What the app is CALLED right now, resolved for this session's locale: the
+   * override when set, otherwise the app's own label from `surface.json`, and
+   * the app key when the build emitted none.
+   */
+  appName: z.string(),
   /** Hosts currently mapped to this surface, normalized. */
   domains: z.array(z.string()),
 });
@@ -122,6 +135,22 @@ export const surfaceDomainsBody = z.object({
 
 export const surfaceDomainsReply = z.object({
   domains: z.record(z.string(), surfaceDomainTarget),
+});
+
+/**
+ * The operator's own name for an app.
+ *
+ * `null` clears it and restores whatever name the app's build carries. Trimmed
+ * and length-capped: this lands in a sidebar row and in the app's own chrome,
+ * and neither has room for a paragraph.
+ */
+export const surfaceNameBody = z.object({
+  name: z.string().trim().min(1).max(60).nullable(),
+});
+
+export const surfaceNameReply = z.object({
+  appKey: z.string(),
+  name: z.string().nullable(),
 });
 
 export const surfaceConnectionBody = z.object({

@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2341 entries. */
+/** `namespace:key` — 2343 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1361,6 +1361,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hostedApps.instances.failed',
   'studio:hostedApps.instances.readsLabel',
   'studio:hostedApps.instances.slugLabel',
+  'studio:hostedApps.names.label',
   'studio:hostedApps.subtitle',
   'studio:hostedApps.surfaces.connectionLabel',
   'studio:hostedApps.surfaces.placementLabel',
@@ -1872,6 +1873,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:wizard.bridgeFailedTitle',
   'studio:wizard.persistFailedTitle',
   'studio:wizard.progress',
+  'studio:wizard.startOver.title',
   'studio:wizard.step.enrich',
   'studio:wizard.step.generate',
   'studio:wizard.step.intent',

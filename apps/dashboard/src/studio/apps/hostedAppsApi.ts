@@ -39,6 +39,15 @@ export interface SurfaceSummaryDto {
   connectionId: string | null;
   /** Customer surfaces only: the newest live bound key, or null. */
   boundKey: { id: string; name: string; prefix: string } | null;
+  /**
+   * The operator's own name for this app, or null when they have set none.
+   * Null is what makes the field render EMPTY with {@link appName} as its
+   * placeholder, rather than pre-filling a value nobody chose — which the
+   * next save would then freeze in place.
+   */
+  nameOverride: string | null;
+  /** What the app is called right now: the override, else its own label. */
+  appName: string;
   /** Hosts currently mapped to this surface, normalized. */
   domains: string[];
 }
@@ -83,6 +92,16 @@ export function setStaffConnection(
     `/api/v1/surfaces/${appKey}/connection`,
     { connectionId },
   );
+}
+
+/** `null` clears the override; the app goes back to the name it was built with. */
+export function setAppName(
+  appKey: string,
+  name: string | null,
+): Promise<{ appKey: string; name: string | null }> {
+  return api.put<{ appKey: string; name: string | null }>(`/api/v1/surfaces/${appKey}/name`, {
+    name,
+  });
 }
 
 /** Full-map write, like the domains editor — removing a row is saving without it. */
