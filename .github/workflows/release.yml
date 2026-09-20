@@ -624,20 +624,35 @@ jobs:
           # `/@scope%2Fpkg/0.1.0` returned 200 while `npm install` still failed
           # ETARGET, because the resolver reads the packument's version map.
           # Checking what the installer actually reads is the whole point.
-          for i in $(seq 1 30); do
+          # TWENTY MINUTES, and the laggards are NAMED.
+          #
+          # 0.3.0-rc.1 published all seven packages correctly and then failed
+          # here: one packument was still short of the version at the 10-minute
+          # mark and had propagated minutes later. A publish that worked
+          # reported as a failed release, which also skipped the `github-release`
+          # job downstream — so the cost of being impatient here is not a retry,
+          # it is a release that looks broken and is not.
+          #
+          # The count alone ("1 packument(s) still missing") named nothing, so
+          # working out WHICH package lagged meant checking all seven by hand
+          # against the registry. It says which now.
+          ATTEMPTS=60
+          for i in $(seq 1 "$ATTEMPTS"); do
             missing=0
+            late=''
             for p in $PKGS; do
               curl -fsS -H 'Cache-Control: no-cache' \
                 "https://registry.npmjs.org/@adminiumjs%2F$p" 2>/dev/null \
                 | jq -e --arg v "$VERSION" '.versions[$v] // empty' >/dev/null 2>&1 \
-                || missing=$((missing + 1))
+                || { missing=$((missing + 1)); late="$late $p"; }
             done
             [ "$missing" -eq 0 ] && { echo "all $COUNT packuments list $VERSION"; break; }
-            if [ "$i" -eq 30 ]; then
-              echo "::error::$missing packument(s) still missing $VERSION after 10 minutes"
+            if [ "$i" -eq "$ATTEMPTS" ]; then
+              echo "::error::$missing packument(s) still lack $VERSION after 20 minutes:$late"
+              echo "::error::the publish itself may have SUCCEEDED — check https://www.npmjs.com/package/@adminiumjs/${late# } before re-tagging"
               exit 1
             fi
-            echo "waiting for the registry ($missing packuments lack $VERSION, attempt $i)"
+            echo "waiting for the registry ($missing lack $VERSION:$late, attempt $i/$ATTEMPTS)"
             sleep 20
           done
 
