@@ -20,7 +20,7 @@ That is the whole architecture. It fits on one small VPS.
 | **Port** | 4600 by default |
 | **Meta store** | PostgreSQL, MySQL/MariaDB, or SQLite |
 | **Source database** | PostgreSQL, MySQL/MariaDB, or SQLite — external, always |
-| **Memory** | A few hundred MB idle; scales with concurrent users, not with your database's size |
+| **Memory** | The server is about **165 MB** idle and about **220 MB** during a first boot. **1 GB** where you run the runtime yourself — a VPS with Docker Compose, or Adminium with PostgreSQL and a proxy on one box. **512 MB** is enough on a managed host that runs the container for you (Render, App Platform, Fly, Railway), because that limit applies to your container alone. It scales with concurrent users and with your **schema** size, not with how many rows you have. |
 
 ## Pick a shape
 

@@ -17,7 +17,20 @@ services:
     name: adminium
     runtime: image
     image:
-      url: ghcr.io/mosofi/adminium:latest
+      # An exact version, never `latest` (deploy/README.md): a Blueprint redeploy
+      # resolves the tag again, so `latest` upgrades the engine — and migrates the
+      # meta store — on a deploy you triggered for something else. Bump it here.
+      url: ghcr.io/mosofi/adminium:0.3.0-rc.0
+    # 512 MB is enough here, and that is a property of the platform rather than
+    # of Adminium. This number is the limit on THIS CONTAINER: Render's
+    # orchestrator, the container runtime and the TLS edge run outside it, so
+    # none of them is charged to you. Adminium is ~165 MB idle and ~220 MB during
+    # a first boot. The 1 GB the docs ask for is for a machine where YOU run the
+    # container runtime and a proxy beside the server — a VPS with Compose.
+    #
+    # Raise the plan if your schema is large: the first boot's cost scales with
+    # table and column count, and Node sizes its heap ceiling from the container
+    # limit, so a 512 MB container caps the old space near 256 MB.
     plan: starter
     healthCheckPath: /api/v1/readyz
     envVars:
@@ -25,6 +38,20 @@ services:
         generateValue: true
       - key: ADMINIUM_DATA_DIR
         value: /data
+      # Render terminates TLS at its router and forwards plain HTTP to the
+      # service, so without this Adminium reads every request as insecure and
+      # sourced from the router: `request.protocol` is `http`
+      # (apps/server/src/auth/sessions.ts, `isSecureRequest`), the session cookie
+      # is set WITHOUT `Secure`, the audit log records the router instead of the
+      # client, and every per-IP rate limit shares one bucket. Safe here because
+      # the service port is reachable only through that router.
+      #
+      # Quoted: unquoted `on` is a YAML 1.1 boolean, and the variable is a strict
+      # `on|off|true|false|1|0` enum. ADMINIUM_TRUSTED_PROXIES is left at its
+      # default, `loopback,uniquelocal`, which covers the private address the
+      # router connects from; setting that list while this is off stops the boot.
+      - key: ADMINIUM_TRUST_PROXY
+        value: 'on'
     # The disk is also where files land: uploads, record attachments, export
     # artifacts, the branding logo and imported schema files are written under
     # /data/files, with nothing to configure. 1 GB is a starting size, not a

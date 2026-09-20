@@ -15,11 +15,30 @@
 app = "adminium"
 primary_region = "iad"
 
+# An exact version, never `latest` (deploy/README.md). Fly resolves the image at
+# deploy time, so with `latest` an unrelated redeploy months later pulls whatever
+# it points at then and migrates the meta store to it. Bump this when you upgrade.
 [build]
-  image = "ghcr.io/mosofi/adminium:latest"
+  image = "ghcr.io/mosofi/adminium:0.3.0-rc.0"
 
+# Fly terminates TLS at its edge and forwards to `internal_port` over the private
+# 6PN network, so every request reaches Adminium as plain HTTP from the
+# fly-proxy. WITHOUT ADMINIUM_TRUST_PROXY that is taken at face value:
+# `request.protocol` is `http` (apps/server/src/auth/sessions.ts,
+# `isSecureRequest`), so the session cookie is set WITHOUT `Secure`, the audit
+# log records the proxy's address instead of the client's, and every per-IP rate
+# limit shares one bucket. It is safe to turn on here because the machine's port
+# is reachable only through that proxy.
+#
+# ADMINIUM_TRUSTED_PROXIES is deliberately left at its default,
+# `loopback,uniquelocal`: `uniquelocal` covers `fc00::/7`, which is where Fly's
+# `fdaa::/16` internal network lives. Narrowing it to the fly-proxy is not
+# possible — its address is not fixed — so any machine in this Fly org that can
+# reach the app over 6PN can forge a client address. Do not set the list without
+# the line above it: a list with trust off stops the boot, on purpose.
 [env]
   ADMINIUM_DATA_DIR = "/data"
+  ADMINIUM_TRUST_PROXY = "on"
 
 # Uploads, record attachments, export artifacts, the branding logo and imported
 # schema files land under /data/files on this volume, with nothing to configure.
@@ -38,6 +57,24 @@ primary_region = "iad"
 [[mounts]]
   source = "adminium_data"
   destination = "/data"
+
+# Stated explicitly rather than left to Fly's default, which has changed between
+# versions of flyctl and is not something a deployment should inherit.
+#
+# 512 MB, not the 1 GB the docs ask for, and the difference is what else shares
+# the memory. A Fly Machine is a micro-VM running this container and a small init
+# — there is no container daemon and no proxy in here, because Fly terminates TLS
+# at its edge. Adminium is ~165 MB idle and ~220 MB during a first boot. The 1 GB
+# figure is for a machine where YOU run the runtime and a proxy beside the server,
+# which is the VPS-with-Compose shape, not this one.
+#
+# Raise it to '1gb' if your schema is large: the first boot's cost scales with
+# table and column count, Node takes its heap ceiling from the memory it can see,
+# and a Fly Machine has no swap to absorb a spike.
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
 
 [http_service]
   internal_port = 4600

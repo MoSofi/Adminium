@@ -21,7 +21,7 @@ server loads:
 
 ```
 npm registry
-└── @adminiumjs/adminium@0.2.9       ← the published name of apps/server
+└── @adminiumjs/adminium@0.3.0-rc.0    ← the published name of apps/server
     ├── dist/                          compiled server + CLI
     ├── dashboard/                     the pre-built React SPA (static files)
     ├── vocabulary/                    LLM allow-lists snapshotted at pack time

@@ -28,9 +28,9 @@ release onto every workspace in it, so one `minor` changeset would move the
 whole train to a minor. The convention is therefore to write `patch` and let the
 release notes carry the meaning.
 
-**The number identifies a release, not a package.** `0.2.9` of
-`@adminium/tokens` does not claim that tokens changed in `0.2.9`; it claims
-that this is the copy of tokens that shipped in the `0.2.9` release. Read the
+**The number identifies a release, not a package.** `0.3.0` of
+`@adminium/tokens` does not claim that tokens changed in `0.3.0`; it claims
+that this is the copy of tokens that shipped in the `0.3.0` release. Read the
 changelog for what actually moved.
 
 ## What it means for a contributor

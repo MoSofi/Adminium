@@ -135,9 +135,7 @@ no download.
 
 To keep apps across deploys, run Adminium where the data directory is on a persistent disk, or build
 your own image that carries the app files in `/app/apps-bundle` — see
-[`ADMINIUM_BUNDLED_APPS`](#adminium_bundled_apps). Each boot then copies them back. In 0.2.9 and
-earlier, an app copied back this way is not served until an app is installed or uninstalled, so
-install any one app again, at the same version, after each deploy.
+[`ADMINIUM_BUNDLED_APPS`](#adminium_bundled_apps). Each boot then copies them back.
 
 ## Uninstalling
 

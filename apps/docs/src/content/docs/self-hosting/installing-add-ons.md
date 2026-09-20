@@ -149,14 +149,6 @@ were.
 To keep add-ons across deploys, run Adminium where the data directory is on a persistent disk, or
 build your own image that carries them — see [`ADMINIUM_BUNDLED_ADD_ONS`](#adminium_bundled_add_ons).
 
-:::caution[0.2.9 and earlier]
-These releases load add-on server code before the boot has copied the bundled add-ons back. After a
-deploy onto an empty data directory, a bundled add-on with server code — Invoices & Receipts, for
-one — is listed as on but does nothing until the add-ons are reloaded. Switch any one installed
-add-on off and on again; that reloads all of them. The same step is needed after re-uploading a
-lost package.
-:::
-
 ## Uninstalling
 
 Uninstalling an add-on removes its **package files** and Adminium's own records

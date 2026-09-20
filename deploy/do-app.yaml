@@ -79,8 +79,22 @@ spec:
         registry_type: GHCR
         registry: mosofi
         repository: adminium
-        tag: latest
+        # An exact version, never `latest` (deploy/README.md): App Platform
+        # resolves the tag on every deploy, so `latest` upgrades the engine — and
+        # migrates the managed meta store — on a deploy triggered for anything
+        # else. Take a database backup before bumping this.
+        tag: 0.3.0-rc.0
       http_port: 4600
+      # 512 MB, which is enough: this is the limit on THIS CONTAINER, and App
+      # Platform's own runtime and edge are not charged to it. Adminium is
+      # ~165 MB idle and ~220 MB during a first boot. The 1 GB the docs ask for
+      # is for a machine where YOU run the container runtime and a proxy next to
+      # the server — a Droplet with Compose — not for a platform that runs the
+      # container for you.
+      #
+      # Pick a bigger size if your schema is large: the first boot's cost scales
+      # with table and column count, and Node takes its heap ceiling from the
+      # container limit, so 512 MB caps the old space near 256 MB.
       instance_size_slug: basic-xxs
       instance_count: 1
       health_check:
@@ -92,6 +106,22 @@ spec:
         - key: ADMINIUM_META_URL
           scope: RUN_TIME
           value: ${adminium-meta.DATABASE_URL}
+        # App Platform terminates TLS at its edge and forwards plain HTTP to the
+        # container, so without this Adminium reads every request as insecure and
+        # sourced from that edge: `request.protocol` is `http`
+        # (apps/server/src/auth/sessions.ts, `isSecureRequest`), so the session
+        # cookie is set WITHOUT `Secure`, the audit log records the edge instead
+        # of the client, and every per-IP rate limit shares one bucket. Safe here
+        # because http_port is reachable only through that edge.
+        #
+        # Quoted: unquoted `on` is a YAML 1.1 boolean, and the variable is a
+        # strict `on|off|true|false|1|0` enum. ADMINIUM_TRUSTED_PROXIES is left at
+        # its default, `loopback,uniquelocal`, which covers the private address
+        # the edge connects from; setting that list while this is off stops the
+        # boot.
+        - key: ADMINIUM_TRUST_PROXY
+          scope: RUN_TIME
+          value: 'on'
   databases:
     - name: adminium-meta
       engine: PG
