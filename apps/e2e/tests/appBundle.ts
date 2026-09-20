@@ -104,7 +104,20 @@ function manifest(shape: keyof typeof TABLES, version: string): Record<string, u
     license: 'AGPL-3.0-only',
     description: { key: 'mft.e2e.desc', fallback: 'A bundle built by the e2e suite.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '1.0.0', engines: ['postgres', 'mysql', 'sqlite'] },
+    /*
+     * A floor this server MEETS.
+     *
+     * It was `1.0.0` — a version no Adminium has ever been — which went
+     * unnoticed while nothing read the field. Now that an install refuses a
+     * bundle needing a newer Adminium, that fixture value made every upload in
+     * this suite fail with REQUIRES_NEWER_ADMINIUM.
+     *
+     * `0.2.8` rather than the current version: a literal that tracked the
+     * release would make this fixture assert nothing, and the point of a floor
+     * in test data is that it is BELOW the server, not equal to it. The refusal
+     * path has its own test, which raises the floor deliberately.
+     */
+    compatibility: { minAdminiumVersion: '0.2.8', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: { tables: TABLES[shape] },
     pages: [
       {
