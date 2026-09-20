@@ -82,6 +82,7 @@ function makeConnection(overrides: Partial<ConnectionDto> = {}): ConnectionDto {
     lastErrorHint: null,
     timezone: null,
     timezoneSource: null,
+    serverTimezone: 'UTC',
     currency: null,
     disabled: false,
     disabledAt: null,

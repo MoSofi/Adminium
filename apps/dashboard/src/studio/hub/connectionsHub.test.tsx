@@ -47,6 +47,7 @@ function makeConnection(overrides: Partial<ConnectionDto> = {}): ConnectionDto {
     lastErrorHint: null,
     timezone: null,
     timezoneSource: null,
+    serverTimezone: 'UTC',
     currency: null,
     disabled: false,
     disabledAt: null,
@@ -347,6 +348,29 @@ describe('ConnectionsHub', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Regional settings' }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('This zone came from the server')).toBeTruthy();
+  });
+
+  it('names the zone dates actually render in when the connection has none', async () => {
+    /*
+     * This warning used to live in the app surfaces themselves, as a permanent
+     * "Dates shown in UTC" chip in the header of every screen — shown to the
+     * operator's staff and customers, who cannot set a connection's timezone
+     * and did not need to be told about it on every page. It belongs here,
+     * next to the field that fixes it.
+     *
+     * It names the ZONE, not the absence: "no timezone" does not tell anyone
+     * what the dates they are looking at currently mean.
+     */
+    installFetch(() => [
+      makeConnection({ timezone: null, timezoneSource: null, serverTimezone: 'Europe/Berlin' }),
+    ]);
+    renderHub();
+
+    expect(
+      await screen.findByText(/not set — dates render in Europe\/Berlin/),
+    ).toBeTruthy();
+    // Not the guessed-zone badge: that one means a zone IS stored.
+    expect(screen.queryByText('from this server')).toBeNull();
   });
 
   it('says nothing about provenance for a zone the operator set', async () => {

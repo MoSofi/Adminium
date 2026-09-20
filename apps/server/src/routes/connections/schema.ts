@@ -120,6 +120,25 @@ export const connectionDto = z.object({
    * Studio needs it to keep a guess from reading as a decision.
    */
   timezoneSource: z.enum(['host', 'operator']).nullable(),
+  /**
+   * THIS SERVER's own zone — never the connection's, and never stored.
+   *
+   * A hosted surface has to render a date even when `timezone` is null, and
+   * before this it substituted UTC on its own. That was a guess made in six
+   * app repos, invisible here, and wrong everywhere the server is not in UTC:
+   * a Berlin deployment with an unconfigured connection rendered its own
+   * business's evenings an hour early and called it "UTC" on a badge.
+   *
+   * Reported SEPARATELY from `timezone` rather than substituted into it,
+   * because this endpoint is also the one Studio edits a connection through.
+   * Folding the guess into the stored field would show an operator a zone the
+   * database does not hold, and a save would then persist it as their own
+   * decision — exactly the over-claim migration 0018 refused to backfill.
+   *
+   * Consumers use it only as the fallback when `timezone` is null, and report
+   * the result as the `host` source: a real zone that nobody chose.
+   */
+  serverTimezone: z.string(),
   currency: z.string().nullable(),
   /**
    * Paused by an operator (meta wave 0019) — Adminium opens no connection to

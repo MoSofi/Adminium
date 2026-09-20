@@ -116,6 +116,10 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         // same fact its customers see on every page.
         timezone: connection.timezone,
         timezoneSource: connection.timezoneSource,
+        // Read per response rather than cached at boot: a host's zone can move
+        // under a long-running process (a TZ change, a DST-less container
+        // reconfigured), and this costs nothing.
+        serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         currency: connection.currency,
         disabled: connection.disabled,
         disabledAt: connection.disabledAt,

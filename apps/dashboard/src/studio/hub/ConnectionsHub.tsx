@@ -34,6 +34,7 @@ import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, type ConnectionDto, type IntrospectResult } from '../api.js';
+import { forgetWizardConnection } from '../connect/wizardState.js';
 import { RegionalSettingsModal } from './RegionalSettingsModal.js';
 import { RenameConnectionModal } from './RenameConnectionModal.js';
 
@@ -156,6 +157,10 @@ export function DeleteConnectionModal({ connection, onOpenChange, onDeleted }: D
       onConfirm={async () => {
         try {
           await studioApi.deleteConnection(connection.id, connection.name);
+          // The connect wizard resumes from sessionStorage and would otherwise
+          // keep pointing at this id for the life of the tab — skipping the
+          // create on its next run and introspecting a row that is now gone.
+          forgetWizardConnection(connection.id);
           toasts.push({
             variant: 'success',
             title: t('studio:hub.delete.success', 'Connection “{name}” deleted', {
@@ -558,6 +563,32 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
               {' · '}
               <span className="text-fg-muted">
                 {t('studio:hub.card.timezoneGuessed', 'from this server')}
+              </span>
+            </>
+          ) : null}
+          {/*
+            NO ZONE AT ALL — said here, because here is where it is fixed.
+
+            A hosted surface used to carry this warning itself, as a permanent
+            badge in its own header reading "Dates shown in UTC". That put a
+            configuration problem in front of the operator's STAFF and
+            customers, on every screen, forever — people who cannot act on it
+            and did not need to read it. The operator is the one who can set a
+            zone, and this card is where they do it.
+
+            It names the zone actually being used rather than saying "none",
+            because "no timezone" does not tell anyone what the dates on screen
+            currently mean.
+          */}
+          {connection.timezone === null ? (
+            <>
+              {' · '}
+              <span className="text-warn">
+                {t(
+                  'studio:hub.card.timezoneNone',
+                  'not set — dates render in {zone}, this server’s zone',
+                  { zone: connection.serverTimezone },
+                )}
               </span>
             </>
           ) : null}

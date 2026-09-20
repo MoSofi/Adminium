@@ -54,8 +54,8 @@ export interface ConnectionDto {
    * can read them from.
    *
    * Both nullable. A null zone no longer stops a surface rendering — apps fall
-   * back to UTC and say so on screen — but it is still the value every date
-   * there is drawn through, so a wrong one is off by hours and looks like data.
+   * back to {@link serverTimezone} — but it is still the value every date there
+   * is drawn through, so a wrong one is off by hours and looks like data.
    */
   timezone: string | null;
   /**
@@ -64,6 +64,15 @@ export interface ConnectionDto {
    * must render as nothing rather than as a guess.
    */
   timezoneSource: 'host' | 'operator' | null;
+  /**
+   * This server's own zone, reported on every connection and never stored.
+   *
+   * It is what a hosted surface renders dates in when {@link timezone} is
+   * null, so the card can name the zone in use instead of only saying the
+   * field is empty. Never write it back: saving it would record a guess as the
+   * operator's decision.
+   */
+  serverTimezone: string;
   currency: string | null;
   /**
    * Paused by an operator (meta wave 0019) — Adminium opens no connection to
