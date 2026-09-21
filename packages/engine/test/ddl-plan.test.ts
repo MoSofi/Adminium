@@ -437,7 +437,9 @@ describe('the forward type map (D30)', () => {
     ['varchar', 'postgres', 'varchar(255)'],
     ['timestamptz', 'postgres', 'timestamptz'],
     ['timestamptz', 'mysql', 'datetime'],
-    ['timestamptz', 'sqlite', 'text'],
+    // SQLite gets a declared `timestamp`, not `TEXT`: affinity makes the two
+    // store identically, and only this one reads back as a date.
+    ['timestamptz', 'sqlite', 'timestamp'],
     ['boolean', 'mysql', 'tinyint(1)'],
     ['json', 'postgres', 'jsonb'],
     ['uuid', 'mysql', 'char(36)'],

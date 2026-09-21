@@ -22,7 +22,8 @@
  *
  * ─── Rulings worth reading, not just the table ─────────────────────────────
  *
- * - **`timestamptz` is a real timestamp on every dialect.** The meta store
+ * - **`timestamptz` is a real timestamp on every dialect** — including SQLite,
+ *   which gets a `timestamp` declared type rather than `TEXT`. The meta store
  *   uses epoch milliseconds in an integer column and is entitled to: it owns
  *   its rows. These tables sit in the OPERATOR's database beside their own
  *   data, and a `created_at` holding `1750000000000` is unreadable to every
@@ -117,11 +118,28 @@ export function ddlTypeFor(column: TypeMapColumn, dialect: Dialect): string {
     case 'time':
       return 'time';
     case 'timestamp':
-      return pg ? 'timestamp' : my ? 'datetime' : 'text';
+      return pg ? 'timestamp' : my ? 'datetime' : 'timestamp';
     case 'timestamptz':
-      // SQLite has no date/time type at all; text is what every SQLite tool
-      // reads back as a timestamp and what the introspector recognises.
-      return pg ? 'timestamptz' : my ? 'datetime' : 'text';
+      /*
+       * SQLite gets `timestamp`, NOT `text` — and not `timestamptz`, because
+       * SQLite has no zone to carry and the reader would not believe it anyway.
+       *
+       * This corrected a claim that was made here and was not true. The comment
+       * said text "is what every SQLite tool reads back as a timestamp and what
+       * the introspector recognises"; the introspector's own `hintFor`
+       * (`@adminium/adapter-sqlite`) recognises a declared type CONTAINING
+       * `DATETIME` or `TIMESTAMP`, and lets `TEXT` fall through to `text`. So an
+       * authored timestamp column round-tripped as a plain string: every
+       * date-shaped feature downstream — the calendar archetype's `DATE_TYPES`
+       * gate first among them — looked straight past it.
+       *
+       * Nothing about STORAGE changes. `TIMESTAMP` carries NUMERIC affinity, and
+       * an ISO string is not convertible to a number, so SQLite keeps it as TEXT
+       * byte-for-byte — verified. What changes is that reading it back now says
+       * what was written, which is the whole reason the header's neighbouring
+       * ruling calls a bare `TEXT` "the worst thing to emit".
+       */
+      return pg ? 'timestamptz' : my ? 'datetime' : 'timestamp';
     case 'uuid':
       // Only postgres has a native uuid. `char(36)` on MySQL is the canonical
       // hyphenated form; SQLite stores it as text.

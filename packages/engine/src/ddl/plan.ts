@@ -110,6 +110,8 @@ function make(
     detail?: Parameters<typeof classifyStep>[2];
     dependsOn?: string[];
     outsideTransaction?: boolean;
+    /** `rename-column`: the new name. */
+    renameTo?: string | null;
   },
 ): { step: DdlStep; needsRebuild: boolean } {
   const verdict = classifyStep(kind, ctx, opts.detail);
@@ -127,6 +129,7 @@ function make(
     dependsOn: opts.dependsOn ?? [],
     outsideTransaction: opts.outsideTransaction ?? false,
     refusal: verdict.refusal ?? null,
+    renameTo: opts.renameTo ?? null,
   };
   return { step, needsRebuild: verdict.needsRebuild === true };
 }
@@ -239,6 +242,7 @@ export function planDdl(input: PlanInput): Omit<DdlPlan, 'checksum'> {
       push(
         make('rename-column', rename.newTableId, ctx, {
           column: rename.from,
+          renameTo: rename.to,
           summary: `Rename ${rename.from} to ${rename.to} on ${rename.newTableId}`,
         }),
       );

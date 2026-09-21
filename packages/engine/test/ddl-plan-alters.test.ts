@@ -353,6 +353,11 @@ describe('planAlters — constraints', () => {
       renames: applied,
     });
     expect(kinds(plan)).toEqual(['rename-column', 'add-column']);
+    // The step carries BOTH names. The compiler used to guess the new one as
+    // "the first desired column that is not the old one" — here `new_name`
+    // only because it happens to come first; `id` on almost every real table.
+    const rename = plan.steps.find((step) => step.kind === 'rename-column');
+    expect(rename).toMatchObject({ column: 'old_name', renameTo: 'new_name' });
   });
 });
 
@@ -465,7 +470,7 @@ describe('the forward type map covers every authorable type on every dialect', (
     expect(ddlTypeFor({ logicalType: 'boolean' }, 'postgres')).toBe('boolean');
     expect(ddlTypeFor({ logicalType: 'boolean' }, 'sqlite')).toBe('integer');
     expect(ddlTypeFor({ logicalType: 'timestamp' }, 'mysql')).toBe('datetime');
-    expect(ddlTypeFor({ logicalType: 'timestamp' }, 'sqlite')).toBe('text');
+    expect(ddlTypeFor({ logicalType: 'timestamp' }, 'sqlite')).toBe('timestamp');
     expect(ddlTypeFor({ logicalType: 'json' }, 'mysql')).toBe('json');
     expect(ddlTypeFor({ logicalType: 'json' }, 'sqlite')).toBe('text');
     expect(ddlTypeFor({ logicalType: 'uuid' }, 'sqlite')).toBe('text');

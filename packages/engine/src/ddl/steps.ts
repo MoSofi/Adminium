@@ -200,6 +200,17 @@ export const ddlStepSchema = z.strictObject({
   outsideTransaction: z.boolean().default(false),
   /** Set only on `refused`. */
   refusal: refusalCodeSchema.nullable().default(null),
+  /**
+   * `rename-column` only: the column's NEW name. `column` carries the old one.
+   *
+   * The step used to carry only the old name and the compiler guessed the new
+   * one as "the first desired column that is not the old name" — which is the
+   * table's FIRST column, `id` on nearly every table. Every column rename
+   * compiled to `RENAME COLUMN x TO id` and failed as a duplicate. The planner
+   * knows the answer; it now says it. Optional so a step recorded before the
+   * field existed (the change ledger) still parses; absent means "not a rename".
+   */
+  renameTo: z.string().nullable().optional(),
 });
 export type DdlStep = z.infer<typeof ddlStepSchema>;
 
