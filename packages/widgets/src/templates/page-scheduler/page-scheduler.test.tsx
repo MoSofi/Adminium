@@ -267,3 +267,28 @@ describe('page-scheduler chrome localization (ui:templates.scheduler.*)', () => 
     expect(screen.getByRole('button', { name: 'Previous week' })).toBeDefined();
   });
 });
+
+describe('PageScheduler — rows it cannot place', () => {
+  const INCOMPLETE = [
+    { id: 'S-1', employee_id: 'emp-1', shift_date: '2026-07-13', shift_type: null },
+    { id: 'S-2', employee_id: null, shift_date: null, shift_type: 'morning' },
+  ];
+
+  it('says none of the rows is complete when no shift can be placed', () => {
+    render(
+      <PageScheduler config={schedulerPage()} states={{ 'sched-1': recordList(INCOMPLETE) }} referenceDate={TODAY} />,
+    );
+    expect(screen.getByTestId('schedule-unplaced-rows').textContent).toMatch(/person, a date and a shift type/);
+  });
+
+  it('stays quiet when a shift is placed', () => {
+    render(
+      <PageScheduler
+        config={schedulerPage()}
+        states={{ 'sched-1': recordList([...INCOMPLETE, ROWS[0] as Record<string, unknown>]) }}
+        referenceDate={TODAY}
+      />,
+    );
+    expect(screen.queryByTestId('schedule-unplaced-rows')).toBeNull();
+  });
+});

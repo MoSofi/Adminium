@@ -49,6 +49,21 @@ export {
   emitCandidates,
   emitModelCandidates,
   humanize,
+  /*
+   * The requirement PREDICATES, forwarded for `@adminium/engine`'s
+   * `templateFit`. A template's requirement is a property of the rule
+   * that gates it, so the fit report calls the rule's own predicate rather than
+   * carrying a second description of "what a calendar needs" — the second copy
+   * is the one that drifts, and drift here is invisible: the page composes or
+   * it does not, and nobody diffs the reason.
+   */
+  dateRangeStart,
+  enumColumns,
+  eventDate,
+  firstWithSemantic,
+  personFk,
+  projectFk,
+  withSemantic,
   type CandidateColumn,
   type CandidateContext,
   type CandidateRelation,
@@ -100,9 +115,11 @@ export {
 export {
   ARCHETYPE_TEMPLATE_IDS,
   archetypeRules,
+  boardStatus,
   scoreArchetypes,
   selectArchetype,
   selectModelArchetypes,
+  shiftTypeColumn,
   type ArchetypeRule,
   type ArchetypeSelection,
 } from '../registry/archetypes.js';

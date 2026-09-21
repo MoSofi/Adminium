@@ -22,6 +22,7 @@
  * - card click emits `record-open` — the host routes it to the record drawer;
  * - every non-board item (KPI cards, insights) renders through WidgetHost.
  */
+import { useMaybeT } from '@adminium/i18n/react';
 import { useMemo } from 'react';
 
 import { KanbanBoard } from '../../families/boards/KanbanBoard.js';
@@ -38,19 +39,24 @@ import {
   type LaneDefInput,
 } from '../../families/boards/board-lib.js';
 import { WidgetFrame } from '../../frame/WidgetFrame.js';
+import { UnplacedRowsNotice, nothingPlaced } from '../planning/UnplacedRowsNotice.js';
 import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
 import type { LayoutItem } from '../../grid/layout-schema.js';
 import type { WidgetEvent } from '../../registry/types.js';
 import {
   configString,
+  dayStartValue,
   isCompletedColumn,
   itemConfigOf,
   parseTemplateConfig,
+  planningDateKindOf,
   planningSourceOf,
   quarterKeyOf,
   quarterLabelOf,
   quarterStartIso,
+  splitInstant,
+  type PlanningDateOptions,
   useTemplateStates,
   type TemplateDataStates,
 } from '../planning/planning-lib.js';
@@ -67,6 +73,9 @@ export interface PageBoardLabels {
   composeCancel?: string | undefined;
   emptyTitle?: string | undefined;
   emptyBody?: string | undefined;
+  /** The empty state when the query succeeded and the table has no rows yet. */
+  noRowsTitle?: string | undefined;
+  noRowsBody?: string | undefined;
 }
 
 export interface PageBoardProps {
@@ -77,6 +86,12 @@ export interface PageBoardProps {
   /** Widget event sink. `mutate` handlers may return the CRUD promise so the
    *  boards' optimistic machinery can roll a rejected move back. */
   onEvent?: ((instanceId: string, event: WidgetEvent) => void | Promise<unknown>) | undefined;
+  /**
+   * IANA zone a roadmap buckets dates in (a timestamp is converted into it
+   * before its quarter is taken; a cross-quarter drop writes the quarter's
+   * first midnight in it). Absent ⇒ the viewer's zone.
+   */
+  timeZone?: string | undefined;
   locale?: string | undefined;
   dir?: 'ltr' | 'rtl' | undefined;
   labels?: PageBoardLabels | undefined;
@@ -134,8 +149,16 @@ export function boardItemConfigOf(config: Record<string, unknown>): BoardItemCon
   };
 }
 
-/** Rows → cards with the stored column mapping (+ progress patch + roadmap bucketing). */
-export function boardCardsOf(rows: Record<string, unknown>[], cfg: BoardItemConfig): BoardCardData[] {
+/**
+ * Rows → cards with the stored column mapping (+ progress patch + roadmap
+ * bucketing). A roadmap buckets by the date's day in `dates.timeZone`, read
+ * per the column's kind — the same rule as the calendar.
+ */
+export function boardCardsOf(
+  rows: Record<string, unknown>[],
+  cfg: BoardItemConfig,
+  dates: PlanningDateOptions = {},
+): BoardCardData[] {
   return rows.map((row, index) => {
     const card = toBoardCard(row, index, {
       columnField: cfg.statusColumn,
@@ -147,7 +170,7 @@ export function boardCardsOf(rows: Record<string, unknown>[], cfg: BoardItemConf
       if (typeof pct === 'number' && Number.isFinite(pct)) card.pct = pct;
     }
     if (cfg.roadmap && cfg.dateColumn !== undefined) {
-      card.column = quarterKeyOf(String(row[cfg.dateColumn] ?? ''));
+      card.column = quarterKeyOf(splitInstant(row[cfg.dateColumn], dates)?.day ?? '');
     }
     return card;
   });
@@ -168,6 +191,7 @@ function BoardSlot({
   item,
   state,
   onEvent,
+  timeZone,
   locale,
   dir,
   labels,
@@ -175,19 +199,33 @@ function BoardSlot({
   item: LayoutItem;
   state: WidgetDataState;
   onEvent: PageBoardProps['onEvent'];
+  timeZone: string | undefined;
   locale: string | undefined;
   dir: 'ltr' | 'rtl';
   labels: PageBoardLabels | undefined;
 }) {
+  const t = useMaybeT();
   const raw = itemConfigOf(item);
   const cfg = useMemo(() => boardItemConfigOf(raw), [raw]);
   const source = planningSourceOf(raw);
   const rows = useMemo(() => boardRowsOf(state.data), [state.data]);
-  const cards = useMemo(() => boardCardsOf(rows, cfg), [rows, cfg]);
+  const dateKind = planningDateKindOf(state.data, cfg.dateColumn);
+  const cards = useMemo(
+    () => boardCardsOf(rows, cfg, { timeZone, kind: dateKind }),
+    [rows, cfg, timeZone, dateKind],
+  );
   const roadmap = cfg.roadmap && cfg.dateColumn !== undefined;
   const columns = useMemo(
     () => (roadmap ? quarterColumnsOf(cards) : resolveColumns(cards, cfg.columnDefs)),
     [roadmap, cards, cfg.columnDefs],
+  );
+  // Cards with no status — or one outside the declared columns — are not on
+  // any column. All of them unplaced reads as an empty board (a status column
+  // just added to a table that has rows), so it gets a sentence. A roadmap
+  // places by date and is not a repair target; it is left out.
+  const placed = useMemo(
+    () => cards.filter((card) => card.column !== '' && columns.some((column) => column.id === card.column)).length,
+    [cards, columns],
   );
   const swimlane = item.widget === 'kanban-swimlane-grid';
   const lanes = useMemo(() => (swimlane ? resolveLanes(cards, cfg.laneDefs) : []), [swimlane, cards, cfg.laneDefs]);
@@ -207,7 +245,9 @@ function BoardSlot({
   const moveValues = (toColumn: string, toLane?: string): Record<string, unknown> => {
     if (roadmap) {
       const start = quarterStartIso(toColumn);
-      return cfg.dateColumn !== undefined && start !== null ? { [cfg.dateColumn]: start } : {};
+      return cfg.dateColumn !== undefined && start !== null
+        ? { [cfg.dateColumn]: dayStartValue(start, { timeZone, kind: dateKind }) }
+        : {};
     }
     const values: Record<string, unknown> = { [cfg.statusColumn]: toColumn };
     if (toLane !== undefined && cfg.laneColumn !== undefined) values[cfg.laneColumn] = toLane;
@@ -226,9 +266,27 @@ function BoardSlot({
   };
 
   const frameState = state.status === 'loading' ? 'skeleton' : state.status === 'error' ? 'error' : 'loaded';
+  /*
+   * WHICH empty state. The widgets show theirs whenever they have nothing to
+   * lay out — a plain board with no columns, a swimlane grid with no lanes —
+   * and the host's text for it says "add a status field". That is right when
+   * the table has rows the board cannot place, and wrong when the table simply
+   * has no rows yet: lanes and data-derived columns come FROM the rows, so a
+   * freshly installed app's board told its operator to add a status field it
+   * already had. A board with its columns declared still shows them, empty and
+   * addable; this only changes what the empty state SAYS.
+   */
+  const noRows = state.status === 'success' && rows.length === 0;
+  const emptyTitle = noRows
+    ? (labels?.noRowsTitle ?? t('ui:templates.board.noRowsTitle', 'No cards yet'))
+    : labels?.emptyTitle;
+  const emptyBody = noRows
+    ? (labels?.noRowsBody ??
+      t('ui:templates.board.noRowsBody', 'Cards appear here as soon as the table has rows.'))
+    : labels?.emptyBody;
   const boardLabels = {
     ...(labels?.addLabel === undefined ? {} : { addLabel: labels.addLabel }),
-    ...(labels?.emptyTitle === undefined ? {} : { emptyTitle: labels.emptyTitle, emptyBody: labels.emptyBody }),
+    ...(emptyTitle === undefined ? {} : { emptyTitle, emptyBody }),
   };
 
   return (
@@ -241,6 +299,15 @@ function BoardSlot({
       refetching={state.isRefetching === true}
       testId={`board-slot-${item.i}`}
     >
+      {state.status === 'success' && !roadmap && nothingPlaced(rows.length, placed) ? (
+        <UnplacedRowsNotice
+          testId="board-unplaced-rows"
+          message={t(
+            'ui:templates.planning.unplaced.board',
+            'None of this table’s rows has a status yet, so the board is empty. A row appears here as soon as it has one.',
+          )}
+        />
+      ) : null}
       {swimlane ? (
         <KanbanSwimlaneGrid
           cards={cards}
@@ -336,7 +403,18 @@ function messageOf(error: unknown): string | undefined {
   return undefined;
 }
 
-export function PageBoard({ config, states, onEvent, locale, dir = 'ltr', labels, className, testId }: PageBoardProps) {
+export function PageBoard({
+  config,
+  states,
+  onEvent,
+  timeZone,
+  locale,
+  dir = 'ltr',
+  labels,
+  className,
+  testId,
+}: PageBoardProps) {
+  const t = useMaybeT();
   const parsed = useMemo(() => parseTemplateConfig(config), [config]);
   const resolvedStates = useTemplateStates(parsed.layout, states);
   const boardItem = parsed.layout.items.find((item) => BOARD_WIDGET_IDS.has(item.widget));
@@ -344,7 +422,10 @@ export function PageBoard({ config, states, onEvent, locale, dir = 'ltr', labels
   if (parsed.invalid) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-board-invalid">
-        This board&rsquo;s stored layout is invalid. Regenerate the page or reset its layout.
+        {t(
+          'ui:templates.board.invalidLayout',
+          'This board’s stored layout is invalid. Regenerate the page or reset its layout.',
+        )}
       </p>
     );
   }
@@ -362,6 +443,7 @@ export function PageBoard({ config, states, onEvent, locale, dir = 'ltr', labels
               item={item}
               state={state}
               onEvent={onEvent}
+              timeZone={timeZone}
               locale={locale}
               dir={dir}
               labels={labels}

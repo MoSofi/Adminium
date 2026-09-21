@@ -249,3 +249,76 @@ describe('PageBoard — compose + degradation', () => {
     expect(document.querySelector('[data-widget="kanban-board"]')).not.toBeNull();
   });
 });
+
+describe('PageBoard — rows with no status', () => {
+  const NO_STATUS = [
+    { id: 'T-1', title: 'Fix login', status: null },
+    { id: 'T-2', title: 'Ship exports', status: null },
+  ];
+
+  it('says none of the rows has a status when no card lands on a column', () => {
+    render(<PageBoard config={boardConfig(KANBAN_CONFIG)} states={{ 'board-1': recordList(NO_STATUS) }} />);
+    expect(screen.getByTestId('board-unplaced-rows').textContent).toMatch(/has a status yet/);
+  });
+
+  it('stays quiet when any card is on a column', () => {
+    render(
+      <PageBoard
+        config={boardConfig(KANBAN_CONFIG)}
+        states={{ 'board-1': recordList([...NO_STATUS, ROWS[0] as Record<string, unknown>]) }}
+      />,
+    );
+    expect(screen.queryByTestId('board-unplaced-rows')).toBeNull();
+  });
+});
+
+/**
+ * An EMPTY table is not a board missing its status field. The host's empty-state
+ * text ("add a status field") used to show for both, and a freshly installed
+ * app's board — status column and columns all declared — told its operator to
+ * add a field it already had.
+ */
+describe('PageBoard — a table with no rows yet', () => {
+  const HOST = { emptyTitle: 'No board columns', emptyBody: 'Add a status field to group cards into columns.' };
+  const SWIMLANES = boardConfig(
+    {
+      title: 'Appointments',
+      statusColumn: 'status',
+      laneColumn: 'team',
+      titleColumn: 'title',
+      columns: ['todo', 'in_progress', 'done'],
+      binding: binding('tasks'),
+    },
+    'kanban-swimlane-grid',
+  );
+
+  it('a swimlane board with nothing in it says there are no cards yet', () => {
+    render(<PageBoard config={SWIMLANES} states={{ 'board-1': recordList([]) }} labels={HOST} />);
+    expect(screen.getByText('No cards yet')).toBeTruthy();
+    expect(screen.queryByText('No board columns')).toBeNull();
+  });
+
+  it('a board whose columns come from its rows says the same', () => {
+    const { statusColumn, titleColumn, binding: b } = KANBAN_CONFIG;
+    render(
+      <PageBoard
+        config={boardConfig({ title: 'Tasks', statusColumn, titleColumn, binding: b })}
+        states={{ 'board-1': recordList([]) }}
+        labels={HOST}
+      />,
+    );
+    expect(screen.getByText('No cards yet')).toBeTruthy();
+  });
+
+  it('a board with its columns declared still shows them, empty', () => {
+    render(<PageBoard config={boardConfig(KANBAN_CONFIG)} states={{ 'board-1': recordList([]) }} labels={HOST} />);
+    expect(screen.queryByText('No cards yet')).toBeNull();
+    expect(screen.queryByText('No board columns')).toBeNull();
+    expect(screen.getByText('In progress')).toBeTruthy();
+  });
+
+  it('keeps the host text while the query is still loading', () => {
+    render(<PageBoard config={SWIMLANES} states={{ 'board-1': { status: 'loading' } }} labels={HOST} />);
+    expect(screen.queryByText('No cards yet')).toBeNull();
+  });
+});

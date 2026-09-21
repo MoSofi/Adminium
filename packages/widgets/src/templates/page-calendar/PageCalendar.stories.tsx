@@ -126,3 +126,64 @@ export const DegradedStates = {
     </div>
   ),
 };
+
+/**
+ * Rows arrived and none has a date — a date column just added to a populated
+ * table. The calendar says so on the page, rather than looking broken.
+ */
+export const UndatedRows = {
+  tags: ['vrt'],
+  render: () => (
+    <PageCalendar
+      config={schedulerConfig}
+      states={{
+        'cal-1': rows(RELEASE_ROWS.map((row) => ({ ...row, released_at: null }))),
+      }}
+      referenceDate={TODAY}
+      onEvent={() => Promise.resolve({})}
+    />
+  ),
+};
+
+const visitConfig = {
+  title: 'Visits',
+  startColumn: 'starts_at',
+  titleColumn: 'patient_id__display',
+  titleLookup: { column: 'patient_id', table: 'public.patients', keyColumn: 'id', labelColumn: 'full_name' },
+  binding: { ...binding, source: { schema: 'public', name: 'visits', type: 'table' } },
+};
+
+/**
+ * Titled through a related table: each visit shows its patient's name (a
+ * lookup the server projects), and "Add event" offers the patients.
+ */
+export const TitledThroughRelated = {
+  tags: ['vrt'],
+  render: () => (
+    <PageCalendar
+      config={{
+        ...schedulerConfig,
+        layout: {
+          version: 1,
+          items: [
+            item('cal-1', 'calendar-month', [0, 3, 8, 12], visitConfig),
+            item('agenda-1', 'day-agenda', [8, 3, 4, 12], { ...visitConfig, title: 'Agenda' }),
+          ],
+        },
+      }}
+      states={{
+        'cal-1': rows([
+          { id: 1, patient_id: 7, patient_id__display: 'Ada Lovelace', starts_at: '2026-07-15T09:30:00Z' },
+          { id: 2, patient_id: 9, patient_id__display: 'Grace Hopper', starts_at: '2026-07-15T11:00:00Z' },
+          { id: 3, patient_id: 7, patient_id__display: 'Ada Lovelace', starts_at: '2026-07-22T14:00:00Z' },
+        ]),
+        'cal-1:choices': rows([
+          { id: 7, full_name: 'Ada Lovelace' },
+          { id: 9, full_name: 'Grace Hopper' },
+        ]),
+      }}
+      referenceDate={TODAY}
+      onEvent={() => Promise.resolve({})}
+    />
+  ),
+};

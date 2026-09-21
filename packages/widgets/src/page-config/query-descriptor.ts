@@ -49,6 +49,14 @@ export const queryDescriptorSchema = z.object({
   }),
   shape: dataShapeSchema, // requested output shape
   select: z.array(z.string()).optional(), // column names; record-list/record only
+  /**
+   * `alias:fkColumn[.fkColumn…].targetColumn` — one column of a table reached
+   * through foreign keys, projected onto each row under `alias`. `record-list`
+   * only. The same grammar, resolver, per-table read check and masking as the
+   * CRUD read's `lookup=` param: a calendar can title an appointment with the
+   * patient's name without the page authoring a join.
+   */
+  lookups: z.array(z.string()).max(4).optional(),
   aggregations: z.array(aggregationSchema).max(8).optional(),
   groupBy: z.array(z.string()).max(2).optional(),
   bucket: z

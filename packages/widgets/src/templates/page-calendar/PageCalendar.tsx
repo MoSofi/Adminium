@@ -27,9 +27,9 @@
  *   rendered panes client-side.
  */
 import { useMaybeT } from '@adminium/i18n/react';
-import { Button, Popover, PopoverContent, PopoverTrigger } from '@adminium/ui';
-import { CalendarRange } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Button, Popover, PopoverContent, PopoverTrigger, Select } from '@adminium/ui';
+import { CalendarRange, Plus } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import { InlineComposeCard } from '../../families/boards/InlineComposeCard.js';
 import { boardRowsOf } from '../../families/boards/board-lib.js';
@@ -50,13 +50,16 @@ import {
 } from '../../families/calendar/calendar-lib.js';
 import type { CalendarEvent, DateRangeValue, UpcomingEvent } from '../../families/calendar/calendar-types.js';
 import { WidgetFrame } from '../../frame/WidgetFrame.js';
+import { UnplacedRowsNotice, nothingPlaced } from '../planning/UnplacedRowsNotice.js';
 import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
 import type { WidgetEvent } from '../../registry/types.js';
 import {
   configString,
+  dayStartValue,
   itemConfigOf,
   parseTemplateConfig,
+  planningDateKindOf,
   planningSourceOf,
   splitInstant,
   todayIso,
@@ -79,6 +82,10 @@ export interface PageCalendarLabels {
   composeOpen?: string | undefined;
   agendaEmptyTitle?: string | undefined;
   agendaEmptyBody?: string | undefined;
+  /** Accessible name of the pick-list when the title comes from a related table. */
+  composeChoose?: string | undefined;
+  /** Its empty first option. */
+  composeChoosePlaceholder?: string | undefined;
 }
 
 export interface PageCalendarProps {
@@ -92,10 +99,34 @@ export interface PageCalendarProps {
   onParamsChange?: ((params: Record<string, unknown>) => void) | undefined;
   /** Deterministic "today" (`YYYY-MM-DD`) for stories/tests; defaults to the wall clock. */
   referenceDate?: string | undefined;
+  /**
+   * IANA zone the calendar files events in — an instant is converted into it
+   * before its day is taken, and "Add event" writes that zone's midnight.
+   * Absent ⇒ the viewer's zone, like every other date on the staff dashboard.
+   */
+  timeZone?: string | undefined;
   locale?: string | undefined;
   labels?: PageCalendarLabels | undefined;
   className?: string | undefined;
   testId?: string | undefined;
+}
+
+/**
+ * Where the title comes from when it is not a column of the bound table — a
+ * calendar over `appointments` titled with the patient's name. The title
+ * arrives as a lookup under `titleColumn`; "Add event" cannot type a patient
+ * into existence, so it offers the patients and writes the chosen key into
+ * `column`.
+ */
+export interface CalendarTitleLookup {
+  /** FK column of the bound table — what a new event writes. */
+  column: string;
+  /** Referenced table id. */
+  table: string;
+  /** Referenced key column — the value written. */
+  keyColumn: string;
+  /** Referenced display column — what the pick-list shows. */
+  labelColumn: string;
 }
 
 interface CalendarItemConfig {
@@ -104,6 +135,48 @@ interface CalendarItemConfig {
   titleColumn: string;
   categoryColumn: string | undefined;
   categoryColorMap: Record<string, string> | undefined;
+  titleLookup: CalendarTitleLookup | undefined;
+}
+
+function titleLookupOf(raw: unknown): CalendarTitleLookup | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const value = raw as Record<string, unknown>;
+  const { column, table, keyColumn, labelColumn } = value;
+  return typeof column === 'string' &&
+    typeof table === 'string' &&
+    typeof keyColumn === 'string' &&
+    typeof labelColumn === 'string'
+    ? { column, table, keyColumn, labelColumn }
+    : undefined;
+}
+
+/**
+ * The instance id the host gives the pick-list query of calendar item `i` —
+ * `config.choicesBinding`, fetched in the same batch as the calendar.
+ */
+export function calendarChoicesInstanceId(instanceId: string): string {
+  return `${instanceId}:choices`;
+}
+
+/** One entry of the related-title pick-list. */
+export interface CalendarTitleChoice {
+  value: string | number;
+  label: string;
+}
+
+/** Pick-list entries from the choices payload (a record-list). */
+export function calendarTitleChoicesOf(
+  data: unknown,
+  lookup: CalendarTitleLookup,
+): CalendarTitleChoice[] {
+  const out: CalendarTitleChoice[] = [];
+  for (const row of boardRowsOf(data)) {
+    const value = row[lookup.keyColumn];
+    if (typeof value !== 'string' && typeof value !== 'number') continue;
+    const label = row[lookup.labelColumn];
+    out.push({ value, label: typeof label === 'string' && label !== '' ? label : String(value) });
+  }
+  return out;
 }
 
 export function calendarItemConfigOf(config: Record<string, unknown>): CalendarItemConfig {
@@ -115,6 +188,7 @@ export function calendarItemConfigOf(config: Record<string, unknown>): CalendarI
     categoryColumn: configString(config, 'categoryColumn'),
     categoryColorMap:
       typeof colorMap === 'object' && colorMap !== null ? (colorMap as Record<string, string>) : undefined,
+    titleLookup: titleLookupOf(config['titleLookup']),
   };
 }
 
@@ -122,18 +196,29 @@ export function calendarItemConfigOf(config: Record<string, unknown>): CalendarI
  * Events from a bound payload: a `calendar-events` envelope passes through;
  * a record-list is mapped via the stored column vocabulary. The record id
  * rides on `event.id`, so a clicked row can open the record drawer.
+ *
+ * Each row's day is its day in `timeZone` (the viewer's when absent), read
+ * per the column's logical type from the payload — see planning-lib's
+ * date section for the rule.
  */
-export function calendarEventsOf(data: unknown, cfg: CalendarItemConfig): UpcomingEvent[] {
+export function calendarEventsOf(
+  data: unknown,
+  cfg: CalendarItemConfig,
+  timeZone?: string | undefined,
+): UpcomingEvent[] {
   const direct = eventsOf(data);
   if (direct.length > 0) return direct as UpcomingEvent[];
   const rows = boardRowsOf(data);
+  const startKind = planningDateKindOf(data, cfg.startColumn);
+  const endKind = planningDateKindOf(data, cfg.endColumn);
   const events: UpcomingEvent[] = [];
   for (const row of rows) {
-    const start = splitInstant(row[cfg.startColumn]);
+    const start = splitInstant(row[cfg.startColumn], { timeZone, kind: startKind });
     if (start === null) continue;
     const title = row[cfg.titleColumn] ?? row['title'];
     const category = cfg.categoryColumn !== undefined ? row[cfg.categoryColumn] : row['category'];
-    const end = cfg.endColumn !== undefined ? splitInstant(row[cfg.endColumn]) : null;
+    const end =
+      cfg.endColumn !== undefined ? splitInstant(row[cfg.endColumn], { timeZone, kind: endKind }) : null;
     const id = row['id'] ?? row['_id'];
     events.push({
       ...(typeof id === 'string' || typeof id === 'number' ? { id } : {}),
@@ -172,6 +257,7 @@ function AgendaPane({
   onOpen,
   onCompose,
   labels,
+  composer,
 }: {
   day: string;
   events: readonly UpcomingEvent[];
@@ -181,6 +267,8 @@ function AgendaPane({
   onOpen: ((event: UpcomingEvent) => void) | undefined;
   onCompose: ((title: string) => void) | undefined;
   labels: PageCalendarLabels | undefined;
+  /** Replaces the text composer — the related-title pick-list. */
+  composer?: ReactNode;
 }) {
   const t = useMaybeT();
   const tag = resolveLocale(locale);
@@ -231,7 +319,8 @@ function AgendaPane({
             </button>
           );
         })}
-        {canCompose && onCompose !== undefined && (
+        {canCompose && composer !== undefined && <div className="pt-1.5">{composer}</div>}
+        {canCompose && composer === undefined && onCompose !== undefined && (
           <div className="pt-1.5">
             <InlineComposeCard
               keepOpen={false}
@@ -249,12 +338,93 @@ function AgendaPane({
   );
 }
 
+/**
+ * "Add event" when the title is a related row: a pick-list of those rows
+ * instead of a text box. Same collapsed affordance as `InlineComposeCard`, so
+ * the agenda looks the same either way.
+ */
+function ChoiceCompose({
+  choices,
+  openLabel,
+  addLabel,
+  cancelLabel,
+  chooseLabel,
+  placeholder,
+  onAdd,
+}: {
+  choices: readonly CalendarTitleChoice[];
+  openLabel: string;
+  addLabel: string;
+  cancelLabel: string;
+  chooseLabel: string;
+  placeholder: string;
+  onAdd: (value: string | number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [picked, setPicked] = useState('');
+  if (!open) {
+    return (
+      <button
+        type="button"
+        data-testid="agenda-compose-open"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:bg-surface-2 hover:text-fg"
+      >
+        <Plus className="size-3.5" aria-hidden />
+        {openLabel}
+      </button>
+    );
+  }
+  const close = () => {
+    setPicked('');
+    setOpen(false);
+  };
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-2" data-testid="agenda-compose">
+      <Select
+        aria-label={chooseLabel}
+        value={picked}
+        onChange={(event) => setPicked(event.target.value)}
+        data-testid="agenda-compose-choice"
+      >
+        <option value="">{placeholder}</option>
+        {choices.map((choice, index) => (
+          <option key={`${String(choice.value)}:${String(index)}`} value={String(index)}>
+            {choice.label}
+          </option>
+        ))}
+      </Select>
+      <div className="flex justify-end gap-1.5">
+        <Button variant="ghost" size="sm" onClick={close}>
+          {cancelLabel}
+        </Button>
+        <Button
+          size="sm"
+          disabled={picked === ''}
+          data-testid="agenda-compose-add"
+          onClick={() => {
+            // The KEY is written, with its own type — an integer id posted as
+            // "7" would be a string the server has to coerce, or refuse.
+            const choice = choices[Number(picked)];
+            if (choice === undefined) return;
+            onAdd(choice.value);
+            close();
+          }}
+        >
+          {addLabel}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function PageCalendar({
   config,
   states,
   onEvent,
   onParamsChange,
   referenceDate,
+  timeZone,
   locale,
   labels,
   className,
@@ -263,7 +433,7 @@ export function PageCalendar({
   const t = useMaybeT();
   const parsed = useMemo(() => parseTemplateConfig(config), [config]);
   const resolvedStates = useTemplateStates(parsed.layout, states);
-  const today = referenceDate ?? todayIso();
+  const today = referenceDate ?? todayIso(timeZone);
 
   // The uncategorized bucket NAME is also the legend-filter identity: the same
   // resolved string must feed `aggregateCategories` and the hidden-set check,
@@ -278,7 +448,21 @@ export function PageCalendar({
   const calendarState: WidgetDataState =
     calendarItem === undefined ? { status: 'success', data: { events: [] } } : resolvedStates[calendarItem.i] ?? { status: 'loading' };
 
-  const allEvents = useMemo(() => calendarEventsOf(calendarState.data, cfg), [calendarState.data, cfg]);
+  const allEvents = useMemo(
+    () => calendarEventsOf(calendarState.data, cfg, timeZone),
+    [calendarState.data, cfg, timeZone],
+  );
+  // What "Add event" writes for the selected day: the day itself into a
+  // `date` column, that day's midnight in the rendering zone into a
+  // timestamp — a bare date there is midnight in the DATABASE's zone.
+  const startKind = planningDateKindOf(calendarState.data, cfg.startColumn);
+  const startValueOf = (day: string): string => dayStartValue(day, { timeZone, kind: startKind });
+  // Rows the calendar received, for the "none has a date yet" hint. A true
+  // `{ events }` envelope carries no rows, so it never trips it.
+  const receivedRows = useMemo(
+    () => (eventsOf(calendarState.data).length > 0 ? 0 : boardRowsOf(calendarState.data).length),
+    [calendarState.data],
+  );
 
   const [selectedDay, setSelectedDay] = useState<string>(today);
   const [hidden, setHidden] = useState<readonly string[]>([]);
@@ -310,7 +494,33 @@ export function PageCalendar({
       intent: 'insert',
       connectionId: source.connectionId,
       table: source.table,
-      values: { [cfg.titleColumn]: title, [cfg.startColumn]: day },
+      values: { [cfg.titleColumn]: title, [cfg.startColumn]: startValueOf(day) },
+    });
+  };
+
+  // Title through a related table: the pick-list's rows, from the query the
+  // host ran beside the calendar's. Absent, loading or failed ⇒ no composer —
+  // a text box here would write the typed name into a column that is not one.
+  const lookup = cfg.titleLookup;
+  const choicesState =
+    calendarItem === undefined ? undefined : states?.[calendarChoicesInstanceId(calendarItem.i)];
+  const choices = useMemo(
+    () =>
+      lookup === undefined || choicesState?.status !== 'success'
+        ? []
+        : calendarTitleChoicesOf(choicesState.data, lookup),
+    [lookup, choicesState],
+  );
+  const chooseFor = (day: string) => (value: string | number) => {
+    if (source === null || onEvent === undefined || calendarItem === undefined || lookup === undefined) {
+      return;
+    }
+    void onEvent(calendarItem.i, {
+      type: 'mutate',
+      intent: 'insert',
+      connectionId: source.connectionId,
+      table: source.table,
+      values: { [lookup.column]: value, [cfg.startColumn]: startValueOf(day) },
     });
   };
 
@@ -375,6 +585,15 @@ export function PageCalendar({
                 refetching={state.isRefetching === true}
                 testId={`calendar-slot-${item.i}`}
               >
+                {state.status === 'success' && nothingPlaced(receivedRows, allEvents.length) ? (
+                  <UnplacedRowsNotice
+                    testId="calendar-unplaced-rows"
+                    message={t(
+                      'ui:templates.planning.unplaced.calendar',
+                      'None of this table’s rows has a date yet, so the calendar is empty. A row appears here as soon as it has one.',
+                    )}
+                  />
+                ) : null}
                 <CalendarMonth
                   events={visibleEvents}
                   today={today}
@@ -399,10 +618,31 @@ export function PageCalendar({
                   events={visibleEvents}
                   colorMap={cfg.categoryColorMap}
                   locale={locale}
-                  canCompose={source !== null}
+                  canCompose={source !== null && (lookup === undefined || choices.length > 0)}
                   onOpen={calendarItem === undefined ? undefined : openRecordFrom(calendarItem.i)}
                   onCompose={composeFor(selectedDay)}
                   labels={labels}
+                  {...(lookup === undefined
+                    ? {}
+                    : {
+                        composer: (
+                          <ChoiceCompose
+                            choices={choices}
+                            openLabel={labels?.composeOpen ?? t('ui:templates.calendar.addEvent', 'Add event')}
+                            addLabel={labels?.composeAdd ?? t('ui:widgets.boards.inlineComposeCard.addLabel', 'Add')}
+                            cancelLabel={labels?.composeCancel ?? t('ui:action.cancel', 'Cancel')}
+                            chooseLabel={
+                              labels?.composeChoose ??
+                              t('ui:templates.calendar.composeChoose', 'What this event is for')
+                            }
+                            placeholder={
+                              labels?.composeChoosePlaceholder ??
+                              t('ui:templates.calendar.composeChoosePlaceholder', 'Choose…')
+                            }
+                            onAdd={chooseFor(selectedDay)}
+                          />
+                        ),
+                      })}
                 />
               </WidgetFrame>
             );

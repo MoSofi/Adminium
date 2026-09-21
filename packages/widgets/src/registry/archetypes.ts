@@ -47,6 +47,7 @@ import {
   type CandidateTableInput,
   type CandidateView,
   type ClassifiedTableInput,
+  type ViewColumn,
 } from './candidates.js';
 
 /** Annex `page-queue-inbox`: "pending/approved-style workflow enums". */
@@ -103,7 +104,8 @@ export interface ArchetypeRule {
 /* ------------------------------------------------------------------ rules */
 
 /**
- * The trigger: "Status enum classified as workflow; optional lane dimension".
+ * `page-board`'s gate: the status column, and which of its values read as
+ * kanban states.
  *
  * Never fires on a log-shaped table: "Audit/event/webhook/log tables" route
  * to `page-log-viewer` unconditionally, and the classifier's `log` shape/role is
@@ -112,17 +114,46 @@ export interface ArchetypeRule {
  * table carrying an open/closed-style enum (`BOARD_STATE_RE` matches those), and
  * a lane dimension makes the board *win* — rendering an append-only audit log as
  * a drag-to-change-status kanban, which is both wrong and unsafe.
+ *
+ * EXTRACTED so a caller can ask the requirement instead of restating it. The
+ * gate reaches into the enum's VALUES, not just the column's semantic: a
+ * `status` of `bronze|silver|gold` is the right type, the right semantic and
+ * still no board. Any second copy of that test would drift silently, because
+ * nothing downstream diffs why a page failed to compose — it just does not
+ * appear. `@adminium/engine`'s `templateFit` calls this one.
  */
+export function boardStatus(view: CandidateView): { column: ViewColumn; boardish: string[] } | null {
+  if (view.shape === 'log' || view.role === 'log') return null;
+  const status = firstWithSemantic(view, 'status-workflow');
+  if (status === null || status.enumValues.length === 0 || status.enumValues.length > 6) {
+    return null;
+  }
+  const boardish = status.enumValues.filter((v) => BOARD_STATE_RE.test(v.trim()));
+  if (boardish.length === 0) return null;
+  return { column: status, boardish: [...boardish] };
+}
+
+/**
+ * The shift-type dimension of `page-scheduler`'s primary branch: an enum whose
+ * NAME reads as a shift, or any category enum.
+ *
+ * Extracted for the same reason as {@link boardStatus}.
+ */
+export function shiftTypeColumn(view: CandidateView): ViewColumn | null {
+  return (
+    enumColumns(view).find(
+      (c) => SHIFT_TYPE_RE.test(normalize(c.name)) || c.semantic === 'category-enum',
+    ) ?? null
+  );
+}
+
+/** The trigger: "Status enum classified as workflow; optional lane dimension". */
 const pageBoard: ArchetypeRule = {
   template: 'page-board',
   match(view) {
-    if (view.shape === 'log' || view.role === 'log') return null;
-    const status = firstWithSemantic(view, 'status-workflow');
-    if (status === null || status.enumValues.length === 0 || status.enumValues.length > 6) {
-      return null;
-    }
-    const boardish = status.enumValues.filter((v) => BOARD_STATE_RE.test(v.trim()));
-    if (boardish.length === 0) return null;
+    const hit = boardStatus(view);
+    if (hit === null) return null;
+    const { column: status, boardish } = hit;
     const lane =
       enumColumns(view).find((c) => c.name !== status.name && c.semantic === 'category-enum') ??
       personFk(view) ??
@@ -211,10 +242,8 @@ const pageScheduler: ArchetypeRule = {
     if (person === null) return null;
 
     const date = eventDate(view) ?? dateRangeStart(view);
-    const shiftType = enumColumns(view).find(
-      (c) => SHIFT_TYPE_RE.test(normalize(c.name)) || c.semantic === 'category-enum',
-    );
-    if (date !== null && shiftType !== undefined) {
+    const shiftType = shiftTypeColumn(view);
+    if (date !== null && shiftType !== null) {
       return {
         score: score(0.82, byMatch(SHIFT_TYPE_RE.test(normalize(shiftType.name)))),
         reasons: [

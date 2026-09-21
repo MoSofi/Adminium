@@ -34,6 +34,7 @@ import {
 import type { CapacityBoardData, CapacityMember } from '../../families/calendar/calendar-types.js';
 import { boardRowsOf, humanizeEnum } from '../../families/boards/board-lib.js';
 import { WidgetFrame } from '../../frame/WidgetFrame.js';
+import { UnplacedRowsNotice, nothingPlaced } from '../planning/UnplacedRowsNotice.js';
 import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
 import type { LayoutItem } from '../../grid/layout-schema.js';
@@ -42,8 +43,10 @@ import { ShiftMatrix, type ShiftCell, type ShiftResource, type ShiftTypeDef } fr
 import {
   configNumber,
   configString,
+  dayStartValue,
   itemConfigOf,
   parseTemplateConfig,
+  planningDateKindOf,
   planningSourceOf,
   splitInstant,
   todayIso,
@@ -80,6 +83,12 @@ export interface PageSchedulerProps {
   onParamsChange?: ((params: Record<string, unknown>) => void) | undefined;
   /** Deterministic "today" (`YYYY-MM-DD`) for stories/tests; defaults to the wall clock. */
   referenceDate?: string | undefined;
+  /**
+   * IANA zone shifts are filed in (a timestamp is converted into it before
+   * its day is taken; a new shift writes that zone's midnight). Absent ⇒ the
+   * viewer's zone.
+   */
+  timeZone?: string | undefined;
   locale?: string | undefined;
   labels?: PageSchedulerLabels | undefined;
   className?: string | undefined;
@@ -112,6 +121,8 @@ export interface MatrixModel {
   providedDays: string[] | null;
   /** False when the payload carries no per-row record ids (writes disabled). */
   writable: boolean;
+  /** Rows the payload carried, placed or not — the "nothing placed" hint's denominator. */
+  received: number;
 }
 
 /** A person-name-ish sibling column for the resource label (best effort). */
@@ -128,7 +139,11 @@ function resourceLabelOf(row: Record<string, unknown>, personColumn: string, per
  * `ScheduleMatrixData` (demo mode) or a record-list of shift rows mapped via
  * the stored candidate vocabulary.
  */
-export function matrixModelOf(data: unknown, cfg: MatrixItemConfig): MatrixModel {
+export function matrixModelOf(
+  data: unknown,
+  cfg: MatrixItemConfig,
+  timeZone?: string | undefined,
+): MatrixModel {
   const source = (typeof data === 'object' && data !== null ? data : {}) as Record<string, unknown>;
 
   if (Array.isArray(source['assignments']) && Array.isArray(source['days'])) {
@@ -158,10 +173,12 @@ export function matrixModelOf(data: unknown, cfg: MatrixItemConfig): MatrixModel
       shifts,
       providedDays: (source['days'] as unknown[]).map((day) => String(day)),
       writable: false,
+      received: shifts.length,
     };
   }
 
   const rows = boardRowsOf(data);
+  const dateKind = planningDateKindOf(data, cfg.dateColumn);
   const resources: ShiftResource[] = [];
   const seenResources = new Set<string>();
   const typeIds: string[] = [];
@@ -170,7 +187,7 @@ export function matrixModelOf(data: unknown, cfg: MatrixItemConfig): MatrixModel
   for (const [index, row] of rows.entries()) {
     const personRaw = row[cfg.personColumn];
     const person = personRaw === undefined || personRaw === null ? '' : String(personRaw);
-    const day = splitInstant(row[cfg.dateColumn]);
+    const day = splitInstant(row[cfg.dateColumn], { timeZone, kind: dateKind });
     const typeRaw = row[cfg.typeColumn];
     const typeId = typeRaw === undefined || typeRaw === null ? '' : String(typeRaw);
     if (person === '' || day === null || typeId === '') continue;
@@ -198,6 +215,7 @@ export function matrixModelOf(data: unknown, cfg: MatrixItemConfig): MatrixModel
     shifts,
     providedDays: null,
     writable,
+    received: rows.length,
   };
 }
 
@@ -266,6 +284,7 @@ function MatrixSlot({
   onEvent,
   onParamsChange,
   referenceDate,
+  timeZone,
   locale,
   labels,
 }: {
@@ -274,6 +293,7 @@ function MatrixSlot({
   onEvent: PageSchedulerProps['onEvent'];
   onParamsChange: PageSchedulerProps['onParamsChange'];
   referenceDate: string;
+  timeZone: string | undefined;
   locale: string | undefined;
   labels: PageSchedulerLabels | undefined;
 }) {
@@ -281,7 +301,8 @@ function MatrixSlot({
   const raw = itemConfigOf(item);
   const cfg = useMemo(() => matrixItemConfigOf(raw), [raw]);
   const source = planningSourceOf(raw);
-  const model = useMemo(() => matrixModelOf(state.data, cfg), [state.data, cfg]);
+  const model = useMemo(() => matrixModelOf(state.data, cfg, timeZone), [state.data, cfg, timeZone]);
+  const dateKind = planningDateKindOf(state.data, cfg.dateColumn);
   const tag = resolveLocale(locale);
 
   const [weekOffset, setWeekOffset] = useState(0);
@@ -351,6 +372,15 @@ function MatrixSlot({
             <ChevronRight className="size-4 rtl:-scale-x-100" aria-hidden="true" />
           </Button>
         </div>
+        {state.status === 'success' && nothingPlaced(model.received, model.shifts.length) ? (
+          <UnplacedRowsNotice
+            testId="schedule-unplaced-rows"
+            message={t(
+              'ui:templates.planning.unplaced.scheduler',
+              'None of this table’s rows has a person, a date and a shift type yet, so the schedule is empty. A row appears here as soon as it has all three.',
+            )}
+          />
+        ) : null}
         <div className="min-h-0 flex-1">
           <ShiftMatrix
             resources={model.resources}
@@ -394,7 +424,11 @@ function MatrixSlot({
                 intent: 'insert',
                 connectionId: source.connectionId,
                 table: source.table,
-                values: { [cfg.personColumn]: resourceId, [cfg.dateColumn]: date, [cfg.typeColumn]: typeId },
+                values: {
+                  [cfg.personColumn]: resourceId,
+                  [cfg.dateColumn]: dayStartValue(date, { timeZone, kind: dateKind }),
+                  [cfg.typeColumn]: typeId,
+                },
               });
             }}
             testId={`shift-matrix-${item.i}`}
@@ -467,6 +501,7 @@ export function PageScheduler({
   onEvent,
   onParamsChange,
   referenceDate,
+  timeZone,
   locale,
   labels,
   className,
@@ -475,7 +510,7 @@ export function PageScheduler({
   const t = useMaybeT();
   const parsed = useMemo(() => parseTemplateConfig(config), [config]);
   const resolvedStates = useTemplateStates(parsed.layout, states);
-  const today = referenceDate ?? todayIso();
+  const today = referenceDate ?? todayIso(timeZone);
 
   if (parsed.invalid) {
     return (
@@ -503,6 +538,7 @@ export function PageScheduler({
               onEvent={onEvent}
               onParamsChange={onParamsChange}
               referenceDate={today}
+              timeZone={timeZone}
               locale={locale}
               labels={labels}
             />

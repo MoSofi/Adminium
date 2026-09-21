@@ -155,3 +155,16 @@ export const DegradedStates = {
     </div>
   ),
 };
+
+/** Rows arrived and none has a person, a day AND a shift type: the schedule says so. */
+export const IncompleteRows = {
+  tags: ['vrt'],
+  render: () => (
+    <PageScheduler
+      config={matrixConfig}
+      states={{ 'sched-1': rows(SHIFT_ROWS.map((row) => ({ ...row, shift_type: null }))) }}
+      referenceDate={TODAY}
+      onEvent={() => Promise.resolve({})}
+    />
+  ),
+};

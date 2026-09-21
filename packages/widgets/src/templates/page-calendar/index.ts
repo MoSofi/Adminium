@@ -6,8 +6,12 @@
 export {
   PAGE_CALENDAR_TEMPLATE_ID,
   PageCalendar,
+  calendarChoicesInstanceId,
   calendarEventsOf,
   calendarItemConfigOf,
+  calendarTitleChoicesOf,
+  type CalendarTitleChoice,
+  type CalendarTitleLookup,
   type PageCalendarLabels,
   type PageCalendarProps,
 } from './PageCalendar.js';

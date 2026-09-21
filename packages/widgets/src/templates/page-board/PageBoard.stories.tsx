@@ -179,3 +179,40 @@ export const DegradedStates = {
     </div>
   ),
 };
+
+/** Rows arrived and none has a status yet: the board says so. */
+export const StatuslessRows = {
+  tags: ['vrt'],
+  render: () => (
+    <PageBoard
+      config={boardConfig}
+      states={{ 'board-1': rows(TASK_ROWS.map((row) => ({ ...row, status: null }))) }}
+      onEvent={() => Promise.resolve({})}
+    />
+  ),
+};
+
+/**
+ * A board whose table has no rows yet — a freshly installed app's. It says
+ * there are no cards, not that the table lacks a status field it has.
+ */
+export const NoRowsYet = {
+  tags: ['vrt'],
+  render: () => (
+    <PageBoard
+      config={{
+        ...boardConfig,
+        layout: {
+          ...boardConfig.layout,
+          items: boardConfig.layout.items.map((entry) =>
+            entry.widget === 'kanban-board'
+              ? { ...entry, widget: 'kanban-swimlane-grid', config: { ...entry.config, laneColumn: 'owner' } }
+              : entry,
+          ),
+        },
+      }}
+      states={{ 'board-1': rows([]) }}
+      onEvent={() => Promise.resolve({})}
+    />
+  ),
+};
