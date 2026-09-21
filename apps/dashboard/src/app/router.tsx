@@ -708,21 +708,25 @@ function AutomationsMessages({ children }: { children: ReactElement }) {
 
 function AutomationRulesRouteComponent() {
   return (
-    <Suspense fallback={null}>
-      <AutomationsMessages>
-        <AutomationRulesPageLazy />
-      </AutomationsMessages>
-    </Suspense>
+    <StudioGuard requires="automations.manage">
+      <Suspense fallback={null}>
+        <AutomationsMessages>
+          <AutomationRulesPageLazy />
+        </AutomationsMessages>
+      </Suspense>
+    </StudioGuard>
   );
 }
 
 function WorkflowLogsRouteComponent() {
   return (
-    <Suspense fallback={null}>
-      <AutomationsMessages>
-        <WorkflowLogsPageLazy />
-      </AutomationsMessages>
-    </Suspense>
+    <StudioGuard requires="automations.manage">
+      <Suspense fallback={null}>
+        <AutomationsMessages>
+          <WorkflowLogsPageLazy />
+        </AutomationsMessages>
+      </Suspense>
+    </StudioGuard>
   );
 }
 
@@ -825,7 +829,7 @@ const changelogRoute = createRoute({
 
 function ApiKeysRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="api-keys.manage">
       <ApiKeysPageLazy />
     </StudioGuard>
   );
@@ -844,9 +848,10 @@ const apiKeysRoute = createRoute({
 // session list would spend the ratchet's remaining headroom on screens most
 // sessions never open.
 //
-// Team/roles/audit sit behind `StudioGuard` like `apiKeysRoute` — role ≥ Admin.
-// That gate is UX; the server independently enforces `system:users:manage`,
-// `system:roles:manage` and `system:audit:read`. Account security is NOT
+// Team/roles/audit sit behind `StudioGuard` like `apiKeysRoute`, each narrowed
+// to the key its routes check (`users.manage`, `roles.manage`, `audit.read`) —
+// the built-in Admin holds the first and last but not Roles. That gate is UX;
+// the server independently enforces all three. Account security is NOT
 // guarded: it acts on the caller's own account, so every signed-in user needs
 // it (a viewer changing their own password is the common case).
 
@@ -877,7 +882,7 @@ const SecurityPageLazy = lazy(async () => {
 
 function TeamRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="users.manage">
       <Suspense fallback={null}>
         <TeamPageLazy />
       </Suspense>
@@ -887,7 +892,7 @@ function TeamRouteComponent() {
 
 function RolesRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="roles.manage">
       <Suspense fallback={null}>
         <RolesPageLazy />
       </Suspense>
@@ -897,7 +902,7 @@ function RolesRouteComponent() {
 
 function AuditRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="audit.read">
       <Suspense fallback={null}>
         <AuditLogPageLazy />
       </Suspense>

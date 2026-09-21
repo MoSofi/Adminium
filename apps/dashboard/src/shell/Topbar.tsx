@@ -56,7 +56,7 @@ import {
   unreadCountQuery,
   type NotificationDto,
 } from '../api/notifications.js';
-import type { BootstrapData } from '../app/bootstrap.js';
+import { holdsSystemAction, type BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
 import {
@@ -392,9 +392,12 @@ export function Topbar({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>{t('topbar.studio', 'Studio')}</DropdownMenuLabel>
-                <DropdownMenuItem icon={<Database />} onSelect={onOpenStudio}>
-                  {t('topbar.dataConnections', 'Data connections')}
-                </DropdownMenuItem>
+                {/* `/studio` lists connections, which needs `connections.manage`. */}
+                {holdsSystemAction(bootstrap, 'connections.manage') ? (
+                  <DropdownMenuItem icon={<Database />} onSelect={onOpenStudio}>
+                    {t('topbar.dataConnections', 'Data connections')}
+                  </DropdownMenuItem>
+                ) : null}
                 {/* Pages is deliberately absent: Workspace settings owns the
                     entry point ("Manage pages"), so the menu lists one door per
                     destination instead of two paths to the same surface. */}

@@ -196,6 +196,22 @@ export interface BootstrapProject {
 export interface BootstrapData {
   user: SessionUser;
   roles: string[];
+  /**
+   * The `system:` actions this session holds, as dotted keys (`users.manage`).
+   * Every key for a super-admin. Read through {@link holdsSystemAction}, which
+   * is what decides whether a rail row or a destructive button is OFFERED; the
+   * server still checks every request itself.
+   *
+   * Optional only so fixtures predating it keep typechecking; the server
+   * always sends it (the field is required in the Zod reply schema).
+   */
+  systemActions?: string[];
+  /**
+   * Enabled pages exist that this session may not view. What an empty rail
+   * says depends on it: "connect a database" is wrong once one is connected.
+   * Optional for fixtures predating it; the server always sends it.
+   */
+  pagesWithheld?: boolean;
   prefs: ResolvedPrefs;
   nav: NavTree;
   version: string;
@@ -266,6 +282,45 @@ export interface BootstrapData {
    * through `project/client.ts`.
    */
   project?: BootstrapProject;
+}
+
+/**
+ * The `system:` keys the dashboard gates on. A closed union so a misspelt key
+ * is a compile error rather than a control that silently never renders; the
+ * spellings are meta's `SYSTEM_ACTION_KEYS` (the dashboard may not import
+ * meta, so this is a subset copy — add a key here when a surface starts
+ * gating on it).
+ */
+export type SystemAction =
+  | 'users.manage'
+  | 'roles.manage'
+  | 'settings.manage'
+  | 'connections.manage'
+  | 'automations.manage'
+  | 'api-keys.manage'
+  | 'manifests.manage'
+  | 'audit.read'
+  | 'files.manage'
+  | 'storage.manage'
+  | 'pages.manage'
+  | 'schema.ddl'
+  | 'schema.remap'
+  | 'llm.run'
+  | 'project.read';
+
+/**
+ * Does this session hold `system:<action>`? What the dashboard asks before it
+ * OFFERS something — a rail row, a Delete button — so a person is not shown a
+ * control whose only possible outcome is a 403.
+ *
+ * A reply without the list (a fixture predating the field) falls back to the
+ * old role test: Admin and Super Admin were offered every admin surface.
+ */
+export function holdsSystemAction(bootstrap: BootstrapData, action: SystemAction): boolean {
+  if (bootstrap.systemActions === undefined) {
+    return bootstrap.roles.some((role) => role === 'admin' || role === 'super-admin');
+  }
+  return bootstrap.systemActions.includes(action);
 }
 
 /** May this session open the page assistant? See the field's note. */

@@ -26,7 +26,7 @@
  * and this page has to keep true on screen.
  */
 
-import { Alert, Button, Card, Input, Select, Spinner } from '@adminium/ui';
+import { Alert, Button, Card, ConfirmModal, Input, Select, Spinner } from '@adminium/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
@@ -132,11 +132,23 @@ export function DocumentProfilesPage() {
 
       {editing === null ? (
         <>
-          <ProfileList
-            profiles={profiles.data ?? []}
-            kinds={available}
-            onEdit={(profile, kind) => setEditing({ kind, profile })}
-          />
+          {/* A failed read is not an empty list: saying "No mappings yet" over
+              a 403 or a 500 invites someone to recreate mappings that exist. */}
+          {profiles.isError ? (
+            <Alert
+              role="alert"
+              tone="danger"
+              data-testid="documents-load-error"
+              title={studioT('studio:documents.loadFailed', 'The mappings could not be loaded')}
+              body={profiles.error.message}
+            />
+          ) : (
+            <ProfileList
+              profiles={profiles.data ?? []}
+              kinds={available}
+              onEdit={(profile, kind) => setEditing({ kind, profile })}
+            />
+          )}
           <Card className="flex flex-wrap items-center gap-2 p-4">
             <span className="text-sm text-fg-muted">
               {studioT('studio:documents.newFrom', 'New mapping for:')}
@@ -174,9 +186,13 @@ function ProfileList({
   onEdit: (profile: DocumentProfile, kind: DocumentKindOption) => void;
 }) {
   const queryClient = useQueryClient();
+  const [deleting, setDeleting] = useState<DocumentProfile | null>(null);
   const remove = useMutation({
     mutationFn: (id: string) => deleteProfile(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: documentsKey }),
+    onSuccess: async () => {
+      setDeleting(null);
+      await queryClient.invalidateQueries({ queryKey: documentsKey });
+    },
   });
 
   if (profiles.length === 0) {
@@ -188,49 +204,96 @@ function ProfileList({
   }
 
   return (
-    <ul className="divide-y divide-border rounded-md border border-border">
-      {profiles.map((profile) => {
-        const kind = kinds.find(
-          (option) => option.addOnKey === profile.addOnKey && option.kind === profile.kind,
-        );
-        return (
-          <li key={profile.id} className="flex items-center gap-3 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{profile.name}</p>
-              <p className="truncate text-xs text-fg-muted">
-                {pick(kind?.label, currentLocale(), profile.kind)} · {profile.table}
-                {profile.trigger === null
-                  ? ` · ${studioT('studio:documents.trigger.manualShort', 'on request')}`
-                  : ` · ${profile.trigger.event}`}
-                {profile.enabled
-                  ? ''
-                  : ` · ${studioT('studio:documents.disabled', 'switched off')}`}
-              </p>
-            </div>
-            {/*
-              * Delete was the only thing this list offered, which made every
-              * mapping write-once: a column chosen wrongly six months ago
-              * could only be fixed by deleting the mapping — and with it the
-              * rule that fires it and the link every document in the register
-              * holds back to it.
-              */}
-            {kind !== undefined && (
-              <Button size="sm" variant="ghost" onClick={() => onEdit(profile, kind)}>
-                {studioT('studio:documents.edit', 'Edit')}
+    <>
+      <ul className="divide-y divide-border rounded-md border border-border">
+        {profiles.map((profile) => {
+          const kind = kinds.find(
+            (option) => option.addOnKey === profile.addOnKey && option.kind === profile.kind,
+          );
+          return (
+            <li key={profile.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{profile.name}</p>
+                <p className="truncate text-xs text-fg-muted">
+                  {pick(kind?.label, currentLocale(), profile.kind)} · {profile.table}
+                  {profile.trigger === null
+                    ? ` · ${studioT('studio:documents.trigger.manualShort', 'on request')}`
+                    : ` · ${profile.trigger.event}`}
+                  {profile.enabled
+                    ? ''
+                    : ` · ${studioT('studio:documents.disabled', 'switched off')}`}
+                </p>
+              </div>
+              {/*
+                * Delete was the only thing this list offered, which made every
+                * mapping write-once: a column chosen wrongly six months ago
+                * could only be fixed by deleting the mapping — and with it the
+                * rule that fires it and the link every document in the register
+                * holds back to it.
+                */}
+              {kind !== undefined && (
+                <Button size="sm" variant="ghost" onClick={() => onEdit(profile, kind)}>
+                  {studioT('studio:documents.edit', 'Edit')}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={remove.isPending}
+                onClick={() => {
+                  remove.reset();
+                  setDeleting(profile);
+                }}
+              >
+                {studioT('studio:documents.delete', 'Delete')}
               </Button>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={remove.isPending}
-              onClick={() => remove.mutate(profile.id)}
-            >
-              {studioT('studio:documents.delete', 'Delete')}
-            </Button>
-          </li>
-        );
-      })}
-    </ul>
+            </li>
+          );
+        })}
+      </ul>
+        {/*
+          * Asked first, by name. A mapping carries the rule that fires it and
+          * the link every document in the register holds back to it, so one
+          * stray click used to take all three with no way back.
+          */}
+        {deleting === null ? null : (
+          <ConfirmModal
+            open
+            onOpenChange={(open) => {
+              if (!open) setDeleting(null);
+            }}
+            data-testid="documents-delete-confirm"
+            title={studioT('studio:documents.deleteConfirm.title', 'Delete this mapping?')}
+            body={
+              <>
+                {studioT(
+                  'studio:documents.deleteConfirm.body',
+                  'The rule that fires it goes too, and documents already drawn from it lose their link back. This cannot be undone.',
+                )}
+                {remove.error === null ? null : (
+                  <Alert
+                    role="alert"
+                    tone="danger"
+                    className="mt-3"
+                    data-testid="documents-delete-error"
+                    title={studioT('studio:documents.deleteFailed', 'The mapping was not deleted')}
+                    body={remove.error.message}
+                  />
+                )}
+              </>
+            }
+            confirmWord={deleting.name}
+            promptLabel={studioT('studio:documents.deleteConfirm.prompt', 'Type {name} to confirm', {
+              name: deleting.name,
+            })}
+            confirmLabel={studioT('studio:documents.deleteConfirm.confirm', 'Delete mapping')}
+            cancelLabel={studioT('common.cancel', 'Cancel')}
+            closeLabel={studioT('common.close', 'Close')}
+            busy={remove.isPending}
+            onConfirm={() => remove.mutate(deleting.id)}
+          />
+        )}
+    </>
   );
 }
 

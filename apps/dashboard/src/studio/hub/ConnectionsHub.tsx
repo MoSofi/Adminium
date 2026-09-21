@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CircleCheckBig, Database, FileCode2, LayoutGrid, Pause, Play, Plus, RefreshCw, Table2 } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -29,6 +30,8 @@ import {
   Tooltip,
 } from '@adminium/ui';
 
+import { ApiError } from '../../app/api.js';
+import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
@@ -137,18 +140,40 @@ export interface DeleteConnectionModalProps {
 export function DeleteConnectionModal({ connection, onOpenChange, onDeleted }: DeleteConnectionModalProps) {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
+  // Keyed by connection id: this component stays mounted between targets
+  // (it renders null in between), so a bare message would greet the NEXT
+  // connection's dialog with the previous one's refusal.
+  const [failure, setFailure] = useState<{ id: string; message: string } | null>(null);
 
   if (connection === null) return null;
+  const failed = failure !== null && failure.id === connection.id ? failure.message : null;
   return (
     <ConfirmModal
       open
-      onOpenChange={onOpenChange}
+      onOpenChange={(next) => {
+        if (!next) setFailure(null);
+        onOpenChange(next);
+      }}
       title={t('studio:hub.delete.title', 'Delete connection')}
-      body={t(
-        'studio:hub.delete.body',
-        'This deletes “{name}” and its generated pages. Your database itself is never touched.',
-        { name: connection.name },
-      )}
+      body={
+        <>
+          {t(
+            'studio:hub.delete.body',
+            'This deletes “{name}” and its generated pages. Your database itself is never touched.',
+            { name: connection.name },
+          )}
+          {failed === null ? null : (
+            <Alert
+              role="alert"
+              tone="danger"
+              className="mt-3"
+              data-testid="delete-connection-error"
+              title={t('studio:hub.delete.failed', 'Could not delete the connection. Try again.')}
+              body={failed}
+            />
+          )}
+        </>
+      }
       confirmWord={connection.name}
       promptLabel={t('studio:hub.delete.prompt', 'Type {name} to confirm', { name: connection.name })}
       confirmLabel={t('studio:hub.delete.confirm', 'Delete connection')}
@@ -173,10 +198,21 @@ export function DeleteConnectionModal({ connection, onOpenChange, onDeleted }: D
             queryClient.invalidateQueries({ queryKey: ['bootstrap'] }),
           ]);
           onDeleted();
-        } catch {
-          toasts.push({
-            variant: 'error',
-            title: t('studio:hub.delete.failed', 'Could not delete the connection. Try again.'),
+        } catch (error) {
+          // The server's reason, not a generic "try again": a 403 is not
+          // something trying again fixes, and it is the one a person most
+          // needs to be told.
+          setFailure({
+            id: connection.id,
+            message:
+              error instanceof ApiError && error.status === 403
+                ? t(
+                    'studio:hub.delete.forbidden',
+                    'Your role does not include managing connections, so this one was not deleted.',
+                  )
+                : error instanceof Error
+                  ? error.message
+                  : String(error),
           });
         }
       }}
@@ -306,7 +342,8 @@ function PausableAction({
 interface ConnectionCardProps {
   connection: ConnectionDto;
   onOpenRemap: (connectionId: string) => void;
-  onDelete: (connection: ConnectionDto) => void;
+  /** Absent when the viewer may not delete — the button is then not drawn. */
+  onDelete?: ((connection: ConnectionDto) => void) | undefined;
   pollIntervalMs: number;
 }
 
@@ -662,9 +699,11 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
             ? t('studio:hub.action.resume', 'Resume')
             : t('studio:hub.action.pause', 'Pause')}
         </Button>
-        <Button size="sm" variant="ghost" className="text-danger" onClick={() => onDelete(connection)}>
-          {t('studio:hub.action.delete', 'Delete')}
-        </Button>
+        {onDelete === undefined ? null : (
+          <Button size="sm" variant="ghost" className="text-danger" onClick={() => onDelete(connection)}>
+            {t('studio:hub.action.delete', 'Delete')}
+          </Button>
+        )}
       </div>
 
       {confirmingPause ? (
@@ -753,6 +792,11 @@ export function ConnectionsHub({
   pollIntervalMs = 1200,
 }: ConnectionsHubProps) {
   const { data: connections } = useSuspenseQuery(connectionsQuery());
+  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // Delete rides `system:connections:manage`. The list above needs it too, so
+  // today whoever sees a card holds it — but a list opened up to more roles
+  // later must not start offering a delete that 403s, so the button asks.
+  const mayDelete = holdsSystemAction(bootstrap, 'connections.manage');
   const [deleting, setDeleting] = useState<ConnectionDto | null>(null);
 
   const numbers = fmt();
@@ -785,7 +829,8 @@ export function ConnectionsHub({
               )
         }
       >
-        {onOpenHostedApps !== undefined && (
+        {/* `/studio/apps` reads `/surfaces`, which needs `settings.manage`. */}
+        {onOpenHostedApps !== undefined && holdsSystemAction(bootstrap, 'settings.manage') && (
           <Button variant="secondary" onClick={onOpenHostedApps}>
             {t('studio:hub.hostedApps', 'Hosted apps')}
           </Button>
@@ -844,7 +889,7 @@ export function ConnectionsHub({
                 key={connection.id}
                 connection={connection}
                 onOpenRemap={onOpenRemap}
-                onDelete={setDeleting}
+                onDelete={mayDelete ? setDeleting : undefined}
                 pollIntervalMs={pollIntervalMs}
               />
             ))}
@@ -853,7 +898,7 @@ export function ConnectionsHub({
       )}
 
       <DeleteConnectionModal
-        connection={deleting}
+        connection={mayDelete ? deleting : null}
         onOpenChange={(open) => {
           if (!open) setDeleting(null);
         }}

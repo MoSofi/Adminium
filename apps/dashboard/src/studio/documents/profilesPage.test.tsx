@@ -30,12 +30,14 @@ const fetchKinds = vi.hoisted(() => vi.fn());
 const fetchProfiles = vi.hoisted(() => vi.fn());
 const createProfile = vi.hoisted(() => vi.fn());
 const updateProfile = vi.hoisted(() => vi.fn());
+const deleteProfile = vi.hoisted(() => vi.fn());
 vi.mock('./api.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api.js')>()),
   fetchKinds,
   fetchProfiles,
   createProfile,
   updateProfile,
+  deleteProfile,
 }));
 
 const sources = vi.hoisted(() => vi.fn());
@@ -437,6 +439,47 @@ describe('a saved mapping can be opened again', () => {
     await waitFor(() => expect(updateProfile).toHaveBeenCalled());
     expect(updateProfile.mock.calls[0]![0]).toBe('dpf_1');
     expect(createProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe('deleting a mapping', () => {
+  beforeEach(() => {
+    fetchProfiles.mockResolvedValue([PROFILE]);
+    deleteProfile.mockReset();
+  });
+
+  it('asks first, by name, and deletes nothing on the click alone', async () => {
+    deleteProfile.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    mount();
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(deleteProfile).not.toHaveBeenCalled();
+    await user.type(within(dialog).getByRole('textbox'), 'Order invoice');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete mapping' }));
+    await waitFor(() => expect(deleteProfile).toHaveBeenCalledWith('dpf_1'));
+  });
+
+  it('says in the dialog why a delete was refused', async () => {
+    deleteProfile.mockRejectedValue(new Error('Forbidden.'));
+    const user = userEvent.setup();
+    mount();
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByRole('textbox'), 'Order invoice');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete mapping' }));
+
+    const alert = await within(dialog).findByTestId('documents-delete-error');
+    expect(alert.textContent).toContain('The mapping was not deleted');
+    expect(alert.textContent).toContain('Forbidden.');
+  });
+
+  it('reports a failed load instead of claiming there are no mappings', async () => {
+    fetchProfiles.mockRejectedValue(new Error('Request failed with status 500.'));
+    mount();
+    expect(await screen.findByTestId('documents-load-error')).toBeTruthy();
+    expect(screen.queryByText('No mappings yet.')).toBeNull();
   });
 });
 

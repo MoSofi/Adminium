@@ -17,7 +17,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useCommandK, useTheme, useThemePrefs } from '@adminium/ui';
 
 import { invalidateForRealtimeEvent, resyncConfigOnConnect } from '../api/realtime.js';
-import { bootstrapQuery, findPageBySlug, flattenNav } from '../app/bootstrap.js';
+import { bootstrapQuery, findPageBySlug, flattenNav, holdsSystemAction } from '../app/bootstrap.js';
 import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
 import { createRealtimeClient } from '../app/ws.js';
@@ -223,7 +223,11 @@ export function AppShell() {
   // rather than via `useShortcut` so both stay gated on role — a viewer never
   // sees a Studio entry in the shortcuts panel it would only 403 on — and so
   // `s` is reserved from the nav letters in the same pass.
-  const studioAccess = hasStudioAccess(bootstrap.roles);
+  // `G S` lands on `/studio`, the connections hub, whose list needs
+  // `connections.manage` — the role alone would register a chord that opens
+  // the forbidden state for a custom role without it.
+  const studioAccess =
+    hasStudioAccess(bootstrap.roles) && holdsSystemAction(bootstrap, 'connections.manage');
   useEffect(() => {
     const targets = gChordTargets(flattenNav(bootstrap.nav), studioAccess ? ['s'] : []);
     const unregister = targets.map(({ item, letter }) =>

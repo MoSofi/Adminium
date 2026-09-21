@@ -101,6 +101,12 @@ interface Call {
   body: unknown;
 }
 
+/**
+ * The session's `system:` keys, for the tests about what the hub offers. Unset
+ * (the default) the fixture predates the field and the role alone decides.
+ */
+let systemActions: string[] | undefined;
+
 function stubFetch(
   roles: string[],
   connections: ConnectionDto[] = [makeConnection()],
@@ -115,7 +121,15 @@ function stubFetch(
     const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : null;
     calls.push({ method, url, body });
     if (url.startsWith('/api/v1/bootstrap')) {
-      return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ roles, nav: { groups: [] } }) }));
+      return Promise.resolve(
+        jsonResponse(200, {
+          data: makeBootstrap({
+            roles,
+            nav: { groups: [] },
+            ...(systemActions === undefined ? {} : { systemActions }),
+          }),
+        }),
+      );
     }
     if (url === '/api/v1/settings/workspace' && method === 'GET') {
       return Promise.resolve(jsonResponse(200, { data: { branding } }));
@@ -230,6 +244,7 @@ afterAll(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  systemActions = undefined;
 });
 
 describe('StudioSettingsPage', () => {
@@ -542,6 +557,26 @@ describe('StudioSettingsPage', () => {
       const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/email'));
       expect(put?.body).toEqual({ smtp: null });
     });
+  });
+
+  it('offers the built-in Admin only the rows its keys open, and no danger zone without connections', async () => {
+    // The built-in Admin's seed: none of pages/storage/manifests/api-keys.
+    systemActions = ['users.manage', 'audit.read', 'schema.remap', 'llm.run', 'project.read'];
+    await renderPage(['admin']);
+    expect(await screen.findByRole('button', { name: 'Open AI settings' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Open lists' })).toBeDefined();
+    for (const refused of ['Manage pages', 'Open storage', 'Open add-ons', 'Open public API']) {
+      expect(screen.queryByRole('button', { name: refused }), refused).toBeNull();
+    }
+    expect(screen.queryByRole('heading', { name: 'Danger zone' })).toBeNull();
+  });
+
+  it('offers a row as soon as its key is granted, whatever the role', async () => {
+    systemActions = ['pages.manage', 'connections.manage'];
+    await renderPage(['admin']);
+    expect(await screen.findByRole('button', { name: 'Manage pages' })).toBeDefined();
+    expect(await screen.findByRole('heading', { name: 'Danger zone' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Open storage' })).toBeNull();
   });
 
   it('admins get the super-admin notice, no settings fetch, but keep the danger zone', async () => {

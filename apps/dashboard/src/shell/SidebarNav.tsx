@@ -44,12 +44,14 @@ import {
   NAV_GROUP_KEYS,
   activeHostedItem,
   addOnNavOf,
+  holdsSystemAction,
   hostedAppsOf,
   type AddOnNavPage,
   type BootstrapData,
   type HostedApp,
   type NavGroupKey,
   type NavItem,
+  type SystemAction,
 } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { lucideByName } from '../lib/lucide.js';
@@ -104,6 +106,15 @@ interface PlatformNavLink {
   fallback: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  /**
+   * The `system:` key the surface's own routes require, where holding the
+   * Admin role is not enough. Set it when a non-holder who opened the row
+   * would see a 403 rather than a narrowed page: an Admin holds `users.manage`
+   * but not `roles.manage`, `api-keys.manage` or `automations.manage`, and a
+   * custom role can hold any mix. Implies `adminOnly`'s discovery rule too,
+   * since the check is on the grant and not the role.
+   */
+  requires?: SystemAction;
 }
 
 const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly PlatformNavLink[] }> = [
@@ -153,14 +164,14 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
         labelKey: 'nav.automations',
         fallback: 'Automations',
         icon: Workflow,
-        adminOnly: true,
+        requires: 'automations.manage',
       },
       {
         to: '/workflow-logs',
         labelKey: 'nav.workflowLogs',
         fallback: 'Workflow logs',
         icon: History,
-        adminOnly: true,
+        requires: 'automations.manage',
       },
     ],
   },
@@ -170,13 +181,13 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
     // engine with no way to reach it" looked like in the rail.
     group: 'people',
     links: [
-      { to: '/settings/team', labelKey: 'nav.team', fallback: 'Team', icon: Users, adminOnly: true },
+      { to: '/settings/team', labelKey: 'nav.team', fallback: 'Team', icon: Users, requires: 'users.manage' },
       {
         to: '/settings/roles',
         labelKey: 'nav.roles',
         fallback: 'Roles & permissions',
         icon: ShieldCheck,
-        adminOnly: true,
+        requires: 'roles.manage',
       },
       /*
        * `/api-keys` shipped with a route, a 519-line page and no entry point in
@@ -192,14 +203,14 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
         labelKey: 'nav.apiKeys',
         fallback: 'API keys',
         icon: KeyRound,
-        adminOnly: true,
+        requires: 'api-keys.manage',
       },
       {
         to: '/audit',
         labelKey: 'nav.audit',
         fallback: 'Audit log',
         icon: ScrollText,
-        adminOnly: true,
+        requires: 'audit.read',
       },
     ],
   },
@@ -410,8 +421,10 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
   const multiConnection = distinctConnectionCount(nav) >= 2;
   const admin = hasStudioAccess(bootstrap.roles);
   const platformLinksFor = (group: NavGroupKey): readonly PlatformNavLink[] =>
-    (PLATFORM_NAV.find((entry) => entry.group === group)?.links ?? []).filter(
-      (link) => admin || link.adminOnly !== true,
+    (PLATFORM_NAV.find((entry) => entry.group === group)?.links ?? []).filter((link) =>
+      link.requires !== undefined
+        ? holdsSystemAction(bootstrap, link.requires)
+        : admin || link.adminOnly !== true,
     );
   /*
    * Add-on rows (51b). Filtered by the SAME rule the platform tail uses, so a
@@ -513,8 +526,16 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
           */}
         {hostedAfter === null ? hostedSections : null}
         {nav.groups.length === 0 && hostedApps.length === 0 ? (
-          <p className="px-2 py-3 text-body-sm text-fg-subtle">
-            {t('nav.empty', 'Pages appear here once a database is connected.')}
+          <p className="px-2 py-3 text-body-sm text-fg-subtle" data-part="nav-empty">
+            {/* Two different emptinesses. With pages that exist but are not
+                shared with this role, "connect a database" is false — and it
+                sends the reader looking for a setup step that is not theirs. */}
+            {bootstrap.pagesWithheld === true
+              ? t(
+                  'nav.emptyWithheld',
+                  'No pages have been shared with your role yet. Ask an administrator for access.',
+                )
+              : t('nav.empty', 'Pages appear here once a database is connected.')}
           </p>
         ) : null}
         {nav.groups.map((group) => (

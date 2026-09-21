@@ -56,7 +56,7 @@ import {
   type KeyValueItem,
 } from '@adminium/ui';
 
-import { bootstrapQuery } from '../../app/bootstrap.js';
+import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import {
   BRANDING_QUERY_KEY,
   deleteBrandingLogo,
@@ -1428,6 +1428,7 @@ export function StudioSettingsPage({
 }: StudioSettingsPageProps): ReactNode {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const isSuperAdmin = bootstrap.roles.includes(SUPER_ADMIN_ROLE);
+  const holds = (action: Parameters<typeof holdsSystemAction>[1]) => holdsSystemAction(bootstrap, action);
   // Only a server that runs a project folder answers; the row shows only then.
   const project = useQuery({ ...projectOverviewQuery(), enabled: isSuperAdmin && onOpenProject !== undefined });
 
@@ -1467,55 +1468,61 @@ export function StudioSettingsPage({
           out of this hub. `padded={false}` because the rows carry the
           `--card-pad` themselves, `divide-y` for the hairlines between them. */}
       <Card padded={false} className="divide-y divide-border">
-        {/* Pages (/studio/pages) is Admin+ like this hub, so no extra gate here.
-            The server's `system:pages:manage` is the real boundary and the page
-            itself explains a 403 — better than hiding the entry point from an
-            admin who could be granted the permission. It is also the only way
-            in now that the avatar menu no longer lists Pages. */}
-        <LinkRow
-          icon={<Files />}
-          heading={t('studio:settingsHub.pagesCard.heading', 'Pages')}
-          body={t(
-            'studio:settingsHub.pagesCard.body',
-            'Add, edit and delete pages, change what each one shows, and reorder the sidebar.',
-          )}
-          cta={t('studio:settingsHub.pagesCard.cta', 'Manage pages')}
-          onOpen={onOpenPages}
-        />
+        {/* Each row below is drawn only for a viewer holding the `system:` key
+            its page's routes check (`holdsSystemAction`). These rows used to be
+            drawn for every Admin on the theory that finding a door you could be
+            granted beats not seeing it; in practice the built-in Admin holds
+            none of `pages.manage`, `storage.manage`, `manifests.manage` or
+            `api-keys.manage`, so four of them led to a 403. A row for a surface
+            the viewer cannot open is not a door, it is a dead end.
 
-        {/* AI enrichment is an Admin+ surface (/studio/settings/ai) — every user who
-            can see this page can open it, so it is not gated further here. */}
-        <LinkRow
-          icon={<Sparkles />}
-          heading={t('studio:settingsHub.aiCard.heading', 'AI enrichment')}
-          body={t(
-            'studio:settingsHub.aiCard.body',
-            'Configure an AI provider (or the copy-paste round-trip) to enrich labels, groups and relations.',
-          )}
-          cta={t('studio:settingsHub.aiCard.cta', 'Open AI settings')}
-          onOpen={onOpenAiSettings}
-        />
+            Pages (/studio/pages) is also the only way in now that the avatar
+            menu no longer lists Pages. */}
+        {holds('pages.manage') ? (
+          <LinkRow
+            icon={<Files />}
+            heading={t('studio:settingsHub.pagesCard.heading', 'Pages')}
+            body={t(
+              'studio:settingsHub.pagesCard.body',
+              'Add, edit and delete pages, change what each one shows, and reorder the sidebar.',
+            )}
+            cta={t('studio:settingsHub.pagesCard.cta', 'Manage pages')}
+            onOpen={onOpenPages}
+          />
+        ) : null}
 
-        {/* Storage (/studio/storage) is Admin+ like this hub. The route's own
-            guard is `storage.manage`, and the page explains a 403 rather than
-            rendering an empty list — the same reasoning as Pages above: better
-            an admin who could be granted the permission finds the door than
-            that the door is invisible. */}
-        <LinkRow
-          icon={<HardDrive />}
-          heading={t('studio:settingsHub.storageCard.heading', 'Storage')}
-          body={t(
-            'studio:settingsHub.storageCard.body',
-            'Choose where uploaded files, exports and other stored bytes live — this server, a bucket, or your own server.',
-          )}
-          cta={t('studio:settingsHub.storageCard.cta', 'Open storage')}
-          onOpen={onOpenStorage}
-        />
+        {/* AI enrichment (/studio/settings/ai): its routes check `llm.run`. */}
+        {holds('llm.run') ? (
+          <LinkRow
+            icon={<Sparkles />}
+            heading={t('studio:settingsHub.aiCard.heading', 'AI enrichment')}
+            body={t(
+              'studio:settingsHub.aiCard.body',
+              'Configure an AI provider (or the copy-paste round-trip) to enrich labels, groups and relations.',
+            )}
+            cta={t('studio:settingsHub.aiCard.cta', 'Open AI settings')}
+            onOpen={onOpenAiSettings}
+          />
+        ) : null}
 
-        {/* Lists (/studio/lists) — Admin+ like this hub, and behind the same
-            `system:schema:remap` grant that writes the rule naming a list, so
-            the same reasoning as Pages and Storage applies: the page answers a
-            403 itself. A Studio route without a row here is born unreachable. */}
+        {/* Storage (/studio/storage): its routes check `storage.manage`. */}
+        {holds('storage.manage') ? (
+          <LinkRow
+            icon={<HardDrive />}
+            heading={t('studio:settingsHub.storageCard.heading', 'Storage')}
+            body={t(
+              'studio:settingsHub.storageCard.body',
+              'Choose where uploaded files, exports and other stored bytes live — this server, a bucket, or your own server.',
+            )}
+            cta={t('studio:settingsHub.storageCard.cta', 'Open storage')}
+            onOpen={onOpenStorage}
+          />
+        ) : null}
+
+        {/* Lists (/studio/lists) — ungated beyond this hub: READING the lists
+            needs only a session, so the page always opens; its writes ride
+            `system:schema:remap`. A Studio route without a row here is born
+            unreachable. */}
         <LinkRow
           icon={<ListChecks />}
           heading={t('studio:settingsHub.listsCard.heading', 'Lists')}
@@ -1528,39 +1535,43 @@ export function StudioSettingsPage({
         />
 
         {/* Add-ons (/studio/add-ons) — the acquisition and runtime surface for
-            26/32. Its routes guard on `system:manifests:manage`, so the same
-            reasoning as Pages and Storage applies: the page answers a 403
-            itself, and an admin who could be granted the permission should be
-            able to find the door. Until this row existed the page had a route
-            and no inbound link at all — the docs told operators to open
-            "Studio → Add-ons" and there was nothing to click. */}
-        <LinkRow
-          icon={<Blocks />}
-          heading={t('studio:settingsHub.addOnsCard.heading', 'Add-ons')}
-          body={t(
-            'studio:settingsHub.addOnsCard.body',
-            'Browse, install and connect add-ons — extra blocks, data packs and integrations — or upload one yourself.',
-          )}
-          cta={t('studio:settingsHub.addOnsCard.cta', 'Open add-ons')}
-          onOpen={onOpenAddOns}
-        />
+            26/32; its routes check `system:manifests:manage`. Until this row
+            existed the page had a route and no inbound link at all — the docs
+            told operators to open "Studio → Add-ons" and there was nothing to
+            click. */}
+        {holds('manifests.manage') ? (
+          <LinkRow
+            icon={<Blocks />}
+            heading={t('studio:settingsHub.addOnsCard.heading', 'Add-ons')}
+            body={t(
+              'studio:settingsHub.addOnsCard.body',
+              'Browse, install and connect add-ons — extra blocks, data packs and integrations — or upload one yourself.',
+            )}
+            cta={t('studio:settingsHub.addOnsCard.cta', 'Open add-ons')}
+            onOpen={onOpenAddOns}
+          />
+        ) : null}
 
         {/* Public API (/studio/public-api). Its only inbound link was inline
             prose on the Hosted apps page, rendered ONLY for a customer-side
             surface with no key bound yet — so the page was unreachable without
             hosted surfaces, and the link removed itself the moment someone
             bound the key it sent them to mint. That contextual shortcut is
-            still useful where it appears; this row is the standing door. */}
-        <LinkRow
-          icon={<Webhook />}
-          heading={t('studio:settingsHub.publicApiCard.heading', 'Public API')}
-          body={t(
-            'studio:settingsHub.publicApiCard.body',
-            'Let your own customer- or staff-facing pages read this database, through a scope you define.',
-          )}
-          cta={t('studio:settingsHub.publicApiCard.cta', 'Open public API')}
-          onOpen={onOpenPublicApi}
-        />
+            still useful where it appears; this row is the standing door, for
+            holders of `system:api-keys:manage`, which every route it calls
+            checks. */}
+        {holds('api-keys.manage') ? (
+          <LinkRow
+            icon={<Webhook />}
+            heading={t('studio:settingsHub.publicApiCard.heading', 'Public API')}
+            body={t(
+              'studio:settingsHub.publicApiCard.body',
+              'Let your own customer- or staff-facing pages read this database, through a scope you define.',
+            )}
+            cta={t('studio:settingsHub.publicApiCard.cta', 'Open public API')}
+            onOpen={onOpenPublicApi}
+          />
+        ) : null}
 
         {/* Global defaults is a super-admin-only surface (/settings/defaults) — hide
             the cross-link from plain admins rather than sending them to a forbidden
@@ -1610,7 +1621,10 @@ export function StudioSettingsPage({
         ) : null}
       </Card>
 
-      <DangerZone />
+      {/* Deleting a connection rides `system:connections:manage`, and so does
+          the list this card reads — without the key there is nothing here a
+          click could do, so there is no card. */}
+      {holds('connections.manage') ? <DangerZone /> : null}
     </PageSurface>
   );
 }

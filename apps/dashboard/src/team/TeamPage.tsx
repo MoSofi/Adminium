@@ -54,7 +54,7 @@ import {
 } from '@adminium/ui';
 import { tagForLocale, type LocaleId } from '@adminium/i18n';
 
-import { bootstrapQuery } from '../app/bootstrap.js';
+import { bootstrapQuery, holdsSystemAction } from '../app/bootstrap.js';
 import { emailSendGate, useCapabilities } from '../app/capabilities.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
@@ -197,6 +197,8 @@ function InviteBanner({ result, onDismiss }: { result: InviteResult; onDismiss: 
 
 interface InviteDialogProps {
   open: boolean;
+  /** `system:roles:manage` — a role in the invite body also requires it. */
+  mayAssignRoles: boolean;
   roles: readonly RoleListItem[];
   busy: boolean;
   error: string | null;
@@ -204,7 +206,15 @@ interface InviteDialogProps {
   onSubmit: (body: { email: string; name: string; roleIds?: string[] }) => void;
 }
 
-function InviteDialog({ open, roles, busy, error, onOpenChange, onSubmit }: InviteDialogProps): ReactNode {
+function InviteDialog({
+  open,
+  mayAssignRoles,
+  roles,
+  busy,
+  error,
+  onOpenChange,
+  onSubmit,
+}: InviteDialogProps): ReactNode {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [roleIds, setRoleIds] = useState<string[]>([]);
@@ -271,15 +281,17 @@ function InviteDialog({ open, roles, busy, error, onOpenChange, onSubmit }: Invi
             />
           </FormField>
 
-          <FormField
-            label={t('team.inviteDialog.roles', 'Roles')}
-            helper={t(
-              'team.inviteDialog.rolesHelper',
-              'Pick the least-privileged role that lets them do their job. You can change this later.',
-            )}
-          >
-            <RoleCheckboxes idPrefix="invite" roles={roles} selected={roleIds} onChange={setRoleIds} />
-          </FormField>
+          {mayAssignRoles ? (
+            <FormField
+              label={t('team.inviteDialog.roles', 'Roles')}
+              helper={t(
+                'team.inviteDialog.rolesHelper',
+                'Pick the least-privileged role that lets them do their job. You can change this later.',
+              )}
+            >
+              <RoleCheckboxes idPrefix="invite" roles={roles} selected={roleIds} onChange={setRoleIds} />
+            </FormField>
+          ) : null}
 
           {error === null ? null : (
             <Alert
@@ -407,12 +419,16 @@ export function TeamPage(): ReactNode {
   // with it. The list owns its own pending and error states instead, which also
   // keeps a failed refetch from hiding a credential the admin is still holding.
   const users = useInfiniteQuery(usersQuery(filters));
-  // Tolerant, like the api-keys page: `GET /roles` needs `system:roles:manage`
-  // while this page needs `system:users:manage`, so an admin holding only the
-  // latter gets a working directory. The role CHIPS do not depend on it — the
-  // list route embeds `user.roles` for exactly this reason — so a 403 costs
-  // only the pickers, which are the controls that same 403 would refuse anyway.
-  const roles = useQuery({ ...rolesQuery(), retry: false });
+  // `GET /roles` and `PUT /users/:id/roles` need `system:roles:manage`, while
+  // this page needs only `system:users:manage` — the built-in Admin holds the
+  // second and not the first. So the role list is not even ASKED for without
+  // the key (every refused call is a `permission.denied` audit row), and every
+  // control it feeds — the Roles button, the role filter, the invite pickers —
+  // is absent rather than disabled. The role CHIPS do not depend on it: the
+  // list route embeds `user.roles` for exactly this reason. Still tolerant of a
+  // failure, like the api-keys page, since a grant can move after sign-in.
+  const mayManageRoles = bootstrap !== undefined && holdsSystemAction(bootstrap, 'roles.manage');
+  const roles = useQuery({ ...rolesQuery(), retry: false, enabled: mayManageRoles });
 
   const [invite, setInvite] = useState<InviteResult | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -425,11 +441,11 @@ export function TeamPage(): ReactNode {
   const [now] = useState(() => Date.now());
 
   const roleList = roles.data ?? [];
-  // `system:roles:manage` is what PUT /users/:id/roles additionally requires,
-  // and a failed `GET /roles` is the only signal this page has for it. Better
-  // to render the control disabled with the picker empty than to open a dialog
-  // whose Save can only ever 403.
-  const mayEditRoles = roles.isSuccess;
+  const mayEditRoles = mayManageRoles && roles.isSuccess;
+  const actor =
+    bootstrap === undefined
+      ? null
+      : { id: bootstrap.user.id, superAdmin: bootstrap.roles.includes('super-admin') };
   const rows = useMemo(() => users.data?.pages.flatMap((page) => page.users) ?? [], [users.data]);
   // Whole-directory tallies, not page-scoped — so paging does not change them.
   const counts = users.data?.pages[0]?.counts ?? null;
@@ -474,6 +490,10 @@ export function TeamPage(): ReactNode {
       await queryClient.invalidateQueries({ queryKey: TEAM_USERS_KEY });
     },
   });
+  // The row actions below have no dialog of their own to show a refusal in, so
+  // the newest failure among them renders once above the table. Without it a
+  // 409 ("cannot suspend the last Super Admin") was a click that did nothing.
+  const rowError = setStatus.error ?? resend.error;
 
   const saveRoles = useMutation({
     mutationFn: (input: { id: string; roleIds: string[] }) => setUserRoles(input.id, input.roleIds),
@@ -501,6 +521,11 @@ export function TeamPage(): ReactNode {
 
   const filtered = filters.q !== '' || filters.status !== '' || filters.roleId !== '';
 
+  const dismissRowError = () => {
+    setStatus.reset();
+    resend.reset();
+  };
+
   return (
     <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
@@ -517,6 +542,21 @@ export function TeamPage(): ReactNode {
       </PageActions>
 
       {invite === null ? null : <InviteBanner result={invite} onDismiss={() => setInvite(null)} />}
+
+      {rowError === null ? null : (
+        <Alert
+          role="alert"
+          tone="danger"
+          data-testid="team-action-error"
+          title={t('team.actionFailed', 'That change was not made')}
+          body={rowError.message}
+          action={
+            <Button variant="ghost" size="sm" onClick={dismissRowError}>
+              {t('common.dismiss', 'Dismiss')}
+            </Button>
+          }
+        />
+      )}
 
       <Card padded={false}>
         <CardHeader className="justify-between flex flex-wrap items-center gap-3">
@@ -544,20 +584,22 @@ export function TeamPage(): ReactNode {
               </option>
             ))}
           </Select>
-          <Select
-            wrapperClassName="w-44"
-            value={filters.roleId}
-            disabled={roleList.length === 0}
-            aria-label={t('team.filterRole', 'Filter by role')}
-            onChange={(event) => setFilters({ ...filters, roleId: event.target.value })}
-          >
-            <option value="">{t('team.filterRoleAny', 'Any role')}</option>
-            {roleList.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </Select>
+          {mayManageRoles ? (
+            <Select
+              wrapperClassName="w-44"
+              value={filters.roleId}
+              disabled={roleList.length === 0}
+              aria-label={t('team.filterRole', 'Filter by role')}
+              onChange={(event) => setFilters({ ...filters, roleId: event.target.value })}
+            >
+              <option value="">{t('team.filterRoleAny', 'Any role')}</option>
+              {roleList.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
+                </option>
+              ))}
+            </Select>
+          ) : null}
 
           {/* Whole-directory tallies from the reply, so they keep telling the
               truth while a filter narrows the rows below them. */}
@@ -639,9 +681,15 @@ export function TeamPage(): ReactNode {
                       localeTag={localeTag}
                       now={now}
                       busy={setStatus.isPending || resend.isPending}
+                      mayManageRoles={mayManageRoles}
                       mayEditRoles={mayEditRoles}
                       rolesRefused={roles.isError}
-                      onEditRoles={() => setEditingRoles(user)}
+                      mayActOn={mayActOn(actor, user)}
+                      isSelf={actor?.id === user.id}
+                      onEditRoles={() => {
+                        saveRoles.reset();
+                        setEditingRoles(user);
+                      }}
                       onResend={() => resend.mutate(user)}
                       onToggleSuspended={() =>
                         setStatus.mutate({
@@ -649,7 +697,10 @@ export function TeamPage(): ReactNode {
                           status: user.status === 'suspended' ? 'active' : 'suspended',
                         })
                       }
-                      onRemove={() => setRemoving(user)}
+                      onRemove={() => {
+                        remove.reset();
+                        setRemoving(user);
+                      }}
                     />
                   ))}
                 </tbody>
@@ -674,6 +725,7 @@ export function TeamPage(): ReactNode {
 
       <InviteDialog
         open={inviteOpen}
+        mayAssignRoles={mayManageRoles}
         roles={roleList}
         busy={create.isPending}
         error={create.error === null ? null : create.error.message}
@@ -707,11 +759,25 @@ export function TeamPage(): ReactNode {
           }}
           data-testid="team-remove-confirm"
           title={t('team.remove.title', 'Delete account permanently')}
-          body={t(
-            'team.remove.body',
-            'This erases {name}’s account, their preferences and their sign-in sessions, and blanks their name from the record of settings they changed. Suspending instead keeps all of it and only stops them signing in. This cannot be undone.',
-            { name: removing.name },
-          )}
+          body={
+            <>
+              {t(
+                'team.remove.body',
+                'This erases {name}’s account, their preferences and their sign-in sessions, and blanks their name from the record of settings they changed. Suspending instead keeps all of it and only stops them signing in. This cannot be undone.',
+                { name: removing.name },
+              )}
+              {remove.error === null ? null : (
+                <Alert
+                  role="alert"
+                  tone="danger"
+                  className="mt-3"
+                  data-testid="team-remove-error"
+                  title={t('team.remove.failed', 'The account was not deleted')}
+                  body={remove.error.message}
+                />
+              )}
+            </>
+          }
           confirmWord={removing.email}
           promptLabel={t('team.remove.prompt', 'Type “{email}” to confirm', { email: removing.email })}
           confirmLabel={t('team.remove.confirm', 'Delete permanently')}
@@ -719,12 +785,27 @@ export function TeamPage(): ReactNode {
           closeLabel={t('common.close', 'Close')}
           busy={remove.isPending}
           onConfirm={async () => {
-            await remove.mutateAsync(removing);
+            // The refusal renders in the dialog from `remove.error`; letting the
+            // rejection escape would only make it an unhandled one.
+            await remove.mutateAsync(removing).catch(() => undefined);
           }}
         />
       )}
     </PageSurface>
   );
+}
+
+/**
+ * May the viewer change this account at all? Not when it holds Super Admin and
+ * the viewer does not: `users.manage` is not a licence to suspend, delete,
+ * re-role or re-invite the people who hold every permission there is — the
+ * server refuses it with a 403 (`routes/users`), so the row does not offer it.
+ * `null` (bootstrap still loading) offers nothing.
+ */
+function mayActOn(actor: { id: string; superAdmin: boolean } | null, user: UserDto): boolean {
+  if (actor === null) return false;
+  if (actor.superAdmin) return true;
+  return !user.roles.some((role) => role.slug === 'super-admin');
 }
 
 function UserRow(props: {
@@ -733,9 +814,15 @@ function UserRow(props: {
   now: number;
   busy: boolean;
   /** `PUT /users/:id/roles` also requires `system:roles:manage`. */
+  mayManageRoles: boolean;
+  /** The role list has loaded, so the Roles dialog has something to offer. */
   mayEditRoles: boolean;
   /** The role list came back 403/failed — the only signal we have for WHY. */
   rolesRefused: boolean;
+  /** False on a Super Admin's row unless the viewer is one — see {@link mayActOn}. */
+  mayActOn: boolean;
+  /** The viewer's own row: the server refuses to suspend or delete it. */
+  isSelf: boolean;
   onEditRoles: () => void;
   onResend: () => void;
   onToggleSuspended: () => void;
@@ -785,35 +872,41 @@ function UserRow(props: {
       </td>
       <td className="px-4 py-2.5">
         <div className="flex flex-wrap justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={props.busy || !props.mayEditRoles}
-            // Only claim the reason once we actually have one: a still-loading
-            // role list is disabled too, and telling that admin they lack a
-            // permission they hold is worse than saying nothing.
-            title={
-              props.rolesRefused
-                ? t('team.rolesLocked', 'Changing roles needs the “Manage roles” permission.')
-                : undefined
-            }
-            onClick={props.onEditRoles}
-          >
-            {t('team.action.roles', 'Roles')}
-          </Button>
-          {user.status === 'invited' ? (
+          {props.mayActOn && props.mayManageRoles ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={props.busy || !props.mayEditRoles}
+              // Only claim the reason once we actually have one: a still-loading
+              // role list is disabled too, and telling that admin they lack a
+              // permission they hold is worse than saying nothing.
+              title={
+                props.rolesRefused
+                  ? t('team.rolesLocked', 'Changing roles needs the “Manage roles” permission.')
+                  : undefined
+              }
+              onClick={props.onEditRoles}
+            >
+              {t('team.action.roles', 'Roles')}
+            </Button>
+          ) : null}
+          {props.mayActOn && user.status === 'invited' ? (
             <Button variant="ghost" size="sm" disabled={props.busy} onClick={props.onResend}>
               {t('team.action.resend', 'New link')}
             </Button>
           ) : null}
-          <Button variant="ghost" size="sm" disabled={props.busy} onClick={props.onToggleSuspended}>
-            {user.status === 'suspended'
-              ? t('team.action.reactivate', 'Reactivate')
-              : t('team.action.suspend', 'Suspend')}
-          </Button>
-          <Button variant="ghost" size="sm" disabled={props.busy} onClick={props.onRemove}>
-            {t('team.action.remove', 'Delete')}
-          </Button>
+          {props.mayActOn && !props.isSelf ? (
+            <>
+              <Button variant="ghost" size="sm" disabled={props.busy} onClick={props.onToggleSuspended}>
+                {user.status === 'suspended'
+                  ? t('team.action.reactivate', 'Reactivate')
+                  : t('team.action.suspend', 'Suspend')}
+              </Button>
+              <Button variant="ghost" size="sm" disabled={props.busy} onClick={props.onRemove}>
+                {t('team.action.remove', 'Delete')}
+              </Button>
+            </>
+          ) : null}
         </div>
       </td>
     </tr>

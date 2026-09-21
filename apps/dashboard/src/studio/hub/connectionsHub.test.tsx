@@ -14,7 +14,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { installTestI18n } from '../../i18n/testing.js';
 import { AppToastProvider } from '../../pages/toasts.js';
-import { jsonResponse } from '../../test/fixtures.js';
+import { bootstrapQuery, type BootstrapData } from '../../app/bootstrap.js';
+import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { ConnectionDto } from '../api.js';
 import { ConnectionsHub } from './ConnectionsHub.js';
 import { ShellHarness } from '../../test/shellHarness.js';
@@ -94,8 +95,14 @@ function installFetch(
   return { calls, fetchMock };
 }
 
-function renderHub(props: Partial<Parameters<typeof ConnectionsHub>[0]> = {}) {
+function renderHub(
+  props: Partial<Parameters<typeof ConnectionsHub>[0]> = {},
+  bootstrap: BootstrapData = makeBootstrap(),
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // The shell always has the bootstrap cached before any route renders; the
+  // hub reads it for what the session may do.
+  queryClient.setQueryData(bootstrapQuery().queryKey, bootstrap);
   // The client is returned so a test can watch which caches an action
   // invalidates — the rename has to refresh `bootstrap` as well as its own.
   const rendered = render(
@@ -105,6 +112,7 @@ function renderHub(props: Partial<Parameters<typeof ConnectionsHub>[0]> = {}) {
         <ConnectionsHub
           onConnectNew={props.onConnectNew ?? (() => undefined)}
           onOpenRemap={props.onOpenRemap ?? (() => undefined)}
+          onOpenHostedApps={props.onOpenHostedApps}
           pollIntervalMs={0}
         />
         </ShellHarness>
@@ -478,7 +486,7 @@ describe('ConnectionsHub', () => {
     expect((save as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('surfaces a delete failure as an error toast and keeps the card', async () => {
+  it('says in the dialog WHY a delete failed, and keeps the card', async () => {
     installFetch(() => [makeConnection()], {
       'DELETE /api/v1/connections/conn_1': () =>
         jsonResponse(409, {
@@ -492,8 +500,53 @@ describe('ConnectionsHub', () => {
     await userEvent.type(within(dialog).getByRole('textbox'), 'Production Postgres');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete connection' }));
 
-    await screen.findByText('Could not delete the connection. Try again.');
+    const alert = await within(dialog).findByTestId('delete-connection-error');
+    expect(alert.textContent).toContain('Could not delete the connection. Try again.');
+    // The server's own reason, not only the generic line.
+    expect(alert.textContent).toContain('Type the connection name to confirm deletion.');
     expect(screen.getByTestId('connection-card-conn_1')).toBeTruthy();
+  });
+
+  it('names a permission refusal as one', async () => {
+    installFetch(() => [makeConnection()], {
+      'DELETE /api/v1/connections/conn_1': () =>
+        jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'Forbidden.' } }),
+    });
+    renderHub();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Production Postgres');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete connection' }));
+
+    const alert = await within(dialog).findByTestId('delete-connection-error');
+    expect(alert.textContent).toContain('Your role does not include managing connections');
+  });
+
+  it('offers neither Delete nor Hosted apps to a session without the keys', async () => {
+    installFetch(() => [makeConnection()]);
+    renderHub(
+      { onOpenHostedApps: () => undefined },
+      makeBootstrap({ roles: ['admin'], systemActions: ['users.manage', 'audit.read'] }),
+    );
+
+    await screen.findByTestId('connection-card-conn_1');
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hosted apps' })).toBeNull();
+    // The rest of the card is untouched.
+    expect(screen.getByRole('button', { name: 'Remap schema' })).toBeTruthy();
+  });
+
+  it('offers both to a session holding them', async () => {
+    installFetch(() => [makeConnection()]);
+    renderHub(
+      { onOpenHostedApps: () => undefined },
+      makeBootstrap({ roles: ['admin'], systemActions: ['connections.manage', 'settings.manage'] }),
+    );
+
+    await screen.findByTestId('connection-card-conn_1');
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Hosted apps' })).toBeTruthy();
   });
 
   /*

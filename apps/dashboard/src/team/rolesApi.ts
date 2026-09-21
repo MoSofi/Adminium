@@ -135,6 +135,38 @@ export function catalogPermissions(reply: PermissionCatalogReply): GrantableCata
 }
 
 /** `PermissionMatrixPermission` is what the component wants; this is the join. */
+/**
+ * The every-page and every-table rows: the wildcard grants built-in roles are
+ * seeded with, and the only data access this screen edits. One row per action
+ * rather than per page or per table, because that is what an operator decides
+ * about a ROLE ("may Editors delete records?"); narrower grants a role holds
+ * for one page or one table are kept verbatim on save and counted by
+ * {@link narrowDataGrantCount} so the screen can say they exist.
+ */
+export const DATA_ACCESS_GRANTS = [
+  'page:*:view',
+  'table:*:*:read',
+  'table:*:*:create',
+  'table:*:*:update',
+  'table:*:*:delete',
+  'table:*:*:export',
+  'table:*:*:import',
+  'page:*:edit',
+] as const satisfies readonly PermissionGrant[];
+export type DataAccessGrant = (typeof DATA_ACCESS_GRANTS)[number];
+
+/** Page/table grants on ONE page or table — held, preserved, not drawn here. */
+export function narrowDataGrantCount(grants: GrantMap): number {
+  const wildcard = new Set<string>(DATA_ACCESS_GRANTS);
+  let count = 0;
+  for (const list of Object.values(grants)) {
+    for (const key of list) {
+      if ((key.startsWith('page:') || key.startsWith('table:')) && !wildcard.has(key)) count++;
+    }
+  }
+  return count;
+}
+
 export function matrixRows(
   entries: readonly GrantableCatalogEntry[],
   label: (entry: GrantableCatalogEntry) => string,

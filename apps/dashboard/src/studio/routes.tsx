@@ -20,7 +20,10 @@
  *   lazily via `import.meta.glob` so this wave builds before that file
  *   lands (a friendly placeholder renders meanwhile).
  *
- * All Studio surfaces are wrapped in `StudioGuard` (role ≥ Admin).
+ * All Studio surfaces are wrapped in `StudioGuard` (role ≥ Admin), narrowed
+ * with `requires` to the `system:` key a surface's own routes check wherever
+ * the Admin role alone does not open it — so a typed URL lands on the
+ * forbidden state instead of a page whose every request 403s.
  */
 import { Suspense, lazy, use, useState, type ComponentType, type ReactNode } from 'react';
 import { createRoute, useNavigate, type AnyRoute } from '@tanstack/react-router';
@@ -228,7 +231,7 @@ function ConnectRouteComponent() {
   // StrictMode double-invoke could read a ticket the wizard had already spent.
   const [bridgeTicket] = useState(takeBridgeTicket);
   return (
-    <StudioGuard>
+    <StudioGuard requires="connections.manage">
       <StudioBody>
         <ConnectWizardLazy
           bridgeTicket={bridgeTicket}
@@ -243,7 +246,7 @@ function ConnectRouteComponent() {
 function HubRouteComponent() {
   const navigate = useNavigate();
   return (
-    <StudioGuard>
+    <StudioGuard requires="connections.manage">
       <StudioBody>
         <ConnectionsHubLazy
           onConnectNew={() => void navigate({ to: '/studio/connect' })}
@@ -259,7 +262,7 @@ function HubRouteComponent() {
 
 function PagesRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="pages.manage">
       <StudioBody>
         <StudioPagesPageLazy />
       </StudioBody>
@@ -269,7 +272,7 @@ function PagesRouteComponent() {
 
 function NewPageRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="pages.manage">
       <StudioBody>
         <NewPageScreenLazy />
       </StudioBody>
@@ -321,7 +324,7 @@ function ProjectSettingsRouteComponent() {
 
 function AddOnsRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="manifests.manage">
       <StudioBody>
         <AddOnsPageLazy />
       </StudioBody>
@@ -331,7 +334,7 @@ function AddOnsRouteComponent() {
 
 function DocumentsRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="manifests.manage">
       <StudioBody>
         <DocumentProfilesPageLazy />
       </StudioBody>
@@ -341,7 +344,7 @@ function DocumentsRouteComponent() {
 
 function PublicApiRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="api-keys.manage">
       <StudioBody>
         <PublicApiPageLazy />
       </StudioBody>
@@ -351,7 +354,7 @@ function PublicApiRouteComponent() {
 
 function HostedAppsRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="settings.manage">
       <StudioBody>
         <HostedAppsPageLazy />
       </StudioBody>
@@ -361,7 +364,7 @@ function HostedAppsRouteComponent() {
 
 function StorageRouteComponent() {
   return (
-    <StudioGuard>
+    <StudioGuard requires="storage.manage">
       <StudioBody>
         <StoragePageLazy />
       </StudioBody>
@@ -372,7 +375,7 @@ function StorageRouteComponent() {
 function AiSettingsRouteComponent() {
   const navigate = useNavigate();
   return (
-    <StudioGuard>
+    <StudioGuard requires="llm.run">
       <StudioBody>
         <StudioAiPageLazy
           onOpenReview={(runId) =>
@@ -427,7 +430,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
   function EditPageRouteComponent() {
     const { pageId } = editPageRoute.useParams();
     return (
-      <StudioGuard>
+      <StudioGuard requires="pages.manage">
         <StudioBody>
           <EditPageScreenLazy pageId={pageId} />
         </StudioBody>
@@ -473,7 +476,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
   function ReviewRouteComponent() {
     const { runId } = reviewRoute.useParams();
     return (
-      <StudioGuard>
+      <StudioGuard requires="llm.run">
         <StudioBody>
           <ReviewScreenLazy runId={runId} />
         </StudioBody>

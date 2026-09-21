@@ -52,6 +52,7 @@ import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 import {
+  DATA_ACCESS_GRANTS,
   ROLES_QUERY_KEY,
   SUPER_ADMIN_SLUG,
   catalogPermissions,
@@ -60,6 +61,7 @@ import {
   deleteRole,
   isPermissionGrant,
   matrixRows,
+  narrowDataGrantCount,
   pendingChangeCount,
   permissionCatalogQuery,
   putRoleGrants,
@@ -67,6 +69,7 @@ import {
   roleGrantsQuery,
   rolesQuery,
   toggleGrant,
+  type DataAccessGrant,
   type GrantMap,
   type GrantableCatalogEntry,
   type PermissionCategory,
@@ -142,6 +145,28 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
   }
 }
 
+/** Labels for the every-page / every-table rows ({@link DATA_ACCESS_GRANTS}). */
+function dataAccessLabel(key: DataAccessGrant): string {
+  switch (key) {
+    case 'page:*:view':
+      return t('roles.data.pagesView', 'See every page');
+    case 'table:*:*:read':
+      return t('roles.data.read', 'Read records');
+    case 'table:*:*:create':
+      return t('roles.data.create', 'Create records');
+    case 'table:*:*:update':
+      return t('roles.data.update', 'Edit records');
+    case 'table:*:*:delete':
+      return t('roles.data.delete', 'Delete records');
+    case 'table:*:*:export':
+      return t('roles.data.export', 'Export records');
+    case 'table:*:*:import':
+      return t('roles.data.import', 'Import records');
+    case 'page:*:edit':
+      return t('roles.data.pagesEdit', 'Change page layouts');
+  }
+}
+
 export function RolesPage(): ReactNode {
   const queryClient = useQueryClient();
   const { data: roles } = useSuspenseQuery(rolesQuery());
@@ -181,10 +206,19 @@ export function RolesPage(): ReactNode {
   const [draft, setDraft] = useState<GrantMap | null>(null);
   const grants = draft ?? baseline;
 
-  const permissions = useMemo(
-    () => matrixRows(catalogPermissions(catalog), permissionLabel, (entry) => categoryLabel(entry.category)),
-    [catalog],
-  );
+  /*
+   * Pages & records FIRST: it is what decides whether a new teammate sees
+   * anything at all, and until these rows existed no screen could grant it —
+   * a built-in role's access could only be changed through the API.
+   */
+  const permissions = useMemo(() => {
+    const dataCategory = t('roles.category.records', 'Pages & records');
+    return [
+      ...DATA_ACCESS_GRANTS.map((key) => ({ key, label: dataAccessLabel(key), category: dataCategory })),
+      ...matrixRows(catalogPermissions(catalog), permissionLabel, (entry) => categoryLabel(entry.category)),
+    ];
+  }, [catalog]);
+  const narrowGrants = useMemo(() => narrowDataGrantCount(baseline), [baseline]);
   const changed = useMemo(() => changedRoleIds(grants, baseline), [grants, baseline]);
   const pending = useMemo(() => pendingChangeCount(grants, baseline), [grants, baseline]);
 
@@ -324,23 +358,34 @@ export function RolesPage(): ReactNode {
               )}
             />
           ) : (
-            <PermissionMatrix
-              data-testid="roles-matrix"
-              label={t('roles.matrix.label', 'Role permissions')}
-              rowHeader={t('roles.matrix.rowHeader', 'Permission')}
-              roles={roles.map((role) => ({
-                id: role.id,
-                name: role.name,
-                locked: role.slug === SUPER_ADMIN_SLUG,
-              }))}
-              permissions={permissions}
-              grants={grants}
-              baseline={baseline}
-              disabled={loading || save.isPending}
-              onChange={({ roleId, permissionKey, granted }) => {
-                setDraft(toggleGrant(grants, roleId, permissionKey, granted));
-              }}
-            />
+            <>
+              {narrowGrants === 0 ? null : (
+                <p className="mb-3 text-body-sm text-fg-muted" data-testid="roles-narrow-grants">
+                  {t(
+                    'roles.data.narrow',
+                    '{count, plural, one {# grant} other {# grants}} on a single page or table also apply, on top of the rows below. Saving keeps them.',
+                    { count: narrowGrants },
+                  )}
+                </p>
+              )}
+              <PermissionMatrix
+                data-testid="roles-matrix"
+                label={t('roles.matrix.label', 'Role permissions')}
+                rowHeader={t('roles.matrix.rowHeader', 'Permission')}
+                roles={roles.map((role) => ({
+                  id: role.id,
+                  name: role.name,
+                  locked: role.slug === SUPER_ADMIN_SLUG,
+                }))}
+                permissions={permissions}
+                grants={grants}
+                baseline={baseline}
+                disabled={loading || save.isPending}
+                onChange={({ roleId, permissionKey, granted }) => {
+                  setDraft(toggleGrant(grants, roleId, permissionKey, granted));
+                }}
+              />
+            </>
           )}
         </CardBody>
       </Card>
