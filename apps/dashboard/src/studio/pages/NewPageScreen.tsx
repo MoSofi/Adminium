@@ -22,6 +22,8 @@ import { pageTemplateDefinitions } from '@adminium/widgets';
 
 import { t } from '../../i18n/t.js';
 import { studioApi } from '../api.js';
+import { templateFitQuery } from './fitApi.js';
+import { TableRemedies, type RelatedChoice } from './TableRemedies.js';
 import { IconPicker } from './IconPicker.js';
 import { PageEditorLayout, templateTitle } from './PageEditorLayout.js';
 import { PaddingField } from './PaddingField.js';
@@ -71,6 +73,15 @@ export function NewPageScreen() {
   // `null` = no override: the new page follows its template's gutter.
   const [padding, setPadding] = useState<PagePaddingConfig | null>(null);
   const [width, setWidth] = useState<PageWidthConfig | null>(null);
+  // Remedy 2: the page is bound to a table LINKED to the one the operator
+  // picked, titled through the key. Remembered with the table it came from,
+  // so the choice can be explained and undone; cleared by any other table
+  // choice, because the key it names belongs to this binding only.
+  const [related, setRelated] = useState<RelatedChoice | null>(null);
+  const chooseTable = (next: string | null): void => {
+    setRelated(null);
+    setTable(next);
+  };
 
   // Existing pages, for the duplicate-address check. Already cached by the list
   // screen the admin arrived from, so this is normally free.
@@ -92,6 +103,28 @@ export function NewPageScreen() {
     retry: false,
   });
 
+  // The same query the fit panel reads (react-query dedupes on the key), so the
+  // panel's explanation and the submit button's verdict are one answer. Asking
+  // separately is how a screen ends up explaining a problem beside a button
+  // that would have worked.
+  const fit = useQuery({
+    ...templateFitQuery({
+      connectionId: effectiveConnectionId ?? '',
+      table: table ?? '',
+      template,
+    }),
+    // Not asked while titled through a key: the report describes the table
+    // ALONE, which is exactly what the operator stepped around — it would
+    // refuse, and block Create, for a page the server will compose.
+    enabled: bindable && effectiveConnectionId !== null && table !== null && related === null,
+  });
+
+  const pickable = (schema.data?.model.tables ?? []).filter(
+    (candidate) => candidate.system !== true,
+  );
+  // "I have no table yet but I want a calendar": with nothing to pick, the
+  // picker is a dead end and the new-table entry is the only way forward.
+  const noTables = schema.data !== undefined && pickable.length === 0;
   const typedSlug = slugTouched ? slug : slugify(title);
   const finalSlug = slugify(typedSlug);
   const slugTaken =
@@ -106,6 +139,7 @@ export function NewPageScreen() {
         navGroup,
         ...(icon === '' ? {} : { icon }),
         ...(bindable && table !== null ? { connectionId: effectiveConnectionId, table } : {}),
+        ...(bindable && related !== null ? { titleThrough: related.offer.via } : {}),
         ...(padding === null ? {} : { padding }),
         ...(width === null ? {} : { width }),
       }),
@@ -115,7 +149,22 @@ export function NewPageScreen() {
     },
   });
 
-  const canSubmit = title.trim().length > 0 && finalSlug.length > 0 && !slugTaken;
+  // A table-bound template with no table composes NOTHING: the create route
+  // falls through to `buildUserPageEnvelope`, whose body is an empty layout,
+  // and board/calendar/scheduler render an empty layout as a blank page. The
+  // field used to say "you can bind it later" and nothing ever said how, so
+  // the table is required here for the ten templates that are built from one.
+  // The API still accepts an unbound page — `EmptyLayoutNotice` is the
+  // backstop for the ones already stored, and for callers that are not this
+  // screen.
+  const needsTable = bindable && table === null;
+  // Only a DEFINITE no blocks the button. A pending or failed fit check leaves
+  // Create live: the create route runs the same check and refuses with the same
+  // reason, so a check that cannot answer must not become a second way to be
+  // stuck on a screen whose whole job is to get people unstuck.
+  const fitRefuses = related === null && fit.data?.satisfied === false;
+  const canSubmit =
+    title.trim().length > 0 && finalSlug.length > 0 && !slugTaken && !needsTable && !fitRefuses;
 
   function submit(event: FormEvent): void {
     event.preventDefault();
@@ -173,7 +222,10 @@ export function NewPageScreen() {
             >
               <Select
                 value={template}
-                onChange={(event) => setTemplate(event.target.value)}
+                onChange={(event) => {
+                  setTemplate(event.target.value);
+                  setRelated(null);
+                }}
                 data-testid="studio-pages-template"
               >
                 {/* page-record is a crud page's child route, not a page of
@@ -192,24 +244,33 @@ export function NewPageScreen() {
             {bindable ? (
               <FormField
                 label={t('studio:pages.field.table', 'Table')}
-                helper={t(
-                  'studio:pages.field.tableCreateHint',
-                  'The table this page reads. You can bind it later.',
-                )}
+                required
+                helper={
+                  rows.length === 0
+                    ? t(
+                        'studio:pages.field.tableNoConnection',
+                        'Connect a database first — this page is built from one of its tables.',
+                      )
+                    : effectiveConnectionId === null
+                      ? t('studio:pages.field.tableNeedsConnection', 'Pick a data source first.')
+                      : t('studio:pages.field.tableCreateHint', 'The table this page reads.')
+                }
               >
                 <Select
                   value={table ?? ''}
                   disabled={effectiveConnectionId === null || schema.isPending}
                   onChange={(event) => {
                     setConnectionId(effectiveConnectionId);
-                    setTable(event.target.value === '' ? null : event.target.value);
+                    chooseTable(event.target.value === '' ? null : event.target.value);
                   }}
                   data-testid="studio-pages-create-table"
                 >
-                  <option value="">{t('studio:pages.field.tableNone', 'Not bound')}</option>
-                  {(schema.data?.model.tables ?? [])
-                    .filter((candidate) => candidate.system !== true)
-                    .map((candidate) => (
+                  {/* Not `tableNone`'s "Not bound": on THIS screen the empty
+                      value is a prompt, not a state you may leave it in. The
+                      edit screen keeps the other wording, where unbinding is
+                      still a thing an admin may do. */}
+                  <option value="">{t('studio:pages.field.tableChoose', 'Choose a table…')}</option>
+                  {pickable.map((candidate) => (
                       <option key={candidate.id} value={candidate.id}>
                         {`${candidate.schema}.${candidate.name}`}
                       </option>
@@ -218,13 +279,32 @@ export function NewPageScreen() {
               </FormField>
             ) : null}
 
+            {bindable && effectiveConnectionId !== null ? (
+              <TableRemedies
+                connectionId={effectiveConnectionId}
+                template={template}
+                table={table}
+                related={related}
+                noTables={noTables}
+                onChooseTable={(next) => {
+                  setConnectionId(effectiveConnectionId);
+                  chooseTable(next);
+                }}
+                onChooseRelated={(choice) => {
+                  setConnectionId(effectiveConnectionId);
+                  setTable(choice.offer.tableId);
+                  setRelated(choice);
+                }}
+              />
+            ) : null}
+
             {bindable && rows.length > 1 ? (
               <FormField label={t('studio:pages.field.connection', 'Data source')}>
                 <Select
                   value={effectiveConnectionId ?? ''}
                   onChange={(event) => {
                     setConnectionId(event.target.value === '' ? null : event.target.value);
-                    setTable(null);
+                    chooseTable(null);
                   }}
                 >
                   <option value="">{t('studio:pages.field.connectionNone', 'None')}</option>

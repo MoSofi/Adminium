@@ -95,6 +95,40 @@ describe('extractPlanningBindings', () => {
     expect(requests[1]?.descriptor.shape).toBe('metric+delta'); // supported, untouched
   });
 
+  it('fetches a calendar\'s related-title pick-list in the same batch, under its own id', () => {
+    const page = envelope([
+      {
+        i: 'cal-1',
+        widget: 'calendar-month',
+        x: 0,
+        y: 0,
+        w: 8,
+        h: 12,
+        config: {
+          startColumn: 'starts_at',
+          binding: descriptor('calendar-events', {
+            lookups: ['patient_id__display:patient_id.full_name'],
+          }),
+          choicesBinding: descriptor('record-list', {
+            source: { schema: 'public', name: 'patients', type: 'table' },
+            select: ['id', 'full_name'],
+          }),
+        },
+      },
+    ]);
+    const { requests, invalid } = extractPlanningBindings(page);
+    expect(invalid.size).toBe(0);
+    expect(requests.map((request) => request.instanceId)).toEqual(['cal-1', 'cal-1:choices']);
+    // The lookup survives the shape rewrite — the server needs record-list AND it.
+    expect(requests[0]?.descriptor).toMatchObject({
+      shape: 'record-list',
+      lookups: ['patient_id__display:patient_id.full_name'],
+    });
+    // The window only ever targets the calendar's own id.
+    const windowed = withDateWindow(requests, { instanceId: 'cal-1', column: 'starts_at' });
+    expect(windowed[1]?.descriptor.filters).toBeUndefined();
+  });
+
   it('collects invalid bindings per instance instead of throwing', () => {
     const page = envelope([
       { i: 'bad-1', widget: 'calendar-month', x: 0, y: 0, w: 8, h: 12, config: { binding: { nope: true } } },

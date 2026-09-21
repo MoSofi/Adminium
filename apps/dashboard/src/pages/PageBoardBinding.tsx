@@ -18,12 +18,22 @@
 import { PageBoard } from '@adminium/widgets';
 
 import { t } from '../i18n/t.js';
+import { EmptyLayoutNotice, layoutIsEmpty } from './planning/EmptyLayoutNotice.js';
 import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { usePlanningStates } from './planning/planningData.js';
 import type { PageTemplateProps } from './template-types.js';
 
 export function PageBoardBinding({ page, adapters, recordId }: PageTemplateProps) {
   const states = usePlanningStates(page);
+
+  // An empty layout renders an empty grid — nothing at all. A page created
+  // without a table is the way in; the notice names the missing binding.
+  // AFTER the hooks above, never before: this component keeps its instance
+  // when a page is bound and refetched, and a guard that skipped `useState`
+  // on one render would change the hook count on the next.
+  if (layoutIsEmpty(page.config)) {
+    return <EmptyLayoutNotice pageId={page.id} template="board" />;
+  }
 
   return (
     <>
@@ -37,6 +47,8 @@ export function PageBoardBinding({ page, adapters, recordId }: PageTemplateProps
           composeCancel: t('board.compose.cancel', 'Cancel'),
           emptyTitle: t('board.empty.title', 'No board columns'),
           emptyBody: t('board.empty.body', 'Add a status field to group cards into columns.'),
+          noRowsTitle: t('board.empty.noRowsTitle', 'No cards yet'),
+          noRowsBody: t('board.empty.noRowsBody', 'Cards appear here as soon as the table has rows.'),
         }}
         // Forward the host's result so the optimistic boards get the mutate
         // promise and can roll back a rejected move (PageRenderer.onEvent).

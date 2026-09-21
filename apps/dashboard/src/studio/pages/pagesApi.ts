@@ -81,6 +81,8 @@ export interface CreatePageInput {
   icon?: string | null;
   connectionId?: string | null;
   table?: string | null;
+  /** An FK column of `table` each row is titled through (a calendar only). */
+  titleThrough?: string | null;
   /** Page gutter; omit for the template's own default. */
   padding?: PagePaddingConfig | null;
   /** Content column; omit for the template's own default. */

@@ -52,6 +52,9 @@ import { destinationsQuery } from '../storage/storageApi.js';
 import { t } from '../../i18n/t.js';
 import { studioApi } from '../api.js';
 import { AttachmentsColumnSetup } from './AttachmentsColumnSetup.js';
+import { schemaAuthoringRefusal } from './schemaAuthoringReason.js';
+import { templateFitQuery } from './fitApi.js';
+import { TableRemedies, type RelatedChoice } from './TableRemedies.js';
 import { remapSchemaQuery } from '../remap/api.js';
 import { titleCase } from '../remap/model.js';
 import { ColumnManager, parseStoredColumns, type StoredColumn } from './ColumnManager.js';
@@ -278,6 +281,13 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   // `undefined` = not edited; the displayed value falls back to the document's
   // stored table, which arrives later than the row does.
   const [table, setTable] = useState<string | null | undefined>(undefined);
+  // A linked table chosen through a key (remedy 2) — kept beside `table`
+  // because the save has to send the key, and cleared by any other choice.
+  const [related, setRelated] = useState<RelatedChoice | null>(null);
+  const chooseTable = (next: string | null): void => {
+    setRelated(null);
+    setTable(next);
+  };
   // Same "not edited yet" convention: padding lives in the ENVELOPE, not the
   // list row, so it is unknown until `pageQuery` resolves. `null` inside the
   // edited state means a deliberate "back to the template default".
@@ -335,7 +345,29 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   const sourceChanged =
     template !== page.type ||
     connectionId !== page.connectionId ||
-    (table !== undefined && table !== storedTable);
+    (table !== undefined && table !== storedTable) ||
+    related !== null;
+
+  // What the chosen template needs from the chosen table — the same query the
+  // fit panel reads, so the panel and the Save button are one answer. Not asked
+  // while titled through a key: it describes the table ALONE, which is what the
+  // operator stepped around.
+  const fit = useQuery({
+    ...templateFitQuery({
+      connectionId: connectionId ?? '',
+      table: effectiveTable ?? '',
+      template,
+    }),
+    enabled: bindable && connectionId !== null && effectiveTable !== null && related === null,
+  });
+  // Blocks the save only when the save would RECOMPOSE onto a table that
+  // cannot back the template — the server would refuse it with the same
+  // reason. A page left as it is saves its other fields regardless, even if
+  // its table has since drifted out of fit.
+  const fitBlocksSave = sourceChanged && related === null && fit.data?.satisfied === false;
+  const pickableTables = (schema.data?.model.tables ?? []).filter(
+    (candidate) => candidate.system !== true,
+  );
 
   // The columns draft the ColumnManager reports (null = clean). ONE "Save
   // changes" persists both halves — the old per-card "Save columns" next to
@@ -742,7 +774,14 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
         isEnabled,
         // Only when something about the body actually changed — otherwise every
         // rename would recompose and throw away hand-edited columns.
-        ...(sourceChanged ? { template, connectionId, table: effectiveTable } : {}),
+        ...(sourceChanged
+          ? {
+              template,
+              connectionId,
+              table: effectiveTable,
+              ...(related === null ? {} : { titleThrough: related.offer.via }),
+            }
+          : {}),
         // Sent only when touched: an untouched page must keep following its
         // template default rather than having today's default frozen into it.
         ...(paddingChanged ? { padding: effectivePadding } : {}),
@@ -782,28 +821,10 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
    */
   const authoring = attachmentsSchema.data?.schemaAuthoring;
   const columnMode = authoring === undefined || authoring.authorable;
-  const sidecarReason: string | null =
-    authoring === undefined || authoring.authorable
-      ? null
-      : authoring.reason === 'NO_LIVE_DATABASE'
-        ? t(
-            'studio:pages.attachments.sidecar.schemaFile',
-            'This connection was created from a schema file, so Adminium cannot add a column to it.',
-          )
-        : authoring.reason === 'READ_ONLY_ROLE'
-          ? t(
-              'studio:pages.attachments.sidecar.readOnlyRole',
-              'This connection signs in with a read-only role, so Adminium cannot add a column to it.',
-            )
-          : authoring.reason === 'NO_DDL_PRIVILEGE'
-            ? t(
-                'studio:pages.attachments.sidecar.noPrivilege',
-                "This connection's role cannot alter tables, so Adminium cannot add a column to it.",
-              )
-            : t(
-                'studio:pages.attachments.sidecar.readOnlyIntent',
-                'This connection is set up for read-only analytics, so Adminium cannot add a column to it.',
-              );
+  // One source, two callers: the template-fit panel on the create screen shows
+  // the same four sentences, and a second `? :` chain is how one surface ends
+  // up describing a refusal the other has stopped giving.
+  const sidecarReason = schemaAuthoringRefusal(authoring);
 
   const showAttachments =
     isCrud &&
@@ -849,7 +870,8 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
               disabled={
                 title.trim().length === 0 ||
                 finalSlug.length === 0 ||
-                (!identityDirty && !bodyDirty)
+                (!identityDirty && !bodyDirty) ||
+                fitBlocksSave
               }
               data-testid="studio-pages-save"
             >
@@ -879,7 +901,10 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
           <FormField label={t('studio:pages.field.template', 'Template')}>
             <Select
               value={template}
-              onChange={(event) => setTemplate(event.target.value)}
+              onChange={(event) => {
+                setTemplate(event.target.value);
+                setRelated(null);
+              }}
               data-testid="studio-pages-template"
             >
               {/* Same filter as NewPageScreen: page-record is a crud page's
@@ -902,7 +927,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
                     value={connectionId ?? ''}
                     onChange={(event) => {
                       setConnectionId(event.target.value === '' ? null : event.target.value);
-                      setTable(null);
+                      chooseTable(null);
                     }}
                   >
                     <option value="">{t('studio:pages.field.connectionNone', 'None')}</option>
@@ -930,20 +955,36 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
                   value={effectiveTable ?? ''}
                   disabled={connectionId === null || schema.isPending}
                   onChange={(event) =>
-                    setTable(event.target.value === '' ? null : event.target.value)
+                    chooseTable(event.target.value === '' ? null : event.target.value)
                   }
                   data-testid="studio-pages-table"
                 >
                   <option value="">{t('studio:pages.field.tableNone', 'Not bound')}</option>
-                  {(schema.data?.model.tables ?? [])
-                    .filter((candidate) => candidate.system !== true)
-                    .map((candidate) => (
+                  {pickableTables.map((candidate) => (
                       <option key={candidate.id} value={candidate.id}>
                         {`${candidate.schema}.${candidate.name}`}
                       </option>
                     ))}
                 </Select>
               </FormField>
+
+              {/* The same offers as the create screen — this is where
+                  `EmptyLayoutNotice` sends someone whose page has no table,
+                  and where a rebind lands on a table that cannot back it. */}
+              {connectionId !== null && schema.data !== undefined ? (
+                <TableRemedies
+                  connectionId={connectionId}
+                  template={template}
+                  table={effectiveTable}
+                  related={related}
+                  noTables={pickableTables.length === 0}
+                  onChooseTable={chooseTable}
+                  onChooseRelated={(choice) => {
+                    setTable(choice.offer.tableId);
+                    setRelated(choice);
+                  }}
+                />
+              ) : null}
 
               {schema.isError ? (
                 <Alert

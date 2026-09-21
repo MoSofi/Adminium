@@ -7,6 +7,7 @@
  */
 
 import { api, ApiError, csrfHeaders } from '../app/api.js';
+import type { SchemaAuthoring } from './pages/schemaAuthoringReason.js';
 
 export type ConnectionEngine = 'postgres' | 'mysql' | 'sqlite';
 
@@ -154,6 +155,15 @@ export interface SchemaReply {
   source: string;
   model: { tables: SchemaTable[]; enums?: { id: string; values: string[] }[] };
   appliedOverrides: number;
+  /**
+   * Whether this connection's schema can be authored at all, and why not.
+   *
+   * OPTIONAL on purpose: a server one release behind does not send it, and
+   * every reader treats absent as authorable — the tolerance `RemapEditor`
+   * established and `schemaAuthoringReason.ts` documents. Hiding a working flow
+   * because a field is missing breaks an install that was fine.
+   */
+  schemaAuthoring?: SchemaAuthoring;
 }
 
 export interface GenerateResult {

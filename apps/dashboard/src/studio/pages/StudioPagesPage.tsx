@@ -503,6 +503,24 @@ export function StudioPagesPage() {
         </Button>
       </PageActions>
 
+      {/* The enable toggle has no dialog to report into; before this its
+          refusals (a 403, a stale-revision 409) were a switch that silently
+          did not switch. */}
+      {toggle.error === null ? null : (
+        <Alert
+          role="alert"
+          tone="danger"
+          data-testid="studio-pages-toggle-error"
+          title={t('studio:pages.toggleFailed', 'The page was not changed')}
+          body={toggle.error.message}
+          action={
+            <Button variant="ghost" size="sm" onClick={() => toggle.reset()}>
+              {t('common.dismiss', 'Dismiss')}
+            </Button>
+          }
+        />
+      )}
+
       {pages.isError ? (
         <Alert
           tone="danger"
@@ -584,7 +602,10 @@ export function StudioPagesPage() {
                           })
                         }
                         onDuplicate={setDuplicating}
-                        onDelete={setDeleting}
+                        onDelete={(page) => {
+                          remove.reset();
+                          setDeleting(page);
+                        }}
                         onToggle={(target) => toggle.mutate(target)}
                         busy={toggle.isPending}
                         projectFlag={projectFlags.get(page.id)}
@@ -624,15 +645,27 @@ export function StudioPagesPage() {
           // and deleting either destroys every saved view and personal layout
           // on it. Saying so is the difference between a confirm and a trap.
           body={
-            deleting.origin === 'generated'
-              ? t(
-                  'studio:pages.delete.bodyGenerated',
-                  'This page was created by schema generation, so it will come back the next time you regenerate. Saved views and personal layouts on it are deleted for everyone.',
-                )
-              : t(
-                  'studio:pages.delete.body',
-                  'This cannot be undone. Saved views and personal layouts on this page are deleted for everyone.',
-                )
+            <>
+              {deleting.origin === 'generated'
+                ? t(
+                    'studio:pages.delete.bodyGenerated',
+                    'This page was created by schema generation, so it will come back the next time you regenerate. Saved views and personal layouts on it are deleted for everyone.',
+                  )
+                : t(
+                    'studio:pages.delete.body',
+                    'This cannot be undone. Saved views and personal layouts on this page are deleted for everyone.',
+                  )}
+              {remove.error === null ? null : (
+                <Alert
+                  role="alert"
+                  tone="danger"
+                  className="mt-3"
+                  data-testid="studio-pages-delete-error"
+                  title={t('studio:pages.delete.failed', 'The page was not deleted')}
+                  body={remove.error.message}
+                />
+              )}
+            </>
           }
           confirmWord={deleting.slug}
           promptLabel={fmt(

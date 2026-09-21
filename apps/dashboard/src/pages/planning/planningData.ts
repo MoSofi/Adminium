@@ -34,7 +34,7 @@ import {
   type PageEnvelope,
   type QueryDescriptor,
 } from '@adminium/engine/config';
-import type { WidgetDataState } from '@adminium/widgets';
+import { calendarChoicesInstanceId, type WidgetDataState } from '@adminium/widgets';
 
 import {
   WIDGET_DATA_KEY_ROOT,
@@ -72,15 +72,22 @@ export function extractPlanningBindings(page: PageEnvelope): PlanningBindings {
   const invalid = new Map<string, string>();
   const layout = pageLayoutSchema.safeParse(page.config['layout']);
   if (!layout.success) return { requests, invalid };
+  const add = (instanceId: string, raw: unknown): void => {
+    const descriptor = queryDescriptorSchema.safeParse(raw);
+    if (descriptor.success) {
+      requests.push({ instanceId, descriptor: normalizeDescriptorShape(descriptor.data) });
+    } else {
+      invalid.set(instanceId, descriptor.error.issues.map((issue) => issue.message).join('; '));
+    }
+  };
   for (const item of layout.data.items) {
     const binding = item.config['binding'];
-    if (binding === undefined) continue;
-    const descriptor = queryDescriptorSchema.safeParse(binding);
-    if (descriptor.success) {
-      requests.push({ instanceId: item.i, descriptor: normalizeDescriptorShape(descriptor.data) });
-    } else {
-      invalid.set(item.i, descriptor.error.issues.map((issue) => issue.message).join('; '));
-    }
+    if (binding !== undefined) add(item.i, binding);
+    // A calendar titled through a related table carries a SECOND query: the
+    // related rows its "Add event" offers. Same batch, its own instance id,
+    // never date-windowed (the window targets the calendar's own id).
+    const choices = item.config['choicesBinding'];
+    if (choices !== undefined) add(calendarChoicesInstanceId(item.i), choices);
   }
   return { requests, invalid };
 }

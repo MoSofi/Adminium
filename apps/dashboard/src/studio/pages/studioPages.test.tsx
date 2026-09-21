@@ -37,6 +37,8 @@ import {
   type PageSummaryDto,
 } from './pagesApi.js';
 import type { ProjectStatusDto } from './projectApi.js';
+import type { FitRequirementDto, TableDraftDto, TemplateFitDto } from './fitApi.js';
+import { planColumns } from './FitColumnSetup.js';
 
 function page(overrides: Partial<PageSummaryDto> = {}): PageSummaryDto {
   return {
@@ -174,6 +176,12 @@ interface StubOptions {
   pages?: PageSummaryDto[];
   status?: number;
   /**
+   * `GET /connections`. Empty by default, which is what the create screen's
+   * table gate reads as "there is no database to bind to" — the state most of
+   * these tests are in, and the reason they pick a template that binds nothing.
+   */
+  connections?: { id: string; name: string; paused?: boolean }[];
+  /**
    * Config BODY the edit screen's `GET /pages/:id` answers with. Only the edit
    * route reads it — the list screen never fetches a document — so the default
    * keeps every existing test on the 404 it already expected.
@@ -214,6 +222,31 @@ interface StubOptions {
   applyReply?: () => Response;
   /** `GET /project/status`; undefined answers 404, as a server with no project folder does. */
   projectStatus?: ProjectStatusDto;
+  /**
+   * `GET /pages/fit`, keyed by table id. A table not named here FITS — which
+   * is both the common case and what every test predating the fit panel
+   * expects, since the panel renders nothing while a table fits.
+   */
+  fit?: Record<string, Partial<TemplateFitDto>>;
+  /** Make `GET /pages/fit` fail with this status — the fail-open path. */
+  fitStatus?: number;
+  /**
+   * Make `PUT /connections/:id/overrides` fail with this status — the
+   * half-done repair, where the DDL landed and the meanings did not.
+   */
+  overridesPutStatus?: number;
+  /**
+   * `GET /pages/fit/new-table` — remedy 4's draft, from the query's name and
+   * template. Undefined answers `draft: null` (a template with no repair
+   * descriptors), which keeps every test predating remedy 4 on its old screen.
+   */
+  newTable?: (query: { template: string; name: string | null; people: string | null }) => TableDraftDto | null;
+  /** Envelope fields layered over the page document the edit screen reads. */
+  envelope?: Record<string, unknown>;
+  /** The connection has no tables at all — the "I have no table yet" case. */
+  noTables?: boolean;
+  /** Rows `GET /connections/:id/overrides` answers with — the tag remedy's baseline. */
+  overrides?: { op: string; tableName: string; columnName: string | null; value: Record<string, unknown> }[];
 }
 
 interface Recorded {
@@ -286,7 +319,7 @@ function stubFetch(options: StubOptions = {}): Recorded[] {
           createdAt: 1,
           source: 'introspection',
           model: {
-            tables: [
+            tables: options.noTables === true ? [] : [
               {
                 id: 'public.customers',
                 schema: 'public',
@@ -317,7 +350,26 @@ function stubFetch(options: StubOptions = {}): Recorded[] {
             : { schemaAuthoring: options.schemaAuthoring }),
         });
       }
-      if (path.startsWith('/api/v1/connections')) return jsonResponse(200, { connections: [] });
+      if (path.includes('/overrides')) {
+        return method === 'PUT'
+          ? jsonResponse(options.overridesPutStatus ?? 200, 
+              options.overridesPutStatus === undefined
+                ? { overrides: [] }
+                : { error: { code: 'FORBIDDEN', message: 'schema.remap is required' } })
+          : jsonResponse(200, {
+              overrides: (options.overrides ?? []).map((row, index) => ({
+                id: `ovr_${String(index)}`,
+                origin: 'user',
+                status: 'active',
+                createdAt: 1,
+                updatedAt: 1,
+                ...row,
+              })),
+            });
+      }
+      if (path.startsWith('/api/v1/connections')) {
+        return jsonResponse(200, { connections: options.connections ?? [] });
+      }
 
       if (path === '/api/v1/storage/destinations') {
         return options.destinations === undefined
@@ -325,6 +377,44 @@ function stubFetch(options: StubOptions = {}): Recorded[] {
           : jsonResponse(200, { data: options.destinations });
       }
 
+      // Before every other `/api/v1/pages` branch: this is a static segment
+      // under what is otherwise a page-id route, and it carries a query string,
+      // so an `===` comparison would never reach it.
+      if (path.startsWith('/api/v1/pages/fit/new-table')) {
+        const query = new URL(path, 'http://x').searchParams;
+        return jsonResponse(200, {
+          data: {
+            draft:
+              options.newTable?.({
+                template: query.get('template') ?? '',
+                name: query.get('name'),
+                people: query.get('people'),
+              }) ?? null,
+          },
+        });
+      }
+      if (path.startsWith('/api/v1/pages/fit')) {
+        if (options.fitStatus !== undefined) {
+          return jsonResponse(options.fitStatus, { error: { code: 'INTERNAL', message: 'nope' } });
+        }
+        const table = new URL(path, 'http://x').searchParams.get('table') ?? '';
+        const override = options.fit?.[table] ?? {};
+        return jsonResponse(200, {
+          data: {
+            template: 'page-calendar',
+            tableId: table,
+            bindable: true,
+            satisfied: true,
+            unfilled: [],
+            requirements: [],
+            reason: '',
+            ...override,
+            ...(path.includes('alternatives=true')
+              ? { alternatives: override.alternatives ?? [], related: override.related ?? [] }
+              : {}),
+          },
+        });
+      }
       if (path === '/api/v1/pages' && method === 'GET') {
         return options.status !== undefined && options.status !== 200
           ? jsonResponse(options.status, { error: { code: 'FORBIDDEN', message: 'nope' } })
@@ -340,9 +430,17 @@ function stubFetch(options: StubOptions = {}): Recorded[] {
       if (path === '/api/v1/project/resolve' && options.projectStatus !== undefined) {
         return jsonResponse(200, { data: { ...options.projectStatus, entries: [] } });
       }
-      if (options.config !== undefined && path === `/api/v1/pages/${rows[0]?.id}` && method === 'GET') {
+      if (
+        (options.config !== undefined || options.envelope !== undefined) &&
+        path === `/api/v1/pages/${rows[0]?.id}` &&
+        method === 'GET'
+      ) {
         return jsonResponse(200, {
-          data: makeCrudEnvelope({ id: rows[0]?.id as string, config: options.config }),
+          data: makeCrudEnvelope({
+            id: rows[0]?.id as string,
+            config: options.config ?? {},
+            ...options.envelope,
+          }),
           canEditLayout: true,
           // The live column facts the form designer derives its draft from.
           // Absent by default, which is what an older server sends and what
@@ -457,6 +555,13 @@ describe('StudioPagesPage', () => {
     const { user, calls } = renderAt('/studio/pages', { pages: [page({ slug: 'reports' })] });
 
     await user.click(await screen.findByTestId('studio-pages-create'));
+    // `page-crud` is table-bound and the create screen now REQUIRES a table
+    // for those; this test is about the address field, not the binding, so it
+    // picks a template that is composed from no table at all.
+    await user.selectOptions(
+      await screen.findByTestId('studio-pages-template'),
+      'page-dashboard',
+    );
     await user.type(await screen.findByTestId('studio-pages-title'), 'Reports');
     expect((screen.getByTestId('studio-pages-slug') as HTMLInputElement).value).toBe('reports');
 
@@ -477,6 +582,65 @@ describe('StudioPagesPage', () => {
     });
   });
 
+  it('will not create a table-bound page with no table, and names the reason', async () => {
+    // The regression this closes: the field said "you can bind it later", the
+    // create route answered an unbound page with an EMPTY layout, and
+    // board/calendar/scheduler render an empty layout as a blank screen. With
+    // no connection there is nothing to bind to, so the gate has to explain
+    // itself rather than just disabling the button.
+    const { user, calls } = renderAt('/studio/pages', { pages: [] });
+
+    await user.click(await screen.findByTestId('studio-pages-create'));
+    await user.type(await screen.findByTestId('studio-pages-title'), 'Shifts');
+    await user.selectOptions(screen.getByTestId('studio-pages-template'), 'page-scheduler');
+
+    expect((screen.getByTestId('studio-pages-create-submit') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(
+      screen.getByText('Connect a database first — this page is built from one of its tables.'),
+    ).toBeTruthy();
+
+    await user.click(screen.getByTestId('studio-pages-create-submit'));
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+  });
+
+  it('creates a table-bound page once a table is chosen, and sends the binding', async () => {
+    const { user, calls } = renderAt('/studio/pages', {
+      pages: [],
+      connections: [{ id: 'conn_1', name: 'Main' }],
+    });
+
+    await user.click(await screen.findByTestId('studio-pages-create'));
+    await user.type(await screen.findByTestId('studio-pages-title'), 'Shifts');
+    await user.selectOptions(screen.getByTestId('studio-pages-template'), 'page-scheduler');
+
+    // Still blocked on the empty option, which reads as a prompt here rather
+    // than as the edit screen's "Not bound" state.
+    expect((screen.getByTestId('studio-pages-create-submit') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+
+    await waitFor(() => {
+      expect(
+        (screen.getByTestId('studio-pages-create-table') as HTMLSelectElement).disabled,
+      ).toBe(false);
+    });
+    await user.selectOptions(
+      screen.getByTestId('studio-pages-create-table'),
+      'public.customers',
+    );
+
+    await user.click(screen.getByTestId('studio-pages-create-submit'));
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+        template: 'page-scheduler',
+        connectionId: 'conn_1',
+        table: 'public.customers',
+      });
+    });
+  });
+
   it('sends a chosen content width, and sends nothing when left on the default', async () => {
     // The Appearance card had only a padding control; width was template-owned
     // and unreachable from the UI. What matters on the wire is the ABSENT case:
@@ -484,6 +648,13 @@ describe('StudioPagesPage', () => {
     // having today's default frozen into its envelope on create.
     const untouched = renderAt('/studio/pages', { pages: [] });
     await untouched.user.click(await screen.findByTestId('studio-pages-create'));
+    // `page-crud` is table-bound and the create screen now REQUIRES a table
+    // for those; this test is about the address field, not the binding, so it
+    // picks a template that is composed from no table at all.
+    await untouched.user.selectOptions(
+      await screen.findByTestId('studio-pages-template'),
+      'page-dashboard',
+    );
     await untouched.user.type(await screen.findByTestId('studio-pages-title'), 'Ops');
     await untouched.user.click(screen.getByTestId('studio-pages-create-submit'));
     await waitFor(() => {
@@ -496,6 +667,13 @@ describe('StudioPagesPage', () => {
 
     const chosen = renderAt('/studio/pages', { pages: [] });
     await chosen.user.click(await screen.findByTestId('studio-pages-create'));
+    // `page-crud` is table-bound and the create screen now REQUIRES a table
+    // for those; this test is about the address field, not the binding, so it
+    // picks a template that is composed from no table at all.
+    await chosen.user.selectOptions(
+      await screen.findByTestId('studio-pages-template'),
+      'page-dashboard',
+    );
     await chosen.user.type(await screen.findByTestId('studio-pages-title'), 'Ops');
     await chosen.user.selectOptions(screen.getByTestId('studio-pages-width'), 'narrow');
     await chosen.user.click(screen.getByTestId('studio-pages-create-submit'));
@@ -513,6 +691,13 @@ describe('StudioPagesPage', () => {
     const { user, calls } = renderAt('/studio/pages', { pages: [] });
 
     await user.click(await screen.findByTestId('studio-pages-create'));
+    // `page-crud` is table-bound and the create screen now REQUIRES a table
+    // for those; this test is about the address field, not the binding, so it
+    // picks a template that is composed from no table at all.
+    await user.selectOptions(
+      await screen.findByTestId('studio-pages-template'),
+      'page-dashboard',
+    );
     await user.type(await screen.findByTestId('studio-pages-title'), 'Ops');
     const slugField = screen.getByTestId('studio-pages-slug') as HTMLInputElement;
     await user.clear(slugField);
@@ -531,6 +716,13 @@ describe('StudioPagesPage', () => {
     const { user, calls } = renderAt('/studio/pages', { pages: [] });
 
     await user.click(await screen.findByTestId('studio-pages-create'));
+    // `page-crud` is table-bound and the create screen now REQUIRES a table
+    // for those; this test is about the address field, not the binding, so it
+    // picks a template that is composed from no table at all.
+    await user.selectOptions(
+      await screen.findByTestId('studio-pages-template'),
+      'page-dashboard',
+    );
     await user.type(await screen.findByTestId('studio-pages-title'), 'Ops');
     const slugField = screen.getByTestId('studio-pages-slug') as HTMLInputElement;
     await user.clear(slugField);
@@ -1379,5 +1571,918 @@ describe('StudioPagesPage on a server that runs a project folder', () => {
     renderAt('/studio/pages', { pages });
     await screen.findByText('Orders');
     expect(screen.queryByTestId('studio-pages-project')).toBeNull();
+  });
+});
+
+/**
+ * The template-fit panel on the create screen.
+ *
+ * Before it, the picker offered every table and the screen found out on submit
+ * that a calendar needs a date column, in a 422 written for whoever wrote the
+ * composer. These pin the two things that make that a repair instead of a
+ * refusal: the answer arrives BEFORE the create, and it arrives as offers.
+ *
+ * Every "it explains" test is paired with the fitting case, because a panel
+ * that rendered unconditionally would pass the explaining half of all of them
+ * while being in the way of everyone who picked a working table.
+ */
+describe('create screen — template fit', () => {
+  beforeAll(installTestI18n);
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Reach the create screen with a table-bound template and a table picked. */
+  async function pickTable(
+    options: StubOptions,
+    table = 'public.customers',
+    template = 'page-calendar',
+  ) {
+    const harness = renderAt('/studio/pages', {
+      pages: [],
+      connections: [{ id: 'conn_1', name: 'Main' }],
+      ...options,
+    });
+    await harness.user.click(await screen.findByTestId('studio-pages-create'));
+    await harness.user.type(await screen.findByTestId('studio-pages-title'), 'Bookings');
+    await harness.user.selectOptions(screen.getByTestId('studio-pages-template'), template);
+    await waitFor(() => {
+      expect((screen.getByTestId('studio-pages-create-table') as HTMLSelectElement).disabled).toBe(
+        false,
+      );
+    });
+    await harness.user.selectOptions(screen.getByTestId('studio-pages-create-table'), table);
+    return harness;
+  }
+
+  const CANNOT_BACK_A_CALENDAR: Partial<TemplateFitDto> = {
+    satisfied: false,
+    unfilled: [{ slot: 'calendar', accepts: { widgets: ['calendar-month'], shapes: [] } }],
+    requirements: [
+      {
+        role: 'event-date',
+        satisfiedBy: null,
+        taggable: [{ column: 'signed_up', logicalType: 'timestamptz' }],
+        wants: {
+          logicalTypes: ['timestamptz'],
+          semantic: 'event-timestamp',
+          suggestedNames: ['event_date', 'starts_at'],
+        },
+        optional: false,
+      },
+      {
+        role: 'title',
+        satisfiedBy: 'name',
+        taggable: [],
+        wants: { logicalTypes: ['text'], semantic: 'plain', suggestedNames: ['title'] },
+        optional: false,
+      },
+    ],
+  };
+
+  it('stays quiet and leaves Create live while the table fits', async () => {
+    await pickTable({});
+    // The fitting path is the majority path. A panel that congratulates
+    // someone for picking a working table is in the way of everyone.
+    await waitFor(() => {
+      expect(
+        (screen.getByTestId('studio-pages-create-submit') as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
+    expect(screen.queryByTestId('studio-pages-fit')).toBeNull();
+  });
+
+  it('says what the table is missing, in the operator’s words, and blocks Create', async () => {
+    await pickTable({ fit: { 'public.customers': CANNOT_BACK_A_CALENDAR } });
+
+    const panel = await screen.findByTestId('studio-pages-fit');
+    expect(panel.textContent).toContain('a date on each row');
+    // The satisfied half must NOT be listed as missing — the two halves of a
+    // calendar fail independently and the title one almost never does.
+    expect(panel.textContent).not.toContain('a text column to show as');
+    // Never "Required slot 'calendar' of 'page-calendar' has no accepted
+    // candidate", which is what the 422 used to say.
+    expect(panel.textContent).not.toMatch(/required slot/i);
+
+    await waitFor(() => {
+      expect(
+        (screen.getByTestId('studio-pages-create-submit') as HTMLButtonElement).disabled,
+      ).toBe(true);
+    });
+  });
+
+  it('names the unfillable area for a template with no repair descriptors', async () => {
+    // The generic half ships for all ten table-bound templates; only three
+    // carry role descriptors behind them.
+    await pickTable(
+      {
+        fit: {
+          'public.customers': {
+            satisfied: false,
+            unfilled: [{ slot: 'directory', accepts: { widgets: ['card-gallery'], shapes: [] } }],
+            requirements: [],
+          },
+        },
+      },
+      'public.customers',
+      'page-directory',
+    );
+    const panel = await screen.findByTestId('studio-pages-fit');
+    expect(panel.textContent).toContain('directory');
+  });
+
+  it('offers a table that already fits, and choosing it ends the flow', async () => {
+    const { user } = await pickTable({
+      fit: {
+        'public.customers': {
+          ...CANNOT_BACK_A_CALENDAR,
+          alternatives: [
+            {
+              tableId: 'public.invoices',
+              label: null,
+              score: 0.8,
+              reasons: ['date column "due_date" + title column "reference"'],
+              roles: [{ role: 'event-date', column: 'due_date' }],
+            },
+          ],
+        },
+      },
+    });
+
+    const offers = await screen.findByTestId('studio-pages-fit-alternatives');
+    // The trigger's OWN words for why that table fits — not a second
+    // explanation invented by the panel.
+    expect(offers.textContent).toContain('due_date');
+
+    await user.click(screen.getByTestId('studio-pages-fit-use-public.invoices'));
+
+    // Remedy 0 writes NOTHING: the flow ends with the page creatable and the
+    // panel gone, and the operator was never asked to understand their schema.
+    await waitFor(() => {
+      expect(screen.queryByTestId('studio-pages-fit')).toBeNull();
+    });
+    expect(
+      (screen.getByTestId('studio-pages-create-submit') as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it('tags a column the operator already has, without dropping their other overrides', async () => {
+    const { user, calls } = await pickTable({
+      fit: { 'public.customers': CANNOT_BACK_A_CALENDAR },
+      overrides: [
+        {
+          op: 'column.label',
+          tableName: 'public.customers',
+          columnName: 'name',
+          value: { label: 'Customer' },
+        },
+      ],
+    });
+
+    await user.click(await screen.findByTestId('studio-pages-fit-tag-signed_up'));
+
+    const put = await waitFor(() => {
+      const call = calls.find((entry) => entry.method === 'PUT' && entry.path.includes('/overrides'));
+      expect(call).toBeDefined();
+      return call as { body: { overrides: Record<string, unknown>[] } };
+    });
+
+    // THE TRAP: `PUT /connections/:id/overrides` REPLACES the whole set. A
+    // document carrying only the new tag would silently delete every label,
+    // mask and rule the operator has ever written.
+    expect(put.body.overrides).toContainEqual({
+      op: 'column.label',
+      tableName: 'public.customers',
+      columnName: 'name',
+      value: { label: 'Customer' },
+    });
+    expect(put.body.overrides).toContainEqual({
+      op: 'column.semanticType',
+      tableName: 'public.customers',
+      columnName: 'signed_up',
+      value: { semanticType: 'event-timestamp' },
+    });
+  });
+
+  it('fails OPEN when the fit check itself cannot answer', async () => {
+    // A check that errors must not become a second way to be stuck on the one
+    // screen whose job is getting people unstuck. The create route runs the
+    // same check and refuses with the same reason, so the button stays live and
+    // the panel says only that it could not tell.
+    await pickTable({ fitStatus: 500 });
+
+    await screen.findByTestId('studio-pages-fit-unknown');
+    expect(
+      (screen.getByTestId('studio-pages-create-submit') as HTMLButtonElement).disabled,
+    ).toBe(false);
+    // …and it must not ALSO render the "cannot back this page" panel, which
+    // would state as fact something it just said it could not determine.
+    expect(screen.queryByTestId('studio-pages-fit')).toBeNull();
+  });
+});
+
+/**
+ * Remedy 3 — add the missing columns to the table the operator picked.
+ *
+ * The first offer in the panel that writes to their database, so the tests are
+ * about the two ways it can be wrong rather than about the happy path alone:
+ * a column NAME the classifier will not tag (which leaves a repair that ran,
+ * succeeded, and changed nothing the page can see), and an override write that
+ * fails AFTER the DDL landed (which must not read as "try again", because
+ * trying again adds a second column).
+ */
+describe('create screen — remedy 3 (add columns)', () => {
+  beforeAll(installTestI18n);
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe('planColumns', () => {
+    const dateRole: FitRequirementDto = {
+      role: 'event-date',
+      satisfiedBy: null,
+      taggable: [],
+      wants: {
+        logicalTypes: ['timestamptz'],
+        semantic: 'event-timestamp',
+        suggestedNames: ['event_date', 'starts_at'],
+      },
+      optional: false,
+    };
+
+    it('takes the first suggested name', () => {
+      const { columns, blocked } = planColumns([dateRole], []);
+      expect(columns).toEqual([
+        {
+          role: 'event-date',
+          name: 'event_date',
+          logicalType: 'timestamptz',
+          maxLength: null,
+          semantic: 'event-timestamp',
+          enumValues: null,
+        },
+      ]);
+      expect(blocked).toEqual([]);
+    });
+
+    it('steps to the next conforming name when the first is taken', () => {
+      // The collision is not hypothetical: the table that NEEDS this repair is
+      // exactly the one that may hold a text column called `event_date`, which
+      // fails the role and owns the name. Inventing `event_date_2` here would
+      // invent a name `r12-event-timestamp` does not tag.
+      const { columns } = planColumns([dateRole], [{ name: 'event_date' }]);
+      expect(columns[0]?.name).toBe('starts_at');
+    });
+
+    it('blocks the role rather than forcing a name when every one is taken', () => {
+      const { columns, blocked } = planColumns([dateRole], [
+        { name: 'event_date' },
+        { name: 'starts_at' },
+      ]);
+      expect(columns).toEqual([]);
+      expect(blocked).toEqual([dateRole]);
+    });
+
+    it('never offers to add a foreign key', () => {
+      // `personFk` tests the TARGET TABLE's name as well as the reference, so
+      // an integer called `employee_id` pointing nowhere satisfies nothing.
+      const person: FitRequirementDto = {
+        role: 'person-fk',
+        satisfiedBy: null,
+        taggable: [],
+        wants: {
+          logicalTypes: ['integer'],
+          semantic: 'fk',
+          suggestedNames: ['employee_id'],
+          needsReference: true,
+        },
+        optional: false,
+      };
+      const { columns, blocked } = planColumns([person], []);
+      expect(columns).toEqual([]);
+      expect(blocked).toEqual([person]);
+    });
+
+    it('does not let two roles claim the same name', () => {
+      const a = { ...dateRole, wants: { ...dateRole.wants, suggestedNames: ['when_at', 'then_at'] } };
+      const b = { ...dateRole, role: 'title', wants: { ...dateRole.wants, suggestedNames: ['when_at', 'then_at'] } };
+      expect(planColumns([a, b], []).columns.map((c) => c.name)).toEqual(['when_at', 'then_at']);
+    });
+
+    it('carries the bounded length and the seeded values a rule reaches into', () => {
+      // `r07-status-workflow` takes a textish column only at maxLength <= 32,
+      // and refuses one whose values are not workflow-shaped. Dropping either
+      // here builds a column the rule will not tag.
+      const status: FitRequirementDto = {
+        role: 'status-workflow',
+        satisfiedBy: null,
+        taggable: [],
+        wants: {
+          logicalTypes: ['varchar'],
+          semantic: 'status-workflow',
+          suggestedNames: ['status'],
+          maxLength: 32,
+          enumValues: ['todo', 'done'],
+        },
+        optional: false,
+      };
+      expect(planColumns([status], []).columns[0]).toMatchObject({
+        logicalType: 'varchar',
+        maxLength: 32,
+        enumValues: ['todo', 'done'],
+      });
+    });
+  });
+
+  const NEEDS_A_DATE: Partial<TemplateFitDto> = {
+    satisfied: false,
+    unfilled: [{ slot: 'calendar', accepts: { widgets: ['calendar-month'], shapes: [] } }],
+    requirements: [
+      {
+        role: 'event-date',
+        satisfiedBy: null,
+        // Nothing to tag — this is the case remedy 3 exists for.
+        taggable: [],
+        wants: {
+          logicalTypes: ['timestamptz'],
+          semantic: 'event-timestamp',
+          suggestedNames: ['event_date', 'starts_at'],
+        },
+        optional: false,
+      },
+    ],
+  };
+
+  async function reachRemedy3(options: StubOptions = {}) {
+    const harness = renderAt('/studio/pages', {
+      pages: [],
+      connections: [{ id: 'conn_1', name: 'Main' }],
+      fit: { 'public.customers': NEEDS_A_DATE },
+      ...options,
+    });
+    await harness.user.click(await screen.findByTestId('studio-pages-create'));
+    await harness.user.selectOptions(
+      await screen.findByTestId('studio-pages-template'),
+      'page-calendar',
+    );
+    await waitFor(() => {
+      expect((screen.getByTestId('studio-pages-create-table') as HTMLSelectElement).disabled).toBe(
+        false,
+      );
+    });
+    await harness.user.selectOptions(
+      screen.getByTestId('studio-pages-create-table'),
+      'public.customers',
+    );
+    return harness;
+  }
+
+  it('shows the exact statement before anything runs, then applies it', async () => {
+    const { user, calls } = await reachRemedy3();
+
+    const setup = await screen.findByTestId('studio-pages-fit-columns');
+    // The column is NAMED for the operator — D3: they are not asked to invent
+    // one, because the name is what the classifier's rule reads.
+    expect(setup.textContent).toContain('event_date');
+
+    await user.click(screen.getByTestId('studio-pages-fit-columns-plan'));
+    // 35's door: the statement is shown, and only then is it run.
+    const review = await screen.findByTestId('studio-pages-fit-columns-plan-review');
+    expect(review.textContent).toContain('alter table');
+
+    await user.click(screen.getByTestId('studio-pages-fit-columns-confirm'));
+
+    const applied = await waitFor(() => {
+      const call = calls.find((entry) => entry.path.endsWith('/schema/apply'));
+      expect(call).toBeDefined();
+      return call as { body: { addColumns: { table: string; column: { name: string; nullable: boolean } }[] } };
+    });
+    expect(applied.body.addColumns[0]?.column).toMatchObject({
+      name: 'event_date',
+      // NULLABLE always: a NOT NULL column cannot be added to a table that has
+      // rows, and the rows that exist genuinely have no event date yet.
+      nullable: true,
+    });
+
+    // …and the MEANING is written beside it, so the repair survives a rename.
+    const put = await waitFor(() => {
+      const call = calls.find((entry) => entry.method === 'PUT' && entry.path.includes('/overrides'));
+      expect(call).toBeDefined();
+      return call as { body: { overrides: Record<string, unknown>[] } };
+    });
+    expect(put.body.overrides).toContainEqual({
+      op: 'column.semanticType',
+      tableName: 'public.customers',
+      columnName: 'event_date',
+      value: { semanticType: 'event-timestamp' },
+    });
+  });
+
+  it('reports a half-done repair rather than inviting a second run', async () => {
+    // The DDL landed; the meanings did not. Re-running would add a SECOND
+    // column, so this is its own outcome and not a failure to retry.
+    const { user, calls } = await reachRemedy3({ overridesPutStatus: 403 });
+
+    await user.click(await screen.findByTestId('studio-pages-fit-columns-plan'));
+    await user.click(await screen.findByTestId('studio-pages-fit-columns-confirm'));
+
+    const notice = await screen.findByTestId('studio-pages-fit-columns-half-done');
+    expect(notice.textContent).toMatch(/columns were added/i);
+    // The retry button is gone, and nothing was applied twice.
+    expect(screen.queryByTestId('studio-pages-fit-columns-confirm')).toBeNull();
+    expect(calls.filter((entry) => entry.path.endsWith('/schema/apply')).length).toBe(1);
+  });
+
+  it('shows the reason instead of the offer when the connection cannot take DDL', async () => {
+    await reachRemedy3({ schemaAuthoring: { authorable: false, reason: 'READ_ONLY_ROLE' } });
+
+    const reason = await screen.findByTestId('studio-pages-fit-no-ddl');
+    expect(reason.textContent).toMatch(/read-only role/i);
+    // Absence, not a disabled button: a plan call here could only ever 403.
+    expect(screen.queryByTestId('studio-pages-fit-columns')).toBeNull();
+  });
+
+  it('says so when the only missing piece is one it cannot add', async () => {
+    await reachRemedy3({
+      fit: {
+        'public.customers': {
+          satisfied: false,
+          unfilled: [{ slot: 'schedule', accepts: { widgets: ['schedule-matrix'], shapes: [] } }],
+          requirements: [
+            {
+              role: 'person-fk',
+              satisfiedBy: null,
+              taggable: [],
+              wants: {
+                logicalTypes: ['integer'],
+                semantic: 'fk',
+                suggestedNames: ['employee_id'],
+                needsReference: true,
+              },
+              optional: false,
+            },
+          ],
+        },
+      },
+    });
+    const blocked = await screen.findByTestId('studio-pages-fit-columns-blocked');
+    expect(blocked.textContent).toMatch(/link to another table/i);
+    expect(screen.queryByTestId('studio-pages-fit-columns-plan')).toBeNull();
+  });
+});
+
+/**
+ * Remedy 4 — a new table shaped for the page.
+ *
+ * What these pin: the offer exists before any table is picked (and opens by
+ * itself when there is nothing to pick), the table goes through 35's plan →
+ * review → apply doors with a generated key and nullable columns, the column
+ * meanings are written beside it — values included, which a board cannot do
+ * without — and the page is then pointed at the new table. And the negative
+ * halves: no offer for a template the engine has no draft for, no plan for a
+ * name the engine refused, and a reason instead of a button when DDL is
+ * impossible.
+ */
+describe('create screen — remedy 4 (new table)', () => {
+  beforeAll(installTestI18n);
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function calendarDraft(name: string | null): TableDraftDto {
+    const table = name ?? 'appointments';
+    return {
+      template: 'page-calendar',
+      schema: 'public',
+      tables: [
+        {
+          name: table,
+          columns: [
+            { name: 'id', logicalType: 'integer', maxLength: null, primaryKey: true, semantic: null, enumValues: null, references: null, role: null },
+            { name: 'title', logicalType: 'varchar', maxLength: 200, primaryKey: false, semantic: null, enumValues: null, references: null, role: 'title' },
+            { name: 'event_date', logicalType: 'timestamptz', maxLength: null, primaryKey: false, semantic: 'event-timestamp', enumValues: null, references: null, role: 'event-date' },
+          ],
+        },
+      ],
+      bindTableId: `public.${table}`,
+      nameProblem: table === 'customers' ? 'taken' : null,
+      composes: table !== 'customers',
+      peopleTargets: [],
+      peopleTarget: null,
+    };
+  }
+
+  const APPLIED = () =>
+    jsonResponse(200, {
+      changeId: 'chg_1',
+      status: 'applied',
+      steps: [],
+      error: null,
+      repaired: null,
+      snapshotId: 'snap_2',
+      createdTables: ['appointments'],
+    });
+
+  async function reachEntry(options: StubOptions = {}, template = 'page-calendar') {
+    const harness = renderAt('/studio/pages', {
+      pages: [],
+      connections: [{ id: 'conn_1', name: 'Main' }],
+      newTable: ({ template: asked, name }) => (asked === 'page-calendar' ? calendarDraft(name) : null),
+      applyReply: APPLIED,
+      ...options,
+    });
+    await harness.user.click(await screen.findByTestId('studio-pages-create'));
+    await harness.user.selectOptions(await screen.findByTestId('studio-pages-template'), template);
+    return harness;
+  }
+
+  it('offers a new table before any table is picked, then creates and binds it', async () => {
+    const { user, calls } = await reachEntry();
+
+    await user.click(await screen.findByTestId('studio-pages-create-new-table'));
+    const setup = await screen.findByTestId('studio-pages-fit-table');
+    expect(setup.textContent).toContain('appointments.event_date');
+
+    const plan = await screen.findByTestId('studio-pages-fit-table-plan');
+    await waitFor(() => {
+      expect((plan as HTMLButtonElement).disabled).toBe(false);
+    });
+    await user.click(plan);
+    await screen.findByTestId('studio-pages-fit-table-plan-review');
+    await user.click(screen.getByTestId('studio-pages-fit-table-confirm'));
+
+    const applied = await waitFor(() => {
+      const call = calls.find((entry) => entry.path.endsWith('/schema/apply'));
+      expect(call).toBeDefined();
+      return call as { body: { upsertTables: Record<string, unknown>[]; addColumns: unknown[] } };
+    });
+    expect(applied.body.addColumns).toEqual([]);
+    expect(applied.body.upsertTables).toHaveLength(1);
+    expect(applied.body.upsertTables[0]).toMatchObject({
+      id: null,
+      name: 'appointments',
+      primaryKey: ['id'],
+      columns: [
+        // D31's generated key — the only column that is NOT NULL.
+        { name: 'id', nullable: false, default: { kind: 'autoincrement' } },
+        { name: 'title', nullable: true, default: null, maxLength: 200 },
+        { name: 'event_date', nullable: true, default: null },
+      ],
+    });
+
+    // The meaning rides beside the table (D3), keyed by the new table's id.
+    const put = await waitFor(() => {
+      const call = calls.find((entry) => entry.method === 'PUT' && entry.path.includes('/overrides'));
+      expect(call).toBeDefined();
+      return call as { body: { overrides: Record<string, unknown>[] } };
+    });
+    expect(put.body.overrides).toContainEqual({
+      op: 'column.semanticType',
+      tableName: 'public.appointments',
+      columnName: 'event_date',
+      value: { semanticType: 'event-timestamp' },
+    });
+
+    // …and the page is pointed at it: the create screen now asks whether the
+    // NEW table fits, which is what re-arms the Create button.
+    await waitFor(() => {
+      expect(
+        calls.some(
+          (entry) =>
+            entry.path.startsWith('/api/v1/pages/fit?') &&
+            entry.path.includes('table=public.appointments'),
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it('writes a board’s status values with its meaning — the board needs both', async () => {
+    const { user, calls } = await reachEntry(
+      {
+        newTable: () => ({
+          ...calendarDraft('tasks'),
+          template: 'page-board',
+          tables: [
+            {
+              name: 'tasks',
+              columns: [
+                { name: 'id', logicalType: 'integer', maxLength: null, primaryKey: true, semantic: null, enumValues: null, references: null, role: null },
+                { name: 'status', logicalType: 'varchar', maxLength: 32, primaryKey: false, semantic: 'status-workflow', enumValues: ['todo', 'done'], references: null, role: 'status-workflow' },
+              ],
+            },
+          ],
+        }),
+      },
+      'page-board',
+    );
+    await user.click(await screen.findByTestId('studio-pages-create-new-table'));
+    const plan = await screen.findByTestId('studio-pages-fit-table-plan');
+    await waitFor(() => {
+      expect((plan as HTMLButtonElement).disabled).toBe(false);
+    });
+    await user.click(plan);
+    await user.click(await screen.findByTestId('studio-pages-fit-table-confirm'));
+
+    const put = await waitFor(() => {
+      const call = calls.find((entry) => entry.method === 'PUT' && entry.path.includes('/overrides'));
+      expect(call).toBeDefined();
+      return call as { body: { overrides: Record<string, unknown>[] } };
+    });
+    expect(put.body.overrides).toContainEqual({
+      op: 'column.options',
+      tableName: 'public.tasks',
+      columnName: 'status',
+      value: { values: [{ value: 'todo' }, { value: 'done' }] },
+    });
+  });
+
+  it('opens by itself when the connection has no table to pick', async () => {
+    await reachEntry({ noTables: true });
+    await screen.findByTestId('studio-pages-fit-table');
+    expect(screen.queryByTestId('studio-pages-create-new-table')).toBeNull();
+  });
+
+  it('is not offered for a template the engine has no draft for (D4)', async () => {
+    const { calls } = await reachEntry({}, 'page-directory');
+    await waitFor(() => {
+      expect(calls.some((entry) => entry.path.startsWith('/api/v1/pages/fit/new-table'))).toBe(true);
+    });
+    expect(screen.queryByTestId('studio-pages-create-new-table')).toBeNull();
+    expect(screen.queryByTestId('studio-pages-fit-table')).toBeNull();
+  });
+
+  it('refuses to plan a name the engine refused, and says why', async () => {
+    const { user, calls } = await reachEntry();
+    await user.click(await screen.findByTestId('studio-pages-create-new-table'));
+    const input = await screen.findByTestId('studio-pages-fit-table-name');
+    await user.clear(input);
+    await user.type(input, 'customers');
+
+    await screen.findByText('A table with this name already exists.');
+    expect((screen.getByTestId('studio-pages-fit-table-plan') as HTMLButtonElement).disabled).toBe(true);
+    expect(calls.some((entry) => entry.path.endsWith('/schema/plan'))).toBe(false);
+  });
+
+  it('names the reason instead of offering DDL the connection cannot take', async () => {
+    const { user, calls } = await reachEntry({
+      schemaAuthoring: { authorable: false, reason: 'READ_ONLY_ROLE' },
+    });
+    await user.click(await screen.findByTestId('studio-pages-create-new-table'));
+    const reason = await screen.findByTestId('studio-pages-fit-table-no-ddl');
+    expect(reason.textContent).toMatch(/read-only role/i);
+    expect(screen.queryByTestId('studio-pages-fit-table-plan')).toBeNull();
+    expect(calls.some((entry) => entry.path.endsWith('/schema/plan'))).toBe(false);
+  });
+
+  it('is offered last on the fit panel, under a table that cannot back the page', async () => {
+    const harness = await reachEntry({
+      fit: {
+        'public.customers': {
+          satisfied: false,
+          unfilled: [{ slot: 'calendar', accepts: { widgets: ['calendar-month'], shapes: [] } }],
+          requirements: [],
+        },
+      },
+    });
+    await waitFor(() => {
+      expect((screen.getByTestId('studio-pages-create-table') as HTMLSelectElement).disabled).toBe(
+        false,
+      );
+    });
+    await harness.user.selectOptions(
+      screen.getByTestId('studio-pages-create-table'),
+      'public.customers',
+    );
+    const panel = await screen.findByTestId('studio-pages-fit');
+    await waitFor(() => {
+      expect(panel.querySelector('[data-testid="studio-pages-fit-table"]')).not.toBeNull();
+    });
+    // No unmet ROLE, so no add-columns offer — and in particular not its
+    // "needs a link to another table" notice, which is about a foreign key.
+    expect(screen.queryByTestId('studio-pages-fit-columns-blocked')).toBeNull();
+  });
+});
+
+/**
+ * Remedy 2 — the dates of a linked table, titled through the key.
+ *
+ * The offer binds the page to the RELATED table and sends the key as
+ * `titleThrough`; the create screen must then stop asking whether that table
+ * fits on its own (it does not — that is why the key is needed) and must let
+ * the operator go back.
+ */
+describe('create screen — remedy 2 (linked table)', () => {
+  beforeAll(installTestI18n);
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const NO_DATE: Partial<TemplateFitDto> = {
+    satisfied: false,
+    unfilled: [{ slot: 'calendar', accepts: { widgets: ['calendar-month'], shapes: [] } }],
+    requirements: [],
+    related: [
+      {
+        tableId: 'public.invoices',
+        label: null,
+        via: 'customer_id',
+        titleColumn: 'name',
+        dateColumn: 'issued_on',
+      },
+    ],
+  };
+
+  async function reach() {
+    const harness = renderAt('/studio/pages', {
+      pages: [],
+      connections: [{ id: 'conn_1', name: 'Main' }],
+      fit: {
+        'public.customers': NO_DATE,
+        // Alone, the linked table cannot back the page either.
+        'public.invoices': { satisfied: false, unfilled: [{ slot: 'calendar', accepts: { widgets: [], shapes: [] } }] },
+      },
+    });
+    await harness.user.click(await screen.findByTestId('studio-pages-create'));
+    await harness.user.type(await screen.findByTestId('studio-pages-title'), 'Invoices due');
+    await harness.user.selectOptions(screen.getByTestId('studio-pages-template'), 'page-calendar');
+    await waitFor(() => {
+      expect((screen.getByTestId('studio-pages-create-table') as HTMLSelectElement).disabled).toBe(false);
+    });
+    await harness.user.selectOptions(screen.getByTestId('studio-pages-create-table'), 'public.customers');
+    return harness;
+  }
+
+  it('binds the linked table, sends the key, and lets Create through', async () => {
+    const { user, calls } = await reach();
+    const offer = await screen.findByTestId('studio-pages-fit-related');
+    expect(offer.textContent).toContain('issued_on');
+    await user.click(screen.getByTestId('studio-pages-fit-related-public.invoices-customer_id'));
+
+    await screen.findByTestId('studio-pages-fit-related-chosen');
+    expect(screen.queryByTestId('studio-pages-fit')).toBeNull();
+    const submit = screen.getByTestId('studio-pages-create-submit') as HTMLButtonElement;
+    await waitFor(() => {
+      expect(submit.disabled).toBe(false);
+    });
+    await user.click(submit);
+
+    const post = await waitFor(() => {
+      const call = calls.find((entry) => entry.method === 'POST' && entry.path === '/api/v1/pages');
+      expect(call).toBeDefined();
+      return call as { body: Record<string, unknown> };
+    });
+    expect(post.body).toMatchObject({ table: 'public.invoices', titleThrough: 'customer_id' });
+  });
+
+  it('going back restores the picked table and drops the key', async () => {
+    const { user } = await reach();
+    await user.click(await screen.findByTestId('studio-pages-fit-related-public.invoices-customer_id'));
+    await user.click(await screen.findByTestId('studio-pages-fit-related-undo'));
+    await screen.findByTestId('studio-pages-fit');
+    expect((screen.getByTestId('studio-pages-create-table') as HTMLSelectElement).value).toBe(
+      'public.customers',
+    );
+    expect(screen.queryByTestId('studio-pages-fit-related-chosen')).toBeNull();
+  });
+});
+
+/**
+ * The edit screen offers what the create screen offers — it is where
+ * `EmptyLayoutNotice` sends someone whose page has no table, and where a
+ * rebind can land on a table that cannot back the template.
+ */
+describe('edit screen — table remedies', () => {
+  beforeAll(installTestI18n);
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const CALENDAR_ROW = page({ type: 'page-calendar', title: 'Visits', slug: 'visits' });
+  const CALENDAR_DOC = {
+    template: 'page-calendar',
+    config: { templateVersion: 1, toolbar: [], overlays: [], layout: { version: 1, items: [] } },
+  };
+  const NO_DATE: Partial<TemplateFitDto> = {
+    satisfied: false,
+    unfilled: [{ slot: 'calendar', accepts: { widgets: ['calendar-month'], shapes: [] } }],
+    requirements: [],
+    related: [
+      { tableId: 'public.invoices', label: null, via: 'customer_id', titleColumn: 'name', dateColumn: 'issued_on' },
+    ],
+  };
+  const draft = (): TableDraftDto => ({
+    template: 'page-calendar',
+    schema: 'public',
+    tables: [
+      {
+        name: 'appointments',
+        columns: [
+          { name: 'id', logicalType: 'integer', maxLength: null, primaryKey: true, semantic: null, enumValues: null, references: null, role: null },
+          { name: 'event_date', logicalType: 'timestamptz', maxLength: null, primaryKey: false, semantic: 'event-timestamp', enumValues: null, references: null, role: 'event-date' },
+        ],
+      },
+    ],
+    bindTableId: 'public.appointments',
+    nameProblem: null,
+    composes: true,
+    peopleTargets: [],
+    peopleTarget: null,
+  });
+
+  it('offers a new table on an unbound page', async () => {
+    renderAt('/studio/pages/page_1', {
+      pages: [CALENDAR_ROW],
+      connections: [{ id: 'conn_1', name: 'Main' }],
+      envelope: { ...CALENDAR_DOC, source: { connectionId: 'conn_1', table: null } },
+      newTable: () => draft(),
+    });
+    await screen.findByTestId('studio-pages-create-new-table');
+  });
+
+  it('blocks a rebind onto a table that cannot back it, and saves the linked-table choice', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      pages: [CALENDAR_ROW],
+      connections: [{ id: 'conn_1', name: 'Main' }],
+      envelope: { ...CALENDAR_DOC, source: { connectionId: 'conn_1', table: null } },
+      fit: {
+        'public.customers': NO_DATE,
+        'public.invoices': { satisfied: false, unfilled: [{ slot: 'calendar', accepts: { widgets: [], shapes: [] } }] },
+      },
+    });
+    await waitFor(() => {
+      expect((screen.getByTestId('studio-pages-table') as HTMLSelectElement).disabled).toBe(false);
+    });
+    await user.selectOptions(screen.getByTestId('studio-pages-table'), 'public.customers');
+    await screen.findByTestId('studio-pages-fit');
+    const save = screen.getByTestId('studio-pages-save') as HTMLButtonElement;
+    await waitFor(() => {
+      expect(save.disabled).toBe(true);
+    });
+
+    await user.click(await screen.findByTestId('studio-pages-fit-related-public.invoices-customer_id'));
+    await screen.findByTestId('studio-pages-fit-related-chosen');
+    await waitFor(() => {
+      expect(save.disabled).toBe(false);
+    });
+    await user.click(save);
+
+    const patch = await waitFor(() => {
+      const call = calls.find((entry) => entry.method === 'PATCH' && entry.path === '/api/v1/pages/page_1');
+      expect(call).toBeDefined();
+      return call as { body: Record<string, unknown> };
+    });
+    expect(patch.body).toMatchObject({
+      template: 'page-calendar',
+      connectionId: 'conn_1',
+      table: 'public.invoices',
+      titleThrough: 'customer_id',
+    });
+  });
+
+  it('does not block saving other fields when the stored table has drifted out of fit', async () => {
+    const { user } = renderAt('/studio/pages/page_1', {
+      pages: [CALENDAR_ROW],
+      connections: [{ id: 'conn_1', name: 'Main' }],
+      envelope: { ...CALENDAR_DOC, source: { connectionId: 'conn_1', table: 'public.customers' } },
+      fit: { 'public.customers': NO_DATE },
+    });
+    // The panel still explains — the page is broken and the operator should know…
+    await screen.findByTestId('studio-pages-fit');
+    // …but a rename recomposes nothing, so nothing the fit says can refuse it.
+    const titleInput = screen.getAllByRole('textbox')[0] as HTMLInputElement;
+    await user.type(titleInput, ' 2');
+    await waitFor(() => {
+      expect((screen.getByTestId('studio-pages-save') as HTMLButtonElement).disabled).toBe(false);
+    });
   });
 });

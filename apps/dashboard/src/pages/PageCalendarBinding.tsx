@@ -20,6 +20,7 @@ import { PageCalendar } from '@adminium/widgets';
 
 import type { WidgetDataParams } from '../api/widgetData.js';
 import { t } from '../i18n/t.js';
+import { EmptyLayoutNotice, layoutIsEmpty } from './planning/EmptyLayoutNotice.js';
 import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { planningWindowTargetOf, usePlanningStates } from './planning/planningData.js';
 import type { PageTemplateProps } from './template-types.js';
@@ -31,6 +32,15 @@ export function PageCalendarBinding({ page, adapters, recordId }: PageTemplatePr
     [page],
   );
   const states = usePlanningStates(page, params, window);
+
+  // An empty layout renders an empty grid — nothing at all. A page created
+  // without a table is the way in; the notice names the missing binding.
+  // AFTER the hooks above, never before: this component keeps its instance
+  // when a page is bound and refetched, and a guard that skipped `useState`
+  // on one render would change the hook count on the next.
+  if (layoutIsEmpty(page.config)) {
+    return <EmptyLayoutNotice pageId={page.id} template="calendar" />;
+  }
 
   return (
     <>
@@ -44,6 +54,8 @@ export function PageCalendarBinding({ page, adapters, recordId }: PageTemplatePr
           composeCancel: t('calendar.compose.cancel', 'Cancel'),
           composeOpen: t('calendar.compose.open', 'Add event'),
           agendaEmptyTitle: t('calendar.agenda.empty', 'Nothing scheduled'),
+          composeChoose: t('calendar.compose.choose', 'What this event is for'),
+          composeChoosePlaceholder: t('calendar.compose.choosePlaceholder', 'Choose…'),
         }}
         onEvent={(_instanceId, event) => adapters.onEvent(event)}
         onParamsChange={setParams}
