@@ -299,48 +299,55 @@ function BoardSlot({
       refetching={state.isRefetching === true}
       testId={`board-slot-${item.i}`}
     >
-      {state.status === 'success' && !roadmap && nothingPlaced(rows.length, placed) ? (
-        <UnplacedRowsNotice
-          testId="board-unplaced-rows"
-          message={t(
-            'ui:templates.planning.unplaced.board',
-            'None of this table’s rows has a status yet, so the board is empty. A row appears here as soon as it has one.',
+      {/* A column, so the notice takes its height FROM the board: the board is
+          `h-full`, and as a plain sibling below the notice it overflowed the
+          slot by the notice's height, into the composer placed under it. */}
+      <div className="flex h-full min-h-0 flex-col">
+        {state.status === 'success' && !roadmap && nothingPlaced(rows.length, placed) ? (
+          <UnplacedRowsNotice
+            testId="board-unplaced-rows"
+            message={t(
+              'ui:templates.planning.unplaced.board',
+              'None of this table’s rows has a status yet, so the board is empty. A row appears here as soon as it has one.',
+            )}
+          />
+        ) : null}
+        <div className="min-h-0 flex-1">
+          {swimlane ? (
+            <KanbanSwimlaneGrid
+              cards={cards}
+              columns={columns}
+              lanes={lanes}
+              dir={dir}
+              {...(locale === undefined ? {} : { locale })}
+              labels={boardLabels}
+              onCardMove={(cardId, _from, to) => mutate(cardId, moveValues(to.column, to.lane))}
+              onCardOpen={openCard}
+            />
+          ) : (
+            <KanbanBoard
+              cards={cards}
+              columns={columns}
+              dir={dir}
+              {...(locale === undefined ? {} : { locale })}
+              allowAdd={!roadmap && cfg.allowAdd}
+              labels={boardLabels}
+              onCardMove={(cardId, _from, toColumn) => mutate(cardId, moveValues(toColumn))}
+              onCardOpen={openCard}
+              onAdd={(columnId) => {
+                if (source === null || onEvent === undefined) return;
+                void onEvent(item.i, {
+                  type: 'mutate',
+                  intent: 'insert',
+                  connectionId: source.connectionId,
+                  table: source.table,
+                  values: { [cfg.statusColumn]: columnId },
+                });
+              }}
+            />
           )}
-        />
-      ) : null}
-      {swimlane ? (
-        <KanbanSwimlaneGrid
-          cards={cards}
-          columns={columns}
-          lanes={lanes}
-          dir={dir}
-          {...(locale === undefined ? {} : { locale })}
-          labels={boardLabels}
-          onCardMove={(cardId, _from, to) => mutate(cardId, moveValues(to.column, to.lane))}
-          onCardOpen={openCard}
-        />
-      ) : (
-        <KanbanBoard
-          cards={cards}
-          columns={columns}
-          dir={dir}
-          {...(locale === undefined ? {} : { locale })}
-          allowAdd={!roadmap && cfg.allowAdd}
-          labels={boardLabels}
-          onCardMove={(cardId, _from, toColumn) => mutate(cardId, moveValues(toColumn))}
-          onCardOpen={openCard}
-          onAdd={(columnId) => {
-            if (source === null || onEvent === undefined) return;
-            void onEvent(item.i, {
-              type: 'mutate',
-              intent: 'insert',
-              connectionId: source.connectionId,
-              table: source.table,
-              values: { [cfg.statusColumn]: columnId },
-            });
-          }}
-        />
-      )}
+        </div>
+      </div>
     </WidgetFrame>
   );
 }
