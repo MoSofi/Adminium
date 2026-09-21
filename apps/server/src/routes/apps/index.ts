@@ -43,7 +43,16 @@ import {
   type InstallPlan,
   type Manifest,
 } from '@adminium/manifest';
-import { auditRepo, manifestsRepo, settingsRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
+import { checkManifestPages } from '@adminium/engine';
+import {
+  auditRepo,
+  manifestsRepo,
+  pagesRepo,
+  settingsRepo,
+  userPrefsRepo,
+  type MetaDb,
+} from '@adminium/meta';
+import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { AddOnCatalogError, pickLocalized } from '../../add-ons/catalog.js';
@@ -56,6 +65,8 @@ import {
   type AppCatalogEntry,
 } from '../../apps/catalog.js';
 import { surfacesOfInstalled, type InstalledApps } from '../../apps/installed.js';
+import { materialiseManifestPages, type MaterialiseResult } from '../../apps/manifest-pages.js';
+import { missingColumnsEdit } from '../../apps/missing-columns.js';
 import type { AppSchemaTarget } from '../../apps/schema-target.js';
 import type { AppStore } from '../../apps/store.js';
 import { AddOnStoreError } from '../../add-ons/store.js';
@@ -272,8 +283,58 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         })),
         requiresSchemaChange:
           plan.create.length > 0 || plan.reuse.some((t) => t.missingColumns.length > 0),
+        missingColumnsEdit: missingColumnsEdit(plan, manifest),
+        pageWarnings:
+          manifest.kind === 'app'
+            ? checkManifestPages(manifest).map((issue) => ({
+                page: issue.page,
+                code: issue.code,
+                message: issue.message,
+                ...(issue.table === undefined ? {} : { table: issue.table }),
+              }))
+            : [],
       },
     };
+  }
+
+  /**
+   * Write the manifest's pages, then tell open dashboards the nav moved.
+   *
+   * AFTER the row is recorded, because every page is tied to it — and a
+   * failure here is logged and reported rather than thrown: the app IS
+   * installed by then, and unwinding a working install because one of its
+   * pages could not be written would be the worse outcome.
+   */
+  async function writePages(
+    request: FastifyRequest,
+    manifest: Manifest,
+    manifestRowId: string,
+    connectionId: string | null,
+    userId: string | null,
+  ): Promise<MaterialiseResult | undefined> {
+    try {
+      const result = await materialiseManifestPages({
+        meta: deps.meta,
+        manifest,
+        manifestRowId,
+        connectionId,
+        createdBy: userId,
+      });
+      const server = request.server;
+      if (
+        server.hasDecorator('realtime') &&
+        result.created.length + result.recomposed.length > 0
+      ) {
+        server.realtime.publish('config-changed', 'config-changed', {
+          ...(connectionId === null ? {} : { connectionId }),
+          configVersion: await pagesRepo(deps.meta).configVersion(),
+        });
+      }
+      return result;
+    } catch (error) {
+      request.log.warn({ err: error, manifestRowId }, 'app installed, but its pages were not written');
+      return undefined;
+    }
   }
 
   /**
@@ -315,6 +376,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
      * It holds for an update too (48 G8-D6), even where the table is one the
      * app's own earlier version created: telling those apart needs provenance
      * nothing records yet.
+     *
+     * The refusal is no longer the end of it: it carries the columns
+     * as an `addColumns` edit (`edit`), which the update screen offers to run
+     * through the schema doors — the operator's conversation, HELD with them
+     * rather than skipped. The installer itself still alters nothing.
      */
     const short = plan.reuse.filter((table) => table.missingColumns.length > 0);
     if (short.length > 0) {
@@ -326,6 +392,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             ref: table.ref,
             missingColumns: table.missingColumns,
           })),
+          edit: missingColumnsEdit(plan, manifest),
         },
       );
     }
@@ -1023,6 +1090,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         });
 
         await deps.installed.refresh();
+        const writtenPages = await writePages(
+          request,
+          manifest,
+          installed.row.id,
+          connectionId ?? null,
+          userId,
+        );
         await auditAppEvent(
           'app.installed',
           {
@@ -1053,6 +1127,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           // package with no `index.html` under either side). Say so here too,
           // rather than letting the receipt read better than the install went.
           missing: surfaces.length === 0,
+          ...(writtenPages === undefined ? {} : { pages: writtenPages }),
         };
       },
     );
@@ -1139,6 +1214,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
 
         await manifests.setVersion(installed.row.id, { version: to, document: manifest });
         await deps.installed.refresh();
+        // New pages are added, untouched ones rebuilt for this version, and
+        // any page an operator edited is left exactly as it is.
+        const writtenPages = await writePages(request, manifest, installed.row.id, connectionId, userId);
 
         // D11: older versions go only AFTER the new one is recorded and served,
         // so a failure anywhere above leaves the running version on disk.
@@ -1178,6 +1256,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               navAvailable: surface.manifest !== null,
             })),
             missing: surfaces.length === 0,
+            ...(writtenPages === undefined ? {} : { pages: writtenPages }),
           },
           from,
           to,

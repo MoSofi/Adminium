@@ -117,13 +117,20 @@ function columnTypeFor(type: RequiredColumn['type'], dialect: Dialect, keyed = f
     case 'date':
       return 'date';
     case 'timestamptz':
-      // sqlite has no date/time type at all; text is what every sqlite tool
-      // reads back as a timestamp, and what the introspector recognises.
+      // SQLite has no date/time storage class, but it keeps the DECLARED type,
+      // and that is what the introspector reads: `@adminium/adapter-sqlite`'s
+      // `hintFor` recognises a declared type containing TIMESTAMP or DATETIME,
+      // and lets `TEXT` fall through to `text`. This used to emit `text` under
+      // a comment claiming the introspector recognised it — so every date an
+      // app created on SQLite read back as a string, and an app's own calendar
+      // page (its date column the only candidate) could never compose. Storage
+      // is unchanged: `timestamp` has NUMERIC affinity, which keeps an ISO
+      // string as TEXT.
       return dialect === 'postgres'
         ? 'timestamptz'
         : dialect === 'mysql'
           ? 'datetime'
-          : 'text';
+          : 'timestamp';
     case 'enum':
       // A CHECK constraint rather than a native enum type: postgres would need
       // a CREATE TYPE (a second object to own and drop), and the introspector
@@ -250,6 +257,31 @@ function keyTarget(
 }
 
 /**
+ * An enum column's declared type: a `varchar` just wide enough, on every
+ * dialect.
+ *
+ * WIDTH IS WHAT THE CLASSIFIER READS. `r07-status-workflow` accepts a text
+ * enum only at `maxLength <= 32` — its guard against tagging free text — and
+ * this used to declare `varchar(64)` (postgres, mysql) or unbounded `text`
+ * (sqlite). So no app's status column was EVER a workflow status once
+ * installed, on any dialect, and a board over an app's own table could never
+ * compose: the manifest said "status: booked | completed | cancelled" and the
+ * installed column read as a plain category. Values that fit in 32 characters
+ * get 32; anything longer keeps 64 (and is not workflow vocabulary anyway).
+ *
+ * The engine's `modelFromRequiredSchema` mirrors this rule, so an app's CI
+ * checks its pages against the table the installer really creates.
+ */
+export function enumTypeFor(values: readonly string[]): string {
+  return `varchar(${String(enumWidthFor(values))})`;
+}
+
+/** The width half of {@link enumTypeFor}, for a caller that authors a `DesiredColumn`. */
+export function enumWidthFor(values: readonly string[]): 32 | 64 {
+  return values.every((value) => value.length <= 32) ? 32 : 64;
+}
+
+/**
  * The type a DECLARED column is created with. Only an `fk` needs more than the
  * map: it borrows its target's key type, and that key may itself be an FK (a
  * one-to-one extension table keyed by its parent's id), so this follows the
@@ -264,6 +296,7 @@ function declaredTypeOf(
   dialect: Dialect,
   seen: ReadonlySet<string> = new Set(),
 ): string {
+  if (column.type === 'enum' && column.enum !== undefined) return enumTypeFor(column.enum);
   if (column.type !== 'fk' || column.references === undefined) {
     return columnTypeFor(column.type, dialect, column.role === 'pk');
   }

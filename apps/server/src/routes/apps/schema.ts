@@ -114,6 +114,52 @@ export const appInstallPlanDto = z.object({
    * whether the install can proceed at all.
    */
   requiresSchemaChange: z.boolean(),
+  /**
+   * The columns a REUSED table is missing, as plan 35's `addColumns` edit —
+   * what the update screen offers to run (with the exact statement shown)
+   * instead of stopping at `COLUMNS_REQUIRED`. Empty lists when nothing is
+   * missing. `blocked` columns cannot be added this way, and the update still
+   * refuses while any remain.
+   */
+  /**
+   * What is wrong with the manifest's PAGES, from the manifest alone — an
+   * unbound calendar, a binding to a table it does not declare, a table that
+   * cannot back its template. Reported, never a refusal: the install goes on
+   * and such a page arrives empty. The app's own CI is where they are refused.
+   */
+  pageWarnings: z.array(
+    z.object({
+      page: z.string(),
+      code: z.string(),
+      message: z.string(),
+      table: z.string().optional(),
+    }),
+  ),
+  missingColumnsEdit: z.object({
+    addColumns: z.array(
+      z.object({
+        table: z.string(),
+        column: z.object({
+          name: z.string(),
+          logicalType: z.string(),
+          nullable: z.literal(true),
+          default: z.null(),
+          maxLength: z.number().int().nullable(),
+          numericPrecision: z.number().int().nullable(),
+          numericScale: z.number().int().nullable(),
+          comment: z.null(),
+        }),
+      }),
+    ),
+    values: z.array(z.object({ table: z.string(), column: z.string(), values: z.array(z.string()) })),
+    blocked: z.array(
+      z.object({
+        table: z.string(),
+        column: z.string(),
+        reason: z.enum(['foreign-key', 'primary-key', 'unsupported-type']),
+      }),
+    ),
+  }),
 });
 
 export const appInstallPlanReply = z.object({ plan: appInstallPlanDto });
@@ -173,6 +219,20 @@ export const installedAppReply = z.object({
    * an empty list reads as "no frontends", which is a different thing.
    */
   missing: z.boolean(),
+  /**
+   * The manifest's pages, as install/update just wrote them. Absent on the
+   * list route and for an app declaring none. `warnings` never mean the call
+   * failed: a page that could not be bound was created empty, and shows the
+   * "this page has no table" notice.
+   */
+  pages: z
+    .object({
+      created: z.array(z.string()),
+      recomposed: z.array(z.string()),
+      kept: z.array(z.string()),
+      warnings: z.array(z.object({ page: z.string(), reason: z.string(), message: z.string() })),
+    })
+    .optional(),
 });
 
 export const appListReply = z.object({

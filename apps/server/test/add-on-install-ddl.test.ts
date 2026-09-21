@@ -554,11 +554,37 @@ describe('the column-type map, per dialect', () => {
 
   it('gives sqlite its four storage classes and nothing it does not have', async () => {
     const [statement] = await sqlFor(DESIGN_STUDIO, ['jobs'], 'sqlite');
-    expect(statement).toContain('"created_at" text not null');
+    // A timestamp is DECLARED `timestamp`, not `text`: SQLite keeps the
+    // declared type, the introspector reads it back as a timestamp from that,
+    // and an app's calendar page can only compose over a column that reads
+    // back as one. Storage is unchanged (NUMERIC affinity keeps ISO text).
+    expect(statement).toContain('"created_at" timestamp not null');
     expect(statement).toContain('"doc" text not null');
     expect(statement).toContain('"width_mm" real not null');
     expect(statement).not.toContain('timestamptz');
     expect(statement).not.toContain('jsonb');
+  });
+
+  it('declares an enum just wide enough for the workflow rule to read it', async () => {
+    // `r07-status-workflow` accepts a text enum only at maxLength <= 32. At
+    // `varchar(64)` / `text`, no installed app's status was ever a workflow
+    // status, and a board over the app's own table could never compose.
+    const tables: RequiredTable[] = [
+      {
+        ref: 'tickets',
+        columns: [
+          { ref: 'id', type: 'int', role: 'pk' },
+          { ref: 'status', type: 'enum', enum: ['open', 'in_progress', 'done'] },
+          { ref: 'note', type: 'enum', enum: ['a'.repeat(33), 'b'] },
+        ],
+      },
+    ];
+    for (const dialect of ['postgres', 'mysql', 'sqlite'] as const) {
+      const [statement] = await sqlFor(tables, [], dialect);
+      expect(statement, dialect).toMatch(/status["`] varchar\(32\)/);
+      // A value longer than 32 characters keeps the old width.
+      expect(statement, dialect).toMatch(/note["`] varchar\(64\)/);
+    }
   });
 
   it('emits money as decimal(19,4) on both server dialects, never a float', async () => {

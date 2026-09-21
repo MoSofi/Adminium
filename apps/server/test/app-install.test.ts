@@ -28,6 +28,8 @@ import {
   createSqliteMetaDb,
   firstRun,
   manifestsRepo,
+  pagesRepo,
+  snapshotsRepo,
   usersRepo,
   type MetaDb,
 } from '@adminium/meta';
@@ -840,9 +842,146 @@ describe('installing creates the tables', () => {
     expect(res.json().error.details).toMatchObject({
       reason: 'COLUMNS_REQUIRED',
       tables: [{ ref: 'clinicians', missingColumns: ['name'] }],
+      // …and it is no longer a dead end: the refusal carries the
+      // columns as an edit the update screen offers to run through the schema
+      // doors. Always nullable — the table has rows.
+      edit: {
+        addColumns: [
+          { table: 'clinicians', column: { name: 'name', logicalType: 'text', nullable: true } },
+        ],
+        values: [],
+        blocked: [],
+      },
     });
     // Nothing half-done: no row, and the app is not being served.
     expect(installed.current()).toHaveLength(0);
+    await app.close();
+  });
+
+  it('offers the missing columns on the preview, and blocks the ones it cannot type', async () => {
+    const app = await buildApp();
+    await upload(app, 'sample-desk', bundleFor('sample-desk', {}, [
+      {
+        ref: 'clinicians',
+        columns: [
+          { ref: 'id', type: 'int', role: 'pk' },
+          { ref: 'name', type: 'text' },
+          { ref: 'fee', type: 'money' },
+          { ref: 'tier', type: 'enum', enum: ['junior', 'senior'] },
+          { ref: 'clinic_id', type: 'fk', references: 'clinicians' },
+        ],
+      },
+    ]));
+    existingTables = [{ ref: 'clinicians', columns: [{ ref: 'id' }, { ref: 'name' }] }];
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/apps/plan',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    const edit = res.json().plan.missingColumnsEdit;
+    expect(edit.addColumns.map((entry: { column: { name: string } }) => entry.column.name)).toEqual([
+      'fee',
+      'tier',
+    ]);
+    // Money is the installer's own decimal(19,4), never a float.
+    expect(edit.addColumns[0].column).toMatchObject({
+      logicalType: 'decimal',
+      numericPrecision: 19,
+      numericScale: 4,
+    });
+    // An enum is as wide as the installer makes one — 32, which the
+    // workflow-status rule reads — not a width only an update would add.
+    expect(edit.addColumns[1].column).toMatchObject({ logicalType: 'varchar', maxLength: 32 });
+    // An enum's values ride the override channel after the column exists.
+    expect(edit.values).toEqual([{ table: 'clinicians', column: 'tier', values: ['junior', 'senior'] }]);
+    // A foreign key's type is its target's — not guessed.
+    expect(edit.blocked).toEqual([{ table: 'clinicians', column: 'clinic_id', reason: 'foreign-key' }]);
+    await app.close();
+  });
+
+  it('writes the manifest\'s pages on install, and the preview names the unbound ones', async () => {
+    const app = await buildApp();
+    const tables = [
+      {
+        ref: 'visits',
+        columns: [
+          { ref: 'id', type: 'int', role: 'pk' },
+          { ref: 'reason', type: 'text' },
+          { ref: 'starts_at', type: 'timestamptz' },
+        ],
+      },
+    ];
+    const pages = [
+      {
+        ref: 'sample-day',
+        template: 'page-calendar',
+        title: { key: 'mft.sample.page.day', fallback: 'Day' },
+        nav: { group: 'manifest:sample', icon: 'calendar', order: 1 },
+        bindings: { rows: 'visits' },
+      },
+      {
+        ref: 'sample-list',
+        template: 'page-crud',
+        title: { key: 'mft.sample.page.list', fallback: 'List' },
+        nav: { group: 'library', icon: 'table', order: 2 },
+      },
+    ];
+    await upload(app, 'sample-desk', {
+      ...bundleFor('sample-desk', {}, tables),
+      'manifest.json': JSON.stringify({ ...manifestFor('sample-desk', tables), pages }),
+    });
+
+    const preview = await app.inject({
+      method: 'POST',
+      url: '/apps/plan',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    expect(preview.json().plan.pageWarnings.map((w: { page: string; code: string }) => [w.page, w.code])).toEqual([
+      ['sample-list', 'PAGE_UNBOUND'],
+    ]);
+
+    // What the real schema target does after creating the tables: re-read them.
+    await snapshotsRepo(meta).create({
+      connectionId: CONNECTION,
+      source: 'introspection',
+      checksum: 'sha-sample',
+      schema: {
+        dialect: 'sqlite',
+        name: 'practice',
+        defaultSchema: 'main',
+        schemas: ['main'],
+        tables: [
+          {
+            schema: 'main',
+            name: 'visits',
+            columns: [
+              { name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false },
+              { name: 'reason', logicalType: 'text' },
+              { name: 'starts_at', logicalType: 'timestamp' },
+            ],
+            primaryKey: ['id'],
+          },
+        ],
+        relations: [],
+        enums: [],
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/apps/install',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    // An unbound page does not refuse the install: it is created and reported.
+    expect(res.json().pages).toMatchObject({
+      created: ['sample-day', 'sample-list'],
+      warnings: [{ page: 'sample-list', reason: 'PAGE_UNBOUND' }],
+    });
+    const day = await pagesRepo(meta).findBySlug(CONNECTION, 'sample-day');
+    expect((day?.config as { source: { table: string } }).source.table).toBe('main.visits');
     await app.close();
   });
 
