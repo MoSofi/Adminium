@@ -1893,6 +1893,15 @@
                             "type": "string"
                           }
                         },
+                        "systemActions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "pagesWithheld": {
+                          "type": "boolean"
+                        },
                         "prefs": {
                           "type": "object",
                           "properties": {
@@ -2681,6 +2690,8 @@
                       "required": [
                         "user",
                         "roles",
+                        "systemActions",
+                        "pagesWithheld",
                         "prefs",
                         "nav",
                         "version",
@@ -63242,6 +63253,11 @@
                       }
                     ]
                   },
+                  "titleThrough": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
                   "padding": {
                     "anyOf": [
                       {
@@ -63897,6 +63913,18 @@
                       }
                     ]
                   },
+                  "titleThrough": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "padding": {
                     "anyOf": [
                       {
@@ -64082,6 +64110,634 @@
                         "isEnabled",
                         "revision",
                         "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pages/fit": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "page-crud",
+                "page-record",
+                "page-dashboard",
+                "page-master-detail",
+                "page-queue-inbox",
+                "page-board",
+                "page-calendar",
+                "page-scheduler",
+                "page-directory",
+                "page-log-viewer",
+                "page-files",
+                "page-chat",
+                "page-builder",
+                "page-wizard",
+                "page-settings"
+              ]
+            },
+            "in": "query",
+            "name": "template",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "alternatives",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "template": {
+                          "type": "string"
+                        },
+                        "tableId": {
+                          "type": "string"
+                        },
+                        "bindable": {
+                          "type": "boolean"
+                        },
+                        "satisfied": {
+                          "type": "boolean"
+                        },
+                        "unfilled": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slot": {
+                                "type": "string"
+                              },
+                              "accepts": {
+                                "type": "object",
+                                "properties": {
+                                  "widgets": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "shapes": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "widgets",
+                                  "shapes"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "accepts"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "requirements": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "satisfiedBy": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "taggable": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "logicalType": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "logicalType"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "wants": {
+                                "type": "object",
+                                "properties": {
+                                  "logicalTypes": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "semantic": {
+                                    "type": "string"
+                                  },
+                                  "suggestedNames": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "maxLength": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "enumValues": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "needsReference": {
+                                    "type": "boolean",
+                                    "enum": [
+                                      true
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "logicalTypes",
+                                  "semantic",
+                                  "suggestedNames"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "optional": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "satisfiedBy",
+                              "taggable",
+                              "wants",
+                              "optional"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "related": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tableId": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "via": {
+                                "type": "string"
+                              },
+                              "titleColumn": {
+                                "type": "string"
+                              },
+                              "dateColumn": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "tableId",
+                              "label",
+                              "via",
+                              "titleColumn",
+                              "dateColumn"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "alternatives": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tableId": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "score": {
+                                "type": "number"
+                              },
+                              "reasons": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "roles": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "column": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "role",
+                                    "column"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "tableId",
+                              "label",
+                              "score",
+                              "reasons",
+                              "roles"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "template",
+                        "tableId",
+                        "bindable",
+                        "satisfied",
+                        "unfilled",
+                        "requirements",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pages/fit/new-table": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "page-crud",
+                "page-record",
+                "page-dashboard",
+                "page-master-detail",
+                "page-queue-inbox",
+                "page-board",
+                "page-calendar",
+                "page-scheduler",
+                "page-directory",
+                "page-log-viewer",
+                "page-files",
+                "page-chat",
+                "page-builder",
+                "page-wizard",
+                "page-settings"
+              ]
+            },
+            "in": "query",
+            "name": "template",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "in": "query",
+            "name": "name",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "people",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "draft": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "template": {
+                                  "type": "string"
+                                },
+                                "schema": {
+                                  "type": "string"
+                                },
+                                "tables": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "columns": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "logicalType": {
+                                              "type": "string"
+                                            },
+                                            "maxLength": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "integer",
+                                                  "minimum": -9007199254740991,
+                                                  "maximum": 9007199254740991
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "primaryKey": {
+                                              "type": "boolean"
+                                            },
+                                            "semantic": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "enumValues": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "references": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "table": {
+                                                      "type": "string"
+                                                    },
+                                                    "column": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "table",
+                                                    "column"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "role": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "name",
+                                            "logicalType",
+                                            "maxLength",
+                                            "primaryKey",
+                                            "semantic",
+                                            "enumValues",
+                                            "references",
+                                            "role"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "name",
+                                      "columns"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "bindTableId": {
+                                  "type": "string"
+                                },
+                                "nameProblem": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "invalid",
+                                        "taken"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "composes": {
+                                  "type": "boolean"
+                                },
+                                "peopleTargets": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "tableId": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "tableId",
+                                      "label"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "peopleTarget": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "template",
+                                "schema",
+                                "tables",
+                                "bindTableId",
+                                "nameProblem",
+                                "composes",
+                                "peopleTargets",
+                                "peopleTarget"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "draft"
                       ],
                       "additionalProperties": false
                     }
@@ -65807,6 +66463,13 @@
                           "type": "string"
                         }
                       },
+                      "lookups": {
+                        "maxItems": 4,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
                       "aggregations": {
                         "maxItems": 8,
                         "type": "array",
@@ -66101,6 +66764,13 @@
                               ]
                             },
                             "select": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "lookups": {
+                              "maxItems": 4,
                               "type": "array",
                               "items": {
                                 "type": "string"
@@ -76643,6 +77313,59 @@
                           },
                           "missing": {
                             "type": "boolean"
+                          },
+                          "pages": {
+                            "type": "object",
+                            "properties": {
+                              "created": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "recomposed": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "kept": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "page": {
+                                      "type": "string"
+                                    },
+                                    "reason": {
+                                      "type": "string"
+                                    },
+                                    "message": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "page",
+                                    "reason",
+                                    "message"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "created",
+                              "recomposed",
+                              "kept",
+                              "warnings"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -77236,6 +77959,183 @@
                         },
                         "requiresSchemaChange": {
                           "type": "boolean"
+                        },
+                        "pageWarnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "page": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "page",
+                              "code",
+                              "message"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "missingColumnsEdit": {
+                          "type": "object",
+                          "properties": {
+                            "addColumns": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "column": {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "logicalType": {
+                                        "type": "string"
+                                      },
+                                      "nullable": {
+                                        "type": "boolean",
+                                        "enum": [
+                                          true
+                                        ]
+                                      },
+                                      "default": {
+                                        "type": "null"
+                                      },
+                                      "maxLength": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": -9007199254740991,
+                                            "maximum": 9007199254740991
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "numericPrecision": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": -9007199254740991,
+                                            "maximum": 9007199254740991
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "numericScale": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": -9007199254740991,
+                                            "maximum": 9007199254740991
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "comment": {
+                                        "type": "null"
+                                      }
+                                    },
+                                    "required": [
+                                      "name",
+                                      "logicalType",
+                                      "nullable",
+                                      "default",
+                                      "maxLength",
+                                      "numericPrecision",
+                                      "numericScale",
+                                      "comment"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "values": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "column": {
+                                    "type": "string"
+                                  },
+                                  "values": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column",
+                                  "values"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "blocked": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "column": {
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "enum": [
+                                      "foreign-key",
+                                      "primary-key",
+                                      "unsupported-type"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "addColumns",
+                            "values",
+                            "blocked"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -77247,7 +78147,9 @@
                         "reuse",
                         "references",
                         "problems",
-                        "requiresSchemaChange"
+                        "requiresSchemaChange",
+                        "pageWarnings",
+                        "missingColumnsEdit"
                       ],
                       "additionalProperties": false
                     }
@@ -77376,6 +78278,59 @@
                     },
                     "missing": {
                       "type": "boolean"
+                    },
+                    "pages": {
+                      "type": "object",
+                      "properties": {
+                        "created": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "recomposed": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "kept": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "page": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "page",
+                              "reason",
+                              "message"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "created",
+                        "recomposed",
+                        "kept",
+                        "warnings"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -77493,6 +78448,59 @@
                         },
                         "missing": {
                           "type": "boolean"
+                        },
+                        "pages": {
+                          "type": "object",
+                          "properties": {
+                            "created": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "recomposed": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "kept": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "warnings": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "page": {
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "page",
+                                  "reason",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "created",
+                            "recomposed",
+                            "kept",
+                            "warnings"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [

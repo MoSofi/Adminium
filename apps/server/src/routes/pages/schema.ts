@@ -87,6 +87,12 @@ export const pageCreateBody = z.object({
   connectionId: z.string().min(1).nullish(),
   /** Qualified source table (`public.orders`) the page's widgets bind against. */
   table: z.string().min(1).nullish(),
+  /**
+   * An FK column of `table` to title each row through (remedy 2): a calendar
+   * over `appointments` shows each patient's name, and its "Add event" picks a
+   * patient. `page-calendar` only; refused with the engine's reason otherwise.
+   */
+  titleThrough: z.string().min(1).max(128).nullish(),
   /** Page gutter override; omitted ⇒ the template's own default. */
   padding: pagePaddingSchema.nullish(),
   /** Content-column override; omitted ⇒ the template's own default. */
@@ -116,6 +122,12 @@ export const pagePatchBody = z
     template: pageTemplateId.optional(),
     connectionId: z.string().min(1).nullish(),
     table: z.string().min(1).nullish(),
+    /**
+     * Rebind titled through this FK column of `table` (remedy 2) — the same
+     * field as on create. Supplying it makes the PATCH a recompose even when
+     * the table is unchanged: it is a different body for the same source.
+     */
+    titleThrough: z.string().min(1).max(128).optional(),
     /**
      * Page gutter. An explicit null CLEARS the override, returning the page to
      * its template's default — which is why this is `.nullish()` and not
@@ -325,3 +337,149 @@ export const pageReply = z.object({
  */
 export const pageLayoutPatchBody = pageLayoutSchema;
 export const pageLayoutReply = z.object({ data: z.object({ layout: pageLayoutSchema }) });
+
+/* -------------------------------------------------------- template fit */
+
+/**
+ * `GET /pages/fit` — what a template needs from a table, as data.
+ *
+ * The create screen asks this the moment a table is picked, which is why it is
+ * a GET on the pages surface rather than a field of the create reply: the
+ * answer has to arrive BEFORE anything is created, or the only thing the
+ * product can say is no after the fact.
+ */
+export const pageFitQuery = z.object({
+  connectionId: z.string().min(1),
+  table: z.string().min(1),
+  template: pageTemplateId,
+  /**
+   * Also rank every OTHER table of the connection that can back this template
+   * (remedy 0). Off by default: it composes once per table, which is cheap for
+   * one connection and pointless for a caller that only wants the verdict.
+   */
+  alternatives: z.coerce.boolean().optional(),
+});
+
+const fitWantsSchema = z.object({
+  logicalTypes: z.array(z.string()),
+  semantic: z.string(),
+  /** Names the classifier tags unaided, best first — the first FREE one wins. */
+  suggestedNames: z.array(z.string()),
+  maxLength: z.number().int().optional(),
+  enumValues: z.array(z.string()).optional(),
+  /** A foreign key: it cannot be added without choosing a target table. */
+  needsReference: z.literal(true).optional(),
+});
+
+const fitRequirementSchema = z.object({
+  role: z.string(),
+  satisfiedBy: z.string().nullable(),
+  taggable: z.array(z.object({ column: z.string(), logicalType: z.string() })),
+  wants: fitWantsSchema,
+  optional: z.boolean(),
+});
+
+const templateFitSchema = z.object({
+  template: z.string(),
+  tableId: z.string(),
+  bindable: z.boolean(),
+  satisfied: z.boolean(),
+  unfilled: z.array(
+    z.object({
+      slot: z.string(),
+      accepts: z.object({ widgets: z.array(z.string()), shapes: z.array(z.string()) }),
+    }),
+  ),
+  requirements: z.array(fitRequirementSchema),
+  reason: z.string(),
+});
+
+export const pageFitReply = z.object({
+  data: templateFitSchema.extend({
+    /**
+     * Remedy 2 — tables one FK hop away that can carry this template titled
+     * through the key. Present only with `alternatives=true`, like its sibling.
+     */
+    related: z
+      .array(
+        z.object({
+          tableId: z.string(),
+          label: z.string().nullable(),
+          via: z.string(),
+          titleColumn: z.string(),
+          dateColumn: z.string().nullable(),
+        }),
+      )
+      .optional(),
+    /**
+     * Remedy 0 — other tables of this connection that already fit, best first.
+     * Absent unless asked for; `[]` means the question was asked and nothing
+     * else fits, which is a different answer the UI must be able to tell apart.
+     */
+    alternatives: z
+      .array(
+        z.object({
+          tableId: z.string(),
+          label: z.string().nullable(),
+          score: z.number(),
+          reasons: z.array(z.string()),
+          roles: z.array(z.object({ role: z.string(), column: z.string().nullable() })),
+        }),
+      )
+      .optional(),
+  }),
+});
+
+/**
+ * `GET /pages/fit/new-table` — remedy 4: a new table shaped for a template.
+ *
+ * Takes no `table`: this is also the answer for an operator with no table at
+ * all. `name` and `people` are the operator's two choices, echoed back with the
+ * engine's verdict on them — the name can be taken or malformed, and the draft
+ * is only offered when it composes.
+ */
+export const pageFitDraftQuery = z.object({
+  connectionId: z.string().min(1),
+  template: pageTemplateId,
+  name: z.string().max(128).optional(),
+  /** Scheduler only: an existing table id to link people to, or `new`. */
+  people: z.string().min(1).optional(),
+});
+
+const draftColumnSchema = z.object({
+  name: z.string(),
+  logicalType: z.string(),
+  maxLength: z.number().int().nullable(),
+  primaryKey: z.boolean(),
+  semantic: z.string().nullable(),
+  enumValues: z.array(z.string()).nullable(),
+  references: z.object({ table: z.string(), column: z.string() }).nullable(),
+  role: z.string().nullable(),
+});
+
+export const pageFitDraftReply = z.object({
+  data: z.object({
+    /** Null when the template has no repair descriptors (D4). */
+    draft: z
+      .object({
+        template: z.string(),
+        schema: z.string(),
+        tables: z.array(z.object({ name: z.string(), columns: z.array(draftColumnSchema) })),
+        bindTableId: z.string(),
+        nameProblem: z.enum(['invalid', 'taken']).nullable(),
+        composes: z.boolean(),
+        peopleTargets: z.array(z.object({ tableId: z.string(), label: z.string().nullable() })),
+        peopleTarget: z.string().nullable(),
+      })
+      .nullable(),
+  }),
+});
+
+/*
+ * NOT here: `schemaAuthoring`. Whether a connection can take DDL — which
+ * decides if the two remedies that WRITE to the operator's database are
+ * offered at all — already rides `GET /connections/:id/schema`, and the create
+ * screen already fetches it to list the tables. Answering it a second time
+ * from this route would be the same fact with two sources and one of them
+ * eventually wrong.
+ */

@@ -9,7 +9,15 @@
  * reply/derived shape and is never re-parsed by the strict engine schema.
  */
 
-import type { ColumnModel, DatabaseModel, Relation, SemanticTag, TableModel } from '@adminium/engine';
+import { SEMANTIC_TAGS } from '@adminium/engine';
+import type {
+  ColumnModel,
+  ColumnSemantics,
+  DatabaseModel,
+  Relation,
+  SemanticTag,
+  TableModel,
+} from '@adminium/engine';
 import type { SchemaOverride } from '@adminium/meta';
 
 /** One answer a choice column accepts. */
@@ -153,6 +161,206 @@ export function activeTableLabels(
     }
   }
   return labels;
+}
+
+/** The engine's own tag set, for the ops that store one as a free string. */
+const KNOWN_SEMANTIC_TAGS: ReadonlySet<string> = new Set(SEMANTIC_TAGS);
+
+function isSemanticTag(value: unknown): value is SemanticTag {
+  return typeof value === 'string' && KNOWN_SEMANTIC_TAGS.has(value);
+}
+
+/**
+ * Stamp an asserted tag onto a column's semantics, keeping everything else the
+ * classifier decided (flags, format, pair).
+ *
+ * `confidence: 1, source: 'override'` is the assertion itself: a human said so,
+ * which is as certain as a declared fact and is the precedence marker every
+ * downstream reader tests. Shared by the read path below and the composition
+ * overlay above it so the two can never stamp differently.
+ */
+function stampSemantic(existing: ColumnSemantics | null, primary: SemanticTag): ColumnSemantics {
+  const base: ColumnSemantics = existing ?? {
+    primary,
+    flags: { secret: false, pii: null, maskedByDefault: false },
+    format: null,
+    pair: null,
+    confidence: 1,
+    source: 'override',
+  };
+  return { ...base, primary, confidence: 1, source: 'override' };
+}
+
+/**
+ * The tag each active `column.semanticType` row asserts, keyed
+ * `tableName\u0000columnName`. Later rows win, as everywhere else here.
+ *
+ * A tag the engine does not know is DROPPED rather than stamped: the stored
+ * payload types `semanticType` as a free string (`json-payloads.ts`), so this
+ * is the only place the enum is enforced, and a junk tag reaching a candidate
+ * rule silently changes which pages a table can back.
+ *
+ * Shared by {@link applyOverrides} (the read path) and
+ * {@link applyColumnSemanticOverrides} (the composition path).
+ */
+export function activeColumnSemantics(
+  overrides: readonly SchemaOverride[],
+): Map<string, SemanticTag> {
+  const tags = new Map<string, SemanticTag>();
+  for (const row of overrides) {
+    if (row.status !== 'active') continue;
+    if ((row.op as string) !== 'column.semanticType' || row.columnName === null) continue;
+    if (!isSemanticTag(row.value.semanticType)) continue;
+    tags.set(`${row.tableName}\u0000${row.columnName}`, row.value.semanticType);
+  }
+  return tags;
+}
+
+/**
+ * Overlay active column-semantic overrides onto a PARSED `DatabaseModel` — the
+ * composition path's counterpart to {@link applyOverrides}.
+ *
+ * It cannot just call `applyOverrides`: that returns an `EffectiveModel`
+ * carrying display-layer fields (`label`, `hidden`, `excluded`, …) that the
+ * strict engine schema rejects, and it folds in ops composition has no business
+ * seeing. What composition needs is exactly one thing — the column's semantic —
+ * on a model that is still a `DatabaseModel`.
+ *
+ * The loop was open at the same end `applyAcceptedRelations` closed for
+ * relations. An operator opened Studio's Column Inspector, tagged `date` as
+ * `event-timestamp`, saved — and the calendar page still refused to compose,
+ * because `composeForTable` and `generate/run.ts` both re-parsed the RAW
+ * snapshot. The override changed what CRUD showed and nothing about what a page
+ * could be built from. Everything below the call site was already correct:
+ * `toClassifiedInput` (engine `generate/archetype.ts`) prefers a stamped
+ * semantic whose `source` is not `heuristic` over the recomputed one, so
+ * stamping here is the entire unlock.
+ *
+ * A row naming a column the schema has since dropped is skipped, the same way a
+ * stale relation override is — drift must not fail a run. The model is returned
+ * untouched, not cloned, when no row applies.
+ */
+export function applyColumnSemanticOverrides(
+  model: DatabaseModel,
+  overrides: readonly SchemaOverride[],
+): DatabaseModel {
+  const tags = activeColumnSemantics(overrides);
+  if (tags.size === 0) return model;
+
+  let changed = false;
+  const tables = model.tables.map((table) => {
+    let touched = false;
+    const columns = table.columns.map((column) => {
+      const tag = tags.get(`${table.id}\u0000${column.name}`);
+      if (tag === undefined) return column;
+      touched = true;
+      return { ...column, semantics: stampSemantic(column.semantics, tag) };
+    });
+    if (!touched) return table;
+    changed = true;
+    return { ...table, columns };
+  });
+  return changed ? { ...model, tables } : model;
+}
+
+/**
+ * The answers a column's `column.options` list gives, keyed
+ * `tableName\u0000columnName`.
+ *
+ * Only the INLINE variant. `{ list: '<name>' }` names a shared list that lives
+ * in settings, and resolving it needs a read this pure function does not have;
+ * a column pointing at one keeps whatever values the database itself declares.
+ */
+function activeColumnOptionValues(
+  overrides: readonly SchemaOverride[],
+): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const row of overrides) {
+    if (row.status !== 'active') continue;
+    if ((row.op as string) !== 'column.options' || row.columnName === null) continue;
+    const values = (row.value as unknown as ColumnOptions | undefined);
+    if (values === undefined || !('values' in values)) continue;
+    const list = values.values
+      .map((item) => item.value)
+      .filter((value) => typeof value === 'string' && value.length > 0);
+    if (list.length === 0) continue;
+    out.set(`${row.tableName}\u0000${row.columnName}`, list);
+  }
+  return out;
+}
+
+/**
+ * Project an admin's `column.options` list onto the model as a real enum.
+ *
+ * THIS IS THE SECOND HALF OF A REPAIR NOBODY WOULD HAVE SEEN FAIL. A board's
+ * requirement reaches into the enum's VALUES, not just the column's semantic —
+ * a `status` of `bronze|silver|gold` has the right type, the right semantic and
+ * still no board. And `addColumns` cannot carry values: `AddColumn` holds a
+ * `DesiredColumn`, and only `DesiredTable` has an `enumValues` map. So a repair
+ * that adds a status column has exactly one channel for the values it must
+ * hold, and it is this override.
+ *
+ * Without this projection that channel is a dead end. The candidate rules read
+ * `enumValues` from `model.enums` through `column.enumRef`
+ * (`generate/archetype.ts#enumValuesFor`) and have no idea `column.options`
+ * exists, so the values would be stored, shown in every form, and invisible to
+ * the one question the repair was performed to change. The operator would watch
+ * a schema change succeed and the board still refuse.
+ *
+ * A column that ALREADY carries an `enumRef` is left alone: the database's own
+ * enum or CHECK is the stronger statement, and an admin's answer list is a
+ * display choice layered over it rather than a replacement for it.
+ */
+export function applyColumnOptionValues(
+  model: DatabaseModel,
+  overrides: readonly SchemaOverride[],
+): DatabaseModel {
+  const values = activeColumnOptionValues(overrides);
+  if (values.size === 0) return model;
+
+  const enums = [...model.enums];
+  let changed = false;
+  const tables = model.tables.map((table) => {
+    let touched = false;
+    const columns = table.columns.map((column) => {
+      if (column.enumRef !== null) return column;
+      const list = values.get(`${table.id}\u0000${column.name}`);
+      if (list === undefined) return column;
+      // `${tableId}.${column}` is the id shape the adapters already mint for a
+      // CHECK-derived enum, so nothing downstream has to tell the two apart.
+      const id = `${table.id}.${column.name}`;
+      enums.push({ id, name: column.name, values: list, source: 'check' });
+      touched = true;
+      return { ...column, enumRef: id };
+    });
+    if (!touched) return table;
+    changed = true;
+    return { ...table, columns };
+  });
+  return changed ? { ...model, tables, enums } : model;
+}
+
+/**
+ * Every override op that changes WHAT A PAGE CAN BE BUILT FROM, folded onto a
+ * parsed model in one call.
+ *
+ * The distinction this name draws is the useful one. `applyOverrides` answers
+ * "what should a reader see" and folds in labels, masks, hidden flags and write
+ * rules — none of which composition may look at, and all of which turn the
+ * model into a shape the strict engine schema rejects. This answers "what can
+ * this table back", and its members are exactly the ops a candidate rule reads:
+ * the column's semantic, and the values an enum column may hold.
+ *
+ * Both call sites (`composeForTable` and `generate/run.ts`) take this one, so a
+ * new op that changes composition is added in one place and cannot reach one
+ * path while missing the other — which is the bug both halves of this function
+ * exist to fix.
+ */
+export function applyCompositionOverrides(
+  model: DatabaseModel,
+  overrides: readonly SchemaOverride[],
+): DatabaseModel {
+  return applyColumnOptionValues(applyColumnSemanticOverrides(model, overrides), overrides);
 }
 
 /**
@@ -303,20 +511,11 @@ export function applyOverrides(
       case 'column.semanticType': {
         const column = columnOf(table, row.columnName);
         if (column === undefined) break;
-        const semantics = column.semantics ?? {
-          primary: 'plain' as const,
-          flags: { secret: false, pii: null, maskedByDefault: false },
-          format: null,
-          pair: null,
-          confidence: 1,
-          source: 'override' as const,
-        };
-        column.semantics = {
-          ...semantics,
-          primary: value.semanticType as SemanticTag,
-          confidence: 1,
-          source: 'override',
-        };
+        // The guard is new: the value was cast straight through before, so a
+        // junk tag became `semantics.primary` in the reply. Both paths now
+        // drop it, because only one of them could and they must agree.
+        if (!isSemanticTag(value.semanticType)) break;
+        column.semantics = stampSemantic(column.semantics, value.semanticType);
         break;
       }
       case 'column.enumLabels': {

@@ -36,8 +36,12 @@
 
 import {
   composeRequestedPage,
+  fittingTables,
   isTableBoundTemplate,
   parseDatabaseModel,
+  relatedDateTables,
+  templateFit,
+  templateTableDraft,
 } from '@adminium/engine';
 import {
   pageEnvelopeSchema,
@@ -48,6 +52,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest, preHandlerHookHandler } from 'fastify';
 import {
   newId,
+  overridesRepo,
   pagesRepo,
   permissionsRepo,
   snapshotsRepo,
@@ -62,14 +67,20 @@ import {
   NotFoundError,
   ValidationFailedError,
 } from '../../errors.js';
+import { applyCompositionOverrides } from '../../connections/effective-schema.js';
 import { canReadPii } from '../../crud/mask.js';
 import { columnFactsFor } from './column-facts.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
+import { fitRefusalMessage } from './fit-prose.js';
 import { pageLayoutSchema } from './layout-schema.js';
 import {
   okReply,
   pageConfigPatchBody,
   pageCreateBody,
+  pageFitDraftQuery,
+  pageFitDraftReply,
+  pageFitQuery,
+  pageFitReply,
   pageDuplicateBody,
   pageLayoutPatchBody,
   pageLayoutReply,
@@ -272,30 +283,22 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
       navGroup: string;
       navIcon: string;
       navOrder: number;
+      /** Title each row through this FK column (remedy 2). */
+      titleThrough?: string | undefined;
     }): Promise<Record<string, unknown>> {
       // Existence is checked on the row rather than through `connectionsRepo`,
       // which needs the DSN crypto this route has no business holding — nothing
       // here reads or decrypts a connection string.
-      const connection = await deps.meta.db
-        .selectFrom('adminium_connections')
-        .select(['id'])
-        .where('id', '=', input.connectionId)
-        .executeTakeFirst();
-      if (connection === undefined) {
-        throw new ValidationFailedError('That data source no longer exists.', {
-          connectionId: input.connectionId,
-        });
-      }
-      const snapshot = await snapshotsRepo(deps.meta).latest(input.connectionId);
-      if (snapshot === null) {
-        throw new ValidationFailedError(
-          'This connection has not been analysed yet. Run introspection from Studio → Data connections first.',
-          { connectionId: input.connectionId },
-        );
-      }
-
+      //
+      // The snapshot is the RAW model; what an operator asserted about their
+      // columns — the semantic, and the values an enum may hold — lives in the
+      // override rows beside it. Composition reads both to decide which widgets
+      // a table can back, so without this overlay tagging `date` as the event
+      // date left the calendar refusing to compose: the override was visible
+      // everywhere except the thing it was made to correct.
+      const model = await compositionModel(input.connectionId);
       const built = composeRequestedPage(
-        parseDatabaseModel(snapshot.schema),
+        model,
         input.table,
         input.template,
         {
@@ -305,15 +308,31 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           navGroup: input.navGroup as 'workspace' | 'library' | 'planning' | 'people' | 'account',
           navIcon: input.navIcon,
           navOrder: input.navOrder,
+          ...(input.titleThrough === undefined ? {} : { titleThrough: input.titleThrough }),
         },
       );
+      if (built.envelope === null && input.titleThrough !== undefined) {
+        // The fit report describes the table ALONE, which is exactly what the
+        // operator stepped around by asking for the related title. The
+        // engine's own reason names the key or the table that stopped it.
+        throw new ValidationFailedError(built.reason, {
+          template: input.template,
+          table: input.table,
+          titleThrough: input.titleThrough,
+        });
+      }
       if (built.envelope === null) {
-        throw new ValidationFailedError(
-          built.reason === ''
-            ? 'This page cannot be built from that table.'
-            : `This page cannot be built from that table: ${built.reason}`,
-          { template: input.template, table: input.table },
-        );
+        // D6: the FIELD stays where it was — the CLI and the page editor read
+        // `message` by name — and only the wording changes, from joined engine
+        // warnings to a sentence about the operator's table. The structured
+        // report rides alongside for callers that can act on it instead of
+        // only displaying it.
+        const fit = templateFit(model, input.table, input.template);
+        throw new ValidationFailedError(fitRefusalMessage(fit, built.reason), {
+          template: input.template,
+          table: input.table,
+          fit,
+        });
       }
 
       const composed = { ...built.envelope };
@@ -445,6 +464,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         title?: string;
         navGroup?: string | null;
         icon?: string | null;
+        titleThrough?: string;
       },
     ): Promise<{ type?: string; connectionId?: string | null; envelope?: Record<string, unknown> }> {
       const envelope =
@@ -463,7 +483,10 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
       const table = next.table === undefined ? currentTable : next.table;
 
       const unchanged =
-        template === page.type && connectionId === page.connectionId && table === currentTable;
+        next.titleThrough === undefined &&
+        template === page.type &&
+        connectionId === page.connectionId &&
+        table === currentTable;
       if (unchanged) return {};
 
       // Unbinding, or a template whose body is not composed from one table
@@ -488,7 +511,8 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
       // (`setLayout`, `setTemplateConfig` and `mergeEnvelopeMeta` all leave
       // the stored hash exactly as found). The mismatch is guaranteed, not
       // merely likely: this line is unreachable unless the template,
-      // connection or table actually changed, and all three are hashed.
+      // connection or table actually changed, and all three are hashed — or a
+      // `titleThrough` was asked for, which composes a body no generator emits.
       //
       // The non-composed branch above needs none of this — it spreads the
       // stored envelope, so the hash rides along with it.
@@ -507,6 +531,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
             navGroup: next.navGroup ?? page.navGroup ?? 'library',
             navIcon: next.icon ?? page.icon ?? 'table',
             navOrder: page.navOrder,
+            ...(next.titleThrough === undefined ? {} : { titleThrough: next.titleThrough }),
           }),
         ),
       };
@@ -787,6 +812,96 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+    /**
+     * The model page composition reads for a connection: the latest snapshot
+     * with the operator's column meanings laid over it.
+     *
+     * The SAME model `composeForTable` composes from, overlay included —
+     * otherwise a fit report would answer about a schema the create route does
+     * not use, and an operator who had already tagged a column would be told to
+     * tag it again.
+     */
+    async function compositionModel(connectionId: string) {
+      const connection = await deps.meta.db
+        .selectFrom('adminium_connections')
+        .select(['id'])
+        .where('id', '=', connectionId)
+        .executeTakeFirst();
+      if (connection === undefined) {
+        throw new ValidationFailedError('That data source no longer exists.', { connectionId });
+      }
+      const snapshot = await snapshotsRepo(deps.meta).latest(connectionId);
+      if (snapshot === null) {
+        throw new ValidationFailedError(
+          'This connection has not been analysed yet. Run introspection from Studio → Data connections first.',
+          { connectionId },
+        );
+      }
+      const overrides = await overridesRepo(deps.meta).listForConnection(connectionId, {
+        status: 'active',
+      });
+      return applyCompositionOverrides(parseDatabaseModel(snapshot.schema), overrides);
+    }
+
+    /**
+     * `GET /pages/fit` — what this template needs from this table.
+     *
+     * The create screen asks the moment a table is picked, BEFORE anything is
+     * created. That ordering is the whole feature: the same answer delivered
+     * after a failed create is a refusal, and delivered before it is an offer.
+     *
+     * Read-only and side-effect free — it composes in memory and throws the
+     * result away — but it is gated by `system:pages:manage` all the same: the
+     * report names every column of a table and which one plays which part,
+     * which is schema detail nobody without page-management rights has a reason
+     * to enumerate.
+     */
+    app.get(
+      '/pages/fit',
+      {
+        preHandler: [app.requireAuth, requireManage],
+        schema: { querystring: pageFitQuery, response: { 200: pageFitReply } },
+      },
+      async (request) => {
+        const { connectionId, table, template } = request.query;
+        const model = await compositionModel(connectionId);
+        const fit = templateFit(model, table, template);
+        return {
+          data: {
+            ...fit,
+            ...(request.query.alternatives === true
+              ? {
+                  alternatives: fittingTables(model, template, { exclude: table }),
+                  related: relatedDateTables(model, table, template),
+                }
+              : {}),
+          },
+        };
+      },
+    );
+
+    /**
+     * `GET /pages/fit/new-table` — remedy 4's draft.
+     *
+     * Read-only like `/pages/fit`: it proposes the table and proves the
+     * proposal composes, and creates nothing. The create itself goes through
+     * plan 35's plan → review → apply doors, where the DDL grant, the exact SQL
+     * and the checksum live. Gated by `system:pages:manage` for the same reason
+     * as its sibling — it enumerates the connection's tables.
+     */
+    app.get(
+      '/pages/fit/new-table',
+      {
+        preHandler: [app.requireAuth, requireManage],
+        schema: { querystring: pageFitDraftQuery, response: { 200: pageFitDraftReply } },
+      },
+      async (request) => {
+        const { connectionId, template, name, people } = request.query;
+        const model = await compositionModel(connectionId);
+        return { data: { draft: templateTableDraft(model, template, { name, people }) } };
+      },
+    );
+
     app.post(
       '/pages',
       {
@@ -829,6 +944,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
               navGroup: body.navGroup,
               navIcon: body.icon ?? defaultIconFor(body.template),
               navOrder,
+              ...(body.titleThrough == null ? {} : { titleThrough: body.titleThrough }),
             })
           : buildUserPageEnvelope({
               id,
@@ -938,8 +1054,9 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           await assertSlugFree(patch.slug, pageId);
         }
 
-        const { template, table, connectionId, padding, width, ...meta } = patch;
+        const { template, table, connectionId, padding, width, titleThrough, ...meta } = patch;
         const recomposed = await recomposeIfRequested(page, {
+          ...(titleThrough === undefined ? {} : { titleThrough }),
           ...(template === undefined ? {} : { template }),
           ...(table === undefined ? {} : { table }),
           ...(connectionId === undefined ? {} : { connectionId }),

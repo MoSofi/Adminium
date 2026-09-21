@@ -28,7 +28,11 @@ import {
   type UpsertGeneratedResult,
 } from '@adminium/meta';
 
-import { activeTableLabels, applyRelationOverrides } from '../connections/effective-schema.js';
+import {
+  activeTableLabels,
+  applyCompositionOverrides,
+  applyRelationOverrides,
+} from '../connections/effective-schema.js';
 import { runIntrospection } from '../connections/introspect.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import { materializeLlmPages } from './materialize-llm.js';
@@ -227,7 +231,18 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   // dangling edge.
   const accepted = applyAcceptedRelations(parseDatabaseModel(snapshot.schema), overrides);
   overrideWarnings.push(...accepted.warnings);
-  const model = filterModelToIncludedTables(accepted.model, connection.settings.includedTables);
+  // What an operator asserted about their columns is folded in for the same
+  // reason accepted relations are: without it a regeneration re-parses the raw
+  // snapshot, and a tag saying "this column IS the event date" changes what
+  // CRUD shows and nothing about which pages the table can back. This is a
+  // BEHAVIOUR CHANGE on a shipped surface — a re-run over an unchanged schema
+  // can now emit a different set of pages than before, which is the point, but
+  // it is why the overlay is applied here rather than hidden inside
+  // `parseDatabaseModel`.
+  const model = filterModelToIncludedTables(
+    applyCompositionOverrides(accepted.model, overrides),
+    connection.settings.includedTables,
+  );
 
   // Overlay effective table labels (user `table.label` > accepted `llm.label`,
   // provenance) onto the parsed model BEFORE generation, so every
