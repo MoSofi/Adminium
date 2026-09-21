@@ -67,10 +67,13 @@ an address: `pages/revenue.json` beside `pages/revenue.tsx` fails the build.
 | `nav.hidden` | Leave the page out of the sidebar; its address still opens it |
 | `component` | The page body. It gets `slug`, the page's address. |
 
-Super admins see every page. Everyone else needs the page's **View** grant in
-**Team → Roles**, as for any page; a new page of code starts with the grants the
-project's other pages of code have. Studio lists these pages as **Project
-code** and does not change them: edit the file instead.
+Super admins see every page, and so do the built-in Admin, Editor and Viewer
+roles unless someone takes it away: **People → Roles & permissions → See every
+page**. A role without that row needs a **View** grant on the page itself, which
+is set through the roles API (`PUT /api/v1/roles/{id}/permissions`), as for any
+page; a new page of code starts with the grants the project's other pages of
+code have. Studio lists these pages as **Project code** and does not change
+them: edit the file instead.
 
 Files whose names start with `_` are not pages, so shared components can live
 in `pages/_chart.tsx`.

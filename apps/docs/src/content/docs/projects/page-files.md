@@ -49,7 +49,7 @@ so an editor completes the fields and marks a mistake before you save.
 | `source.database` | A **key** from `adminium.config.ts`, never a connection id |
 | `source.table` | The table, schema-qualified |
 | `nav` | Where it sits in the sidebar: `group` (`workspace`, `library`, `planning`, `people` or `account`), `icon`, `order`, and `slug`, which restates the address and must equal the file name |
-| `access` | Part of the stored page. The real gate is the page's **View** grant in **Team → Roles**, which lives in Adminium's database, not here |
+| `access` | Part of the stored page. The real gate is the role's **View** grant — **See every page** under **People → Roles & permissions**, or one on this page — which lives in Adminium's database, not here |
 | `config` | The page itself: columns, filters, the form, dashboard layout — whatever that template takes |
 | `generated` | Only on pages Adminium generated ([below](#edited-by-hand-or-not)) |
 

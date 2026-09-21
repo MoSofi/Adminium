@@ -113,7 +113,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/meta/*` | 2 | Where the meta store lives, and relocating it |
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/option-lists/*` | 5 | Named sets of answers a column accepts, written once and pointed at by as many columns as need them. Reading one needs only a session — a create dialog has to render the choices to anyone who may add a row — while writing needs the same grant that points a column at a list. The built-in lists live in code and are served with their labels in the caller's locale; editing one makes an ordinary copy rather than changing it. Deleting a list a column still names is refused with 409 and the columns using it. |
-| `/api/v1/pages/*` | 13 | Pages and dashboards — layout, config, nav order, shared views |
+| `/api/v1/pages/*` | 15 | Pages and dashboards — layout, config, nav order, shared views, and what a template needs from a table (with a new table drafted to fit when none does) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/project/*` | 7 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
 | `/api/v1/public/*` | 11 | The scoped public API for customer- and staff-facing pages (off by default) |
@@ -536,6 +536,8 @@ DELETE /api/v1/pages/{pageId}
 PATCH /api/v1/pages/{pageId}/layout
 GET /api/v1/pages
 POST /api/v1/pages
+GET /api/v1/pages/fit
+GET /api/v1/pages/fit/new-table
 PUT /api/v1/pages/nav-order
 PATCH /api/v1/pages/{pageId}/config
 POST /api/v1/pages/{pageId}/duplicate

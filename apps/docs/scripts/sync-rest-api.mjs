@@ -106,7 +106,8 @@ const DESCRIPTIONS = {
     'a column at a list. The built-in lists live in code and are served with their labels in ' +
     'the caller\'s locale; editing one makes an ordinary copy rather than changing it. Deleting ' +
     'a list a column still names is refused with 409 and the columns using it.',
-  pages: 'Pages and dashboards — layout, config, nav order, shared views',
+  pages:
+    'Pages and dashboards — layout, config, nav order, shared views, and what a template needs from a table (with a new table drafted to fit when none does)',
   project:
     'A project folder on the server that runs one — which pages and schema customizations ' +
     'differ from the deployed files, settling a page changed on both sides, the changed ' +
