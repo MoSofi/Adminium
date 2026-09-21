@@ -5,10 +5,21 @@
  * sort), and the version/configVersion stamps.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { newId, settingsRepo, writeBool, type MetaDb } from '@adminium/meta';
+import {
+  ALL_PAGES_REF,
+  newId,
+  permissionsRepo,
+  rolesRepo,
+  settingsRepo,
+  SYSTEM_ACTION_KEYS,
+  usersRepo,
+  writeBool,
+  type MetaDb,
+} from '@adminium/meta';
 
+import { rbacPlugin } from '../src/plugins/rbac.js';
 import { APP_VERSION } from '../src/version.js';
-import { buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
+import { ADMIN_PASSWORD, adminPasswordHash, buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
 
 async function insertPage(
   meta: MetaDb,
@@ -85,6 +96,77 @@ describe('GET /api/v1/bootstrap', () => {
     expect(data.version).toBe(APP_VERSION);
     expect(data.configVersion).toBe(0);
     expect(data.llm).toEqual({ enabled: false });
+  });
+
+  it('systemActions: every key for a Super Admin, exactly the seeded set for an Admin', async () => {
+    // `buildServer` alone mounts no RBAC; the composition root adds it after,
+    // exactly like this (compose.ts). Without it every key reads as not held.
+    await t.app.register(rbacPlugin, { meta: t.meta });
+    const asSuper = await login(t.app);
+    const superReply = await t.app.inject({
+      method: 'GET',
+      url: '/api/v1/bootstrap',
+      headers: { cookie: asSuper.cookie ?? '' },
+    });
+    expect(superReply.json().data.systemActions).toEqual([...SYSTEM_ACTION_KEYS]);
+
+    // A second account holding only the built-in Admin role. What the rail and
+    // the Team page offer it is read off this list, so it has to be the grants
+    // the route guards will honour — not "admin, therefore everything".
+    const adminRole = await rolesRepo(t.meta).findBySlug('admin');
+    const ian = await usersRepo(t.meta).create({
+      email: 'ian@example.com',
+      name: 'Ian',
+      passwordHash: await adminPasswordHash(),
+    });
+    await rolesRepo(t.meta).assignToUser(ian.id, adminRole!.id);
+    const asAdmin = await login(t.app, 'ian@example.com', ADMIN_PASSWORD);
+    const adminReply = await t.app.inject({
+      method: 'GET',
+      url: '/api/v1/bootstrap',
+      headers: { cookie: asAdmin.cookie ?? '' },
+    });
+    const held: string[] = adminReply.json().data.systemActions;
+    expect(held).toEqual(
+      expect.arrayContaining(['users.manage', 'audit.read', 'connections.manage']),
+    );
+    for (const refused of ['roles.manage', 'api-keys.manage', 'automations.manage', 'pages.manage', 'schema.ddl']) {
+      expect(held, refused).not.toContain(refused);
+    }
+  });
+
+  it('pagesWithheld: true only when enabled pages exist that the session cannot view', async () => {
+    await t.app.register(rbacPlugin, { meta: t.meta });
+    const adminRole = await rolesRepo(t.meta).findBySlug('admin');
+    const ian = await usersRepo(t.meta).create({
+      email: 'ian@example.com',
+      name: 'Ian',
+      passwordHash: await adminPasswordHash(),
+    });
+    await rolesRepo(t.meta).assignToUser(ian.id, adminRole!.id);
+    const asSuper = await login(t.app);
+    const asAdmin = await login(t.app, 'ian@example.com', ADMIN_PASSWORD);
+    const withheld = async (cookie: string | null): Promise<boolean> =>
+      (
+        await t.app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { cookie: cookie ?? '' } })
+      ).json().data.pagesWithheld;
+
+    // No pages at all: nothing is withheld from anyone — the rail's
+    // "connect a database" is the true sentence.
+    expect(await withheld(asAdmin.cookie)).toBe(false);
+
+    // A disabled page withholds nothing either: nobody sees it.
+    await insertPage(t.meta, { slug: 'off', title: 'Off', navGroup: 'workspace', isEnabled: false });
+    expect(await withheld(asAdmin.cookie)).toBe(false);
+
+    await insertPage(t.meta, { slug: 'orders', title: 'Orders', navGroup: 'workspace' });
+    // The seeded default: the built-in Admin views every page.
+    expect(await withheld(asAdmin.cookie)).toBe(false);
+
+    // An operator narrows the Admin's pages to none.
+    await permissionsRepo(t.meta).revoke(adminRole!.id, 'page', ALL_PAGES_REF);
+    expect(await withheld(asAdmin.cookie)).toBe(true);
+    expect(await withheld(asSuper.cookie)).toBe(false);
   });
 
   it('llm.enabled mirrors the provider config (true once llm.provider is set)', async () => {

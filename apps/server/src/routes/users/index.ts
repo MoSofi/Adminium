@@ -244,6 +244,29 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
   }
 
   /**
+   * A Super Admin's account is changed only by a Super Admin.
+   *
+   * `users.manage` is the Admin role's key, and without this it let an Admin
+   * suspend, delete, re-role or re-invite a Super Admin — and PATCH their email,
+   * which hands the password reset for an allow-all account to whoever owns the
+   * new address. The last-super-admin guard only stopped the LAST one. This is
+   * the same asymmetry {@link assertMayMintSuperAdmin} encodes for granting the
+   * role; an API-key principal never qualifies. Refusing is a 403, not the 409
+   * the invariants below throw: it is about who is asking, not about state.
+   */
+  async function assertMayActOnAccount(request: FastifyRequest, user: User): Promise<void> {
+    const target = await roles.rolesForUser(user.id);
+    if (!target.some((role) => role.slug === SUPER_ADMIN_SLUG)) return;
+    const actorId = actingUserId(request);
+    const actorIsSuperAdmin =
+      actorId !== null &&
+      (await roles.rolesForUser(actorId)).some((role) => role.slug === SUPER_ADMIN_SLUG);
+    if (!actorIsSuperAdmin) {
+      throw new ForbiddenError('Only a Super Admin can change a Super Admin account.');
+    }
+  }
+
+  /**
    * Last-super-admin guard, as `DELETE /users/:id/roles/:roleId` carries it:
    * the workspace must never be left without one.
    */
@@ -379,6 +402,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     { ...guarded, schema: { params: userIdParams, body: userPatchBody, response: { 200: userReply } } },
     async (request) => {
       const user = await mustFindUser(request.params.id);
+      await assertMayActOnAccount(request, user);
       const { name, email } = request.body;
       /** `null` when the body omits status or restates the current one. */
       const status =
@@ -450,6 +474,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await mustFindUser(request.params.id);
       const permanent = request.query.permanent === true;
+      await assertMayActOnAccount(request, user);
       assertNotSelf(request, user, permanent ? 'delete' : 'suspend');
       await assertNotLastSuperAdmin(user);
 
@@ -495,6 +520,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request) => {
       const user = await mustFindUser(request.params.id);
+      await assertMayActOnAccount(request, user);
       const after = await resolveRoles(request.body.roleIds);
       const before = await roles.rolesForUser(user.id);
       await assertMayMintSuperAdmin(request, before, after);
@@ -526,6 +552,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     { ...guarded, schema: { params: userIdParams, response: { 200: userInviteReply } } },
     async (request) => {
       const user = await mustFindUser(request.params.id);
+      await assertMayActOnAccount(request, user);
       if (user.status !== 'invited') {
         throw new ConflictError('This account has already been activated.', 'CONFLICT', {
           userId: user.id,

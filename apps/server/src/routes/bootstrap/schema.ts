@@ -216,6 +216,26 @@ export const bootstrapReply = z.object({
     user: authUserView,
     /** Role slugs for the session user (RBAC grants resolve server-side). */
     roles: z.array(z.string()),
+    /**
+     * The `system:` actions this session holds, as meta's dotted keys
+     * (`users.manage`, `api-keys.manage`, …). Every key for a super-admin.
+     *
+     * A role slug cannot answer "may this person open Roles?" — a built-in role
+     * can have its grants moved, and a custom role has a slug nothing knows —
+     * so the dashboard decides what to OFFER (rail rows, delete buttons) from
+     * this list rather than from `roles`. It is discovery only: every route
+     * still checks the grant itself. Read at sign-in, so a changed grant shows
+     * after a reload, like `assistant.allowed` below.
+     */
+    systemActions: z.array(z.string()),
+    /**
+     * True when enabled pages exist that this session may not view — so an
+     * empty rail can say "nothing has been shared with you" instead of "connect
+     * a database", which is false once one is connected and sends the reader
+     * looking for a setup step that is not theirs to take. A boolean, not a
+     * count: how many pages someone cannot see is not theirs to know.
+     */
+    pagesWithheld: z.boolean(),
     /** Resolved axes (system → global → user) + provenance. */
     prefs: mePrefsResolvedView,
     nav: bootstrapNavTree,

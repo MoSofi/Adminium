@@ -265,6 +265,43 @@ describe('roles routes', () => {
     expect((ok.json() as { roleIds: string[] }).roleIds).not.toContain(ctx.roles.superAdmin.id);
   });
 
+  it('refuses unassigning Super Admin to a roles.manage holder who is not one', async () => {
+    const superAdmin = asUser(ctx.users.superAdmin);
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/v1/roles',
+      headers: superAdmin,
+      payload: { name: 'Role Wranglers' },
+    });
+    const roleId = (created.json() as { id: string }).id;
+    await ctx.app.inject({
+      method: 'PUT',
+      url: `/api/v1/roles/${roleId}/permissions`,
+      headers: superAdmin,
+      payload: { grants: ['system:roles:manage'] },
+    });
+    await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${ctx.users.editor.id}/roles`,
+      headers: superAdmin,
+      payload: { roleId },
+    });
+    // Two Super Admins, so the last-one 409 cannot be what answers.
+    await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${ctx.users.admin.id}/roles`,
+      headers: superAdmin,
+      payload: { roleId: ctx.roles.superAdmin.id },
+    });
+
+    const refused = await ctx.app.inject({
+      method: 'DELETE',
+      url: `/api/v1/users/${ctx.users.admin.id}/roles/${ctx.roles.superAdmin.id}`,
+      headers: asUser(ctx.users.editor),
+    });
+    expect(refused.statusCode, refused.body).toBe(403);
+  });
+
   it('audits role mutations with dotted verbs (anatomy)', async () => {
     const superAdmin = asUser(ctx.users.superAdmin);
     await ctx.app.inject({

@@ -23,8 +23,10 @@ import {
   readJson,
   rolesRepo,
   settingsRepo,
+  SYSTEM_ACTION_KEYS,
   userPrefsRepo,
   type PageNavRow,
+  type SystemActionKey,
   type User,
 } from '@adminium/meta';
 import { DEFAULT_NAV_GROUP } from '@adminium/add-on-contracts';
@@ -71,6 +73,24 @@ function csrfTokenFor(ctx: AuthContext, request: FastifyRequest): string {
   const sessionId = request.session?.id;
   if (sessionId === undefined) throw new UnauthorizedError('UNAUTHENTICATED');
   return issueCsrfToken(csrfSigningKey(ctx.env.ADMINIUM_SECRET), sessionId);
+}
+
+/**
+ * Every `system:` action the session holds, as meta's dotted keys — through
+ * `request.can`, so the answer is the one the route guards will give
+ * (super-admin bypass included) rather than a second reading of the matrix.
+ * The set is resolved once per request, so this is N set lookups, not N
+ * queries. Empty on a harness mounted without the rbac plugin, the same honest
+ * default `assistant.allowed` takes.
+ */
+async function heldSystemActions(request: FastifyRequest): Promise<SystemActionKey[]> {
+  if (typeof request.can !== 'function') return [];
+  const held: SystemActionKey[] = [];
+  for (const key of SYSTEM_ACTION_KEYS) {
+    const [area, verb] = key.split('.') as [string, string];
+    if (await request.can(`system:${area}:${verb}`)) held.push(key);
+  }
+  return held;
 }
 
 /**
@@ -400,6 +420,10 @@ export async function bootstrapHandler(
     data: {
       user: toUserView(user),
       roles: roles.map((role) => role.slug),
+      systemActions: await heldSystemActions(request),
+      pagesWithheld: pageRows.some(
+        (row) => readBool(row.isEnabled) && !visibleRows.some((visible) => visible.id === row.id),
+      ),
       prefs,
       nav,
       version: APP_VERSION,

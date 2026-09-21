@@ -323,6 +323,19 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       if (user === null) throw new NotFoundError('User not found.', { userId: request.params.id });
       const role = await mustFindRole(request.params.roleId);
       if (role.slug === SUPER_ADMIN_SLUG) {
+        // Demoting a Super Admin is as much a super-admin-only power as
+        // minting one (POST above): `roles:manage` is grantable to a custom
+        // role, whose holder could otherwise strip every Super Admin but one.
+        const actingUserId =
+          request.apiKeyPrincipal === null
+            ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
+            : null;
+        const actorIsSuperAdmin =
+          actingUserId !== null &&
+          (await roles.rolesForUser(actingUserId)).some((r) => r.slug === SUPER_ADMIN_SLUG);
+        if (!actorIsSuperAdmin) {
+          throw new ForbiddenError('Only a Super Admin can remove the Super Admin role.');
+        }
         const holders = await memberCountFor(role.id);
         const userHolds = (await roles.rolesForUser(user.id)).some((r) => r.id === role.id);
         if (userHolds && holders <= 1) {

@@ -30,6 +30,7 @@ import { rbacPlugin } from '../src/plugins/rbac.js';
 import { meViewsRoutes } from '../src/routes/me-views/index.js';
 import { pagesRoutes } from '../src/routes/pages/index.js';
 import { makeEnv, type InjectPayload } from './helpers.js';
+import { withoutDefaultDataGrants } from './builtin-grants.js';
 
 interface Harness {
   app: AdminiumServer;
@@ -65,6 +66,7 @@ function envelope(): unknown {
 async function buildHarness(): Promise<Harness> {
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
+  await withoutDefaultDataGrants(meta);
 
   const roles = rolesRepo(meta);
   const users = usersRepo(meta);

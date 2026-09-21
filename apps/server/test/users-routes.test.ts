@@ -435,21 +435,59 @@ describe('DELETE /users/:id', () => {
     expect(resets).toHaveLength(0);
   });
 
-  it('refuses to remove the last super admin or the caller', async () => {
+  it('refuses to remove the caller, the Super Admin included', async () => {
     ctx = await buildUsersTestApp();
-    const lastSuperAdmin = await ctx.app.inject({
-      method: 'DELETE',
-      url: `/api/v1/users/${ctx.users.superAdmin.id}`,
-      headers: asUser(ctx.users.peopleAdmin),
-    });
-    expect(lastSuperAdmin.statusCode).toBe(409);
+    for (const actor of [ctx.users.peopleAdmin, ctx.users.superAdmin]) {
+      const self = await ctx.app.inject({
+        method: 'DELETE',
+        url: `/api/v1/users/${actor.id}`,
+        headers: asUser(actor),
+      });
+      expect(self.statusCode, self.body).toBe(409);
+    }
+  });
+});
 
-    const self = await ctx.app.inject({
-      method: 'DELETE',
-      url: `/api/v1/users/${ctx.users.peopleAdmin.id}`,
-      headers: asUser(ctx.users.peopleAdmin),
+describe('a Super Admin account is changed only by a Super Admin', () => {
+  it('refuses every account verb from a users.manage + roles.manage holder with a 403', async () => {
+    ctx = await buildUsersTestApp();
+    const target = ctx.users.superAdmin;
+    const attempts = [
+      { method: 'DELETE' as const, url: `/api/v1/users/${target.id}` },
+      { method: 'DELETE' as const, url: `/api/v1/users/${target.id}?permanent=true` },
+      // The takeover shape: a new email is where the password reset goes.
+      { method: 'PATCH' as const, url: `/api/v1/users/${target.id}`, payload: { email: 'mine@adminium.test' } },
+      { method: 'PATCH' as const, url: `/api/v1/users/${target.id}`, payload: { status: 'suspended' } },
+      { method: 'PUT' as const, url: `/api/v1/users/${target.id}/roles`, payload: { roleIds: [ctx.roles.viewer.id] } },
+      { method: 'POST' as const, url: `/api/v1/users/${target.id}/invite/resend` },
+    ];
+    for (const attempt of attempts) {
+      const res = await ctx.app.inject({ ...attempt, headers: asUser(ctx.users.peopleAdmin) });
+      expect(res.statusCode, `${attempt.method} ${attempt.url}: ${res.body}`).toBe(403);
+    }
+
+    const after = await usersRepo(ctx.meta).findById(target.id);
+    expect(after).toMatchObject({ email: target.email, status: target.status });
+    const held = (await rolesRepo(ctx.meta).rolesForUser(target.id)).map((role) => role.slug);
+    expect(held).toContain('super-admin');
+  });
+
+  it('still lets a Super Admin change another Super Admin', async () => {
+    ctx = await buildUsersTestApp();
+    const second = await ctx.app.inject({
+      method: 'PUT',
+      url: `/api/v1/users/${ctx.users.admin.id}/roles`,
+      headers: asUser(ctx.users.superAdmin),
+      payload: { roleIds: [ctx.roles.superAdmin.id] },
     });
-    expect(self.statusCode).toBe(409);
+    expect(second.statusCode, second.body).toBe(200);
+
+    const suspended = await ctx.app.inject({
+      method: 'DELETE',
+      url: `/api/v1/users/${ctx.users.admin.id}`,
+      headers: asUser(ctx.users.superAdmin),
+    });
+    expect(suspended.statusCode, suspended.body).toBe(200);
   });
 });
 
