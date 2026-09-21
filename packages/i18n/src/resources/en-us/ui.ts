@@ -1784,6 +1784,11 @@ export default {
       "backToLatest": "Back to latest",
       "eventFallback": "Event"
     },
+    "board": {
+      "invalidLayout": "This board’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "noRowsTitle": "No cards yet",
+      "noRowsBody": "Cards appear here as soon as the table has rows."
+    },
     "calendar": {
       "eventCount": "{count, plural, one {{n} event} other {{n} events}}",
       "composePlaceholder": "Event title…",
@@ -1792,7 +1797,9 @@ export default {
       "agendaTitle": "Agenda",
       "categoriesTitle": "Categories",
       "upcomingTitle": "Upcoming",
-      "invalidLayout": "This calendar’s stored layout is invalid. Regenerate the page or reset its layout."
+      "invalidLayout": "This calendar’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "composeChoose": "What this event is for",
+      "composeChoosePlaceholder": "Choose…"
     },
     "scheduler": {
       "previousWeek": "Previous week",
@@ -1883,6 +1890,13 @@ export default {
     },
     "pageRecord": {
       "description": "One record as a full page: its fields, related records with live counts, and its change activity."
+    },
+    "planning": {
+      "unplaced": {
+        "calendar": "None of this table’s rows has a date yet, so the calendar is empty. A row appears here as soon as it has one.",
+        "board": "None of this table’s rows has a status yet, so the board is empty. A row appears here as soon as it has one.",
+        "scheduler": "None of this table’s rows has a person, a date and a shift type yet, so the schedule is empty. A row appears here as soon as it has all three."
+      }
     }
   },
   "frame": {

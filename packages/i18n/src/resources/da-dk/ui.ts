@@ -1784,6 +1784,11 @@ export default {
       "backToLatest": "Tilbage til seneste",
       "eventFallback": "Hændelse"
     },
+    "board": {
+      "invalidLayout": "Denne tavles gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
+      "noRowsTitle": "Ingen kort endnu",
+      "noRowsBody": "Kort vises her, så snart tabellen har rækker."
+    },
     "calendar": {
       "eventCount": "{count, plural, one {{n} begivenhed} other {{n} begivenheder}}",
       "composePlaceholder": "Titel på begivenhed…",
@@ -1792,7 +1797,9 @@ export default {
       "agendaTitle": "Dagsorden",
       "categoriesTitle": "Kategorier",
       "upcomingTitle": "Kommende",
-      "invalidLayout": "Denne kalenders gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout."
+      "invalidLayout": "Denne kalenders gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
+      "composeChoose": "Hvad denne begivenhed gælder",
+      "composeChoosePlaceholder": "Vælg…"
     },
     "scheduler": {
       "previousWeek": "Forrige uge",
@@ -1883,6 +1890,13 @@ export default {
     },
     "pageRecord": {
       "description": "En enkelt post som en hel side: dens felter, relaterede poster med løbende antal og dens ændringsaktivitet."
+    },
+    "planning": {
+      "unplaced": {
+        "calendar": "Ingen af tabellens rækker har en dato endnu, så kalenderen er tom. En række vises her, så snart den har en.",
+        "board": "Ingen af tabellens rækker har en status endnu, så tavlen er tom. En række vises her, så snart den har en.",
+        "scheduler": "Ingen af tabellens rækker har en person, en dato og en vagttype endnu, så planen er tom. En række vises her, så snart den har alle tre."
+      }
     }
   },
   "frame": {

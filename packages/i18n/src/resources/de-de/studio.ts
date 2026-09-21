@@ -408,7 +408,15 @@ export default {
       "noteTitle": "Was als Änderung zählt",
       "updated": "Wenn sich eine Zeile ändert"
     },
-    "unbound": "Noch auszufüllen: {slots}"
+    "unbound": "Noch auszufüllen: {slots}",
+    "deleteConfirm": {
+      "title": "Diese Zuordnung löschen?",
+      "body": "Die Regel, die sie auslöst, wird ebenfalls gelöscht, und bereits daraus erstellte Dokumente verlieren ihre Verknüpfung. Dies kann nicht rückgängig gemacht werden.",
+      "prompt": "Geben Sie {name} zur Bestätigung ein",
+      "confirm": "Zuordnung löschen"
+    },
+    "deleteFailed": "Die Zuordnung wurde nicht gelöscht",
+    "loadFailed": "Die Zuordnungen konnten nicht geladen werden"
   },
   "enrich": {
     "byo": {
@@ -464,6 +472,8 @@ export default {
     },
     "fileBody": "Schema-Datei-Quellen haben noch keinen Snapshot zum Anreichern. Verbinden Sie eine aktive Datenbank für die KI-Anreicherung, oder fahren Sie fort — die heuristische Grundlage erzeugt weiterhin eine vollständige App.",
     "fileTitle": "KI-Anreicherung benötigt eine aktive Datenbank",
+    "noTablesBody": "Diese Datenbank hat noch keine Tabellen, daher gibt es nichts, was die KI beschriften oder gruppieren könnte. Fahren Sie fort — sobald Tabellen vorhanden sind, können Sie die KI-Anreicherung jederzeit unter Einstellungen → KI ausführen.",
+    "noTablesTitle": "Keine Tabellen zum Anreichern",
     "generatePrompt": "Prompt erzeugen",
     "intentLabel": "Wie möchten Sie anreichern?",
     "localeLocked": "(erforderlich)",
@@ -611,7 +621,8 @@ export default {
         "toggleDdl": "DDL-Vorschau anzeigen",
         "ddl": "DDL-Vorschau",
         "ddlNote": "Beispielhaft. Der Server erzeugt die exakte Anweisung für Ihre Engine, inklusive Fremdschlüsseln.",
-        "summary": "{created} angelegt · {reused} wiederverwendet"
+        "summary": "{created} angelegt · {reused} wiederverwendet",
+        "pageWarnings": "Einige Seiten dieser App kommen ohne Tabelle an"
       },
       "done": {
         "title": "Installiert",
@@ -659,7 +670,9 @@ export default {
       "needsNewer": "v{version} benötigt Adminium {minimum} oder neuer",
       "missing": "Fehlt",
       "missingBody": "Ihre Dateien liegen nicht auf diesem Server, daher wird sie nicht ausgeliefert. Installieren Sie dieselbe Version erneut oder deinstallieren Sie sie.",
-      "update": "Aktualisieren"
+      "update": "Aktualisieren",
+      "discardFailed": "Der Upload wurde nicht verworfen",
+      "uninstallFailed": "Die App wurde nicht deinstalliert"
     },
     "instances": {
       "add": "Instanz hinzufügen",
@@ -715,6 +728,16 @@ export default {
     "veto": {
       "title": "Diese Installation kann nicht online suchen",
       "body": "Die Einstellung ist gespeichert, aber Netzwerkfunktionen sind für diesen Server aus, und das gilt. Installierte Apps laufen weiter, und Sie können selbst eine hochladen."
+    },
+    "columns": {
+      "title": "{app} auf v{version} aktualisieren",
+      "subtitle": "Diese Version braucht Spalten, die Tabellen in Ihrer Datenbank noch nicht haben.",
+      "body": "Adminium kann sie für Sie hinzufügen. Sie sehen die genaue Anweisung, bevor etwas ausgeführt wird, nichts wird entfernt, und die App wird erst aktualisiert, wenn die Spalten existieren.",
+      "alsoCreates": "Das Update legt außerdem diese Tabellen an:",
+      "noDdl": "Adminium kann diese Spalten hier nicht hinzufügen",
+      "failed": "Die Spalten konnten nicht hinzugefügt werden",
+      "valuesFailed": "Die Spalten wurden hinzugefügt, aber ihre erlaubten Werte konnten nicht gespeichert werden",
+      "confirm": "Spalten hinzufügen und aktualisieren"
     }
   },
   "hub": {
@@ -753,7 +776,8 @@ export default {
       "failed": "Die Verbindung konnte nicht gelöscht werden. Versuchen Sie es erneut.",
       "prompt": "Geben Sie {name} zur Bestätigung ein",
       "success": "Verbindung „{name}“ gelöscht",
-      "title": "Verbindung löschen"
+      "title": "Verbindung löschen",
+      "forbidden": "Ihre Rolle umfasst nicht die Verwaltung von Verbindungen, daher wurde diese nicht gelöscht."
     },
     "empty": {
       "body": "Verbinden Sie eine Datenbank — Adminium generiert Ihr Admin-Panel aus deren Schema.",
@@ -1163,7 +1187,8 @@ export default {
       "bodyGenerated": "Diese Seite stammt aus der Schema-Generierung und kehrt beim nächsten Generierungslauf zurück. Gespeicherte Ansichten und persönliche Layouts werden für alle gelöscht.",
       "confirm": "Seite löschen",
       "prompt": "Geben Sie zur Bestätigung {slug} ein",
-      "title": "Diese Seite löschen?"
+      "title": "Diese Seite löschen?",
+      "failed": "Die Seite wurde nicht gelöscht"
     },
     "derived": {
       "add": "Spalte hinzufügen",
@@ -1247,8 +1272,10 @@ export default {
       "slugTaken": "Diese Adresse wird bereits von einer anderen Seite verwendet.",
       "slugWarning": "Eine geänderte Adresse macht bestehende Links und Lesezeichen zu dieser Seite ungültig.",
       "table": "Tabelle",
-      "tableCreateHint": "Die Tabelle, aus der diese Seite liest. Wählen Sie jetzt eine, dann ist die Seite sofort nutzbar; ohne Auswahl können Sie sie später verknüpfen.",
+      "tableChoose": "Tabelle wählen…",
+      "tableCreateHint": "Die Tabelle, aus der diese Seite liest.",
       "tableNeedsConnection": "Wählen Sie zuerst eine Datenquelle.",
+      "tableNoConnection": "Verbinden Sie zuerst eine Datenbank — diese Seite wird aus einer ihrer Tabellen aufgebaut.",
       "tableNone": "Nicht verknüpft",
       "template": "Vorlage",
       "templateHint": "Bestimmt, was die Seite enthalten kann. Später änderbar.",
@@ -1271,6 +1298,69 @@ export default {
       "subtitle": "Die Fragen, die die Symbolleiste zu dieser Tabelle stellen kann. Unverändert folgt sie der Tabelle.",
       "title": "Filter",
       "up": "{column} nach oben"
+    },
+    "fit": {
+      "alternatives": {
+        "title": "Eine Tabelle verwenden, die bereits passt",
+        "help": "Es wird nichts in Ihre Datenbank geschrieben — die Seite zeigt dann einfach auf eine Tabelle, die schon alles Nötige hat.",
+        "use": "Diese Tabelle verwenden"
+      },
+      "checkFailed": "Adminium konnte diese Tabelle nicht prüfen",
+      "checkFailedBody": "Sie können die Seite trotzdem anlegen. Wenn die Tabelle sie nicht tragen kann, sagt das Anlegen es Ihnen.",
+      "columns": {
+        "title": "Fehlendes zu dieser Tabelle hinzufügen",
+        "help": "Adminium fügt Ihrer Tabelle diese Spalten hinzu. Sie sehen die genaue Anweisung, bevor etwas ausgeführt wird, und es wird nichts entfernt.",
+        "review": "Änderung ansehen",
+        "confirm": "Ausführen",
+        "failed": "Das hat nicht geklappt",
+        "partial": "Eines, was diese Seite braucht, kann nicht für Sie angelegt werden — sie bleibt danach also unvollständig.",
+        "cannot": "Das kann Adminium nicht für Sie anlegen",
+        "cannotBody": "Diese Seite braucht eine Verknüpfung zu einer anderen Tabelle, die unter Studio → Schema eingerichtet werden muss.",
+        "halfDone": "Die Spalten wurden angelegt, aber Adminium konnte ihre Bedeutung nicht festhalten",
+        "halfDoneBody": "Es muss nichts erneut ausgeführt werden — die Spalten sind da. Legen Sie ihre Bedeutung unter Studio → Schema fest, oder bitten Sie eine Administratorin darum."
+      },
+      "needs": "Für diese Seite braucht die Tabelle:",
+      "noDdl": "Adminium kann diese Tabelle nicht für Sie ändern",
+      "role": {
+        "eventDate": "ein Datum in jeder Zeile",
+        "title": "eine Textspalte als Titel jeder Zeile",
+        "status": "eine Statusspalte, deren Werte Arbeitsschritte benennen",
+        "personFk": "eine Verknüpfung zu einer Personentabelle",
+        "shiftType": "eine Spalte, die angibt, um welche Art von Schicht es sich handelt"
+      },
+      "slotOnly": "Nichts in dieser Tabelle kann den Bereich „{slot}“ füllen.",
+      "tag": {
+        "title": "Eine vorhandene Spalte verwenden",
+        "help": "Damit wird nur festgehalten, was die Spalte bedeutet. Ihre Datenbank bleibt unverändert, und Sie können es unter Studio → Schema rückgängig machen.",
+        "action": "Diese Spalte verwenden",
+        "failed": "Diese Spalte konnte nicht markiert werden"
+      },
+      "title": "Diese Tabelle kann diese Seite noch nicht tragen",
+      "table": {
+        "title": "Eine neue Tabelle für diese Seite anlegen",
+        "help": "Adminium legt eine Tabelle mit allem an, was diese Seite braucht. Sie sehen die genaue Anweisung, bevor etwas ausgeführt wird, und Ihre anderen Tabellen bleiben unberührt.",
+        "open": "Oder eine neue Tabelle für diese Seite anlegen",
+        "name": "Tabellenname",
+        "nameTaken": "Eine Tabelle mit diesem Namen gibt es bereits.",
+        "nameInvalid": "Verwenden Sie Kleinbuchstaben, Ziffern und Unterstriche, beginnend mit einem Buchstaben.",
+        "people": "Jede Zeile jemandem zuordnen aus",
+        "peopleNew": "Einer neuen Personentabelle",
+        "peopleCreated": "Legt außerdem „{table}“ an, eine kleine Tabelle der Personen, denen Zeilen zugeordnet werden.",
+        "noCompose": "Eine Tabelle unter diesem Namen würde für diese Seite nicht funktionieren. Versuchen Sie einen anderen Namen.",
+        "confirm": "Tabelle anlegen",
+        "noDdl": "Adminium kann hier keine Tabelle anlegen",
+        "halfDone": "Die Tabelle wurde angelegt, aber Adminium konnte die Bedeutung ihrer Spalten nicht speichern",
+        "halfDoneBody": "Nichts muss erneut ausgeführt werden — die Tabelle existiert. Legen Sie die Bedeutung ihrer Spalten unter Studio → Schema fest oder bitten Sie eine Administratorin bzw. einen Administrator darum.",
+        "notReread": "Die Tabelle wurde angelegt, aber Adminium konnte sie noch nicht wieder einlesen",
+        "notRereadBody": "Nichts muss erneut ausgeführt werden. Aktualisieren Sie das Schema unter Studio → Datenverbindungen und wählen Sie dann hier die neue Tabelle."
+      },
+      "related": {
+        "title": "Die Daten einer verknüpften Tabelle verwenden",
+        "help": "In Ihre Datenbank wird nichts geschrieben. Die Seite wird auf einer mit dieser verknüpften Tabelle aufgebaut, und jeder Eintrag zeigt einen Namen aus dieser Tabelle.",
+        "reason": "Daten aus „{date}“, jeweils betitelt mit „{title}“ über „{via}“",
+        "chosen": "Aufgebaut auf {table}, jeder Eintrag betitelt mit „{title}“ aus {from}",
+        "undo": "Zurück zu {table}"
+      }
     },
     "form": {
       "addLines": "{label} als Positionen",
@@ -1475,7 +1565,8 @@ export default {
       "narrow": "Schmal (720 px)",
       "page": "Seite (1080 px)",
       "wide": "Breit (1800 px)"
-    }
+    },
+    "toggleFailed": "Die Seite wurde nicht geändert"
   },
   "project": {
     "actions": {
@@ -2266,7 +2357,10 @@ export default {
     "usedBytes": "{size} belegt"
   },
   "tables": {
+    "emptyBody": "Diese Datenbank hat noch keine Tabellen. Sie können trotzdem fortfahren — sobald Sie Tabellen angelegt haben, holen Sie sie mit „Neu introspizieren“ für diese Verbindung herein.",
+    "emptyFileBody": "Diese Schemadatei definiert keine Tabellen. Gehen Sie zurück und laden Sie eine andere Datei hoch, oder fahren Sie trotzdem fort.",
     "emptyFilter": "Keine Tabellen entsprechen Ihrem Filter.",
+    "emptyTitle": "Keine Tabellen gefunden",
     "highVolume": "hohes Volumen",
     "highVolumeNote": "Tabellen mit über 100.000 Zeilen sind anfangs abgewählt — Ops-Tabellen gehören selten in ein Dashboard.",
     "importNoCounts": "Schemadateien enthalten keine Zeilenzahlen — die Spalte zeigt —, bis eine Live-Datenbank verbunden ist.",

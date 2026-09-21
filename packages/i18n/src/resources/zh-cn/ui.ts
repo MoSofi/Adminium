@@ -1784,6 +1784,11 @@ export default {
       "backToLatest": "返回最新",
       "eventFallback": "事件"
     },
+    "board": {
+      "invalidLayout": "此看板保存的布局无效。请重新生成页面或重置其布局。",
+      "noRowsTitle": "还没有卡片",
+      "noRowsBody": "表中一有行，卡片就会显示在这里。"
+    },
     "calendar": {
       "eventCount": "{count, plural, other {{n} events}}",
       "composePlaceholder": "事件标题…",
@@ -1792,7 +1797,9 @@ export default {
       "agendaTitle": "日程",
       "categoriesTitle": "类别",
       "upcomingTitle": "即将到来",
-      "invalidLayout": "此日历保存的布局无效。请重新生成页面或重置其布局。"
+      "invalidLayout": "此日历保存的布局无效。请重新生成页面或重置其布局。",
+      "composeChoose": "此事件的对象",
+      "composeChoosePlaceholder": "请选择…"
     },
     "scheduler": {
       "previousWeek": "上一周",
@@ -1883,6 +1890,13 @@ export default {
     },
     "pageRecord": {
       "description": "以完整页面展示单条记录：字段、带实时计数的关联记录，以及变更活动。"
+    },
+    "planning": {
+      "unplaced": {
+        "calendar": "此表中还没有任何行带有日期，因此日历为空。行一旦有了日期就会显示在这里。",
+        "board": "此表中还没有任何行带有状态，因此看板为空。行一旦有了状态就会显示在这里。",
+        "scheduler": "此表中还没有任何行同时带有人员、日期和班次类型，因此排班表为空。行一旦三者齐全就会显示在这里。"
+      }
     }
   },
   "frame": {

@@ -1784,6 +1784,11 @@ export default {
       "backToLatest": "Revenir aux dernières entrées",
       "eventFallback": "Événement"
     },
+    "board": {
+      "invalidLayout": "La disposition enregistrée de ce tableau est invalide. Régénérez la page ou réinitialisez sa disposition.",
+      "noRowsTitle": "Aucune carte pour l’instant",
+      "noRowsBody": "Les cartes apparaissent ici dès que la table contient des lignes."
+    },
     "calendar": {
       "eventCount": "{count, plural, one {{n} événement} other {{n} événements}}",
       "composePlaceholder": "Titre de l’événement…",
@@ -1792,7 +1797,9 @@ export default {
       "agendaTitle": "Agenda",
       "categoriesTitle": "Catégories",
       "upcomingTitle": "À venir",
-      "invalidLayout": "La disposition enregistrée de ce calendrier est invalide. Régénérez la page ou réinitialisez sa disposition."
+      "invalidLayout": "La disposition enregistrée de ce calendrier est invalide. Régénérez la page ou réinitialisez sa disposition.",
+      "composeChoose": "Objet de cet événement",
+      "composeChoosePlaceholder": "Choisir…"
     },
     "scheduler": {
       "previousWeek": "Semaine précédente",
@@ -1883,6 +1890,13 @@ export default {
     },
     "pageRecord": {
       "description": "Un enregistrement en pleine page : ses champs, ses enregistrements liés avec compteurs en direct et son activité."
+    },
+    "planning": {
+      "unplaced": {
+        "calendar": "Aucune ligne de cette table n’a encore de date, le calendrier est donc vide. Une ligne apparaît ici dès qu’elle en a une.",
+        "board": "Aucune ligne de cette table n’a encore de statut, le tableau est donc vide. Une ligne apparaît ici dès qu’elle en a un.",
+        "scheduler": "Aucune ligne de cette table n’a encore de personne, de date et de type de poste, le planning est donc vide. Une ligne apparaît ici dès qu’elle a les trois."
+      }
     }
   },
   "frame": {

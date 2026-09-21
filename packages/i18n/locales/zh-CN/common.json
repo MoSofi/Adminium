@@ -109,7 +109,8 @@
     "apiKeys": "API 密钥",
     "audit": "审计日志",
     "security": "密码与会话",
-    "files": "文件"
+    "files": "文件",
+    "emptyWithheld": "尚未有页面共享给您的角色。请向管理员申请访问权限。"
   },
   "apps": {
     "frame": {
@@ -266,6 +267,14 @@
     "noMatches": "没有与“{query}”匹配的页面"
   },
   "page": {
+    "emptyLayout": {
+      "title": "此页面暂无内容可显示",
+      "board": "将其绑定到带有状态列的数据表，其中的行便会成为按列分组的卡片。",
+      "calendar": "将其绑定到带有日期列的数据表，其中的行便会成为月视图网格上的事件。",
+      "scheduler": "将其绑定到带有日期列和排班人员的数据表，其中的行便会成为时间轴上的班次。",
+      "action": "打开页面设置",
+      "askAdmin": "请联系管理员完成设置。"
+    },
     "invalid": {
       "title": "此页面的配置无效",
       "body": "存储的页面文档未通过校验，无法渲染。"
@@ -1310,7 +1319,9 @@
     },
     "empty": {
       "title": "没有看板列",
-      "body": "添加状态字段以将卡片分组到列中。"
+      "body": "添加状态字段以将卡片分组到列中。",
+      "noRowsTitle": "还没有卡片",
+      "noRowsBody": "表中一有行，卡片就会显示在这里。"
     }
   },
   "calendar": {
@@ -1319,7 +1330,9 @@
       "placeholder": "事件标题…",
       "add": "添加",
       "cancel": "取消",
-      "open": "添加事件"
+      "open": "添加事件",
+      "choose": "此事件的对象",
+      "choosePlaceholder": "请选择…"
     },
     "agenda": {
       "empty": "暂无安排"
@@ -1577,7 +1590,8 @@
       "access": "访问",
       "data": "数据",
       "operations": "运维",
-      "workspace": "工作区"
+      "workspace": "工作区",
+      "records": "页面与记录"
     },
     "column": {
       "actions": "操作",
@@ -1653,7 +1667,18 @@
       "title": "无法保存全部角色"
     },
     "subtitle": "每个角色可以做什么。用户会获得其所持有的全部角色的权限并集。",
-    "title": "角色与权限"
+    "title": "角色与权限",
+    "data": {
+      "pagesView": "查看所有页面",
+      "read": "读取记录",
+      "create": "创建记录",
+      "update": "编辑记录",
+      "delete": "删除记录",
+      "export": "导出记录",
+      "import": "导入记录",
+      "pagesEdit": "更改页面布局",
+      "narrow": "另有 {count, plural, other {# 项}}针对单个页面或数据表的授权同样生效，叠加在下方各行之上。保存时会保留它们。"
+    }
   },
   "security": {
     "password": {
@@ -1783,7 +1808,8 @@
       "body": "此操作会抹除 {name} 的账户、他们的偏好设置和登录会话，并从他们更改过的设置记录中清空其姓名。改为暂停则会保留所有这些内容，只是不再允许他们登录。此操作无法撤销。",
       "confirm": "永久删除",
       "prompt": "输入“{email}”以确认",
-      "title": "永久删除账户"
+      "title": "永久删除账户",
+      "failed": "未删除该账户"
     },
     "roles": {
       "unavailable": "你的账户无法查看角色，因此这里无法分配任何角色。"
@@ -1803,7 +1829,8 @@
     "subtitle": "谁在这份 Adminium 上拥有账户，以及他们各自可以做什么。",
     "title": "团队",
     "twoFactorOn": "已开启双重验证",
-    "twoFactorShort": "2FA"
+    "twoFactorShort": "2FA",
+    "actionFailed": "未能完成此更改"
   },
   "invoices": {
     "copySuffix": "{name}（副本）",

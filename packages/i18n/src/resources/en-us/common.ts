@@ -119,7 +119,8 @@ export default {
     "apiKeys": "API keys",
     "audit": "Audit log",
     "security": "Password & sessions",
-    "files": "Files"
+    "files": "Files",
+    "emptyWithheld": "No pages have been shared with your role yet. Ask an administrator for access."
   },
   "apps": {
     "frame": {
@@ -276,6 +277,14 @@ export default {
     "noMatches": "No pages match \"{query}\""
   },
   "page": {
+    "emptyLayout": {
+      "title": "This page has nothing to show yet",
+      "board": "Bind it to a table with a status column, and its rows become cards grouped into columns.",
+      "calendar": "Bind it to a table with a date column, and its rows become events on the month grid.",
+      "scheduler": "Bind it to a table with a date column and a person to schedule, and its rows become shifts on a timeline.",
+      "action": "Open page settings",
+      "askAdmin": "Ask an administrator to finish setting it up."
+    },
     "invalid": {
       "title": "This page’s configuration is invalid",
       "body": "The stored page document failed validation and cannot be rendered."
@@ -1320,7 +1329,9 @@ export default {
     },
     "empty": {
       "title": "No board columns",
-      "body": "Add a status field to group cards into columns."
+      "body": "Add a status field to group cards into columns.",
+      "noRowsTitle": "No cards yet",
+      "noRowsBody": "Cards appear here as soon as the table has rows."
     }
   },
   "calendar": {
@@ -1329,7 +1340,9 @@ export default {
       "placeholder": "Event title…",
       "add": "Add",
       "cancel": "Cancel",
-      "open": "Add event"
+      "open": "Add event",
+      "choose": "What this event is for",
+      "choosePlaceholder": "Choose…"
     },
     "agenda": {
       "empty": "Nothing scheduled"
@@ -1587,7 +1600,8 @@ export default {
       "access": "Access",
       "data": "Data",
       "operations": "Operations",
-      "workspace": "Workspace"
+      "workspace": "Workspace",
+      "records": "Pages & records"
     },
     "column": {
       "actions": "Actions",
@@ -1663,7 +1677,18 @@ export default {
       "title": "Could not save every role"
     },
     "subtitle": "What each role may do. A user gets the union of every role they hold.",
-    "title": "Roles & permissions"
+    "title": "Roles & permissions",
+    "data": {
+      "pagesView": "See every page",
+      "read": "Read records",
+      "create": "Create records",
+      "update": "Edit records",
+      "delete": "Delete records",
+      "export": "Export records",
+      "import": "Import records",
+      "pagesEdit": "Change page layouts",
+      "narrow": "{count, plural, one {# grant} other {# grants}} on a single page or table also apply, on top of the rows below. Saving keeps them."
+    }
   },
   "security": {
     "password": {
@@ -1793,7 +1818,8 @@ export default {
       "body": "This erases {name}’s account, their preferences and their sign-in sessions, and blanks their name from the record of settings they changed. Suspending instead keeps all of it and only stops them signing in. This cannot be undone.",
       "confirm": "Delete permanently",
       "prompt": "Type “{email}” to confirm",
-      "title": "Delete account permanently"
+      "title": "Delete account permanently",
+      "failed": "The account was not deleted"
     },
     "roles": {
       "unavailable": "Roles are not visible to your account, so none can be assigned here."
@@ -1813,7 +1839,8 @@ export default {
     "subtitle": "Who has an account on this Adminium, and what each of them can do.",
     "title": "Team",
     "twoFactorOn": "Two-factor authentication is on",
-    "twoFactorShort": "2FA"
+    "twoFactorShort": "2FA",
+    "actionFailed": "That change was not made"
   },
   "invoices": {
     "copySuffix": "{name} (copy)",

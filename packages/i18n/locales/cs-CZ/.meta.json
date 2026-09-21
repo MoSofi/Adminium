@@ -2911,6 +2911,14 @@
     "srcHash": "f2258961edd2",
     "status": "mt"
   },
+  "common.board.empty.noRowsBody": {
+    "status": "mt",
+    "srcHash": "6d31905bc79d"
+  },
+  "common.board.empty.noRowsTitle": {
+    "status": "mt",
+    "srcHash": "0b96215c8c5e"
+  },
   "common.board.empty.title": {
     "srcHash": "c1fc420a8787",
     "status": "mt"
@@ -3674,6 +3682,14 @@
   "common.calendar.compose.cancel": {
     "srcHash": "77dfd2135f4d",
     "status": "mt"
+  },
+  "common.calendar.compose.choose": {
+    "status": "mt",
+    "srcHash": "c72e799613a4"
+  },
+  "common.calendar.compose.choosePlaceholder": {
+    "status": "mt",
+    "srcHash": "c3b69e661eec"
   },
   "common.calendar.compose.open": {
     "srcHash": "7f8a6fad8b7c",
@@ -4731,6 +4747,10 @@
     "srcHash": "48668d9f7c2b",
     "status": "mt"
   },
+  "common.nav.emptyWithheld": {
+    "status": "mt",
+    "srcHash": "1231b3ae81b1"
+  },
   "common.nav.exports": {
     "srcHash": "7a9e1d08f116",
     "status": "mt"
@@ -4994,6 +5014,30 @@
   "common.onboarding.welcome": {
     "srcHash": "0e6146e1b603",
     "status": "mt"
+  },
+  "common.page.emptyLayout.action": {
+    "status": "mt",
+    "srcHash": "b71ddd31f441"
+  },
+  "common.page.emptyLayout.askAdmin": {
+    "status": "mt",
+    "srcHash": "728e031009ce"
+  },
+  "common.page.emptyLayout.board": {
+    "status": "mt",
+    "srcHash": "1c89058bf87c"
+  },
+  "common.page.emptyLayout.calendar": {
+    "status": "mt",
+    "srcHash": "233ebed8d852"
+  },
+  "common.page.emptyLayout.scheduler": {
+    "status": "mt",
+    "srcHash": "bf1e5c69f9dd"
+  },
+  "common.page.emptyLayout.title": {
+    "status": "mt",
+    "srcHash": "60fd1b5c258c"
   },
   "common.page.invalid.body": {
     "srcHash": "85a272bc7e9b",
@@ -5359,6 +5403,10 @@
     "status": "mt",
     "srcHash": "a1fdaa6b2a84"
   },
+  "common.roles.category.records": {
+    "status": "mt",
+    "srcHash": "9d272438bef0"
+  },
   "common.roles.category.workspace": {
     "status": "mt",
     "srcHash": "4ca0a75c2b7f"
@@ -5406,6 +5454,42 @@
   "common.roles.createButton": {
     "status": "mt",
     "srcHash": "165fb5e1e341"
+  },
+  "common.roles.data.create": {
+    "status": "mt",
+    "srcHash": "16832885202f"
+  },
+  "common.roles.data.delete": {
+    "status": "mt",
+    "srcHash": "1635174e7028"
+  },
+  "common.roles.data.export": {
+    "status": "mt",
+    "srcHash": "8f6b73c89204"
+  },
+  "common.roles.data.import": {
+    "status": "mt",
+    "srcHash": "ab7be91e6608"
+  },
+  "common.roles.data.narrow": {
+    "status": "mt",
+    "srcHash": "991e5f6b5e38"
+  },
+  "common.roles.data.pagesEdit": {
+    "status": "mt",
+    "srcHash": "1b1f83114c2a"
+  },
+  "common.roles.data.pagesView": {
+    "status": "mt",
+    "srcHash": "c9645bfb7627"
+  },
+  "common.roles.data.read": {
+    "status": "mt",
+    "srcHash": "e233ce74144a"
+  },
+  "common.roles.data.update": {
+    "status": "mt",
+    "srcHash": "98da958d04ff"
   },
   "common.roles.delete.confirm": {
     "status": "mt",
@@ -6567,6 +6651,10 @@
     "status": "mt",
     "srcHash": "b24247fb5a9d"
   },
+  "common.team.actionFailed": {
+    "status": "mt",
+    "srcHash": "8fd70858f7ff"
+  },
   "common.team.column.actions": {
     "status": "mt",
     "srcHash": "c3cd636a585b"
@@ -6730,6 +6818,10 @@
   "common.team.remove.confirm": {
     "status": "mt",
     "srcHash": "e63b5153bde0"
+  },
+  "common.team.remove.failed": {
+    "status": "mt",
+    "srcHash": "79f10d154c2f"
   },
   "common.team.remove.prompt": {
     "status": "mt",
@@ -13519,6 +13611,26 @@
     "status": "mt",
     "srcHash": "f6fdbe48dc54"
   },
+  "studio.documents.deleteConfirm.body": {
+    "status": "mt",
+    "srcHash": "c3b64cfe48a6"
+  },
+  "studio.documents.deleteConfirm.confirm": {
+    "status": "mt",
+    "srcHash": "1b5f69608aab"
+  },
+  "studio.documents.deleteConfirm.prompt": {
+    "status": "mt",
+    "srcHash": "46cebbcbd8d7"
+  },
+  "studio.documents.deleteConfirm.title": {
+    "status": "mt",
+    "srcHash": "56401e7b0674"
+  },
+  "studio.documents.deleteFailed": {
+    "status": "mt",
+    "srcHash": "f90e4b098381"
+  },
   "studio.documents.delivery.email": {
     "status": "mt",
     "srcHash": "4a451e708599"
@@ -13562,6 +13674,10 @@
   "studio.documents.intro": {
     "status": "mt",
     "srcHash": "e2c2511fdb72"
+  },
+  "studio.documents.loadFailed": {
+    "status": "mt",
+    "srcHash": "c0dbe3ea96b2"
   },
   "studio.documents.name": {
     "status": "mt",
@@ -13955,6 +14071,14 @@
     "srcHash": "282b5281d02b",
     "status": "mt"
   },
+  "studio.enrich.noTablesBody": {
+    "status": "mt",
+    "srcHash": "5aeb1ce9542e"
+  },
+  "studio.enrich.noTablesTitle": {
+    "status": "mt",
+    "srcHash": "5fac40ad26ba"
+  },
   "studio.enrich.provider.configError": {
     "status": "mt",
     "srcHash": "a3d384c1f200"
@@ -14239,6 +14363,38 @@
     "status": "mt",
     "srcHash": "4450c0d13e06"
   },
+  "studio.hostedApps.columns.alsoCreates": {
+    "status": "mt",
+    "srcHash": "91e1749ec833"
+  },
+  "studio.hostedApps.columns.body": {
+    "status": "mt",
+    "srcHash": "329896b8fa7f"
+  },
+  "studio.hostedApps.columns.confirm": {
+    "status": "mt",
+    "srcHash": "5d565451758f"
+  },
+  "studio.hostedApps.columns.failed": {
+    "status": "mt",
+    "srcHash": "97fbcad59568"
+  },
+  "studio.hostedApps.columns.noDdl": {
+    "status": "mt",
+    "srcHash": "9fe7890b7f0c"
+  },
+  "studio.hostedApps.columns.subtitle": {
+    "status": "mt",
+    "srcHash": "e8edb451b39e"
+  },
+  "studio.hostedApps.columns.title": {
+    "status": "mt",
+    "srcHash": "7948b51cf2ad"
+  },
+  "studio.hostedApps.columns.valuesFailed": {
+    "status": "mt",
+    "srcHash": "e45f46180a4c"
+  },
   "studio.hostedApps.domains.add": {
     "status": "mt",
     "srcHash": "83def9170faa"
@@ -14443,6 +14599,10 @@
     "status": "mt",
     "srcHash": "af582b6bf870"
   },
+  "studio.hostedApps.install.plan.pageWarnings": {
+    "status": "mt",
+    "srcHash": "a72a8c417d5c"
+  },
   "studio.hostedApps.install.plan.refused": {
     "status": "mt",
     "srcHash": "b61308bb7cef"
@@ -14523,6 +14683,10 @@
     "status": "mt",
     "srcHash": "36fff63ccbcd"
   },
+  "studio.hostedApps.installed.discardFailed": {
+    "status": "mt",
+    "srcHash": "218f1aafdceb"
+  },
   "studio.hostedApps.installed.emptyBody": {
     "status": "mt",
     "srcHash": "f4b3f8d9feef"
@@ -14566,6 +14730,10 @@
   "studio.hostedApps.installed.uninstall": {
     "status": "mt",
     "srcHash": "a735da1d32d7"
+  },
+  "studio.hostedApps.installed.uninstallFailed": {
+    "status": "mt",
+    "srcHash": "4b15dcd10a4a"
   },
   "studio.hostedApps.installed.update": {
     "status": "mt",
@@ -14862,6 +15030,10 @@
   "studio.hub.delete.failed": {
     "srcHash": "93d61524c2a3",
     "status": "mt"
+  },
+  "studio.hub.delete.forbidden": {
+    "status": "mt",
+    "srcHash": "310aba8405f1"
   },
   "studio.hub.delete.prompt": {
     "srcHash": "46cebbcbd8d7",
@@ -16295,6 +16467,10 @@
     "status": "mt",
     "srcHash": "260b69625056"
   },
+  "studio.pages.delete.failed": {
+    "status": "mt",
+    "srcHash": "78d138e98bb1"
+  },
   "studio.pages.delete.prompt": {
     "status": "mt",
     "srcHash": "d2614fb2076b"
@@ -16579,6 +16755,10 @@
     "status": "mt",
     "srcHash": "0424f6e7026f"
   },
+  "studio.pages.field.tableChoose": {
+    "status": "mt",
+    "srcHash": "9cd9ec452dd6"
+  },
   "studio.pages.field.tableCreateHint": {
     "status": "mt",
     "srcHash": "b03c174eec99"
@@ -16586,6 +16766,10 @@
   "studio.pages.field.tableNeedsConnection": {
     "status": "mt",
     "srcHash": "c8e7c5c0b63d"
+  },
+  "studio.pages.field.tableNoConnection": {
+    "status": "mt",
+    "srcHash": "da81c19e00a2"
   },
   "studio.pages.field.tableNone": {
     "status": "mt",
@@ -16666,6 +16850,202 @@
   "studio.pages.filters.up": {
     "status": "mt",
     "srcHash": "562ee70e64b3"
+  },
+  "studio.pages.fit.alternatives.help": {
+    "status": "mt",
+    "srcHash": "a87f4bc1d888"
+  },
+  "studio.pages.fit.alternatives.title": {
+    "status": "mt",
+    "srcHash": "7c501d6636e4"
+  },
+  "studio.pages.fit.alternatives.use": {
+    "status": "mt",
+    "srcHash": "4ad5e385dd88"
+  },
+  "studio.pages.fit.checkFailed": {
+    "status": "mt",
+    "srcHash": "a0e990a0008b"
+  },
+  "studio.pages.fit.checkFailedBody": {
+    "status": "mt",
+    "srcHash": "f3281ed45604"
+  },
+  "studio.pages.fit.columns.cannot": {
+    "status": "mt",
+    "srcHash": "102f1fd1a8a8"
+  },
+  "studio.pages.fit.columns.cannotBody": {
+    "status": "mt",
+    "srcHash": "dfca5a129cea"
+  },
+  "studio.pages.fit.columns.confirm": {
+    "status": "mt",
+    "srcHash": "bcc9984a00a5"
+  },
+  "studio.pages.fit.columns.failed": {
+    "status": "mt",
+    "srcHash": "dd9256483c37"
+  },
+  "studio.pages.fit.columns.halfDone": {
+    "status": "mt",
+    "srcHash": "1bd40ba69724"
+  },
+  "studio.pages.fit.columns.halfDoneBody": {
+    "status": "mt",
+    "srcHash": "8f545e665dc6"
+  },
+  "studio.pages.fit.columns.help": {
+    "status": "mt",
+    "srcHash": "0a1601743952"
+  },
+  "studio.pages.fit.columns.partial": {
+    "status": "mt",
+    "srcHash": "e24be0767d87"
+  },
+  "studio.pages.fit.columns.review": {
+    "status": "mt",
+    "srcHash": "6cd32cfc993f"
+  },
+  "studio.pages.fit.columns.title": {
+    "status": "mt",
+    "srcHash": "9b0a9dea5a4c"
+  },
+  "studio.pages.fit.needs": {
+    "status": "mt",
+    "srcHash": "e0ae62f25d4e"
+  },
+  "studio.pages.fit.noDdl": {
+    "status": "mt",
+    "srcHash": "184533cd9b15"
+  },
+  "studio.pages.fit.related.chosen": {
+    "status": "mt",
+    "srcHash": "cf208891cae9"
+  },
+  "studio.pages.fit.related.help": {
+    "status": "mt",
+    "srcHash": "afb8c2a64f7b"
+  },
+  "studio.pages.fit.related.reason": {
+    "status": "mt",
+    "srcHash": "0ac8dd963c70"
+  },
+  "studio.pages.fit.related.title": {
+    "status": "mt",
+    "srcHash": "83135cd4cc48"
+  },
+  "studio.pages.fit.related.undo": {
+    "status": "mt",
+    "srcHash": "5a4cf5d6dc5a"
+  },
+  "studio.pages.fit.role.eventDate": {
+    "status": "mt",
+    "srcHash": "f921dd01d828"
+  },
+  "studio.pages.fit.role.personFk": {
+    "status": "mt",
+    "srcHash": "b640b2fd286e"
+  },
+  "studio.pages.fit.role.shiftType": {
+    "status": "mt",
+    "srcHash": "421bce4d8bdb"
+  },
+  "studio.pages.fit.role.status": {
+    "status": "mt",
+    "srcHash": "2a3c09c0e9b5"
+  },
+  "studio.pages.fit.role.title": {
+    "status": "mt",
+    "srcHash": "2a43b4c16fc7"
+  },
+  "studio.pages.fit.slotOnly": {
+    "status": "mt",
+    "srcHash": "f9bc97596af0"
+  },
+  "studio.pages.fit.table.confirm": {
+    "status": "mt",
+    "srcHash": "95f8137bb275"
+  },
+  "studio.pages.fit.table.halfDone": {
+    "status": "mt",
+    "srcHash": "22fad1af4daf"
+  },
+  "studio.pages.fit.table.halfDoneBody": {
+    "status": "mt",
+    "srcHash": "79949f470e91"
+  },
+  "studio.pages.fit.table.help": {
+    "status": "mt",
+    "srcHash": "9e6d921b55d5"
+  },
+  "studio.pages.fit.table.name": {
+    "status": "mt",
+    "srcHash": "92db13efcb63"
+  },
+  "studio.pages.fit.table.nameInvalid": {
+    "status": "mt",
+    "srcHash": "be63126f00a5"
+  },
+  "studio.pages.fit.table.nameTaken": {
+    "status": "mt",
+    "srcHash": "721729459de7"
+  },
+  "studio.pages.fit.table.noCompose": {
+    "status": "mt",
+    "srcHash": "2d2a439bfae5"
+  },
+  "studio.pages.fit.table.noDdl": {
+    "status": "mt",
+    "srcHash": "0b1a3bed82f9"
+  },
+  "studio.pages.fit.table.notReread": {
+    "status": "mt",
+    "srcHash": "a99ded4f83c0"
+  },
+  "studio.pages.fit.table.notRereadBody": {
+    "status": "mt",
+    "srcHash": "c358563e2086"
+  },
+  "studio.pages.fit.table.open": {
+    "status": "mt",
+    "srcHash": "362ae9d6ce07"
+  },
+  "studio.pages.fit.table.people": {
+    "status": "mt",
+    "srcHash": "3e363ff97f02"
+  },
+  "studio.pages.fit.table.peopleCreated": {
+    "status": "mt",
+    "srcHash": "2b69a72834e0"
+  },
+  "studio.pages.fit.table.peopleNew": {
+    "status": "mt",
+    "srcHash": "4edd7a60fa86"
+  },
+  "studio.pages.fit.table.title": {
+    "status": "mt",
+    "srcHash": "ae942e99cb06"
+  },
+  "studio.pages.fit.tag.action": {
+    "status": "mt",
+    "srcHash": "c7d41fa722e1"
+  },
+  "studio.pages.fit.tag.failed": {
+    "status": "mt",
+    "srcHash": "f20058713a4e"
+  },
+  "studio.pages.fit.tag.help": {
+    "status": "mt",
+    "srcHash": "91dc03221ba3"
+  },
+  "studio.pages.fit.tag.title": {
+    "status": "mt",
+    "srcHash": "1ecc7b8a691c"
+  },
+  "studio.pages.fit.title": {
+    "status": "mt",
+    "srcHash": "601cdaac36e7"
   },
   "studio.pages.form.addLines": {
     "status": "mt",
@@ -17190,6 +17570,10 @@
   "studio.pages.title": {
     "status": "mt",
     "srcHash": "600584c2d5cc"
+  },
+  "studio.pages.toggleFailed": {
+    "status": "mt",
+    "srcHash": "d539da66d1c6"
   },
   "studio.pages.width.content": {
     "status": "mt",
@@ -19539,9 +19923,21 @@
     "status": "mt",
     "srcHash": "6fefdc23b3db"
   },
+  "studio.tables.emptyBody": {
+    "status": "mt",
+    "srcHash": "46981f9b1483"
+  },
+  "studio.tables.emptyFileBody": {
+    "status": "mt",
+    "srcHash": "3b5cc3a22c29"
+  },
   "studio.tables.emptyFilter": {
     "srcHash": "f32497b118cb",
     "status": "mt"
+  },
+  "studio.tables.emptyTitle": {
+    "status": "mt",
+    "srcHash": "10ae9a1589be"
   },
   "studio.tables.highVolume": {
     "srcHash": "9b0340d6c096",
@@ -20307,6 +20703,18 @@
     "srcHash": "9ac0b366494f",
     "status": "mt"
   },
+  "ui.templates.board.invalidLayout": {
+    "status": "mt",
+    "srcHash": "00212c6295c1"
+  },
+  "ui.templates.board.noRowsBody": {
+    "status": "mt",
+    "srcHash": "6d31905bc79d"
+  },
+  "ui.templates.board.noRowsTitle": {
+    "status": "mt",
+    "srcHash": "0b96215c8c5e"
+  },
   "ui.templates.builder.blocks.block-approval": {
     "srcHash": "8cc047ac17d3",
     "status": "mt"
@@ -20638,6 +21046,14 @@
   "ui.templates.calendar.categoriesTitle": {
     "srcHash": "6ccb60071be8",
     "status": "mt"
+  },
+  "ui.templates.calendar.composeChoose": {
+    "status": "mt",
+    "srcHash": "c72e799613a4"
+  },
+  "ui.templates.calendar.composeChoosePlaceholder": {
+    "status": "mt",
+    "srcHash": "c3b69e661eec"
   },
   "ui.templates.calendar.composePlaceholder": {
     "srcHash": "0cd372226ee9",
@@ -21186,6 +21602,18 @@
   "ui.templates.pageWizard.description": {
     "srcHash": "f3a97aa79335",
     "status": "mt"
+  },
+  "ui.templates.planning.unplaced.board": {
+    "status": "mt",
+    "srcHash": "9c52839a101d"
+  },
+  "ui.templates.planning.unplaced.calendar": {
+    "status": "mt",
+    "srcHash": "8c7ba34d5f5a"
+  },
+  "ui.templates.planning.unplaced.scheduler": {
+    "status": "mt",
+    "srcHash": "6d88c88a70cd"
   },
   "ui.templates.queue.allSegment": {
     "srcHash": "6a72085653e4",

@@ -119,7 +119,8 @@ export default {
     "apiKeys": "API klíče",
     "audit": "Auditní log",
     "security": "Heslo a relace",
-    "files": "Soubory"
+    "files": "Soubory",
+    "emptyWithheld": "S vaší rolí zatím nebyly sdíleny žádné stránky. Požádejte o přístup správce."
   },
   "apps": {
     "frame": {
@@ -276,6 +277,14 @@ export default {
     "noMatches": "Dotazu „{query}“ neodpovídají žádné stránky"
   },
   "page": {
+    "emptyLayout": {
+      "title": "Tato stránka zatím nemá co zobrazit",
+      "board": "Připojte ji k tabulce se stavovým sloupcem a její řádky se stanou kartami seskupenými do sloupců.",
+      "calendar": "Připojte ji k tabulce se sloupcem data a její řádky se stanou událostmi v měsíční mřížce.",
+      "scheduler": "Připojte ji k tabulce se sloupcem data a osobou, kterou plánujete, a její řádky se stanou směnami na časové ose.",
+      "action": "Otevřít nastavení stránky",
+      "askAdmin": "Požádejte správce o dokončení jejího nastavení."
+    },
     "invalid": {
       "title": "Konfigurace této stránky je neplatná",
       "body": "Uložený dokument stránky neprošel validací a nelze jej vykreslit."
@@ -1320,7 +1329,9 @@ export default {
     },
     "empty": {
       "title": "Žádné sloupce nástěnky",
-      "body": "Přidejte stavové pole, aby se karty seskupily do sloupců."
+      "body": "Přidejte stavové pole, aby se karty seskupily do sloupců.",
+      "noRowsTitle": "Zatím žádné karty",
+      "noRowsBody": "Karty se tu objeví, jakmile bude mít tabulka řádky."
     }
   },
   "calendar": {
@@ -1329,7 +1340,9 @@ export default {
       "placeholder": "Název události…",
       "add": "Přidat",
       "cancel": "Zrušit",
-      "open": "Přidat událost"
+      "open": "Přidat událost",
+      "choose": "Čeho se tato událost týká",
+      "choosePlaceholder": "Vyberte…"
     },
     "agenda": {
       "empty": "Nic naplánováno"
@@ -1587,7 +1600,8 @@ export default {
       "access": "Přístup",
       "data": "Data",
       "operations": "Provoz",
-      "workspace": "Pracovní prostor"
+      "workspace": "Pracovní prostor",
+      "records": "Stránky a záznamy"
     },
     "column": {
       "actions": "Akce",
@@ -1663,7 +1677,18 @@ export default {
       "title": "Nepodařilo se uložit všechny role"
     },
     "subtitle": "Co smí každá role. Uživatel dostane sjednocení všech rolí, které má.",
-    "title": "Role a oprávnění"
+    "title": "Role a oprávnění",
+    "data": {
+      "pagesView": "Vidět všechny stránky",
+      "read": "Číst záznamy",
+      "create": "Vytvářet záznamy",
+      "update": "Upravovat záznamy",
+      "delete": "Mazat záznamy",
+      "export": "Exportovat záznamy",
+      "import": "Importovat záznamy",
+      "pagesEdit": "Měnit rozvržení stránek",
+      "narrow": "{count, plural, one {# oprávnění} few {# oprávnění} other {# oprávnění}} pro jednotlivou stránku nebo tabulku platí také, navíc k řádkům níže. Uložení je zachová."
+    }
   },
   "security": {
     "password": {
@@ -1793,7 +1818,8 @@ export default {
       "body": "Tímto se smaže účet uživatele {name}, jeho předvolby i přihlašovací relace a jeho jméno se vymaže ze záznamu o nastaveních, která změnil. Pozastavení místo toho vše zachová a jen mu zabrání v přihlášení. Tuto akci nelze vzít zpět.",
       "confirm": "Trvale smazat",
       "prompt": "Pro potvrzení napište „{email}“",
-      "title": "Trvale smazat účet"
+      "title": "Trvale smazat účet",
+      "failed": "Účet nebyl smazán"
     },
     "roles": {
       "unavailable": "Role nejsou pro váš účet viditelné, takže zde žádnou nelze přiřadit."
@@ -1813,7 +1839,8 @@ export default {
     "subtitle": "Kdo má účet v tomto Adminiu a co každý z nich smí.",
     "title": "Tým",
     "twoFactorOn": "Dvoufázové ověření je zapnuté",
-    "twoFactorShort": "2FA"
+    "twoFactorShort": "2FA",
+    "actionFailed": "Tato změna nebyla provedena"
   },
   "invoices": {
     "copySuffix": "{name} (kopie)",

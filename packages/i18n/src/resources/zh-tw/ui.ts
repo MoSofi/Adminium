@@ -1784,6 +1784,11 @@ export default {
       "backToLatest": "回到最新",
       "eventFallback": "事件"
     },
+    "board": {
+      "invalidLayout": "此看板儲存的版面配置無效。請重新產生頁面或重設其版面配置。",
+      "noRowsTitle": "還沒有卡片",
+      "noRowsBody": "資料表中一有列，卡片就會顯示在這裡。"
+    },
     "calendar": {
       "eventCount": "{count, plural, other {{n} events}}",
       "composePlaceholder": "事件標題…",
@@ -1792,7 +1797,9 @@ export default {
       "agendaTitle": "議程",
       "categoriesTitle": "類別",
       "upcomingTitle": "即將到來",
-      "invalidLayout": "此行事曆儲存的版面配置無效。請重新產生頁面或重設其版面配置。"
+      "invalidLayout": "此行事曆儲存的版面配置無效。請重新產生頁面或重設其版面配置。",
+      "composeChoose": "此事件的對象",
+      "composeChoosePlaceholder": "請選擇…"
     },
     "scheduler": {
       "previousWeek": "上一週",
@@ -1883,6 +1890,13 @@ export default {
     },
     "pageRecord": {
       "description": "以完整頁面顯示單筆記錄：欄位、附即時計數的相關記錄，以及變更活動。"
+    },
+    "planning": {
+      "unplaced": {
+        "calendar": "此資料表中還沒有任何列帶有日期，因此行事曆為空。列一旦有了日期就會顯示在這裡。",
+        "board": "此資料表中還沒有任何列帶有狀態，因此看板為空。列一旦有了狀態就會顯示在這裡。",
+        "scheduler": "此資料表中還沒有任何列同時帶有人員、日期和班別類型，因此排班表為空。列一旦三者齊全就會顯示在這裡。"
+      }
     }
   },
   "frame": {

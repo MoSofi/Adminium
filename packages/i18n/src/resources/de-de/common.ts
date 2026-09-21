@@ -119,7 +119,8 @@ export default {
     "apiKeys": "API-Schlüssel",
     "audit": "Audit-Log",
     "security": "Passwort & Sitzungen",
-    "files": "Dateien"
+    "files": "Dateien",
+    "emptyWithheld": "Mit Ihrer Rolle wurden noch keine Seiten geteilt. Bitten Sie eine Administratorin oder einen Administrator um Zugriff."
   },
   "apps": {
     "frame": {
@@ -276,6 +277,14 @@ export default {
     "noMatches": "Keine Seiten entsprechen „{query}“"
   },
   "page": {
+    "emptyLayout": {
+      "title": "Diese Seite hat noch nichts anzuzeigen",
+      "board": "Verknüpfen Sie sie mit einer Tabelle mit Statusspalte, dann werden deren Zeilen zu Karten in Spalten.",
+      "calendar": "Verknüpfen Sie sie mit einer Tabelle mit Datumsspalte, dann werden deren Zeilen zu Terminen im Monatsraster.",
+      "scheduler": "Verknüpfen Sie sie mit einer Tabelle mit Datumsspalte und der eingeplanten Person, dann werden deren Zeilen zu Schichten auf einer Zeitleiste.",
+      "action": "Seiteneinstellungen öffnen",
+      "askAdmin": "Bitten Sie einen Administrator, die Einrichtung abzuschließen."
+    },
     "invalid": {
       "title": "Die Konfiguration dieser Seite ist ungültig",
       "body": "Das gespeicherte Seitendokument hat die Validierung nicht bestanden und kann nicht dargestellt werden."
@@ -1320,7 +1329,9 @@ export default {
     },
     "empty": {
       "title": "Keine Board-Spalten",
-      "body": "Fügen Sie ein Statusfeld hinzu, um Karten in Spalten zu gruppieren."
+      "body": "Fügen Sie ein Statusfeld hinzu, um Karten in Spalten zu gruppieren.",
+      "noRowsTitle": "Noch keine Karten",
+      "noRowsBody": "Karten erscheinen hier, sobald die Tabelle Zeilen hat."
     }
   },
   "calendar": {
@@ -1329,7 +1340,9 @@ export default {
       "placeholder": "Termintitel…",
       "add": "Hinzufügen",
       "cancel": "Abbrechen",
-      "open": "Termin hinzufügen"
+      "open": "Termin hinzufügen",
+      "choose": "Wofür dieser Termin ist",
+      "choosePlaceholder": "Auswählen…"
     },
     "agenda": {
       "empty": "Nichts geplant"
@@ -1587,7 +1600,8 @@ export default {
       "access": "Zugriff",
       "data": "Daten",
       "operations": "Betrieb",
-      "workspace": "Workspace"
+      "workspace": "Workspace",
+      "records": "Seiten & Datensätze"
     },
     "column": {
       "actions": "Aktionen",
@@ -1663,7 +1677,18 @@ export default {
       "title": "Es konnten nicht alle Rollen gespeichert werden"
     },
     "subtitle": "Was jede Rolle darf. Ein Benutzer erhält die Vereinigung aller Rollen, die er innehat.",
-    "title": "Rollen & Berechtigungen"
+    "title": "Rollen & Berechtigungen",
+    "data": {
+      "pagesView": "Alle Seiten sehen",
+      "read": "Datensätze lesen",
+      "create": "Datensätze anlegen",
+      "update": "Datensätze bearbeiten",
+      "delete": "Datensätze löschen",
+      "export": "Datensätze exportieren",
+      "import": "Datensätze importieren",
+      "pagesEdit": "Seitenlayouts ändern",
+      "narrow": "{count, plural, one {# Berechtigung} other {# Berechtigungen}} für eine einzelne Seite oder Tabelle gelten zusätzlich zu den Zeilen unten. Beim Speichern bleiben sie erhalten."
+    }
   },
   "security": {
     "password": {
@@ -1793,7 +1818,8 @@ export default {
       "body": "Dies löscht das Konto von {name} samt Einstellungen und Anmeldesitzungen und entfernt den Namen aus dem Nachweis der von dieser Person geänderten Einstellungen. Ein Sperren behält all das und verhindert lediglich die Anmeldung. Das lässt sich nicht rückgängig machen.",
       "confirm": "Endgültig löschen",
       "prompt": "Geben Sie „{email}“ zur Bestätigung ein",
-      "title": "Konto endgültig löschen"
+      "title": "Konto endgültig löschen",
+      "failed": "Das Konto wurde nicht gelöscht"
     },
     "roles": {
       "unavailable": "Rollen sind für Ihr Konto nicht sichtbar, daher können hier keine zugewiesen werden."
@@ -1813,7 +1839,8 @@ export default {
     "subtitle": "Wer ein Konto in diesem Adminium hat und was die einzelnen Personen dürfen.",
     "title": "Team",
     "twoFactorOn": "Zwei-Faktor-Authentifizierung ist aktiviert",
-    "twoFactorShort": "2FA"
+    "twoFactorShort": "2FA",
+    "actionFailed": "Diese Änderung wurde nicht vorgenommen"
   },
   "invoices": {
     "copySuffix": "{name} (Kopie)",

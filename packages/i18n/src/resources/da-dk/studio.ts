@@ -408,7 +408,15 @@ export default {
       "noteTitle": "Hvad der tæller som en ændring",
       "updated": "Når en række ændres"
     },
-    "unbound": "Mangler stadig: {slots}"
+    "unbound": "Mangler stadig: {slots}",
+    "deleteConfirm": {
+      "title": "Slet denne tilknytning?",
+      "body": "Reglen, der udløser den, forsvinder også, og dokumenter, der allerede er dannet ud fra den, mister deres link tilbage. Dette kan ikke fortrydes.",
+      "prompt": "Skriv {name} for at bekræfte",
+      "confirm": "Slet tilknytning"
+    },
+    "deleteFailed": "Tilknytningen blev ikke slettet",
+    "loadFailed": "Tilknytningerne kunne ikke indlæses"
   },
   "enrich": {
     "byo": {
@@ -464,6 +472,8 @@ export default {
     },
     "fileBody": "Skemafil-kilder har endnu ikke et snapshot at berige. Forbind en live-database for at bruge AI-berigelse, eller fortsæt — det heuristiske grundlag genererer stadig en komplet app.",
     "fileTitle": "AI-berigelse kræver en live-database",
+    "noTablesBody": "Denne database har endnu ingen tabeller, så der er intet for AI at navngive eller gruppere. Fortsæt — når der findes tabeller, kan du til enhver tid køre AI-berigelse fra Indstillinger → AI.",
+    "noTablesTitle": "Ingen tabeller at berige",
     "generatePrompt": "Generér prompt",
     "intentLabel": "Hvordan vil du berige?",
     "localeLocked": "(påkrævet)",
@@ -611,7 +621,8 @@ export default {
         "toggleDdl": "Vis DDL-forhåndsvisning",
         "ddl": "DDL-forhåndsvisning",
         "ddlNote": "Vejledende. Serveren danner den præcise sætning til din motor, inklusive fremmednøgler.",
-        "summary": "{created} oprettet · {reused} genbrugt"
+        "summary": "{created} oprettet · {reused} genbrugt",
+        "pageWarnings": "Nogle af appens sider kommer uden en tabel"
       },
       "done": {
         "title": "Installeret",
@@ -659,7 +670,9 @@ export default {
       "needsNewer": "v{version} kræver Adminium {minimum} eller nyere",
       "missing": "Mangler",
       "missingBody": "Dens filer findes ikke på denne server, så den serveres ikke. Installer den samme version igen, eller afinstaller den.",
-      "update": "Opdatér"
+      "update": "Opdatér",
+      "discardFailed": "Uploadet blev ikke kasseret",
+      "uninstallFailed": "Appen blev ikke afinstalleret"
     },
     "instances": {
       "add": "Tilføj en instans",
@@ -715,6 +728,16 @@ export default {
     "veto": {
       "title": "Denne installation kan ikke gennemse online",
       "body": "Indstillingen er gemt, men netværksfunktioner er slået fra på denne server, og det vejer tungest. Installerede apps virker fortsat, og du kan stadig selv uploade en."
+    },
+    "columns": {
+      "title": "Opdater {app} til v{version}",
+      "subtitle": "Denne version skal bruge kolonner, som tabeller i din database ikke har endnu.",
+      "body": "Adminium kan tilføje dem for dig. Du ser den præcise sætning, før noget køres, intet fjernes, og appen opdateres først, når kolonnerne findes.",
+      "alsoCreates": "Opdateringen opretter også disse tabeller:",
+      "noDdl": "Adminium kan ikke tilføje disse kolonner her",
+      "failed": "Kolonnerne kunne ikke tilføjes",
+      "valuesFailed": "Kolonnerne blev tilføjet, men deres tilladte værdier kunne ikke gemmes",
+      "confirm": "Tilføj kolonnerne og opdater"
     }
   },
   "hub": {
@@ -753,7 +776,8 @@ export default {
       "failed": "Forbindelsen kunne ikke slettes. Prøv igen.",
       "prompt": "Skriv {name} for at bekræfte",
       "success": "Forbindelsen “{name}” er slettet",
-      "title": "Slet forbindelse"
+      "title": "Slet forbindelse",
+      "forbidden": "Din rolle omfatter ikke administration af forbindelser, så denne blev ikke slettet."
     },
     "empty": {
       "body": "Forbind en database, så genererer Adminium dit adminpanel ud fra dens skema.",
@@ -1163,7 +1187,8 @@ export default {
       "bodyGenerated": "Denne side stammer fra skemagenerering, så den kommer igen næste gang du genererer. Gemte visninger og personlige layouts slettes for alle.",
       "confirm": "Slet side",
       "prompt": "Skriv {slug} for at bekræfte",
-      "title": "Slet denne side?"
+      "title": "Slet denne side?",
+      "failed": "Siden blev ikke slettet"
     },
     "derived": {
       "add": "Tilføj kolonne",
@@ -1247,8 +1272,10 @@ export default {
       "slugTaken": "En anden side bruger allerede denne adresse.",
       "slugWarning": "Ændrer du adressen, går eksisterende links og bogmærker til siden i stykker.",
       "table": "Tabel",
-      "tableCreateHint": "Tabellen som denne side læser fra. Vælg en nu, så er siden klar til brug; lad den stå tom, og du kan knytte den senere.",
+      "tableChoose": "Vælg en tabel…",
+      "tableCreateHint": "Tabellen som denne side læser fra.",
       "tableNeedsConnection": "Vælg en datakilde først.",
+      "tableNoConnection": "Forbind en database først — denne side bygges ud fra en af dens tabeller.",
       "tableNone": "Ikke knyttet",
       "template": "Skabelon",
       "templateHint": "Afgør hvad siden kan indeholde. Kan ændres senere.",
@@ -1271,6 +1298,69 @@ export default {
       "subtitle": "De spørgsmål, værktøjslinjen kan stille om denne tabel. Urørt følger den tabellen.",
       "title": "Filtre",
       "up": "Flyt {column} op"
+    },
+    "fit": {
+      "alternatives": {
+        "title": "Brug en tabel, der allerede passer",
+        "help": "Der skrives intet til din database — siden peges blot på en tabel, der allerede har det nødvendige.",
+        "use": "Brug denne tabel"
+      },
+      "checkFailed": "Adminium kunne ikke tjekke denne tabel",
+      "checkFailedBody": "Du kan stadig oprette siden. Hvis tabellen ikke kan bære den, siger oprettelsen det.",
+      "columns": {
+        "title": "Tilføj det, der mangler, til denne tabel",
+        "help": "Adminium tilføjer disse kolonner til din tabel. Du ser den nøjagtige sætning, før noget køres, og intet fjernes.",
+        "review": "Se ændringen",
+        "confirm": "Kør den",
+        "failed": "Det virkede ikke",
+        "partial": "Én af de ting, siden mangler, kan ikke tilføjes for dig, så den vil stadig være ufuldstændig bagefter.",
+        "cannot": "Den her kan Adminium ikke tilføje for dig",
+        "cannotBody": "Denne side skal bruge en henvisning til en anden tabel, som skal sættes op under Studio → Skema.",
+        "halfDone": "Kolonnerne blev tilføjet, men Adminium kunne ikke notere, hvad de betyder",
+        "halfDoneBody": "Intet skal køres igen — kolonnerne findes. Angiv deres betydning under Studio → Skema, eller bed en administrator om det."
+      },
+      "needs": "For at bygge siden mangler tabellen:",
+      "noDdl": "Adminium kan ikke ændre denne tabel for dig",
+      "role": {
+        "eventDate": "en dato på hver række",
+        "title": "en tekstkolonne, der vises som hver rækkes titel",
+        "status": "en statuskolonne, hvis værdier beskriver arbejdstrin",
+        "personFk": "en henvisning til en tabel med personer",
+        "shiftType": "en kolonne, der angiver hvilken slags vagt hver række er"
+      },
+      "slotOnly": "Intet i denne tabel kan udfylde området “{slot}”.",
+      "tag": {
+        "title": "Brug en kolonne, du allerede har",
+        "help": "Dette noterer kun, hvad kolonnen betyder. Din database ændres ikke, og du kan fortryde det under Studio → Skema.",
+        "action": "Brug denne kolonne",
+        "failed": "Kolonnen kunne ikke markeres"
+      },
+      "title": "Denne tabel kan endnu ikke bære denne side",
+      "table": {
+        "title": "Opret en ny tabel til denne side",
+        "help": "Adminium opretter en tabel med alt, hvad denne side har brug for. Du ser den præcise sætning, før noget køres, og dine andre tabeller røres ikke.",
+        "open": "Eller opret en ny tabel til denne side",
+        "name": "Tabelnavn",
+        "nameTaken": "Der findes allerede en tabel med dette navn.",
+        "nameInvalid": "Brug små bogstaver, tal og understreger, og start med et bogstav.",
+        "people": "Tildel hver række til en person fra",
+        "peopleNew": "En ny tabel med personer",
+        "peopleCreated": "Opretter også “{table}”, en lille tabel over de personer, rækkerne tildeles.",
+        "noCompose": "En tabel med dette navn ville ikke virke til denne side. Prøv et andet navn.",
+        "confirm": "Opret tabellen",
+        "noDdl": "Adminium kan ikke oprette en tabel her",
+        "halfDone": "Tabellen blev oprettet, men Adminium kunne ikke gemme, hvad dens kolonner betyder",
+        "halfDoneBody": "Intet skal køres igen — tabellen findes. Angiv kolonnernes betydning i Studio → Skema, eller bed en administrator om det.",
+        "notReread": "Tabellen blev oprettet, men Adminium kunne ikke læse den ind igen endnu",
+        "notRereadBody": "Intet skal køres igen. Opdater skemaet fra Studio → Dataforbindelser, og vælg derefter den nye tabel her."
+      },
+      "related": {
+        "title": "Brug datoerne fra en tilknyttet tabel",
+        "help": "Der skrives intet til din database. Siden bygges på en tabel, der er knyttet til denne, og hver post viser et navn fra denne tabel.",
+        "reason": "Datoer fra “{date}”, hver med titlen “{title}” via “{via}”",
+        "chosen": "Bygget på {table}, hver post med titlen “{title}” fra {from}",
+        "undo": "Gå tilbage til {table}"
+      }
     },
     "form": {
       "addLines": "{label} som linjer",
@@ -1475,7 +1565,8 @@ export default {
       "narrow": "Smal (720 px)",
       "page": "Side (1080 px)",
       "wide": "Bred (1800 px)"
-    }
+    },
+    "toggleFailed": "Siden blev ikke ændret"
   },
   "project": {
     "actions": {
@@ -2266,7 +2357,10 @@ export default {
     "usedBytes": "{size} brugt"
   },
   "tables": {
+    "emptyBody": "Denne database har endnu ingen tabeller. Du kan stadig fortsætte — når du har oprettet tabeller, kan du hente dem ind med \"Introspicer igen\" på denne forbindelse.",
+    "emptyFileBody": "Denne skemafil definerer ingen tabeller. Gå tilbage og upload en anden fil, eller fortsæt alligevel.",
     "emptyFilter": "Ingen tabeller matcher dit filter.",
+    "emptyTitle": "Ingen tabeller fundet",
     "highVolume": "stor volumen",
     "highVolumeNote": "Tabeller med over 100.000 rækker starter fravalgt — driftstabeller hører sjældent hjemme i et dashboard.",
     "importNoCounts": "Skemafiler indeholder ingen rækkeantal — kolonnen viser —, indtil en live database er forbundet.",

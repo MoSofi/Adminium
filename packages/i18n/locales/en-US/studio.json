@@ -398,7 +398,15 @@
       "noteTitle": "What counts as a change",
       "updated": "When a row changes"
     },
-    "unbound": "Still to fill: {slots}"
+    "unbound": "Still to fill: {slots}",
+    "deleteConfirm": {
+      "title": "Delete this mapping?",
+      "body": "The rule that fires it goes too, and documents already drawn from it lose their link back. This cannot be undone.",
+      "prompt": "Type {name} to confirm",
+      "confirm": "Delete mapping"
+    },
+    "deleteFailed": "The mapping was not deleted",
+    "loadFailed": "The mappings could not be loaded"
   },
   "enrich": {
     "byo": {
@@ -454,6 +462,8 @@
     },
     "fileBody": "Schema-file sources have no snapshot to enrich yet. Connect a live database to use AI enrichment, or continue — the heuristic baseline still generates a complete app.",
     "fileTitle": "AI enrichment needs a live database",
+    "noTablesBody": "This database has no tables yet, so there is nothing for AI to label or group. Continue — once tables exist, you can run AI enrichment any time from Settings → AI.",
+    "noTablesTitle": "No tables to enrich",
     "generatePrompt": "Generate prompt",
     "intentLabel": "How would you like to enrich?",
     "localeLocked": "(required)",
@@ -601,7 +611,8 @@
         "toggleDdl": "Show the DDL preview",
         "ddl": "DDL preview",
         "ddlNote": "Illustrative. The server emits the exact statement for your engine, including foreign keys.",
-        "summary": "{created} created · {reused} reused"
+        "summary": "{created} created · {reused} reused",
+        "pageWarnings": "Some of this app’s pages will arrive without a table"
       },
       "done": {
         "title": "Installed",
@@ -649,7 +660,9 @@
       "needsNewer": "v{version} needs Adminium {minimum} or later",
       "missing": "Missing",
       "missingBody": "Its files are not on this server, so it is not served. Install the same version again, or uninstall it.",
-      "update": "Update"
+      "update": "Update",
+      "discardFailed": "The upload was not discarded",
+      "uninstallFailed": "The app was not uninstalled"
     },
     "instances": {
       "add": "Add an instance",
@@ -705,6 +718,16 @@
     "veto": {
       "title": "This deployment cannot browse online",
       "body": "The setting is saved, but network features are off for this server and that wins. Installed apps keep working, and you can still upload one yourself."
+    },
+    "columns": {
+      "title": "Update {app} to v{version}",
+      "subtitle": "This version needs columns that tables in your database do not have yet.",
+      "body": "Adminium can add them for you. You will see the exact statement before anything runs, nothing is removed, and the app is updated only once the columns exist.",
+      "alsoCreates": "The update also creates these tables:",
+      "noDdl": "Adminium cannot add these columns here",
+      "failed": "The columns could not be added",
+      "valuesFailed": "The columns were added, but their allowed values could not be recorded",
+      "confirm": "Add the columns and update"
     }
   },
   "hub": {
@@ -743,7 +766,8 @@
       "failed": "Could not delete the connection. Try again.",
       "prompt": "Type {name} to confirm",
       "success": "Connection “{name}” deleted",
-      "title": "Delete connection"
+      "title": "Delete connection",
+      "forbidden": "Your role does not include managing connections, so this one was not deleted."
     },
     "empty": {
       "body": "Connect a database and Adminium generates your admin panel from its schema.",
@@ -1153,7 +1177,8 @@
       "bodyGenerated": "This page was created by schema generation, so it will come back the next time you regenerate. Saved views and personal layouts on it are deleted for everyone.",
       "confirm": "Delete page",
       "prompt": "Type {slug} to confirm",
-      "title": "Delete this page?"
+      "title": "Delete this page?",
+      "failed": "The page was not deleted"
     },
     "derived": {
       "add": "Add column",
@@ -1237,8 +1262,10 @@
       "slugTaken": "Another page already uses this address.",
       "slugWarning": "Changing the address breaks existing links and bookmarks to this page.",
       "table": "Table",
-      "tableCreateHint": "The table this page reads. You can bind it later.",
+      "tableChoose": "Choose a table…",
+      "tableCreateHint": "The table this page reads.",
       "tableNeedsConnection": "Pick a data source first.",
+      "tableNoConnection": "Connect a database first — this page is built from one of its tables.",
       "tableNone": "Not bound",
       "template": "Template",
       "templateHint": "Decides what the page can hold. You can change it later.",
@@ -1261,6 +1288,69 @@
       "subtitle": "The questions the toolbar can ask about this table. Untouched, it follows the table.",
       "title": "Filters",
       "up": "Move {column} up"
+    },
+    "fit": {
+      "alternatives": {
+        "title": "Use a table that already fits",
+        "help": "Nothing is written to your database — this only points the page at a table that already has what it needs.",
+        "use": "Use this table"
+      },
+      "checkFailed": "Adminium could not check this table",
+      "checkFailedBody": "You can still create the page. If the table cannot back it, creating it will say so.",
+      "columns": {
+        "title": "Add what is missing to this table",
+        "help": "Adminium adds these columns to your table. You will see the exact statement before anything runs, and nothing is removed.",
+        "review": "Review the change",
+        "confirm": "Run it",
+        "failed": "That did not work",
+        "partial": "One thing this page needs cannot be added for you, so it will still be incomplete afterwards.",
+        "cannot": "Adminium cannot add this one for you",
+        "cannotBody": "This page needs a link to another table, which has to be set up in Studio → Schema.",
+        "halfDone": "The columns were added, but Adminium could not record what they mean",
+        "halfDoneBody": "Nothing needs running again — the columns exist. Set their meaning in Studio → Schema, or ask an administrator to."
+      },
+      "needs": "To build this page, the table needs:",
+      "noDdl": "Adminium cannot change this table for you",
+      "role": {
+        "eventDate": "a date on each row",
+        "title": "a text column to show as each row’s title",
+        "status": "a status column whose values read as workflow states",
+        "personFk": "a link to a table of people",
+        "shiftType": "a column saying which kind of shift each row is"
+      },
+      "slotOnly": "Nothing on this table can fill its “{slot}” area.",
+      "tag": {
+        "title": "Use a column you already have",
+        "help": "This only records what the column means. Your database is not changed, and you can undo it in Studio → Schema.",
+        "action": "Use this column",
+        "failed": "That column could not be marked"
+      },
+      "title": "This table cannot back this page yet",
+      "table": {
+        "title": "Start a new table for this page",
+        "help": "Adminium creates a table with everything this page needs. You will see the exact statement before anything runs, and your other tables are not touched.",
+        "open": "Or start a new table for this page",
+        "name": "Table name",
+        "nameTaken": "A table with this name already exists.",
+        "nameInvalid": "Use lowercase letters, numbers and underscores, starting with a letter.",
+        "people": "Assign each row to someone from",
+        "peopleNew": "A new table of people",
+        "peopleCreated": "Also creates “{table}”, a small table of the people rows are assigned to.",
+        "noCompose": "A table under this name would not work for this page. Try another name.",
+        "confirm": "Create the table",
+        "noDdl": "Adminium cannot create a table here",
+        "halfDone": "The table was created, but Adminium could not record what its columns mean",
+        "halfDoneBody": "Nothing needs running again — the table exists. Set its columns’ meaning in Studio → Schema, or ask an administrator to.",
+        "notReread": "The table was created, but Adminium could not read it back yet",
+        "notRereadBody": "Nothing needs running again. Refresh the schema from Studio → Data connections, then choose the new table here."
+      },
+      "related": {
+        "title": "Use the dates of a linked table",
+        "help": "Nothing is written to your database. The page is built on a table linked to this one, and each entry shows a name from this table.",
+        "reason": "Dates from “{date}”, each titled with “{title}” through “{via}”",
+        "chosen": "Built on {table}, each entry titled with “{title}” from {from}",
+        "undo": "Go back to {table}"
+      }
     },
     "form": {
       "addLines": "{label} as lines",
@@ -1465,7 +1555,8 @@
       "narrow": "Narrow (720px)",
       "page": "Page (1080px)",
       "wide": "Wide (1800px)"
-    }
+    },
+    "toggleFailed": "The page was not changed"
   },
   "project": {
     "actions": {
@@ -2256,7 +2347,10 @@
     "usedBytes": "{size} used"
   },
   "tables": {
+    "emptyBody": "This database has no tables yet. You can still continue — once you create tables, use Re-introspect on this connection to bring them in.",
+    "emptyFileBody": "This schema file defines no tables. Go back and upload a different file, or continue anyway.",
     "emptyFilter": "No tables match your filter.",
+    "emptyTitle": "No tables found",
     "highVolume": "high volume",
     "highVolumeNote": "Tables over 100,000 rows start unchecked — ops tables rarely belong in a dashboard.",
     "importNoCounts": "Schema files carry no row counts — the column shows — until a live database is connected.",

@@ -398,7 +398,15 @@
       "noteTitle": "Ce qui compte comme changement",
       "updated": "Quand une ligne change"
     },
-    "unbound": "Reste à remplir : {slots}"
+    "unbound": "Reste à remplir : {slots}",
+    "deleteConfirm": {
+      "title": "Supprimer ce mappage ?",
+      "body": "La règle qui le déclenche est aussi supprimée, et les documents déjà produits perdent leur lien vers lui. Cette action est irréversible.",
+      "prompt": "Saisissez {name} pour confirmer",
+      "confirm": "Supprimer le mappage"
+    },
+    "deleteFailed": "Le mappage n’a pas été supprimé",
+    "loadFailed": "Impossible de charger les mappages"
   },
   "enrich": {
     "byo": {
@@ -454,6 +462,8 @@
     },
     "fileBody": "Les sources de type fichier de schéma n’ont pas encore d’instantané à enrichir. Connectez une base de données active pour utiliser l’enrichissement par IA, ou continuez — la base heuristique génère tout de même une application complète.",
     "fileTitle": "L’enrichissement par IA nécessite une base de données active",
+    "noTablesBody": "Cette base de données n’a pas encore de tables : l’IA n’a donc rien à étiqueter ni à regrouper. Continuez — dès que des tables existeront, vous pourrez lancer l’enrichissement par IA à tout moment depuis Paramètres → IA.",
+    "noTablesTitle": "Aucune table à enrichir",
     "generatePrompt": "Générer l’invite",
     "intentLabel": "Comment souhaitez-vous enrichir ?",
     "localeLocked": "(requis)",
@@ -601,7 +611,8 @@
         "toggleDdl": "Afficher l’aperçu DDL",
         "ddl": "Aperçu DDL",
         "ddlNote": "À titre indicatif. Le serveur produit l’instruction exacte pour votre moteur, clés étrangères comprises.",
-        "summary": "{created} créées · {reused} réutilisées"
+        "summary": "{created} créées · {reused} réutilisées",
+        "pageWarnings": "Certaines pages de cette app arriveront sans table"
       },
       "done": {
         "title": "Installée",
@@ -649,7 +660,9 @@
       "needsNewer": "v{version} nécessite Adminium {minimum} ou plus récent",
       "missing": "Introuvable",
       "missingBody": "Ses fichiers ne sont pas sur ce serveur, elle n'est donc pas servie. Réinstallez la même version, ou désinstallez-la.",
-      "update": "Mettre à jour"
+      "update": "Mettre à jour",
+      "discardFailed": "Le téléversement n’a pas été abandonné",
+      "uninstallFailed": "L’application n’a pas été désinstallée"
     },
     "instances": {
       "add": "Ajouter une instance",
@@ -705,6 +718,16 @@
     "veto": {
       "title": "Ce déploiement ne peut pas consulter le catalogue en ligne",
       "body": "Le réglage est enregistré, mais les fonctions réseau sont coupées sur ce serveur et cela prime. Les applications installées continuent de fonctionner, et vous pouvez toujours en téléverser une."
+    },
+    "columns": {
+      "title": "Mettre à jour {app} vers v{version}",
+      "subtitle": "Cette version a besoin de colonnes que des tables de votre base de données n’ont pas encore.",
+      "body": "Adminium peut les ajouter pour vous. Vous verrez l’instruction exacte avant toute exécution, rien n’est supprimé, et l’app n’est mise à jour qu’une fois les colonnes créées.",
+      "alsoCreates": "La mise à jour crée aussi ces tables :",
+      "noDdl": "Adminium ne peut pas ajouter ces colonnes ici",
+      "failed": "Les colonnes n’ont pas pu être ajoutées",
+      "valuesFailed": "Les colonnes ont été ajoutées, mais leurs valeurs autorisées n’ont pas pu être enregistrées",
+      "confirm": "Ajouter les colonnes et mettre à jour"
     }
   },
   "hub": {
@@ -743,7 +766,8 @@
       "failed": "Impossible de supprimer la connexion. Réessayez.",
       "prompt": "Saisissez {name} pour confirmer",
       "success": "Connexion « {name} » supprimée",
-      "title": "Supprimer la connexion"
+      "title": "Supprimer la connexion",
+      "forbidden": "Votre rôle ne permet pas de gérer les connexions : celle-ci n’a donc pas été supprimée."
     },
     "empty": {
       "body": "Connectez une base de données : Adminium génère votre panneau d’administration à partir de son schéma.",
@@ -1153,7 +1177,8 @@
       "bodyGenerated": "Cette page provient de la génération du schéma : elle réapparaîtra à la prochaine génération. Les vues enregistrées et les dispositions personnelles sont supprimées pour tout le monde.",
       "confirm": "Supprimer la page",
       "prompt": "Saisissez {slug} pour confirmer",
-      "title": "Supprimer cette page ?"
+      "title": "Supprimer cette page ?",
+      "failed": "La page n’a pas été supprimée"
     },
     "derived": {
       "add": "Ajouter une colonne",
@@ -1237,8 +1262,10 @@
       "slugTaken": "Une autre page utilise déjà cette adresse.",
       "slugWarning": "Modifier l’adresse casse les liens et les favoris existants vers cette page.",
       "table": "Table",
-      "tableCreateHint": "La table que cette page lit. Choisissez-en une maintenant et la page est prête à l’emploi ; laissez vide pour la lier plus tard.",
+      "tableChoose": "Choisissez une table…",
+      "tableCreateHint": "La table que cette page lit.",
       "tableNeedsConnection": "Choisissez d’abord une source de données.",
+      "tableNoConnection": "Connectez d’abord une base de données — cette page est construite à partir de l’une de ses tables.",
       "tableNone": "Non liée",
       "template": "Modèle",
       "templateHint": "Détermine ce que la page peut contenir. Modifiable par la suite.",
@@ -1261,6 +1288,69 @@
       "subtitle": "Les questions que la barre d'outils peut poser sur cette table. Sans modification, elle suit la table.",
       "title": "Filtres",
       "up": "Déplacer {column} vers le haut"
+    },
+    "fit": {
+      "alternatives": {
+        "title": "Utiliser une table qui convient déjà",
+        "help": "Rien n’est écrit dans votre base de données — la page pointe simplement vers une table qui a déjà ce qu’il faut.",
+        "use": "Utiliser cette table"
+      },
+      "checkFailed": "Adminium n’a pas pu vérifier cette table",
+      "checkFailedBody": "Vous pouvez quand même créer la page. Si la table ne convient pas, la création vous le dira.",
+      "columns": {
+        "title": "Ajouter ce qui manque à cette table",
+        "help": "Adminium ajoute ces colonnes à votre table. Vous verrez l’instruction exacte avant toute exécution, et rien n’est supprimé.",
+        "review": "Voir la modification",
+        "confirm": "Exécuter",
+        "failed": "Cela n’a pas fonctionné",
+        "partial": "Une des choses dont cette page a besoin ne peut pas être ajoutée pour vous ; elle restera donc incomplète.",
+        "cannot": "Adminium ne peut pas ajouter celle-ci pour vous",
+        "cannotBody": "Cette page a besoin d’un lien vers une autre table, à configurer dans Studio → Schéma.",
+        "halfDone": "Les colonnes ont été ajoutées, mais Adminium n’a pas pu enregistrer leur signification",
+        "halfDoneBody": "Rien n’est à relancer — les colonnes existent. Définissez leur signification dans Studio → Schéma, ou demandez-le à un administrateur."
+      },
+      "needs": "Pour construire cette page, la table a besoin de :",
+      "noDdl": "Adminium ne peut pas modifier cette table pour vous",
+      "role": {
+        "eventDate": "une date sur chaque ligne",
+        "title": "une colonne de texte à afficher comme titre de chaque ligne",
+        "status": "une colonne de statut dont les valeurs décrivent des étapes de travail",
+        "personFk": "un lien vers une table de personnes",
+        "shiftType": "une colonne indiquant le type de créneau de chaque ligne"
+      },
+      "slotOnly": "Rien dans cette table ne peut remplir sa zone « {slot} ».",
+      "tag": {
+        "title": "Utiliser une colonne que vous avez déjà",
+        "help": "Cela enregistre seulement ce que signifie la colonne. Votre base de données n’est pas modifiée et vous pouvez annuler dans Studio → Schéma.",
+        "action": "Utiliser cette colonne",
+        "failed": "Cette colonne n’a pas pu être marquée"
+      },
+      "title": "Cette table ne peut pas encore alimenter cette page",
+      "table": {
+        "title": "Créer une nouvelle table pour cette page",
+        "help": "Adminium crée une table avec tout ce dont cette page a besoin. Vous verrez l’instruction exacte avant toute exécution, et vos autres tables ne sont pas modifiées.",
+        "open": "Ou créer une nouvelle table pour cette page",
+        "name": "Nom de la table",
+        "nameTaken": "Une table porte déjà ce nom.",
+        "nameInvalid": "Utilisez des minuscules, des chiffres et des tirets bas, en commençant par une lettre.",
+        "people": "Attribuer chaque ligne à une personne de",
+        "peopleNew": "Une nouvelle table de personnes",
+        "peopleCreated": "Crée aussi « {table} », une petite table des personnes auxquelles les lignes sont attribuées.",
+        "noCompose": "Une table portant ce nom ne fonctionnerait pas pour cette page. Essayez un autre nom.",
+        "confirm": "Créer la table",
+        "noDdl": "Adminium ne peut pas créer de table ici",
+        "halfDone": "La table a été créée, mais Adminium n’a pas pu enregistrer la signification de ses colonnes",
+        "halfDoneBody": "Rien n’est à relancer — la table existe. Définissez la signification de ses colonnes dans Studio → Schéma, ou demandez-le à un administrateur.",
+        "notReread": "La table a été créée, mais Adminium n’a pas encore pu la relire",
+        "notRereadBody": "Rien n’est à relancer. Actualisez le schéma depuis Studio → Connexions de données, puis choisissez ici la nouvelle table."
+      },
+      "related": {
+        "title": "Utiliser les dates d’une table liée",
+        "help": "Rien n’est écrit dans votre base de données. La page est construite sur une table liée à celle-ci, et chaque entrée affiche un nom provenant de cette table.",
+        "reason": "Dates tirées de « {date} », chacune intitulée avec « {title} » via « {via} »",
+        "chosen": "Construite sur {table}, chaque entrée intitulée avec « {title} » de {from}",
+        "undo": "Revenir à {table}"
+      }
     },
     "form": {
       "addLines": "{label} en lignes",
@@ -1465,7 +1555,8 @@
       "narrow": "Étroite (720 px)",
       "page": "Page (1080 px)",
       "wide": "Large (1800 px)"
-    }
+    },
+    "toggleFailed": "La page n’a pas été modifiée"
   },
   "project": {
     "actions": {
@@ -2256,7 +2347,10 @@
     "usedBytes": "{size} utilisés"
   },
   "tables": {
+    "emptyBody": "Cette base de données n’a pas encore de tables. Vous pouvez tout de même continuer — une fois les tables créées, utilisez « Réintrospecter » sur cette connexion pour les importer.",
+    "emptyFileBody": "Ce fichier de schéma ne définit aucune table. Revenez en arrière pour importer un autre fichier, ou continuez quand même.",
     "emptyFilter": "Aucune table ne correspond à votre filtre.",
+    "emptyTitle": "Aucune table trouvée",
     "highVolume": "gros volume",
     "highVolumeNote": "Les tables de plus de 100 000 lignes démarrent décochées — les tables techniques ont rarement leur place dans un tableau de bord.",
     "importNoCounts": "Les fichiers de schéma ne contiennent pas de nombres de lignes — la colonne affiche — tant qu’aucune base réelle n’est connectée.",

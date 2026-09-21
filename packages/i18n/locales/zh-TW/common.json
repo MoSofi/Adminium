@@ -109,7 +109,8 @@
     "apiKeys": "API 金鑰",
     "audit": "稽核紀錄",
     "security": "密碼與工作階段",
-    "files": "檔案"
+    "files": "檔案",
+    "emptyWithheld": "尚未有頁面分享給您的角色。請向管理員申請存取權限。"
   },
   "apps": {
     "frame": {
@@ -266,6 +267,14 @@
     "noMatches": "沒有符合「{query}」的頁面"
   },
   "page": {
+    "emptyLayout": {
+      "title": "此頁面尚無內容可顯示",
+      "board": "將其繫結到含狀態欄的資料表，其中的列便會成為依欄分組的卡片。",
+      "calendar": "將其繫結到含日期欄的資料表，其中的列便會成為月檢視格線上的事件。",
+      "scheduler": "將其繫結到含日期欄與排班人員的資料表，其中的列便會成為時間軸上的班次。",
+      "action": "開啟頁面設定",
+      "askAdmin": "請聯絡管理員完成設定。"
+    },
     "invalid": {
       "title": "此頁面的組態無效",
       "body": "儲存的頁面文件未通過驗證，無法呈現。"
@@ -1310,7 +1319,9 @@
     },
     "empty": {
       "title": "沒有看板欄",
-      "body": "新增狀態欄位，將卡片分組到欄中。"
+      "body": "新增狀態欄位，將卡片分組到欄中。",
+      "noRowsTitle": "還沒有卡片",
+      "noRowsBody": "資料表中一有列，卡片就會顯示在這裡。"
     }
   },
   "calendar": {
@@ -1319,7 +1330,9 @@
       "placeholder": "事件標題…",
       "add": "新增",
       "cancel": "取消",
-      "open": "新增事件"
+      "open": "新增事件",
+      "choose": "此事件的對象",
+      "choosePlaceholder": "請選擇…"
     },
     "agenda": {
       "empty": "尚無排程"
@@ -1577,7 +1590,8 @@
       "access": "存取",
       "data": "資料",
       "operations": "維運",
-      "workspace": "工作區"
+      "workspace": "工作區",
+      "records": "頁面與記錄"
     },
     "column": {
       "actions": "操作",
@@ -1653,7 +1667,18 @@
       "title": "有部分角色無法儲存"
     },
     "subtitle": "每個角色可以做什麼。使用者會取得他所擁有的所有角色的權限總和。",
-    "title": "角色與權限"
+    "title": "角色與權限",
+    "data": {
+      "pagesView": "檢視所有頁面",
+      "read": "讀取記錄",
+      "create": "建立記錄",
+      "update": "編輯記錄",
+      "delete": "刪除記錄",
+      "export": "匯出記錄",
+      "import": "匯入記錄",
+      "pagesEdit": "變更頁面版面",
+      "narrow": "另有 {count, plural, other {# 項}}針對單一頁面或資料表的授權同樣生效，疊加在下方各列之上。儲存時會保留它們。"
+    }
   },
   "security": {
     "password": {
@@ -1783,7 +1808,8 @@
       "body": "這會抹除 {name} 的帳戶、他們的偏好設定與登入工作階段，並把他們變更過的設定紀錄中的姓名清空。改用「停權」則會保留上述全部內容，只是讓他們無法登入。此操作無法復原。",
       "confirm": "永久刪除",
       "prompt": "輸入「{email}」以確認",
-      "title": "永久刪除帳戶"
+      "title": "永久刪除帳戶",
+      "failed": "未刪除該帳戶"
     },
     "roles": {
       "unavailable": "你的帳戶無法檢視角色，因此無法在這裡指派任何角色。"
@@ -1803,7 +1829,8 @@
     "subtitle": "誰在這個 Adminium 上擁有帳戶，以及他們各自可以做什麼。",
     "title": "團隊",
     "twoFactorOn": "已啟用兩步驟驗證",
-    "twoFactorShort": "2FA"
+    "twoFactorShort": "2FA",
+    "actionFailed": "未能完成此變更"
   },
   "invoices": {
     "copySuffix": "{name}（副本）",

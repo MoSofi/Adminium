@@ -408,7 +408,15 @@ export default {
       "noteTitle": "Co se počítá jako změna",
       "updated": "Když se řádek změní"
     },
-    "unbound": "Ještě vyplnit: {slots}"
+    "unbound": "Ještě vyplnit: {slots}",
+    "deleteConfirm": {
+      "title": "Smazat toto mapování?",
+      "body": "Smaže se i pravidlo, které ho spouští, a dokumenty z něj již vytvořené ztratí zpětný odkaz. Tuto akci nelze vrátit.",
+      "prompt": "Pro potvrzení napište {name}",
+      "confirm": "Smazat mapování"
+    },
+    "deleteFailed": "Mapování nebylo smazáno",
+    "loadFailed": "Mapování se nepodařilo načíst"
   },
   "enrich": {
     "byo": {
@@ -464,6 +472,8 @@ export default {
     },
     "fileBody": "Zdroje ze souboru se schématem zatím nemají snímek k obohacení. Připojte živou databázi pro obohacení pomocí AI, nebo pokračujte — heuristický základ i tak vygeneruje kompletní aplikaci.",
     "fileTitle": "Obohacení pomocí AI vyžaduje živou databázi",
+    "noTablesBody": "Tato databáze zatím nemá žádné tabulky, takže AI nemá co popsat ani seskupit. Pokračujte — jakmile tabulky budou existovat, můžete obohacení pomocí AI kdykoli spustit v Nastavení → AI.",
+    "noTablesTitle": "Žádné tabulky k obohacení",
     "generatePrompt": "Vygenerovat prompt",
     "intentLabel": "Jak chcete obohatit?",
     "localeLocked": "(povinné)",
@@ -611,7 +621,8 @@ export default {
         "toggleDdl": "Zobrazit náhled DDL",
         "ddl": "Náhled DDL",
         "ddlNote": "Orientační. Server vytvoří přesný příkaz pro váš stroj včetně cizích klíčů.",
-        "summary": "{created} vytvořeno · {reused} znovu použito"
+        "summary": "{created} vytvořeno · {reused} znovu použito",
+        "pageWarnings": "Některé stránky této aplikace dorazí bez tabulky"
       },
       "done": {
         "title": "Nainstalováno",
@@ -659,7 +670,9 @@ export default {
       "needsNewer": "v{version} vyžaduje Adminium {minimum} nebo novější",
       "missing": "Chybí",
       "missingBody": "Její soubory na tomto serveru nejsou, takže se neservíruje. Nainstalujte stejnou verzi znovu, nebo ji odinstalujte.",
-      "update": "Aktualizovat"
+      "update": "Aktualizovat",
+      "discardFailed": "Nahraný soubor nebyl zahozen",
+      "uninstallFailed": "Aplikace nebyla odinstalována"
     },
     "instances": {
       "add": "Přidat instanci",
@@ -715,6 +728,16 @@ export default {
     "veto": {
       "title": "Toto nasazení nemůže procházet online",
       "body": "Nastavení je uložené, ale síťové funkce jsou na tomto serveru vypnuté a to má přednost. Nainstalované aplikace dál fungují a stále můžete aplikaci nahrát sami."
+    },
+    "columns": {
+      "title": "Aktualizovat {app} na v{version}",
+      "subtitle": "Tato verze potřebuje sloupce, které tabulky ve vaší databázi zatím nemají.",
+      "body": "Adminium je může přidat za vás. Než se cokoli spustí, uvidíte přesný příkaz, nic se neodstraní a aplikace se aktualizuje až poté, co sloupce existují.",
+      "alsoCreates": "Aktualizace také vytvoří tyto tabulky:",
+      "noDdl": "Adminium zde tyto sloupce nemůže přidat",
+      "failed": "Sloupce se nepodařilo přidat",
+      "valuesFailed": "Sloupce byly přidány, ale jejich povolené hodnoty se nepodařilo uložit",
+      "confirm": "Přidat sloupce a aktualizovat"
     }
   },
   "hub": {
@@ -753,7 +776,8 @@ export default {
       "failed": "Připojení se nepodařilo smazat. Zkuste to znovu.",
       "prompt": "Potvrďte zadáním {name}",
       "success": "Připojení „{name}“ smazáno",
-      "title": "Smazat připojení"
+      "title": "Smazat připojení",
+      "forbidden": "Vaše role nezahrnuje správu připojení, proto toto připojení nebylo smazáno."
     },
     "empty": {
       "body": "Připojte databázi a Adminium z jejího schématu vygeneruje váš administrační panel.",
@@ -1163,7 +1187,8 @@ export default {
       "bodyGenerated": "Tato stránka vznikla generováním ze schématu, takže se při dalším generování vrátí. Uložená zobrazení a osobní rozvržení budou smazána všem.",
       "confirm": "Smazat stránku",
       "prompt": "Pro potvrzení napište {slug}",
-      "title": "Smazat tuto stránku?"
+      "title": "Smazat tuto stránku?",
+      "failed": "Stránka nebyla smazána"
     },
     "derived": {
       "add": "Přidat sloupec",
@@ -1247,8 +1272,10 @@ export default {
       "slugTaken": "Tuto adresu už používá jiná stránka.",
       "slugWarning": "Změna adresy rozbije stávající odkazy a záložky na tuto stránku.",
       "table": "Tabulka",
-      "tableCreateHint": "Tabulka, ze které stránka čte. Vyberte ji hned a stránka bude rovnou použitelná; bez výběru ji můžete připojit později.",
+      "tableChoose": "Vyberte tabulku…",
+      "tableCreateHint": "Tabulka, ze které stránka čte.",
       "tableNeedsConnection": "Nejprve vyberte zdroj dat.",
+      "tableNoConnection": "Nejprve připojte databázi — tato stránka se sestavuje z jedné z jejích tabulek.",
       "tableNone": "Nepřipojeno",
       "template": "Šablona",
       "templateHint": "Určuje, co stránka může obsahovat. Lze změnit později.",
@@ -1271,6 +1298,69 @@ export default {
       "subtitle": "Otázky, které může panel nástrojů klást o této tabulce. Bez úprav sleduje tabulku.",
       "title": "Filtry",
       "up": "Posunout {column} nahoru"
+    },
+    "fit": {
+      "alternatives": {
+        "title": "Použít tabulku, která už vyhovuje",
+        "help": "Do vaší databáze se nic nezapisuje — stránka se jen nasměruje na tabulku, která už má, co je potřeba.",
+        "use": "Použít tuto tabulku"
+      },
+      "checkFailed": "Adminium nemohlo tuto tabulku zkontrolovat",
+      "checkFailedBody": "Stránku můžete přesto vytvořit. Pokud ji tabulka neunese, vytvoření to oznámí.",
+      "columns": {
+        "title": "Přidat do této tabulky, co chybí",
+        "help": "Adminium přidá do vaší tabulky tyto sloupce. Přesný příkaz uvidíte dříve, než se cokoli spustí, a nic se neodstraňuje.",
+        "review": "Zobrazit změnu",
+        "confirm": "Spustit",
+        "failed": "To se nepovedlo",
+        "partial": "Jednu věc, kterou tato stránka potřebuje, za vás přidat nelze — zůstane tedy nekompletní.",
+        "cannot": "Tohle za vás Adminium přidat nemůže",
+        "cannotBody": "Tato stránka potřebuje odkaz na jinou tabulku, který je třeba nastavit v Studio → Schéma.",
+        "halfDone": "Sloupce byly přidány, ale Adminium nemohlo zaznamenat jejich význam",
+        "halfDoneBody": "Nic není třeba spouštět znovu — sloupce existují. Nastavte jejich význam v Studio → Schéma, nebo o to požádejte správce."
+      },
+      "needs": "Aby šla stránka sestavit, tabulka potřebuje:",
+      "noDdl": "Adminium nemůže tuto tabulku změnit za vás",
+      "role": {
+        "eventDate": "datum u každého řádku",
+        "title": "textový sloupec, který se zobrazí jako název řádku",
+        "status": "stavový sloupec, jehož hodnoty odpovídají krokům postupu",
+        "personFk": "odkaz na tabulku osob",
+        "shiftType": "sloupec určující, o jaký typ směny jde"
+      },
+      "slotOnly": "Nic v této tabulce nedokáže naplnit oblast „{slot}“.",
+      "tag": {
+        "title": "Použít sloupec, který už máte",
+        "help": "Zaznamená se pouze význam sloupce. Vaše databáze se nemění a v Studio → Schéma to lze vrátit zpět.",
+        "action": "Použít tento sloupec",
+        "failed": "Tento sloupec se nepodařilo označit"
+      },
+      "title": "Tato tabulka zatím nemůže tuto stránku naplnit",
+      "table": {
+        "title": "Založit pro tuto stránku novou tabulku",
+        "help": "Adminium vytvoří tabulku se vším, co tato stránka potřebuje. Než se cokoli spustí, uvidíte přesný příkaz, a vaše ostatní tabulky zůstanou beze změny.",
+        "open": "Nebo pro tuto stránku založit novou tabulku",
+        "name": "Název tabulky",
+        "nameTaken": "Tabulka s tímto názvem už existuje.",
+        "nameInvalid": "Použijte malá písmena, číslice a podtržítka a začněte písmenem.",
+        "people": "Každý řádek přiřadit někomu z",
+        "peopleNew": "Nové tabulky osob",
+        "peopleCreated": "Vytvoří také „{table}“, malou tabulku osob, kterým se řádky přiřazují.",
+        "noCompose": "Tabulka s tímto názvem by pro tuto stránku nefungovala. Zkuste jiný název.",
+        "confirm": "Vytvořit tabulku",
+        "noDdl": "Adminium zde nemůže vytvořit tabulku",
+        "halfDone": "Tabulka byla vytvořena, ale Adminium nemohlo uložit význam jejích sloupců",
+        "halfDoneBody": "Nic není třeba spouštět znovu — tabulka existuje. Nastavte význam jejích sloupců ve Studio → Schéma, nebo o to požádejte administrátora.",
+        "notReread": "Tabulka byla vytvořena, ale Adminium ji zatím nemohlo znovu načíst",
+        "notRereadBody": "Nic není třeba spouštět znovu. Obnovte schéma ve Studio → Datová připojení a pak zde vyberte novou tabulku."
+      },
+      "related": {
+        "title": "Použít data propojené tabulky",
+        "help": "Do vaší databáze se nic nezapisuje. Stránka se sestaví nad tabulkou propojenou s touto a každá položka zobrazí název z této tabulky.",
+        "reason": "Data z „{date}“, každá s názvem „{title}“ přes „{via}“",
+        "chosen": "Sestaveno nad {table}, každá položka s názvem „{title}“ z {from}",
+        "undo": "Zpět na {table}"
+      }
     },
     "form": {
       "addLines": "{label} jako řádky",
@@ -1475,7 +1565,8 @@ export default {
       "narrow": "Úzká (720 px)",
       "page": "Stránka (1080 px)",
       "wide": "Široká (1800 px)"
-    }
+    },
+    "toggleFailed": "Stránka nebyla změněna"
   },
   "project": {
     "actions": {
@@ -2266,7 +2357,10 @@ export default {
     "usedBytes": "{size} využito"
   },
   "tables": {
+    "emptyBody": "Tato databáze zatím nemá žádné tabulky. Přesto můžete pokračovat — jakmile tabulky vytvoříte, načtěte je pomocí „Znovu introspektovat“ u tohoto připojení.",
+    "emptyFileBody": "Tento soubor schématu nedefinuje žádné tabulky. Vraťte se a nahrajte jiný soubor, nebo přesto pokračujte.",
     "emptyFilter": "Žádné tabulky neodpovídají filtru.",
+    "emptyTitle": "Nenalezeny žádné tabulky",
     "highVolume": "velký objem",
     "highVolumeNote": "Tabulky s více než 100 000 řádky začínají odškrtnuté — provozní tabulky do nástěnky patří jen zřídka.",
     "importNoCounts": "Soubory se schématem neobsahují počty řádků — sloupec zobrazuje —, dokud nepřipojíte živou databázi.",

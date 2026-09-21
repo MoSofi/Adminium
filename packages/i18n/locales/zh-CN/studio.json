@@ -398,7 +398,15 @@
       "noteTitle": "什么算作变更",
       "updated": "某行变更时"
     },
-    "unbound": "仍需填写：{slots}"
+    "unbound": "仍需填写：{slots}",
+    "deleteConfirm": {
+      "title": "删除此映射？",
+      "body": "触发它的规则也会一并删除，已据此生成的文档将失去回链。此操作无法撤销。",
+      "prompt": "输入 {name} 以确认",
+      "confirm": "删除映射"
+    },
+    "deleteFailed": "未删除该映射",
+    "loadFailed": "无法加载映射"
   },
   "enrich": {
     "byo": {
@@ -454,6 +462,8 @@
     },
     "fileBody": "架构文件来源尚无可丰富的快照。连接一个在线数据库以使用 AI 丰富，或继续——启发式基线仍会生成完整的应用。",
     "fileTitle": "AI 丰富需要一个在线数据库",
+    "noTablesBody": "此数据库还没有任何表，因此 AI 没有可标注或分组的内容。请继续——表创建后，您可以随时在“设置 → AI”中运行 AI 增强。",
+    "noTablesTitle": "没有可增强的表",
     "generatePrompt": "生成提示",
     "intentLabel": "你希望如何丰富？",
     "localeLocked": "（必填）",
@@ -601,7 +611,8 @@
         "toggleDdl": "显示 DDL 预览",
         "ddl": "DDL 预览",
         "ddlNote": "仅供参考。服务器会为你的数据库引擎生成确切语句，包括外键。",
-        "summary": "创建 {created} · 复用 {reused}"
+        "summary": "创建 {created} · 复用 {reused}",
+        "pageWarnings": "此应用的部分页面将在没有表的情况下创建"
       },
       "done": {
         "title": "已安装",
@@ -649,7 +660,9 @@
       "needsNewer": "v{version} 需要 Adminium {minimum} 或更高版本",
       "missing": "缺失",
       "missingBody": "它的文件不在此服务器上，因此无法提供服务。请重新安装相同版本，或将其卸载。",
-      "update": "更新"
+      "update": "更新",
+      "discardFailed": "未丢弃该上传",
+      "uninstallFailed": "未卸载该应用"
     },
     "instances": {
       "add": "添加实例",
@@ -705,6 +718,16 @@
     "veto": {
       "title": "此部署无法在线浏览",
       "body": "设置已保存，但此服务器关闭了网络功能，以此为准。已安装的应用仍可使用，你也仍可以自行上传应用。"
+    },
+    "columns": {
+      "title": "将 {app} 更新到 v{version}",
+      "subtitle": "此版本需要数据库中某些表尚未包含的列。",
+      "body": "Adminium 可以为您添加这些列。执行任何操作前您都会看到确切的语句，不会删除任何内容，且只有在列创建后才会更新应用。",
+      "alsoCreates": "此更新还会创建以下表：",
+      "noDdl": "Adminium 无法在此添加这些列",
+      "failed": "无法添加这些列",
+      "valuesFailed": "列已添加，但无法记录其允许的值",
+      "confirm": "添加列并更新"
     }
   },
   "hub": {
@@ -743,7 +766,8 @@
       "failed": "无法删除连接，请重试。",
       "prompt": "输入 {name} 以确认",
       "success": "连接“{name}”已删除",
-      "title": "删除连接"
+      "title": "删除连接",
+      "forbidden": "您的角色不包含管理连接的权限，因此未删除此连接。"
     },
     "empty": {
       "body": "连接数据库后，Adminium 会根据其架构生成您的管理面板。",
@@ -1153,7 +1177,8 @@
       "bodyGenerated": "此页面由架构生成创建，下次重新生成时会再次出现。已保存的视图和个人布局将对所有人删除。",
       "confirm": "删除页面",
       "prompt": "输入 {slug} 以确认",
-      "title": "确定删除此页面吗？"
+      "title": "确定删除此页面吗？",
+      "failed": "未删除该页面"
     },
     "derived": {
       "add": "添加列",
@@ -1237,8 +1262,10 @@
       "slugTaken": "已有其他页面使用该地址。",
       "slugWarning": "修改地址会导致指向此页面的现有链接和书签失效。",
       "table": "数据表",
-      "tableCreateHint": "此页面读取的数据表。现在选择即可直接使用；留空则可稍后再绑定。",
+      "tableChoose": "选择数据表…",
+      "tableCreateHint": "此页面读取的数据表。",
       "tableNeedsConnection": "请先选择数据源。",
+      "tableNoConnection": "请先连接数据库，此页面由其中一个数据表构建。",
       "tableNone": "未绑定",
       "template": "模板",
       "templateHint": "决定页面可以承载哪些内容，之后可以更改。",
@@ -1261,6 +1288,69 @@
       "subtitle": "工具栏可以对此表提出的问题。未改动时，它跟随表。",
       "title": "筛选",
       "up": "上移 {column}"
+    },
+    "fit": {
+      "alternatives": {
+        "title": "使用一个已经适用的表",
+        "help": "不会向你的数据库写入任何内容——只是让该页面指向一个已具备所需内容的表。",
+        "use": "使用此表"
+      },
+      "checkFailed": "Adminium 无法检查此表",
+      "checkFailedBody": "你仍然可以创建该页面。如果此表不适用，创建时会告知你。",
+      "columns": {
+        "title": "为此表补上缺少的内容",
+        "help": "Adminium 会向你的表中添加这些列。在执行之前你会看到确切的语句，而且不会删除任何内容。",
+        "review": "查看更改",
+        "confirm": "执行",
+        "failed": "操作未成功",
+        "partial": "此页面所需的其中一项无法为你添加，因此之后仍会不完整。",
+        "cannot": "这一项 Adminium 无法为你添加",
+        "cannotBody": "此页面需要指向另一个表的关联，需要在 Studio → 结构 中设置。",
+        "halfDone": "列已添加，但 Adminium 无法记录它们的含义",
+        "halfDoneBody": "无需重新执行——这些列已存在。请在 Studio → 结构 中设置它们的含义，或请管理员代为设置。"
+      },
+      "needs": "要构建此页面，该表还需要：",
+      "noDdl": "Adminium 无法为你修改此表",
+      "role": {
+        "eventDate": "每行一个日期",
+        "title": "一个用作每行标题的文本列",
+        "status": "一个状态列，其取值表示工作流程阶段",
+        "personFk": "指向人员表的关联",
+        "shiftType": "一个说明每行属于哪种班次的列"
+      },
+      "slotOnly": "此表中没有内容可以填充“{slot}”区域。",
+      "tag": {
+        "title": "使用你已有的列",
+        "help": "这只记录该列的含义。你的数据库不会被修改，并且可以在 Studio → 结构 中撤销。",
+        "action": "使用此列",
+        "failed": "无法标记该列"
+      },
+      "title": "此表暂时无法支撑该页面",
+      "table": {
+        "title": "为此页面新建一个表",
+        "help": "Adminium 会创建一个包含此页面所需全部内容的表。执行任何操作前，您都会看到确切的语句，且不会改动您的其他表。",
+        "open": "或为此页面新建一个表",
+        "name": "表名",
+        "nameTaken": "已存在同名的表。",
+        "nameInvalid": "请使用小写字母、数字和下划线，并以字母开头。",
+        "people": "将每一行分配给以下表中的人员",
+        "peopleNew": "一个新的人员表",
+        "peopleCreated": "还会创建“{table}”，一个记录行所分配人员的小表。",
+        "noCompose": "使用此名称的表无法用于此页面。请换一个名称。",
+        "confirm": "创建表",
+        "noDdl": "Adminium 无法在此创建表",
+        "halfDone": "表已创建，但 Adminium 无法记录其列的含义",
+        "halfDoneBody": "无需再次运行——表已存在。请在 Studio → 架构 中设置其列的含义，或请管理员设置。",
+        "notReread": "表已创建，但 Adminium 暂时无法重新读取它",
+        "notRereadBody": "无需再次运行。请在 Studio → 数据连接 中刷新架构，然后在此选择新表。"
+      },
+      "related": {
+        "title": "使用关联表的日期",
+        "help": "不会向您的数据库写入任何内容。页面基于与此表关联的表构建，每个条目显示此表中的名称。",
+        "reason": "日期来自“{date}”，每项以“{title}”为标题（通过“{via}”）",
+        "chosen": "基于 {table} 构建，每个条目以 {from} 的“{title}”为标题",
+        "undo": "返回 {table}"
+      }
     },
     "form": {
       "addLines": "{label}（明细行）",
@@ -1465,7 +1555,8 @@
       "narrow": "窄（720px）",
       "page": "页面（1080px）",
       "wide": "宽（1800px）"
-    }
+    },
+    "toggleFailed": "未更改该页面"
   },
   "project": {
     "actions": {
@@ -2256,7 +2347,10 @@
     "usedBytes": "已用 {size}"
   },
   "tables": {
+    "emptyBody": "此数据库还没有任何表。您仍然可以继续——创建表后，在此连接上使用“重新内省”即可将其导入。",
+    "emptyFileBody": "此架构文件未定义任何表。请返回并上传其他文件，或直接继续。",
     "emptyFilter": "没有匹配筛选条件的表。",
+    "emptyTitle": "未找到表",
     "highVolume": "高数据量",
     "highVolumeNote": "超过 100,000 行的表默认不勾选——运维类表很少适合放进仪表板。",
     "importNoCounts": "架构文件不包含行数——在连接实时数据库之前，该列显示 —。",

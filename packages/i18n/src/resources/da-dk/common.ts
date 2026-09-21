@@ -119,7 +119,8 @@ export default {
     "apiKeys": "API-nøgler",
     "audit": "Auditlog",
     "security": "Adgangskode og sessioner",
-    "files": "Filer"
+    "files": "Filer",
+    "emptyWithheld": "Der er endnu ikke delt nogen sider med din rolle. Bed en administrator om adgang."
   },
   "apps": {
     "frame": {
@@ -276,6 +277,14 @@ export default {
     "noMatches": "Ingen sider matcher „{query}“"
   },
   "page": {
+    "emptyLayout": {
+      "title": "Denne side har endnu intet at vise",
+      "board": "Knyt den til en tabel med en statuskolonne, så bliver dens rækker til kort grupperet i kolonner.",
+      "calendar": "Knyt den til en tabel med en datokolonne, så bliver dens rækker til begivenheder i månedsgitteret.",
+      "scheduler": "Knyt den til en tabel med en datokolonne og den person, der planlægges, så bliver dens rækker til vagter på en tidslinje.",
+      "action": "Åbn sideindstillinger",
+      "askAdmin": "Bed en administrator om at gøre opsætningen færdig."
+    },
     "invalid": {
       "title": "Denne sides konfiguration er ugyldig",
       "body": "Det gemte sidedokument bestod ikke valideringen og kan ikke vises."
@@ -1320,7 +1329,9 @@ export default {
     },
     "empty": {
       "title": "Ingen tavlekolonner",
-      "body": "Tilføj et statusfelt for at gruppere kort i kolonner."
+      "body": "Tilføj et statusfelt for at gruppere kort i kolonner.",
+      "noRowsTitle": "Ingen kort endnu",
+      "noRowsBody": "Kort vises her, så snart tabellen har rækker."
     }
   },
   "calendar": {
@@ -1329,7 +1340,9 @@ export default {
       "placeholder": "Begivenhedstitel…",
       "add": "Tilføj",
       "cancel": "Annuller",
-      "open": "Tilføj begivenhed"
+      "open": "Tilføj begivenhed",
+      "choose": "Hvad denne begivenhed gælder",
+      "choosePlaceholder": "Vælg…"
     },
     "agenda": {
       "empty": "Intet planlagt"
@@ -1587,7 +1600,8 @@ export default {
       "access": "Adgang",
       "data": "Data",
       "operations": "Drift",
-      "workspace": "Arbejdsområde"
+      "workspace": "Arbejdsområde",
+      "records": "Sider og poster"
     },
     "column": {
       "actions": "Handlinger",
@@ -1663,7 +1677,18 @@ export default {
       "title": "Ikke alle roller kunne gemmes"
     },
     "subtitle": "Hvad hver rolle må. En bruger får summen af alle de roller, vedkommende har.",
-    "title": "Roller og rettigheder"
+    "title": "Roller og rettigheder",
+    "data": {
+      "pagesView": "Se alle sider",
+      "read": "Læse poster",
+      "create": "Oprette poster",
+      "update": "Redigere poster",
+      "delete": "Slette poster",
+      "export": "Eksportere poster",
+      "import": "Importere poster",
+      "pagesEdit": "Ændre sidelayout",
+      "narrow": "{count, plural, one {# tilladelse} other {# tilladelser}} på en enkelt side eller tabel gælder også, ud over rækkerne nedenfor. De bevares, når du gemmer."
+    }
   },
   "security": {
     "password": {
@@ -1793,7 +1818,8 @@ export default {
       "body": "Dette sletter {name}s konto, vedkommendes præferencer og login-sessioner og fjerner navnet fra registreringen af de indstillinger, vedkommende har ændret. Suspenderer du i stedet, bevares det hele, og vedkommende forhindres blot i at logge ind. Det kan ikke fortrydes.",
       "confirm": "Slet permanent",
       "prompt": "Skriv „{email}“ for at bekræfte",
-      "title": "Slet kontoen permanent"
+      "title": "Slet kontoen permanent",
+      "failed": "Kontoen blev ikke slettet"
     },
     "roles": {
       "unavailable": "Roller er ikke synlige for din konto, så ingen kan tildeles her."
@@ -1813,7 +1839,8 @@ export default {
     "subtitle": "Hvem der har en konto på dette Adminium, og hvad hver enkelt kan.",
     "title": "Team",
     "twoFactorOn": "Tofaktorgodkendelse er slået til",
-    "twoFactorShort": "2FA"
+    "twoFactorShort": "2FA",
+    "actionFailed": "Ændringen blev ikke foretaget"
   },
   "invoices": {
     "copySuffix": "{name} (kopi)",

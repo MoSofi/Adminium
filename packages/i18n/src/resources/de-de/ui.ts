@@ -1784,6 +1784,11 @@ export default {
       "backToLatest": "Zurück zu den neuesten",
       "eventFallback": "Ereignis"
     },
+    "board": {
+      "invalidLayout": "Das gespeicherte Layout dieses Boards ist ungültig. Generieren Sie die Seite neu oder setzen Sie das Layout zurück.",
+      "noRowsTitle": "Noch keine Karten",
+      "noRowsBody": "Karten erscheinen hier, sobald die Tabelle Zeilen hat."
+    },
     "calendar": {
       "eventCount": "{count, plural, one {{n} Termin} other {{n} Termine}}",
       "composePlaceholder": "Termintitel…",
@@ -1792,7 +1797,9 @@ export default {
       "agendaTitle": "Agenda",
       "categoriesTitle": "Kategorien",
       "upcomingTitle": "Anstehend",
-      "invalidLayout": "Das gespeicherte Layout dieses Kalenders ist ungültig. Generieren Sie die Seite neu oder setzen Sie das Layout zurück."
+      "invalidLayout": "Das gespeicherte Layout dieses Kalenders ist ungültig. Generieren Sie die Seite neu oder setzen Sie das Layout zurück.",
+      "composeChoose": "Wofür dieser Termin ist",
+      "composeChoosePlaceholder": "Auswählen…"
     },
     "scheduler": {
       "previousWeek": "Vorherige Woche",
@@ -1883,6 +1890,13 @@ export default {
     },
     "pageRecord": {
       "description": "Ein Datensatz als eigene Seite: seine Felder, verknüpfte Datensätze mit Live-Zählern und seine Änderungshistorie."
+    },
+    "planning": {
+      "unplaced": {
+        "calendar": "Noch keine Zeile dieser Tabelle hat ein Datum, deshalb ist der Kalender leer. Eine Zeile erscheint hier, sobald sie eines hat.",
+        "board": "Noch keine Zeile dieser Tabelle hat einen Status, deshalb ist das Board leer. Eine Zeile erscheint hier, sobald sie einen hat.",
+        "scheduler": "Noch keine Zeile dieser Tabelle hat eine Person, ein Datum und eine Schichtart, deshalb ist der Plan leer. Eine Zeile erscheint hier, sobald sie alle drei hat."
+      }
     }
   },
   "frame": {

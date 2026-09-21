@@ -398,7 +398,15 @@
       "noteTitle": "什麼算作變更",
       "updated": "某列變更時"
     },
-    "unbound": "仍需填寫：{slots}"
+    "unbound": "仍需填寫：{slots}",
+    "deleteConfirm": {
+      "title": "刪除此對應？",
+      "body": "觸發它的規則也會一併刪除，已據此產生的文件將失去回連結。此操作無法復原。",
+      "prompt": "輸入 {name} 以確認",
+      "confirm": "刪除對應"
+    },
+    "deleteFailed": "未刪除該對應",
+    "loadFailed": "無法載入對應"
   },
   "enrich": {
     "byo": {
@@ -454,6 +462,8 @@
     },
     "fileBody": "結構描述檔案來源尚無可豐富的快照。連接一個線上資料庫以使用 AI 豐富，或繼續——啟發式基準仍會生成完整的應用程式。",
     "fileTitle": "AI 豐富需要一個線上資料庫",
+    "noTablesBody": "此資料庫尚無任何資料表，因此 AI 沒有可標註或分組的內容。請繼續——資料表建立後，您可以隨時在「設定 → AI」中執行 AI 增強。",
+    "noTablesTitle": "沒有可增強的資料表",
     "generatePrompt": "生成提示",
     "intentLabel": "你希望如何豐富？",
     "localeLocked": "（必填）",
@@ -601,7 +611,8 @@
         "toggleDdl": "顯示 DDL 預覽",
         "ddl": "DDL 預覽",
         "ddlNote": "僅供參考。伺服器會為你的資料庫引擎產生確切語句，包含外鍵。",
-        "summary": "建立 {created} · 沿用 {reused}"
+        "summary": "建立 {created} · 沿用 {reused}",
+        "pageWarnings": "此應用程式的部分頁面將在沒有資料表的情況下建立"
       },
       "done": {
         "title": "已安裝",
@@ -649,7 +660,9 @@
       "needsNewer": "v{version} 需要 Adminium {minimum} 或更新版本",
       "missing": "遺失",
       "missingBody": "它的檔案不在此伺服器上，因此無法提供服務。請重新安裝相同版本，或將其解除安裝。",
-      "update": "更新"
+      "update": "更新",
+      "discardFailed": "未捨棄該上傳",
+      "uninstallFailed": "未解除安裝該應用程式"
     },
     "instances": {
       "add": "新增執行個體",
@@ -705,6 +718,16 @@
     "veto": {
       "title": "此部署無法線上瀏覽",
       "body": "設定已儲存，但此伺服器關閉了網路功能，以此為準。已安裝的應用程式仍可使用，你也仍可以自行上傳應用程式。"
+    },
+    "columns": {
+      "title": "將 {app} 更新到 v{version}",
+      "subtitle": "此版本需要資料庫中某些資料表尚未包含的欄位。",
+      "body": "Adminium 可以為您新增這些欄位。執行任何操作前您都會看到確切的陳述式，不會刪除任何內容，且只有在欄位建立後才會更新應用程式。",
+      "alsoCreates": "此更新也會建立以下資料表：",
+      "noDdl": "Adminium 無法在此新增這些欄位",
+      "failed": "無法新增這些欄位",
+      "valuesFailed": "欄位已新增，但無法記錄其允許的值",
+      "confirm": "新增欄位並更新"
     }
   },
   "hub": {
@@ -743,7 +766,8 @@
       "failed": "無法刪除連線，請再試一次。",
       "prompt": "輸入 {name} 以確認",
       "success": "已刪除連線「{name}」",
-      "title": "刪除連線"
+      "title": "刪除連線",
+      "forbidden": "您的角色不包含管理連線的權限，因此未刪除此連線。"
     },
     "empty": {
       "body": "連接資料庫後，Adminium 會根據其結構產生您的管理面板。",
@@ -1153,7 +1177,8 @@
       "bodyGenerated": "此頁面由結構描述產生，下次重新產生時會再次出現。已儲存的檢視與個人版面配置將對所有人刪除。",
       "confirm": "刪除頁面",
       "prompt": "輸入 {slug} 以確認",
-      "title": "確定要刪除此頁面嗎？"
+      "title": "確定要刪除此頁面嗎？",
+      "failed": "未刪除該頁面"
     },
     "derived": {
       "add": "新增欄位",
@@ -1237,8 +1262,10 @@
       "slugTaken": "已有其他頁面使用此網址。",
       "slugWarning": "變更網址會使指向此頁面的現有連結與書籤失效。",
       "table": "資料表",
-      "tableCreateHint": "此頁面讀取的資料表。現在選擇即可直接使用；留空則可稍後再繫結。",
+      "tableChoose": "選擇資料表…",
+      "tableCreateHint": "此頁面讀取的資料表。",
       "tableNeedsConnection": "請先選擇資料來源。",
+      "tableNoConnection": "請先連接資料庫，此頁面由其中一個資料表建構。",
       "tableNone": "未繫結",
       "template": "範本",
       "templateHint": "決定頁面可以承載哪些內容，之後可以變更。",
@@ -1261,6 +1288,69 @@
       "subtitle": "工具列可以對此資料表提出的問題。未變更時，它會跟隨資料表。",
       "title": "篩選",
       "up": "上移 {column}"
+    },
+    "fit": {
+      "alternatives": {
+        "title": "使用一個已經適用的資料表",
+        "help": "不會寫入任何內容到你的資料庫——只是讓頁面指向一個已具備所需內容的資料表。",
+        "use": "使用此資料表"
+      },
+      "checkFailed": "Adminium 無法檢查此資料表",
+      "checkFailedBody": "你仍然可以建立該頁面。如果資料表不適用，建立時會告知你。",
+      "columns": {
+        "title": "為此資料表補上缺少的內容",
+        "help": "Adminium 會向你的資料表新增這些欄位。在執行之前你會看到確切的語句，而且不會刪除任何內容。",
+        "review": "查看變更",
+        "confirm": "執行",
+        "failed": "操作未成功",
+        "partial": "此頁面所需的其中一項無法為你新增，因此之後仍會不完整。",
+        "cannot": "這一項 Adminium 無法為你新增",
+        "cannotBody": "此頁面需要指向另一個資料表的關聯，需要在 Studio → 結構 中設定。",
+        "halfDone": "欄位已新增，但 Adminium 無法記錄它們的含意",
+        "halfDoneBody": "無需重新執行——這些欄位已存在。請在 Studio → 結構 中設定它們的含意，或請管理員代為設定。"
+      },
+      "needs": "要建立此頁面，資料表還需要：",
+      "noDdl": "Adminium 無法為你修改此資料表",
+      "role": {
+        "eventDate": "每一列一個日期",
+        "title": "一個做為每列標題的文字欄",
+        "status": "一個狀態欄，其值代表工作流程階段",
+        "personFk": "指向人員資料表的關聯",
+        "shiftType": "一個說明每列屬於哪種班別的欄位"
+      },
+      "slotOnly": "此資料表中沒有內容可以填入「{slot}」區域。",
+      "tag": {
+        "title": "使用你已有的欄位",
+        "help": "這只會記錄該欄位的含意。你的資料庫不會被更動，並且可以在 Studio → 結構 中還原。",
+        "action": "使用此欄位",
+        "failed": "無法標記該欄位"
+      },
+      "title": "此資料表尚無法支撐這個頁面",
+      "table": {
+        "title": "為此頁面新建一個資料表",
+        "help": "Adminium 會建立一個包含此頁面所需全部內容的資料表。執行任何操作前，您都會看到確切的陳述式，且不會變動您的其他資料表。",
+        "open": "或為此頁面新建一個資料表",
+        "name": "資料表名稱",
+        "nameTaken": "已有同名的資料表。",
+        "nameInvalid": "請使用小寫字母、數字和底線，並以字母開頭。",
+        "people": "將每一列指派給以下資料表中的人員",
+        "peopleNew": "一個新的人員資料表",
+        "peopleCreated": "也會建立「{table}」，一個記錄列所指派人員的小型資料表。",
+        "noCompose": "使用此名稱的資料表無法用於此頁面。請換一個名稱。",
+        "confirm": "建立資料表",
+        "noDdl": "Adminium 無法在此建立資料表",
+        "halfDone": "資料表已建立，但 Adminium 無法記錄其欄位的含義",
+        "halfDoneBody": "無需再次執行——資料表已存在。請在 Studio → 結構描述 中設定其欄位的含義，或請管理員設定。",
+        "notReread": "資料表已建立，但 Adminium 暫時無法重新讀取它",
+        "notRereadBody": "無需再次執行。請在 Studio → 資料連線 中重新整理結構描述，然後在此選擇新資料表。"
+      },
+      "related": {
+        "title": "使用關聯資料表的日期",
+        "help": "不會寫入任何內容到您的資料庫。頁面建立在與此資料表關聯的資料表上，每個項目顯示此資料表中的名稱。",
+        "reason": "日期來自「{date}」，每項以「{title}」為標題（透過「{via}」）",
+        "chosen": "建立在 {table} 上，每個項目以 {from} 的「{title}」為標題",
+        "undo": "返回 {table}"
+      }
     },
     "form": {
       "addLines": "{label}（明細列）",
@@ -1465,7 +1555,8 @@
       "narrow": "窄（720px）",
       "page": "頁面（1080px）",
       "wide": "寬（1800px）"
-    }
+    },
+    "toggleFailed": "未變更該頁面"
   },
   "project": {
     "actions": {
@@ -2256,7 +2347,10 @@
     "usedBytes": "已使用 {size}"
   },
   "tables": {
+    "emptyBody": "此資料庫尚無任何資料表。您仍然可以繼續——建立資料表後，在此連線上使用「重新內省」即可將其匯入。",
+    "emptyFileBody": "此結構描述檔未定義任何資料表。請返回並上傳其他檔案，或直接繼續。",
     "emptyFilter": "沒有符合篩選條件的資料表。",
+    "emptyTitle": "找不到資料表",
     "highVolume": "高資料量",
     "highVolumeNote": "超過 100,000 列的資料表預設不勾選——維運類資料表很少適合放進儀表板。",
     "importNoCounts": "綱要檔案不含資料列數——在連接即時資料庫之前，此欄會顯示 —。",

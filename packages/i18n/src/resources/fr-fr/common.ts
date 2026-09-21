@@ -119,7 +119,8 @@ export default {
     "apiKeys": "Clés API",
     "audit": "Journal d’audit",
     "security": "Mot de passe et sessions",
-    "files": "Fichiers"
+    "files": "Fichiers",
+    "emptyWithheld": "Aucune page n’a encore été partagée avec votre rôle. Demandez l’accès à un administrateur."
   },
   "apps": {
     "frame": {
@@ -276,6 +277,14 @@ export default {
     "noMatches": "Aucune page ne correspond à « {query} »"
   },
   "page": {
+    "emptyLayout": {
+      "title": "Cette page n’a encore rien à afficher",
+      "board": "Liez-la à une table avec une colonne de statut : ses lignes deviennent des cartes regroupées en colonnes.",
+      "calendar": "Liez-la à une table avec une colonne de date : ses lignes deviennent des événements sur la grille mensuelle.",
+      "scheduler": "Liez-la à une table avec une colonne de date et la personne planifiée : ses lignes deviennent des créneaux sur un planning par personne.",
+      "action": "Ouvrir les paramètres de la page",
+      "askAdmin": "Demandez à un administrateur de terminer sa configuration."
+    },
     "invalid": {
       "title": "La configuration de cette page est invalide",
       "body": "Le document de page enregistré a échoué à la validation et ne peut pas être affiché."
@@ -1320,7 +1329,9 @@ export default {
     },
     "empty": {
       "title": "Aucune colonne de tableau",
-      "body": "Ajoutez un champ de statut pour regrouper les cartes en colonnes."
+      "body": "Ajoutez un champ de statut pour regrouper les cartes en colonnes.",
+      "noRowsTitle": "Aucune carte pour l’instant",
+      "noRowsBody": "Les cartes apparaissent ici dès que la table contient des lignes."
     }
   },
   "calendar": {
@@ -1329,7 +1340,9 @@ export default {
       "placeholder": "Titre de l’événement…",
       "add": "Ajouter",
       "cancel": "Annuler",
-      "open": "Ajouter un événement"
+      "open": "Ajouter un événement",
+      "choose": "Objet de cet événement",
+      "choosePlaceholder": "Choisir…"
     },
     "agenda": {
       "empty": "Rien de prévu"
@@ -1587,7 +1600,8 @@ export default {
       "access": "Accès",
       "data": "Données",
       "operations": "Opérations",
-      "workspace": "Espace de travail"
+      "workspace": "Espace de travail",
+      "records": "Pages et enregistrements"
     },
     "column": {
       "actions": "Actions",
@@ -1663,7 +1677,18 @@ export default {
       "title": "Impossible d’enregistrer tous les rôles"
     },
     "subtitle": "Ce que chaque rôle est autorisé à faire. Un utilisateur cumule les permissions de tous les rôles qu’il détient.",
-    "title": "Rôles et permissions"
+    "title": "Rôles et permissions",
+    "data": {
+      "pagesView": "Voir toutes les pages",
+      "read": "Lire les enregistrements",
+      "create": "Créer des enregistrements",
+      "update": "Modifier les enregistrements",
+      "delete": "Supprimer des enregistrements",
+      "export": "Exporter des enregistrements",
+      "import": "Importer des enregistrements",
+      "pagesEdit": "Modifier la mise en page des pages",
+      "narrow": "{count, plural, one {# autorisation} other {# autorisations}} sur une seule page ou table s’appliquent aussi, en plus des lignes ci-dessous. L’enregistrement les conserve."
+    }
   },
   "security": {
     "password": {
@@ -1793,7 +1818,8 @@ export default {
       "body": "Cette action efface le compte de {name}, ses préférences et ses sessions de connexion, et retire son nom de l’historique des paramètres qu’il a modifiés. Suspendre le compte conserve tout cela et l’empêche seulement de se connecter. Cette action est irréversible.",
       "confirm": "Supprimer définitivement",
       "prompt": "Saisissez « {email} » pour confirmer",
-      "title": "Supprimer définitivement le compte"
+      "title": "Supprimer définitivement le compte",
+      "failed": "Le compte n’a pas été supprimé"
     },
     "roles": {
       "unavailable": "Les rôles ne sont pas visibles pour votre compte : aucun ne peut donc être attribué ici."
@@ -1813,7 +1839,8 @@ export default {
     "subtitle": "Qui possède un compte sur cet Adminium, et ce que chacun peut faire.",
     "title": "Équipe",
     "twoFactorOn": "L’authentification à deux facteurs est activée",
-    "twoFactorShort": "2FA"
+    "twoFactorShort": "2FA",
+    "actionFailed": "Cette modification n’a pas été effectuée"
   },
   "invoices": {
     "copySuffix": "{name} (copie)",

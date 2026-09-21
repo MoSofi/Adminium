@@ -1784,6 +1784,11 @@ export default {
       "backToLatest": "Zpět na nejnovější",
       "eventFallback": "Událost"
     },
+    "board": {
+      "invalidLayout": "Uložené rozvržení této nástěnky je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení.",
+      "noRowsTitle": "Zatím žádné karty",
+      "noRowsBody": "Karty se tu objeví, jakmile bude mít tabulka řádky."
+    },
     "calendar": {
       "eventCount": "{count, plural, one {{n} událost} few {{n} události} many {{n} události} other {{n} událostí}}",
       "composePlaceholder": "Název události…",
@@ -1792,7 +1797,9 @@ export default {
       "agendaTitle": "Agenda",
       "categoriesTitle": "Kategorie",
       "upcomingTitle": "Nadcházející",
-      "invalidLayout": "Uložené rozvržení tohoto kalendáře je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení."
+      "invalidLayout": "Uložené rozvržení tohoto kalendáře je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení.",
+      "composeChoose": "Čeho se tato událost týká",
+      "composeChoosePlaceholder": "Vyberte…"
     },
     "scheduler": {
       "previousWeek": "Předchozí týden",
@@ -1883,6 +1890,13 @@ export default {
     },
     "pageRecord": {
       "description": "Jeden záznam jako samostatná stránka: jeho pole, související záznamy s živými počty a historie změn."
+    },
+    "planning": {
+      "unplaced": {
+        "calendar": "Žádný řádek této tabulky zatím nemá datum, proto je kalendář prázdný. Řádek se tu objeví, jakmile ho bude mít.",
+        "board": "Žádný řádek této tabulky zatím nemá stav, proto je tabule prázdná. Řádek se tu objeví, jakmile ho bude mít.",
+        "scheduler": "Žádný řádek této tabulky zatím nemá osobu, datum a typ směny, proto je rozvrh prázdný. Řádek se tu objeví, jakmile bude mít všechny tři."
+      }
     }
   },
   "frame": {
