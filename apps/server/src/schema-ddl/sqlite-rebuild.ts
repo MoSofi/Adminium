@@ -47,10 +47,10 @@
  * faster. It is not an option.
  */
 import { sql, type CompiledQuery, type Kysely } from 'kysely';
-import { enumCheckColumn, type TableModel } from '@adminium/engine';
+import { enumCheckColumn, type Relation, type TableModel } from '@adminium/engine';
 
 import { AppError } from '../errors.js';
-import { columnDefinition, quoteIdent, quoteLiteral } from './compile.js';
+import { columnDefinition, fkAction, quoteIdent, quoteLiteral } from './compile.js';
 
 type Db = Kysely<Record<string, Record<string, unknown>>>;
 
@@ -92,6 +92,22 @@ export interface RebuildInput {
   objects: readonly SqliteSchemaObject[];
   /** Enum value lists, for the D32 CHECK. */
   enumValues?: Readonly<Record<string, readonly string[]>> | undefined;
+  /**
+   * The table's DESIRED foreign keys — the planner's `desiredRelations` for
+   * this table, so a link the operator removed is absent and every other one
+   * is carried through.
+   *
+   * They have to be passed in because the `TableModel` does not hold them:
+   * links live in `DatabaseModel.relations`. Without this the new table was
+   * created with no `REFERENCES` at all and every rebuild silently dropped
+   * every link the table had.
+   *
+   * REQUIRED, and `[]` when the table has none: an optional field is how a
+   * caller forgets it, and nothing downstream can tell a forgotten list from
+   * an operator who removed every link. Step 12 cannot either — a
+   * `TableModel` has no foreign keys to compare.
+   */
+  foreignKeys: readonly Relation[];
 }
 
 /** The temporary table name. Prefixed so a crashed rebuild is identifiable. */
@@ -166,6 +182,29 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
   for (const unique of desired.uniques) {
     tableConstraints.push(`UNIQUE (${unique.columns.map(q).join(', ')})`);
   }
+  /*
+   * The links, as table constraints. SQLite has no `ADD CONSTRAINT`, so the
+   * CREATE in this step is the only place a foreign key can exist at all — one
+   * left out here is gone for good.
+   *
+   * `CONSTRAINT <name>` only when the link has one: SQLite's catalog does not
+   * report FK names, so an introspected link comes back `null`, and inventing
+   * one would change the table's text for no reason. The target is the bare
+   * name — SQLite resolves it within the same database, and a self-reference
+   * to a renamed table already carries the NEW id from the renamed model.
+   */
+  for (const fk of input.foreignKeys) {
+    if (fk.kind !== 'declared-fk') continue;
+    const target = fk.to.tableId.slice(fk.to.tableId.lastIndexOf('.') + 1);
+    tableConstraints.push(
+      (fk.constraintName === null ? '' : `CONSTRAINT ${q(fk.constraintName)} `) +
+        `FOREIGN KEY (${fk.from.columns.map(q).join(', ')}) ` +
+        `REFERENCES ${q(target)} (${fk.to.columns.map(q).join(', ')})` +
+        (fk.onDelete === null ? '' : ` ON DELETE ${fkAction(fk.onDelete)}`) +
+        (fk.onUpdate === null ? '' : ` ON UPDATE ${fkAction(fk.onUpdate)}`),
+    );
+  }
+
   // Existing CHECKs pass through byte-identical (D30): a check already in the
   // snapshot is the database's own text, and re-deriving it would change it.
   for (const check of actual.checks) {
@@ -380,6 +419,8 @@ export interface RunRebuildInput {
   desired: TableModel;
   columnMapping: Readonly<Record<string, string | null>>;
   enumValues?: Readonly<Record<string, readonly string[]>> | undefined;
+  /** The table's desired foreign keys — see {@link RebuildInput.foreignKeys}. */
+  foreignKeys: readonly Relation[];
   /** Re-introspect the rebuilt table for step 12; skipped when absent. */
   reintrospect?: ((tableId: string) => Promise<TableModel | null>) | undefined;
 }
@@ -409,6 +450,7 @@ export async function runSqliteRebuild(input: RunRebuildInput): Promise<void> {
         columnMapping: input.columnMapping,
         objects,
         enumValues: input.enumValues,
+        foreignKeys: input.foreignKeys,
       })) {
         const rows = await run(query.sql);
         // Step 9's result is the point of step 9. `PRAGMA foreign_key_check`

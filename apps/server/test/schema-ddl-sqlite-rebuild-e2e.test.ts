@@ -74,7 +74,7 @@ describe('the rebuild actually rebuilds', () => {
 
     await runSqliteRebuild({
       db, actual, desired,
-      columnMapping: rebuildColumnMapping(actual, desired),
+      columnMapping: rebuildColumnMapping(actual, desired), foreignKeys: [],
     });
 
     // The declared type really changed…
@@ -103,7 +103,7 @@ describe('the rebuild actually rebuilds', () => {
     });
     const desired = { ...actual, columns: [actual.columns[0]!, col({ name: 'body', logicalType: 'varchar', maxLength: 400, dbType: 'varchar(400)' })] };
 
-    await runSqliteRebuild({ db, actual, desired, columnMapping: rebuildColumnMapping(actual, desired) });
+    await runSqliteRebuild({ db, actual, desired, columnMapping: rebuildColumnMapping(actual, desired), foreignKeys: [] });
 
     const indexes = raw.prepare("select name from sqlite_master where type='index' and tbl_name='notes'").all() as { name: string }[];
     expect(indexes.map((i) => i.name)).toContain('ix_notes_body');
@@ -124,7 +124,7 @@ describe('the rebuild actually rebuilds', () => {
     });
     const desired = { ...actual, columns: [actual.columns[0]!, col({ name: 'body', logicalType: 'text', dbType: 'text', nullable: false })] };
 
-    await runSqliteRebuild({ db, actual, desired, columnMapping: rebuildColumnMapping(actual, desired) });
+    await runSqliteRebuild({ db, actual, desired, columnMapping: rebuildColumnMapping(actual, desired), foreignKeys: [] });
 
     const info = raw.prepare('PRAGMA table_info(notes)').all() as { name: string; notnull: number }[];
     expect(info.find((c) => c.name === 'body')?.notnull).toBe(1);
@@ -149,7 +149,7 @@ describe('the rebuild actually rebuilds', () => {
 
     await runSqliteRebuild({
       db, actual, desired,
-      columnMapping: rebuildColumnMapping(actual, desired, { old_name: 'new_name' }),
+      columnMapping: rebuildColumnMapping(actual, desired, { old_name: 'new_name' }), foreignKeys: [],
     });
 
     expect(raw.prepare('select new_name from notes').get()).toEqual({ new_name: 'kept' });
@@ -172,7 +172,7 @@ describe('the rebuild actually rebuilds', () => {
     const desired = { ...actual, columns: [actual.columns[0]!, col({ name: 'body', logicalType: 'text', dbType: 'text', nullable: false })] };
 
     await expect(
-      runSqliteRebuild({ db, actual, desired, columnMapping: rebuildColumnMapping(actual, desired) }),
+      runSqliteRebuild({ db, actual, desired, columnMapping: rebuildColumnMapping(actual, desired), foreignKeys: [] }),
     ).rejects.toThrow();
 
     // The original table is still there, still holding its row.
@@ -198,7 +198,7 @@ describe('the rebuild actually rebuilds', () => {
     await expect(
       runSqliteRebuild({
         db, actual, desired,
-        columnMapping: rebuildColumnMapping(actual, desired),
+        columnMapping: rebuildColumnMapping(actual, desired), foreignKeys: [],
         reintrospect: async () => actual,
       }),
     ).rejects.toThrow(SqliteRebuildError);

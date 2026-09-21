@@ -296,18 +296,28 @@ export async function preflight(input: PreflightInput): Promise<PreflightResult>
    */
   for (const step of input.steps) {
     if (step.kind !== 'rename-table' && step.kind !== 'rename-column') continue;
+    // The two renames repair different things, so they say different things.
+    // A column rename used to read the table sentence — "page bindings, role
+    // grants … are all rewritten" — which promised four repairs that do not
+    // apply to a column and one (page bodies) that nothing performs.
     add(step.id, {
       kind: 'repaired',
       message:
-        'Adminium follows the new name: page bindings, role grants, schema overrides, the ' +
-        'included-table list and the diagram layout are all rewritten in the same operation.',
+        step.kind === 'rename-table'
+          ? 'Adminium follows the new name: page bindings, role grants, schema overrides, the ' +
+            'included-table list and the diagram layout are all rewritten in the same operation.'
+          : 'Adminium follows the new name in its schema overrides — the column’s label, masking, ' +
+            'meaning and answer list move with it in the same operation.',
       refs: [],
     });
     add(step.id, {
       kind: 'not-repaired',
       message:
-        'Audit history and import history keep the OLD name on purpose (they are a record of ' +
-        'what happened). Notification links and file attachments pointing here will not resolve.',
+        step.kind === 'rename-table'
+          ? 'Audit history and import history keep the OLD name on purpose (they are a record of ' +
+            'what happened). Notification links and file attachments pointing here will not resolve.'
+          : 'Pages that name this column — in their columns, filters or bindings — keep the OLD ' +
+            'name and need rebinding in Studio → Pages. Audit and import history keep it on purpose.',
       refs: [],
     });
   }

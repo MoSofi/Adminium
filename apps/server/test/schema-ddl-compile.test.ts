@@ -344,6 +344,24 @@ describe('compiled statements per step kind', () => {
     expect(q!.sql).toBe('ALTER TABLE "public"."old" RENAME TO "fresh"');
   });
 
+  it('renames a column to the name the PLANNER chose, not the table\'s first column', () => {
+    // The compiler used to pick "the first desired column that is not the old
+    // name" — `id` here, as on nearly every table — and emitted RENAME ... TO "id".
+    const step: DdlStep = {
+      id: 's1', kind: 'rename-column', table: 'public.clients', column: 'email', constraint: null,
+      hazard: 'safe', requiresSuperAdmin: false, summary: '', rationale: 'x', consequences: [],
+      dependsOn: [], outsideTransaction: false, refusal: null, renameTo: 'contact_email',
+    };
+    const [q] = compileStep(step, {
+      db: compilerFor('postgres'), dialect: 'postgres', serverVersion: null,
+      desired: tbl({
+        name: 'clients',
+        columns: [col({ name: 'id' }), col({ name: 'name' }), col({ name: 'contact_email' })],
+      }),
+    });
+    expect(q!.sql).toBe('ALTER TABLE "public"."clients" RENAME COLUMN "email" TO "contact_email"');
+  });
+
   it('qualifies with the schema on postgres and not on mysql or sqlite', () => {
     const step: DdlStep = {
       id: 's1', kind: 'drop-column', table: 'public.orders', column: 'note', constraint: null, hazard: 'lossy',
@@ -418,7 +436,7 @@ describe('the SQLite rebuild', () => {
       db: compilerFor('sqlite'),
       actual,
       desired,
-      columnMapping: { id: 'id', body: 'body' },
+      columnMapping: { id: 'id', body: 'body' }, foreignKeys: [],
       objects: [],
     }).map((q) => q.sql);
 
@@ -436,7 +454,7 @@ describe('the SQLite rebuild', () => {
   it('ends with PRAGMA foreign_key_check — step 9, the one that gets skipped', () => {
     const statements = compileSqliteRebuild({
       db: compilerFor('sqlite'), actual, desired,
-      columnMapping: { id: 'id', body: 'body' }, objects: [],
+      columnMapping: { id: 'id', body: 'body' }, foreignKeys: [], objects: [],
     }).map((q) => q.sql);
     expect(statements[statements.length - 1]).toBe('PRAGMA foreign_key_check');
   });
@@ -453,7 +471,7 @@ describe('the SQLite rebuild', () => {
     };
     const statements = compileSqliteRebuild({
       db: compilerFor('sqlite'), actual, desired: withIndex,
-      columnMapping: { id: 'id', body: 'body' }, objects: [],
+      columnMapping: { id: 'id', body: 'body' }, foreignKeys: [], objects: [],
     }).map((q) => q.sql);
     expect(statements.join('\n')).toContain('CREATE INDEX "ix_notes_body" ON "notes" ("body")');
   });
@@ -465,7 +483,7 @@ describe('the SQLite rebuild', () => {
     };
     const insert = compileSqliteRebuild({
       db: compilerFor('sqlite'), actual, desired: withNew,
-      columnMapping: { id: 'id', body: 'body' }, objects: [],
+      columnMapping: { id: 'id', body: 'body' }, foreignKeys: [], objects: [],
     })
       .map((q) => q.sql)
       .find((s) => s.startsWith('INSERT'))!;
@@ -479,7 +497,7 @@ describe('the SQLite rebuild', () => {
         db: compilerFor('sqlite'),
         actual,
         desired: { ...desired, name: 'renamed', id: 'public.renamed' },
-        columnMapping: { id: 'id', body: 'body' },
+        columnMapping: { id: 'id', body: 'body' }, foreignKeys: [],
         objects: [{ type: 'trigger', name: 'tr_notes', sql: 'CREATE TRIGGER tr_notes AFTER INSERT ON notes BEGIN SELECT 1; END' }],
       }),
     ).toThrow(SqliteRebuildError);

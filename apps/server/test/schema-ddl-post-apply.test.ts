@@ -30,8 +30,18 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import BetterSqlite3 from 'better-sqlite3';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
-import { connectionsRepo, pagesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import {
+  connectionsRepo,
+  overridesRepo,
+  pagesRepo,
+  permissionsRepo,
+  rolesRepo,
+  snapshotsRepo,
+  usersRepo,
+} from '@adminium/meta';
+import { parseDatabaseModel, templateFit } from '@adminium/engine';
 
+import { applyCompositionOverrides } from '../src/connections/effective-schema.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
 import { schemaDdlRoutes } from '../src/routes/schema-ddl/index.js';
 import {
@@ -374,6 +384,127 @@ describe('renaming a table keeps the app whole (D33, criterion 13)', () => {
   });
 });
 
+/**
+ * A column rename carries the column's MEANING with it (D3).
+ *
+ * D3 pre-fills a conforming name AND stamps the override, "each covering the
+ * other's failure: the name survives an override being cleared, the override
+ * survives a rename". The second half was not true: rename repair only ever
+ * received TABLE renames, so every override row keyed by the old column name
+ * was orphaned — and a calendar whose `date` column had been TAGGED as its event
+ * date stopped composing the moment someone renamed the column.
+ */
+describe('renaming a column keeps its override (D3)', () => {
+  /** The model page composition reads: the latest snapshot + active overrides. */
+  async function calendarFits(table: string): Promise<boolean> {
+    const snapshot = await snapshotsRepo(t.meta).latest(connectionId);
+    if (snapshot === null) throw new Error('no snapshot');
+    const overrides = await overridesRepo(t.meta).listForConnection(connectionId, { status: 'active' });
+    const model = applyCompositionOverrides(parseDatabaseModel(snapshot.schema), overrides);
+    return templateFit(model, table, 'page-calendar').satisfied;
+  }
+
+  const table = (dateColumn: string) => ({
+    id: 'main.visit_log',
+    name: 'visit_log',
+    columns: [
+      { name: 'id', logicalType: 'integer', nullable: false, default: { kind: 'autoincrement' } },
+      { name: 'title', logicalType: 'text' },
+      // `timestamp`: what SQLite reads an authored timestamptz back as — sent
+      // as the snapshot has it, so the only change in the edit is the rename.
+      { name: dateColumn, logicalType: 'timestamp' },
+    ],
+    primaryKey: ['id'],
+  });
+
+  it('moves a column.semanticType override to the new name, and the calendar still composes', async () => {
+    const { id: _id, ...fresh } = table('date');
+    const created = await planAndApply({ upsertTables: [fresh] });
+    expect(created.body.status, JSON.stringify(created.body)).toBe('applied');
+
+    // `date` is the right type under a name the classifier does not tag; the
+    // override is what makes it the event date.
+    expect(await calendarFits('main.visit_log')).toBe(false);
+    await overridesRepo(t.meta).create({
+      connectionId,
+      op: 'column.semanticType',
+      tableName: 'main.visit_log',
+      columnName: 'date',
+      value: { semanticType: 'event-timestamp' },
+    });
+    expect(await calendarFits('main.visit_log')).toBe(true);
+
+    // `visit_day` is ALSO a name the classifier does not tag — so only the
+    // override can keep the calendar composing after the rename.
+    const renamed = await planAndApply({
+      renames: { tables: [], columns: [{ table: 'main.visit_log', from: 'date', to: 'visit_day' }] },
+      upsertTables: [table('visit_day')],
+    });
+    expect(renamed.body.status, JSON.stringify(renamed.body)).toBe('applied');
+    expect(renamed.body.steps?.map((step) => step.kind)).toEqual(['rename-column']);
+    expect(renamed.body.repaired?.['overrides']).toBe(1);
+
+    const rows = await overridesRepo(t.meta).listForConnection(connectionId, { status: 'active' });
+    const tag = rows.find((row) => row.op === 'column.semanticType' && row.tableName === 'main.visit_log');
+    expect(tag?.columnName).toBe('visit_day');
+    expect(await calendarFits('main.visit_log')).toBe(true);
+  });
+
+  it('a rename and a rebuild of the same table in one edit keep the rows', async () => {
+    // Rename a column AND make another NOT NULL: on SQLite the second is a
+    // table rebuild, which runs after the rename. It used to copy the renamed
+    // column from its OLD name — gone by then — and fail the whole apply.
+    const created = await planAndApply({
+      upsertTables: [
+        {
+          name: 'rename_rebuild',
+          columns: [
+            { name: 'id', logicalType: 'integer', nullable: false, default: { kind: 'autoincrement' } },
+            { name: 'label', logicalType: 'text' },
+            { name: 'old_note', logicalType: 'text' },
+          ],
+          primaryKey: ['id'],
+        },
+      ],
+    });
+    expect(created.body.status).toBe('applied');
+    const insert = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/data/${connectionId}/main.rename_rebuild`,
+      // New tables receive no grants (D12); the super admin needs none.
+      headers: superAdminHeaders,
+      payload: { values: { label: 'kept', old_note: 'carried' } },
+    });
+    expect(insert.statusCode, insert.body).toBe(201);
+
+    const applied = await planAndApply({
+      renames: { tables: [], columns: [{ table: 'main.rename_rebuild', from: 'old_note', to: 'new_note' }] },
+      upsertTables: [
+        {
+          id: 'main.rename_rebuild',
+          name: 'rename_rebuild',
+          columns: [
+            { name: 'id', logicalType: 'integer', nullable: false, default: { kind: 'autoincrement' } },
+            { name: 'label', logicalType: 'text', nullable: false },
+            { name: 'new_note', logicalType: 'text' },
+          ],
+          primaryKey: ['id'],
+        },
+      ],
+    });
+    expect(applied.body.status, JSON.stringify(applied.body)).toBe('applied');
+    expect(applied.body.steps?.map((step) => step.kind)).toEqual(['rename-column', 'rebuild-table']);
+
+    const rows = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/data/${connectionId}/main.rename_rebuild`,
+      headers: superAdminHeaders,
+    });
+    const data = (rows.json() as { data: Record<string, unknown>[] }).data;
+    expect(data[0]).toMatchObject({ label: 'kept', new_note: 'carried' });
+  });
+});
+
 describe('a drop is carried into the snapshot too', () => {
   it('removes the table from the read path without a manual re-introspection', async () => {
     const applied = await planAndApply({ dropTables: ['main.reservations'] }, superAdminHeaders);
@@ -387,5 +518,63 @@ describe('a drop is carried into the snapshot too', () => {
     });
     const model = (after.json() as { model: { tables: { name: string }[] } }).model;
     expect(model.tables.map((table) => table.name)).not.toContain('reservations');
+  });
+});
+
+/**
+ * An authored timestamp reads back AS a timestamp (the SQLite round trip).
+ *
+ * The forward type map used to emit `TEXT` for `timestamp`/`timestamptz` on
+ * SQLite, under a comment claiming that was "what the introspector
+ * recognises". It was not: `@adminium/adapter-sqlite`'s `hintFor` recognises a
+ * declared type CONTAINING `DATETIME` or `TIMESTAMP`, and lets `TEXT` fall
+ * through to `text`. So a column Adminium had just authored as a timestamp came
+ * back a plain string, and every date-shaped feature downstream looked past it —
+ * the calendar archetype's `DATE_TYPES` gate first among them. A schema repair
+ * that adds a date column ran, succeeded, and left the page still refusing.
+ *
+ * The emitter is unit-tested, but only a unit test of the EMITTER: it cannot
+ * catch the halves disagreeing, because each half is right on its own. This
+ * reads the column back through the shipped adapter, which is the only place
+ * the disagreement is visible.
+ *
+ * Storage is unaffected either way — `TIMESTAMP` carries NUMERIC affinity and
+ * an ISO string is not convertible to a number, so SQLite keeps the same bytes.
+ */
+describe('an authored timestamp survives the round trip', () => {
+  it('reads back as a date type, not as text', async () => {
+    // Its OWN table: an earlier case in this file drops `reservations`, and a
+    // test that reads whatever the suite happened to leave behind is a test
+    // that passes or fails on ordering rather than on the thing it names.
+    const applied = await planAndApply({
+      upsertTables: [
+        {
+          name: 'appointments',
+          columns: [
+            { name: 'id', logicalType: 'integer', nullable: false, default: { kind: 'autoincrement' } },
+            { name: 'event_date', logicalType: 'timestamptz' },
+          ],
+          primaryKey: ['id'],
+        },
+      ],
+    });
+    expect(applied.status).toBe(200);
+
+    const res = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/connections/${connectionId}/schema`,
+      headers: asUser(t.users.admin),
+    });
+    const model = (res.json() as {
+      model: { tables: { id: string; columns: { name: string; logicalType: string }[] }[] };
+    }).model;
+    const column = model.tables
+      .find((table) => table.id === 'main.appointments')
+      ?.columns.find((candidate) => candidate.name === 'event_date');
+
+    expect(column, 'the appointments table should carry event_date').toBeDefined();
+    // The exact set the calendar's `eventDate` predicate accepts. `text` is
+    // what this used to be, and what made the repair a dead end.
+    expect(['date', 'timestamp', 'timestamptz']).toContain(column?.logicalType);
   });
 });

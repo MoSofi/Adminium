@@ -422,9 +422,12 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
     }
 
     case 'rename-column': {
+      // The planner's own answer. Never re-derived from the desired table:
+      // "the column that is not `from`" is every other column, and the old
+      // guess picked the first — `id` — for every rename.
       const from = step.column;
-      const to = ctx.desired?.columns.find((c) => c.name !== from)?.name;
-      if (from === null || to === undefined) {
+      const to = step.renameTo ?? null;
+      if (from === null || to === null) {
         throw new DdlCompileError('rename-column needs both names', step);
       }
       return [
@@ -924,7 +927,7 @@ function builderFkAction(
   }
 }
 
-function fkAction(action: NonNullable<Relation['onDelete']>): string {
+export function fkAction(action: NonNullable<Relation['onDelete']>): string {
   switch (action) {
     case 'cascade':
       return 'CASCADE';

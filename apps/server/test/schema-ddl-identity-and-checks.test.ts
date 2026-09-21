@@ -151,7 +151,7 @@ describe('sqlite reaches both through the rebuild', () => {
       };
       await runSqliteRebuild({
         db, actual, desired: actual,
-        columnMapping: rebuildColumnMapping(actual, actual),
+        columnMapping: rebuildColumnMapping(actual, actual), foreignKeys: [],
         enumValues: { status: ['new', 'seen'] },
       });
 
@@ -180,7 +180,7 @@ describe('sqlite reaches both through the rebuild', () => {
       const desired = tbl('main.notes', [generatedKey, body]);
       await runSqliteRebuild({
         db, actual, desired,
-        columnMapping: rebuildColumnMapping(actual, desired),
+        columnMapping: rebuildColumnMapping(actual, desired), foreignKeys: [],
       });
       raw.exec(`insert into notes (body) values ('c')`);
       expect(raw.prepare('select max(id) as m from notes').get()).toEqual({ m: 6 });

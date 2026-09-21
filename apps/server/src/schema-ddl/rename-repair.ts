@@ -44,6 +44,13 @@ export interface RenameRepairInput {
   connectionId: string;
   /** Qualified ids: what the table was called, and what it is called now. */
   renames: readonly { from: string; to: string }[];
+  /**
+   * Column renames that succeeded. `table` is the table's id AFTER any table
+   * rename in the same edit — the id the planner's `rename-column` step
+   * carries — which is also what the override rows say once the table half
+   * above has run.
+   */
+  columnRenames?: readonly { table: string; from: string; to: string }[];
   crypto: Parameters<typeof connectionsRepo>[1];
 }
 
@@ -74,7 +81,8 @@ export async function repairAfterRename(input: RenameRepairInput): Promise<Renam
     pages: 0,
     diagramLayout: 0,
   };
-  if (renames.length === 0) return result;
+  const columnRenames = input.columnRenames ?? [];
+  if (renames.length === 0 && columnRenames.length === 0) return result;
 
   const byOldId = new Map(renames.map((r) => [r.from, r.to]));
   const byOldName = new Map(renames.map((r) => [bare(r.from), bare(r.to)]));
@@ -129,6 +137,28 @@ export async function repairAfterRename(input: RenameRepairInput): Promise<Renam
       .set({ tableName: to } as never)
       .where('connectionId', '=', connectionId)
       .where('tableName', '=', from)
+      .executeTakeFirst();
+    result.overrides += Number(updated.numUpdatedRows ?? 0n);
+  }
+
+  // --- override rows keyed by a COLUMN ---------------------------------------
+  // A label, a mask, a meaning (`column.semanticType`), an answer list — each
+  // row names its column. Left alone, a column rename orphans every one: the
+  // Column Inspector shows the column bare, and a calendar whose date column
+  // was TAGGED as its event date stops composing, because the tag no longer
+  // reaches the column it describes. Runs after the table half, so a table
+  // renamed in the same edit is already under its new id here.
+  //
+  // NOT rewritten: page bodies that name the column (a crud `columns[]`, a
+  // calendar's `startColumn`, a binding's `select`). Their shapes differ per
+  // template and per widget, and the review says so rather than promising it.
+  for (const rename of columnRenames) {
+    const updated = await meta.db
+      .updateTable('adminium_schema_overrides')
+      .set({ columnName: rename.to } as never)
+      .where('connectionId', '=', connectionId)
+      .where('tableName', '=', rename.table)
+      .where('columnName', '=', rename.from)
       .executeTakeFirst();
     result.overrides += Number(updated.numUpdatedRows ?? 0n);
   }

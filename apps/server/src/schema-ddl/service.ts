@@ -98,6 +98,20 @@ export interface SchemaPlan extends Omit<DdlPlan, 'steps'> {
  * counts and privileges, both of which are reads.
  */
 export async function planSchemaEdit(input: PlanServiceInput): Promise<SchemaPlan> {
+  return (await planWithRelations(input)).plan;
+}
+
+/**
+ * The plan plus the desired foreign keys it was built from.
+ *
+ * The apply path needs those links for the SQLite rebuild, which recreates the
+ * table and has to put its links back. Handed over rather than re-derived: the
+ * relations the plan diffed against ARE the ones the rebuild must emit, and a
+ * second derivation on the apply side is how the two would come to disagree.
+ */
+async function planWithRelations(
+  input: PlanServiceInput,
+): Promise<{ plan: SchemaPlan; desiredRelations: readonly Relation[] }> {
   // --- 1. validate the document against the snapshot and the dialect -------
   const issues = validateSchemaEdit(input.edit, {
     dialect: input.dialect,
@@ -188,6 +202,20 @@ export async function planSchemaEdit(input: PlanServiceInput): Promise<SchemaPla
       };
     }),
   );
+  /*
+   * An extended table keeps its foreign keys. `planDdl` diffs FKs from the
+   * relations, not from the `TableModel`, so passing the columns through is
+   * only half of "compare the table against itself": leaving its FKs out of
+   * `desiredRelations` made every one read as removed — a `DROP CONSTRAINT` on
+   * postgres and MySQL, and on SQLite a `drop-fk` that only the rebuild can
+   * express, so one nullable column copied every row and tripped the
+   * row-count gate.
+   */
+  for (const tableId of addedByTable.keys()) {
+    desiredRelations.push(
+      ...renamed.relations.filter((r) => r.kind === 'declared-fk' && r.from.tableId === tableId),
+    );
+  }
 
   // --- 4. plan --------------------------------------------------------------
   const planned = planDdl({
@@ -254,7 +282,7 @@ export async function planSchemaEdit(input: PlanServiceInput): Promise<SchemaPla
 
   const unfinishedRow = await schemaChangesRepo(input.meta).unfinishedFor(input.connectionId);
 
-  return {
+  const plan: SchemaPlan = {
     steps,
     refusals,
     warnings: planned.warnings,
@@ -266,6 +294,7 @@ export async function planSchemaEdit(input: PlanServiceInput): Promise<SchemaPla
     unfinished:
       unfinishedRow === null ? null : { id: unfinishedRow.id, startedAt: unfinishedRow.startedAt },
   };
+  return { plan, desiredRelations };
 }
 
 /**
@@ -440,7 +469,7 @@ export interface ApplyResult {
 
 /** Run a previously planned edit. */
 export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyResult> {
-  const plan = await planSchemaEdit(input);
+  const { plan, desiredRelations } = await planWithRelations(input);
 
   // --- checksum: did the SNAPSHOT move? (D2) -------------------------------
   if (plan.checksum !== input.checksum) {
@@ -552,6 +581,17 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
   // --- run ------------------------------------------------------------------
   const { db, dialect } = input;
   let failed: string | null = null;
+  /**
+   * Column renames that have ALREADY RUN in this apply, per table.
+   *
+   * A SQLite plan can hold both a `rename-column` step and a `rebuild-table`
+   * step for the same table (rename a column and change a type in one edit).
+   * The rename runs first — renames always do — so by the time the rebuild
+   * copies rows, the column is under its NEW name. The rebuild used to be
+   * handed the snapshot's table and told to copy the column FROM its old name,
+   * and failed with "no such column". It now sees the table as it is.
+   */
+  const renamedInRun = new Map<string, Map<string, string>>();
   try {
     for (const query of sessionRails(dialect, db)) await db.executeQuery(query);
 
@@ -572,17 +612,33 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
            * empty list and recorded success. A rebuild that does nothing and
            * says it worked is worse than one that fails.
            */
-          const actualTable = input.actual.tables.find((t) => t.id === step.table);
+          const snapshotTable = input.actual.tables.find((t) => t.id === step.table);
           const desiredTable = desiredById.get(step.table);
-          if (actualTable === undefined || desiredTable === undefined) {
+          if (snapshotTable === undefined || desiredTable === undefined) {
             throw new Error(`rebuild-table has no table to rebuild: ${step.table}`);
           }
+          const done = renamedInRun.get(step.table) ?? new Map<string, string>();
+          const actualTable =
+            done.size === 0
+              ? snapshotTable
+              : {
+                  ...snapshotTable,
+                  columns: snapshotTable.columns.map((c) =>
+                    done.has(c.name) ? { ...c, name: done.get(c.name) as string } : c,
+                  ),
+                };
+          const pendingRenames = Object.fromEntries(
+            Object.entries(renameMap).filter(([from]) => !done.has(from)),
+          );
           await runSqliteRebuild({
             db,
             actual: actualTable,
             desired: desiredTable,
-            columnMapping: rebuildColumnMapping(actualTable, desiredTable, renameMap),
+            columnMapping: rebuildColumnMapping(actualTable, desiredTable, pendingRenames),
             enumValues: enumValuesFor(step.table),
+            foreignKeys: desiredRelations.filter(
+              (r) => r.kind === 'declared-fk' && r.from.tableId === desiredTable.id,
+            ),
             ...(input.reintrospectTable === undefined
               ? {}
               : { reintrospect: input.reintrospectTable }),
@@ -598,6 +654,11 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
           }
         }
         outcomes[i] = { ...outcomes[i]!, outcome: 'succeeded', durationMs: Date.now() - startedAt };
+        if (step.kind === 'rename-column' && step.column !== null && step.renameTo != null) {
+          const forTable = renamedInRun.get(step.table) ?? new Map<string, string>();
+          forTable.set(step.column, step.renameTo);
+          renamedInRun.set(step.table, forTable);
+        }
       } catch (error) {
         failed = error instanceof Error ? error.message : String(error);
         outcomes[i] = {
@@ -640,15 +701,30 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
     .filter((o) => o.kind === 'rename-table' && o.outcome === 'succeeded')
     .map((o) => o.table);
   const succeededRenames = input.edit.renames.tables.filter((r) => renamedOk.includes(r.from));
+  const qualify = (from: string, to: string): string =>
+    from.includes('.') ? `${from.slice(0, from.lastIndexOf('.'))}.${to}` : to;
+  const tableRenames = succeededRenames.map((r) => ({ from: r.from, to: qualify(r.from, r.to) }));
+  const newIdOf = (id: string): string => tableRenames.find((r) => r.from === id)?.to ?? id;
+  // A `rename-column` step names the table by its NEW id and the column by
+  // its OLD name; the edit's entry may name the table either way.
+  const succeededColumnRenames = outcomes
+    .filter((o) => o.kind === 'rename-column' && o.outcome === 'succeeded' && o.column !== null)
+    .flatMap((o) => {
+      const entry = input.edit.renames.columns.find(
+        (r) => r.from === o.column && (r.table === o.table || newIdOf(r.table) === o.table),
+      );
+      return entry === undefined ? [] : [{ table: o.table, from: entry.from, to: entry.to }];
+    });
   let repaired: RenameRepairResult | null = null;
-  if (succeededRenames.length > 0 && input.crypto !== undefined) {
+  if (
+    (tableRenames.length > 0 || succeededColumnRenames.length > 0) &&
+    input.crypto !== undefined
+  ) {
     repaired = await repairAfterRename({
       meta: input.meta,
       connectionId: input.connectionId,
-      renames: succeededRenames.map((r) => ({
-        from: r.from,
-        to: r.from.includes('.') ? `${r.from.slice(0, r.from.lastIndexOf('.'))}.${r.to}` : r.to,
-      })),
+      renames: tableRenames,
+      columnRenames: succeededColumnRenames,
       crypto: input.crypto,
     });
   }

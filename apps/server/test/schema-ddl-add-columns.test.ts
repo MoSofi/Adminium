@@ -201,6 +201,73 @@ describe.each<Dialect>(['postgres', 'mysql', 'sqlite'])('addColumns on %s', (dia
   });
 });
 
+/*
+ * A table that REFERENCES another one — Northwind's `territories → region`.
+ *
+ * `planDdl` diffs a table's foreign keys from `actual.relations` against
+ * `desiredRelations`, not from the `TableModel`. `tableWithAddedColumns` passes
+ * every column through, but the FKs live beside it, and the service built
+ * `desiredRelations` from `upsertTables` alone — so every existing FK on an
+ * extended table read as removed. On SQLite that is a `drop-fk`, which only the
+ * rebuild can express: adding one nullable column to a populated table copied
+ * every row and tripped the row-count gate. On postgres and MySQL it was a real
+ * `DROP CONSTRAINT` the operator never asked for.
+ */
+const REGION: TableModel = {
+  ...INVOICES,
+  id: 'public.region',
+  name: 'region',
+  columns: [col({ name: 'id', logicalType: 'integer', dbType: 'integer', isPrimaryKey: true, nullable: false })],
+};
+const TERRITORIES: TableModel = {
+  ...INVOICES,
+  id: 'public.territories',
+  name: 'territories',
+  rowCountEstimate: 15,
+  columns: [
+    col({ name: 'id', logicalType: 'integer', dbType: 'integer', isPrimaryKey: true, nullable: false }),
+    col({ name: 'region_id', ordinal: 2, logicalType: 'integer', dbType: 'integer', nullable: false }),
+  ],
+};
+const withFk: DatabaseModel = parseDatabaseModel(
+  JSON.stringify({
+    irVersion: 1,
+    dialect: 'postgres',
+    name: 't',
+    tables: [REGION, TERRITORIES],
+    relations: [
+      {
+        id: 'fk:public.territories(region_id)->public.region(id)',
+        kind: 'declared-fk',
+        cardinality: 'one-to-many',
+        from: { tableId: 'public.territories', columns: ['region_id'] },
+        to: { tableId: 'public.region', columns: ['id'] },
+        through: null,
+        onDelete: 'no-action',
+        onUpdate: 'no-action',
+        selfReferential: false,
+        confidence: 1,
+        constraintName: 'territories_region_id_fkey',
+      },
+    ],
+    enums: [],
+  }),
+);
+
+describe.each<Dialect>(['postgres', 'mysql', 'sqlite'])('addColumns on a table with a foreign key (%s)', (dialect) => {
+  it('keeps the FK: one add-column, no drop-fk, no rebuild, no rows rewritten', async () => {
+    const plan = await planSchemaEdit({
+      ...planInput(dialect, { ...EMPTY_EDIT, addColumns: [{ table: 'public.territories', column: attachments }] }),
+      actual: withFk,
+      // Populated, so a rebuild would carry a row-count consequence.
+      countRows: async () => ({ value: 15, capped: false }),
+    });
+
+    expect(plan.steps.map((s) => s.kind)).toEqual(['add-column']);
+    expect(plan.refusals).toEqual([]);
+  });
+});
+
 describe('what upsertTables does with the same table — the reason this door exists', () => {
   it('cannot even express the interval column, so the whole edit is refused', () => {
     // Exactly what a client rebuilding a `DesiredTable` from the snapshot

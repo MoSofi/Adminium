@@ -165,6 +165,15 @@ describe('a rename says what follows the name and what does not', () => {
     const kinds = (result.consequences.get('r2') ?? []).map((c) => c.kind);
     expect(kinds).toContain('repaired');
     expect(kinds).toContain('not-repaired');
+
+    // Not the TABLE sentence: a column rename moves overrides, and nothing
+    // rewrites the page bodies that name the column — promising "page
+    // bindings … are all rewritten" was a claim no code kept.
+    const repaired = (result.consequences.get('r2') ?? []).find((c) => c.kind === 'repaired');
+    expect(repaired?.message).toContain('schema overrides');
+    expect(repaired?.message).not.toContain('page bindings');
+    const kept = (result.consequences.get('r2') ?? []).find((c) => c.kind === 'not-repaired');
+    expect(kept?.message).toContain('Pages that name this column');
   });
 
   it('leaves a plain add-column with neither', async () => {
