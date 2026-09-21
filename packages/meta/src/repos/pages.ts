@@ -556,6 +556,8 @@ export function pagesRepo(meta: MetaDb) {
       config: unknown;
       origin?: PageOrigin;
       createdBy?: string | null;
+      /** The installed app a `manifest` page belongs to. */
+      manifestId?: string | null;
     }, at: number = Date.now()): Promise<Page> {
       const origin = input.origin ?? 'user';
       if (!PAGE_ORIGINS.includes(origin)) {
@@ -575,7 +577,7 @@ export function pagesRepo(meta: MetaDb) {
         navOrder: input.navOrder ?? 0,
         config: packJson(input.config),
         origin,
-        manifestId: null,
+        manifestId: input.manifestId ?? null,
         generatedFromSnapshotId: null,
         revision: 1,
         isEnabled: writeBool(meta, true),

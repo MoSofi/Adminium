@@ -67,7 +67,12 @@ for (const dialect of TEST_DIALECTS) {
       expect(superGrants.every((g) => g.resourceKind === 'system')).toBe(true);
 
       const adminGrants = await permissions.listForRole(admin!.id);
-      expect(adminGrants.map((g) => g.resourceRef).sort()).toEqual(
+      expect(
+        adminGrants
+          .filter((g) => g.resourceKind === 'system')
+          .map((g) => g.resourceRef)
+          .sort(),
+      ).toEqual(
         [
           'users.manage',
           'audit.read',
@@ -82,7 +87,46 @@ for (const dialect of TEST_DIALECTS) {
       // super-admin-only (an inviter that picks roles can escalate itself).
       expect(await permissions.isAllowed(admin!.id, 'system', 'users.manage')).toBe(true);
       expect(await permissions.isAllowed(admin!.id, 'system', 'roles.manage')).toBe(false);
-      expect(await permissions.listForRole(editor!.id)).toHaveLength(0);
+
+      // Data access: one wildcard page row and one wildcard table row each.
+      const viewer = await roles.findBySlug('viewer');
+      const data = async (roleId: string) =>
+        Object.fromEntries(
+          (await permissions.listForRole(roleId))
+            .filter((g) => g.resourceKind !== 'system')
+            .map((g) => [`${g.resourceKind}:${g.resourceRef}`, g.actions]),
+        );
+      expect(await data(admin!.id)).toEqual({
+        'page:*': { view: true, edit: true },
+        'table:*/*': { read: true, create: true, update: true, delete: true, export: true, import: true },
+      });
+      expect(await data(editor!.id)).toEqual({
+        'page:*': { view: true, edit: false },
+        'table:*/*': { read: true, create: true, update: true, delete: false, export: false, import: false },
+      });
+      expect(await data(viewer!.id)).toEqual({
+        'page:*': { view: true, edit: false },
+        'table:*/*': { read: true, create: false, update: false, delete: false, export: false, import: false },
+      });
+      // Editor and viewer still hold no system key.
+      expect((await permissions.listForRole(editor!.id)).filter((g) => g.resourceKind === 'system')).toHaveLength(0);
+      // Super admin needs none: it bypasses every check.
+      expect(superGrants.some((g) => g.resourceKind !== 'system')).toBe(false);
+    });
+
+    it('seeds the data wildcards ONCE: a narrowed or revoked one survives a restart', async () => {
+      await firstRun(t.meta);
+      const roles = rolesRepo(t.meta);
+      const permissions = permissionsRepo(t.meta);
+      const viewer = await roles.findBySlug('viewer');
+      const editor = await roles.findBySlug('editor');
+      await permissions.revoke(viewer!.id, 'table', '*/*');
+      await permissions.grant(editor!.id, 'page', '*', { view: false, edit: false });
+
+      await firstRun(t.meta, Date.now() + 10_000);
+
+      expect(await permissions.find(viewer!.id, 'table', '*/*')).toBeNull();
+      expect((await permissions.find(editor!.id, 'page', '*'))?.actions).toEqual({ view: false, edit: false });
     });
 
     it('re-running firstRun is a no-op that preserves user edits', async () => {
@@ -232,11 +276,13 @@ for (const dialect of TEST_DIALECTS) {
       await firstRun(t.meta);
       const settings = settingsRepo(t.meta);
       const ledger = await settings.get('system.seededRoleGrants');
-      // One entry per (built-in role, key) the defs list — super admin holds
+      // One entry per (built-in role, key) the defs list, plus the two data
+      // wildcards for every role but super admin — super admin holds
       // the whole closed set, admin its own list, editor and viewer none.
-      const expected = BUILTIN_ROLES.flatMap((role) =>
-        role.systemActions.map((action) => `${role.slug}:${action}`),
-      ).sort();
+      const expected = BUILTIN_ROLES.flatMap((role) => [
+        ...role.systemActions.map((action) => `${role.slug}:${action}`),
+        ...(role.dataGrants === undefined ? [] : [`${role.slug}:page:*`, `${role.slug}:table:*/*`]),
+      ]).sort();
       expect(ledger).toEqual(expected);
       expect(new Set(ledger).size).toBe(ledger.length);
 

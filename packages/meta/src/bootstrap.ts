@@ -11,7 +11,12 @@ import { randomUUID } from 'node:crypto';
 
 import type { MetaDb } from './connect.js';
 import { applyMigrations } from './migrator.js';
-import { SYSTEM_ACTION_KEYS, type SystemActionKey } from './schema/json-payloads.js';
+import {
+  SYSTEM_ACTION_KEYS,
+  type PageActions,
+  type SystemActionKey,
+  type TableActions,
+} from './schema/json-payloads.js';
 import { permissionsRepo } from './repos/permissions.js';
 import { rolesRepo, type Role } from './repos/roles.js';
 import { settingsRepo } from './repos/settings.js';
@@ -24,15 +29,37 @@ export interface BuiltinRoleDef {
   description: string;
   /** System action grants seeded as `{ allowed: true }` rows. */
   systemActions: readonly SystemActionKey[];
+  /**
+   * WILDCARD data grants: one `page` row whose ref is {@link ALL_PAGES_REF}
+   * (every page) and one `table` row whose ref is {@link ALL_TABLES_REF} (every
+   * table on every connection). Seeded once
+   * through the same ledger as `systemActions`, so a Super Admin who narrows
+   * them in Team → Roles keeps the narrowing across restarts and upgrades.
+   * Absent on super-admin, which bypasses every check anyway.
+   */
+  dataGrants?: { pages: PageActions; tables: TableActions };
 }
+
+/** The `resource_ref` of the every-page and every-table wildcard rows. */
+export const ALL_PAGES_REF = '*';
+export const ALL_TABLES_REF = '*/*';
 
 /**
  * The four built-in roles. Super-admin gets every system action (the RBAC
  * layer short-circuits for `super-admin` anyway); admin gets the management
  * set — including `users.manage` and `audit.read`, without which an Admin can
  * neither invite a colleague nor read the trail its own changes leave;
- * editor/viewer get table/page grants dynamically at generation time, no
- * system actions.
+ * editor/viewer get no system actions.
+ *
+ * DATA ACCESS is seeded as wildcards, once (`dataGrants`): Viewer reads every
+ * page and table, Editor also creates and updates rows, Admin holds every
+ * table action and may edit page layouts. Before this, every built-in role but
+ * Super Admin saw NO page and NO table on any install — an invited Admin landed
+ * on an empty sidebar — while a comment here promised grants "at generation
+ * time" that nothing ever wrote. Wildcards rather than per-page rows so a page
+ * generated tomorrow is covered too, and so there is exactly one row per role
+ * to narrow. Widening a built-in role also widens every `adm_sk_` API key
+ * bound to it; `adm_pub_` keys never reach RBAC.
  *
  * `roles.manage` deliberately stays super-admin-only: it authorizes GRANTING a
  * role, and an actor that can both invite a user and pick that user's role can
@@ -64,6 +91,10 @@ export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
     slug: 'admin',
     name: 'Admin',
     description: 'Manages connections, schema, and LLM assist.',
+    dataGrants: {
+      pages: { view: true, edit: true },
+      tables: { read: true, create: true, update: true, delete: true, export: true, import: true },
+    },
     // `schema.ddl` is deliberately ABSENT:
     // the built-in Admin manages connections and labels, and writing DDL to
     // the customer's database is a capability an operator grants on purpose,
@@ -89,12 +120,20 @@ export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
     name: 'Editor',
     description: 'Reads, creates, and updates records; views pages.',
     systemActions: [],
+    dataGrants: {
+      pages: { view: true, edit: false },
+      tables: { read: true, create: true, update: true, delete: false, export: false, import: false },
+    },
   },
   {
     slug: 'viewer',
     name: 'Viewer',
     description: 'Read-only access to records and pages.',
     systemActions: [],
+    dataGrants: {
+      pages: { view: true, edit: false },
+      tables: { read: true, create: false, update: false, delete: false, export: false, import: false },
+    },
   },
 ];
 
@@ -168,6 +207,23 @@ export async function seedBuiltinRoles(meta: MetaDb, at: number = Date.now()): P
         await permissions.grant(role.id, 'system', action, { allowed: true });
       }
       seeded.add(pair);
+    }
+    if (def.dataGrants !== undefined) {
+      const rows = [
+        { kind: 'page' as const, ref: ALL_PAGES_REF, actions: def.dataGrants.pages },
+        { kind: 'table' as const, ref: ALL_TABLES_REF, actions: def.dataGrants.tables },
+      ];
+      for (const row of rows) {
+        // `<role>:<kind>:<ref>` — a system key never holds a colon, so these
+        // cannot collide with a `<role>:<key>` pair.
+        const pair = `${def.slug}:${row.kind}:${row.ref}`;
+        if (!roleIsNew && seeded.has(pair)) continue;
+        // An operator's own row for the same wildcard wins: this seeds a
+        // default, it never overwrites a choice.
+        const existing = await permissions.find(role.id, row.kind, row.ref);
+        if (!existing) await permissions.grant(role.id, row.kind, row.ref, row.actions);
+        seeded.add(pair);
+      }
     }
   }
 
