@@ -35,6 +35,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -229,7 +230,10 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => setConfirming(app.key)}
+                  onClick={() => {
+                    remove.reset();
+                    setConfirming(app.key);
+                  }}
                   disabled={remove.isPending || busy}
                 >
                   <Trash2 aria-hidden className="size-4" />
@@ -260,6 +264,15 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                 'Discard one you decided against, or upload the same key again to replace it.',
               )}
             </span>
+            {discard.error === null ? null : (
+              <Alert
+                role="alert"
+                tone="danger"
+                data-testid="staged-discard-error"
+                title={t('studio:hostedApps.installed.discardFailed', 'The upload was not discarded')}
+                body={discard.error.message}
+              />
+            )}
             <ul className="flex flex-col gap-1">
               {data.staged.map((staged) => (
                 <li key={`${staged.key}@${staged.version}`} className="flex items-center gap-3">
@@ -293,10 +306,26 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
          * the operator's own database stays theirs, disabling never destroys
          * data.
          */
-        body={t(
-          'studio:hostedApps.installed.confirmBody',
-          'Its surfaces stop being served and the bundle is deleted. Any tables it created in your database are left alone.',
-        )}
+        body={
+          <>
+            {t(
+              'studio:hostedApps.installed.confirmBody',
+              'Its surfaces stop being served and the bundle is deleted. Any tables it created in your database are left alone.',
+            )}
+            {/* Without this a refused uninstall (a 403, a 409) left the dialog
+                open and idle with nothing said. */}
+            {remove.error === null ? null : (
+              <Alert
+                role="alert"
+                tone="danger"
+                className="mt-3"
+                data-testid="app-uninstall-error"
+                title={t('studio:hostedApps.installed.uninstallFailed', 'The app was not uninstalled')}
+                body={remove.error.message}
+              />
+            )}
+          </>
+        }
         /*
          * D6 — the comp's Uninstall button has no confirm at all. The house
          * component for removing something irreversibly asks for the name back,

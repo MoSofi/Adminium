@@ -23,6 +23,17 @@
  * created. The plan comes from `POST /apps/plan` against the connection the app
  * already uses, which is where the update creates them. A version the plan
  * refuses is sent anyway, so the refusal on the page is the server's.
+ *
+ * ── …AND BEFORE IT NEEDS A COLUMN ON A TABLE THAT IS ALREADY THERE ────────
+ *
+ * An update that needs a new column on an existing table used to go straight
+ * to the server and come back `COLUMNS_REQUIRED` — a refusal with no way
+ * forward for someone who does not write DDL. The plan now carries
+ * those columns as an `addColumns` edit, and the page offers it instead:
+ * `UpdateColumnsDialog` shows the exact statement through plan 35's doors,
+ * runs it on the operator's click, and only then updates. A column the server
+ * cannot type for itself (a foreign key) still falls through to the refusal,
+ * which names it.
  */
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -69,6 +80,11 @@ interface UpdateConsent {
   plan: AppInstallPlan;
 }
 
+/** An update waiting on columns the operator has been asked to add. */
+export interface ColumnsConsent extends UpdateConsent {
+  connectionId: string;
+}
+
 /** A thrown request as one sentence, naming the tables when an update is short of columns. */
 function messageOf(caught: unknown): string {
   const message = caught instanceof Error ? caught.message : String(caught);
@@ -96,6 +112,7 @@ export function useAppAcquisition() {
   const [vetoed, setVetoed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [consent, setConsent] = useState<UpdateConsent | null>(null);
+  const [columnsConsent, setColumnsConsent] = useState<ColumnsConsent | null>(null);
   const [origin, setOrigin] = useState<AcquisitionOrigin>('shelf');
 
   /** Everything a download, refresh or update can change. */
@@ -154,6 +171,7 @@ export function useAppAcquisition() {
     vetoed,
     notice,
     consent,
+    columnsConsent,
     origin,
 
     toggleOnline: (next: boolean): Promise<void> =>
@@ -194,8 +212,22 @@ export function useAppAcquisition() {
         }
         if (app.connectionId !== null) {
           const { plan } = await planApp({ key: app.key, version: to, connectionId: app.connectionId });
-          const refused =
-            !plan.installable || plan.reuse.some((table) => table.missingColumns.length > 0);
+          const short = plan.reuse.some((table) => table.missingColumns.length > 0);
+          const edit = plan.missingColumnsEdit;
+          // Offered only when EVERY missing column can be added this way; a
+          // blocked one (a foreign key) means the update would still refuse,
+          // and the server's refusal names it better than a half-offer would.
+          if (
+            plan.installable &&
+            short &&
+            edit !== undefined &&
+            edit.blocked.length === 0 &&
+            edit.addColumns.length > 0
+          ) {
+            setColumnsConsent({ key: app.key, to, plan, connectionId: app.connectionId });
+            return;
+          }
+          const refused = !plan.installable || short;
           if (!refused && plan.create.length > 0) {
             setConsent({ key: app.key, to, plan });
             return;
@@ -213,6 +245,16 @@ export function useAppAcquisition() {
 
     /** The downloaded version stays on disk, and the list keeps offering it. */
     cancelUpdate: (): void => setConsent(null),
+
+    /** The columns exist now (the dialog ran them); the update can go through. */
+    confirmColumnsUpdate: (): Promise<void> => {
+      const pending = columnsConsent;
+      setColumnsConsent(null);
+      if (pending === null) return Promise.resolve();
+      return attempt(() => applyUpdate(pending.key), 'installed');
+    },
+
+    cancelColumnsUpdate: (): void => setColumnsConsent(null),
   };
 }
 

@@ -347,6 +347,27 @@ describe('the install wizard', () => {
     expect(summary?.textContent).toContain('1 created');
   });
 
+  it('warns about pages that will arrive without a table, and still lets the install go', async () => {
+    plan = {
+      ...plan,
+      pageWarnings: [
+        {
+          page: 'clinic-day',
+          code: 'PAGE_UNBOUND',
+          message: 'page "clinic-day" (page-calendar) declares no table in `bindings`, so it installs as an empty page',
+        },
+      ],
+    };
+    const user = userEvent.setup();
+    renderWizard();
+    await reachPlan(user);
+    const warning = await screen.findByTestId('app-install-page-warnings');
+    expect(warning.textContent).toContain('clinic-day');
+    // A warning, not a refusal.
+    expect(screen.queryByText('This app cannot be installed here')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(false);
+  });
+
   it('cannot install a plan the server refused', async () => {
     plan = {
       ...plan,

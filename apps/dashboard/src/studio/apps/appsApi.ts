@@ -14,6 +14,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 
+import type { DesiredColumn } from '../remap/design/types.js';
 import { api, csrfHeaders } from '../../app/api.js';
 import type { SurfaceSide } from './hostedAppsApi.js';
 
@@ -272,6 +273,24 @@ export interface AppInstallPlan {
   }[];
   problems: { code: string; message: string; table: string; column?: string }[];
   requiresSchemaChange: boolean;
+  /**
+   * The columns reused tables are missing, as plan 35's `addColumns` edit —
+   * offered to the operator instead of a dead-end `COLUMNS_REQUIRED`. Absent
+   * from a server older than the offer.
+   */
+  missingColumnsEdit?: MissingColumnsEdit;
+  /**
+   * The manifest's pages that will arrive without a table, or with one that
+   * cannot back them. Never a refusal. Absent from an older server.
+   */
+  pageWarnings?: { page: string; code: string; message: string; table?: string }[];
+}
+
+/** Mirrors the server's `MissingColumnsEdit` (`apps/server/src/apps/missing-columns.ts`). */
+export interface MissingColumnsEdit {
+  addColumns: { table: string; column: DesiredColumn }[];
+  values: { table: string; column: string; values: string[] }[];
+  blocked: { table: string; column: string; reason: 'foreign-key' | 'primary-key' | 'unsupported-type' }[];
 }
 
 /** What installing would do. Writes nothing — safe to call on every step-in. */

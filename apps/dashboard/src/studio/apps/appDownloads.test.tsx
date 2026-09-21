@@ -83,6 +83,7 @@ let switchReply: { onlineEnabled: boolean; vetoed: boolean };
 let job: { status: string; lastError: string | null };
 let plan: Record<string, unknown>;
 let updateReply: { status: number; body: unknown };
+let schemaAuthoring: { authorable: boolean; reason: string | null } | undefined;
 
 beforeEach(() => {
   calls = [];
@@ -101,6 +102,7 @@ beforeEach(() => {
     problems: [],
     requiresSchemaChange: false,
   };
+  schemaAuthoring = undefined;
   updateReply = {
     status: 200,
     body: { app: { ...INSTALLED, version: '0.1.2' }, from: '0.1.1', to: '0.1.2', pruned: ['0.1.1'] },
@@ -152,6 +154,52 @@ function stubFetch() {
           },
         }),
       );
+    }
+    // Plan 35's doors, for the columns an update offers to add.
+    if (url === '/api/v1/connections/con_1/schema' && method === 'GET') {
+      return Promise.resolve(
+        jsonResponse(200, {
+          connectionId: 'con_1',
+          snapshotId: 'snap_1',
+          checksum: 'x',
+          createdAt: 1,
+          source: 'introspection',
+          model: {
+            tables: [
+              { id: 'public.clinicians', schema: 'public', name: 'clinicians', primaryKey: ['id'], columns: [] },
+            ],
+          },
+          appliedOverrides: 0,
+          ...(schemaAuthoring === undefined ? {} : { schemaAuthoring }),
+        }),
+      );
+    }
+    if (url === '/api/v1/connections/con_1/schema/plan' && method === 'POST') {
+      return Promise.resolve(
+        jsonResponse(200, {
+          steps: [
+            {
+              id: 's1', kind: 'add-column', table: 'public.clinicians', column: 'email', hazard: 'safe',
+              requiresSuperAdmin: false, summary: 'Add column email (text)', rationale: 'x',
+              consequences: [], dependsOn: [], outsideTransaction: false, refusal: null,
+              sql: ['alter table "public"."clinicians" add column "email" text'],
+            },
+          ],
+          refusals: [], warnings: [], hazard: 'safe', requiresSuperAdmin: false,
+          checksum: 'sum_1', ceilings: [], unfinished: null,
+        }),
+      );
+    }
+    if (url === '/api/v1/connections/con_1/schema/apply' && method === 'POST') {
+      return Promise.resolve(
+        jsonResponse(200, {
+          changeId: 'chg_1', status: 'applied', steps: [], error: null, repaired: null,
+          snapshotId: 'snap_2', createdTables: [],
+        }),
+      );
+    }
+    if (url === '/api/v1/connections/con_1/overrides') {
+      return Promise.resolve(jsonResponse(200, { overrides: [] }));
     }
     if (url === '/api/v1/apps/plan' && method === 'POST') {
       return Promise.resolve(jsonResponse(200, { plan }));
@@ -396,6 +444,110 @@ describe('updating an installed app', () => {
     expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
     expect(posted('/api/v1/apps/download')).toHaveLength(0);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  /*
+   * Missing columns are OFFERED, through the schema doors, instead of
+   * the update stopping at COLUMNS_REQUIRED. Order is the claim: the statement
+   * is shown, the columns are added, and only THEN is the app updated.
+   */
+  const COLUMNS_EDIT = {
+    addColumns: [
+      {
+        table: 'clinicians',
+        column: {
+          name: 'email', logicalType: 'text', nullable: true, default: null,
+          maxLength: null, numericPrecision: null, numericScale: null, comment: null,
+        },
+      },
+      {
+        table: 'clinicians',
+        column: {
+          name: 'tier', logicalType: 'varchar', nullable: true, default: null,
+          maxLength: 64, numericPrecision: null, numericScale: null, comment: null,
+        },
+      },
+    ],
+    values: [{ table: 'clinicians', column: 'tier', values: ['junior', 'senior'] }],
+    blocked: [],
+  };
+
+  it('offers the missing columns, shows the statement, adds them, then updates', async () => {
+    withUpdate({ updateStaged: true });
+    plan = {
+      ...plan,
+      reuse: [{ ref: 'clinicians', missingColumns: ['email', 'tier'] }],
+      requiresSchemaChange: true,
+      missingColumnsEdit: COLUMNS_EDIT,
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+
+    const dialog = await screen.findByTestId('app-update-columns');
+    expect(dialog.textContent).toContain('clinicians.email');
+    expect(posted('/api/v1/apps/clinic/update')).toHaveLength(0);
+
+    await userEvent.click(await screen.findByTestId('app-update-columns-review'));
+    await waitFor(() => expect(screen.getByText(/add column "email"/)).toBeTruthy());
+    const plannedEdit = posted('/api/v1/connections/con_1/schema/plan')[0]?.body as {
+      addColumns: unknown[];
+      baseSnapshotId: string;
+    };
+    expect(plannedEdit.addColumns).toEqual(COLUMNS_EDIT.addColumns);
+    expect(plannedEdit.baseSnapshotId).toBe('snap_1');
+    expect(posted('/api/v1/connections/con_1/schema/apply')).toHaveLength(0);
+
+    await userEvent.click(screen.getByTestId('app-update-columns-confirm'));
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+
+    // Schema first, app second — and the enum's values rode the override
+    // channel, keyed by the table's real id.
+    const order = calls
+      .filter((call) => call.method !== 'GET')
+      .map((call) => call.url)
+      .filter((url) => url.includes('/schema/apply') || url.endsWith('/overrides') || url.endsWith('/clinic/update'));
+    expect(order).toEqual([
+      '/api/v1/connections/con_1/schema/apply',
+      '/api/v1/connections/con_1/overrides',
+      '/api/v1/apps/clinic/update',
+    ]);
+    const put = calls.find((call) => call.method === 'PUT' && call.url.endsWith('/overrides'));
+    expect(JSON.stringify(put?.body)).toContain('"tableName":"public.clinicians"');
+    expect(JSON.stringify(put?.body)).toContain('junior');
+    // No meaning was claimed for the column — only its answer list.
+    expect(JSON.stringify(put?.body)).not.toContain('column.semanticType');
+  });
+
+  it('shows the reason and offers no button when the connection cannot take DDL', async () => {
+    withUpdate({ updateStaged: true });
+    schemaAuthoring = { authorable: false, reason: 'READ_ONLY_ROLE' };
+    plan = {
+      ...plan,
+      reuse: [{ ref: 'clinicians', missingColumns: ['email', 'tier'] }],
+      missingColumnsEdit: COLUMNS_EDIT,
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    const reason = await screen.findByTestId('app-update-columns-no-ddl');
+    expect(reason.textContent).toMatch(/read-only role/i);
+    expect((screen.getByTestId('app-update-columns-review') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('falls through to the server\'s refusal when a column cannot be offered', async () => {
+    withUpdate({ updateStaged: true });
+    plan = {
+      ...plan,
+      reuse: [{ ref: 'clinicians', missingColumns: ['clinic_id'] }],
+      missingColumnsEdit: {
+        addColumns: [],
+        values: [],
+        blocked: [{ table: 'clinicians', column: 'clinic_id', reason: 'foreign-key' }],
+      },
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    await waitFor(() => expect(posted('/api/v1/apps/clinic/update')).toHaveLength(1));
+    expect(screen.queryByTestId('app-update-columns')).toBeNull();
   });
 
   it('names the tables when the server refuses an update for missing columns', async () => {

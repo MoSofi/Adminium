@@ -64,6 +64,7 @@ import {
 import { connectionsQuery } from '../hub/ConnectionsHub.js';
 import { AppBrowser } from './AppBrowser.js';
 import { AppAcquisitionAlerts, UpdateConsentDialog, useAppAcquisition } from './appAcquisition.js';
+import { UpdateColumnsDialog } from './UpdateColumnsDialog.js';
 import { InstallAppWizard } from './InstallAppWizard.js';
 import { InstalledAppsCard } from './InstalledAppsCard.js';
 
@@ -145,6 +146,7 @@ export function HostedAppsPage() {
       )}
 
       <UpdateConsentDialog state={acquisition} />
+      <UpdateColumnsDialog state={acquisition} />
       <AppAcquisitionAlerts state={acquisition} origin="shelf" />
 
       {/*

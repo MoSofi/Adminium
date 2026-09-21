@@ -475,6 +475,26 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
             </Alert>
           )}
 
+          {/* Not a refusal: the app installs, and these pages arrive empty,
+              each showing the "this page has no table" notice that leads to
+              the fix. Said here so it is not a surprise afterwards. */}
+          {(plan.pageWarnings ?? []).length === 0 ? null : (
+            <Alert
+              tone="warn"
+              data-testid="app-install-page-warnings"
+              title={t(
+                'studio:hostedApps.install.plan.pageWarnings',
+                'Some of this app’s pages will arrive without a table',
+              )}
+            >
+              <ul className="list-disc ps-5">
+                {(plan.pageWarnings ?? []).map((warning) => (
+                  <li key={`${warning.page}:${warning.code}`}>{warning.message}</li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+
           <div className="flex flex-col gap-3">
             {[
               ...plan.create.map((table) => ({ table, action: 'create' as const })),
