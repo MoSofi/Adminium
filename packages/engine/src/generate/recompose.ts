@@ -31,11 +31,13 @@ import {
   type CandidateContext,
 } from '@adminium/widgets/generate';
 
-import { classifyModel, type ClassifiedTable } from '../classify/index.js';
+import type { ClassifiedTable } from '../classify/index.js';
 import { isTableBoundTemplate } from '../config-schema/table-bound.js';
 import type { DatabaseModel } from '../schema-model.js';
-import { buildArchetypeEnvelope, toCandidateModel } from './archetype.js';
+import { buildArchetypeEnvelope } from './archetype.js';
 import { buildCrudEnvelope } from './crud.js';
+import { bindableSet } from './fit.js';
+import { TITLE_THROUGH_TEMPLATES, applyTitleThrough, titleThroughEntry } from './title-through.js';
 
 export { TABLE_BOUND_TEMPLATES, isTableBoundTemplate } from '../config-schema/table-bound.js';
 
@@ -50,6 +52,12 @@ export interface RecomposeContext {
   /** Views and PK-less tables compose read-only regardless of this. */
   readOnly?: boolean;
   isRegistered?: (id: string) => boolean;
+  /**
+   * Title each row through this FK column of the bound table (remedy 2): the
+   * referenced table's display column arrives as a lookup, and the calendar's
+   * composer writes the key. Calendar only; absent ⇒ the table's own title.
+   */
+  titleThrough?: string | undefined;
 }
 
 export interface RecomposeResult {
@@ -71,18 +79,12 @@ export function composeRequestedPage(
     return { envelope: null, bindable: false, reason: '' };
   }
 
-  const classified = new Map(classifyModel(model).tables.map((t) => [t.tableId, t]));
-  // The same include rule `generatePages`' splitTables applies: system and
-  // join tables never earn a page. Offering one in the picker and
-  // then composing it anyway would produce a page the next generation run
-  // deletes.
-  const tables = [...model.tables]
-    .filter((table) => {
-      const role = classified.get(table.id)?.semantics.role ?? table.semantics?.role ?? 'entity';
-      return !table.system && role !== 'system' && role !== 'join-table';
-    })
-    .sort((a, b) => a.id.localeCompare(b.id));
-
+  // The prelude comes from `./fit.ts` rather than being repeated here: it is
+  // what decides which tables can carry a page (`generatePages`' own splitTables
+  // rule — system and join tables never earn one), and `templateFit` PREDICTS
+  // this function's outcome. Two copies of the include rule would let the
+  // prediction and the composition disagree about the same table.
+  const { tables, candidateModel } = bindableSet(model);
   const table = tables.find((t) => t.id === tableId);
   if (table === undefined) {
     return {
@@ -93,7 +95,6 @@ export function composeRequestedPage(
   }
 
   const isRegistered = ctx.isRegistered ?? isRegisteredWidgetId;
-  const candidateModel = toCandidateModel(model, tables, classified);
   const entry = candidateModel.find((e) => e.table.id === tableId);
   if (entry === undefined) {
     return { envelope: null, bindable: true, reason: `table ${tableId} could not be classified` };
@@ -128,7 +129,21 @@ export function composeRequestedPage(
     model: candidateModel,
     isRegistered,
   };
-  const candidates = emitCandidates(entry.table, entry.classified, candidateCtx);
+  let composedEntry = entry;
+  let through: ReturnType<typeof titleThroughEntry> | null = null;
+  if (ctx.titleThrough !== undefined) {
+    if (!TITLE_THROUGH_TEMPLATES.includes(template)) {
+      return {
+        envelope: null,
+        bindable: true,
+        reason: `a ${template} cannot take its title through a foreign key`,
+      };
+    }
+    through = titleThroughEntry(entry, candidateModel, ctx.titleThrough, ctx.connectionId);
+    if ('reason' in through) return { envelope: null, bindable: true, reason: through.reason };
+    composedEntry = through.entry;
+  }
+  const candidates = emitCandidates(composedEntry.table, composedEntry.classified, candidateCtx);
   const built = buildArchetypeEnvelope(
     table,
     { template, score: 0, reasons: ['chosen in Studio → Pages'] },
@@ -143,7 +158,14 @@ export function composeRequestedPage(
       reason: detail || `this table has no columns the ${template} layout can bind`,
     };
   }
-  return { envelope: built.envelope, bindable: true, reason: '' };
+  return {
+    envelope:
+      through === null || 'reason' in through
+        ? built.envelope
+        : applyTitleThrough(built.envelope, through),
+    bindable: true,
+    reason: '',
+  };
 }
 
 /** Re-export so callers need one import for the classified-table type. */

@@ -40,9 +40,50 @@ export {
   columnSpecsForTable,
   composeRequestedArchetype,
   toCandidateModel,
+  toTemplateCandidate,
   type ArchetypeBuildContext,
   type ArchetypeBuildResult,
 } from './archetype.js';
+export {
+  REPAIRABLE_TEMPLATES,
+  fitDescriptorsFor,
+  fittingTables,
+  templateFit,
+  type FitRequirement,
+  type FitRole,
+  type FitWants,
+  type FittingTable,
+  type TemplateFit,
+  type TemplateFitOptions,
+  type UnfilledSlot,
+} from './fit.js';
+export {
+  templateTableDraft,
+  type DraftColumn,
+  type DraftNameProblem,
+  type DraftTable,
+  type PeopleTarget,
+  type TableDraft,
+  type TableDraftOptions,
+} from './fit-draft.js';
+export {
+  TITLE_THROUGH_TEMPLATES,
+  applyTitleThrough,
+  titleThroughEntry,
+  type TitleLookup,
+  type TitleThrough,
+} from './title-through.js';
+export { relatedDateTables, type RelatedTable } from './related-tables.js';
+export {
+  checkManifestPages,
+  isKnownPageTemplate,
+  modelFromRequiredSchema,
+  pageSourceTable,
+  type ManifestPageInput,
+  type ManifestPageIssue,
+  type ManifestPageIssueCode,
+  type ManifestPagesInput,
+} from './manifest-pages.js';
 export { buildCrudEnvelope, enumTones, type CrudBuildContext, type CrudEnumTone } from './crud.js';
 export {
   buildDashboardEnvelope,

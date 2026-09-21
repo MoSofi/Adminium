@@ -266,7 +266,7 @@ export function columnSpecsForTable(model: DatabaseModel, table: TableModel): Gr
  * which is where the stored layout item carries it (exactly as
  * `buildDashboardEnvelope` writes it today).
  */
-function toTemplateCandidate(candidate: WidgetCandidate): TemplateCandidate {
+export function toTemplateCandidate(candidate: WidgetCandidate): TemplateCandidate {
   return {
     widget: candidate.widget,
     shape: candidate.shape,
