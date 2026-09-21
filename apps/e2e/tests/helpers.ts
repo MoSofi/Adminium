@@ -56,6 +56,23 @@ export async function seededConnectionId(page: Page): Promise<string> {
   return found.id;
 }
 
+/**
+ * On the new-page screen, bind to the seeded connection.
+ *
+ * With one connection the screen pre-selects it; with more it shows a Data
+ * source picker and leaves the table picker disabled until one is chosen.
+ * Earlier specs in a full run add connections of their own, so which of the
+ * two a test meets depends on the order it runs in.
+ */
+export async function chooseSeededSource(page: Page): Promise<void> {
+  const response = await page.request.get('/api/v1/connections');
+  expect(response.ok()).toBe(true);
+  const body = (await response.json()) as { connections: unknown[] };
+  if (body.connections.length > 1) {
+    await page.getByTestId('studio-pages-connection').selectOption(await seededConnectionId(page));
+  }
+}
+
 /** The sidebar nav link for a generated page (label may grow suffixes). */
 export function navLink(page: Page, label: string | RegExp) {
   return page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: label });

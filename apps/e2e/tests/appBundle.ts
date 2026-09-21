@@ -123,7 +123,9 @@ function manifest(shape: keyof typeof TABLES, version: string): Record<string, u
       {
         ref: 'e2e-dashboard',
         template: 'page-dashboard',
-        title: { key: 'mft.e2e.page', fallback: 'Dashboard' },
+        // Not "Dashboard": an installed app's pages land in the sidebar, and a
+        // second "Dashboard" there is what the generated-app spec clicks first.
+        title: { key: 'mft.e2e.page', fallback: 'E2E Desk overview' },
         nav: { group: 'manifest:e2e', icon: 'layout-dashboard', order: 1 },
       },
     ],

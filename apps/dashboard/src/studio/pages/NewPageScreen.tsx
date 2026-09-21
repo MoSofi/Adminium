@@ -306,6 +306,7 @@ export function NewPageScreen() {
                     setConnectionId(event.target.value === '' ? null : event.target.value);
                     chooseTable(null);
                   }}
+                  data-testid="studio-pages-connection"
                 >
                   <option value="">{t('studio:pages.field.connectionNone', 'None')}</option>
                   {rows.map((connection) => (

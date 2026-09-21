@@ -24,13 +24,14 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { ENGINE } from './constants.js';
-import { signIn } from './helpers.js';
+import { chooseSeededSource, signIn } from './helpers.js';
 
 /** Reach the create screen with a template chosen and the table picker ready. */
 async function startCalendar(page: Page): Promise<void> {
   await signIn(page);
   await page.goto('/studio/pages/new');
   await page.getByTestId('studio-pages-template').selectOption('page-calendar');
+  await chooseSeededSource(page);
   await expect(page.getByTestId('studio-pages-create-table')).toBeEnabled();
 }
 

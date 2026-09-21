@@ -14,7 +14,7 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
-import { signIn } from './helpers.js';
+import { chooseSeededSource, signIn } from './helpers.js';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 const BLOCKING = new Set(['critical', 'serious']);
@@ -79,6 +79,7 @@ async function setTheme(page: Page, theme: string | null): Promise<void> {
 async function startCalendar(page: Page): Promise<void> {
   await page.goto('/studio/pages/new');
   await page.getByTestId('studio-pages-template').selectOption('page-calendar');
+  await chooseSeededSource(page);
   await expect(page.getByTestId('studio-pages-create-table')).toBeEnabled();
 }
 
