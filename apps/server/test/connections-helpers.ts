@@ -48,6 +48,7 @@ import type { RealtimeHub } from '../src/realtime/hub.js';
 import type { AutomationDispatcher } from '../src/crud/after-record-write.js';
 import { WidgetDataCache } from '../src/widget-data/cache.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
+import { withoutDefaultDataGrants } from './builtin-grants.js';
 
 export const PG_HOST = process.env.ADMINIUM_TEST_PG_HOST ?? '127.0.0.1';
 export const PG_PORT = process.env.ADMINIUM_TEST_PG_PORT ?? '5432';
@@ -205,6 +206,7 @@ export interface BuildDataTestAppOptions {
 export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Promise<DataTestContext> {
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
+  await withoutDefaultDataGrants(meta);
   if (opts.registry === undefined) await registerAdapters(adapterRegistry);
 
   const roles = rolesRepo(meta);
@@ -251,6 +253,8 @@ export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Prom
   const app = await buildServer({ env: makeEnv(), logger: false });
   if (opts.realtime !== undefined) app.decorate('realtime', opts.realtime);
   if (opts.automations !== undefined) app.decorate('automations', opts.automations);
+  // As compose wires it: the write paths drop tables from the SAME cache.
+  app.decorate('widgetDataCache', widgetCache);
   app.addHook('onRequest', async (request) => {
     const id = request.headers['x-test-user-id'];
     if (typeof id === 'string') {

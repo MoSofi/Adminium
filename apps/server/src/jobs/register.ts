@@ -45,6 +45,7 @@ import { EXPORT_RUN_KIND, registerExportRunHandler } from './export-run.js';
 import { FILES_MIGRATE_KIND, registerFilesMigrateHandler } from './files-migrate.js';
 import type { RecordWriteService } from '../crud/write-service.js';
 import { IMPORT_RUN_KIND, registerImportRunHandler } from './import-run.js';
+import type { WidgetDataCache } from '../widget-data/cache.js';
 import {
   ASSISTANT_TURN_KIND,
   registerAssistantTurnHandler,
@@ -123,6 +124,8 @@ export interface JobsAndRealtimeOptions {
         storageCrypto?: DsnCrypto | undefined;
         /** Where an import's rows go, with the project's hooks. */
         writes?: RecordWriteService | undefined;
+        /** The widget-data result cache an import drops its table from. */
+        widgetCache?: WidgetDataCache | undefined;
       }
     | undefined;
   /**
@@ -232,7 +235,14 @@ export async function registerJobsAndRealtime(
       registerExportRunHandler(registry, { meta, manager, storage });
     }
     if (!registry.has(IMPORT_RUN_KIND)) {
-      registerImportRunHandler(registry, { meta, manager, storage, hub, writes: opts.dataIo.writes });
+      registerImportRunHandler(registry, {
+        meta,
+        manager,
+        storage,
+        hub,
+        writes: opts.dataIo.writes,
+        widgetCache: opts.dataIo.widgetCache,
+      });
     }
     // report-run rides the SAME option: it drives the export-run handler
     // through this registry (jobs/report-run.ts), so it is only meaningful

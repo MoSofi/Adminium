@@ -51,6 +51,7 @@ import { EXPORT_BOM, createCsvParser, serializeCsvRow } from '../data-io/csv.js'
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import type { FileStore } from '../files/store.js';
 import { widgetDataChannel, type RealtimeHub } from '../realtime/hub.js';
+import type { WidgetDataCache } from '../widget-data/cache.js';
 import { JobCancelledError, type JobHandlerContext, type JobRegistry } from './registry.js';
 
 export const IMPORT_RUN_KIND = 'import-run';
@@ -69,6 +70,8 @@ export interface ImportRunDeps {
   storage: FileStore;
   /** Optional — table-channel fan-out when the hub is wired (compose). */
   hub?: RealtimeHub | undefined;
+  /** The widget-data result cache to drop the table from (compose shares one). */
+  widgetCache?: WidgetDataCache | undefined;
   /**
    * Where the rows go. Before hooks judge every row; after hooks run only when
    * a hook asks for imports (an import is one action, not thousands of events).
@@ -478,6 +481,8 @@ async function runImport(
     },
     at,
   );
+  // Before the fan-out, so the refetch it triggers is not served stale.
+  deps.widgetCache?.invalidateTable(row.connectionId, table.id);
   if (deps.hub !== undefined) {
     // Cache-invalidation fan-out — open grids on this table refetch.
     // Dual publish mirroring routes/data: the legacy `table:` echo PLUS the

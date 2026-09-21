@@ -25,6 +25,7 @@ import { AppError, ForbiddenError, NotFoundError } from '../../errors.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { SnapshotView } from '../../crud/identifiers.js';
+import { resolveLookups } from '../../crud/lookups.js';
 import { canReadPii } from '../../crud/mask.js';
 import type { Row } from '../../crud/mask.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
@@ -104,6 +105,20 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       const hit = cache.get(key);
       if (hit !== undefined) return { result: hit as ShapedPayload, cached: true };
 
+      // Resolved here rather than in the compiler: whether each reached table
+      // may be read is a question about THIS caller. A refused lookup degrades
+      // to null + `_masked` rather than failing the widget (the CRUD rule).
+      const lookups =
+        (descriptor.lookups?.length ?? 0) === 0
+          ? []
+          : await resolveLookups({
+              view,
+              table,
+              raw: descriptor.lookups ?? [],
+              canReadPii: unmasked,
+              canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
+            });
+
       const { db, dialect } = await manager.data(connectionId);
       const compiled = compileWidgetQuery({
         db,
@@ -113,6 +128,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         canReadPii: unmasked,
         dialect,
         now: deps.now,
+        lookups,
       });
 
       const startedAt = Date.now();

@@ -63,7 +63,7 @@ import {
 import { generatePublicSessionToken, hashPublishableKey } from '../../public-api/keys.js';
 import { parseRecordId, pkLabel } from '../../crud/records.js';
 import type { Row } from '../../crud/mask.js';
-import { emitRecordEvent } from '../../crud/after-record-write.js';
+import { emitRecordEvent, invalidateWidgetData } from '../../crud/after-record-write.js';
 import {
   HookRejectedError,
   createWriteService,
@@ -794,6 +794,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                * complete. The publisher masks it for PII and secrets on the way
                * out, which is the check that applies here.
                */
+              invalidateWidgetData(app, ok.key.connectionId, found.table.id);
               publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
                 connectionId: ok.key.connectionId,
                 table: found.table,
@@ -941,6 +942,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 updatedRef,
               );
               await keys.touchLastUsed(ok.key.keyId);
+              invalidateWidgetData(app, ok.key.connectionId, found.table.id);
               publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
                 connectionId: ok.key.connectionId,
                 table: found.table,

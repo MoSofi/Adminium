@@ -52,6 +52,7 @@ import {
 import {
   afterRecordWrite,
   emitRecordEvent,
+  invalidateWidgetData,
   type RecordWriteAction,
 } from '../../crud/after-record-write.js';
 import type { FileReconciler } from '../../files/reconcile.js';
@@ -988,6 +989,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           rules: false,
         });
         const { restored: restoredIds, written } = await executeUndo(target, entry, prepared, context);
+        invalidateWidgetData(app, entry.connectionId, entry.tableId);
         // The record is back; so are its files. Before the audit row,
         // so a partial restore is visible in the same entry that claims it.
         if (entry.fileIds.length > 0 && deps.files !== undefined) {
@@ -1288,6 +1290,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             after: { table: ctx.table.id, requested: request.body.ids.length, succeeded: okCount },
           },
         });
+        invalidateWidgetData(app, ctx.connectionId, ctx.table.id);
         if (app.hasDecorator('realtime')) {
           app.realtime.publish(`table:${ctx.connectionId}:${ctx.table.id}`, `record.bulk-${action}`, {
             count: okCount,

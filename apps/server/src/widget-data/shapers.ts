@@ -22,6 +22,7 @@
  */
 
 import type { ResolvedColumn } from '../crud/identifiers.js';
+import { applyLookupMask } from '../crud/lookups.js';
 import { maskRows, type Row } from '../crud/mask.js';
 import { widgetDataChannel } from '../realtime/hub.js';
 import {
@@ -359,7 +360,10 @@ function maskedRowsOf(compiled: CompiledWidgetQuery, rows: Row[], canReadPii: bo
   if (!compiled.rowShape) {
     throw new Error(`shaper: ${String(compiled.shape)} read rows on a non-row descriptor (compiler bug)`);
   }
-  return maskRows(rows, compiled.table, canReadPii);
+  // Lookups ride the row under their alias; `maskRow` keeps unknown keys, and
+  // the refused ones (no read grant on the reached table, or a masked target)
+  // are nulled and named in `_masked` here — the CRUD read's own post-pass.
+  return applyLookupMask(maskRows(rows, compiled.table, canReadPii), compiled.lookups);
 }
 
 /** Logical types a coordinate can be stored in — never an id or a region code. */

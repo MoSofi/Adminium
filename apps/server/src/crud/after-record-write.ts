@@ -54,6 +54,7 @@ import type { ResolvedTable } from './identifiers.js';
 import { maskRow, type Row } from './mask.js';
 import type { FileReconciler } from '../files/reconcile.js';
 import { publishWidgetDataStream } from '../widget-data/stream-publisher.js';
+import type { WidgetDataCache } from '../widget-data/cache.js';
 
 export type RecordWriteAction = 'create' | 'update' | 'delete';
 
@@ -91,7 +92,30 @@ export interface AutomationDispatcher {
 declare module 'fastify' {
   interface FastifyInstance {
     automations: AutomationDispatcher;
+    /** The ONE widget-data result cache `routes/widget-data` serves from (compose). */
+    widgetDataCache: WidgetDataCache;
   }
+}
+
+/**
+ * Drop the widget-data results over a table that was just written. Without
+ * this the dashboard's refetch after a write (it invalidates `['widget-data']`
+ * on the reply and on the realtime frame) is answered from the 30 s cache and
+ * a new calendar event, board card or KPI count stays invisible until expiry.
+ *
+ * Called BEFORE the realtime fan-out and before the route replies, so no
+ * refetch either one triggers can race a stale entry back in.
+ *
+ * Only the WRITTEN table's entries go. A descriptor with `lookups` also reads
+ * a second table (a calendar titled through an FK hop), and its entry is keyed
+ * to the bound table alone — so a write to the looked-up table leaves that
+ * widget's resolved labels stale until the TTL runs out. Bounded, and rare
+ * enough (renaming the parent row a title hops to) not to warrant a
+ * dependency index yet.
+ */
+export function invalidateWidgetData(app: FastifyInstance, connectionId: string, tableId: string): void {
+  if (!app.hasDecorator('widgetDataCache')) return;
+  app.widgetDataCache.invalidateTable(connectionId, tableId);
 }
 
 export interface AfterRecordWriteInput extends RecordWriteEvent {
@@ -126,8 +150,9 @@ export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEv
 }
 
 /**
- * The full downstream of a single-row write: audit, file reconcile, cache
- * fan-out, live stream, rule engine — in that order, and the order matters.
+ * The full downstream of a single-row write: widget-data cache drop, audit,
+ * file reconcile, cache fan-out, live stream, rule engine — in that order,
+ * and the order matters.
  * The audit row is the record of what the customer asked for and must not
  * depend on anything after it succeeding.
  */
@@ -136,6 +161,8 @@ export async function afterRecordWrite(
   input: AfterRecordWriteInput,
 ): Promise<void> {
   const { connectionId, table, action, entity, before, after } = input;
+
+  invalidateWidgetData(app, connectionId, table.id);
 
   const changes = {
     // Before/after images are PII-redacted in the audit trail.

@@ -191,6 +191,7 @@ import { settingsRoutes } from './routes/settings/index.js';
 import { usersRoutes } from './routes/users/index.js';
 import { viewsRoutes } from './routes/views/index.js';
 import { widgetDataRoutes } from './routes/widget-data/index.js';
+import { WidgetDataCache } from './widget-data/cache.js';
 import { createTelemetryService } from './telemetry/service.js';
 import { APP_VERSION } from './version.js';
 import { publicApiRegistrationBlocked, publicRoutes } from './routes/public/index.js';
@@ -717,6 +718,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           log: projectLog,
           failures: projectCode.failures,
         });
+  /*
+   * ONE widget-data result cache for the process: the widget-data routes serve
+   * from it, and every write path (`afterRecordWrite`, bulk, undo, public,
+   * import) drops the written table from it — otherwise a refetch right after
+   * a write is answered from the 30 s cache and the new row stays invisible.
+   */
+  const widgetDataCache = new WidgetDataCache();
+  app.decorate('widgetDataCache', widgetDataCache);
   const recordWrites = createWriteService(hookRunner === null ? {} : { hooks: () => hookRunner });
   const projectActions =
     projectCode === null
@@ -899,7 +908,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     resolveUser: (req) => req.user ?? null,
     // Registers the export-run / import-run / report-run handlers on the shared
     // registry — the same instances the exports/imports routes receive below.
-    dataIo: { manager, storage, storageCrypto, writes: recordWrites },
+    dataIo: { manager, storage, storageCrypto, writes: recordWrites, widgetCache: widgetDataCache },
     // The realtime hub authorizes a SUBSCRIBED USER, not a request, so it cannot
     // reuse `request.can()` (which caches per request and needs a principal on
     // one). It goes through the same resolver + the same decision function the
@@ -1270,7 +1279,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // ⌘K global search: pages by title + records via the crud quick-search
       // path, RBAC/PII-filtered like the data routes.
       await api.register(searchRoutes({ manager, meta }));
-      await api.register(widgetDataRoutes({ manager, meta }));
+      await api.register(widgetDataRoutes({ manager, meta, cache: widgetDataCache }));
       await api.register(
         // `emailKey` is passed explicitly rather than letting the route derive it
         // from `process.env`: the composition root already holds the parsed env,

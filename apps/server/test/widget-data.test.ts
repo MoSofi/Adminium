@@ -293,4 +293,78 @@ describe.skipIf(!AVAILABLE)('widget-data API (live PG, Northwind)', () => {
     });
     expect(res.statusCode).toBe(401);
   });
+  /*
+   * `lookups` on a record-list — how a calendar titles an order with the
+   * customer's name without a join. The same resolver as the CRUD read's
+   * `lookup=`, so the same two per-caller rules must hold here: a granted table
+   * yields the value, an ungranted one degrades to null + `_masked` rather
+   * than failing the widget.
+   */
+  it('projects a lookup through the FK onto each record-list row', async () => {
+    const { statusCode, body } = await query(
+      ordersDescriptor({
+        shape: 'record-list',
+        select: ['order_id', 'customer_id'],
+        lookups: ['customer_id__display:customer_id.company_name'],
+        orderBy: [{ column: 'order_id', dir: 'asc' }],
+        limit: 2,
+      }),
+    );
+    expect(statusCode).toBe(200);
+    const rows = (body.result as unknown as { rows: Record<string, unknown>[] }).rows;
+    const expected = psql(
+      pg.database,
+      'SELECT c.company_name FROM orders o JOIN customers c ON c.customer_id = o.customer_id ORDER BY o.order_id LIMIT 1',
+    ).trim();
+    expect(rows[0]!['customer_id__display']).toBe(expected);
+  });
+
+  it('nulls a lookup into a table the caller cannot read, and marks it', async () => {
+    // The viewer holds orders + customers, not employees.
+    const { statusCode, body } = await query(
+      ordersDescriptor({
+        shape: 'record-list',
+        select: ['order_id'],
+        lookups: ['employee_id__display:employee_id.last_name'],
+        limit: 1,
+      }),
+    );
+    expect(statusCode).toBe(200);
+    const row = (body.result as unknown as { rows: Record<string, unknown>[] }).rows[0]!;
+    expect(row['employee_id__display']).toBeNull();
+    expect(row['_masked']).toContain('employee_id__display');
+
+    const admin = await query(
+      ordersDescriptor({
+        shape: 'record-list',
+        select: ['order_id'],
+        lookups: ['employee_id__display:employee_id.last_name'],
+        limit: 1,
+      }),
+      t.users.admin,
+    );
+    const adminRow = (admin.body.result as unknown as { rows: Record<string, unknown>[] }).rows[0]!;
+    expect(typeof adminRow['employee_id__display']).toBe('string');
+  });
+
+  it('refuses lookups on a shape that does not return rows as rows', async () => {
+    const { statusCode } = await query(
+      ordersDescriptor({
+        shape: 'single-metric',
+        aggregations: [{ fn: 'count', alias: 'n' }],
+        lookups: ['customer_id__display:customer_id.company_name'],
+      }),
+    );
+    expect(statusCode).toBe(422);
+  });
+
+  it('refuses a lookup through a column that is not a foreign key', async () => {
+    const { statusCode } = await query(
+      ordersDescriptor({
+        shape: 'record-list',
+        lookups: ['x:ship_city.name'],
+      }),
+    );
+    expect(statusCode).toBe(422);
+  });
 });

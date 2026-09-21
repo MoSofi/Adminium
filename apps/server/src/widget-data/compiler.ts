@@ -57,6 +57,7 @@ import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { compileFilter, type CompileFilterContext, type FilterCondition } from '../crud/filters.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
+import { lookupSelections, type ResolvedLookup } from '../crud/lookups.js';
 
 /** Hard row cap on any compiled query (guardrails). */
 export const WIDGET_LIMIT_MAX = 1000;
@@ -175,6 +176,13 @@ export interface CompileWidgetQueryOptions {
   dialect: Dialect;
   /** Injectable clock for `window` bounds (tests). */
   now?: (() => Date) | undefined;
+  /**
+   * The descriptor's `lookups`, already resolved by the caller — resolution
+   * needs the per-table read check, which is a request-scoped question the
+   * compiler does not ask. Refused ones compile to nothing and are nulled by
+   * the shaper, exactly as on the CRUD read.
+   */
+  lookups?: readonly ResolvedLookup[] | undefined;
 }
 
 /**
@@ -229,6 +237,8 @@ export interface CompiledWidgetQuery {
   colAlias: string | null;
   /** Resolved columns of a row-bearing SELECT (masking metadata). */
   selectedColumns: ResolvedColumn[];
+  /** Lookups projected onto each row; the shaper nulls the refused ones. */
+  lookups: readonly ResolvedLookup[];
   /** Exact-count twin for `record-list` (fills `RecordList.total`). */
   count: Qb | null;
   /** Set when quantiles are computed in process rather than in SQL. */
@@ -642,10 +652,17 @@ function assertShapeRules(descriptor: QueryDescriptor): void {
  */
 export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWidgetQuery {
   const { db, view, descriptor, canReadPii, dialect } = opts;
+  const lookups = opts.lookups ?? [];
   const params = opts.params ?? {};
   const now = opts.now ?? (() => new Date());
 
   assertShapeRules(descriptor);
+  // A lookup is a row key, so only a shape that returns rows as rows can carry
+  // one. Every other shape would drop it silently — refused instead, so a page
+  // author learns the descriptor is wrong rather than seeing a blank title.
+  if ((descriptor.lookups?.length ?? 0) > 0 && descriptor.shape !== 'record-list') {
+    reject('`lookups` is supported on "record-list" descriptors only.', { shape: descriptor.shape });
+  }
   const table = resolveSource(view, descriptor);
   const dynamic = db.dynamic;
   const filterCtx: CompileFilterContext = { view, table, canReadPii, dynamic, dialect };
@@ -748,6 +765,9 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
           ? descriptor.select.map((name) => view.readableColumn(table, name, canReadPii))
           : view.selectableColumns(table);
       qb = qb.select(selectedColumns.map((column) => dynamic.ref(column.name)));
+      if (lookups.length > 0) {
+        qb = qb.select((eb) => lookupSelections(eb as never, db, table, lookups)) as Qb;
+      }
     } else if (ohlcColumn !== null) {
       // Raw projection: the shaper folds candles bucket by bucket (OHLC_SCAN_MAX).
       qb = qb.select(sql`${dynamic.ref(ohlcColumn.name)}`.as(VALUE_ALIAS));
@@ -866,6 +886,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
         }
       : null,
     selectedColumns,
+    lookups,
     limit,
   };
 }

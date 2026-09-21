@@ -8,10 +8,12 @@
  * `min(binding.refreshInterval ?? 60, 60)` — the binding's interval lives
  * client-side, so the server applies a flat conservative TTL for now).
  *
- * `invalidateTable(connectionId, tableId)` drops a table's entries — the
- * CRUD mutation hook wires into it when the widget-data plugin and data
- * routes share one composition root (start.ts wiring, M4 exit). No
- * cross-process cache by design (works identically inside Electron).
+ * `invalidateTable(connectionId, tableId)` drops a table's entries. compose
+ * builds ONE instance, hands it to the widget-data routes and decorates it as
+ * `app.widgetDataCache`; every write path drops the written table through
+ * `invalidateWidgetData` (crud/after-record-write.ts), and the import job
+ * through its own dep. No cross-process cache by design (works identically
+ * inside Electron).
  */
 
 import { createHash } from 'node:crypto';
