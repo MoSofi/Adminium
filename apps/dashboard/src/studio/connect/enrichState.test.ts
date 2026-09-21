@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   allChunksValid,
   defaultEnrichChoices,
+  enrichableTableCount,
   ENRICH_LOCALES,
   ENRICH_SECTIONS,
   formatRepairMessage,
@@ -167,5 +168,27 @@ describe('promptFileName', () => {
 
   it('carries the chunk position when split', () => {
     expect(promptFileName('run_1', 2, 3)).toBe('adminium-prompt-run_1-chunk-2of3.md');
+  });
+});
+
+describe('enrichableTableCount', () => {
+  const tables = [
+    { id: 'public.customers', preHidden: false },
+    { id: 'public.orders', preHidden: false },
+    { id: 'public.orders_products', preHidden: true },
+  ];
+
+  it('is 0 for a database with no tables', () => {
+    expect(enrichableTableCount([], null)).toBe(0);
+  });
+
+  it('does not count pre-hidden join/system tables', () => {
+    expect(enrichableTableCount([{ id: 'public._migrations', preHidden: true }], null)).toBe(0);
+    expect(enrichableTableCount(tables, null)).toBe(2);
+  });
+
+  it('counts only what the tables step included', () => {
+    expect(enrichableTableCount(tables, ['public.orders'])).toBe(1);
+    expect(enrichableTableCount(tables, [])).toBe(0);
   });
 });

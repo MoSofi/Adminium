@@ -8,6 +8,7 @@
  * Steps: intent → source (3 input modes) → test+introspect (progress log) →
  * table inclusion → meta placement → generate/success.
  */
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { Alert, Button, Stepper, type Step } from '@adminium/ui';
@@ -19,6 +20,7 @@ import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, waitForRestart, type MetaStoreLocation, type SchemaTable } from '../api.js';
 import { redeemBridgeSeed } from './bridgeSeed.js';
 import { wizardCapabilitySource } from './capabilityNotes.js';
+import { enrichableTableCount } from './enrichState.js';
 import { StartOverModal } from './StartOverModal.js';
 import { EnrichStep } from './steps/EnrichStep.js';
 import { GenerateStep } from './steps/GenerateStep.js';
@@ -38,6 +40,7 @@ import {
   engineForDsn,
   sameDbDisabledReason,
   sourceStepValid,
+  summarizeTables,
   wizardHasProgress,
   wizardStepLabel,
   type WizardState,
@@ -193,6 +196,23 @@ export function ConnectWizard({
 
   const goTo = (step: WizardStepId) => patch({ step });
 
+  /**
+   * What the enrich step would enrich. Same key as the tables step, so this is
+   * normally a cache hit; `null` until known, and for schema-file sources,
+   * which the step already turns away for a different reason.
+   */
+  const liveConnectionId = state.mode === 'file' ? null : state.connectionId;
+  const enrichSchema = useQuery({
+    queryKey: ['studio', 'schema', liveConnectionId] as const,
+    enabled: state.step === 'enrich' && liveConnectionId !== null,
+    queryFn: async () => (liveConnectionId === null ? null : studioApi.getSchema(liveConnectionId)),
+    staleTime: 30_000,
+  });
+  const enrichableTables =
+    enrichSchema.data === undefined || enrichSchema.data === null
+      ? null
+      : enrichableTableCount(summarizeTables(enrichSchema.data.model.tables), state.includedTables);
+
   const continueEnabled = (() => {
     switch (state.step) {
       case 'intent':
@@ -218,8 +238,9 @@ export function ConnectWizard({
       }
       case 'enrich':
         // AI paths (provider/BYO) exit to the review screen from inside the
-        // step; only "Skip" (or a file source with no snapshot) advances here.
-        return state.enrichIntent === 'skip' || state.mode === 'file';
+        // step; only "Skip" (or a file source with no snapshot, or a database
+        // with no tables to enrich) advances here.
+        return state.enrichIntent === 'skip' || state.mode === 'file' || enrichableTables === 0;
       case 'generate':
         return false; // terminal — SuccessState owns the exit
     }
@@ -398,6 +419,7 @@ export function ConnectWizard({
             state={state}
             onPatch={patch}
             onOpenReview={onOpenReview ?? (() => undefined)}
+            enrichableTables={enrichableTables}
             pollIntervalMs={pollIntervalMs}
           />
         ) : null}

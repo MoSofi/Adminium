@@ -838,3 +838,63 @@ describe('meta step — carrying out the placement choice', () => {
     expect(calls.some((call) => call.url === '/api/v1/meta/relocate')).toBe(false);
   });
 });
+
+/**
+ * An empty database has nothing for a model to label, so the enrich step must
+ * not offer the three AI cards — and Continue must not wait on a "Skip" the
+ * operator was never shown.
+ */
+describe('enrich step on a database with no tables', () => {
+  const emptySchema = () =>
+    jsonResponse(200, {
+      connectionId: 'conn_1',
+      snapshotId: 'snap_1',
+      checksum: 'c',
+      createdAt: 1,
+      source: 'introspection',
+      model: { tables: [] },
+      appliedOverrides: 0,
+    });
+
+  it('says there is nothing to enrich and lets Continue through', async () => {
+    saveWizardState({
+      ...INITIAL_WIZARD_STATE,
+      step: 'enrich',
+      name: 'Empty',
+      dsn: 'postgres://ava@db.acme.io:5432/empty',
+      connectionId: 'conn_1',
+      metaPlacement: 'separate-db',
+    });
+    scriptFetch({ 'GET /api/v1/connections/conn_1/schema': emptySchema });
+    renderWizard();
+
+    expect(await screen.findByText('No tables to enrich')).toBeDefined();
+    expect(screen.queryByRole('radio', { name: /Use my AI provider/ })).toBeNull();
+    expect(screen.queryByRole('radio', { name: /Copy a prompt/ })).toBeNull();
+    expect(continueButton()).toHaveProperty('disabled', false);
+
+    await userEvent.click(continueButton());
+    expect(JSON.parse(window.sessionStorage.getItem('adminium-studio-connect') ?? '{}')).toHaveProperty(
+      'step',
+      'generate',
+    );
+  });
+
+  it('still offers the AI cards when the database has tables', async () => {
+    saveWizardState({
+      ...INITIAL_WIZARD_STATE,
+      step: 'enrich',
+      name: 'Prod',
+      dsn: 'postgres://ava@db.acme.io:5432/prod',
+      connectionId: 'conn_1',
+      includedTables: ['public.customers'],
+      metaPlacement: 'separate-db',
+    });
+    scriptFetch();
+    renderWizard();
+
+    expect(await screen.findByRole('radio', { name: /Copy a prompt/ })).toBeDefined();
+    await waitFor(() => expect(screen.queryByText('No tables to enrich')).toBeNull());
+    expect(continueButton()).toHaveProperty('disabled', true);
+  });
+});

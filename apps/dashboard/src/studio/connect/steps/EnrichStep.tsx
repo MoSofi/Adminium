@@ -117,6 +117,11 @@ export interface EnrichStepProps {
   onPatch: (patch: Partial<WizardState>) => void;
   /** Both AI paths exit the wizard to the review screen (T14 route). */
   onOpenReview: (runId: string) => void;
+  /**
+   * Tables a run would work on (`enrichableTableCount`); `null` while the
+   * schema is still loading. At 0 the step offers no AI path at all.
+   */
+  enrichableTables?: number | null | undefined;
   /** Test seam forwarded to the direct-path progress poller. */
   pollIntervalMs?: number | undefined;
 }
@@ -130,7 +135,7 @@ interface CreatedRun {
   tokenEstimate: number;
 }
 
-export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: EnrichStepProps) {
+export function EnrichStep({ state, onPatch, onOpenReview, enrichableTables = null, pollIntervalMs }: EnrichStepProps) {
   const bootstrap = useQuery(bootstrapQuery());
   const providerConfigured = bootstrap.data?.llm.enabled ?? false;
   const sourceIsFile = state.mode === 'file';
@@ -259,6 +264,26 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
           body={t(
             'studio:enrich.fileBody',
             'Schema-file sources have no snapshot to enrich yet. Connect a live database to use AI enrichment, or continue — the heuristic baseline still generates a complete app.',
+          )}
+        />
+      </section>
+    );
+  }
+
+  // --- an empty database: nothing for a model to label ----------------------
+  // Offering "Use my AI provider" here would build a prompt about zero tables
+  // and land on a review screen with nothing in it. Continue is enabled by the
+  // wizard on the same count, so this is a statement, not a dead end.
+  if (enrichableTables === 0) {
+    return (
+      <section aria-label={t('studio:enrich.title', 'Enrich with AI')} className="flex flex-col gap-4">
+        {header}
+        <Alert
+          tone="info"
+          title={t('studio:enrich.noTablesTitle', 'No tables to enrich')}
+          body={t(
+            'studio:enrich.noTablesBody',
+            'This database has no tables yet, so there is nothing for AI to label or group. Continue — once tables exist, you can run AI enrichment any time from Settings → AI.',
           )}
         />
       </section>

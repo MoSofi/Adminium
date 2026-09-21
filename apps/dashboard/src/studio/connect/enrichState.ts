@@ -160,6 +160,27 @@ export function providerCardEnabled(input: {
   );
 }
 
+/**
+ * How many tables an enrichment run would have to work on — 0 means the step
+ * has nothing to offer and must say so instead of presenting three AI cards.
+ *
+ * `included` is the tables step's persisted choice; it stays `null` when the
+ * introspected schema had nothing to choose from (that step only pushes a
+ * default up once there are tables), so `null` falls back to the tables the
+ * checklist would have shown. Join/system tables are pre-hidden there and are
+ * not counted here either: a database of nothing but a migrations ledger has no
+ * labels, groups or dashboards for a model to propose.
+ */
+export function enrichableTableCount(
+  tables: readonly { id: string; preHidden: boolean }[],
+  included: readonly string[] | null,
+): number {
+  const visible = tables.filter((table) => !table.preHidden);
+  if (included === null) return visible.length;
+  const chosen = new Set(included);
+  return visible.filter((table) => chosen.has(table.id)).length;
+}
+
 /** Reshape the shared choices into a `POST /runs` body. */
 export function toCreateRunInput(
   connectionId: string,

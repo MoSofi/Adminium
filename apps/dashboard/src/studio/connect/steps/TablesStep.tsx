@@ -22,7 +22,7 @@ import { useQuery } from '@tanstack/react-query';
 import { EyeOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { TableInclusionChecklist } from '@adminium/widgets';
-import { MonoText, SearchInput, Skeleton, Tooltip } from '@adminium/ui';
+import { Alert, MonoText, SearchInput, Skeleton, Tooltip } from '@adminium/ui';
 
 import { t } from '../../../i18n/t.js';
 import { studioApi, type SchemaTable } from '../../api.js';
@@ -96,14 +96,51 @@ export function TablesStep({ connectionId, fileTables, source, included, onInclu
     );
   }
 
+  const heading = (
+    <div>
+      <h2 className="text-section text-fg">{t('studio:tables.title', 'Choose your tables')}</h2>
+      <p className="mt-1 text-body-sm text-fg-muted">
+        {t('studio:tables.subtitle', 'Choose which to include. You can change this anytime.')}
+      </p>
+    </div>
+  );
+
+  // --- nothing to choose from ------------------------------------------------
+  // An empty checklist under a search box used to answer "No tables match your
+  // filter." with no filter typed. Only once the tables are KNOWN to be none —
+  // a failed schema load also leaves `tables` empty, and that is not this.
+  if (sourceTables !== null && visible.length === 0) {
+    return (
+      <section aria-label={t('studio:tables.title', 'Choose your tables')} className="flex flex-col gap-4">
+        {heading}
+        <Alert
+          tone="info"
+          title={t('studio:tables.emptyTitle', 'No tables found')}
+          body={
+            source.kind === 'import'
+              ? t(
+                  'studio:tables.emptyFileBody',
+                  'This schema file defines no tables. Go back and upload a different file, or continue anyway.',
+                )
+              : t(
+                  'studio:tables.emptyBody',
+                  'This database has no tables yet. You can still continue — once you create tables, use Re-introspect on this connection to bring them in.',
+                )
+          }
+        />
+        {hiddenCount > 0 ? (
+          <p className="flex items-center gap-1.5 text-caption text-fg-subtle">
+            <EyeOff aria-hidden="true" className="size-3.5" />
+            {t('studio:tables.joinHidden', '{count} join/system tables are pre-hidden — they still power many-to-many relations.', { count: String(hiddenCount), })}
+          </p>
+        ) : null}
+      </section>
+    );
+  }
+
   return (
     <section aria-label={t('studio:tables.title', 'Choose your tables')} className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-section text-fg">{t('studio:tables.title', 'Choose your tables')}</h2>
-        <p className="mt-1 text-body-sm text-fg-muted">
-          {t('studio:tables.subtitle', 'Choose which to include. You can change this anytime.')}
-        </p>
-      </div>
+      {heading}
 
       <div className="flex items-center gap-3">
         <SearchInput
