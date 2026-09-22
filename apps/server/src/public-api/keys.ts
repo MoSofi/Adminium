@@ -32,6 +32,27 @@ import type { DsnCrypto } from '@adminium/meta';
 /** Distinct from `adm_sk_` by design — see the header. */
 export const PUBLISHABLE_KEY_PREFIX = 'adm_pub_';
 
+/**
+ * A SERVER key: the same public gate, valid with no `Origin`,
+ * refused from a browser, shown once and stored hash-only. The prefix decides
+ * the kind before anything is looked up, and the stored row must agree.
+ * `parseBearerApiKey` and `plugins/auth.ts` accept `adm_sk_` only, so this is
+ * never an RBAC principal, by construction.
+ */
+export const SERVER_KEY_PREFIX = 'adm_srv_';
+
+/** `token_encrypted` for a server key: there is nothing to reveal (NOT NULL column). */
+export const SERVER_KEY_SEALED_SENTINEL = '';
+
+export type PublicKeyKind = 'browser' | 'server';
+
+/** The kind a token's prefix claims, or null for anything else. */
+export function keyKindOf(token: string): PublicKeyKind | null {
+  if (token.startsWith(PUBLISHABLE_KEY_PREFIX)) return 'browser';
+  if (token.startsWith(SERVER_KEY_PREFIX)) return 'server';
+  return null;
+}
+
 /** Secret length after the prefix; matches `adm_sk_` (≈238 bits of base62). */
 export const PUBLISHABLE_KEY_SECRET_LENGTH = 40;
 
@@ -69,8 +90,9 @@ export interface GeneratedPublishableKey {
   tokenHash: string;
 }
 
-export function generatePublishableKey(): GeneratedPublishableKey {
-  const token = `${PUBLISHABLE_KEY_PREFIX}${secret(PUBLISHABLE_KEY_SECRET_LENGTH)}`;
+export function generatePublishableKey(kind: PublicKeyKind = 'browser'): GeneratedPublishableKey {
+  const head = kind === 'server' ? SERVER_KEY_PREFIX : PUBLISHABLE_KEY_PREFIX;
+  const token = `${head}${secret(PUBLISHABLE_KEY_SECRET_LENGTH)}`;
   return {
     token,
     prefix: token.slice(0, PUBLISHABLE_DISPLAY_PREFIX_LENGTH),
@@ -97,7 +119,7 @@ export function parseBearerPublishableKey(authorization: string | undefined): st
   const match = /^Bearer\s+(\S+)$/i.exec(authorization.trim());
   if (match === null) return null;
   const token = match[1] as string;
-  return token.startsWith(PUBLISHABLE_KEY_PREFIX) ? token : null;
+  return keyKindOf(token) === null ? null : token;
 }
 
 /** Same, for the end-customer session token (a separate header). */
@@ -166,6 +188,6 @@ export function openPublishableKey(crypto: DsnCrypto, sealed: string): string {
  * is no overlap window, because the consumer is a static bundle that is
  * redeployed rather than a fleet of long-lived clients.
  */
-export function rotatePublishableKey(): GeneratedPublishableKey {
-  return generatePublishableKey();
+export function rotatePublishableKey(kind: PublicKeyKind = 'browser'): GeneratedPublishableKey {
+  return generatePublishableKey(kind);
 }

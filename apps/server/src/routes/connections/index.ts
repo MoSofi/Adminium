@@ -11,7 +11,14 @@
  */
 
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { pagesRepo, snapshotsRepo, type Connection, type MetaDb } from '@adminium/meta';
+import {
+  LivePublicKeysError,
+  pagesRepo,
+  publicKeysRepo,
+  snapshotsRepo,
+  type Connection,
+  type MetaDb,
+} from '@adminium/meta';
 
 import { ConflictError, ValidationFailedError } from '../../errors.js';
 import { DsnSecretMismatchError } from '../../connections/crypto.js';
@@ -73,6 +80,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
   const { manager, meta } = deps;
   const snapshots = snapshotsRepo(meta);
   const pages = pagesRepo(meta);
+  const publicKeys = publicKeysRepo(meta);
 
   return async (app) => {
     async function toDto(
@@ -343,13 +351,39 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
             expectedName: connection.name,
           });
         }
+        // Inert publishable keys (revoked or expired) go with the connection;
+        // listed up front only so the audit row names what was cleared.
+        const at = app.rbac.now();
+        const inertKeys = await publicKeys.listInert({ connectionId: connection.id }, at);
+        try {
+          await manager.connections.delete(connection.id, at);
+        } catch (error) {
+          if (error instanceof LivePublicKeysError) {
+            // Revoking a shipped public surface is the operator's decision
+            // (0014), not a side effect of deleting the connection under it.
+            throw new ConflictError(
+              'Revoke the publishable keys that use this connection first.',
+              'PUBLIC_KEYS_LIVE',
+              { keys: error.keys },
+            );
+          }
+          throw error;
+        }
+        // After the row is gone, not before: a refused delete keeps its pool.
         await manager.dispose(connection.id);
-        await manager.connections.delete(connection.id);
         await app.rbac.audit(request, {
           category: 'connection',
           action: 'connection.delete',
           connectionId: connection.id,
-          changes: { before: { name: connection.name, engine: connection.engine } },
+          changes: {
+            before: {
+              name: connection.name,
+              engine: connection.engine,
+              ...(inertKeys.length === 0
+                ? {}
+                : { publicKeys: inertKeys.map((k) => ({ keyId: k.id, prefix: k.prefix })) }),
+            },
+          },
         });
         return { ok: true as const };
       },

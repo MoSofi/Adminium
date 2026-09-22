@@ -6,6 +6,9 @@
  * page/nav-group counts and "Open your app" (bootstrap invalidation → the
  * freshly generated nav renders).
  *
+ * A blank-canvas run generates nothing: the step is a finish screen that says
+ * so and points at the new-page screen, and never calls generate.
+ *
  * Schema-file mode is preview-only this wave: schema-file connections are
  * not creatable server-side yet (M9) — the step says so instead of faking it.
  */
@@ -17,12 +20,17 @@ import { ApiError } from '../../../app/api.js';
 import { t } from '../../../i18n/t.js';
 import { studioApi, type GenerateResult } from '../../api.js';
 import { LogConsole, type LogLine } from '../LogConsole.js';
-import { clearWizardState, type WizardState } from '../wizardState.js';
+import { clearWizardState, generateIntentOf, type WizardState } from '../wizardState.js';
 
 export interface GenerateStepProps {
   state: WizardState;
   /** Navigate into the generated app (router-level; tests inject a spy). */
   onOpenApp: () => void;
+  /**
+   * A blank-canvas run's exit: build the first page by hand. Falls back to
+   * `onOpenApp` — desktop setup reuses this step and never runs blank.
+   */
+  onCreatePage?: (() => void) | undefined;
   lineDelayMs?: number | undefined;
 }
 
@@ -30,7 +38,7 @@ type Phase = 'idle' | 'running' | 'done' | 'error';
 
 const wait = (ms: number) => (ms <= 0 ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms)));
 
-export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateStepProps) {
+export function GenerateStep({ state, onOpenApp, onCreatePage, lineDelayMs = 250 }: GenerateStepProps) {
   const queryClient = useQueryClient();
   const [phase, setPhase] = useState<Phase>('idle');
   const [lines, setLines] = useState<LogLine[]>([]);
@@ -69,8 +77,10 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
     ]);
   };
 
+  const intent = generateIntentOf(state.intent);
+
   const run = () => {
-    if (state.connectionId === null) return;
+    if (state.connectionId === null || intent === null) return;
     const connectionId = state.connectionId;
     setPhase('running');
     setError(null);
@@ -80,7 +90,7 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
         push('running', t('studio:generate.log.classifying', 'Classifying schema…'));
         await wait(lineDelayMs);
         push('running', t('studio:generate.log.composing', 'Composing templates…'));
-        const generated = await studioApi.generate(connectionId, state.intent);
+        const generated = await studioApi.generate(connectionId, intent);
         push('running', t('studio:generate.log.writing', 'Writing pages…'));
         await wait(lineDelayMs);
         push(
@@ -107,6 +117,23 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
       }
     })();
   };
+
+  if (intent === null && state.mode !== 'file') {
+    return (
+      <SuccessState
+        title={t('studio:generate.blankTitle', 'Your connection is ready')}
+        body={t(
+          'studio:generate.blankBody',
+          'Nothing was generated, exactly as you asked. Build your first page from this connection whenever you are ready.',
+        )}
+        doneLabel={t('studio:generate.createPage', 'Create a page')}
+        onDone={() => {
+          clearWizardState();
+          (onCreatePage ?? onOpenApp)();
+        }}
+      />
+    );
+  }
 
   if (state.mode === 'file') {
     return (
@@ -144,7 +171,7 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
         <h2 className="text-section text-fg">{t('studio:generate.title', 'Generate your app')}</h2>
         <p className="mt-1 text-body-sm text-fg-muted">
           {t('studio:generate.subtitle', 'One page per included table plus dashboards per domain — intent:')}{' '}
-          <MonoText>{state.intent}</MonoText>
+          <MonoText>{intent}</MonoText>
         </p>
       </div>
       {lines.length > 0 ? <LogConsole lines={lines} label={t('studio:generate.logLabel', 'Generation log')} /> : null}

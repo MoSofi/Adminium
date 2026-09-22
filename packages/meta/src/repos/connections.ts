@@ -21,6 +21,7 @@ import {
   type ConnectionSettings,
 } from '../schema/json-payloads.js';
 import type { AdminiumConnectionsTable } from '../schema/tables.js';
+import { clearInertPublicKeys } from './public-api.js';
 import { MetaValidationError, packJson, readBool, readJson, readJsonOrNull, writeBool } from './util.js';
 
 /** Caller-provided AES closures — meta never touches key material. */
@@ -494,10 +495,24 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
       return this.findById(id);
     },
 
-    /** FK CASCADE removes the connection's snapshots and overrides. */
-    async delete(id: string): Promise<boolean> {
-      const res = await db.deleteFrom('adminium_connections').where('id', '=', id).executeTakeFirst();
-      return Number(res.numDeletedRows ?? 0n) === 1;
+    /**
+     * FK CASCADE removes the connection's snapshots, overrides and public
+     * scopes — but a publishable key is `restrict` on its scope (0014), so the
+     * cascade dies on any key row still pointing at one.
+     *
+     * A LIVE key (neither revoked nor expired) refuses the whole delete with
+     * {@link LivePublicKeysError}: it is a working public surface
+     * somebody shipped, and 0014's rule is that the operator revokes it first
+     * and sees what they are breaking. A revoked or expired key breaks
+     * nothing, and nothing else in the product can remove its row, so it is
+     * cleared here — in the same transaction, so a refusal purges nothing.
+     */
+    async delete(id: string, at: number = Date.now()): Promise<boolean> {
+      return db.transaction().execute(async (trx) => {
+        await clearInertPublicKeys(trx, { connectionId: id }, at);
+        const res = await trx.deleteFrom('adminium_connections').where('id', '=', id).executeTakeFirst();
+        return Number(res.numDeletedRows ?? 0n) === 1;
+      });
     },
   };
 }

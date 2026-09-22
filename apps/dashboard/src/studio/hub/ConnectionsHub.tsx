@@ -38,6 +38,7 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, type ConnectionDto, type IntrospectResult } from '../api.js';
 import { forgetWizardConnection } from '../connect/wizardState.js';
+import { liveKeysFromError } from '../public-api/publicSurfaceApi.js';
 import { RegionalSettingsModal } from './RegionalSettingsModal.js';
 import { RenameConnectionModal } from './RenameConnectionModal.js';
 
@@ -143,10 +144,10 @@ export function DeleteConnectionModal({ connection, onOpenChange, onDeleted }: D
   // Keyed by connection id: this component stays mounted between targets
   // (it renders null in between), so a bare message would greet the NEXT
   // connection's dialog with the previous one's refusal.
-  const [failure, setFailure] = useState<{ id: string; message: string } | null>(null);
+  const [failure, setFailure] = useState<{ id: string; title?: string; body: ReactNode } | null>(null);
 
   if (connection === null) return null;
-  const failed = failure !== null && failure.id === connection.id ? failure.message : null;
+  const failed = failure !== null && failure.id === connection.id ? failure : null;
   return (
     <ConfirmModal
       open
@@ -168,8 +169,8 @@ export function DeleteConnectionModal({ connection, onOpenChange, onDeleted }: D
               tone="danger"
               className="mt-3"
               data-testid="delete-connection-error"
-              title={t('studio:hub.delete.failed', 'Could not delete the connection. Try again.')}
-              body={failed}
+              title={failed.title ?? t('studio:hub.delete.failed', 'Could not delete the connection. Try again.')}
+              body={failed.body}
             />
           )}
         </>
@@ -199,12 +200,37 @@ export function DeleteConnectionModal({ connection, onOpenChange, onDeleted }: D
           ]);
           onDeleted();
         } catch (error) {
+          // Live publishable keys: trying again fixes nothing, so name the
+          // keys and where they are revoked instead of "try again".
+          const liveKeys = liveKeysFromError(error);
+          if (liveKeys !== null) {
+            setFailure({
+              id: connection.id,
+              title: t('studio:hub.delete.liveKeys.title', 'Publishable keys still use this connection'),
+              body: (
+                <>
+                  {t(
+                    'studio:hub.delete.liveKeys.body',
+                    'Pages built on these keys would stop working. Revoke them on the Public API page first, then delete the connection.',
+                  )}
+                  <ul className="mt-2 list-disc ps-5">
+                    {liveKeys.map((key) => (
+                      <li key={key.id}>
+                        {key.name} <code>{key.prefix}</code>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ),
+            });
+            return;
+          }
           // The server's reason, not a generic "try again": a 403 is not
           // something trying again fixes, and it is the one a person most
           // needs to be told.
           setFailure({
             id: connection.id,
-            message:
+            body:
               error instanceof ApiError && error.status === 403
                 ? t(
                     'studio:hub.delete.forbidden',

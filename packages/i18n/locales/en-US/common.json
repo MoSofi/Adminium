@@ -106,7 +106,6 @@
     "back": "Back",
     "team": "Team",
     "roles": "Roles & permissions",
-    "apiKeys": "API keys",
     "audit": "Audit log",
     "security": "Password & sessions",
     "files": "Files",
@@ -911,60 +910,6 @@
       }
     }
   },
-  "apiKeys": {
-    "title": "API keys & tokens",
-    "subtitle": "Manage programmatic access to your workspace.",
-    "createButton": "Create key",
-    "copy": "Copy",
-    "copied": "Copied",
-    "revoke": "Revoke key",
-    "neverUsed": "Never used",
-    "lastUsed": "Last used {since}",
-    "scopesOverflow": "+{count} more",
-    "status": {
-      "active": "Active",
-      "revoked": "Revoked",
-      "expired": "Expired"
-    },
-    "list": {
-      "title": "Keys",
-      "activeCount": "{count, plural, one {# active key} other {# active keys}}"
-    },
-    "empty": {
-      "title": "No API keys yet",
-      "body": "Create one to call the Adminium API from your own code."
-    },
-    "revealed": {
-      "title": "New key created",
-      "body": "Copy it now — you won’t be able to see it again."
-    },
-    "rolesUnavailable": {
-      "title": "Roles are not visible to you",
-      "body": "Creating a key means choosing the role it acts as, and your account cannot read the role list. Ask an administrator for the “Manage roles” permission."
-    },
-    "quickStart": {
-      "title": "Quick start",
-      "body": "Authenticate requests with your key in the Authorization header."
-    },
-    "create": {
-      "title": "Create API key",
-      "description": "The key acts with the permissions of the role you pick.",
-      "name": "Name",
-      "namePlaceholder": "e.g. Analytics pipeline",
-      "role": "Role",
-      "roleHelper": "Pick the least-privileged role that can do the job.",
-      "expires": "Expires",
-      "expiresHelper": "Leave empty for a key that never expires.",
-      "submit": "Create key",
-      "failed": "Could not create the key"
-    },
-    "revokeConfirm": {
-      "title": "Revoke API key",
-      "body": "Any code still calling the API with “{name}” starts failing immediately. This cannot be undone.",
-      "prompt": "Type “{name}” to confirm",
-      "confirm": "Revoke key"
-    }
-  },
   "changelog": {
     "title": "Changelog",
     "subtitle": "Product updates & releases.",
@@ -1076,6 +1021,14 @@
       "rest": {
         "title": "REST API reference",
         "excerpt": "Every endpoint the generated app exposes, with request and response shapes."
+      },
+      "publicApi": {
+        "title": "Endpoints and keys for your pages",
+        "excerpt": "Let a page or another server call the tables you choose, with keys scoped to endpoints and methods."
+      },
+      "apiDocsPage": {
+        "title": "The API documentation page",
+        "excerpt": "Publish /api-docs so the people who call your API can browse it and try a request."
       },
       "roles": {
         "title": "Roles & permissions",

@@ -10,6 +10,7 @@ import {
   snapshotsRepo,
   type DsnCrypto,
 } from '../src/index.js';
+import { writeBool } from '../src/repos/util.js';
 import { TEST_DIALECTS, useMetaDb } from './helpers/db.js';
 
 /** Reversible stand-in for the server's AES closures — meta stays crypto-agnostic. */
@@ -330,6 +331,35 @@ for (const dialect of TEST_DIALECTS) {
 
         expect(await snapshots.activate(first.snapshot.id)).toBe(true);
         expect((await snapshots.latest(conn.id))?.checksum).toBe('aaa');
+      });
+
+      it('latestMeta picks the row latest picks, without the schema payload', async () => {
+        const connections = connectionsRepo(meta(), testCrypto);
+        const snapshots = snapshotsRepo(meta());
+        const conn = await connections.create({ name: 'prod', engine: 'postgres', introspectDsn: 'postgres://a@h/d' });
+        expect(await snapshots.latestMeta(conn.id)).toBeNull();
+
+        const first = await snapshots.create(
+          { connectionId: conn.id, source: 'introspection', schema: MODEL_A, checksum: 'aaa' },
+          1_000,
+        );
+        await snapshots.create({ connectionId: conn.id, source: 'introspection', schema: MODEL_B, checksum: 'bbb' }, 2_000);
+        const head = await snapshots.latestMeta(conn.id);
+        expect(head?.id).toBe((await snapshots.latest(conn.id))?.id);
+        expect(head).not.toHaveProperty('schema');
+
+        // The active row wins over a newer inactive one, as in `latest`.
+        await snapshots.activate(first.snapshot.id);
+        expect((await snapshots.latestMeta(conn.id))?.id).toBe(first.snapshot.id);
+
+        // With no active row, the newest is the fallback, as in `latest`.
+        await meta()
+          .db.updateTable('adminium_schema_snapshots')
+          .set({ isActive: writeBool(meta(), false) })
+          .where('connectionId', '=', conn.id)
+          .execute();
+        expect((await snapshots.latestMeta(conn.id))?.checksum).toBe('bbb');
+        expect((await snapshots.latestMeta(conn.id))?.id).toBe((await snapshots.latest(conn.id))?.id);
       });
 
       it('rejects invalid source and empty checksum', async () => {

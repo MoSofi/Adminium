@@ -507,6 +507,34 @@ describe('ConnectionsHub', () => {
     expect(screen.getByTestId('connection-card-conn_1')).toBeTruthy();
   });
 
+  it('names the live publishable keys that block a delete, instead of "try again"', async () => {
+    installFetch(() => [makeConnection()], {
+      'DELETE /api/v1/connections/conn_1': () =>
+        jsonResponse(409, {
+          error: {
+            code: 'PUBLIC_KEYS_LIVE',
+            message: 'Revoke the publishable keys that use this connection first.',
+            details: {
+              keys: [{ id: 'pbk_1', name: 'Storefront', prefix: 'adm_pub_4f2a91cd', scopeId: 'psc_1' }],
+            },
+          },
+        }),
+    });
+    renderHub();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Production Postgres');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete connection' }));
+
+    const alert = await within(dialog).findByTestId('delete-connection-error');
+    expect(alert.textContent).toContain('Publishable keys still use this connection');
+    expect(alert.textContent).toContain('Revoke them on the Public API page first');
+    expect(within(alert).getByRole('listitem').textContent).toBe('Storefront adm_pub_4f2a91cd');
+    expect(alert.textContent).not.toContain('Try again');
+    expect(screen.getByTestId('connection-card-conn_1')).toBeTruthy();
+  });
+
   it('names a permission refusal as one', async () => {
     installFetch(() => [makeConnection()], {
       'DELETE /api/v1/connections/conn_1': () =>

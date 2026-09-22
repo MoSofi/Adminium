@@ -21,7 +21,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 
-import { api } from '../../app/api.js';
+import { ApiError, api } from '../../app/api.js';
 
 export type PublicSide = 'staff' | 'customer';
 
@@ -227,4 +227,22 @@ export function scopeIssuesFrom(error: unknown): ScopeIssue[] {
     (i): i is ScopeIssue =>
       typeof i === 'object' && i !== null && typeof (i as ScopeIssue).code === 'string',
   );
+}
+
+/**
+ * The keys a `PUBLIC_KEYS_LIVE` refusal names (a scope or connection delete
+ * refused over live publishable keys), or null for any other failure.
+ * `details` is the server's, so it is read defensively rather than cast.
+ */
+export function liveKeysFromError(error: unknown): { id: string; name: string; prefix: string }[] | null {
+  if (!(error instanceof ApiError) || error.code !== 'PUBLIC_KEYS_LIVE') return null;
+  const keys = (error.details as { keys?: unknown } | null | undefined)?.keys;
+  if (!Array.isArray(keys)) return [];
+  return keys.flatMap((key: unknown) => {
+    if (key === null || typeof key !== 'object') return [];
+    const { id, name, prefix } = key as Record<string, unknown>;
+    return typeof id === 'string' && typeof name === 'string' && typeof prefix === 'string'
+      ? [{ id, name, prefix }]
+      : [];
+  });
 }

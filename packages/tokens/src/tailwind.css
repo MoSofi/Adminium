@@ -36,6 +36,15 @@
   --color-warn-soft-solid: var(--warn-soft-solid);
   --color-danger-soft-solid: var(--danger-soft-solid);
   --color-info-soft-solid: var(--info-soft-solid);
+  --color-method-put: var(--method-put);       --color-method-put-soft: var(--method-put-soft);
+  --color-method-put-soft-solid: var(--method-put-soft-solid);
+  --color-method-batch: var(--method-batch);   --color-method-batch-soft: var(--method-batch-soft);
+  --color-method-batch-soft-solid: var(--method-batch-soft-solid);
+  /* The dark island's syntax inks (exceptions.css). Declared only inside .adm-always-dark;
+     outside it these utilities resolve to nothing, which is the intent. */
+  --color-code-blue: var(--code-blue);     --color-code-green: var(--code-green);
+  --color-code-orange: var(--code-orange); --color-code-purple: var(--code-purple);
+  --color-code-gray: var(--code-gray);
   --color-viz-1: var(--viz-1); --color-viz-2: var(--viz-2); --color-viz-3: var(--viz-3);
   --color-viz-4: var(--viz-4); --color-viz-5: var(--viz-5); --color-viz-6: var(--viz-6);
   --color-viz-7: var(--viz-7); --color-viz-8: var(--viz-8);

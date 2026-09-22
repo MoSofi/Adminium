@@ -105,6 +105,10 @@ export const ID_PREFIXES = {
   psc: 'adminium_public_scopes',
   pss: 'adminium_public_sessions',
   pch: 'adminium_public_challenges',
+  // Wave 0038. An endpoint is its own object, apart from the scope a key's
+  // grants compile into: many keys grant one endpoint, and an endpoint
+  // outlives every key that ever granted it.
+  pep: 'adminium_public_endpoints',
   // wave 0031 — the document render register. `doc` is the register
   // row itself and `dpf` the profile that shaped it; the sequences table has a
   // natural key (the profile id, or a composite for a profile-less intent) and

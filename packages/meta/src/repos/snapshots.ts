@@ -195,6 +195,34 @@ export function snapshotsRepo(meta: MetaDb) {
       return newest === undefined ? null : decode(newest);
     },
 
+    /**
+     * `latest`'s row without its schema payload — the same choice, active
+     * first, then the newest. For a caller that only needs to know WHICH
+     * snapshot is current (a cache stamp) and must not pay for decoding the
+     * whole model to find out.
+     */
+    async latestMeta(connectionId: string): Promise<SchemaSnapshotMeta | null> {
+      const active = await db
+        .selectFrom('adminium_schema_snapshots')
+        .select(META_COLUMNS)
+        .where('connectionId', '=', connectionId)
+        .where('isActive', '=', writeBool(meta, true))
+        .orderBy('createdAt', 'desc')
+        .orderBy('id', 'desc')
+        .limit(1)
+        .executeTakeFirst();
+      if (active !== undefined) return decodeMeta(active);
+      const newest = await db
+        .selectFrom('adminium_schema_snapshots')
+        .select(META_COLUMNS)
+        .where('connectionId', '=', connectionId)
+        .orderBy('createdAt', 'desc')
+        .orderBy('id', 'desc')
+        .limit(1)
+        .executeTakeFirst();
+      return newest === undefined ? null : decodeMeta(newest);
+    },
+
     /** The snapshot immediately before the given one (diff default: previous vs latest). */
     async previous(connectionId: string, beforeSnapshotId: string): Promise<SchemaSnapshot | null> {
       const anchor = await this.findById(beforeSnapshotId);

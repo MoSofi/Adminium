@@ -16,7 +16,9 @@
 import { publicDocumentRequestSchema } from '@adminium/add-on-contracts';
 import { z } from 'zod';
 
-/** Mirrors `recordListQuery` (routes/data/schema.ts), narrowed per D5. */
+import { PUBLIC_ACTIONS, PUBLIC_RESPONSE_SHAPES } from '../../public-api/scope.js';
+
+/** Mirrors `recordListQuery` (routes/data/schema.ts), narrowed for this surface. */
 export const publicListQuery = z.object({
   /**
    * Present for shape-compatibility with the dashboard's list DSL and IGNORED:
@@ -31,7 +33,7 @@ export const publicListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   cursor: z.string().max(2048).optional(),
-  // No `count`: the vocabulary is `none` and nothing else (D5 d).
+  // No `count`: the vocabulary is `none` and nothing else.
 });
 export type PublicListQuery = z.infer<typeof publicListQuery>;
 
@@ -60,16 +62,24 @@ export const publicConfigReply = z.object({
         match: z.array(z.string()),
       })
       .nullable(),
+    /**
+     * Whether this key may ask for a document to be drawn. Declared because
+     * the serializer parses through this schema and drops what it does not
+     * name — `publicConfigOf` returning a field is not enough to send it.
+     */
+    documents: z.object({ create: z.boolean() }),
     refs: z.record(
       z.string(),
       z.object({
-        actions: z.array(z.enum(['read', 'create', 'update'])),
+        actions: z.array(z.enum(PUBLIC_ACTIONS)),
         expose: z.array(z.string()),
         filterable: z.array(z.string()),
         searchable: z.array(z.string()),
         orderable: z.array(z.string()),
         writable: z.array(z.string()),
         limit: z.number().int(),
+        /** How a list of this ref answers. */
+        response: z.object({ shape: z.enum(PUBLIC_RESPONSE_SHAPES) }),
       }),
     ),
   }),
@@ -81,12 +91,24 @@ export const publicListReply = z.object({
     .object({
       limit: z.number().int(),
       offset: z.number().int(),
-      /** Always null on this surface — see D5(d). */
+      /** Always null on this surface. */
       total: z.number().int().nullable(),
     })
     .optional(),
   cursor: z.object({ next: z.string().nullable() }).optional(),
 });
+
+/**
+ * A list's three shapes: `wrapped` above, the bare rows, or one
+ * bare row. Which one a ref answers is on `/public/config`.
+ */
+export const publicListShapes = z.union([
+  // Strict, so a single row that happens to hold a `data` column is not read
+  // as the wrapped shape and stripped of its other columns.
+  publicListReply.strict(),
+  z.array(z.record(z.string(), z.unknown())),
+  z.record(z.string(), z.unknown()),
+]);
 
 export const publicRecordReply = z.object({
   data: z.record(z.string(), z.unknown()),
@@ -169,7 +191,7 @@ export type PublicErrorCode = (typeof PUBLIC_ERROR_CODES)[number];
  * caller's claim already reaches; the inline form draws from values it sends.
  * Both refuse anything the server stamps itself — `business`, `now`,
  * `currency`, `entity`, `number` — which is what stops the door being a way to
- * put a stranger's text under the operator's letterhead (D15, 0.3 trap 17).
+ * put a stranger's text under the operator's letterhead.
  */
 export const publicDocumentRenderBody = z.union([
   z
@@ -196,7 +218,7 @@ export const publicDocumentParams = z.object({ id: z.string().min(1).max(40) });
  *
  * NOT the subject. A document's frozen subject carries every mapped table's
  * values, including ones the operator never meant a customer to read — the
- * staff route redacts it per grant (D16) and there is no equivalent grant here.
+ * staff route redacts it per grant and there is no equivalent grant here.
  * What a customer needs is what it is, when, and where the bytes are.
  */
 export const publicDocumentReply = z.object({
@@ -215,4 +237,16 @@ export const publicDocumentReply = z.object({
 
 export const publicDocumentsReply = z.object({
   data: z.array(publicDocumentReply.shape.data),
+});
+
+/** The most rows one batch may carry (the comp's number). */
+export const PUBLIC_BATCH_MAX = 500;
+
+/**
+ * `POST /public/records/:ref/batch`. The array's own bound is loose on
+ * purpose: 0 or more than {@link PUBLIC_BATCH_MAX} rows is the write refusal
+ * the caller's code handles, not the query refusal a malformed body gets.
+ */
+export const publicBatchBody = z.object({
+  rows: z.array(z.record(z.string(), z.unknown())).max(PUBLIC_BATCH_MAX * 4),
 });

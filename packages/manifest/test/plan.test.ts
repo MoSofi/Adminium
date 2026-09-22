@@ -11,7 +11,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { addOnManifestSchema, planInstall, type AddOnManifest, type SchemaModelView } from '../src/index.js';
+import {
+  addOnManifestSchema,
+  planInstall,
+  type AddOnManifest,
+  type Manifest,
+  type SchemaModelView,
+} from '../src/index.js';
 
 /** The envelope every fixture below shares; only `requiredSchema` differs. */
 function addOn(key: string, requiredSchema?: unknown): AddOnManifest {
@@ -247,6 +253,71 @@ describe('planInstall: reusing what is already there', () => {
     const plan = planInstall(SHIPPING_DHL, EMPTY);
     expect(plan.create.flatMap((t) => t.columns).every((c) => !c.missing)).toBe(true);
     expect(plan.create.every((t) => t.missingColumns.length === 0)).toBe(true);
+  });
+});
+
+describe("planInstall: a same-named table that is another app's", () => {
+  /*
+   * The case that reached a real droplet: client-portal left `payments`
+   * behind (invoice_id NOT NULL), and point-of-sale's `payments` wants
+   * ticket_id. Only `requiredSchema`, `kind`, `key` and `version` are read by
+   * the planner, so an add-on fixture relabelled as an app is enough here.
+   */
+  const POS = {
+    ...addOn('pos', {
+      tables: [
+        {
+          ref: 'payments',
+          columns: [
+            { ref: 'id', type: 'int', role: 'pk' },
+            { ref: 'amount', type: 'money' },
+            { ref: 'paid_at', type: 'timestamptz' },
+          ],
+        },
+      ],
+    }),
+    kind: 'app',
+  } as unknown as Manifest;
+
+  const leftover = (invoiceId: Record<string, unknown>): SchemaModelView => ({
+    tables: [
+      {
+        ref: 'payments',
+        columns: [
+          { ref: 'id', isPrimaryKey: true, nullable: false, hasDefault: true },
+          { ref: 'invoice_id', ...invoiceId },
+          { ref: 'amount', nullable: false },
+          { ref: 'paid_at', nullable: false, hasDefault: true },
+        ],
+      },
+    ],
+  });
+
+  it('refuses a table requiring a column the app never writes, and names it', () => {
+    const plan = planInstall(POS, leftover({ nullable: false }));
+    expect(plan.installable).toBe(false);
+    expect(plan.problems).toEqual([
+      expect.objectContaining({ code: 'FOREIGN_TABLE', table: 'payments', column: 'invoice_id' }),
+    ]);
+    expect(plan.problems[0]?.message).toContain('"invoice_id"');
+  });
+
+  it('allows an undeclared column the database can fill on its own', () => {
+    expect(planInstall(POS, leftover({ nullable: true })).installable).toBe(true);
+    expect(planInstall(POS, leftover({ nullable: false, hasDefault: true })).installable).toBe(true);
+    expect(planInstall(POS, leftover({ nullable: false, isGenerated: true })).installable).toBe(true);
+    // A column the snapshot says nothing about is never guessed to be required.
+    expect(planInstall(POS, leftover({})).installable).toBe(true);
+  });
+
+  it("leaves an add-on's host tables alone", () => {
+    // An add-on reuses its host's tables to read them; their required columns
+    // are the host's business, not a reason to refuse.
+    const addOnPlan = planInstall(
+      { ...POS, kind: 'add-on' } as unknown as Manifest,
+      leftover({ nullable: false }),
+    );
+    expect(addOnPlan.installable).toBe(true);
   });
 });
 

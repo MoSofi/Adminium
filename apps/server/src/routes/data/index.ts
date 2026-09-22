@@ -291,6 +291,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     }
 
     async function contextFor(request: FastifyRequest, action: TableAction): Promise<DataContext> {
+      /*
+       * 401 without a principal, BEFORE any lookup. The resolution below
+       * answers differently for a missing connection, an un-introspected one,
+       * an unknown table and a real one, so a signed-out caller holding a
+       * connection id could list its table names; and `request.can` is merely
+       * false for them, so a real table answered 403 and wrote a
+       * `permission.denied` audit row with no actor. `widget-data` and the
+       * undo route below have always opened this way.
+       */
+      await app.rbac.resolve(request);
       const { connectionId, table: tableParam } = request.params as {
         connectionId: string;
         table: string;

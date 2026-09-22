@@ -8,9 +8,9 @@
  * `principalKey`. The public namespace deliberately does not use it — a
  * publishable key never becomes an rbac principal (D3), so a `keyBy: 'public'`
  * branch there would silently fall through to `ip:` — and it carries its own
- * `createPublicRateLimiter` with its own ladder,
- * `pubs:<session>` → `pub:<keyId>:ip:<ip>` → `pub:<keyId>`. Two limiters, two
- * key builders; proving one says nothing about the other.
+ * `createPublicRateLimiter` with its own ladder: `flood|ip:<addr>` before the
+ * key resolves, then `pubs:<session row>` or `pub:<keyId>:ip:<addr>`. Two
+ * limiters, two key builders; proving one says nothing about the other.
  *
  * ── WHY IT MATTERS MORE HERE THAN ANYWHERE ELSE ────────────────────────────
  * This is the surface that answers strangers with no credential worth the name,
@@ -32,9 +32,12 @@
  * nobody. The second case below is the one that caught that: every caller
  * then shares the proxy's bucket.)
  *
- * The limiter runs BEFORE the key is resolved (`routes/public/index.ts`), so an
- * unverified key is enough to drive it — which is deliberate there, and
- * convenient here.
+ * The flood guard counts BEFORE the key is resolved (`routes/public/index.ts`),
+ * so an unverified key is enough to drive it — which is deliberate there, and
+ * convenient here. It is keyed on the address and nothing else, which makes it
+ * the most direct probe of which address the server believed. (The rungs after
+ * resolution use the same address; `public-api-rate-ladder.test.ts` drives
+ * those with a key that resolves.)
  */
 
 import BetterSqlite3 from 'better-sqlite3';
@@ -47,13 +50,19 @@ import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
-import { PUBLIC_LIMITS } from '../src/public-api/limiter.js';
+import { PUBLIC_FAILED_RESOLUTION, PUBLIC_FLOOD_GUARD } from '../src/public-api/limiter.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
 /** A syntactically valid publishable key that resolves to nothing. */
 const KEY = `adm_pub_${'a'.repeat(32)}`;
 const ORIGIN = 'https://shop.example.com';
-const READ_MAX = PUBLIC_LIMITS['public-read'].max;
+const FLOOD_MAX = PUBLIC_FLOOD_GUARD.max;
+/**
+ * A key that resolves to nothing is refused sooner than the flood guard: 30
+ * failed resolutions a minute per address. Both buckets key on the same
+ * address, so rotating the forwarded header mints neither.
+ */
+const UNRESOLVED_MAX = Math.min(FLOOD_MAX, PUBLIC_FAILED_RESOLUTION.max);
 
 function memoryStore(meta: MetaDb): MetaStoreHandle {
   return {
@@ -141,12 +150,12 @@ describe('the public bucket keys on the address the proxy wrote', () => {
     // every request, and the genuine peer Caddy appended on the right.
     const spoofed = (i: number) => read(app, `10.0.0.${String(i % 250)}, 198.51.100.7`);
 
-    for (let attempt = 1; attempt <= READ_MAX; attempt += 1) {
+    for (let attempt = 1; attempt <= UNRESOLVED_MAX; attempt += 1) {
       const res = await spoofed(attempt);
-      expect(res.statusCode, `attempt ${String(attempt)} of ${String(READ_MAX)}`).not.toBe(429);
+      expect(res.statusCode, `attempt ${String(attempt)} of ${String(UNRESOLVED_MAX)}`).not.toBe(429);
     }
 
-    const limited = await spoofed(READ_MAX + 1);
+    const limited = await spoofed(UNRESOLVED_MAX + 1);
     expect(limited.statusCode).toBe(429);
     expect(limited.json<{ error: { code: string } }>().error.code).toBe('PUBLIC_RATE_LIMITED');
     expect(limited.headers['retry-after']).toBeDefined();
@@ -158,7 +167,7 @@ describe('the public bucket keys on the address the proxy wrote', () => {
     // the test above while starving every real customer.
     const app = await serving();
 
-    for (let attempt = 1; attempt <= READ_MAX + 1; attempt += 1) {
+    for (let attempt = 1; attempt <= FLOOD_MAX + 1; attempt += 1) {
       await read(app, '10.0.0.1, 198.51.100.7');
     }
     expect((await read(app, '10.0.0.1, 198.51.100.7')).statusCode).toBe(429);

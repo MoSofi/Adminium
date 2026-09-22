@@ -107,6 +107,9 @@ interface Call {
  */
 let systemActions: string[] | undefined;
 
+/** `GET /public-api` as the server holds it; a PUT merges into it. */
+let publicApi = { enabled: true, registered: true, origins: ['https://shop.example.com'], docsEnabled: false };
+
 function stubFetch(
   roles: string[],
   connections: ConnectionDto[] = [makeConnection()],
@@ -199,6 +202,13 @@ function stubFetch(
         }),
       );
     }
+    if (url === '/api/v1/public-api' && method === 'GET') {
+      return Promise.resolve(jsonResponse(200, publicApi));
+    }
+    if (url === '/api/v1/public-api' && method === 'PUT') {
+      publicApi = { ...publicApi, ...(body as Partial<typeof publicApi>) };
+      return Promise.resolve(jsonResponse(200, publicApi));
+    }
     if (url === '/api/v1/connections' && method === 'GET') {
       return Promise.resolve(jsonResponse(200, { connections }));
     }
@@ -245,6 +255,7 @@ afterAll(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   systemActions = undefined;
+  publicApi = { enabled: true, registered: true, origins: ['https://shop.example.com'], docsEnabled: false };
 });
 
 describe('StudioSettingsPage', () => {
@@ -565,7 +576,7 @@ describe('StudioSettingsPage', () => {
     await renderPage(['admin']);
     expect(await screen.findByRole('button', { name: 'Open AI settings' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Open lists' })).toBeDefined();
-    for (const refused of ['Manage pages', 'Open storage', 'Open add-ons', 'Open public API']) {
+    for (const refused of ['Manage pages', 'Open storage', 'Open add-ons', 'Open API keys']) {
       expect(screen.queryByRole('button', { name: refused }), refused).toBeNull();
     }
     expect(screen.queryByRole('heading', { name: 'Danger zone' })).toBeNull();
@@ -709,7 +720,7 @@ describe('StudioSettingsPage', () => {
     for (const cta of [
       'Open AI settings',
       'Open add-ons',
-      'Open public API',
+      'Open API keys',
       'Open global defaults',
       'Open translations',
     ]) {
@@ -754,7 +765,7 @@ describe('StudioSettingsPage', () => {
     // sent you to mint removed the link. This row does not come and go.
     const user = userEvent.setup();
     const { router } = await renderPage(['admin']);
-    await user.click(await screen.findByRole('button', { name: 'Open public API' }));
+    await user.click(await screen.findByRole('button', { name: 'Open API keys' }));
     expect(router.state.location.pathname).toBe('/studio/public-api');
   });
 
@@ -916,5 +927,44 @@ describe('StudioSettingsPage', () => {
       expect((spy.mock.contexts[0] as HTMLElement).id).toBe('email');
       spy.mockRestore();
     });
+  });
+});
+
+describe('the Public API card', () => {
+  it('flips each switch on the click, alone, with no Save', async () => {
+    systemActions = ['api-keys.manage'];
+    const user = userEvent.setup();
+    const { calls } = await renderPage(['admin']);
+    const docs = await screen.findByRole('switch', { name: 'API documentation page' });
+    const api = screen.getByRole('switch', { name: 'Public API' });
+    expect(api.getAttribute('aria-checked')).toBe('true');
+    expect(docs.getAttribute('aria-checked')).toBe('false');
+    // Outside the Save form: an admin has no form at all here.
+    expect(api.closest('form')).toBeNull();
+
+    await user.click(docs);
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'API documentation page' }).getAttribute('aria-checked')).toBe('true'));
+    await user.click(screen.getByRole('switch', { name: 'Public API' }));
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Public API' }).getAttribute('aria-checked')).toBe('false'));
+
+    const puts = calls.filter((c) => c.url === '/api/v1/public-api' && c.method === 'PUT').map((c) => c.body);
+    expect(puts).toEqual([{ docsEnabled: true }, { enabled: false }]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('states level 1 as a fact beside the switches', async () => {
+    systemActions = ['api-keys.manage'];
+    publicApi = { ...publicApi, registered: false };
+    await renderPage(['admin']);
+    expect(await screen.findByText('Not enabled on this server')).toBeTruthy();
+    expect(screen.getByText(/Set ADMINIUM_PUBLIC_API_ORIGINS and restart/)).toBeTruthy();
+  });
+
+  it('is not drawn, and not fetched, without api-keys.manage', async () => {
+    systemActions = ['pages.manage'];
+    const { calls } = await renderPage(['admin']);
+    await screen.findByRole('button', { name: 'Manage pages' });
+    expect(screen.queryByRole('switch', { name: 'API documentation page' })).toBeNull();
+    expect(calls.some((c) => c.url === '/api/v1/public-api')).toBe(false);
   });
 });

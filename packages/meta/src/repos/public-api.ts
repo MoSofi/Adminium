@@ -5,13 +5,13 @@
  *
  * Deliberately NOT part of `apiKeysRepo`. A publishable key differs from an
  * `adm_sk_` key in two ways that both reach the storage layer: its secret is
- * re-readable, and it must never be resolvable as an `RbacPrincipal` (D3).
+ * re-readable, and it must never be resolvable as an `RbacPrincipal`.
  * Sharing a repo would put both kinds one `where` clause apart, which is how a
  * later "unify the key lookup" change would quietly break the property the
  * whole off switch rests on.
  */
 
-import type { Selectable } from 'kysely';
+import type { Kysely, Selectable, Transaction } from 'kysely';
 
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
@@ -19,7 +19,11 @@ import type {
   AdminiumPublicKeysTable,
   AdminiumPublicScopesTable,
   AdminiumPublicSessionsTable,
+  MetaDB,
 } from '../schema/tables.js';
+
+/** Either the store itself or an open transaction on it. */
+type Executor = Kysely<MetaDB> | Transaction<MetaDB>;
 
 export type PublicScope = Selectable<AdminiumPublicScopesTable>;
 export type PublicKey = Selectable<AdminiumPublicKeysTable>;
@@ -34,6 +38,8 @@ export interface CreatePublicScopeInput {
   /** The scope document, already serialized. */
   document: string;
   proposedFromManifest?: string | null;
+  /** The key whose grants this document was compiled from; absent for a hand-written scope. */
+  derivedForKey?: string | null;
   createdBy?: string | null;
 }
 
@@ -60,10 +66,101 @@ function scopeRow(row: PublicScope): PublicScope {
   return { ...row, document: jsonText(row.document) };
 }
 
+/**
+ * One key row, with its JSON columns normalised to text.
+ *
+ * The same driver difference as the scope document. `origins` reached
+ * `resolve.ts` as a parsed array on Postgres and MySQL, so its `JSON.parse`
+ * threw and the key was treated as having no narrowing. A key limited to one
+ * origin answered every origin on the instance's list.
+ */
+function keyRow(row: PublicKey): PublicKey {
+  return { ...row, origins: jsonText(row.origins), access: row.access === null ? null : jsonText(row.access) };
+}
+
+/**
+ * One session row, with `grants` normalised to text. On Postgres and MySQL it
+ * reached `parseGrant` parsed, failed, and the claimed session was ignored, so
+ * every claim-gated resource answered 404 there.
+ */
+function sessionRow(row: PublicSession): PublicSession {
+  return { ...row, grants: jsonText(row.grants) };
+}
+
+/** What owns a set of publishable keys: one scope, or every scope of a connection. */
+export type PublicKeyOwner = { connectionId: string } | { scopeId: string };
+
+/** A publishable key that would stop working if what it hangs off went. */
+export interface LivePublicKeyRef {
+  id: string;
+  name: string;
+  prefix: string;
+  scopeId: string;
+}
+
+/**
+ * A scope or connection delete refused: publishable keys under it are still
+ * live. Revoking them is the operator's call, not a side effect of deleting
+ * something else (0014).
+ */
+export class LivePublicKeysError extends Error {
+  override name = 'LivePublicKeysError';
+  constructor(readonly keys: readonly LivePublicKeyRef[]) {
+    super(`${keys.length} live publishable key(s) still depend on this`);
+  }
+}
+
+/**
+ * The step before deleting a scope, or a connection whose scopes cascade: a
+ * key is `restrict` on its scope (0014), so every key row under it has to go
+ * first or the delete dies on the constraint.
+ *
+ * A LIVE key (neither revoked nor expired) is a working public surface
+ * somebody shipped, so it refuses the whole delete with
+ * {@link LivePublicKeysError} and nothing is removed. A revoked or expired key
+ * breaks nothing, and nothing else in the product can remove its row, so it is
+ * deleted here. Its sessions and challenges cascade with it. Run it inside the
+ * delete's own transaction, so a refusal leaves every row where it was.
+ */
+export async function clearInertPublicKeys(
+  trx: Kysely<MetaDB> | Transaction<MetaDB>,
+  owner: PublicKeyOwner,
+  at: number,
+): Promise<void> {
+  const keys = await trx
+    .selectFrom('adminium_public_keys')
+    .innerJoin('adminium_public_scopes', 'adminium_public_scopes.id', 'adminium_public_keys.scopeId')
+    .select([
+      'adminium_public_keys.id',
+      'adminium_public_keys.name',
+      'adminium_public_keys.prefix',
+      'adminium_public_keys.scopeId',
+      'adminium_public_keys.revokedAt',
+      'adminium_public_keys.expiresAt',
+    ])
+    .where((eb) =>
+      'scopeId' in owner
+        ? eb('adminium_public_scopes.id', '=', owner.scopeId)
+        : eb('adminium_public_scopes.connectionId', '=', owner.connectionId),
+    )
+    .orderBy('adminium_public_keys.createdAt')
+    .orderBy('adminium_public_keys.id')
+    .execute();
+  const live = keys.filter((k) => k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at));
+  if (live.length > 0) {
+    throw new LivePublicKeysError(live.map(({ id, name, prefix, scopeId }) => ({ id, name, prefix, scopeId })));
+  }
+  if (keys.length === 0) return;
+  const ids = keys.map((k) => k.id);
+  await trx.deleteFrom('adminium_public_keys').where('id', 'in', ids).execute();
+  // Request counts carry no foreign key (wave 0038), so they go by hand.
+  await trx.deleteFrom('adminium_public_request_stats').where('keyId', 'in', ids).execute();
+}
+
 export function publicScopesRepo(meta: MetaDb) {
   const { db } = meta;
   return {
-    async create(input: CreatePublicScopeInput, at: number = Date.now()): Promise<PublicScope> {
+    async create(input: CreatePublicScopeInput, at: number = Date.now(), on: Executor = db): Promise<PublicScope> {
       const row: PublicScope = {
         id: newId('psc'),
         connectionId: input.connectionId,
@@ -72,11 +169,12 @@ export function publicScopesRepo(meta: MetaDb) {
         timezone: input.timezone,
         document: input.document,
         proposedFromManifest: input.proposedFromManifest ?? null,
+        derivedForKey: input.derivedForKey ?? null,
         createdBy: input.createdBy ?? null,
         createdAt: at,
         updatedAt: at,
       };
-      await db.insertInto('adminium_public_scopes').values(row).execute();
+      await on.insertInto('adminium_public_scopes').values(row).execute();
       return row;
     },
 
@@ -112,8 +210,9 @@ export function publicScopesRepo(meta: MetaDb) {
       id: string,
       patch: { name?: string; timezone?: string; document?: string },
       at: number = Date.now(),
+      on: Executor = db,
     ): Promise<boolean> {
-      const res = await db
+      const res = await on
         .updateTable('adminium_public_scopes')
         .set({ ...patch, updatedAt: at })
         .where('id', '=', id)
@@ -122,28 +221,29 @@ export function publicScopesRepo(meta: MetaDb) {
     },
 
     /**
-     * Deleting a scope is refused while a key points at it — the FK is
-     * `restrict`, so this surfaces the constraint as `false` rather than as a
-     * driver error. Revoking the key first is the intended order, because it
-     * makes the operator see what they are about to break.
+     * Deleting a scope is refused while a LIVE key points at it, with
+     * {@link LivePublicKeysError}: revoking the key first is the intended
+     * order, because it makes the operator see what they are about to break.
+     * Revoked and expired keys go with the scope — otherwise a scope that
+     * ever had a key could never be deleted, since nothing removes a key row.
      */
-    async remove(id: string): Promise<boolean> {
-      const attached = await db
-        .selectFrom('adminium_public_keys')
-        .select('id')
-        .where('scopeId', '=', id)
-        .executeTakeFirst();
-      if (attached !== undefined) return false;
-      const res = await db
-        .deleteFrom('adminium_public_scopes')
-        .where('id', '=', id)
-        .executeTakeFirst();
-      return Number(res.numDeletedRows) === 1;
+    async remove(id: string, at: number = Date.now()): Promise<boolean> {
+      return db.transaction().execute(async (trx) => {
+        await clearInertPublicKeys(trx, { scopeId: id }, at);
+        const res = await trx.deleteFrom('adminium_public_scopes').where('id', '=', id).executeTakeFirst();
+        return Number(res.numDeletedRows) === 1;
+      });
     },
   };
 }
 
 export interface CreatePublicKeyInput {
+  /**
+   * A `pbk_` id minted by the caller. A derived scope names its key, and the key
+   * names its scope, so the key's id has to exist before either row is written.
+   * Absent, the repo mints one.
+   */
+  id?: string;
   name: string;
   /** Display/lookup fragment, e.g. `adm_pub_4f2a91cd`. */
   prefix: string;
@@ -156,6 +256,10 @@ export interface CreatePublicKeyInput {
   appKey?: string | null;
   /** JSON array narrowing the instance origin list; `[]` = no narrowing. */
   origins?: string[];
+  /** `{ endpointId: Method[] }`; absent for a key bound to a hand-written scope. */
+  access?: Record<string, readonly string[]> | null;
+  /** `browser` (default) | `server`. */
+  kind?: string;
   createdBy?: string | null;
   expiresAt?: number | null;
 }
@@ -163,9 +267,9 @@ export interface CreatePublicKeyInput {
 export function publicKeysRepo(meta: MetaDb) {
   const { db } = meta;
   return {
-    async create(input: CreatePublicKeyInput, at: number = Date.now()): Promise<PublicKey> {
+    async create(input: CreatePublicKeyInput, at: number = Date.now(), on: Executor = db): Promise<PublicKey> {
       const row: PublicKey = {
-        id: newId('pbk'),
+        id: input.id ?? newId('pbk'),
         name: input.name,
         prefix: input.prefix,
         tokenHash: input.tokenHash,
@@ -174,6 +278,8 @@ export function publicKeysRepo(meta: MetaDb) {
         side: input.side,
         appKey: input.appKey ?? null,
         origins: JSON.stringify(input.origins ?? []),
+        access: input.access === undefined || input.access === null ? null : JSON.stringify(input.access),
+        kind: input.kind ?? 'browser',
         expiresAt: input.expiresAt ?? null,
         revokedAt: null,
         lastUsedAt: null,
@@ -181,7 +287,7 @@ export function publicKeysRepo(meta: MetaDb) {
         createdAt: at,
         updatedAt: at,
       };
-      await db.insertInto('adminium_public_keys').values(row).execute();
+      await on.insertInto('adminium_public_keys').values(row).execute();
       return row;
     },
 
@@ -198,11 +304,12 @@ export function publicKeysRepo(meta: MetaDb) {
      * letting "no row" and "revoked row" take different code paths.
      */
     async findByPrefix(prefix: string): Promise<PublicKey[]> {
-      return db
+      const rows = await db
         .selectFrom('adminium_public_keys')
         .selectAll()
         .where('prefix', '=', prefix)
         .execute();
+      return rows.map(keyRow);
     },
 
     async findById(id: string): Promise<PublicKey | null> {
@@ -211,16 +318,43 @@ export function publicKeysRepo(meta: MetaDb) {
         .selectAll()
         .where('id', '=', id)
         .executeTakeFirst();
-      return row ?? null;
+      return row === undefined ? null : keyRow(row);
     },
 
     async listByScope(scopeId: string): Promise<PublicKey[]> {
-      return db
+      const rows = await db
         .selectFrom('adminium_public_keys')
         .selectAll()
         .where('scopeId', '=', scopeId)
         .orderBy('createdAt', 'desc')
         .execute();
+      return rows.map(keyRow);
+    },
+
+    /**
+     * Keys under one scope, or under every scope of one connection, that no
+     * longer work — revoked, or past `expiresAt`. They are what a scope or
+     * connection delete clears on its way out (see `clearInertPublicKeys`).
+     */
+    async listInert(owner: PublicKeyOwner, at: number = Date.now()): Promise<PublicKey[]> {
+      const rows = await db
+        .selectFrom('adminium_public_keys')
+        .innerJoin('adminium_public_scopes', 'adminium_public_scopes.id', 'adminium_public_keys.scopeId')
+        .selectAll('adminium_public_keys')
+        .where((eb) =>
+          'scopeId' in owner
+            ? eb('adminium_public_scopes.id', '=', owner.scopeId)
+            : eb('adminium_public_scopes.connectionId', '=', owner.connectionId),
+        )
+        .where((eb) =>
+          eb.or([
+            eb('adminium_public_keys.revokedAt', 'is not', null),
+            eb('adminium_public_keys.expiresAt', '<=', at),
+          ]),
+        )
+        .orderBy('adminium_public_keys.createdAt')
+        .execute();
+      return rows.map(keyRow);
     },
 
     /**
@@ -259,6 +393,8 @@ export function publicKeysRepo(meta: MetaDb) {
         .selectAll('adminium_public_keys')
         .where('adminium_public_keys.appKey', '=', appKey)
         .where('adminium_public_keys.side', '=', side)
+        // A hosted surface is a browser: a server key is never served to one.
+        .where('adminium_public_keys.kind', '=', 'browser')
         .where('adminium_public_scopes.connectionId', '=', connectionId)
         .where('adminium_public_keys.revokedAt', 'is', null)
         .where((eb) =>
@@ -269,7 +405,7 @@ export function publicKeysRepo(meta: MetaDb) {
         )
         .orderBy('adminium_public_keys.createdAt', 'desc')
         .executeTakeFirst();
-      return row ?? null;
+      return row === undefined ? null : keyRow(row);
     },
 
     async newestLiveByApp(
@@ -282,15 +418,47 @@ export function publicKeysRepo(meta: MetaDb) {
         .selectAll()
         .where('appKey', '=', appKey)
         .where('side', '=', side)
+        .where('kind', '=', 'browser')
         .where('revokedAt', 'is', null)
         .where((eb) => eb.or([eb('expiresAt', 'is', null), eb('expiresAt', '>', at)]))
         .orderBy('createdAt', 'desc')
         .executeTakeFirst();
-      return row ?? null;
+      return row === undefined ? null : keyRow(row);
     },
 
     async list(): Promise<PublicKey[]> {
-      return db.selectFrom('adminium_public_keys').selectAll().orderBy('createdAt', 'desc').execute();
+      const rows = await db.selectFrom('adminium_public_keys').selectAll().orderBy('createdAt', 'desc').execute();
+      return rows.map(keyRow);
+    },
+
+    /**
+     * Every LIVE key of one connection whose scope was derived from endpoint
+     * grants, with that scope's id and document — the set an
+     * endpoint save regenerates. A revoked or expired key keeps its document
+     * frozen and is not returned.
+     *
+     * Which endpoints a key grants is decided by the caller parsing `access`,
+     * never by a JSON operator in SQL: the three stores disagree about JSON.
+     */
+    async listLiveDerived(
+      connectionId: string,
+      at: number = Date.now(),
+    ): Promise<(PublicKey & { scopeDocument: string })[]> {
+      const rows = await db
+        .selectFrom('adminium_public_keys')
+        .innerJoin('adminium_public_scopes', 'adminium_public_scopes.id', 'adminium_public_keys.scopeId')
+        .selectAll('adminium_public_keys')
+        .select('adminium_public_scopes.document as scopeDocument')
+        .where('adminium_public_scopes.connectionId', '=', connectionId)
+        .where('adminium_public_scopes.derivedForKey', 'is not', null)
+        .where('adminium_public_keys.revokedAt', 'is', null)
+        .where((eb) =>
+          eb.or([eb('adminium_public_keys.expiresAt', 'is', null), eb('adminium_public_keys.expiresAt', '>', at)]),
+        )
+        .orderBy('adminium_public_keys.createdAt')
+        .orderBy('adminium_public_keys.id')
+        .execute();
+      return rows.map((row) => ({ ...keyRow(row), scopeDocument: jsonText(row.scopeDocument) }));
     },
 
     /** Rotation: a new secret against the same row, keeping scope and origins. */
@@ -318,9 +486,18 @@ export function publicKeysRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
-    /** Throttled by the caller, like session and api-key touches. */
+    /**
+     * Throttled by the caller (`public-api/runtime.ts`). Monotonic here: each
+     * replica throttles on its own clock, so a write carrying an older time
+     * than the stored one is dropped rather than moving the column backwards.
+     */
     async touchLastUsed(id: string, at: number = Date.now()): Promise<void> {
-      await db.updateTable('adminium_public_keys').set({ lastUsedAt: at }).where('id', '=', id).execute();
+      await db
+        .updateTable('adminium_public_keys')
+        .set({ lastUsedAt: at })
+        .where('id', '=', id)
+        .where((eb) => eb.or([eb('lastUsedAt', 'is', null), eb('lastUsedAt', '<', at)]))
+        .execute();
     },
   };
 }
@@ -366,7 +543,7 @@ export function publicSessionsRepo(meta: MetaDb) {
         .where('tokenHash', '=', tokenHash)
         .where('expiresAt', '>', at)
         .executeTakeFirst();
-      return row ?? null;
+      return row === undefined ? null : sessionRow(row);
     },
 
     async touch(id: string, at: number = Date.now()): Promise<void> {

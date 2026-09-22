@@ -32,12 +32,29 @@ export const PUBLIC_SIDES = ['staff', 'customer'] as const;
 export type PublicSide = (typeof PUBLIC_SIDES)[number];
 
 /**
- * v1 has no `delete`. A public surface that can destroy rows is a different
- * risk conversation defers it explicitly — the vocabulary is closed here so
- * "just add delete" is a spec change, not a config change.
+ * One action per public method: GET → `read` (a list AND one row by
+ * key), POST → `create`, PATCH → `update`, PUT → `replace`, DELETE → `delete`,
+ * BATCH → `batch`.
+ *
+ * v1 had no `delete`, and said the vocabulary was closed so that adding it
+ * would be a spec change rather than a config change. Adding `delete`,
+ * `replace` and `batch` was that spec change. The list is still closed: a verb
+ * nobody wrote a route and a rule for does not arrive through a scope document.
  */
-export const PUBLIC_ACTIONS = ['read', 'create', 'update'] as const;
+export const PUBLIC_ACTIONS = ['read', 'create', 'update', 'replace', 'delete', 'batch'] as const;
 export type PublicAction = (typeof PUBLIC_ACTIONS)[number];
+
+/** The actions that send column values, and so need something `writable`. */
+const WRITING_ACTIONS: ReadonlySet<PublicAction> = new Set(['create', 'update', 'replace', 'batch']);
+
+/**
+ * How a list answers. `wrapped` is `{ data, page, cursor }`,
+ * which is what every published client reads; `array` is the bare rows with
+ * the cursor in a header; `single` is exactly one row. Only the LIST route
+ * reads it — one row by key and every write always answer `{ data }`.
+ */
+export const PUBLIC_RESPONSE_SHAPES = ['wrapped', 'array', 'single'] as const;
+export type PublicResponseShape = (typeof PUBLIC_RESPONSE_SHAPES)[number];
 
 /**
  * Claim tiers. `lookup` is possession-of-a-reference and is permitted only on
@@ -49,7 +66,7 @@ export const CLAIM_STRATEGIES = ['lookup', 'email-code', 'external'] as const;
 export type ClaimStrategy = (typeof CLAIM_STRATEGIES)[number];
 
 /**
- * `none` only, and `estimated` is gone too (D5 d, sharpened 2026-08-20).
+ * `none` only, and `estimated` is gone too (sharpened 2026-08-20).
  *
  * `exact` was always banned — a full COUNT(*) is a free amplification
  * primitive. `estimated` looked like the safe middle and is not: `runList`
@@ -68,12 +85,18 @@ export const PUBLIC_COUNT_MODES = ['none'] as const;
 
 const LIMIT_CEILING = 200;
 
-/** Logical ref: what the caller names. Never a physical table name. */
+/**
+ * Logical ref: what the caller names. Never a physical table name.
+ *
+ * Widened to admit `_`, so a generated endpoint keeps a
+ * snake_case table's own name (`order_details`). Every ref the old grammar
+ * accepted still parses; the dot and the schema stay out.
+ */
 const refSchema = z
   .string()
   .min(1)
   .max(64)
-  .regex(/^[a-z][A-Za-z0-9]*$/, 'a ref is lowerCamelCase and carries no schema or dots');
+  .regex(/^[a-z][A-Za-z0-9_]*$/, 'a ref starts with a lower-case letter and carries no schema or dots');
 
 const columnSchema = z.string().min(1).max(128);
 
@@ -115,9 +138,9 @@ const resourceSchema = z
     actions: z.array(z.enum(PUBLIC_ACTIONS)).min(1),
     /** The COMPLETE readable column set. Not a default — see the header. */
     expose: z.array(columnSchema).min(1),
-    /** Columns `where=` may name. Defaults to EMPTY (D5 c). */
+    /** Columns `where=` may name. Defaults to EMPTY. */
     filterable: z.array(columnSchema).default([]),
-    /** Columns `q=` may search. Absent ⇒ `q=` is refused (D5 b). */
+    /** Columns `q=` may search. Absent ⇒ `q=` is refused. */
     searchable: z.array(columnSchema).default([]),
     orderable: z.array(columnSchema).default([]),
     /** ANDed server-side, always. */
@@ -144,6 +167,29 @@ const resourceSchema = z
     /** Operator flag: this table carries data a `lookup` claim may not gate. */
     sensitive: z.boolean().default(false),
     limit: z.number().int().min(1).max(LIMIT_CEILING).default(50),
+    /*
+     * ── WHAT PLAN 54 ADDED, ALL OPTIONAL ──────────────────────────────────
+     * A scope written before these existed parses unchanged and behaves as it
+     * did: `limit` stays both the default page and the cap, the order is the
+     * caller's or the database's, and a list is wrapped. `version` stays 1.
+     */
+    /** The page size when the caller names none. Absent ⇒ `limit`. */
+    defaultLimit: z.number().int().min(1).max(LIMIT_CEILING).optional(),
+    /** `column.asc` / `column.desc`, used when the caller names no order. */
+    defaultOrder: z
+      .string()
+      .regex(/^[^.,\s]+\.(asc|desc)$/, 'an order is "column.asc" or "column.desc"')
+      .max(160)
+      .optional(),
+    /** This resource's own ceiling, per the rules in `limiter.ts`. */
+    rate: z
+      .object({
+        max: z.number().int().min(1),
+        windowMs: z.union([z.literal(1_000), z.literal(60_000), z.literal(3_600_000)]),
+      })
+      .strict()
+      .optional(),
+    response: z.object({ shape: z.enum(PUBLIC_RESPONSE_SHAPES) }).strict().optional(),
     count: z.enum(PUBLIC_COUNT_MODES).default('none'),
   })
   .strict();
@@ -158,7 +204,7 @@ export const publicScopeDocumentSchema = z
      * there.
      *
      * Optional is not lax. `compileScope` still refuses when NEITHER source
-     * yields a canonical zone, so D20's boot-fatal guarantee is unchanged — the
+     * yields a canonical zone, so this boot-fatal guarantee is unchanged — the
      * reason is in the pilot: a `timestamptz` rendered through the READER's
      * zone put a 15:00 booking at 16:00 with no error anywhere. There is no
      * defensible default; a wrong timezone is worse than a missing one because
@@ -166,7 +212,7 @@ export const publicScopeDocumentSchema = z
      *
      * It stays overridable because one connection can legitimately be read by
      * two scopes for businesses in different places — a franchise database, a
-     * shared tenant — and that is D20's own argument for not making it global.
+     * shared tenant — and that is the reason it is not made global.
      */
     timezone: z.string().min(1).max(64).optional(),
     /**
@@ -183,10 +229,11 @@ export const publicScopeDocumentSchema = z
      * scope that returns a timestamp needs it and there is no safe default —
      * a wrong zone looks like data.
      *
-     * The rest of what O7's "closed key set" listed did NOT need building:
-     * `displayName` and the logo already have a home in `adminium_settings`
-     * (`branding.appName`, `branding.logoFileId`) served publicly at
-     * `/api/v1/branding`, and the address is app-owned under D20's hybrid.
+     * The rest of what this document's closed key set listed did NOT need
+     * building: `displayName` and the logo already have a home in
+     * `adminium_settings` (`branding.appName`, `branding.logoFileId`) served
+     * publicly at `/api/v1/branding`, and the address is app-owned —
+     * Adminium serves only what it needs to serve correct data.
      */
     currency: z
       .string()
@@ -208,8 +255,8 @@ export const publicScopeDocumentSchema = z
      * Default off, and off is the only safe default: a publishable key ships in
      * the page bundle by design, so with this on, anybody holding it can put
      * text in front of the operator's letterhead. What keeps that from being an
-     * email relay is the other half of D15 — the drawn row's `delivery` starts
-     * `pending-review` and a person settles it.
+     * email relay is that the drawn row's `delivery` starts `pending-review`
+     * and a person settles it.
      */
     documents: z
       .object({ create: z.boolean().default(false) })
@@ -218,6 +265,14 @@ export const publicScopeDocumentSchema = z
     resources: z.array(resourceSchema).min(1),
   })
   .strict();
+
+/**
+ * A DERIVED document may hold no resources at all: every
+ * endpoint its key was granted can be narrowed to nothing, and the key must
+ * then answer the one 404 on every ref rather than make each endpoint save
+ * refuse. A hand-written scope keeps `.min(1)`.
+ */
+const derivedScopeDocumentSchema = publicScopeDocumentSchema.extend({ resources: z.array(resourceSchema) });
 
 export type PublicScopeDocument = z.infer<typeof publicScopeDocumentSchema>;
 export type PublicScopeResource = z.infer<typeof resourceSchema>;
@@ -255,8 +310,16 @@ export interface CompiledResource {
   mandatory: RecordFilter | null;
   claim: z.infer<typeof claimScopeSchema> | null;
   sensitive: boolean;
+  /** The cap. A caller may ask for fewer rows, never more. */
   limit: number;
-  count: 'none' | 'estimated';
+  /** The page size when the caller names none; never above `limit`. */
+  defaultLimit: number;
+  /** `column.dir`, or null to leave the order to the caller and the database. */
+  defaultOrder: string | null;
+  rate: { max: number; windowMs: number } | null;
+  response: { shape: PublicResponseShape };
+  /** `none` is the whole vocabulary (see `PUBLIC_COUNT_MODES`). */
+  count: 'none';
 }
 
 export interface CompiledScope {
@@ -355,12 +418,18 @@ export interface InheritedTenantConfig {
   currency?: string | null;
 }
 
+export interface CompileScopeOptions {
+  /** The document was derived from a key's endpoint grants. */
+  derived?: boolean;
+}
+
 export function compileScope(
   input: unknown,
   columnsOf?: TableColumnLookup,
   inherited?: InheritedTenantConfig,
+  opts: CompileScopeOptions = {},
 ): CompiledScope {
-  const parsed = publicScopeDocumentSchema.safeParse(input);
+  const parsed = (opts.derived === true ? derivedScopeDocumentSchema : publicScopeDocumentSchema).safeParse(input);
   if (!parsed.success) {
     throw new ScopeCompileError(
       parsed.error.issues.map((i) => {
@@ -472,7 +541,8 @@ export function compileScope(
     /*
      * A filterable/searchable/orderable column that is not exposed is a read
      * primitive for a column the caller cannot see — the exact shape of the
-     * `q=` oracle D5(b) exists to close, arrived at from a different direction.
+     * `q=` oracle the `searchable` rule below exists to close, arrived at from
+     * a different direction.
      */
     const exposed = new Set(r.expose);
     for (const c of r.filterable) {
@@ -595,11 +665,36 @@ export function compileScope(
 
     /* Declaring a write action with nothing writable is almost always a mistake. */
     for (const a of r.actions) {
-      if ((a === 'create' || a === 'update') && r.writable.length === 0) {
+      if (WRITING_ACTIONS.has(a) && r.writable.length === 0) {
         issues.push({
           code: 'SCOPE_ACTION_WITHOUT_WRITABLE',
           message: `ref "${r.ref}" declares "${a}" but lists no writable columns`,
           ref: r.ref,
+        });
+      }
+    }
+
+    if (r.defaultLimit !== undefined && r.defaultLimit > r.limit) {
+      issues.push({
+        code: 'SCOPE_DEFAULT_LIMIT_ABOVE_LIMIT',
+        message: `ref "${r.ref}" pages ${r.defaultLimit} rows by default but caps a page at ${r.limit}`,
+        ref: r.ref,
+      });
+    }
+    /*
+     * The default order is the SERVER's choice, so it needs no `orderable`
+     * entry — but it still sorts by a column, and a sort by a hidden column
+     * reveals it comparison by comparison, exactly as `orderable` would.
+     */
+    if (r.defaultOrder !== undefined) {
+      const column = r.defaultOrder.slice(0, r.defaultOrder.lastIndexOf('.'));
+      check(column, 'SCOPE_DEFAULT_ORDER_UNKNOWN_COLUMN');
+      if (!exposed.has(column)) {
+        issues.push({
+          code: 'SCOPE_DEFAULT_ORDER_NOT_EXPOSED',
+          message: `ref "${r.ref}" orders by "${column}", which it does not expose`,
+          ref: r.ref,
+          column,
         });
       }
     }
@@ -641,7 +736,7 @@ export function compileScope(
    * staff surfaces already have `POST /api/v1/documents/render` behind a real
    * session and a real grant. Offering the same thing through a publishable key
    * would be a second, weaker door into the same pipeline — one whose whole
-   * defence is that a human settles what comes out of it (D15), which is
+   * defence is that a human settles what comes out of it, which is
    * ceremony when the caller is already a known user.
    */
   if (doc.documents?.create === true && doc.side === 'staff') {
@@ -654,7 +749,7 @@ export function compileScope(
   }
 
   /*
-   * D11/D17 — the tier rule, enforced here rather than documented. A `lookup`
+   * The claim-tier rule, enforced here rather than documented. A `lookup`
    * claim is possession-of-a-reference; the pilot's own model app matched on a
    * mobile number and a date of birth, both low-entropy personal data, against
    * sequential references. That is acceptable for "track my order" and is not
@@ -718,6 +813,10 @@ export function compileScope(
       claim: r.claim ?? null,
       sensitive: r.sensitive,
       limit: r.limit,
+      defaultLimit: r.defaultLimit ?? r.limit,
+      defaultOrder: r.defaultOrder ?? null,
+      rate: r.rate === undefined ? null : { max: r.rate.max, windowMs: r.rate.windowMs },
+      response: { shape: r.response?.shape ?? 'wrapped' },
       count: r.count,
     });
   }
@@ -770,7 +869,7 @@ export function publicConfigOf(scope: CompiledScope): {
    * discover the refusal by being refused.
    */
   documents: { create: boolean };
-  refs: Record<string, { actions: PublicAction[]; expose: string[]; filterable: string[]; searchable: string[]; orderable: string[]; writable: string[]; limit: number }>;
+  refs: Record<string, ReturnType<typeof projectResource>>;
 } {
   const refs: Record<string, ReturnType<typeof projectResource>> = {};
   for (const [ref, r] of scope.byRef) refs[ref] = projectResource(r);
@@ -795,6 +894,11 @@ function projectResource(r: CompiledResource): {
   orderable: string[];
   writable: string[];
   limit: number;
+  /**
+   * How a list of this ref answers. A page detects it here rather than by
+   * version: `version` is the constant 1.
+   */
+  response: { shape: PublicResponseShape };
 } {
   // Copied, not aliased: this object is serialized straight onto the wire, and
   // handing out the compiled scope's own arrays would let a serializer or a
@@ -807,5 +911,6 @@ function projectResource(r: CompiledResource): {
     orderable: [...r.orderable],
     writable: [...r.writable],
     limit: r.limit,
+    response: { shape: r.response.shape },
   };
 }

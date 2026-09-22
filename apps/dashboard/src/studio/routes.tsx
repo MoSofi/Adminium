@@ -10,8 +10,8 @@
  * - `/studio/settings` → workspace settings hub
  * - `/studio/settings/project`       → the project folder this server runs, its
  *   hooks and actions (super admins). LAZY like its siblings.
- * - `/studio/public-api` → the scoped public API: switch, scopes, keys. LAZY like
- * its siblings — see the note below.
+ * - `/studio/public-api` → API keys & tokens: endpoints, and the keys that may
+ *   call them. LAZY like its siblings — see the note below.
  * - `/studio/apps` → hosted app surfaces: placement + domain attachment. LAZY
  * like its siblings.
  * - `/studio/remap/$connectionId`    → schema remap editor — OWNED BY THE
@@ -79,9 +79,10 @@ const AddOnsPageLazy = lazy(async () => {
   return { default: mod.AddOnsPage };
 });
 
+// The endpoints-and-keys page replaces the scope editor at the same address.
 const PublicApiPageLazy = lazy(async () => {
-  const mod = await import('./public-api/PublicApiPage.js');
-  return { default: mod.PublicApiPage };
+  const mod = await import('./api-keys/ApiKeysPage.js');
+  return { default: mod.ApiKeysPage };
 });
 
 const HostedAppsPageLazy = lazy(async () => {
@@ -236,6 +237,7 @@ function ConnectRouteComponent() {
         <ConnectWizardLazy
           bridgeTicket={bridgeTicket}
           onOpenApp={() => void navigate({ to: '/' })}
+          onCreatePage={() => void navigate({ to: '/studio/pages/new' })}
           onOpenReview={(runId) => void navigate({ to: '/studio/llm-runs/$runId/review', params: { runId } })}
         />
       </StudioBody>

@@ -107,7 +107,7 @@ describe('platform rail rows follow the session\'s system keys', () => {
     const links = railLinks();
     expect(links).toContain('Team');
     expect(links).toContain('Audit log');
-    for (const refused of ['Roles & permissions', 'API keys', 'Automations', 'Workflow logs']) {
+    for (const refused of ['Roles & permissions', 'Automations', 'Workflow logs']) {
       expect(links, refused).not.toContain(refused);
     }
   });
@@ -119,13 +119,12 @@ describe('platform rail rows follow the session\'s system keys', () => {
     expect(links).toContain('Automations');
     expect(links).toContain('Workflow logs');
     expect(links).not.toContain('Team');
-    expect(links).not.toContain('API keys');
   });
 
   it('shows a Super Admin every row', async () => {
     await renderRail({ roles: ['super-admin'] });
     const links = railLinks();
-    for (const row of ['Team', 'Roles & permissions', 'API keys', 'Audit log', 'Automations', 'Workflow logs']) {
+    for (const row of ['Team', 'Roles & permissions', 'Audit log', 'Automations', 'Workflow logs']) {
       expect(links, row).toContain(row);
     }
   });

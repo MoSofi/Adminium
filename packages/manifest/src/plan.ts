@@ -55,8 +55,22 @@ export interface SchemaModelView {
   /** Every table name that already exists, however it got there. */
   tables: readonly {
     ref: string;
-    columns: readonly { ref: string }[];
+    columns: readonly ExistingColumnView[];
   }[];
+}
+
+/**
+ * One existing column. Only `ref` is required; the rest is what the database
+ * reports, and a caller that does not know it leaves it out. A column that
+ * says nothing is never treated as required.
+ */
+export interface ExistingColumnView {
+  ref: string;
+  nullable?: boolean;
+  /** The database fills it when an insert leaves it out (a default, a sequence). */
+  hasDefault?: boolean;
+  isPrimaryKey?: boolean;
+  isGenerated?: boolean;
 }
 
 /** What will happen to one table. */
@@ -98,7 +112,7 @@ export interface PlannedReference {
 
 /** A reason the plan cannot be applied, phrased for a person. */
 export interface PlanProblem {
-  code: 'UNRESOLVED_REFERENCE' | 'COLUMN_TYPE_CONFLICT' | 'RESERVED_TABLE';
+  code: 'UNRESOLVED_REFERENCE' | 'COLUMN_TYPE_CONFLICT' | 'RESERVED_TABLE' | 'FOREIGN_TABLE';
   message: string;
   table: string;
   column?: string;
@@ -198,6 +212,48 @@ export function planInstall(manifest: Manifest, model: SchemaModelView): Install
       missingColumns,
     };
     (existing === undefined ? create : reuse).push(planned);
+
+    /*
+     * A SAME-NAMED TABLE THAT IS NOT THIS APP'S.
+     *
+     * An existing table can carry every column an app declares and still be
+     * unusable: when it also has a column the database requires on every
+     * insert and the app never writes, each row the app creates is refused.
+     * The usual cause is another app's table left behind by an uninstall —
+     * a client-portal `payments` (invoice_id NOT NULL) under a point-of-sale
+     * `payments` (ticket_id). Offering the missing columns would not help, so
+     * the plan says what the table actually is.
+     *
+     * Apps only: an add-on reuses its HOST's tables to read and reference
+     * them, and the host's own required columns are the host's business.
+     */
+    if (existing !== undefined && manifest.kind === 'app') {
+      const declaredColumns = new Set(table.columns.map((c) => c.ref));
+      const blocking = existing.columns
+        .filter(
+          (c) =>
+            !declaredColumns.has(c.ref) &&
+            c.nullable === false &&
+            c.hasDefault !== true &&
+            c.isPrimaryKey !== true &&
+            c.isGenerated !== true,
+        )
+        .map((c) => c.ref);
+      const [first] = blocking;
+      if (first !== undefined) {
+        const list = blocking.map((ref) => `"${ref}"`).join(', ');
+        problems.push({
+          code: 'FOREIGN_TABLE',
+          table: table.ref,
+          column: first,
+          message:
+            `This database already has a "${table.ref}" table that is not shaped for this app: ` +
+            `it requires ${list}, which the app never writes, so every row the app saves ` +
+            `there would be refused. It may belong to another app. Rename or remove that ` +
+            `table, or install against a different database.`,
+        });
+      }
+    }
 
     for (const column of table.columns) {
       if (column.type !== 'fk' || column.references === undefined) continue;

@@ -116,7 +116,6 @@ export default {
     "back": "Retour",
     "team": "Équipe",
     "roles": "Rôles et permissions",
-    "apiKeys": "Clés API",
     "audit": "Journal d’audit",
     "security": "Mot de passe et sessions",
     "files": "Fichiers",
@@ -921,60 +920,6 @@ export default {
       }
     }
   },
-  "apiKeys": {
-    "title": "Clés d’API et jetons",
-    "subtitle": "Gérez l’accès programmatique à votre espace de travail.",
-    "createButton": "Créer une clé",
-    "copy": "Copier",
-    "copied": "Copié",
-    "revoke": "Révoquer la clé",
-    "neverUsed": "Jamais utilisée",
-    "lastUsed": "Dernière utilisation {since}",
-    "scopesOverflow": "+{count} de plus",
-    "status": {
-      "active": "Active",
-      "revoked": "Révoquée",
-      "expired": "Expirée"
-    },
-    "list": {
-      "title": "Clés",
-      "activeCount": "{count, plural, one {# clé active} other {# clés actives}}"
-    },
-    "empty": {
-      "title": "Aucune clé d’API",
-      "body": "Créez-en une pour appeler l’API Adminium depuis votre propre code."
-    },
-    "revealed": {
-      "title": "Nouvelle clé créée",
-      "body": "Copiez-la maintenant — vous ne pourrez plus jamais la voir."
-    },
-    "rolesUnavailable": {
-      "title": "Les rôles ne vous sont pas visibles",
-      "body": "Créer une clé, c’est choisir le rôle sous lequel elle agit, et votre compte ne peut pas lire la liste des rôles. Demandez à un administrateur la permission « Gérer les rôles »."
-    },
-    "quickStart": {
-      "title": "Démarrage rapide",
-      "body": "Authentifiez vos requêtes avec votre clé dans l’en-tête Authorization."
-    },
-    "create": {
-      "title": "Créer une clé d’API",
-      "description": "La clé agit avec les permissions du rôle que vous choisissez.",
-      "name": "Nom",
-      "namePlaceholder": "ex. Pipeline analytique",
-      "role": "Rôle",
-      "roleHelper": "Choisissez le rôle le moins privilégié qui suffise.",
-      "expires": "Expire le",
-      "expiresHelper": "Laissez vide pour une clé qui n’expire jamais.",
-      "submit": "Créer la clé",
-      "failed": "Impossible de créer la clé"
-    },
-    "revokeConfirm": {
-      "title": "Révoquer la clé d’API",
-      "body": "Tout code appelant encore l’API avec « {name} » échouera immédiatement. C’est irréversible.",
-      "prompt": "Saisissez « {name} » pour confirmer",
-      "confirm": "Révoquer la clé"
-    }
-  },
   "changelog": {
     "title": "Journal des modifications",
     "subtitle": "Nouveautés produit et versions.",
@@ -1086,6 +1031,14 @@ export default {
       "rest": {
         "title": "Référence de l’API REST",
         "excerpt": "Tous les points d’accès exposés par l’application générée, avec les formats de requête et de réponse."
+      },
+      "publicApi": {
+        "title": "Points de terminaison et clés pour vos pages",
+        "excerpt": "Permettez à une page ou à un autre serveur d’appeler les tables de votre choix, avec des clés limitées à des points de terminaison et à des méthodes."
+      },
+      "apiDocsPage": {
+        "title": "La page de documentation de l’API",
+        "excerpt": "Publiez /api-docs pour que les personnes qui appellent votre API puissent la parcourir et essayer une requête."
       },
       "roles": {
         "title": "Rôles et permissions",

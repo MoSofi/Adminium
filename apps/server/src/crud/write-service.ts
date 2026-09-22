@@ -58,7 +58,7 @@
  */
 
 import type { FastifyRequest } from 'fastify';
-import type { Kysely, UpdateQueryBuilder, UpdateResult } from 'kysely';
+import type { DeleteQueryBuilder, DeleteResult, Kysely, UpdateQueryBuilder, UpdateResult } from 'kysely';
 import type { Dialect } from '@adminium/engine';
 
 import { AppError, ValidationFailedError } from '../errors.js';
@@ -213,6 +213,7 @@ export function uncheckedForUndo(rows: readonly Row[]): CheckedRow[] {
 
 type Db = Kysely<SourceDatabase>;
 type AnyUpdate = UpdateQueryBuilder<SourceDatabase, string, string, UpdateResult>;
+type AnyDelete = DeleteQueryBuilder<SourceDatabase, string, DeleteResult>;
 
 /**
  * INSERT one row and return the STORED row (defaults resolved), per dialect.
@@ -297,12 +298,21 @@ export async function updateRows(
   return Number(result.numUpdatedRows);
 }
 
-/** DELETE the rows whose columns equal `match`. Returns the count. */
-export async function deleteRows(db: Db, table: ResolvedTable, match: Row): Promise<number> {
-  let query = db.deleteFrom(table.id);
+/**
+ * DELETE the rows whose columns equal `match`, optionally narrowed further
+ * (the public API's scope, in the statement's own WHERE). Returns the count.
+ */
+export async function deleteRows(
+  db: Db,
+  table: ResolvedTable,
+  match: Row,
+  refine?: (query: AnyDelete) => AnyDelete,
+): Promise<number> {
+  let query = db.deleteFrom(table.id) as unknown as AnyDelete;
   for (const [column, value] of Object.entries(match)) {
     query = query.where((eb) => eb(db.dynamic.ref(column), '=', value));
   }
+  if (refine !== undefined) query = refine(query);
   const result = await query.executeTakeFirst();
   return Number(result.numDeletedRows);
 }
@@ -397,11 +407,25 @@ export interface UpdateOutcome {
 export interface DeleteRecordInput {
   target: WriteTarget;
   pk: Row;
-  /** The row being deleted; every caller has read it already. */
-  before: Row;
+  /** The row being deleted, when the caller has read it (the dashboard always has). */
+  before?: Row | undefined;
+  /**
+   * How to read the row when `before` is absent. The public API passes a read
+   * that carries its scope, so a before hook never sees — and a rejection
+   * never reveals — a row the caller could not delete.
+   */
+  load?: (() => Promise<Row | null>) | undefined;
+  /** More conditions for the DELETE itself (the public API's scope). */
+  refine?: ((query: AnyDelete) => AnyDelete) | undefined;
+  /**
+   * Stop quietly — no hook, no statement, nothing announced — when the row
+   * cannot be read, and announce nothing when the DELETE matched no row.
+   */
+  skipIfNone?: boolean | undefined;
   context: WriteContext;
   mapError?: ((error: unknown) => never) | undefined;
-  announce: (count: number) => Promise<void>;
+  /** `before` is the row as read; null only when nobody read it. */
+  announce: (count: number, before: Row | null) => Promise<void>;
 }
 
 /** One row of a multi-row write, before its hooks. */
@@ -625,14 +649,17 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     },
 
     async delete(input) {
-      const { target, context, pk, before } = input;
+      const { target, context, pk } = input;
       const hooks = current();
-      if (await hooks.wants('before', 'delete', target, context)) {
+      const before = input.before ?? (input.load === undefined ? null : await input.load());
+      if (before === null && input.load !== undefined && input.skipIfNone === true) return 0;
+      if (before !== null && (await hooks.wants('before', 'delete', target, context))) {
         await runBefore(hooks, 'delete', target, context, {}, before);
       }
-      const count = await statement(() => deleteRows(target.db, target.table, pk), input.mapError);
-      await input.announce(count);
-      if (count > 0 && (await hooks.wants('after', 'delete', target, context))) {
+      const count = await statement(() => deleteRows(target.db, target.table, pk, input.refine), input.mapError);
+      if (count === 0 && input.skipIfNone === true) return 0;
+      await input.announce(count, before);
+      if (count > 0 && before !== null && (await hooks.wants('after', 'delete', target, context))) {
         await hooks.after({ action: 'delete', target, record: before, before: null, context });
       }
       return count;

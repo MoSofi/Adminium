@@ -24,7 +24,13 @@ import {
   countMetaRows,
   createFirstSuperAdmin,
   firstRun,
+  newId,
   pagesRepo,
+  publicApiStateRepo,
+  publicEndpointsRepo,
+  publicKeysRepo,
+  publicRequestStatsRepo,
+  publicScopesRepo,
   relocatableTables,
   sessionsRepo,
   settingsRepo,
@@ -82,6 +88,40 @@ async function seed(meta: MetaDb) {
     origin: 'generated',
     createdBy: user.id,
   });
+
+  // Wave 0038: a key and the scope compiled for it name each other with no
+  // foreign key between them, and the copy writes the scope first, before the
+  // key it names. Counts and the revision carry no foreign key at all.
+  const keyId = newId('pbk');
+  const derived = await publicScopesRepo(meta).create({
+    connectionId: connection.id,
+    side: 'customer',
+    name: 'Web',
+    timezone: 'UTC',
+    document: '{"version":1}',
+    derivedForKey: keyId,
+    createdBy: user.id,
+  });
+  await publicKeysRepo(meta).create({
+    id: keyId,
+    name: 'Web',
+    prefix: 'adm_pub_eeeeeeee',
+    tokenHash: 'e'.repeat(64),
+    tokenEncrypted: 'enc:sealed',
+    scopeId: derived.id,
+    side: 'customer',
+    access: { pep_users: ['GET'] },
+    createdBy: user.id,
+  });
+  await publicEndpointsRepo(meta).create({
+    connectionId: connection.id,
+    ref: 'users',
+    origin: 'generated',
+    definition: '{"path":"/users","methods":["GET"]}',
+    createdBy: user.id,
+  });
+  await publicRequestStatsRepo(meta).add({ keyId, ref: 'users', bucket: 1_800_000_000_000, requests: 3, errors: 0 });
+  await publicApiStateRepo(meta).bump();
 
   return { user, connection, page };
 }

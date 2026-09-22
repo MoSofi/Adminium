@@ -28,6 +28,7 @@ export const NAMESPACES = [
   'project',
   'assistant',
   'addOns',
+  'apiDocs',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -125,8 +126,9 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * `apps/dashboard/src/data-io/dataIoMessages.ts`,
  * `apps/dashboard/src/files/filesMessages.ts`,
  * `apps/dashboard/src/report-builder/reportBuilderMessages.ts` and
- * `apps/dashboard/src/project/projectMessages.ts` and
- * `apps/dashboard/src/assistant/assistantMessages.ts`.
+ * `apps/dashboard/src/project/projectMessages.ts`,
+ * `apps/dashboard/src/assistant/assistantMessages.ts` and
+ * `apps/dashboard/src/api-docs/apiDocsMessages.ts`.
  */
 export const DEFERRED_NAMESPACES = [
   'studio',
@@ -146,6 +148,13 @@ export const DEFERRED_NAMESPACES = [
    * chunk that is measured to the byte.
    */
   'addOns',
+  /*
+   * The public API explorer at `/api-docs`: a page for people
+   * who call this deployment's API, drawn with NO session, by one lazy route
+   * and nothing else. It awaits this namespace the way `/setup` awaits
+   * `onboarding` — the other pre-auth surface.
+   */
+  'apiDocs',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

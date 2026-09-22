@@ -11,7 +11,7 @@ import {
   type SettingKey,
   type SettingValue,
 } from '../schema/settings-registry.js';
-import { MetaValidationError, packJson, readJson } from './util.js';
+import { MetaValidationError, packJson, readJsonFrom } from './util.js';
 
 export class UnknownSettingError extends Error {
   override name = 'UnknownSettingError';
@@ -33,7 +33,7 @@ export function settingsRepo(meta: MetaDb) {
       const def = SETTINGS_REGISTRY[key];
       const row = await db.selectFrom('adminium_settings').selectAll().where('key', '=', key).executeTakeFirst();
       if (!row) return def.default as SettingValue<K>;
-      return def.schema.parse(readJson(row.value)) as SettingValue<K>;
+      return def.schema.parse(readJsonFrom(meta, row.value)) as SettingValue<K>;
     },
 
     /** Validate and upsert an explicit override. */
@@ -77,7 +77,7 @@ export function settingsRepo(meta: MetaDb) {
       const out: Partial<Record<SettingKey, unknown>> = {};
       for (const row of rows) {
         if (!isSettingKey(row.key)) continue;
-        const parsed = SETTINGS_REGISTRY[row.key].schema.safeParse(readJson(row.value));
+        const parsed = SETTINGS_REGISTRY[row.key].schema.safeParse(readJsonFrom(meta, row.value));
         if (parsed.success) out[row.key] = parsed.data;
       }
       return out;

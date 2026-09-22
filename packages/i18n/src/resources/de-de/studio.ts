@@ -538,7 +538,10 @@ export default {
     "subtitle": "Eine Seite pro einbezogener Tabelle plus Dashboards je Domäne — Zweck:",
     "successBody": "{pages} Seiten in {groups} Navigationsgruppen — aus Ihrem Schema generiert, im Studio bearbeitbar.",
     "successTitle": "Ihr Dashboard ist bereit",
-    "title": "Generieren Sie Ihre App"
+    "title": "Generieren Sie Ihre App",
+    "blankBody": "Es wurde nichts generiert, genau wie gewünscht. Bauen Sie Ihre erste Seite aus dieser Verbindung, wann immer Sie bereit sind.",
+    "blankTitle": "Ihre Verbindung ist bereit",
+    "createPage": "Seite erstellen"
   },
   "hostedApps": {
     "browse": {
@@ -777,7 +780,11 @@ export default {
       "prompt": "Geben Sie {name} zur Bestätigung ein",
       "success": "Verbindung „{name}“ gelöscht",
       "title": "Verbindung löschen",
-      "forbidden": "Ihre Rolle umfasst nicht die Verwaltung von Verbindungen, daher wurde diese nicht gelöscht."
+      "forbidden": "Ihre Rolle umfasst nicht die Verwaltung von Verbindungen, daher wurde diese nicht gelöscht.",
+      "liveKeys": {
+        "body": "Seiten, die auf diesen Schlüsseln aufbauen, würden nicht mehr funktionieren. Widerrufen Sie sie zuerst auf der Seite „Öffentliche API“ und löschen Sie dann die Verbindung.",
+        "title": "Veröffentlichbare Schlüssel nutzen diese Verbindung noch"
+      }
     },
     "empty": {
       "body": "Verbinden Sie eine Datenbank — Adminium generiert Ihr Admin-Panel aus deren Schema.",
@@ -867,7 +874,11 @@ export default {
       "title": "Support-Konsole"
     },
     "title": "Was brauchen Sie?",
-    "trust": "Wir lesen nur Ihr Schema — während der Einrichtung nie Ihre Zeilendaten."
+    "trust": "Wir lesen nur Ihr Schema — während der Einrichtung nie Ihre Zeilendaten.",
+    "blank": {
+      "description": "Nichts generieren. Verbinden Sie eine Datenbank und bauen Sie die Seiten, die Sie wollen, eine nach der anderen.",
+      "title": "Leere Arbeitsfläche"
+    }
   },
   "llmRuns": {
     "review": {
@@ -1680,7 +1691,6 @@ export default {
       "connectionLabel": "Verbindungs-ID",
       "create": "Scope erstellen",
       "delete": "Löschen",
-      "deleteBody": "Jede Seite, die einen an diesen Scope gebundenen Schlüssel verwendet, lädt keine Daten mehr. Schlüssel werden nicht gelöscht — widerrufen Sie sie zuerst, falls Sie das gemeint haben.",
       "deleteConfirm": "Scope löschen",
       "deletePrompt": "Geben Sie den Scope-Namen ein, um zu bestätigen",
       "deleteTitle": "Diesen Scope löschen",
@@ -1693,7 +1703,12 @@ export default {
       "keyCount": "{count, plural, =0 {keine Schlüssel} one {# Schlüssel} other {# Schlüssel}}",
       "nameLabel": "Name",
       "subtitle": "Ein Scope ist alles, was ein Schlüssel erreichen darf — die Tabellen, die genauen Spalten und ein Filter, den die aufrufende Seite enger fassen, aber nie entfernen kann.",
-      "title": "Scopes"
+      "title": "Scopes",
+      "deleteBodyKeys": "Ein Scope mit aktiven Schlüsseln kann nicht gelöscht werden. Widerrufen Sie zuerst seine Schlüssel. Bereits widerrufene oder abgelaufene Schlüssel werden mit dem Scope gelöscht.",
+      "liveKeys": {
+        "body": "Seiten, die auf diesen Schlüsseln aufbauen, würden nicht mehr funktionieren. Widerrufen Sie sie zuerst in der Schlüsselliste und löschen Sie dann den Scope.",
+        "title": "Veröffentlichbare Schlüssel nutzen diesen Scope noch"
+      }
     },
     "status": {
       "heading": "Status"
@@ -2008,6 +2023,22 @@ export default {
       "cta": "KI-Einstellungen öffnen",
       "heading": "KI-Anreicherung"
     },
+    "apiCard": {
+      "api": {
+        "helper": "Stellt die Endpunkte bereit, auf die Ihre Schlüssel beschränkt sind. Ausgeschaltet funktioniert sofort kein Schlüssel mehr; gelöscht wird nichts.",
+        "label": "Öffentliche API"
+      },
+      "docs": {
+        "helper": "Eine öffentliche Seite unter /api-docs, die jedem, der diesen Server erreicht, die Endpunkte auflistet, die Ihre aktiven Schlüssel aufrufen können — auch solche auf Mitarbeiterebene — mit Pfaden, Methoden und Spaltennamen. Sie zeigt keine Daten und keine Schlüssel.",
+        "label": "API-Dokumentationsseite"
+      },
+      "failed": "Der Schalter wurde nicht umgestellt. Versuchen Sie es erneut.",
+      "heading": "Öffentliche API",
+      "notRegistered": {
+        "body": "Setzen Sie ADMINIUM_PUBLIC_API_ORIGINS und starten Sie neu. Bis dahin bewirken diese Schalter nichts.",
+        "title": "Auf diesem Server nicht aktiviert"
+      }
+    },
     "danger": {
       "deleteCta": "Verbindung löschen",
       "deleteDesc": "Löscht die Verbindung und die daraus generierten Seiten. Ihre Datenbank bleibt unangetastet. Kann nicht rückgängig gemacht werden.",
@@ -2112,9 +2143,9 @@ export default {
       "heading": "Projekt"
     },
     "publicApiCard": {
-      "body": "Lassen Sie Ihre eigenen kunden- oder mitarbeiterseitigen Seiten diese Datenbank über einen von Ihnen definierten Scope lesen.",
-      "cta": "Öffentliche API öffnen",
-      "heading": "Öffentliche API"
+      "body": "Erstellen Sie Endpunkte und die Schlüssel, die sie aufrufen dürfen.",
+      "cta": "API-Schlüssel öffnen",
+      "heading": "API-Schlüssel"
     },
     "review": {
       "cancel": "Abbrechen",
@@ -2433,7 +2464,8 @@ export default {
       "meta": "Meta-Speicher",
       "source": "Quelle",
       "tables": "Tabellen",
-      "test": "Analysieren"
+      "test": "Analysieren",
+      "finish": "Abschließen"
     },
     "title": "Neue Verbindung"
   },
@@ -2485,5 +2517,243 @@ export default {
     "valueCount": "{count} Werte",
     "values": "Werte",
     "view": "Ansehen"
+  },
+  "apiKeys": {
+    "banner": {
+      "bodyOnce": "Kopieren Sie ihn jetzt — Sie können ihn später nicht mehr sehen. Beschränkt auf {summary}.",
+      "bodyRevealable": "Kopieren Sie ihn jetzt — Sie können ihn in der Liste unten erneut anzeigen. Beschränkt auf {summary}.",
+      "copied": "Kopiert",
+      "copy": "Kopieren",
+      "titleNamed": "{name} erstellt"
+    },
+    "builder": {
+      "auth": {
+        "anon": "Anon",
+        "authenticated": "Authentifiziert",
+        "label": "Authentifizierung",
+        "service": "Service-Rolle"
+      },
+      "cancel": "Abbrechen",
+      "columns": {
+        "all": "Alle",
+        "label": "Freigegebene Spalten",
+        "none": "Keine"
+      },
+      "create": "Endpunkt erstellen",
+      "delete": "Endpunkt löschen",
+      "deleteRefused": "{count, plural, one {# Schlüssel nutzt} other {# Schlüssel nutzen}} diesen Endpunkt noch: {names}.",
+      "filters": {
+        "add": "Hinzufügen",
+        "empty": "Keine Filter — jede Zeile der Quelle ist erreichbar.",
+        "label": "Standardfilter",
+        "remove": "Filter entfernen",
+        "value": "Wert"
+      },
+      "footer": {
+        "applyFirst": "Übernehmen oder verwerfen Sie zuerst die bearbeitete Definition."
+      },
+      "methodUnsupported": "Diese Quelle kann {method} nicht unterstützen: Sie hat keinen Primärschlüssel.",
+      "methods": "Methoden",
+      "op": {
+        "between": "zwischen",
+        "eq": "gleich",
+        "gt": "größer als",
+        "gte": "mindestens",
+        "ilike": "enthält (Groß-/Kleinschreibung egal)",
+        "in": "in Liste",
+        "is_null": "ist leer",
+        "like": "enthält",
+        "lt": "kleiner als",
+        "lte": "höchstens",
+        "neq": "ungleich",
+        "not_null": "ist nicht leer"
+      },
+      "paging": {
+        "asc": "Aufst.",
+        "defaultLimit": "Standardlimit",
+        "desc": "Abst.",
+        "label": "Seitenumbruch & Sortierung",
+        "maxLimit": "Höchstlimit",
+        "orderBy": "Sortieren nach"
+      },
+      "pane": {
+        "apply": "In Formular übernehmen",
+        "dirty": "bearbeitet — nicht übernommen",
+        "format": "Formatieren",
+        "label": "Routendefinition, JSON",
+        "more": "{first} (+{n} weitere)",
+        "revert": "Verwerfen",
+        "synced": "mit Formular synchron",
+        "title": "Routendefinition"
+      },
+      "rate": {
+        "hour": "Stunde",
+        "label": "Anfragelimit & Antwort",
+        "minute": "Minute",
+        "per": "Pro",
+        "requests": "Anfragen",
+        "second": "Sekunde"
+      },
+      "refused": {
+        "keys": "Das Speichern würde {count, plural, one {# Schlüssel} other {# Schlüssel}} unbrauchbar machen: {names}."
+      },
+      "route": "Route",
+      "routePlaceholder": "customers",
+      "routeRename": "Aufrufer müssen auf den neuen Pfad umstellen.",
+      "save": "Änderungen speichern",
+      "shape": {
+        "array": "Reines Array",
+        "label": "Antwortformat",
+        "single": "Einzelnes Objekt",
+        "wrapped": "Umschlossen von '{' data '}'"
+      },
+      "source": "Quelltabelle oder -ansicht",
+      "subtitle": "Visuell konfigurieren — Adminium schreibt die Routendefinition für Sie",
+      "titleEdit": "Endpunkt bearbeiten",
+      "titleNew": "Neuer Endpunkt"
+    },
+    "connection": {
+      "label": "Verbindung"
+    },
+    "create": "Schlüssel erstellen",
+    "endpoints": {
+      "col": {
+        "auth": "Auth",
+        "methods": "Methoden",
+        "rate": "Anfragelimit",
+        "route": "Route"
+      },
+      "custom": "EIGENER",
+      "edit": "Endpunkt bearbeiten",
+      "explore": "API erkunden",
+      "new": "Neuer Endpunkt",
+      "subtitle": "Aus Ihrem Schema erzeugt. Schlüssel werden auf diese beschränkt.",
+      "title": "Endpunkte",
+      "unavailable": "NICHT VERFÜGBAR"
+    },
+    "keys": {
+      "col": {
+        "access": "Zugriff",
+        "actions": "Aktionen",
+        "key": "Schlüssel",
+        "lastUsed": "Zuletzt verwendet",
+        "name": "Name"
+      },
+      "count": "{n, plural, one {# Schlüssel} other {# Schlüssel}}",
+      "empty": "Keine aktiven Schlüssel. Erstellen Sie einen, um loszulegen.",
+      "hide": "Schlüssel verbergen",
+      "kind": {
+        "browser": "BROWSER",
+        "server": "SERVER"
+      },
+      "never": "Nie",
+      "reveal": "Schlüssel anzeigen",
+      "revoke": "Widerrufen",
+      "revokeConfirm": {
+        "body": "Alles, was diesen Schlüssel nutzt, funktioniert sofort nicht mehr. Dies kann nicht rückgängig gemacht werden.",
+        "confirm": "Schlüssel widerrufen",
+        "prompt": "Geben Sie „{name}“ ein, um zu bestätigen",
+        "title": "{name} widerrufen?"
+      },
+      "revokeFailed": "Dieser Schlüssel konnte nicht widerrufen werden. Er ist weiterhin aktiv.",
+      "title": "Aktive Schlüssel",
+      "untitled": "Unbenannter Schlüssel"
+    },
+    "method": {
+      "BATCH": {
+        "desc": "Massenweises Einfügen oder Upsert, bis zu 500 Zeilen",
+        "title": "Stapel"
+      },
+      "DELETE": {
+        "desc": "Eine Zeile per Primärschlüssel entfernen",
+        "title": "Löschen"
+      },
+      "GET": {
+        "desc": "Zeilen auflisten und einen einzelnen Datensatz abrufen",
+        "title": "Lesen"
+      },
+      "PATCH": {
+        "desc": "Teilaktualisierung einer Zeile per Primärschlüssel",
+        "title": "Aktualisieren"
+      },
+      "POST": {
+        "desc": "Eine neue Zeile einfügen",
+        "title": "Erstellen"
+      },
+      "PUT": {
+        "desc": "Eine ganze Zeile per Primärschlüssel ersetzen",
+        "title": "Ersetzen"
+      }
+    },
+    "note": {
+      "notRegistered": "Die öffentliche API ist auf diesem Server nicht aktiviert. Setzen Sie ADMINIUM_PUBLIC_API_ORIGINS und starten Sie neu — hier erstellte Schlüssel funktionieren ab dann.",
+      "off": "Die öffentliche API ist ausgeschaltet, daher funktioniert derzeit kein Schlüssel.",
+      "offLink": "Workspace-Einstellungen öffnen"
+    },
+    "quick": {
+      "body": "Authentifizieren Sie Anfragen mit Ihrem Schlüssel im Authorization-Header.",
+      "title": "Schnellstart"
+    },
+    "sheet": {
+      "allMethods": "Alle Methoden auswählen",
+      "app": {
+        "label": "App",
+        "none": "Keine"
+      },
+      "cancel": "Abbrechen",
+      "clear": "Leeren",
+      "close": "Schließen",
+      "count": "{permissions, plural, one {Berechtigung} other {Berechtigungen}} auf {endpoints, plural, one {# Endpunkt} other {# Endpunkten}}",
+      "deselectAll": "Alle abwählen",
+      "edit": "Endpunkt bearbeiten",
+      "expires": {
+        "d30": "30 Tage",
+        "d90": "90 Tage",
+        "label": "Läuft ab",
+        "never": "Nie"
+      },
+      "filter": "Endpunkte filtern",
+      "focusMeta": "{source} · {rows} Zeilen · Limit {limit}, Sortierung {order}",
+      "focusMetaNoRows": "{source} · Limit {limit}, Sortierung {order}",
+      "footer": {
+        "empty": "Wählen Sie mindestens eine Methode, um einen Schlüssel zu erstellen.",
+        "more": "+{n} weitere",
+        "refused": "Dieser Schlüssel kann noch nicht erstellt werden: {issue}",
+        "summary": "Dieser Schlüssel kann {paths} aufrufen"
+      },
+      "kind": {
+        "browser": "Browser",
+        "label": "Verwendet von",
+        "server": "Server"
+      },
+      "layout": {
+        "label": "Layout",
+        "list": "Liste",
+        "panes": "Bereiche"
+      },
+      "name": {
+        "label": "Schlüsselname",
+        "placeholder": "z. B. Worker für Bestell-Sync"
+      },
+      "newEndpoint": "Neuer Endpunkt",
+      "readOnly": "Vorgabe „Nur lesen“",
+      "rowMeta": "{source} · {rows} Zeilen",
+      "rowMetaNoRows": "{source}",
+      "selectAll": "Alle auswählen",
+      "selectAllShort": "Alle auswählen",
+      "submit": "Schlüssel erstellen",
+      "subtitle": "Wählen Sie die Endpunkte und Methoden, die dieser Schlüssel aufrufen darf",
+      "title": "API-Schlüssel erstellen",
+      "toggleAll": "Alle Methoden umschalten",
+      "unsupported": "{count, plural, one {{methods} ist auf dieser Route nicht freigegeben. Bearbeiten Sie den Endpunkt, um die Methode zu aktivieren.} other {{methods} sind auf dieser Route nicht freigegeben. Bearbeiten Sie den Endpunkt, um die Methoden zu aktivieren.}}"
+    },
+    "stats": {
+      "endpoints": "Endpunkte",
+      "keys": "Aktive Schlüssel",
+      "requests": "Anfragen · 24 h"
+    },
+    "subtitle": "Verwalten Sie den programmatischen Zugriff auf Ihren Workspace",
+    "summary": "{endpoints, plural, one {# Endpunkt} other {# Endpunkte}} · {methods, plural, one {# Methode} other {# Methoden}}",
+    "title": "API-Schlüssel & Tokens"
   }
 } as const;

@@ -91,7 +91,6 @@ const AddOnPageHostLazy = lazyRoute(
 const AppSurfacePageLazy = lazyRoute(
   async () => (await import('../apps/AppSurfacePage.js')).AppSurfacePage,
 );
-const ApiKeysPageLazy = lazyRoute(async () => (await import('../api-keys/ApiKeysPage.js')).ApiKeysPage);
 const ChangelogPageLazy = lazyRoute(async () => (await import('../changelog/ChangelogPage.js')).ChangelogPage);
 const KnowledgeBasePageLazy = lazyRoute(async () => (await import('../kb/KnowledgeBasePage.js')).KnowledgeBasePage);
 const AccountPageLazy = lazyRoute(async () => (await import('../pages/AccountPage.js')).AccountPage);
@@ -117,6 +116,7 @@ const DesktopSetupHostLazy = lazyRoute(async () => (await import('../desktop/set
  * was happening regardless — on the one visit where it is fetched at all.
  */
 const SetupPageLazy = lazyRoute(async () => (await import('../setup/SetupPage.js')).SetupPage);
+const ApiDocsPageLazy = lazyRoute(async () => (await import('../api-docs/ApiDocsPage.js')).ApiDocsPage);
 const GlobalDefaultsPageLazy = lazyRoute(async () => (await import('../settings/GlobalDefaultsPage.js')).GlobalDefaultsPage);
 const OnboardingChecklistLazy = lazyRoute(async () => (await import('../onboarding/OnboardingChecklist.js')).OnboardingChecklist);
 
@@ -284,7 +284,7 @@ const setupRoute = createRoute({
  * `/desktop/setup` — the DESKTOP first-run wizard.
  *
  * NOT `/setup`, and the two are not variants of each other. `/setup` above is
- * M10's self-host bootstrap: an admin account and the consent answers, on a
+ * the self-host bootstrap: an admin account and the consent answers, on a
  * server someone has already configured. This one also picks the data
  * directory, seeds the first database from one of four source cards, and
  * writes `config.json` — none of which exists off the desktop shell.
@@ -319,6 +319,29 @@ const desktopSetupRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/desktop/setup',
   component: DesktopSetupHostLazy,
+});
+
+/**
+ * `/api-docs` — the public API explorer. A child of ROOT: it is drawn for
+ * anyone, with no session and no shell, like `/setup`. There is no guard
+ * because there is nothing to guard: the catalogue route answers 404 while
+ * the page is switched off, and the page renders the not-found screen for
+ * that answer.
+ *
+ * `?resource=&endpoint=` addresses one card. Anything else is dropped.
+ */
+const apiDocsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/api-docs',
+  validateSearch: (search: Record<string, unknown>): { resource?: string; endpoint?: string } => ({
+    ...(typeof search.resource === 'string' && /^[a-z][A-Za-z0-9_]{0,63}$/.test(search.resource)
+      ? { resource: search.resource }
+      : {}),
+    ...(typeof search.endpoint === 'string' && /^(list|one|create|update|replace|delete|batch)$/.test(search.endpoint)
+      ? { endpoint: search.endpoint }
+      : {}),
+  }),
+  component: ApiDocsPageLazy,
 });
 
 const forgotRoute = createRoute({
@@ -457,7 +480,7 @@ const pageRecordRoute = createRoute({
  * when someone types the section root by hand. The bare form redirects into the
  * splat form so exactly one URL shape reaches the component.
  *
- * `/a/` rather than a bare `/<appKey>/` is D5, and acceptance criterion 7 pins
+ * `/a/` rather than a bare `/<appKey>/` is deliberate, and acceptance criterion 7 pins
  * it: a bare app key stays a 404 forever, so an installed app can never shadow
  * a dashboard route and a new dashboard route can never shadow an app.
  */
@@ -512,7 +535,7 @@ const welcomeRoute = createRoute({
   component: OnboardingChecklistLazy,
 });
 
-// --- M8 preference surfaces ------------------- APPEND-ONLY additions
+// --- Preference surfaces ------------------- APPEND-ONLY additions
 // coordinated with the concurrent /studio/* route work: this block adds exactly
 // two routes and their two imports below.
 
@@ -523,10 +546,10 @@ const accountPreferencesRoute = createRoute({
 });
 
 /**
- * Notification settings (M7 T6, ia-mapping A ACCOUNT group) — the
- * `page-settings` binding on a static route until the Engine seeds the
- * utility page (see account/NotificationSettingsPage.tsx). Per-user surface,
- * no role guard: `/me/notification-prefs` is session-scoped on the server.
+ * Notification settings — the `page-settings` binding on a static route
+ * until the Engine seeds the utility page (see
+ * account/NotificationSettingsPage.tsx). Per-user surface, no role guard:
+ * `/me/notification-prefs` is session-scoped on the server.
  */
 const accountNotificationsRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -535,11 +558,11 @@ const accountNotificationsRoute = createRoute({
 });
 
 /**
- * Email templates manager (M7 wave 2, TRACK BUILDERS; ia-mapping A LIBRARY
- * group). No client role guard: GET list/detail are session-scoped on the
- * server — the manager is read-useful to non-admins — and PUT is guarded by
- * `system:settings:manage`, whose 403 flows through the standard route error
- * mapping. The NAV entry (SidebarNav) is what gates discovery to admins.
+ * Email templates manager. No client role guard: GET list/detail are
+ * session-scoped on the server — the manager is read-useful to non-admins —
+ * and PUT is guarded by `system:settings:manage`, whose 403 flows through
+ * the standard route error mapping. The NAV entry (SidebarNav) is what
+ * gates discovery to admins.
  */
 /**
  * LAZY: the manager and the editor are one admin screen's worth of code the
@@ -806,14 +829,11 @@ const aboutRoute = createRoute({
   component: AboutPageLazy,
 });
 
-// --- in-app product comms ------------------------------------------- Two of
-// these are for EVERYONE and one is not, and the split is the point: help and
-// release notes are things any signed-in user needs (a viewer hitting a wall
-// needs the docs more than an admin does), while API keys mint credentials and
-// stay behind the same role ≥ Admin gate as the rest of the platform surfaces
-// (B lists all three under Surface B). The server independently guards
-// `/api-keys` with `system:api-keys:manage` — this gate is UX, not the
-// security boundary.
+// --- in-app product comms ------------------------------------------- For
+// EVERYONE: help and release notes are things any signed-in user needs (a
+// viewer hitting a wall needs the docs more than an admin does). The third
+// surface that once sat here, the role-bound `/api-keys` page, was deleted;
+// its keys are minted through `/api/v1/api-keys`.
 
 const knowledgeBaseRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -827,20 +847,6 @@ const changelogRoute = createRoute({
   component: ChangelogPageLazy,
 });
 
-function ApiKeysRouteComponent() {
-  return (
-    <StudioGuard requires="api-keys.manage">
-      <ApiKeysPageLazy />
-    </StudioGuard>
-  );
-}
-
-const apiKeysRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/api-keys',
-  component: ApiKeysRouteComponent,
-});
-
 // --- people & accountability ------------------------ All four are LAZY for
 // the same reason `TranslationsPage` is: they are admin surfaces opened
 // occasionally, and the entry chunk is already ~664 KiB gz against a 350 KiB
@@ -848,7 +854,7 @@ const apiKeysRoute = createRoute({
 // session list would spend the ratchet's remaining headroom on screens most
 // sessions never open.
 //
-// Team/roles/audit sit behind `StudioGuard` like `apiKeysRoute`, each narrowed
+// Team/roles/audit sit behind `StudioGuard`, each narrowed
 // to the key its routes check (`users.manage`, `roles.manage`, `audit.read`) —
 // the built-in Admin holds the first and last but not Roles. That gate is UX;
 // the server independently enforces all three. Account security is NOT
@@ -985,6 +991,7 @@ const routeTree = rootRoute.addChildren([
   otpRoute,
   stateRoute,
   setupRoute,
+  apiDocsRoute,
   // The wizard. A CHILD OF ROOT, not of `appRoute`: `appRoute`'s beforeLoad
   // demands a bootstrap, and at first run there is no user to bootstrap as — it
   // would redirect the wizard to `/login`, which is the screen nobody can
@@ -1012,7 +1019,6 @@ const routeTree = rootRoute.addChildren([
     settingsDesktopRoute,
     knowledgeBaseRoute,
     changelogRoute,
-    apiKeysRoute,
     settingsTeamRoute,
     settingsRolesRoute,
     auditRoute,
@@ -1025,7 +1031,7 @@ const routeTree = rootRoute.addChildren([
     workflowLogsRoute,
     // Studio: connect wizard + remap route contract, role ≥ Admin.
     ...studioRoutes(appRoute),
-    // M7 wave 2 SPA surfaces (data-io, scheduled reports): same factory
+    // More SPA surfaces (data-io, scheduled reports): same factory
     // pattern as studioRoutes — the modules define the surfaces, the router
     // only wires them. Server-side grants are the security boundary.
     ...dataIoRoutes(appRoute),

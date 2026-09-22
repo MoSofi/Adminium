@@ -21,10 +21,19 @@
  */
 
 import { compileScope, type InheritedTenantConfig, ScopeCompileError, type CompiledScope, type TableColumnLookup } from './scope.js';
-import { hashPublishableKey, keyIsLive, tokenHashEquals, PUBLISHABLE_DISPLAY_PREFIX_LENGTH } from './keys.js';
+import {
+  hashPublishableKey,
+  keyIsLive,
+  keyKindOf,
+  tokenHashEquals,
+  PUBLISHABLE_DISPLAY_PREFIX_LENGTH,
+  type PublicKeyKind,
+} from './keys.js';
 
 export interface ResolvedKey {
   keyId: string;
+  /** `browser` (`adm_pub_`) or `server` (`adm_srv_`), as the row says and the prefix agreed. */
+  kind: PublicKeyKind;
   scopeId: string;
   connectionId: string;
   side: string;
@@ -42,6 +51,8 @@ export interface PublicKeyRow {
   origins: string;
   expiresAt: number | null;
   revokedAt: number | null;
+  /** Absent on rows written before server keys existed: those are browser keys. */
+  kind?: string;
 }
 
 export interface PublicScopeRow {
@@ -49,6 +60,8 @@ export interface PublicScopeRow {
   connectionId: string;
   timezone: string;
   document: string;
+  /** The key a derived document was compiled for; null or absent when hand-written. */
+  derivedForKey?: string | null;
 }
 
 export type ResolveFailure =
@@ -97,15 +110,119 @@ interface Entry {
   expiresAt: number;
 }
 
+/*
+ * ── INVALIDATION RACES A FILL ──────────────────────────────────────────────
+ * A miss awaits the meta store before it stores its result. If a revoke's
+ * `invalidate()` runs during that wait, it finds nothing to delete, and the
+ * fill then caches the key as live for a full TTL. So every fill records the
+ * generation it started in, and stores its result only if no invalidation has
+ * happened since. Invalidation also drops the shared in-flight lookups, so a
+ * request arriving after a revoke starts a fresh one rather than joining a
+ * lookup that began before it.
+ */
+
 export function createPublicKeyResolver(deps: ResolverDeps): PublicKeyResolver {
   const ttl = deps.ttlMs ?? RESOLVER_TTL_MS;
   const now = deps.now ?? Date.now;
   /* Keyed by the token HASH, never the token — a cache is a place secrets get read from. */
   const cache = new Map<string, Entry>();
+  /*
+   * One lookup per token hash at a time. Without it, a burst on a cold or
+   * just-invalidated entry compiles the same scope once per concurrent request.
+   */
+  const inFlight = new Map<string, Promise<ResolvedKey | null>>();
+  let generation = 0;
 
   const fail = (reason: ResolveFailure, detail: Record<string, unknown>): null => {
     deps.onFailure?.(reason, detail);
     return null;
+  };
+
+  const lookup = async (token: string, tokenHash: string, at: number): Promise<ResolvedKey | null> => {
+    const started = generation;
+    const prefix = token.slice(0, PUBLISHABLE_DISPLAY_PREFIX_LENGTH);
+    const candidates = await deps.findKeysByPrefix(prefix);
+    if (candidates.length === 0) return fail('no-prefix-match', { prefix });
+
+    /*
+     * Compare EVERY candidate rather than breaking on the first match. A
+     * prefix collision is possible (8 base62 chars), and short-circuiting
+     * would make the comparison count depend on which row matched — a timing
+     * signal on top of the constant-time compare it would otherwise defeat.
+     */
+    let matched: PublicKeyRow | null = null;
+    for (const row of candidates) {
+      if (tokenHashEquals(row.tokenHash, tokenHash)) matched = row;
+    }
+    if (matched === null) return fail('hash-mismatch', { prefix });
+    if (!keyIsLive(matched, at)) return fail('not-live', { keyId: matched.id });
+    /*
+     * The prefix decided at the gate whether this request needed an Origin;
+     * the stored row must be the same kind, or a browser key re-spelled with
+     * the server prefix would skip the origin check. The hash
+     * covers the prefix, so this can only fail for a forged row.
+     */
+    const kind: PublicKeyKind = matched.kind === 'server' ? 'server' : 'browser';
+    if (keyKindOf(token) !== kind) return fail('hash-mismatch', { prefix });
+
+    const scopeRow = await deps.findScopeById(matched.scopeId);
+    if (scopeRow === null) return fail('scope-missing', { keyId: matched.id, scopeId: matched.scopeId });
+
+    let scope: CompiledScope;
+    try {
+      const columnsOf = await deps.columnsOf?.(scopeRow.connectionId);
+      // The connection carries the tenant's zone and currency; the scope
+      // overrides them when it states its own.
+      const inherited = await deps.tenantConfigOf?.(scopeRow.connectionId);
+      scope = compileScope(
+        JSON.parse(scopeRow.document) as unknown,
+        columnsOf,
+        inherited,
+        // A derived document may hold no resources.
+        { derived: (scopeRow.derivedForKey ?? null) !== null },
+      );
+    } catch (error) {
+      /*
+       * A stored scope that no longer compiles means the schema moved under
+       * it — a column was dropped, a table renamed. The surface goes DARK for
+       * that key rather than serving whatever still resolves, because a
+       * partially-valid authorization document is not a narrower one; it is an
+       * unreviewed one.
+       */
+      return fail('scope-uncompilable', {
+        keyId: matched.id,
+        scopeId: scopeRow.id,
+        issues: error instanceof ScopeCompileError ? error.issues.map((i) => i.code) : [String(error)],
+      });
+    }
+
+    let origins: readonly string[] = [];
+    try {
+      const parsed: unknown = JSON.parse(matched.origins);
+      if (Array.isArray(parsed)) origins = parsed.filter((o): o is string => typeof o === 'string');
+    } catch {
+      // A malformed origins column narrows to nothing rather than to
+      // everything: the env allow-list still applies, and the key is simply
+      // not narrowed further.
+      origins = [];
+    }
+
+    const resolved: ResolvedKey = {
+      keyId: matched.id,
+      kind,
+      scopeId: scopeRow.id,
+      connectionId: scopeRow.connectionId,
+      side: matched.side,
+      scope,
+      origins,
+    };
+    if (started === generation) {
+      // Never cached past the key's own expiry: a key must stop at
+      // `expires_at`, not up to a TTL later.
+      const expiresAt = Math.min(at + ttl, matched.expiresAt ?? Number.POSITIVE_INFINITY);
+      cache.set(tokenHash, { value: resolved, expiresAt });
+    }
+    return resolved;
   };
 
   return {
@@ -116,76 +233,19 @@ export function createPublicKeyResolver(deps: ResolverDeps): PublicKeyResolver {
       const cached = cache.get(tokenHash);
       if (cached !== undefined && cached.expiresAt > at) return cached.value;
 
-      const prefix = token.slice(0, PUBLISHABLE_DISPLAY_PREFIX_LENGTH);
-      const candidates = await deps.findKeysByPrefix(prefix);
-      if (candidates.length === 0) return fail('no-prefix-match', { prefix });
-
-      /*
-       * Compare EVERY candidate rather than breaking on the first match. A
-       * prefix collision is possible (8 base62 chars), and short-circuiting
-       * would make the comparison count depend on which row matched — a timing
-       * signal on top of the constant-time compare it would otherwise defeat.
-       */
-      let matched: PublicKeyRow | null = null;
-      for (const row of candidates) {
-        if (tokenHashEquals(row.tokenHash, tokenHash)) matched = row;
-      }
-      if (matched === null) return fail('hash-mismatch', { prefix });
-      if (!keyIsLive(matched, at)) return fail('not-live', { keyId: matched.id });
-
-      const scopeRow = await deps.findScopeById(matched.scopeId);
-      if (scopeRow === null) return fail('scope-missing', { keyId: matched.id, scopeId: matched.scopeId });
-
-      let scope: CompiledScope;
-      try {
-        const columnsOf = await deps.columnsOf?.(scopeRow.connectionId);
-        // The connection carries the tenant's zone and currency; the scope
-        // overrides them when it states its own.
-        const inherited = await deps.tenantConfigOf?.(scopeRow.connectionId);
-        scope = compileScope(
-          JSON.parse(scopeRow.document) as unknown,
-          columnsOf,
-          inherited,
-        );
-      } catch (error) {
-        /*
-         * A stored scope that no longer compiles means the schema moved under
-         * it — a column was dropped, a table renamed. The surface goes DARK for
-         * that key rather than serving whatever still resolves, because a
-         * partially-valid authorization document is not a narrower one; it is an
-         * unreviewed one.
-         */
-        return fail('scope-uncompilable', {
-          keyId: matched.id,
-          scopeId: scopeRow.id,
-          issues: error instanceof ScopeCompileError ? error.issues.map((i) => i.code) : [String(error)],
-        });
-      }
-
-      let origins: readonly string[] = [];
-      try {
-        const parsed: unknown = JSON.parse(matched.origins);
-        if (Array.isArray(parsed)) origins = parsed.filter((o): o is string => typeof o === 'string');
-      } catch {
-        // A malformed origins column narrows to nothing rather than to
-        // everything: the env allow-list still applies, and the key is simply
-        // not narrowed further.
-        origins = [];
-      }
-
-      const resolved: ResolvedKey = {
-        keyId: matched.id,
-        scopeId: scopeRow.id,
-        connectionId: scopeRow.connectionId,
-        side: matched.side,
-        scope,
-        origins,
-      };
-      cache.set(tokenHash, { value: resolved, expiresAt: at + ttl });
-      return resolved;
+      const pending = inFlight.get(tokenHash);
+      if (pending !== undefined) return pending;
+      const fill = lookup(token, tokenHash, at).finally(() => {
+        // Only our own entry: an invalidation may have replaced it already.
+        if (inFlight.get(tokenHash) === fill) inFlight.delete(tokenHash);
+      });
+      inFlight.set(tokenHash, fill);
+      return fill;
     },
 
     invalidate(keyId) {
+      generation += 1;
+      inFlight.clear();
       if (keyId === undefined) {
         cache.clear();
         return;

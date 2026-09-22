@@ -21,8 +21,13 @@ Two mechanisms:
 | **Session cookie** | The dashboard | `adminium_session` — httpOnly, signed, `SameSite=Lax` |
 | **API key** | Your scripts and integrations | `Authorization: Bearer <key>` |
 
-API keys are scoped and revocable. Create them in Settings → API Keys. Issue one
-per integration, never share one between two, and revoke on rotation.
+API keys are scoped and revocable. A key acts with one role's permissions; mint one
+with `POST /api/v1/api-keys` from a signed-in session, as
+[Endpoints and keys](/guides/public-api/endpoints-and-keys/#keys-for-your-own-scripts)
+shows. Issue one per integration, never share one between two, and revoke on rotation.
+
+These are not the keys your pages use: a browser or server key for the public API
+(`adm_pub_…`, `adm_srv_…`) calls only `/api/v1/public/*`, and only what it was granted.
 
 ```bash
 curl -H "Authorization: Bearer $ADMINIUM_API_KEY" \
@@ -85,6 +90,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 |---|---:|---|
 | `/api/v1/about/*` | 2 | Build version, edition, and the update check |
 | `/api/v1/add-ons/*` | 18 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
+| `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
 | `/api/v1/apps/*` | 11 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install, update, discard a staged version, and uninstall |
 | `/api/v1/assistant/*` | 7 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
@@ -116,8 +122,9 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/pages/*` | 15 | Pages and dashboards — layout, config, nav order, shared views, and what a template needs from a table (with a new table drafted to fit when none does) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/project/*` | 7 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
-| `/api/v1/public/*` | 11 | The scoped public API for customer- and staff-facing pages (off by default) |
-| `/api/v1/public-api/*` | 2 | Turn the public API on or off, and see whether this instance opted in |
+| `/api/v1/public/*` | 15 | The scoped public API for customer- and staff-facing pages (off by default) |
+| `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
+| `/api/v1/public-endpoints/*` | 5 | Build the endpoints a key can be granted — source, columns, filters, methods and limits |
 | `/api/v1/public-keys/*` | 5 | Issue, reveal, rotate and revoke the browser-safe keys your pages use |
 | `/api/v1/public-scopes/*` | 4 | Define what a public key may read — resources, columns, filters and time zone |
 | `/api/v1/readyz` | 1 | Readiness — per-dependency verdicts, 503 when a dependency is down |
@@ -181,6 +188,12 @@ POST /api/v1/add-ons/{key}/connect/oauth/complete
 PATCH /api/v1/add-ons/{key}
 DELETE /api/v1/add-ons/{key}
 PUT /api/v1/add-ons/{key}/settings
+```
+
+### `/api-docs`
+
+```http
+GET /api/v1/api-docs
 ```
 
 ### `/api-keys`
@@ -571,7 +584,11 @@ GET /api/v1/project/client/{*}
 GET /api/v1/public/config
 GET /api/v1/public/records/{ref}
 POST /api/v1/public/records/{ref}
+GET /api/v1/public/records/{ref}/{id}
+PUT /api/v1/public/records/{ref}/{id}
 PATCH /api/v1/public/records/{ref}/{id}
+DELETE /api/v1/public/records/{ref}/{id}
+POST /api/v1/public/records/{ref}/batch
 POST /api/v1/public/claim
 POST /api/v1/public/documents/render
 GET /api/v1/public/documents
@@ -586,6 +603,17 @@ DELETE /api/v1/public/session
 ```http
 GET /api/v1/public-api
 PUT /api/v1/public-api
+GET /api/v1/public-api/stats
+```
+
+### `/public-endpoints`
+
+```http
+GET /api/v1/public-endpoints
+POST /api/v1/public-endpoints/check
+PUT /api/v1/public-endpoints/{connectionId}/{ref}
+DELETE /api/v1/public-endpoints/{connectionId}/{ref}
+POST /api/v1/public-endpoints/{connectionId}/{ref}/rename
 ```
 
 ### `/public-keys`

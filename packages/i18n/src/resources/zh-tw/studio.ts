@@ -538,7 +538,10 @@ export default {
     "subtitle": "每個已納入的資料表一個頁面，外加依領域產生的儀表板——意圖：",
     "successBody": "{pages} 個頁面，分佈於 {groups} 個導覽群組——由你的結構描述產生，可在 Studio 中編輯。",
     "successTitle": "你的儀表板已就緒",
-    "title": "產生你的應用程式"
+    "title": "產生你的應用程式",
+    "blankBody": "依照你的要求，沒有產生任何內容。準備好後，即可根據此連線建構你的第一個頁面。",
+    "blankTitle": "你的連線已就緒",
+    "createPage": "建立頁面"
   },
   "hostedApps": {
     "browse": {
@@ -777,7 +780,11 @@ export default {
       "prompt": "輸入 {name} 以確認",
       "success": "已刪除連線「{name}」",
       "title": "刪除連線",
-      "forbidden": "您的角色不包含管理連線的權限，因此未刪除此連線。"
+      "forbidden": "您的角色不包含管理連線的權限，因此未刪除此連線。",
+      "liveKeys": {
+        "body": "以這些金鑰建置的頁面將無法繼續運作。請先在「公開 API」頁面撤銷它們，然後再刪除此連線。",
+        "title": "仍有可發布金鑰在使用此連線"
+      }
     },
     "empty": {
       "body": "連接資料庫後，Adminium 會根據其結構產生您的管理面板。",
@@ -867,7 +874,11 @@ export default {
       "title": "客服主控台"
     },
     "title": "你需要什麼？",
-    "trust": "我們只讀取你的結構描述——設定期間絕不讀取列資料。"
+    "trust": "我們只讀取你的結構描述——設定期間絕不讀取列資料。",
+    "blank": {
+      "description": "不產生任何內容。連接資料庫後，逐一建構你想要的頁面。",
+      "title": "空白畫布"
+    }
   },
   "llmRuns": {
     "review": {
@@ -1680,7 +1691,6 @@ export default {
       "connectionLabel": "連線 ID",
       "create": "建立範圍",
       "delete": "刪除",
-      "deleteBody": "凡是使用綁定到此範圍之金鑰的頁面都會停止載入資料。金鑰不會一併刪除——若你的本意是那樣，請先撤銷它們。",
       "deleteConfirm": "刪除範圍",
       "deletePrompt": "輸入範圍名稱以確認",
       "deleteTitle": "刪除此範圍",
@@ -1693,7 +1703,12 @@ export default {
       "keyCount": "{count, plural, =0 {沒有金鑰} other {# 個金鑰}}",
       "nameLabel": "名稱",
       "subtitle": "範圍就是一把金鑰所能觸及的全部——哪些資料表、哪些確切欄位，以及一道呼叫端只能收窄、永遠無法移除的篩選條件。",
-      "title": "範圍"
+      "title": "範圍",
+      "deleteBodyKeys": "仍有有效金鑰的範圍無法刪除，請先撤銷它的金鑰。已撤銷或已過期的金鑰會隨範圍一併刪除。",
+      "liveKeys": {
+        "body": "以這些金鑰建置的頁面將無法繼續運作。請先在金鑰清單中撤銷它們，然後再刪除此範圍。",
+        "title": "仍有可發布金鑰在使用此範圍"
+      }
     },
     "status": {
       "heading": "狀態"
@@ -2008,6 +2023,22 @@ export default {
       "cta": "開啟 AI 設定",
       "heading": "AI 增強"
     },
+    "apiCard": {
+      "api": {
+        "helper": "提供你的金鑰所限定的端點。關閉後，所有金鑰會立即失效；不會刪除任何東西。",
+        "label": "公開 API"
+      },
+      "docs": {
+        "helper": "位於 /api-docs 的公開頁面，會向任何能連上此伺服器的人列出你的有效金鑰可呼叫的端點（包括員工層級的端點），以及它們的路徑、方法與欄位名稱。頁面不會顯示任何資料或金鑰。",
+        "label": "API 文件頁面"
+      },
+      "failed": "開關未能切換，請再試一次。",
+      "heading": "公開 API",
+      "notRegistered": {
+        "body": "請設定 ADMINIUM_PUBLIC_API_ORIGINS 並重新啟動。在那之前，這些開關不會有任何作用。",
+        "title": "此伺服器未啟用"
+      }
+    },
     "danger": {
       "deleteCta": "刪除連線",
       "deleteDesc": "刪除該連線及其產生的頁面。您的資料庫不會被更動。此操作無法復原。",
@@ -2112,9 +2143,9 @@ export default {
       "heading": "專案"
     },
     "publicApiCard": {
-      "body": "讓你自己面向客戶或員工的頁面，透過你定義的範圍讀取這個資料庫。",
-      "cta": "開啟公開 API",
-      "heading": "公開 API"
+      "body": "建立端點，以及可以呼叫它們的金鑰。",
+      "cta": "開啟 API 金鑰",
+      "heading": "API 金鑰"
     },
     "review": {
       "cancel": "取消",
@@ -2433,7 +2464,8 @@ export default {
       "meta": "中繼資料儲存",
       "source": "來源",
       "tables": "資料表",
-      "test": "分析"
+      "test": "分析",
+      "finish": "完成"
     },
     "title": "新增連線"
   },
@@ -2485,5 +2517,243 @@ export default {
     "valueCount": "{count} 個值",
     "values": "值",
     "view": "檢視"
+  },
+  "apiKeys": {
+    "banner": {
+      "bodyOnce": "請立即複製——之後將無法再次檢視。適用範圍：{summary}。",
+      "bodyRevealable": "請立即複製——之後可在下方清單中再次顯示。適用範圍：{summary}。",
+      "copied": "已複製",
+      "copy": "複製",
+      "titleNamed": "已建立 {name}"
+    },
+    "builder": {
+      "auth": {
+        "anon": "匿名",
+        "authenticated": "已驗證",
+        "label": "驗證要求",
+        "service": "服務角色"
+      },
+      "cancel": "取消",
+      "columns": {
+        "all": "全部",
+        "label": "公開的欄位",
+        "none": "無"
+      },
+      "create": "建立端點",
+      "delete": "刪除端點",
+      "deleteRefused": "{count, plural, other {仍有 # 個金鑰在使用}}此端點：{names}。",
+      "filters": {
+        "add": "新增",
+        "empty": "沒有篩選條件——來源中的每一列都可存取。",
+        "label": "預設篩選條件",
+        "remove": "移除篩選條件",
+        "value": "值"
+      },
+      "footer": {
+        "applyFirst": "請先套用或還原已編輯的定義。"
+      },
+      "methodUnsupported": "此來源無法支援 {method}：它沒有主鍵。",
+      "methods": "方法",
+      "op": {
+        "between": "介於",
+        "eq": "等於",
+        "gt": "大於",
+        "gte": "至少",
+        "ilike": "包含（不分大小寫）",
+        "in": "在清單中",
+        "is_null": "為空",
+        "like": "包含",
+        "lt": "小於",
+        "lte": "至多",
+        "neq": "不等於",
+        "not_null": "不為空"
+      },
+      "paging": {
+        "asc": "遞增",
+        "defaultLimit": "預設筆數上限",
+        "desc": "遞減",
+        "label": "分頁與排序",
+        "maxLimit": "最大筆數上限",
+        "orderBy": "排序依據"
+      },
+      "pane": {
+        "apply": "套用到表單",
+        "dirty": "已編輯——尚未套用",
+        "format": "格式化",
+        "label": "路由定義，JSON",
+        "more": "{first}（另有 {n} 項）",
+        "revert": "還原",
+        "synced": "已與表單同步",
+        "title": "路由定義"
+      },
+      "rate": {
+        "hour": "小時",
+        "label": "速率上限與回應",
+        "minute": "分鐘",
+        "per": "每",
+        "requests": "請求數",
+        "second": "秒"
+      },
+      "refused": {
+        "keys": "儲存後將導致 {count, plural, other {# 個金鑰}}失效：{names}。"
+      },
+      "route": "路由",
+      "routePlaceholder": "customers",
+      "routeRename": "呼叫端必須改用新的路徑。",
+      "save": "儲存變更",
+      "shape": {
+        "array": "純陣列",
+        "label": "回應結構",
+        "single": "單一物件",
+        "wrapped": "包在 '{' data '}' 中"
+      },
+      "source": "來源資料表或檢視表",
+      "subtitle": "以視覺化方式設定——Adminium 會替你撰寫路由定義",
+      "titleEdit": "編輯端點",
+      "titleNew": "新增端點"
+    },
+    "connection": {
+      "label": "連線"
+    },
+    "create": "建立金鑰",
+    "endpoints": {
+      "col": {
+        "auth": "驗證",
+        "methods": "方法",
+        "rate": "速率上限",
+        "route": "路由"
+      },
+      "custom": "自訂",
+      "edit": "編輯端點",
+      "explore": "探索 API",
+      "new": "新增端點",
+      "subtitle": "依據你的結構描述產生。金鑰的適用範圍限定於這些端點。",
+      "title": "端點",
+      "unavailable": "無法使用"
+    },
+    "keys": {
+      "col": {
+        "access": "存取權限",
+        "actions": "動作",
+        "key": "金鑰",
+        "lastUsed": "上次使用",
+        "name": "名稱"
+      },
+      "count": "{n, plural, other {# 個金鑰}}",
+      "empty": "沒有有效的金鑰。建立一個即可開始使用。",
+      "hide": "隱藏金鑰",
+      "kind": {
+        "browser": "瀏覽器",
+        "server": "伺服器"
+      },
+      "never": "從未",
+      "reveal": "顯示金鑰",
+      "revoke": "撤銷",
+      "revokeConfirm": {
+        "body": "所有使用此金鑰的地方都會立即失效。此動作無法復原。",
+        "confirm": "撤銷金鑰",
+        "prompt": "輸入「{name}」以確認",
+        "title": "要撤銷 {name} 嗎？"
+      },
+      "revokeFailed": "無法撤銷該金鑰，它仍然有效。",
+      "title": "有效金鑰",
+      "untitled": "未命名金鑰"
+    },
+    "method": {
+      "BATCH": {
+        "desc": "批次插入或 upsert，最多 500 列",
+        "title": "批次"
+      },
+      "DELETE": {
+        "desc": "依主鍵移除一列",
+        "title": "刪除"
+      },
+      "GET": {
+        "desc": "列出多列並取得單筆記錄",
+        "title": "讀取"
+      },
+      "PATCH": {
+        "desc": "依主鍵部分更新一列",
+        "title": "更新"
+      },
+      "POST": {
+        "desc": "插入新的一列",
+        "title": "建立"
+      },
+      "PUT": {
+        "desc": "依主鍵取代整列",
+        "title": "取代"
+      }
+    },
+    "note": {
+      "notRegistered": "此伺服器未啟用公開 API。請設定 ADMINIUM_PUBLIC_API_ORIGINS 並重新啟動——之後在這裡建立的金鑰就能使用。",
+      "off": "公開 API 已關閉，因此目前所有金鑰都無法使用。",
+      "offLink": "開啟工作區設定"
+    },
+    "quick": {
+      "body": "在 Authorization 標頭中帶入金鑰完成驗證。",
+      "title": "快速開始"
+    },
+    "sheet": {
+      "allMethods": "選取所有方法",
+      "app": {
+        "label": "應用程式",
+        "none": "無"
+      },
+      "cancel": "取消",
+      "clear": "清除",
+      "close": "關閉",
+      "count": "{permissions, plural, other {項權限}}，涵蓋 {endpoints, plural, other {# 個端點}}",
+      "deselectAll": "全部取消選取",
+      "edit": "編輯端點",
+      "expires": {
+        "d30": "30 天",
+        "d90": "90 天",
+        "label": "到期時間",
+        "never": "永不到期"
+      },
+      "filter": "篩選端點",
+      "focusMeta": "{source} · {rows} 列 · 筆數上限 {limit}，排序 {order}",
+      "focusMetaNoRows": "{source} · 筆數上限 {limit}，排序 {order}",
+      "footer": {
+        "empty": "至少選取一個方法才能建立金鑰。",
+        "more": "另有 {n} 項",
+        "refused": "目前還無法建立此金鑰：{issue}",
+        "summary": "此金鑰將可呼叫 {paths}"
+      },
+      "kind": {
+        "browser": "瀏覽器",
+        "label": "使用位置",
+        "server": "伺服器"
+      },
+      "layout": {
+        "label": "版面",
+        "list": "清單",
+        "panes": "分欄"
+      },
+      "name": {
+        "label": "金鑰名稱",
+        "placeholder": "例如：訂單同步 Worker"
+      },
+      "newEndpoint": "新增端點",
+      "readOnly": "唯讀預設",
+      "rowMeta": "{source} · {rows} 列",
+      "rowMetaNoRows": "{source}",
+      "selectAll": "全選",
+      "selectAllShort": "全選",
+      "submit": "建立金鑰",
+      "subtitle": "選擇此金鑰可以呼叫的端點與方法",
+      "title": "建立 API 金鑰",
+      "toggleAll": "切換所有方法",
+      "unsupported": "{count, plural, other {此路由未開放 {methods}。請編輯端點以啟用。}}"
+    },
+    "stats": {
+      "endpoints": "端點",
+      "keys": "有效金鑰",
+      "requests": "請求數 · 24 小時"
+    },
+    "subtitle": "管理對工作區的程式化存取",
+    "summary": "{endpoints, plural, other {# 個端點}} · {methods, plural, other {# 個方法}}",
+    "title": "API 金鑰與權杖"
   }
 } as const;

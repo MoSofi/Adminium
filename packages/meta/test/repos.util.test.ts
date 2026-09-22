@@ -12,7 +12,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { packJson, readJson, readJsonOrNull } from '../src/repos/util.js';
+import type { MetaDb } from '../src/connect.js';
+import { packJson, readJson, readJsonFrom, readJsonOrNull } from '../src/repos/util.js';
 
 describe('readJson driver-shape handling', () => {
   it('parses serialized text (SQLite text columns) for every JSON type', () => {
@@ -42,5 +43,25 @@ describe('readJson driver-shape handling', () => {
     expect(readJsonOrNull(null)).toBeNull();
     expect(readJsonOrNull(undefined)).toBeNull();
     expect(readJsonOrNull(packJson('violet'))).toBe('violet');
+  });
+});
+
+describe('readJsonFrom reads by dialect, not by shape', () => {
+  const on = (dialect: MetaDb['dialect']): MetaDb => ({ dialect }) as MetaDb;
+
+  it('parses SQLite text, including a string whose content is itself JSON', () => {
+    expect(readJsonFrom(on('sqlite'), packJson('2048'))).toBe('2048');
+    expect(readJsonFrom(on('sqlite'), packJson({ a: 1 }))).toEqual({ a: 1 });
+    expect(readJsonFrom(on('sqlite'), 'not json at all')).toBe('not json at all');
+  });
+
+  it('never re-parses a value postgres or mysql already decoded', () => {
+    for (const dialect of ['postgres', 'mysql'] as const) {
+      const read = readJsonFrom(on(dialect), '2048');
+      expect(typeof read).toBe('string');
+      expect(read).toBe('2048');
+      expect(readJsonFrom(on(dialect), 'null')).toBe('null');
+      expect(readJsonFrom(on(dialect), { a: 1 })).toEqual({ a: 1 });
+    }
   });
 });

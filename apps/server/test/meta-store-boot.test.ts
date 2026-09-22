@@ -25,7 +25,11 @@
  */
 
 import { randomBytes } from 'node:crypto';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
+import { strFromU8, unzipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createFirstSuperAdmin,
@@ -34,12 +38,16 @@ import {
   firstRun,
   initMetaDb,
   postgresInt8AsNumber,
+  settingsRepo,
   type MetaDb,
   type User,
 } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { hashPassword } from '../src/auth/passwords.js';
+import { readBranding } from '../src/branding/service.js';
+import { resourcePath } from '../src/export/bundle.js';
+import { exportZip } from '../src/export/zip-service.js';
 import { sessionCookie } from './auth-helpers.js';
 import { makeEnv } from './helpers.js';
 
@@ -230,6 +238,49 @@ for (const engine of ENGINES) {
       expect(typeof row.createdAt).toBe('number');
       expect(typeof row.updatedAt).toBe('number');
       expect(row.createdAt).toBeGreaterThan(0);
+    });
+
+    it('keeps a typed name that is itself JSON text a string: bootstrap, branding, export', async () => {
+      // This engine hands a stored `"42"` back as the string `42`, and the
+      // settings repo used to parse that again into the NUMBER 42, which then
+      // failed the setting's own schema on every read. An assistant named 42
+      // 500'd `GET /bootstrap`, the first call the dashboard makes; a workspace
+      // named 2048 did the same to every branding read, the sign-in page's
+      // included.
+      const settings = settingsRepo(handle.meta);
+      await settings.set('assistant.name', '42');
+      await settings.set('branding.appName', '2048');
+      const dir = await mkdtemp(join(tmpdir(), 'adminium-boot-export-'));
+      try {
+        const cookie = await loginCookie();
+        const res = await app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { cookie } });
+        expect(res.statusCode, res.body).toBe(200);
+        const { name } = (res.json() as { data: { assistant: { name: unknown } } }).data.assistant;
+        expect(typeof name).toBe('string');
+        expect(name).toBe('42');
+
+        // What `GET /branding`, `GET /settings/workspace` and the rename
+        // route's own first read all call — so a bad read also blocked the fix.
+        const { appName } = await readBranding(handle.meta);
+        expect(typeof appName).toBe('string');
+        expect(appName).toBe('2048');
+
+        // A bundle has to carry the string too: the importing instance validates
+        // each setting and skips a number where a name belongs.
+        const result = await exportZip({ meta: handle.meta, outPath: join(dir, 'bundle.zip'), dataDir: dir });
+        const entries = unzipSync(new Uint8Array(await readFile(result.path)));
+        const bundled = JSON.parse(strFromU8(entries[resourcePath('settings')] as Uint8Array)) as {
+          key: string;
+          value: unknown;
+        }[];
+        const exported = bundled.find((row) => row.key === 'branding.appName')?.value;
+        expect(typeof exported).toBe('string');
+        expect(exported).toBe('2048');
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+        await settings.unset('assistant.name');
+        await settings.unset('branding.appName');
+      }
     });
 
     it('refuses a second super-admin claim (once-only on the engine transaction)', async () => {

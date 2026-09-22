@@ -61,6 +61,15 @@ export const FILES_ADMIN_EMAIL = 'e2e-files@adminium.local';
 export const FILES_ADMIN_NAME = 'E2E Files Admin';
 export const FILES_ADMIN_PASSWORD = 'adminium-e2e-password';
 
+/**
+ * A THIRD super admin, for `public-api.spec.ts` and `public-api-a11y.spec.ts`.
+ * The keys page and its axe sweeps are a heavy load too, and sharing the files
+ * principal's budget left both sets close to the ceiling.
+ */
+export const PUBLIC_API_ADMIN_EMAIL = 'e2e-public-api@adminium.local';
+export const PUBLIC_API_ADMIN_NAME = 'E2E Public API Admin';
+export const PUBLIC_API_ADMIN_PASSWORD = 'adminium-e2e-password';
+
 /** Name of the connection the boot script seeds + generates pages for. */
 export const SEED_CONNECTION_NAME = 'northwind';
 
@@ -81,6 +90,13 @@ export function storageStatePath(): string {
 export function filesStorageStatePath(): string {
   return fileURLToPath(
     new URL(`../.playwright/auth/state-files-${ENGINE}.json`, import.meta.url),
+  );
+}
+
+/** The public API specs' own session — see {@link PUBLIC_API_ADMIN_EMAIL}. */
+export function publicApiStorageStatePath(): string {
+  return fileURLToPath(
+    new URL(`../.playwright/auth/state-public-api-${ENGINE}.json`, import.meta.url),
   );
 }
 

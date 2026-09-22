@@ -104,7 +104,8 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
     await page.goto('/studio/connect');
     await expect(page.getByRole('heading', { name: 'New connection' })).toBeVisible();
 
-    // Step 1 — intent (default "full admin").
+    // Step 1 — intent (default Blank canvas: this leg generates through the
+    // API below, which falls back to full-admin for a connection with none).
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 2 — source, DSN mode. A `sqlite:` scheme auto-syncs the engine picker;

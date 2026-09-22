@@ -23,7 +23,13 @@ import { t } from '../../../i18n/t.js';
 import { studioApi, type IntrospectResult, type SchemaTable } from '../../api.js';
 import { capabilityNotes, wizardCapabilitySource } from '../capabilityNotes.js';
 import { LogConsole, type LogLine } from '../LogConsole.js';
-import { effectiveDsn, effectiveEngine, hintForErrorCode, type WizardState } from '../wizardState.js';
+import {
+  effectiveDsn,
+  effectiveEngine,
+  generateIntentOf,
+  hintForErrorCode,
+  type WizardState,
+} from '../wizardState.js';
 
 export type TestStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -192,11 +198,13 @@ export function TestStep({
       await wait(lineDelayMs);
 
       const create = async (): Promise<string> => {
+        const intent = generateIntentOf(state.intent);
         const created = await studioApi.createConnection({
           name: state.name.trim(),
           engine,
           dsn,
-          settings: { intent: state.intent },
+          // A blank canvas records no intent at all, as onboarding does.
+          ...(intent === null ? {} : { settings: { intent } }),
         });
         onPatch({ connectionId: created.id, readOnly: created.readOnly });
         return created.id;

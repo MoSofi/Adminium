@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ALL_MIGRATIONS, applyMigrations, publicKeysRepo, publicScopesRepo } from '../src/index.js';
+import { ALL_MIGRATIONS, applyMigrations, publicKeysRepo } from '../src/index.js';
 import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
@@ -51,16 +51,23 @@ for (const dialect of TEST_DIALECTS) {
           updatedAt: T0,
         } as never)
         .execute();
-      const scope = await publicScopesRepo(t.meta).create(
-        {
+      // Raw too, since wave 0038: today's repo writes `derived_for_key`.
+      const scope = { id: 'psc_pre0017' };
+      await t.meta.db
+        .insertInto('adminium_public_scopes')
+        .values({
+          id: scope.id,
           connectionId,
           side: 'customer',
           name: 'portal',
           timezone: 'Europe/London',
           document: JSON.stringify({ version: 1 }),
-        },
-        T0,
-      );
+          proposedFromManifest: null,
+          createdBy: null,
+          createdAt: T0,
+          updatedAt: T0,
+        } as never)
+        .execute();
       // A key minted by the PRE-0017 schema — raw insert, since today's repo
       // writes a column that does not exist yet.
       await t.meta.db

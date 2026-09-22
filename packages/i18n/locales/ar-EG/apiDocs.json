@@ -1,0 +1,90 @@
+{
+  "badge": {
+    "anon": "قراءة عامة",
+    "authenticated": "يتطلب تسجيل الدخول",
+    "public": "عام",
+    "service": "دور الخدمة"
+  },
+  "code": {
+    "copied": "تم النسخ",
+    "copy": "نسخ",
+    "curl": "cURL",
+    "js": "JavaScript",
+    "languages": "لغة مثال الشيفرة",
+    "python": "Python"
+  },
+  "copyBase": "نسخ عنوان URL الأساسي",
+  "crumb": "API",
+  "empty": {
+    "body": "لم تنشر هذه النسخة المثبّتة أي نقاط نهاية بعد.",
+    "title": "لا توجد نقاط نهاية بعد"
+  },
+  "ep": {
+    "batch": {
+      "desc": "إدراج أو upsert بالجملة، حتى 500 صف.",
+      "title": "إنشاء {ref} بالجملة"
+    },
+    "create": {
+      "desc": "إدراج صف واحد. يُرجع السجل الذي تم إنشاؤه.",
+      "title": "{article, select, other {}}إنشاء {singular}"
+    },
+    "delete": {
+      "desc": "إزالة الصف الذي يحمل هذا المفتاح الأساسي.",
+      "title": "{article, select, other {}}حذف {singular}"
+    },
+    "list": {
+      "desc": "إرجاع مجموعة صفوف مُصفّاة ومرتّبة ومقسّمة إلى صفحات.",
+      "title": "سرد {ref}"
+    },
+    "one": {
+      "desc": "جلب صف واحد بواسطة المفتاح الأساسي.",
+      "title": "{article, select, other {}}جلب {singular}"
+    },
+    "replace": {
+      "desc": "استبدال صف كامل بواسطة المفتاح الأساسي.",
+      "title": "{article, select, other {}}استبدال {singular}"
+    },
+    "rowWord": "صف",
+    "update": {
+      "desc": "تعديل أعمدة الصف الذي يحمل هذا المفتاح الأساسي.",
+      "title": "{article, select, other {}}تحديث {singular}"
+    }
+  },
+  "meta": "{endpoints, plural, zero {# نقطة نهاية} one {نقطة نهاية واحدة} two {نقطتا نهاية} few {# نقاط نهاية} many {# نقطة نهاية} other {# نقطة نهاية}} · الحد {limit}، الترتيب {order}",
+  "pg": {
+    "auth": "التفويض",
+    "authHelper": "مفتاح متصفح. يبقى في علامة التبويب هذه فقط ويختفي عند إعادة التحميل.",
+    "authPlaceholder": "الصق مفتاحًا",
+    "body": "نص الطلب",
+    "needKey": "الصق مفتاحًا أولًا",
+    "send": "إرسال الطلب",
+    "sending": "جارٍ الإرسال…",
+    "title": "منصة التجربة"
+  },
+  "rail": {
+    "empty": "لا شيء يطابق عامل التصفية هذا.",
+    "filter": "تصفية الجداول…",
+    "heading": "الموارد",
+    "reference": "مرجع API"
+  },
+  "res": {
+    "idle": "أرسل طلبًا لعرض الاستجابة.",
+    "ms": "{ms} ms",
+    "network": "لم يصل الطلب إلى الخادم.",
+    "noBody": "204 No Content — تم حذف الصف",
+    "title": "الاستجابة"
+  },
+  "schema": {
+    "body": "مخطط نص الطلب",
+    "response": "أعمدة الاستجابة"
+  },
+  "status": {
+    "live": "واجهة API تعمل",
+    "off": "معطّلة"
+  },
+  "tag": {
+    "fk": "FK",
+    "pk": "PK",
+    "unique": "UNIQUE"
+  }
+}

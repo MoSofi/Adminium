@@ -49,6 +49,9 @@ import {
   manifestsRepo,
   pagesRepo,
   passwordResetsRepo,
+  publicApiStateRepo,
+  publicRequestStatsRepo,
+  publicSessionsRepo,
   sessionsRepo,
   settingsRepo,
   type EnqueueJobInput,
@@ -156,6 +159,7 @@ import { desktopDemoRoutes } from './routes/desktop-demo/index.js';
 import { desktopLanRoutes } from './routes/desktop-lan/index.js';
 import { desktopLocalDbRoutes } from './routes/desktop-local-db/index.js';
 import { desktopCapabilityRoutes } from './routes/desktop-capabilities/index.js';
+import { apiDocsRoutes } from './routes/api-docs/index.js';
 import { brandingRoutes } from './routes/branding/index.js';
 import { bridgeRoutes } from './routes/bridge/index.js';
 import { metaRoutes } from './routes/meta/index.js';
@@ -198,7 +202,10 @@ import { publicApiRegistrationBlocked, publicRoutes } from './routes/public/inde
 import { publicAdminRoutes } from './routes/public-admin/index.js';
 import { appRoutes } from './routes/apps/index.js';
 import { surfacesAdminRoutes } from './routes/surfaces-admin/index.js';
+import { createApiCatalogue, metaCatalogueSource } from './public-api/catalogue.js';
 import { createPublicApiGate } from './public-api/enabled.js';
+import { createPublicResolver, createPublicViews, createRevisionWatch } from './public-api/runtime.js';
+import { createRequestStats } from './public-api/stats.js';
 import type { OnMetaRelocated } from './meta/relocate.js';
 import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
 
@@ -311,6 +318,9 @@ export const FILES_RETENTION_CRON = '45 4 * * *';
  * daily in there would contend with both on the same meta store.
  */
 export const RETENTION_GC_SCHEDULE_NAME = 'retention-gc';
+
+/** Minute flush of the public API's request counts. */
+export const PUBLIC_STATS_FLUSH_NAME = 'public-request-stats-flush';
 export const RETENTION_GC_CRON = '0 3 * * *';
 
 export interface ComposeServerOptions {
@@ -1136,8 +1146,58 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * an operator flips the toggle — otherwise the control appears not to work
    * for a cache TTL and invites a second click.
    */
+  /*
+   * The key resolver, for the same reason. `routes/public` resolves every
+   * request through it; `routes/public-admin` must empty it on revoke, rotate
+   * and scope edit. It used to be built inside the public plugin, where the
+   * admin routes' `invalidateResolver` could not reach it, so a revoked key
+   * kept working for up to the cache TTL.
+   */
+  const publicViews = createPublicViews(meta);
+  const publicResolver = createPublicResolver(meta, publicViews);
+  /*
+   * What `/api-docs` lists. Memoized for ≤ 30 s and emptied by the
+   * same events that empty the key cache, since both answer "what may a key
+   * call?".
+   */
+  const apiCatalogue = createApiCatalogue(metaCatalogueSource(meta, (id) => publicViews.viewFor(id)), {
+    onError: (connectionId, error) => {
+      app.log.warn({ err: error, connectionId }, 'api-docs: a connection was left out; its schema could not be read');
+    },
+  });
+  // Another process's revoke or endpoint save reaches this one's key cache on
+  // the gate's next refresh.
+  const publicRevision = publicApiStateRepo(meta);
+  const watchPublicRevision = createRevisionWatch(
+    () => publicRevision.read(),
+    () => {
+      publicResolver.invalidate();
+      apiCatalogue.invalidate();
+    },
+  );
+  /*
+   * "Requests · 24h". Counted in memory, flushed every minute and on
+   * shutdown by adding to the hour's stored bucket.
+   */
+  const publicStatsRepo = publicRequestStatsRepo(meta);
+  const publicStats = createRequestStats({
+    add: (count) => publicStatsRepo.add(count),
+    onError: (error) => {
+      app.log.warn({ err: error }, 'public API request counts could not be written; this minute is dropped');
+    },
+  });
   const publicGate = createPublicApiGate({
-    read: async () => (await settingsRepo(meta).get('publicApi.enabled')) === true,
+    read: async () => {
+      await watchPublicRevision();
+      return (await settingsRepo(meta).get('publicApi.enabled')) === true;
+    },
+  });
+  /*
+   * The documentation page's own switch, through the same
+   * fail-closed, short-TTL gate: the catalogue answers strangers too.
+   */
+  const docsGate = createPublicApiGate({
+    read: async () => (await settingsRepo(meta).get('publicApi.docsEnabled')) === true,
   });
 
   await app.register(
@@ -1350,12 +1410,36 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           invalidateGate: () => {
             publicGate.invalidate();
           },
+          invalidateDocsGate: () => {
+            docsGate.invalidate();
+          },
+          invalidateResolver: (keyId) => {
+            publicResolver.invalidate(keyId);
+          },
+          onChange: () => {
+            apiCatalogue.invalidate();
+          },
+          // The same schema cache the public routes read, so an endpoint is
+          // checked against exactly what a request will run against.
+          views: publicViews,
         }),
       );
       // Hosted app surfaces: placement + domain attachment. Registered
       // whenever a meta store exists — with no surfaces
       // discovered the list is empty and the page says how to add some, which
       // beats a namespace that 404s only on some instances.
+      // The public API catalogue behind `/api-docs`. No key, no
+      // session; 404 unless `publicApi.docsEnabled`.
+      await api.register(
+        apiDocsRoutes({
+          meta,
+          catalogue: apiCatalogue,
+          docsEnabled: () => docsGate.isEnabled(),
+          apiEnabled: () => publicGate.isEnabled(),
+          registered: env.ADMINIUM_PUBLIC_API_ORIGINS !== undefined,
+          surfaceForHost: (request) => app.surfaceForHost(request),
+        }),
+      );
       await api.register(surfacesAdminRoutes({ meta }));
       // Installing an app. Registered on the same
       // terms as the surfaces admin above: with nothing installed the list is
@@ -1479,6 +1563,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         meta,
         manager,
         isEnabled: publicGate.isEnabled,
+        resolver: publicResolver,
+        views: publicViews,
+        stats: publicStats,
         // The door. The SAME pipeline the queued job and the automation step
         // use, so "one profile draws one document however it was asked for"
         // survives a third entry point.
@@ -1856,6 +1943,19 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // `retention.exportsDays` is deliberately absent — the exports sweep above
   // owns that lifecycle, including the artifact bytes on disk, which this pass
   // knows nothing about.
+  jobs.scheduler.registerSchedule(
+    PUBLIC_STATS_FLUSH_NAME,
+    '* * * * *',
+    async () => {
+      await publicStats.flush();
+    },
+    { jitterMs: 2_000 },
+  );
+  // The last minute's counts, before the meta store closes.
+  app.addHook('onClose', async () => {
+    await publicStats.flush();
+  });
+
   jobs.scheduler.registerSchedule(RETENTION_GC_SCHEDULE_NAME, RETENTION_GC_CRON, async () => {
     const settings = settingsRepo(meta);
     const at = Date.now();
@@ -1894,6 +1994,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // places to look.
     const assistantSessions = await sweepAssistantSessions(meta, at);
 
+    // Public-surface sessions past their `expires_at` (28). `purgeExpired` was
+    // written with the repo and never called, so the table only grew. Last,
+    // and in its own catch, so a failure here cannot skip the steps above.
+    let publicSessions: number | null = null;
+    try {
+      publicSessions = await publicSessionsRepo(meta).purgeExpired(at);
+    } catch (error) {
+      app.log.warn({ err: error }, 'retention sweep: public session purge failed');
+    }
+    // Public request counts past `retention.publicRequestStatsDays`,
+    // in its own catch for the same reason.
+    let publicRequestStats: number | null = null;
+    try {
+      const days = await settings.get('retention.publicRequestStatsDays');
+      publicRequestStats = await publicStatsRepo.purgeBefore(at - days * DAY_MS);
+    } catch (error) {
+      app.log.warn({ err: error }, 'retention sweep: public request stats purge failed');
+    }
+
     app.log.info(
       {
         sessions,
@@ -1902,6 +2021,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         auditEntries,
         automationRuns,
         assistantSessions,
+        publicSessions,
+        publicRequestStats,
         jobsDays,
         auditLogDays,
         automationRunsDays,

@@ -80,6 +80,7 @@ import {
   enqueueAppDownload,
 } from '../../jobs/app-acquire.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { forgetAppSurfaceSettings } from '../../surfaces/settings.js';
 import { APP_VERSION } from '../../version.js';
 import {
   appCatalogReply,
@@ -1331,9 +1332,24 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         await manifests.uninstall(row.row.id);
         await deps.store.removeKey(key);
         await deps.installed.refresh();
+        /*
+         * Its placement and domains go with it. A host left mapped to a key
+         * nothing serves makes the domains editor refuse every later save —
+         * including the one mapping that host to whatever replaces this app.
+         */
+        const forgotten = await forgetAppSurfaceSettings(
+          deps.meta,
+          key,
+          request.user?.id ?? null,
+        );
+        request.server.surfaceSettings?.invalidate();
         await auditAppEvent(
           'app.uninstalled',
-          { key, version: row.row.version },
+          {
+            key,
+            version: row.row.version,
+            ...(forgotten.removedHosts.length === 0 ? {} : { removedHosts: forgotten.removedHosts }),
+          },
           request.user?.id ?? null,
           request.user?.email ?? 'unknown',
         );

@@ -53,33 +53,47 @@ export function createPublicApiGate(opts: PublicApiGateOptions): PublicApiGate {
    * exists to prevent, just moved to the moment it matters most.
    */
   let inFlight: Promise<boolean> | null = null;
+  /*
+   * A refresh that started before `invalidate()` read the OLD setting. Left
+   * alone it would store that value for a full TTL after the operator flipped
+   * the switch, and any request joining it would get the old answer too. So
+   * `invalidate()` moves the generation and forgets the in-flight read, and a
+   * refresh stores its value only if the generation is still its own.
+   */
+  let generation = 0;
 
-  const refresh = async (): Promise<boolean> => {
+  const refresh = async (started: number): Promise<boolean> => {
     try {
       const next = await opts.read();
-      value = next;
-      expiresAt = now() + ttl;
+      if (started === generation) {
+        value = next;
+        expiresAt = now() + ttl;
+      }
       return next;
     } catch {
       // Fail closed, and do NOT cache the failure: a transient meta-store blip
       // should not keep the surface dark for the whole TTL after it recovers.
-      value = null;
-      expiresAt = 0;
+      if (started === generation) {
+        value = null;
+        expiresAt = 0;
+      }
       return false;
     } finally {
-      inFlight = null;
+      if (started === generation) inFlight = null;
     }
   };
 
   return {
     async isEnabled() {
       if (value !== null && now() < expiresAt) return value;
-      inFlight ??= refresh();
+      inFlight ??= refresh(generation);
       return inFlight;
     },
     invalidate() {
+      generation += 1;
       value = null;
       expiresAt = 0;
+      inFlight = null;
     },
   };
 }

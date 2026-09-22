@@ -10,9 +10,12 @@
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  auditRepo,
   createSqliteMetaDb,
   firstRun,
   pagesRepo,
+  publicKeysRepo,
+  publicScopesRepo,
   rolesRepo,
   snapshotsRepo,
   usersRepo,
@@ -211,6 +214,59 @@ describe('connections hub list counts', () => {
     });
     expect(ok.statusCode).toBe(200);
     expect(await t.manager.connections.findById(connection.id)).toBeNull();
+  });
+
+  it('DELETE refuses with PUBLIC_KEYS_LIVE while a publishable key is live, then clears it once revoked', async () => {
+    // 0.3.0-rc.0 on a Postgres meta store: the scope cascade hit the key's
+    // RESTRICT and the route answered with an unhandled 500.
+    const connection = await t.manager.connections.create({
+      name: 'Shop',
+      engine: 'postgres',
+      introspectDsn: 'postgres://ro@db.internal:5432/shop',
+    });
+    const scope = await publicScopesRepo(t.meta).create({
+      connectionId: connection.id,
+      side: 'customer',
+      name: 'storefront',
+      timezone: 'Europe/London',
+      document: '{}',
+    });
+    const key = await publicKeysRepo(t.meta).create({
+      name: 'web',
+      prefix: 'adm_pub_shopweb1',
+      tokenHash: 'h'.repeat(64),
+      tokenEncrypted: 'sealed',
+      scopeId: scope.id,
+      side: 'customer',
+    });
+    const remove = () =>
+      t.app.inject({
+        method: 'DELETE',
+        url: `/api/v1/connections/${connection.id}`,
+        headers: asUser(t.superAdmin),
+        payload: { confirmName: 'Shop' },
+      });
+
+    const refused = await remove();
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json().error).toMatchObject({
+      code: 'PUBLIC_KEYS_LIVE',
+      details: { keys: [{ id: key.id, name: 'web', prefix: 'adm_pub_shopweb1', scopeId: scope.id }] },
+    });
+    expect(await t.manager.connections.findById(connection.id)).not.toBeNull();
+
+    await publicKeysRepo(t.meta).revoke(key.id);
+    const ok = await remove();
+    expect(ok.statusCode).toBe(200);
+    expect(await t.manager.connections.findById(connection.id)).toBeNull();
+    expect(await publicKeysRepo(t.meta).findById(key.id)).toBeNull();
+
+    // The revoked row is gone, so the delete's own audit row names it.
+    const [audit] = await auditRepo(t.meta).list({ category: 'connection', limit: 1 });
+    expect(audit?.action).toBe('connection.delete');
+    expect(audit?.changes).toMatchObject({
+      before: { name: 'Shop', publicKeys: [{ keyId: key.id, prefix: 'adm_pub_shopweb1' }] },
+    });
   });
 
   it('list requires system:connections:manage', async () => {

@@ -179,6 +179,13 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Public API',
+              items: [
+                { label: 'Endpoints and keys', link: '/guides/public-api/endpoints-and-keys/' },
+                { label: 'The API documentation page', link: '/guides/public-api/api-docs-page/' },
+              ],
+            },
+            {
               label: 'LLM assist',
               items: [
                 { label: 'Overview', link: '/guides/llm-assist/' },

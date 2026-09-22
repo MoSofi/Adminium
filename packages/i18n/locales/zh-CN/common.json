@@ -106,7 +106,6 @@
     "back": "返回",
     "team": "团队",
     "roles": "角色与权限",
-    "apiKeys": "API 密钥",
     "audit": "审计日志",
     "security": "密码与会话",
     "files": "文件",
@@ -911,60 +910,6 @@
       }
     }
   },
-  "apiKeys": {
-    "title": "API 密钥与令牌",
-    "subtitle": "管理对工作区的程序化访问。",
-    "createButton": "创建密钥",
-    "copy": "复制",
-    "copied": "已复制",
-    "revoke": "吊销密钥",
-    "neverUsed": "从未使用",
-    "lastUsed": "上次使用于 {since}",
-    "scopesOverflow": "另有 {count} 项",
-    "status": {
-      "active": "有效",
-      "revoked": "已吊销",
-      "expired": "已过期"
-    },
-    "list": {
-      "title": "密钥",
-      "activeCount": "{count, plural, other {# 个有效密钥}}"
-    },
-    "empty": {
-      "title": "尚无 API 密钥",
-      "body": "创建一个，即可在自己的代码中调用 Adminium API。"
-    },
-    "revealed": {
-      "title": "新密钥已创建",
-      "body": "请立即复制 —— 之后将无法再次查看。"
-    },
-    "rolesUnavailable": {
-      "title": "你无权查看角色",
-      "body": "创建密钥需要选择它所代表的角色，而你的账号无法读取角色列表。请向管理员申请“管理角色”权限。"
-    },
-    "quickStart": {
-      "title": "快速开始",
-      "body": "在 Authorization 请求头中携带密钥完成鉴权。"
-    },
-    "create": {
-      "title": "创建 API 密钥",
-      "description": "该密钥将以你所选角色的权限运行。",
-      "name": "名称",
-      "namePlaceholder": "例如：分析数据管道",
-      "role": "角色",
-      "roleHelper": "选择能完成任务的最小权限角色。",
-      "expires": "过期时间",
-      "expiresHelper": "留空表示密钥永不过期。",
-      "submit": "创建密钥",
-      "failed": "无法创建密钥"
-    },
-    "revokeConfirm": {
-      "title": "吊销 API 密钥",
-      "body": "任何仍在使用“{name}”调用 API 的代码将立即失败。此操作无法撤销。",
-      "prompt": "输入“{name}”以确认",
-      "confirm": "吊销密钥"
-    }
-  },
   "changelog": {
     "title": "更新日志",
     "subtitle": "产品更新与版本发布。",
@@ -1076,6 +1021,14 @@
       "rest": {
         "title": "REST API 参考",
         "excerpt": "生成应用暴露的每个端点，含请求与响应结构。"
+      },
+      "publicApi": {
+        "title": "为你的页面配置端点和密钥",
+        "excerpt": "让页面或其他服务器调用你选定的表，密钥的权限限定在所选端点和方法内。"
+      },
+      "apiDocsPage": {
+        "title": "API 文档页面",
+        "excerpt": "发布 /api-docs，让调用你的 API 的人可以浏览接口并试发请求。"
       },
       "roles": {
         "title": "角色与权限",

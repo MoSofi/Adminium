@@ -640,3 +640,65 @@ describe('compileScope — properties', () => {
     }
   });
 });
+
+describe('schema additions: three actions and four optional fields', () => {
+  const base = doc().resources as Record<string, unknown>[];
+  const withResource = (extra: Record<string, unknown>) => doc({ resources: [{ ...base[0], ...extra }] });
+
+  it('a scope written before this widening compiles to exactly what it did, plus the defaults', () => {
+    const compiled = compileScope(doc(), columnsOf).byRef.get('menu');
+    expect(compiled).toMatchObject({ limit: 50, defaultLimit: 50, defaultOrder: null, rate: null, response: { shape: 'wrapped' }, count: 'none' });
+    expect(publicConfigOf(compileScope(doc(), columnsOf)).refs['menu']).toEqual({
+      actions: ['read'],
+      expose: ['id', 'name', 'price', 'category'],
+      filterable: [],
+      searchable: ['name'],
+      orderable: ['name'],
+      writable: [],
+      limit: 50,
+      response: { shape: 'wrapped' },
+    });
+  });
+
+  it('accepts replace, delete and batch, and a snake_case ref', () => {
+    const scope = compileScope(
+      withResource({ ref: 'menu_items', actions: ['read', 'replace', 'delete', 'batch'], writable: ['name'] }),
+      columnsOf,
+    );
+    expect([...(scope.byRef.get('menu_items')?.actions ?? [])]).toEqual(['read', 'replace', 'delete', 'batch']);
+    expect(issuesOf(withResource({ actions: ['read', 'upsert'] }))).toEqual(['SCOPE_SHAPE_INVALID']);
+    expect(issuesOf(withResource({ ref: 'menu.items' }))).toEqual(['SCOPE_SHAPE_INVALID']);
+  });
+
+  it('replace and batch need something writable; delete does not', () => {
+    expect(issuesOf(withResource({ actions: ['read', 'replace'] }))).toContain('SCOPE_ACTION_WITHOUT_WRITABLE');
+    expect(issuesOf(withResource({ actions: ['read', 'batch'] }))).toContain('SCOPE_ACTION_WITHOUT_WRITABLE');
+    expect(issuesOf(withResource({ actions: ['read', 'delete'] }))).toEqual([]);
+  });
+
+  it('a default page above the cap is refused', () => {
+    expect(issuesOf(withResource({ limit: 20, defaultLimit: 50 }))).toEqual(['SCOPE_DEFAULT_LIMIT_ABOVE_LIMIT']);
+    expect(compileScope(withResource({ limit: 50, defaultLimit: 10 }), columnsOf).byRef.get('menu')?.defaultLimit).toBe(10);
+  });
+
+  it('a default order by a hidden or unknown column is refused, and needs no orderable entry', () => {
+    expect(issuesOf(withResource({ defaultOrder: 'price.desc' }))).toEqual([]);
+    expect(issuesOf(withResource({ defaultOrder: 'cost_price.asc' }))).toEqual(['SCOPE_DEFAULT_ORDER_NOT_EXPOSED']);
+    expect(issuesOf(withResource({ defaultOrder: 'nope.asc' }))).toEqual([
+      'SCOPE_DEFAULT_ORDER_UNKNOWN_COLUMN',
+      'SCOPE_DEFAULT_ORDER_NOT_EXPOSED',
+    ]);
+    expect(issuesOf(withResource({ defaultOrder: 'price' }))).toEqual(['SCOPE_SHAPE_INVALID']);
+  });
+
+  it('rate and response parse to the compiled resource and project to the config', () => {
+    const scope = compileScope(
+      withResource({ rate: { max: 30, windowMs: 1_000 }, response: { shape: 'array' } }),
+      columnsOf,
+    );
+    expect(scope.byRef.get('menu')).toMatchObject({ rate: { max: 30, windowMs: 1_000 }, response: { shape: 'array' } });
+    expect(publicConfigOf(scope).refs['menu']?.response).toEqual({ shape: 'array' });
+    expect(issuesOf(withResource({ rate: { max: 30, windowMs: 5_000 } }))).toEqual(['SCOPE_SHAPE_INVALID']);
+    expect(issuesOf(withResource({ side: 'staff' }))).toEqual(['SCOPE_SHAPE_INVALID']);
+  });
+});

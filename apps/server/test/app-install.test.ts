@@ -29,6 +29,7 @@ import {
   firstRun,
   manifestsRepo,
   pagesRepo,
+  settingsRepo,
   snapshotsRepo,
   usersRepo,
   type MetaDb,
@@ -562,6 +563,33 @@ describe('installing a staged bundle', () => {
     expect(res.statusCode).toBe(200);
     expect(installed.current()).toHaveLength(0);
     expect(await store.keys()).toEqual([]);
+    await app.close();
+  });
+
+  it("uninstall forgets the app's placement and domains, and nothing else's", async () => {
+    // Left behind, a host mapped to a key nothing serves makes the domains
+    // editor refuse EVERY later save — including the one mapping that host to
+    // the app installed in its place (a sandboxy droplet, clients → pos).
+    const app = await buildApp();
+    await upload(app, 'sample-desk');
+    await app.inject({ method: 'POST', url: '/apps/install', payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION } });
+    const settings = settingsRepo(meta);
+    await settings.set('surfaces.apps', {
+      'sample-desk': { staff: 'external', name: 'Desk' },
+      other: { staff: 'internal' },
+    });
+    await settings.set('surfaces.domains', {
+      'desk.example.com': { appKey: 'sample-desk', side: 'customer' },
+      'staff.example.com': { appKey: 'sample-desk', side: 'staff' },
+      'other.example.com': { appKey: 'other', side: 'customer' },
+    });
+
+    const res = await app.inject({ method: 'DELETE', url: '/apps/sample-desk' });
+    expect(res.statusCode).toBe(200);
+    expect(await settings.get('surfaces.apps')).toEqual({ other: { staff: 'internal' } });
+    expect(await settings.get('surfaces.domains')).toEqual({
+      'other.example.com': { appKey: 'other', side: 'customer' },
+    });
     await app.close();
   });
 });

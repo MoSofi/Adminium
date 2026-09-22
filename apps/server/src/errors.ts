@@ -152,7 +152,13 @@ export class ConflictError extends AppError {
       // snapshot (another admin applied a plan) or the database itself
       // (somebody ran DDL outside Adminium). Both mean the same thing to the
       // caller: re-plan and look at it again.
-      | 'SCHEMA_DRIFT' = 'CONFLICT',
+      | 'SCHEMA_DRIFT'
+      // A connection delete refused because publishable keys on its public
+      // scopes are still live; `details.keys` names them (0014's restrict).
+      | 'PUBLIC_KEYS_LIVE'
+      // A key create named a generated endpoint that is no longer what the
+      // page showed; `details.refs` names them.
+      | 'PUBLIC_ENDPOINT_CHANGED' = 'CONFLICT',
     details?: unknown,
   ) {
     super(409, code, message, details);

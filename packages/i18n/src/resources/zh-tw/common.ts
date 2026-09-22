@@ -116,7 +116,6 @@ export default {
     "back": "返回",
     "team": "團隊",
     "roles": "角色與權限",
-    "apiKeys": "API 金鑰",
     "audit": "稽核紀錄",
     "security": "密碼與工作階段",
     "files": "檔案",
@@ -921,60 +920,6 @@ export default {
       }
     }
   },
-  "apiKeys": {
-    "title": "API 金鑰與權杖",
-    "subtitle": "管理對工作區的程式化存取。",
-    "createButton": "建立金鑰",
-    "copy": "複製",
-    "copied": "已複製",
-    "revoke": "撤銷金鑰",
-    "neverUsed": "從未使用",
-    "lastUsed": "上次使用於 {since}",
-    "scopesOverflow": "另有 {count} 項",
-    "status": {
-      "active": "有效",
-      "revoked": "已撤銷",
-      "expired": "已逾期"
-    },
-    "list": {
-      "title": "金鑰",
-      "activeCount": "{count, plural, other {# 個有效金鑰}}"
-    },
-    "empty": {
-      "title": "尚無 API 金鑰",
-      "body": "建立一個，即可在自己的程式碼中呼叫 Adminium API。"
-    },
-    "revealed": {
-      "title": "新金鑰已建立",
-      "body": "請立即複製 —— 之後將無法再次檢視。"
-    },
-    "rolesUnavailable": {
-      "title": "你無權檢視角色",
-      "body": "建立金鑰須選擇它所代表的角色，而你的帳號無法讀取角色清單。請向管理員申請「管理角色」權限。"
-    },
-    "quickStart": {
-      "title": "快速開始",
-      "body": "在 Authorization 標頭中帶入金鑰完成驗證。"
-    },
-    "create": {
-      "title": "建立 API 金鑰",
-      "description": "此金鑰將以你所選角色的權限運作。",
-      "name": "名稱",
-      "namePlaceholder": "例如：分析資料管線",
-      "role": "角色",
-      "roleHelper": "選擇足以完成工作的最小權限角色。",
-      "expires": "到期時間",
-      "expiresHelper": "留空表示金鑰永不到期。",
-      "submit": "建立金鑰",
-      "failed": "無法建立金鑰"
-    },
-    "revokeConfirm": {
-      "title": "撤銷 API 金鑰",
-      "body": "任何仍以「{name}」呼叫 API 的程式碼將立即失敗。此動作無法復原。",
-      "prompt": "輸入「{name}」以確認",
-      "confirm": "撤銷金鑰"
-    }
-  },
   "changelog": {
     "title": "變更紀錄",
     "subtitle": "產品更新與版本發佈。",
@@ -1086,6 +1031,14 @@ export default {
       "rest": {
         "title": "REST API 參考",
         "excerpt": "產生的應用所公開的每個端點，含請求與回應結構。"
+      },
+      "publicApi": {
+        "title": "為你的頁面設定端點與金鑰",
+        "excerpt": "讓頁面或其他伺服器呼叫你選定的資料表，金鑰的權限限定在所選端點與方法內。"
+      },
+      "apiDocsPage": {
+        "title": "API 文件頁面",
+        "excerpt": "發布 /api-docs，讓呼叫你的 API 的人可以瀏覽介面並試發請求。"
       },
       "roles": {
         "title": "角色與權限",

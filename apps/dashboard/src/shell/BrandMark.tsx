@@ -18,7 +18,7 @@
  */
 import { useContext, useEffect } from 'react';
 import { QueryClient, QueryClientContext, useQuery } from '@tanstack/react-query';
-import { Hexagon } from 'lucide-react';
+import { Database, Hexagon } from 'lucide-react';
 import { cn } from '@adminium/ui';
 
 import { brandingQuery, DEFAULT_BRANDING, type BrandingData } from '../app/branding.js';
@@ -79,6 +79,13 @@ export interface BrandMarkProps {
   nameHidden?: boolean;
   /** The rail's accent bloom (`shadow-glow`) behind the built-in tile. */
   glow?: boolean;
+  /**
+   * `topbar` — the API explorer's header: a 28 px tile
+   * at radius 8 with a 15 px glyph, the name at 15 / 800 / −.02em, 11 px
+   * apart. Its built-in glyph is the comp's `database`, not the hexagon.
+   * Accent tone only.
+   */
+  size?: 'default' | 'topbar';
   className?: string | undefined;
 }
 
@@ -111,22 +118,26 @@ export function BrandMark({
   tone = 'accent',
   nameHidden = false,
   glow = false,
+  size = 'default',
   className,
 }: BrandMarkProps) {
   const { appName, logoUrl } = useBranding();
+  const topbar = size === 'topbar';
+  const tile = topbar ? 'size-[28px] rounded-[8px]' : TILE_SIZE[tone];
+  const Glyph = topbar ? Database : Hexagon;
 
   return (
-    <span data-part="brand-mark" className={cn('flex items-center gap-2.5', className)}>
+    <span data-part="brand-mark" className={cn('flex items-center', topbar ? 'gap-[11px]' : 'gap-2.5', className)}>
       {logoUrl === null ? (
         <span
           className={cn(
             'flex shrink-0 items-center justify-center',
-            TILE_SIZE[tone],
+            tile,
             TILE_BG[tone],
             glow ? 'shadow-glow' : '',
           )}
         >
-          <Hexagon className={GLYPH_SIZE[tone]} aria-hidden="true" />
+          <Glyph className={topbar ? 'size-[15px]' : GLYPH_SIZE[tone]} aria-hidden="true" />
         </span>
       ) : (
         /* Same square, `object-contain`: an uploaded logo is any aspect ratio
@@ -138,11 +149,14 @@ export function BrandMark({
           src={logoUrl}
           alt=""
           data-part="brand-logo"
-          className={cn('shrink-0 object-contain', TILE_SIZE[tone])}
+          className={cn('shrink-0 object-contain', tile)}
         />
       )}
       {nameHidden ? null : (
-        <span data-part="brand-name" className={cn('truncate', NAME_TONE[tone])}>
+        <span
+          data-part="brand-name"
+          className={cn('truncate', topbar ? 'text-[15px] font-extrabold tracking-[-0.02em] text-fg' : NAME_TONE[tone])}
+        >
           {appName}
         </span>
       )}

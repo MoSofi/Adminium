@@ -26,7 +26,6 @@ import {
   Download,
   FileChartColumn,
   History,
-  KeyRound,
   Mail,
   Paperclip,
   ScrollText,
@@ -188,22 +187,6 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
         fallback: 'Roles & permissions',
         icon: ShieldCheck,
         requires: 'roles.manage',
-      },
-      /*
-       * `/api-keys` shipped with a route, a 519-line page and no entry point in
-       * any nav — the same shape the `people` comment above describes. It is
-       * here rather than in `account` because a key is a PRINCIPAL, not a
-       * personal preference: it is workspace-wide, it carries a role, and it
-       * belongs beside the people and roles that can act. `adminOnly` mirrors
-       * the route's own `StudioGuard`; the server's `system:api-keys:manage` is
-       * the real boundary either way.
-       */
-      {
-        to: '/api-keys',
-        labelKey: 'nav.apiKeys',
-        fallback: 'API keys',
-        icon: KeyRound,
-        requires: 'api-keys.manage',
       },
       {
         to: '/audit',

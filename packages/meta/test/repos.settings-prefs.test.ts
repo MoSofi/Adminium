@@ -41,6 +41,48 @@ for (const dialect of TEST_DIALECTS) {
       expect(await settings.get('appearance.accent')).toBe('indigo');
     });
 
+    it('reads back a typed name that is itself JSON text as that string', async () => {
+      // Postgres and MySQL hand a stored `"2048"` back as the string `2048`.
+      // `readJson` parsed that into the NUMBER 2048, so `get` threw on the
+      // setting's own schema and `overrides()` dropped the row. SQLite keeps
+      // the serialized text and never showed it.
+      const settings = settingsRepo(meta());
+      for (const name of ['2048', 'true', 'null', '[1]', '{"a":1}', '"quoted"']) {
+        await settings.set('branding.appName', name, { at: T0 });
+        const read = await settings.get('branding.appName');
+        expect(typeof read).toBe('string');
+        expect(read).toBe(name);
+        const stored = (await settings.overrides())['branding.appName'];
+        expect(typeof stored).toBe('string');
+        expect(stored).toBe(name);
+      }
+      await settings.set('assistant.name', '42', { at: T0 });
+      expect(typeof (await settings.get('assistant.name'))).toBe('string');
+    });
+
+    it('reads back every stored shape as the type it was written', async () => {
+      const settings = settingsRepo(meta());
+      await settings.set('auth.sessionTtlHours', 48, { at: T0 });
+      await settings.set('branding.showVersion', false, { at: T0 });
+      await settings.set('branding.logoFileId', null, { at: T0 });
+      await settings.set('system.seededRoleGrants', ['admin:x'], { at: T0 });
+
+      const ttl = await settings.get('auth.sessionTtlHours');
+      expect(typeof ttl).toBe('number');
+      expect(ttl).toBe(48);
+      const showVersion = await settings.get('branding.showVersion');
+      expect(typeof showVersion).toBe('boolean');
+      expect(showVersion).toBe(false);
+      expect(await settings.get('branding.logoFileId')).toBeNull();
+      expect(await settings.get('system.seededRoleGrants')).toEqual(['admin:x']);
+      expect(await settings.overrides()).toEqual({
+        'auth.sessionTtlHours': 48,
+        'branding.showVersion': false,
+        'branding.logoFileId': null,
+        'system.seededRoleGrants': ['admin:x'],
+      });
+    });
+
     it('rejects invalid values and unknown keys', async () => {
       const settings = settingsRepo(meta());
       await expect(settings.set('appearance.accent', 'magenta' as never)).rejects.toThrow(MetaValidationError);

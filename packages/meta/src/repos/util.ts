@@ -29,8 +29,8 @@ export function packJson(value: unknown): string {
  * so strings that fail to parse are the driver-decoded value and returned
  * as-is. (Residual ambiguity: a *stored JSON string* whose content is itself
  * valid JSON — e.g. the string `"123"` — is indistinguishable from serialized
- * text once decoded. No meta payload stores such values; SQLite is unaffected
- * because its text column always carries the serialized form.)
+ * text once decoded. Safe only for a column whose top-level value is never a
+ * string; one that can hold a string reads with {@link readJsonFrom}.)
  */
 export function readJson<T = unknown>(value: unknown): T {
   if (typeof value !== 'string') return value as T;
@@ -44,6 +44,24 @@ export function readJson<T = unknown>(value: unknown): T {
 export function readJsonOrNull<T = unknown>(value: unknown): T | null {
   if (value === null || value === undefined) return null;
   return readJson<T>(value);
+}
+
+/**
+ * The exact read, for a json column whose top-level value may itself be a
+ * string: `adminium_settings.value`, where `branding.appName` and
+ * `assistant.name` are whatever somebody typed.
+ *
+ * {@link readJson} guesses from the value's shape, and a string is the one
+ * shape it cannot place. Postgres and MySQL hand a stored `"2048"` back as the
+ * JS string `2048`, which parses, so a workspace named 2048 read back as the
+ * NUMBER 2048 and failed its own schema: `get` threw, `overrides()` dropped
+ * the row, and `PUT /settings/branding` could not rename it back because it
+ * reads the current name first. SQLite never showed it, because its column
+ * keeps the serialized text. The dialect answers what the shape cannot: only
+ * SQLite stores text, so only SQLite's value is parsed.
+ */
+export function readJsonFrom<T = unknown>(meta: MetaDb, value: unknown): T {
+  return meta.dialect === 'sqlite' ? readJson<T>(value) : (value as T);
 }
 
 function sortKeysDeep(value: unknown): unknown {

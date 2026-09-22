@@ -21,7 +21,9 @@ test.describe('studio connect wizard (DSN mode)', () => {
     await page.goto('/studio/connect');
     await expect(page.getByRole('heading', { name: 'New connection' })).toBeVisible();
 
-    // Step 1 — intent (default "full admin" is fine).
+    // Step 1 — intent. The default is Blank canvas, which generates nothing;
+    // this leg is the generate path, so it picks Full admin.
+    await page.getByRole('radio', { name: /Full admin panel/ }).click();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 2 — source, DSN mode (the default input mode).

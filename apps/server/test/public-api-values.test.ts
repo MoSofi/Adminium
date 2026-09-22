@@ -50,6 +50,10 @@ function resource(over: Partial<CompiledResource> = {}): CompiledResource {
     claim: { column: 'conversation_id' },
     sensitive: false,
     limit: 100,
+    defaultLimit: 100,
+    defaultOrder: null,
+    rate: null,
+    response: { shape: 'wrapped' },
     count: 'none',
     ...over,
   };

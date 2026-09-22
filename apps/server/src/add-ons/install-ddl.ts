@@ -160,6 +160,10 @@ export interface ExistingTable {
     /** The native type verbatim, as the database reports it. A foreign key
      * pointing at this column must be created with exactly this type. */
     dbType?: string;
+    /** What the planner needs to tell a same-named foreign table apart. */
+    nullable?: boolean;
+    hasDefault?: boolean;
+    isGenerated?: boolean;
   }[];
 }
 

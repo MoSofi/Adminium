@@ -1,0 +1,90 @@
+{
+  "badge": {
+    "anon": "公开只读",
+    "authenticated": "需要登录",
+    "public": "公开",
+    "service": "服务角色"
+  },
+  "code": {
+    "copied": "已复制",
+    "copy": "复制",
+    "curl": "cURL",
+    "js": "JavaScript",
+    "languages": "代码示例语言",
+    "python": "Python"
+  },
+  "copyBase": "复制基础 URL",
+  "crumb": "API",
+  "empty": {
+    "body": "此部署尚未发布任何端点。",
+    "title": "暂无端点"
+  },
+  "ep": {
+    "batch": {
+      "desc": "批量插入或 upsert，最多 500 行。",
+      "title": "批量创建 {ref}"
+    },
+    "create": {
+      "desc": "插入一行，返回创建的记录。",
+      "title": "{article, select, other {}}创建 {singular}"
+    },
+    "delete": {
+      "desc": "删除具有此主键的行。",
+      "title": "{article, select, other {}}删除 {singular}"
+    },
+    "list": {
+      "desc": "返回经过过滤、排序和分页的行集合。",
+      "title": "列出 {ref}"
+    },
+    "one": {
+      "desc": "按主键获取单行。",
+      "title": "{article, select, other {}}获取 {singular}"
+    },
+    "replace": {
+      "desc": "按主键替换整行。",
+      "title": "{article, select, other {}}替换 {singular}"
+    },
+    "rowWord": "记录",
+    "update": {
+      "desc": "修改具有此主键的行中的列。",
+      "title": "{article, select, other {}}更新 {singular}"
+    }
+  },
+  "meta": "{endpoints, plural, other {# 个端点}} · 条数限制 {limit}，排序 {order}",
+  "pg": {
+    "auth": "授权",
+    "authHelper": "浏览器密钥。它只保存在此标签页中，重新加载后即失效。",
+    "authPlaceholder": "粘贴密钥",
+    "body": "请求体",
+    "needKey": "请先粘贴密钥",
+    "send": "发送请求",
+    "sending": "正在发送…",
+    "title": "调试台"
+  },
+  "rail": {
+    "empty": "没有与该筛选条件匹配的内容。",
+    "filter": "筛选表…",
+    "heading": "资源",
+    "reference": "API 参考"
+  },
+  "res": {
+    "idle": "发送请求以查看响应。",
+    "ms": "{ms} ms",
+    "network": "请求未能到达服务器。",
+    "noBody": "204 No Content — 行已删除",
+    "title": "响应"
+  },
+  "schema": {
+    "body": "请求体结构",
+    "response": "响应列"
+  },
+  "status": {
+    "live": "API 运行中",
+    "off": "已停用"
+  },
+  "tag": {
+    "fk": "FK",
+    "pk": "PK",
+    "unique": "UNIQUE"
+  }
+}

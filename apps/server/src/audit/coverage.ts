@@ -263,7 +263,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   // audited via `app.rbac.audit` (hence the `rbac` WRITE PATH, not the `system`
   // category the rows carry) — including `reveal`, which is a READ. Re-reading a publishable
   // secret is the whole difference from `adm_sk_` and it should leave a trail.
-  'PUT /api/v1/public-api': audited('rbac'), // public-api.toggle
+  'PUT /api/v1/public-api': audited('rbac'), // public-api.toggle, public-api.docs-toggle
   'POST /api/v1/public-scopes': audited('rbac'), // public-scope.create
   'PATCH /api/v1/public-scopes/:id': audited('rbac'), // public-scope.update
   'DELETE /api/v1/public-scopes/:id': audited('rbac'), // public-scope.delete

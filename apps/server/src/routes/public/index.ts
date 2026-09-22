@@ -3,7 +3,7 @@
  * The public namespace.
  *
  * Registered as a SIBLING of the `/api/v1` block, with its own prefix, its own
- * CORS posture and its own limiter (D8). It must not move inside that block:
+ * CORS posture and its own limiter. It must not move inside that block:
  * the admin CORS list is credentialed and this one must never be, and the
  * limiter here keys on things `principalKey` cannot see.
  *
@@ -11,14 +11,14 @@
  *  1. `ADMINIUM_PUBLIC_API_ORIGINS` unset ⇒ `compose.ts` never calls this
  *     function. No door to probe, rather than a door that refuses.
  *  2. `ADMINIUM_TRUST_PROXY` off AND a non-loopback bind ⇒ refuses to register,
- *     loudly (D18/D21). See `publicApiRegistrationBlocked`.
+ *     loudly. See `publicApiRegistrationBlocked`.
  *  3. `publicApi.enabled` false ⇒ every route 503s, at runtime, reversibly.
  *
  * ── WHAT THIS FILE DOES NOT HAVE TO DO ─────────────────────────────────────
  * There is no check anywhere that a publishable key is being used on the right
  * route, because it CANNOT be used on a wrong one: `parseBearerApiKey` gates on
  * `adm_sk_`, so an `adm_pub_` token never becomes an rbac principal and
- * `request.can()` is false for it everywhere in the server (D3). That property
+ * `request.can()` is false for it everywhere in the server. That property
  * is asserted by `public-api-isolation.test.ts` rather than restated here as a
  * runtime guard that could rot.
  */
@@ -31,25 +31,24 @@ import {
   filesRepo,
   documentsRepo,
   auditRepo,
-  overridesRepo,
-  connectionTenantConfig,
   publicKeysRepo,
-  publicScopesRepo,
   publicSessionsRepo,
-  snapshotsRepo,
 } from '@adminium/meta';
-import type { DatabaseModel } from '@adminium/engine';
 
 import { SELF_ORIGIN_SENTINEL, type Env } from '../../config/env.js';
 import { ConnectionDisabledError } from '../../errors.js';
 import { isSameOriginRequest } from '../../security/csrf.js';
-import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
-import { SnapshotView } from '../../crud/identifiers.js';
 import { runList } from '../../crud/list.js';
-import { compileFilter, parseWhereParam } from '../../crud/filters.js';
-import { createPublicKeyResolver, type ResolvedKey } from '../../public-api/resolve.js';
-import { publicConfigOf, type CompiledResource } from '../../public-api/scope.js';
+import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
+import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
+import {
+  createPublicResolver,
+  createPublicViews,
+  createTouchThrottle,
+  type PublicViews,
+} from '../../public-api/runtime.js';
+import { publicConfigOf, type CompiledResource, type PublicAction } from '../../public-api/scope.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import {
@@ -60,13 +59,17 @@ import {
   resolveClaim,
   type PublicSessionContext,
 } from '../../public-api/claim.js';
-import { generatePublicSessionToken, hashPublishableKey } from '../../public-api/keys.js';
-import { parseRecordId, pkLabel } from '../../crud/records.js';
-import type { Row } from '../../crud/mask.js';
+import { generatePublicSessionToken, hashPublishableKey, keyKindOf } from '../../public-api/keys.js';
+import type { RequestStats } from '../../public-api/stats.js';
+import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
+import { maskRows, type Row } from '../../crud/mask.js';
 import { emitRecordEvent, invalidateWidgetData } from '../../crud/after-record-write.js';
 import {
   HookRejectedError,
   createWriteService,
+  insertRow,
+  updateRows,
+  type PlannedRow,
   type RecordWriteService,
   type WriteContext,
   type WriteTarget,
@@ -82,8 +85,10 @@ import {
   publicConfigReply,
   publicErrorReply,
   publicListQuery,
-  publicListReply,
+  publicListShapes,
   publicRecordParams,
+  publicBatchBody,
+  PUBLIC_BATCH_MAX,
   publicRecordReply,
   publicRefParams,
   publicWriteBody,
@@ -94,7 +99,12 @@ import {
   publicDocumentsReply,
 } from './schema.js';
 import type { PublicErrorCode } from './schema.js';
-import { createPublicRateLimiter, type PublicLimit, type PublicRateLimiter } from '../../public-api/limiter.js';
+import {
+  createPublicRateLimiter,
+  type PublicLimit,
+  type PublicRateLimiter,
+  type RateDecision,
+} from '../../public-api/limiter.js';
 import { parseBearerPublishableKey, parsePublicSessionToken } from '../../public-api/keys.js';
 
 export interface PublicRoutesDeps {
@@ -116,6 +126,16 @@ export interface PublicRoutesDeps {
   storage?: FileStore | undefined;
   /** Where every write goes, with the project's hooks. A service with no hooks otherwise. */
   writes?: RecordWriteService | undefined;
+  /**
+   * The key resolver. `compose.ts` passes the one it also hands the admin
+   * routes, so a revoke there empties THIS cache. A plugin mounted
+   * alone builds its own.
+   */
+  resolver?: PublicKeyResolver | undefined;
+  /** The schema-view cache the resolver reads through; built alongside it. */
+  views?: PublicViews | undefined;
+  /** "Requests · 24h". Absent = nothing is counted. */
+  stats?: RequestStats | undefined;
 }
 
 /** A failed statement on this surface; answered without naming the constraint. */
@@ -128,11 +148,11 @@ const refuseWrite = (): never => {
 /**
  * Is a bind address loopback-only?
  *
- * D21 exempts loopback binds from the `ADMINIUM_TRUST_PROXY` hard requirement.
+ * Loopback binds are exempt from the `ADMINIUM_TRUST_PROXY` hard requirement.
  * On loopback there is no proxy in front, so `remoteAddress` is already the true
  * peer and the requirement would be protecting nothing while blocking local
  * development of this very surface. `0.0.0.0`/`::` are NOT loopback — that is
- * the shipped Docker default and exactly the case D18 was written for.
+ * the shipped Docker default and exactly the case this guards against.
  */
 /**
  * The anonymous namespace's path prefix — the ONE definition of it.
@@ -196,13 +216,21 @@ function collectFilterColumns(filter: unknown, out: string[] = []): string[] {
   return out;
 }
 
-function fail(reply: FastifyReply, status: number, code: PublicErrorCode, message: string): FastifyReply {
-  return reply.code(status).send({ error: { code, message } });
+function fail(
+  reply: FastifyReply,
+  status: number,
+  code: PublicErrorCode,
+  message: string,
+  params?: Record<string, unknown>,
+): FastifyReply {
+  return reply.code(status).send({ error: params === undefined ? { code, message } : { code, params, message } });
 }
 
 export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const { env, meta, manager, isEnabled } = deps;
   const limiter = deps.limiter ?? createPublicRateLimiter();
+  /** Requests that got as far as a resolved key and a ref: what `stats` counts. */
+  const chargeable = new WeakMap<FastifyRequest, { keyId: string; ref: string }>();
   const configured = env.ADMINIUM_PUBLIC_API_ORIGINS ?? [];
   /*
    * The sentinel is NOT in this set. It is not an origin, nothing is ever
@@ -210,12 +238,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
    * literal header `Origin: self` matched the allow-list.
    */
   const allowed = new Set(configured.filter((origin) => origin !== SELF_ORIGIN_SENTINEL));
-  /** Does `self` appear in the list? — whether same-origin callers are allowed (D2). */
+  /** Does `self` appear in the list? — whether same-origin callers are allowed. */
   const sameOriginAllowed = configured.includes(SELF_ORIGIN_SENTINEL);
-  const snapshots = snapshotsRepo(meta);
-  const overrides = overridesRepo(meta);
   const keys = publicKeysRepo(meta);
-  const scopes = publicScopesRepo(meta);
   const sessions = publicSessionsRepo(meta);
   const audit = auditRepo(meta);
   const writes = deps.writes ?? createWriteService();
@@ -228,53 +253,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     request,
   });
 
-  const viewCache = new Map<string, { stamp: string; view: SnapshotView }>();
-
-  /** The effective schema for a connection — same stamping as `routes/data`. */
-  async function viewFor(connectionId: string): Promise<SnapshotView | null> {
-    const snapshot = await snapshots.latest(connectionId);
-    if (snapshot === null) return null;
-    const active = await overrides.listForConnection(connectionId, { status: 'active' });
-    const last = active.at(-1);
-    const stamp = `${snapshot.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}`;
-    const cached = viewCache.get(connectionId);
-    if (cached !== undefined && cached.stamp === stamp) return cached.view;
-    const view = new SnapshotView(connectionId, applyOverrides(snapshot.schema as DatabaseModel, active));
-    viewCache.set(connectionId, { stamp, view });
-    return view;
-  }
-
-  const resolver = createPublicKeyResolver({
-    findKeysByPrefix: (prefix) => keys.findByPrefix(prefix),
-    findScopeById: (id) => scopes.findById(id),
-    /*
-     * Column existence, so `compileScope` refuses a scope naming a column the
-     * table no longer has. Resolved from the same snapshot the query will run
-     * against, which is what makes the refusal meaningful rather than advisory.
-     */
-    columnsOf: async (connectionId) => {
-      const view = await viewFor(connectionId);
-      if (view === null) return undefined;
-      return (table: string) => {
-        try {
-          return new Set(view.table(table).columns.keys());
-        } catch {
-          return null;
-        }
-      };
-    },
-    /*
-     * The tenant's zone and currency live on the CONNECTION, and a scope
-     * inherits them when it does not state its own. Read here rather than
-     * baked into the scope document so that changing a business's zone is one
-     * edit, not one edit per scope — and so a surface with no scope at all
-     * (one Adminium hosts itself) can reach the same value.
-     */
-    tenantConfigOf: async (connectionId) => {
-      const row = await connectionTenantConfig(meta, connectionId);
-      return row === null ? undefined : row;
-    },
-  });
+  const views = deps.views ?? createPublicViews(meta);
+  const viewFor = views.viewFor;
+  const resolver = deps.resolver ?? createPublicResolver(meta, views);
+  const keyTouches = createTouchThrottle();
+  const sessionTouches = createTouchThrottle();
+  /** `last_used_at`, at most once a minute per key. */
+  const touchKey = async (keyId: string): Promise<void> => {
+    if (keyTouches.due(keyId)) await keys.touchLastUsed(keyId);
+  };
 
   /**
    * Echo the caller's origin when it is allow-listed, and NEVER emit
@@ -302,25 +289,47 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
    * ordering note there).
    *
    * The same-origin half is what makes a surface Adminium hosts itself able to
-   * call this API — see {@link isSameOriginRequest} and D2. It emits nothing:
+   * call this API — see {@link isSameOriginRequest}. It emits nothing:
    * a same-origin response needs no `Access-Control-Allow-Origin`, and adding
    * one would mean echoing a header the request never sent.
    */
   const originVerdict = (request: FastifyRequest, reply: FastifyReply): boolean => {
-    if (applyCors(request, reply)) return true;
+    if (applyCors(request, reply)) {
+      /*
+       * `Retry-After` is not a CORS-safelisted response header, so without
+       * this a cross-origin page reads the 429 but `headers.get('retry-after')`
+       * answers null, and the client's `retryAfterSeconds` is always null
+       * there. Not on a preflight: a preflight response has nothing to
+       * expose.
+       */
+      reply.header('Access-Control-Expose-Headers', 'Retry-After, X-Next-Cursor');
+      return true;
+    }
     return sameOriginAllowed && isSameOriginRequest(request);
   };
 
   const preflight = async (request: FastifyRequest, reply: FastifyReply): Promise<null> => {
     if (!applyCors(request, reply)) return reply.code(403).send();
-    reply.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
+    // DELETE is `signOut()`'s method (`DELETE /public/session`) and a record
+    // delete's; PUT replaces a record. A browser refuses to send
+    // any method this list does not name.
+    reply.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
     reply.header('Access-Control-Allow-Headers', 'authorization, content-type, x-adminium-public-session');
     reply.header('Access-Control-Max-Age', '600');
     return reply.code(204).send();
   };
 
+  /** Answers a refused count, and says whether the request may go on. */
+  const admit = (reply: FastifyReply, decision: RateDecision): boolean => {
+    if (decision.allowed) return true;
+    reply.header('Retry-After', String(decision.retryAfterSeconds));
+    fail(reply, 429, 'PUBLIC_RATE_LIMITED', 'Too many requests.');
+    return false;
+  };
+
   /**
-   * The gate every public route runs first: off switch, origin, key, limit.
+   * The gate every public route runs first: off switch, origin, flood guard,
+   * key, session, class limit.
    *
    * Ordered cheapest-refusal-first, and deliberately so that the OFF SWITCH is
    * checked before anything touches a key: a disabled instance must not spend a
@@ -330,6 +339,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     request: FastifyRequest,
     reply: FastifyReply,
     limit: PublicLimit,
+    /** What this request spends of an endpoint's own limit: a batch spends its rows. */
+    opts: { cost?: number } = {},
   ): Promise<{ key: ResolvedKey; session: PublicSessionContext | null } | null> => {
     /*
      * CORS HEADERS FIRST, REFUSALS AFTER — and the order is load-bearing.
@@ -347,16 +358,36 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * no" property below is untouched.
      */
     const originAllowed = originVerdict(request, reply);
+    /*
+     * WHICH KIND OF KEY decides whether an Origin is needed at all, and it is
+     * read from the token's PREFIX, before anything is looked up:
+     * a server key is valid with no Origin, a browser key is not. The resolver
+     * then insists the stored row is the same kind.
+     */
+    const token = parseBearerPublishableKey(request.headers.authorization);
+    const tokenKind = token === null ? null : keyKindOf(token);
 
     if (!(await isEnabled())) {
       fail(reply, 503, 'PUBLIC_API_DISABLED', 'The public API is turned off for this instance.');
       return null;
     }
-    if (!originAllowed) {
+    if (tokenKind === 'server') {
+      /*
+       * A server key presented with ANY browser provenance is refused, even
+       * from a listed origin. A server key in a page bundle is a server key
+       * published; refusing it from a browser is what keeps one from being
+       * shipped there by mistake. Every browser sends `Sec-Fetch-*` (the same
+       * signal `plugins/csrf.ts` reads) or an `Origin` on a cross-origin call.
+       */
+      const h = request.headers;
+      if (h.origin !== undefined || h['sec-fetch-site'] !== undefined || h['sec-fetch-mode'] !== undefined) {
+        fail(reply, 403, 'PUBLIC_ORIGIN_REFUSED', 'A server key cannot be used from a browser.');
+        return null;
+      }
+    } else if (!originAllowed) {
       fail(reply, 403, 'PUBLIC_ORIGIN_REFUSED', 'This origin is not allowed to call the public API.');
       return null;
     }
-    const token = parseBearerPublishableKey(request.headers.authorization);
     if (token === null) {
       fail(reply, 401, 'PUBLIC_KEY_INVALID', 'A publishable key is required.');
       return null;
@@ -366,28 +397,29 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     );
 
     /*
-     * Limited on the KEY PREFIX before the key is resolved. Counting only
-     * verified keys would make an invalid-key flood free, which is the cheapest
-     * possible attack on a surface whose whole job is to answer strangers.
+     * Counted before the key is resolved. Counting only verified keys would
+     * make an invalid-key flood free, which is the cheapest possible attack on
+     * a surface whose whole job is to answer strangers.
+     *
+     * On the ADDRESS, and on nothing else in the request: the token and the
+     * session header are both the caller's to vary, and a bucket keyed on
+     * either was a fresh bucket per random value. The class
+     * limits come after resolution, below.
      */
-    const decision = limiter.hit(limit, {
-      keyId: token.slice(0, 16),
-      ip: request.ip,
-      sessionId: sessionToken ?? undefined,
-    });
-    if (!decision.allowed) {
-      reply.header('Retry-After', String(decision.retryAfterSeconds));
-      fail(reply, 429, 'PUBLIC_RATE_LIMITED', 'Too many requests.');
-      return null;
-    }
+    if (!admit(reply, limiter.hitUnverified(request.ip))) return null;
 
     /*
-     * Resolution is LAST, after the limiter, so an invalid-key flood cannot make
-     * the meta store do work: an attacker with no key must not be able to spend
-     * a database round trip per request.
+     * Resolution comes AFTER the flood guard, so an invalid-key flood buys at
+     * most the guard's ceiling in meta-store round trips per address, not one
+     * per request it can send.
      */
+    // An address that keeps presenting keys that resolve to nothing is
+    // refused before the lookup it would cost.
+    const blocked = limiter.resolutionBlocked(request.ip);
+    if (blocked !== null && !admit(reply, blocked)) return null;
     const key = await resolver.resolve(token);
     if (key === null) {
+      limiter.failedResolution(request.ip);
       // One code for unknown, wrong, revoked, expired and uncompilable.
       fail(reply, 401, 'PUBLIC_KEY_INVALID', 'A publishable key is required.');
       return null;
@@ -399,14 +431,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * env list is always the outer bound and was already checked above.
      *
      * NOT sentinel-aware, and deliberately: a key narrowed to origins refuses a
-     * same-origin call, because a same-origin GET carries no `Origin` to match
-     * (D2's premise, one level down). A key bound to a surface Adminium hosts
+     * same-origin call, because a same-origin GET carries no `Origin` header to
+     * match. A key bound to a surface Adminium hosts
      * itself is minted with NO origins — the instance-level `self` is its
      * bound — which is what mint flow does. Teaching this list the sentinel
      * would mean teaching the mint schema and Studio to accept a non-URL, and
      * that belongs with the binding work, not here.
      */
-    if (key.origins.length > 0) {
+    if (key.kind === 'browser' && key.origins.length > 0) {
       const origin = request.headers.origin;
       if (typeof origin !== 'string' || !key.origins.includes(origin)) {
         fail(reply, 403, 'PUBLIC_ORIGIN_REFUSED', 'This origin is not allowed to use this key.');
@@ -428,12 +460,42 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       // a DIFFERENT key must not carry its grants across.
       if (row !== null && row.keyId === key.keyId) {
         const grant = parseGrant(row.grants);
-        if (grant !== null) {
-          session = { id: row.id, keyId: row.keyId, grant };
-          void sessions.touch(row.id);
-        }
+        if (grant !== null) session = { id: row.id, keyId: row.keyId, grant };
       }
     }
+
+    /*
+     * The class limit, on the ladder in `limiter.ts`. Only NOW, with the key
+     * resolved and the session verified, and keyed by their row ids: a
+     * session header that verified nothing counts where an anonymous caller
+     * counts. `public-claim` ignores the session whatever it is.
+     */
+    const counted = { keyId: key.keyId, ip: request.ip, sessionId: session?.id };
+    const ref = (request.params as { ref?: unknown } | undefined)?.ref;
+    // Charged to the resolved key and the ref it named, whatever it answers
+    // from here on; a 401 above has no key to charge.
+    if (typeof ref === 'string') chargeable.set(request, { keyId: key.keyId, ref });
+    /*
+     * A resource with its own `rate` is limited by it instead; one
+     * without — every scope written before endpoints existed — by its class, as always.
+     * The claim bucket is never replaced: it is the brute-force guard.
+     */
+    const rated = typeof ref === 'string' && limit !== 'public-claim' ? key.scope.byRef.get(ref)?.rate ?? null : null;
+    if (rated !== null && typeof ref === 'string') {
+      const cost = opts.cost ?? 1;
+      // A request that could never fit is a refusal, not a wait: answered
+      // 429 it would be retried forever.
+      if (cost > rated.max) {
+        fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'This request is larger than the endpoint allows in one window.', {
+          max: rated.max,
+        });
+        return null;
+      }
+      if (!admit(reply, limiter.hitEndpoint({ ...counted, ref, kind: key.kind }, rated, cost))) return null;
+    } else if (!admit(reply, limiter.hit(limit, counted))) {
+      return null;
+    }
+    if (session !== null && sessionTouches.due(session.id)) void sessions.touch(session.id);
 
     return { key, session };
   };
@@ -448,7 +510,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     reply: FastifyReply,
     ok: { key: ResolvedKey; session: PublicSessionContext | null },
     ref: string,
-    action: 'read' | 'create' | 'update',
+    action: PublicAction,
     /*
      * The CLAIM endpoint sets this. It has to read the claim resource in order
      * to mint the session that would make that resource reachable — without the
@@ -522,7 +584,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   /**
    * Audit a public write.
    *
-   * There is no principal to stamp — that is the whole point of D3 — so the
+   * There is no principal to stamp — that is the whole point of this surface — so the
    * actor is the KEY, by prefix. `actorKind: 'api-key'` is the closest true
    * member of a closed vocabulary; widening that enum is a migration and this
    * wave does not need one. `routes/bridge` set the precedent of auditing an
@@ -558,6 +620,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   };
 
   return async (app) => {
+    if (deps.stats !== undefined) {
+      const stats = deps.stats;
+      app.addHook('onResponse', async (request, reply) => {
+        const charged = chargeable.get(request);
+        if (charged !== undefined) stats.record(charged.keyId, charged.ref, reply.statusCode >= 400);
+      });
+    }
     /*
      * A SCOPED ERROR HANDLER, and it is not optional.
      *
@@ -579,6 +648,27 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const status = typeof (error as { statusCode?: number }).statusCode === 'number'
         ? (error as { statusCode: number }).statusCode
         : 500;
+      /*
+       * The CORS headers, again, because most of what lands here never reached
+       * the gate: a Zod rejection fails validation before the handler runs,
+       * and the core `public` bucket refuses in `onRequest`. Without them a
+       * cross-origin page saw a CORS error in place of the code. The verdict
+       * itself is not needed: whoever this caller is, the answer is a code.
+       */
+      originVerdict(request, reply);
+      /*
+       * A 429 here is the core `public` bucket (600 a minute per address,
+       * `plugins/core.ts`) refusing in `onRequest`. It gets the gate's own
+       * answer, word for word, so a caller cannot tell the two limits apart.
+       * It used to fall to the 503 below, which told a caller the server was
+       * down, not to slow down. `@fastify/rate-limit` has already set
+       * `Retry-After` on the reply.
+       *
+       * Not logged, as the gate's own 429s are not: it is the limit working,
+       * not a failure, and a flood would write one warn per refused request.
+       * Fastify's `request completed` line still records each one at info.
+       */
+      if (status === 429) return fail(reply, 429, 'PUBLIC_RATE_LIMITED', 'Too many requests.');
       // Logged in full server-side; the caller gets a code and nothing else.
       request.log.warn({ err: error, url: request.url }, 'public API request failed');
       const code: PublicErrorCode =
@@ -603,7 +693,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       {
         config: { rateLimitBucket: 'public' },
         schema: {
-          response: { 200: publicConfigReply, 401: publicErrorReply, 503: publicErrorReply },
+          response: {
+            200: publicConfigReply,
+            401: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
         },
       },
       async (request, reply) => {
@@ -628,7 +723,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           params: publicRefParams,
           querystring: publicListQuery,
           response: {
-            200: publicListReply,
+            200: publicListShapes,
             401: publicErrorReply,
             404: publicErrorReply,
             429: publicErrorReply,
@@ -643,13 +738,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const found = await resolveResource(request, reply, ok, request.params.ref, 'read');
         if (found === null) return reply;
         const { resource, view, table, db, dialect, predicate } = found;
+        const single = resource.response.shape === 'single';
 
         const q = request.query;
 
         /*
          * `q=` and `where=` are checked against the scope BEFORE the query is
          * built, so a refusal costs nothing and names nothing. `runList` also
-         * bounds both (D5 b/c) — this is the outer of two gates, and the point
+         * bounds both — this is the outer of two gates, and the point
          * of the pair is that neither is the only one.
          */
         if (q.q !== undefined && q.q.length > 0 && resource.searchable.length === 0) {
@@ -687,8 +783,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           params: {
             ...(where === undefined ? {} : { where }),
             ...(q.q === undefined ? {} : { q: q.q }),
-            ...(q.order === undefined ? {} : { order: q.order }),
-            limit: Math.min(q.limit ?? resource.limit, resource.limit),
+            // The caller's order, else the endpoint's. The default needs no
+            // `orderable` entry: it is the server's choice, and the compiler
+            // already refused one that sorts by a column the ref hides.
+            ...(q.order !== undefined
+              ? { order: q.order }
+              : resource.defaultOrder === null
+                ? {}
+                : { order: resource.defaultOrder }),
+            // `defaultLimit` is `limit` for a scope that states none, so a
+            // scope written before 54 pages exactly as it did. A `single`
+            // endpoint reads two rows: one is the answer, two is a refusal.
+            limit: single ? 2 : Math.min(q.limit ?? resource.defaultLimit, resource.limit),
             ...(q.offset === undefined ? {} : { offset: q.offset }),
             ...(q.cursor === undefined ? {} : { cursor: q.cursor }),
             count: 'none',
@@ -704,14 +810,100 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           searchColumns: resource.searchable,
         });
 
-        await keys.touchLastUsed(ok.key.keyId);
+        await touchKey(ok.key.keyId);
+        /*
+         * THE RESPONSE SHAPE — the list route only. `wrapped`
+         * is what every published client reads. `array` is the bare rows, the
+         * next cursor moved to a header. `single` is exactly one row: none is
+         * the ref's one 404, and more than one is a refusal rather than the
+         * first of several — a "single" endpoint whose filter matches two rows
+         * is a definition the operator must fix, not a coin toss.
+         */
+        if (single) {
+          if (result.data.length === 0) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+          if (result.data.length > 1) {
+            return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'This endpoint answers one row, and more than one matched.');
+          }
+          return reply.send(result.data[0] as Row);
+        }
+        if (resource.response.shape === 'array') {
+          const next = result.cursor?.next ?? null;
+          if (next !== null) reply.header('X-Next-Cursor', next);
+          return reply.send(result.data);
+        }
         return reply.send(result);
+      },
+    );
+
+    app.options('/public/records/:ref/:id', { schema: { hide: true } }, preflight);
+
+    /*
+     * ONE ROW BY KEY. `GET` grants it together with the list, and it
+     * is built ON the list rather than beside it: `runList` with the key as one
+     * more mandatory condition and a page of one. So the projection, the PII
+     * masking, the scope predicate and the claim are the list's by
+     * construction — a second projection written here would be the one that
+     * drifts, and the PK of a resource that does not expose it would be the
+     * first thing it leaked.
+     *
+     * Unknown ref, no `read`, an unparseable id, a row outside the predicate or
+     * the claim, and no such row are one 404 — indistinguishable, so a caller
+     * fishing for what exists learns nothing from the difference.
+     */
+    app.get(
+      '/public/records/:ref/:id',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: {
+          params: publicRecordParams,
+          response: {
+            200: publicRecordReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        const found = await resolveResource(request, reply, ok, request.params.ref, 'read');
+        if (found === null) return reply;
+
+        let pk;
+        try {
+          pk = parseRecordId(found.table, request.params.id);
+        } catch {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        }
+        const byKey: RecordFilter[] = Object.entries(pk).map(
+          ([column, value]) => ({ column, op: 'eq', value }) as RecordFilter,
+        );
+        const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
+
+        const result = await runList({
+          db: found.db,
+          view: found.view,
+          table: found.table,
+          params: { limit: 1, count: 'none' },
+          canReadPii: false,
+          dialect: found.dialect,
+          // Never null: the key condition is always there.
+          mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
+          exposeColumns: found.resource.expose,
+          searchColumns: found.resource.searchable,
+        });
+        const row = result.data[0];
+        if (row === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+
+        await touchKey(ok.key.keyId);
+        return reply.send({ data: row });
       },
     );
 
     /* --------------------------------------------------------------- writes */
 
-    app.options('/public/records/:ref/:id', { schema: { hide: true } }, preflight);
     app.options('/public/claim', { schema: { hide: true } }, preflight);
 
     app.post(
@@ -783,7 +975,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 { ref: request.params.ref, table: found.resource.table },
                 createdRef,
               );
-              await keys.touchLastUsed(ok.key.keyId);
+              await touchKey(ok.key.keyId);
               /*
                * The UNPROJECTED row, deliberately. What comes back to the
                * anonymous caller is narrowed to `expose`, because a create must
@@ -836,27 +1028,20 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
-    app.patch(
-      '/public/records/:ref/:id',
-      {
-        config: { rateLimitBucket: 'public', audit: audited('rbac') },
-        schema: {
-          params: publicRecordParams,
-          body: publicWriteBody,
-          response: {
-            200: publicRecordReply,
-            400: publicErrorReply,
-            401: publicErrorReply,
-            404: publicErrorReply,
-            429: publicErrorReply,
-            503: publicErrorReply,
-          },
-        },
-      },
-      async (request, reply) => {
+    /*
+     * PATCH (update) and PUT (replace) are one write: the same service call,
+     * the same predicate in the UPDATE's own WHERE, the same audit verb. PUT
+     * only adds that the body must be complete.
+     */
+    const updateHandler =
+      (mode: 'update' | 'replace') =>
+      async (
+        request: FastifyRequest<{ Params: { ref: string; id: string }; Body: { values: Record<string, unknown> } }>,
+        reply: FastifyReply,
+      ) => {
         const ok = await gate(request, reply, 'public-write');
         if (ok === null) return reply;
-        const found = await resolveResource(request, reply, ok, request.params.ref, 'update');
+        const found = await resolveResource(request, reply, ok, request.params.ref, mode);
         if (found === null) return reply;
 
         const values = prepareValues(
@@ -868,6 +1053,20 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         );
         if (values === null) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
+        }
+        /*
+         * PUT REPLACES THE WRITABLE SET: the body names every column
+         * this caller may write — a nullable one may be null — and a missing
+         * one is refused before anything runs. "Full" means what the caller
+         * may write; the key, the scope's columns and server defaults are
+         * never the caller's to replace.
+         */
+        if (mode === 'replace') {
+          const sent = request.body.values;
+          const missing = [...found.resource.writable].filter((c) => !Object.prototype.hasOwnProperty.call(sent, c));
+          if (missing.length > 0) {
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A replace names every writable column.');
+          }
         }
 
         let pk;
@@ -938,10 +1137,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 request,
                 ok,
                 'public.record.update',
-                { ref: request.params.ref, table: found.resource.table },
+                {
+                  ref: request.params.ref,
+                  table: found.resource.table,
+                  ...(mode === 'replace' ? { replace: true } : {}),
+                },
                 updatedRef,
               );
-              await keys.touchLastUsed(ok.key.keyId);
+              await touchKey(ok.key.keyId);
               invalidateWidgetData(app, ok.key.connectionId, found.table.id);
               publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
                 connectionId: ok.key.connectionId,
@@ -984,6 +1187,386 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const projected: Record<string, unknown> = {};
         for (const column of found.resource.expose) projected[column] = outcome.after?.[column];
         return reply.send({ data: projected });
+      };
+
+    app.patch(
+      '/public/records/:ref/:id',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          params: publicRecordParams,
+          body: publicWriteBody,
+          response: {
+            200: publicRecordReply,
+            400: publicErrorReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      updateHandler('update'),
+    );
+
+    app.put(
+      '/public/records/:ref/:id',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          params: publicRecordParams,
+          body: publicWriteBody,
+          response: {
+            200: publicRecordReply,
+            400: publicErrorReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      updateHandler('replace'),
+    );
+
+    /*
+     * DELETE ONE ROW BY KEY.
+     *
+     * The scope goes into the DELETE's own WHERE — never a lookup first and a
+     * bare delete after (the TOCTOU window 28 phase 2 closed for updates). The
+     * row IS read first, but through the same scope, and only so a before hook
+     * sees an in-scope row and the audit row can carry what was removed.
+     * Nothing a caller could not read is ever handed to a hook, so a hook's
+     * refusal cannot become an existence oracle.
+     *
+     * Zero rows — absent, outside the predicate, somebody else's — is the one
+     * 404, with no audit row and nothing announced. A foreign key the database
+     * enforces is the one opaque `PUBLIC_WRITE_REFUSED`, no constraint name.
+     * The reply is `{ data: {} }`, as `DELETE /public/session` answers.
+     */
+    app.delete(
+      '/public/records/:ref/:id',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          params: publicRecordParams,
+          response: {
+            200: publicRecordReply,
+            400: publicErrorReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-write');
+        if (ok === null) return reply;
+        const found = await resolveResource(request, reply, ok, request.params.ref, 'delete');
+        if (found === null) return reply;
+
+        let pk;
+        try {
+          pk = parseRecordId(found.table, request.params.id);
+        } catch {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        }
+
+        const predicate = found.predicate;
+        const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
+          predicate === null
+            ? query
+            : (query.where as (factory: (eb: never) => unknown) => Q)((eb) =>
+                compileFilter(
+                  eb,
+                  {
+                    view: found.view,
+                    table: found.table,
+                    canReadPii: false,
+                    dynamic: found.db.dynamic,
+                    dialect: found.dialect,
+                  },
+                  predicate,
+                ),
+              );
+        const target: WriteTarget = {
+          connectionId: ok.key.connectionId,
+          view: found.view,
+          table: found.table,
+          db: found.db,
+          dialect: found.dialect,
+        };
+        const deletedRef: RecordRef = {
+          connectionId: ok.key.connectionId,
+          table: found.table.id,
+          pk,
+          label: pkLabel(found.table, pk),
+        };
+        let count;
+        try {
+          count = await writes.delete({
+            target,
+            pk,
+            context: publicWriteContext(request, ok.key.keyId),
+            refine: inScope,
+            load: async () => {
+              let query = found.db.selectFrom(found.table.id).selectAll();
+              for (const [column, value] of Object.entries(pk)) {
+                query = query.where(found.db.dynamic.ref(column), '=', value as never);
+              }
+              return ((await inScope(query).executeTakeFirst()) as Row | undefined) ?? null;
+            },
+            skipIfNone: true,
+            mapError: refuseWrite,
+            announce: async (_count, before) => {
+              await auditWrite(
+                request,
+                ok,
+                'public.record.delete',
+                {
+                  ref: request.params.ref,
+                  table: found.resource.table,
+                  // What was removed, masked as any staff reader without the
+                  // PII grant would see it.
+                  before: before === null ? null : (maskRows([before], found.table, false)[0] ?? null),
+                },
+                deletedRef,
+              );
+              await touchKey(ok.key.keyId);
+              invalidateWidgetData(app, ok.key.connectionId, found.table.id);
+              publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
+                connectionId: ok.key.connectionId,
+                table: found.table,
+                action: 'delete',
+                pk,
+                row: null,
+              });
+              await emitRecordEvent(app, {
+                connectionId: ok.key.connectionId,
+                table: found.table,
+                action: 'delete',
+                entity: deletedRef,
+                before,
+                after: null,
+                origin: 'public',
+              });
+            },
+          });
+        } catch (error) {
+          if (error instanceof PublicWriteRefused) {
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          }
+          if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          throw error;
+        }
+        if (count === 0) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        return reply.send({ data: {} });
+      },
+    );
+
+    /*
+     * BATCH: insert rows, and update rows by key, in
+     * ONE transaction — all of them or none.
+     *
+     * - A row with no primary key is an INSERT, keyed by the server. A caller
+     *   never inserts a key it chose, so there is no `ON CONFLICT` anywhere and
+     *   no dialect gets a different answer.
+     * - A row carrying its WHOLE primary key is an UPDATE of that row, with
+     *   update-mode values and the scope predicate in the statement's own
+     *   WHERE — PATCH by another door, so it needs `update` on the ref too.
+     *   Unless every keyed row matches exactly one row, the whole batch rolls
+     *   back with one opaque refusal: a row outside the scope and a row that
+     *   does not exist must not be told apart (the membership oracle).
+     *
+     * A row refused BEFORE anything runs (a column it may not write, half a
+     * key) is named by `params.index` — the caller's own data, no oracle. A
+     * refusal from the database names nothing.
+     */
+    app.options('/public/records/:ref/batch', { schema: { hide: true } }, preflight);
+    app.post(
+      '/public/records/:ref/batch',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          params: publicRefParams,
+          body: publicBatchBody,
+          response: {
+            200: publicRecordReply,
+            400: publicErrorReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const rows = request.body.rows;
+        if (rows.length === 0 || rows.length > PUBLIC_BATCH_MAX) {
+          return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', `A batch is 1 to ${String(PUBLIC_BATCH_MAX)} rows.`, {
+            max: PUBLIC_BATCH_MAX,
+          });
+        }
+        // A batch spends its row count against the endpoint's limit.
+        const ok = await gate(request, reply, 'public-write', { cost: rows.length });
+        if (ok === null) return reply;
+        const found = await resolveResource(request, reply, ok, request.params.ref, 'batch');
+        if (found === null) return reply;
+        const { resource, table } = found;
+
+        const refuseRow = (index: number, message: string) =>
+          fail(reply, 400, 'PUBLIC_WRITE_REFUSED', message, { index });
+        const keyColumns = table.primaryKey;
+        const inserts: { index: number; values: Row }[] = [];
+        const updates: { index: number; pk: Row; values: Row }[] = [];
+        for (const [index, raw] of rows.entries()) {
+          const named = keyColumns.filter((c) => Object.prototype.hasOwnProperty.call(raw, c));
+          if (named.length === 0) {
+            const values = prepareValues(resource, raw, ok.session, 'create', found.dialect);
+            if (values === null) return refuseRow(index, 'That column is not writable here.');
+            inserts.push({ index, values });
+            continue;
+          }
+          if (named.length !== keyColumns.length || !resource.actions.has('update')) {
+            return refuseRow(index, 'A row may carry its whole key only to update it.');
+          }
+          const pk: Row = {};
+          const rest: Row = {};
+          for (const [column, value] of Object.entries(raw)) {
+            if (keyColumns.includes(column)) pk[column] = value;
+            else rest[column] = value;
+          }
+          const values = prepareValues(resource, rest, ok.session, 'update', found.dialect);
+          if (values === null) return refuseRow(index, 'That column is not writable here.');
+          updates.push({ index, pk, values });
+        }
+
+        const predicate = found.predicate;
+        const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
+          predicate === null
+            ? query
+            : (query.where as (factory: (eb: never) => unknown) => Q)((eb) =>
+                compileFilter(
+                  eb,
+                  { view: found.view, table, canReadPii: false, dynamic: found.db.dynamic, dialect: found.dialect },
+                  predicate,
+                ),
+              );
+        const target: WriteTarget = {
+          connectionId: ok.key.connectionId,
+          view: found.view,
+          table,
+          db: found.db,
+          dialect: found.dialect,
+        };
+        const context = publicWriteContext(request, ok.key.keyId);
+
+        /*
+         * Fill, before hooks and column rules, per row, before the transaction.
+         * A hook sees an update's row only as this caller's scope shows it; a
+         * keyed row the scope cannot see refuses the batch like any other.
+         */
+        const loadInScope = async (pk: Row): Promise<Row | null> => {
+          let query = found.db.selectFrom(table.id).selectAll();
+          for (const [column, value] of Object.entries(pk)) {
+            query = query.where(found.db.dynamic.ref(column), '=', value as never);
+          }
+          return ((await inScope(query).executeTakeFirst()) as Row | undefined) ?? null;
+        };
+        let preparedInserts;
+        let preparedUpdates;
+        try {
+          preparedInserts = await writes.beforeEach('create', target, context, inserts.map((r) => ({ values: r.values })));
+          const planned: PlannedRow[] = [];
+          const hooked = await writes.wants('before', 'update', target, context);
+          for (const u of updates) {
+            const record = hooked ? await loadInScope(u.pk) : undefined;
+            if (record === null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+            planned.push({ match: u.pk, values: u.values, record });
+          }
+          preparedUpdates = await writes.beforeEach('update', target, context, planned);
+        } catch (error) {
+          if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          throw error;
+        }
+        for (const [i, row] of preparedInserts.entries()) {
+          if (row.issues !== null) return refuseRow((inserts[i] as { index: number }).index, 'A value was refused.');
+        }
+        for (const [i, row] of preparedUpdates.entries()) {
+          if (row.issues !== null) return refuseRow((updates[i] as { index: number }).index, 'A value was refused.');
+        }
+
+        let written: { created: Row[]; updated: { pk: Row; after: Row | null }[] };
+        try {
+          written = await found.db.transaction().execute(async (trx) => {
+            const tdb = trx as unknown as typeof found.db;
+            const created: Row[] = [];
+            for (const row of preparedInserts) {
+              created.push(await insertRow(tdb, found.dialect, table, row.values));
+            }
+            const updated: { pk: Row; after: Row | null }[] = [];
+            for (const [i, row] of preparedUpdates.entries()) {
+              const pk = (updates[i] as { pk: Row }).pk;
+              const count = await updateRows(tdb, table, row.values, pk, inScope);
+              if (count !== 1) throw new PublicWriteRefused();
+              updated.push({ pk, after: null });
+            }
+            return { created, updated };
+          });
+        } catch {
+          // A keyed row that matched nothing, or a constraint the database
+          // enforced: one opaque answer, no index, no name.
+          return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+        }
+        for (const u of written.updated) u.after = (await fetchByPk(found.db, table, u.pk)) ?? null;
+
+        const pkOf = (row: Row): Row => Object.fromEntries(keyColumns.map((c) => [c, row[c]]));
+        await auditWrite(request, ok, 'public.record.batch', {
+          ref: request.params.ref,
+          table: resource.table,
+          created: written.created.length,
+          updated: written.updated.length,
+          pks: [...written.created.map(pkOf), ...written.updated.map((u) => u.pk)],
+        });
+        await touchKey(ok.key.keyId);
+        invalidateWidgetData(app, ok.key.connectionId, table.id);
+        const hub = app.hasDecorator('realtime') ? app.realtime : null;
+        for (const row of written.created) {
+          const pk = pkOf(row);
+          publishPublicWrite(hub, { connectionId: ok.key.connectionId, table, action: 'create', pk, row });
+          await emitRecordEvent(app, {
+            connectionId: ok.key.connectionId,
+            table,
+            action: 'create',
+            entity: { connectionId: ok.key.connectionId, table: table.id, pk, label: pkLabel(table, pk) },
+            before: null,
+            after: row,
+            origin: 'public',
+          });
+        }
+        for (const u of written.updated) {
+          publishPublicWrite(hub, { connectionId: ok.key.connectionId, table, action: 'update', pk: u.pk, row: u.after });
+          await emitRecordEvent(app, {
+            connectionId: ok.key.connectionId,
+            table,
+            action: 'update',
+            entity: { connectionId: ok.key.connectionId, table: table.id, pk: u.pk, label: pkLabel(table, u.pk) },
+            before: null,
+            after: u.after,
+            origin: 'public',
+          });
+        }
+        await writes.afterEach('create', target, context, written.created.map((record) => ({ record, before: null })));
+        await writes.afterEach(
+          'update',
+          target,
+          context,
+          written.updated.filter((u) => u.after !== null).map((u) => ({ record: u.after as Row, before: null })),
+        );
+        return reply.send({
+          data: { count: rows.length, created: written.created.length, updated: written.updated.length },
+        });
       },
     );
 
@@ -1170,7 +1753,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
 
     /**
-     * The door (D15). Two shapes: draw from a row this claim reaches, or draw
+     * The door. Two shapes: draw from a row this claim reaches, or draw
      * from values the caller sends.
      *
      * The flag is checked BEFORE the shape, and its refusal is the same
@@ -1420,11 +2003,22 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+    // A cross-origin `signOut()` is preflighted twice over: DELETE is not a
+    // simple method, and it carries the session header.
+    app.options('/public/session', { schema: { hide: true } }, preflight);
+
     app.delete(
       '/public/session',
       {
         config: { rateLimitBucket: 'public', audit: audited('rbac') },
-        schema: { response: { 200: publicRecordReply, 401: publicErrorReply, 503: publicErrorReply } },
+        schema: {
+          response: {
+            200: publicRecordReply,
+            401: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
       },
       async (request, reply) => {
         const ok = await gate(request, reply, 'public-read');

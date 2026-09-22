@@ -538,7 +538,10 @@ export default {
     "subtitle": "Une page par table incluse plus des tableaux de bord par domaine — intention :",
     "successBody": "{pages} pages dans {groups} groupes de navigation — générées depuis votre schéma, modifiables dans le Studio.",
     "successTitle": "Votre tableau de bord est prêt",
-    "title": "Générez votre application"
+    "title": "Générez votre application",
+    "blankBody": "Rien n’a été généré, comme vous l’avez demandé. Construisez votre première page à partir de cette connexion quand vous serez prêt.",
+    "blankTitle": "Votre connexion est prête",
+    "createPage": "Créer une page"
   },
   "hostedApps": {
     "browse": {
@@ -777,7 +780,11 @@ export default {
       "prompt": "Saisissez {name} pour confirmer",
       "success": "Connexion « {name} » supprimée",
       "title": "Supprimer la connexion",
-      "forbidden": "Votre rôle ne permet pas de gérer les connexions : celle-ci n’a donc pas été supprimée."
+      "forbidden": "Votre rôle ne permet pas de gérer les connexions : celle-ci n’a donc pas été supprimée.",
+      "liveKeys": {
+        "body": "Les pages construites sur ces clés cesseraient de fonctionner. Révoquez-les d’abord sur la page API publique, puis supprimez la connexion.",
+        "title": "Des clés publiables utilisent encore cette connexion"
+      }
     },
     "empty": {
       "body": "Connectez une base de données : Adminium génère votre panneau d’administration à partir de son schéma.",
@@ -867,7 +874,11 @@ export default {
       "title": "Console de support"
     },
     "title": "De quoi avez-vous besoin ?",
-    "trust": "Nous ne lisons que votre schéma — jamais vos données de lignes pendant la configuration."
+    "trust": "Nous ne lisons que votre schéma — jamais vos données de lignes pendant la configuration.",
+    "blank": {
+      "description": "Ne rien générer. Connectez une base et construisez les pages que vous voulez, une par une.",
+      "title": "Page blanche"
+    }
   },
   "llmRuns": {
     "review": {
@@ -1680,7 +1691,6 @@ export default {
       "connectionLabel": "Identifiant de connexion",
       "create": "Créer la portée",
       "delete": "Supprimer",
-      "deleteBody": "Toute page utilisant une clé liée à cette portée cesse de charger des données. Les clés ne sont pas supprimées — révoquez-les d’abord si c’est ce que vous vouliez.",
       "deleteConfirm": "Supprimer la portée",
       "deletePrompt": "Saisissez le nom de la portée pour confirmer",
       "deleteTitle": "Supprimer cette portée",
@@ -1693,7 +1703,12 @@ export default {
       "keyCount": "{count, plural, =0 {aucune clé} one {# clé} other {# clés}}",
       "nameLabel": "Nom",
       "subtitle": "Une portée est tout ce qu’une clé peut atteindre — les tables, les colonnes exactes et un filtre que l’appelant peut restreindre mais jamais retirer.",
-      "title": "Portées"
+      "title": "Portées",
+      "deleteBodyKeys": "Une portée qui a des clés actives ne peut pas être supprimée. Révoquez d’abord ses clés. Les clés déjà révoquées ou expirées sont supprimées avec la portée.",
+      "liveKeys": {
+        "body": "Les pages construites sur ces clés cesseraient de fonctionner. Révoquez-les d’abord dans la liste des clés, puis supprimez la portée.",
+        "title": "Des clés publiables utilisent encore cette portée"
+      }
     },
     "status": {
       "heading": "Statut"
@@ -2008,6 +2023,22 @@ export default {
       "cta": "Ouvrir les réglages IA",
       "heading": "Enrichissement par IA"
     },
+    "apiCard": {
+      "api": {
+        "helper": "Sert les points de terminaison auxquels vos clés sont limitées. Désactivée, plus aucune clé ne fonctionne, immédiatement ; rien n’est supprimé.",
+        "label": "API publique"
+      },
+      "docs": {
+        "helper": "Une page publique à l’adresse /api-docs qui liste, pour toute personne pouvant joindre ce serveur, les points de terminaison que vos clés actives peuvent appeler — y compris ceux réservés au personnel — avec leurs chemins, leurs méthodes et leurs noms de colonnes. Elle n’affiche ni données ni clés.",
+        "label": "Page de documentation de l’API"
+      },
+      "failed": "L’interrupteur n’a pas changé. Réessayez.",
+      "heading": "API publique",
+      "notRegistered": {
+        "body": "Définissez ADMINIUM_PUBLIC_API_ORIGINS et redémarrez. D’ici là, ces interrupteurs ne changent rien.",
+        "title": "Non activée sur ce serveur"
+      }
+    },
     "danger": {
       "deleteCta": "Supprimer la connexion",
       "deleteDesc": "Supprime la connexion et les pages générées. Votre base de données n’est pas touchée. Irréversible.",
@@ -2112,9 +2143,9 @@ export default {
       "heading": "Projet"
     },
     "publicApiCard": {
-      "body": "Laissez vos propres pages destinées aux clients ou au personnel lire cette base de données, via une portée que vous définissez.",
-      "cta": "Ouvrir l’API publique",
-      "heading": "API publique"
+      "body": "Créez des points de terminaison et les clés autorisées à les appeler.",
+      "cta": "Ouvrir les clés API",
+      "heading": "Clés API"
     },
     "review": {
       "cancel": "Annuler",
@@ -2433,7 +2464,8 @@ export default {
       "meta": "Stockage méta",
       "source": "Source",
       "tables": "Tables",
-      "test": "Analyser"
+      "test": "Analyser",
+      "finish": "Terminer"
     },
     "title": "Nouvelle connexion"
   },
@@ -2485,5 +2517,243 @@ export default {
     "valueCount": "{count} valeurs",
     "values": "Valeurs",
     "view": "Voir"
+  },
+  "apiKeys": {
+    "banner": {
+      "bodyOnce": "Copiez-la maintenant — vous ne pourrez plus la voir ensuite. Limitée à {summary}.",
+      "bodyRevealable": "Copiez-la maintenant — vous pourrez l’afficher de nouveau depuis la liste ci-dessous. Limitée à {summary}.",
+      "copied": "Copié",
+      "copy": "Copier",
+      "titleNamed": "{name} créée"
+    },
+    "builder": {
+      "auth": {
+        "anon": "Anon",
+        "authenticated": "Authentifié",
+        "label": "Authentification requise",
+        "service": "Rôle de service"
+      },
+      "cancel": "Annuler",
+      "columns": {
+        "all": "Toutes",
+        "label": "Colonnes exposées",
+        "none": "Aucune"
+      },
+      "create": "Créer le point de terminaison",
+      "delete": "Supprimer le point de terminaison",
+      "deleteRefused": "{count, plural, one {# clé utilise encore} other {# clés utilisent encore}} ce point de terminaison : {names}.",
+      "filters": {
+        "add": "Ajouter",
+        "empty": "Aucun filtre — chaque ligne de la source est accessible.",
+        "label": "Filtres par défaut",
+        "remove": "Retirer le filtre",
+        "value": "valeur"
+      },
+      "footer": {
+        "applyFirst": "Appliquez ou annulez d’abord la définition modifiée."
+      },
+      "methodUnsupported": "Cette source ne peut pas prendre en charge {method} : elle n’a pas de clé primaire.",
+      "methods": "Méthodes",
+      "op": {
+        "between": "entre",
+        "eq": "égal à",
+        "gt": "supérieur à",
+        "gte": "au moins",
+        "ilike": "contient (sans tenir compte de la casse)",
+        "in": "dans la liste",
+        "is_null": "est vide",
+        "like": "contient",
+        "lt": "inférieur à",
+        "lte": "au plus",
+        "neq": "différent de",
+        "not_null": "n’est pas vide"
+      },
+      "paging": {
+        "asc": "Croiss.",
+        "defaultLimit": "Limite par défaut",
+        "desc": "Décroiss.",
+        "label": "Pagination et tri",
+        "maxLimit": "Limite maximale",
+        "orderBy": "Trier par"
+      },
+      "pane": {
+        "apply": "Appliquer au formulaire",
+        "dirty": "modifiée — non appliquée",
+        "format": "Mettre en forme",
+        "label": "Définition de la route, JSON",
+        "more": "{first} (+{n} autres)",
+        "revert": "Annuler",
+        "synced": "synchronisée avec le formulaire",
+        "title": "Définition de la route"
+      },
+      "rate": {
+        "hour": "heure",
+        "label": "Limite de requêtes et réponse",
+        "minute": "minute",
+        "per": "Par",
+        "requests": "Requêtes",
+        "second": "seconde"
+      },
+      "refused": {
+        "keys": "Enregistrer ceci casserait {count, plural, one {# clé} other {# clés}} : {names}."
+      },
+      "route": "Route",
+      "routePlaceholder": "customers",
+      "routeRename": "Les appelants devront passer au nouveau chemin.",
+      "save": "Enregistrer les modifications",
+      "shape": {
+        "array": "Tableau brut",
+        "label": "Forme de la réponse",
+        "single": "Objet unique",
+        "wrapped": "Enveloppé dans '{' data '}'"
+      },
+      "source": "Table ou vue source",
+      "subtitle": "Configurez-le visuellement — Adminium écrit la définition de la route pour vous",
+      "titleEdit": "Modifier le point de terminaison",
+      "titleNew": "Nouveau point de terminaison"
+    },
+    "connection": {
+      "label": "Connexion"
+    },
+    "create": "Créer une clé",
+    "endpoints": {
+      "col": {
+        "auth": "Auth.",
+        "methods": "Méthodes",
+        "rate": "Limite de requêtes",
+        "route": "Route"
+      },
+      "custom": "PERSONNALISÉ",
+      "edit": "Modifier le point de terminaison",
+      "explore": "Explorer l’API",
+      "new": "Nouveau point de terminaison",
+      "subtitle": "Générés à partir de votre schéma. Les clés sont limitées à ceux-ci.",
+      "title": "Points de terminaison",
+      "unavailable": "INDISPONIBLE"
+    },
+    "keys": {
+      "col": {
+        "access": "Accès",
+        "actions": "Actions",
+        "key": "Clé",
+        "lastUsed": "Dernière utilisation",
+        "name": "Nom"
+      },
+      "count": "{n, plural, one {# clé} other {# clés}}",
+      "empty": "Aucune clé active. Créez-en une pour commencer.",
+      "hide": "Masquer la clé",
+      "kind": {
+        "browser": "NAVIGATEUR",
+        "server": "SERVEUR"
+      },
+      "never": "Jamais",
+      "reveal": "Afficher la clé",
+      "revoke": "Révoquer",
+      "revokeConfirm": {
+        "body": "Tout ce qui utilise cette clé cesse aussitôt de fonctionner. Cette action est irréversible.",
+        "confirm": "Révoquer la clé",
+        "prompt": "Saisissez « {name} » pour confirmer",
+        "title": "Révoquer {name} ?"
+      },
+      "revokeFailed": "Cette clé n’a pas pu être révoquée. Elle est toujours active.",
+      "title": "Clés actives",
+      "untitled": "Clé sans nom"
+    },
+    "method": {
+      "BATCH": {
+        "desc": "Insertion ou upsert en masse, jusqu’à 500 lignes",
+        "title": "Lot"
+      },
+      "DELETE": {
+        "desc": "Supprimer une ligne par sa clé primaire",
+        "title": "Supprimer"
+      },
+      "GET": {
+        "desc": "Lister des lignes et récupérer un enregistrement",
+        "title": "Lire"
+      },
+      "PATCH": {
+        "desc": "Mise à jour partielle d’une ligne par sa clé primaire",
+        "title": "Mettre à jour"
+      },
+      "POST": {
+        "desc": "Insérer une nouvelle ligne",
+        "title": "Créer"
+      },
+      "PUT": {
+        "desc": "Remplacer une ligne entière par sa clé primaire",
+        "title": "Remplacer"
+      }
+    },
+    "note": {
+      "notRegistered": "L’API publique n’est pas activée sur ce serveur. Définissez ADMINIUM_PUBLIC_API_ORIGINS et redémarrez — les clés créées ici fonctionneront dès lors.",
+      "off": "L’API publique est désactivée, donc aucune clé ne fonctionne pour le moment.",
+      "offLink": "Ouvrir les paramètres de l’espace de travail"
+    },
+    "quick": {
+      "body": "Authentifiez les requêtes avec votre clé dans l’en-tête Authorization.",
+      "title": "Démarrage rapide"
+    },
+    "sheet": {
+      "allMethods": "Sélectionner toutes les méthodes",
+      "app": {
+        "label": "App",
+        "none": "Aucune"
+      },
+      "cancel": "Annuler",
+      "clear": "Effacer",
+      "close": "Fermer",
+      "count": "{permissions, plural, one {autorisation} other {autorisations}} sur {endpoints, plural, one {# point de terminaison} other {# points de terminaison}}",
+      "deselectAll": "Tout désélectionner",
+      "edit": "Modifier le point de terminaison",
+      "expires": {
+        "d30": "30 jours",
+        "d90": "90 jours",
+        "label": "Expire",
+        "never": "Jamais"
+      },
+      "filter": "Filtrer les points de terminaison",
+      "focusMeta": "{source} · {rows} lignes · limite {limit}, tri {order}",
+      "focusMetaNoRows": "{source} · limite {limit}, tri {order}",
+      "footer": {
+        "empty": "Sélectionnez au moins une méthode pour créer une clé.",
+        "more": "+{n} autres",
+        "refused": "Cette clé ne peut pas encore être créée : {issue}",
+        "summary": "Cette clé pourra appeler {paths}"
+      },
+      "kind": {
+        "browser": "Navigateur",
+        "label": "Utilisée depuis",
+        "server": "Serveur"
+      },
+      "layout": {
+        "label": "Disposition",
+        "list": "Liste",
+        "panes": "Volets"
+      },
+      "name": {
+        "label": "Nom de la clé",
+        "placeholder": "p. ex. Worker de synchronisation des commandes"
+      },
+      "newEndpoint": "Nouveau point de terminaison",
+      "readOnly": "Préréglage lecture seule",
+      "rowMeta": "{source} · {rows} lignes",
+      "rowMetaNoRows": "{source}",
+      "selectAll": "Tout sélectionner",
+      "selectAllShort": "Tout sélectionner",
+      "submit": "Créer la clé",
+      "subtitle": "Choisissez les points de terminaison et les méthodes que cette clé peut appeler",
+      "title": "Créer une clé d’API",
+      "toggleAll": "Basculer toutes les méthodes",
+      "unsupported": "{count, plural, one {{methods} n’est pas exposée sur cette route. Modifiez le point de terminaison pour l’activer.} other {{methods} ne sont pas exposées sur cette route. Modifiez le point de terminaison pour les activer.}}"
+    },
+    "stats": {
+      "endpoints": "Points de terminaison",
+      "keys": "Clés actives",
+      "requests": "Requêtes · 24 h"
+    },
+    "subtitle": "Gérez l’accès programmatique à votre espace de travail",
+    "summary": "{endpoints, plural, one {# point de terminaison} other {# points de terminaison}} · {methods, plural, one {# méthode} other {# méthodes}}",
+    "title": "Clés d’API et jetons"
   }
 } as const;

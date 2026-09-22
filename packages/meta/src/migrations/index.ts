@@ -59,6 +59,7 @@ import { up as up0034 } from './0034_project_files.js';
 import { up as up0035 } from './0035_option_lists.js';
 import { up as up0036 } from './0036_assistant_sessions.js';
 import { up as up0037 } from './0037_manifest_package_integrity.js';
+import { up as up0038 } from './0038_public_endpoints.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -105,4 +106,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0035_option_lists', up: up0035 },
   { name: '0036_assistant_sessions', up: up0036 },
   { name: '0037_manifest_package_integrity', up: up0037 },
+  { name: '0038_public_endpoints', up: up0038 },
 ];

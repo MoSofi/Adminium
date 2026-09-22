@@ -1078,6 +1078,11 @@ export interface AdminiumPublicScopesTable {
   document: string;
   /** Manifest key this was seeded from, or null when authored in Studio (O2). */
   proposedFromManifest: string | null;
+  /**
+   * The key whose grants this document was compiled from, or null for a
+   * scope an operator wrote by hand. No foreign key, by design (wave 0038).
+   */
+  derivedForKey: Id | null;
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
@@ -1110,6 +1115,14 @@ export interface AdminiumPublicKeysTable {
   appKey: string | null;
   /** JSON string array narrowing `ADMINIUM_PUBLIC_API_ORIGINS`; `[]` = no narrowing. */
   origins: string;
+  /**
+   * JSON `{ endpointId: Method[] }` — what the key was granted, or
+   * null for a key bound to a hand-written scope. The repo reads it back as
+   * text on every store.
+   */
+  access: string | null;
+  /** `browser` (`adm_pub_`, re-readable) | `server` (`adm_srv_`, hash only). */
+  kind: string;
   expiresAt: Ts | null;
   revokedAt: Ts | null;
   lastUsedAt: Ts | null;
@@ -1134,6 +1147,40 @@ export interface AdminiumPublicSessionsTable {
   expiresAt: Ts;
   createdAt: Ts;
   lastSeenAt: Ts | null;
+}
+
+/**
+ * A public endpoint someone decided on (wave 0038): saved in the builder, or
+ * granted to a key. An endpoint nobody touched is computed from the schema and
+ * never stored. `definition` is text so it reads back byte for byte.
+ */
+export interface AdminiumPublicEndpointsTable {
+  id: Id;
+  connectionId: Id;
+  ref: string;
+  /** `generated` | `custom`. */
+  origin: string;
+  definition: string;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** Hourly request counts per key and ref (wave 0038). No foreign key, by design. */
+export interface AdminiumPublicRequestStatsTable {
+  keyId: Id;
+  ref: string;
+  /** Start of the hour, epoch ms. */
+  bucket: Ts;
+  requests: number;
+  errors: number;
+}
+
+/** The public surface's one-row revision (wave 0038), `id = 'public'`. */
+export interface AdminiumPublicApiStateTable {
+  id: string;
+  revision: number;
+  updatedAt: Ts;
 }
 
 /** One-time challenge for the `email-code` tier. */
@@ -1301,6 +1348,9 @@ export interface MetaDB {
   adminium_public_keys: AdminiumPublicKeysTable;
   adminium_public_sessions: AdminiumPublicSessionsTable;
   adminium_public_challenges: AdminiumPublicChallengesTable;
+  adminium_public_endpoints: AdminiumPublicEndpointsTable;
+  adminium_public_request_stats: AdminiumPublicRequestStatsTable;
+  adminium_public_api_state: AdminiumPublicApiStateTable;
   adminium_project_files: AdminiumProjectFilesTable;
   adminium_option_lists: AdminiumOptionListsTable;
   adminium_assistant_sessions: AdminiumAssistantSessionsTable;
@@ -1359,6 +1409,9 @@ export const META_TABLE_NAMES = [
   'adminium_public_keys',
   'adminium_public_sessions',
   'adminium_public_challenges',
+  'adminium_public_endpoints',
+  'adminium_public_request_stats',
+  'adminium_public_api_state',
   'adminium_project_files',
   'adminium_option_lists',
   'adminium_assistant_sessions',

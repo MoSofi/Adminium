@@ -22,6 +22,16 @@
   to   { opacity: 1; transform: none; }
 }
 
+/* sheet veil (.18s ease) and sheet panel (.26s cubic-bezier(.2,.7,.3,1)) — API Keys comp, K 26-30 */
+@keyframes nb-veil {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes nb-sheet {
+  from { opacity: 0; transform: translateY(14px) scale(.995); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* drawer slide-in from inline-end (.22s); RTL consumers flip via --nb-slide-from */
 @keyframes nb-slide {
   from { opacity: 0; transform: translateX(var(--nb-slide-from, 24px)); }
@@ -86,7 +96,7 @@
 
 /* card hover bloom: shadow only, NO lift. Distinct from .nb-lift on purpose —
    a dashboard is ~40 cards, and translating each one on mouseover reads as
-   noise. Matches the comp's `.nb-card:hover` (Analytics.dc.html lines 32-33).
+   noise. Matches the comp's `.nb-card:hover` (the Analytics design comp, lines 32-33).
    The dark value has no comp counterpart (the comp's dark block never restates
    it); it is the light recipe re-tuned for a #141419 surface. */
 .nb-cardh {
@@ -178,6 +188,20 @@
   background-clip: padding-box;
 }
 .nb-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* The API comps' own scrollbar: 10px, a 3px clear border, radius 8,
+   and NO standard `scrollbar-*` properties — Chrome 121+ ignores the webkit rules whenever
+   `scrollbar-width` is set, which is how `.nb-scroll` stopped matching those comps. */
+.nb-scroll-comp::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.nb-scroll-comp::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: padding-box;
+}
 
 /* ------------------------------------------------- prefers-reduced-motion */
 /* Policy: entrances, lifts, grows, ring sweeps and toast slides collapse to instant;

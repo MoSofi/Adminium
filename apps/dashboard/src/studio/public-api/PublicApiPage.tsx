@@ -29,7 +29,7 @@
  * looking at. A builder is a later decision, not a shortcut.
  */
 import { useQuery, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Globe2, KeyRound, ShieldAlert, TriangleAlert } from 'lucide-react';
 import {
   Alert,
@@ -59,6 +59,7 @@ import {
   createPublicKey,
   createPublicScope,
   deletePublicScope,
+  liveKeysFromError,
   keyStatusOf,
   keysByScope,
   publicApiStateQuery,
@@ -119,7 +120,7 @@ export function PublicApiPage() {
     surfacesLookup.data === undefined ? [] : customerAppKeys(surfacesLookup.data);
 
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ title?: string; body: ReactNode } | null>(null);
   const [issues, setIssues] = useState<ScopeIssue[]>([]);
   /** The one revealed token, held in state and never cached — see the api module. */
   const [revealed, setRevealed] = useState<{ id: string; token: string } | null>(null);
@@ -143,8 +144,30 @@ export function PublicApiPage() {
       await refresh();
     } catch (caught) {
       const found = scopeIssuesFrom(caught);
+      const liveKeys = liveKeysFromError(caught);
       if (found.length > 0) setIssues(found);
-      else setError(caught instanceof Error ? caught.message : String(caught));
+      else if (liveKeys !== null) {
+        // A scope delete refused over live keys: trying again fixes nothing,
+        // so name the keys that have to be revoked first.
+        setError({
+          title: t('studio:publicApi.scopes.liveKeys.title', 'Publishable keys still use this scope'),
+          body: (
+            <>
+              {t(
+                'studio:publicApi.scopes.liveKeys.body',
+                'Pages built on these keys would stop working. Revoke them in the keys list first, then delete the scope.',
+              )}
+              <ul className="mt-2 list-disc ps-5">
+                {liveKeys.map((key) => (
+                  <li key={key.id}>
+                    {key.name} <code>{key.prefix}</code>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ),
+        });
+      } else setError({ body: caught instanceof Error ? caught.message : String(caught) });
     } finally {
       setBusy(false);
     }
@@ -175,8 +198,12 @@ export function PublicApiPage() {
       />
 
       {error !== null && (
-        <Alert tone="danger" title={t('studio:publicApi.error', 'Something went wrong')}>
-          {error}
+        <Alert
+          tone="danger"
+          data-testid="public-api-error"
+          title={error.title ?? t('studio:publicApi.error', 'Something went wrong')}
+        >
+          {error.body}
         </Alert>
       )}
 
@@ -230,8 +257,8 @@ export function PublicApiPage() {
           }}
           title={t('studio:publicApi.scopes.deleteTitle', 'Delete this scope')}
           body={t(
-            'studio:publicApi.scopes.deleteBody',
-            'Any page using a key bound to this scope stops loading data. Keys are not deleted — revoke them first if that is what you meant.',
+            'studio:publicApi.scopes.deleteBodyKeys',
+            'A scope with live keys cannot be deleted. Revoke its keys first. Keys that are already revoked or expired are deleted with the scope.',
           )}
           confirmWord={pendingDelete.name}
           promptLabel={t('studio:publicApi.scopes.deletePrompt', 'Type the scope name to confirm')}

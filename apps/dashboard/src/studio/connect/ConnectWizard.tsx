@@ -6,7 +6,8 @@
  * leaves the connection resumable.
  *
  * Steps: intent → source (3 input modes) → test+introspect (progress log) →
- * table inclusion → meta placement → generate/success.
+ * table inclusion → meta placement → generate/success. A "Blank canvas" intent
+ * walks the same steps and ends on a finish screen that generates nothing.
  */
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -38,6 +39,7 @@ import {
   saveWizardState,
   effectiveDsn,
   engineForDsn,
+  intentSettings,
   sameDbDisabledReason,
   sourceStepValid,
   summarizeTables,
@@ -50,6 +52,11 @@ import {
 export interface ConnectWizardProps {
   /** Navigate into the generated app after success (router injects). */
   onOpenApp: () => void;
+  /**
+   * Where a blank-canvas run lands: the new-page screen, since nothing was
+   * generated and a page is the next thing to make (router injects).
+   */
+  onCreatePage?: (() => void) | undefined;
   /** Navigate to the LLM run review screen after an AI enrichment run (router injects). */
   onOpenReview?: ((runId: string) => void) | undefined;
   /**
@@ -65,6 +72,7 @@ export interface ConnectWizardProps {
 
 export function ConnectWizard({
   onOpenApp,
+  onCreatePage,
   onOpenReview,
   bridgeTicket,
   lineDelayMs,
@@ -190,8 +198,8 @@ export function ConnectWizard({
 
   const stepIndex = WIZARD_STEP_IDS.indexOf(state.step);
   const steps: Step[] = useMemo(
-    () => WIZARD_STEP_IDS.map((id) => ({ id, label: wizardStepLabel(id) })),
-    [],
+    () => WIZARD_STEP_IDS.map((id) => ({ id, label: wizardStepLabel(id, state.intent) })),
+    [state.intent],
   );
 
   const goTo = (step: WizardStepId) => patch({ step });
@@ -298,7 +306,7 @@ export function ConnectWizard({
       setPersisting(true);
       setPersistError(null);
       const settings = {
-        intent: state.intent,
+        ...intentSettings(state.intent),
         ...(state.includedTables === null ? {} : { includedTables: state.includedTables }),
       };
       void studioApi
@@ -424,7 +432,12 @@ export function ConnectWizard({
           />
         ) : null}
         {state.step === 'generate' ? (
-          <GenerateStep state={state} onOpenApp={onOpenApp} lineDelayMs={lineDelayMs} />
+          <GenerateStep
+            state={state}
+            onOpenApp={onOpenApp}
+            onCreatePage={onCreatePage}
+            lineDelayMs={lineDelayMs}
+          />
         ) : null}
         {persistError !== null ? (
           <div className="mt-4">

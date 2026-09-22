@@ -117,6 +117,8 @@ const DESCRIPTIONS = {
   'public-api': 'Turn the public API on or off, and see whether this instance opted in',
   'public-scopes': 'Define what a public key may read — resources, columns, filters and time zone',
   'public-keys': 'Issue, reveal, rotate and revoke the browser-safe keys your pages use',
+  'public-endpoints': 'Build the endpoints a key can be granted — source, columns, filters, methods and limits',
+  'api-docs': 'The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off',
   permissions: 'The permission catalog every role is built from',
   readyz: 'Readiness — per-dependency verdicts, 503 when a dependency is down',
   'report-documents':

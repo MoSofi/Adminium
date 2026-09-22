@@ -137,6 +137,9 @@ export async function readExistingTables(
       isPrimaryKey: column.isPrimaryKey,
       // An FK to this column must be created with this exact type.
       dbType: column.dbType,
+      nullable: column.nullable,
+      hasDefault: column.default !== null,
+      isGenerated: column.isGenerated,
     })),
   }));
 }

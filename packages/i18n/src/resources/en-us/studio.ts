@@ -538,7 +538,10 @@ export default {
     "subtitle": "One page per included table plus dashboards per domain — intent:",
     "successBody": "{pages} pages across {groups} navigation groups — generated from your schema, editable in Studio.",
     "successTitle": "Your dashboard is ready",
-    "title": "Generate your app"
+    "title": "Generate your app",
+    "blankBody": "Nothing was generated, exactly as you asked. Build your first page from this connection whenever you are ready.",
+    "blankTitle": "Your connection is ready",
+    "createPage": "Create a page"
   },
   "hostedApps": {
     "browse": {
@@ -777,7 +780,11 @@ export default {
       "prompt": "Type {name} to confirm",
       "success": "Connection “{name}” deleted",
       "title": "Delete connection",
-      "forbidden": "Your role does not include managing connections, so this one was not deleted."
+      "forbidden": "Your role does not include managing connections, so this one was not deleted.",
+      "liveKeys": {
+        "body": "Pages built on these keys would stop working. Revoke them on the Public API page first, then delete the connection.",
+        "title": "Publishable keys still use this connection"
+      }
     },
     "empty": {
       "body": "Connect a database and Adminium generates your admin panel from its schema.",
@@ -867,7 +874,11 @@ export default {
       "title": "Support console"
     },
     "title": "What do you need?",
-    "trust": "We read your schema only — never your row data during setup."
+    "trust": "We read your schema only — never your row data during setup.",
+    "blank": {
+      "description": "Generate nothing. Connect a database and build the pages you want, one at a time.",
+      "title": "Blank canvas"
+    }
   },
   "llmRuns": {
     "review": {
@@ -1680,7 +1691,6 @@ export default {
       "connectionLabel": "Connection ID",
       "create": "Create scope",
       "delete": "Delete",
-      "deleteBody": "Any page using a key bound to this scope stops loading data. Keys are not deleted — revoke them first if that is what you meant.",
       "deleteConfirm": "Delete scope",
       "deletePrompt": "Type the scope name to confirm",
       "deleteTitle": "Delete this scope",
@@ -1693,7 +1703,12 @@ export default {
       "keyCount": "{count, plural, =0 {no keys} one {# key} other {# keys}}",
       "nameLabel": "Name",
       "subtitle": "A scope is the whole of what a key may reach — the tables, the exact columns, and a filter the caller can narrow but never remove.",
-      "title": "Scopes"
+      "title": "Scopes",
+      "deleteBodyKeys": "A scope with live keys cannot be deleted. Revoke its keys first. Keys that are already revoked or expired are deleted with the scope.",
+      "liveKeys": {
+        "body": "Pages built on these keys would stop working. Revoke them in the keys list first, then delete the scope.",
+        "title": "Publishable keys still use this scope"
+      }
     },
     "status": {
       "heading": "Status"
@@ -2008,6 +2023,22 @@ export default {
       "cta": "Open AI settings",
       "heading": "AI enrichment"
     },
+    "apiCard": {
+      "api": {
+        "helper": "Serve the endpoints your keys are scoped to. Off, every key stops working at once; nothing is deleted.",
+        "label": "Public API"
+      },
+      "docs": {
+        "helper": "A public page at /api-docs listing the endpoints your live keys can call — staff-level ones included — with their paths, methods and column names, to anyone who can reach this server. It shows no data and no keys.",
+        "label": "API documentation page"
+      },
+      "failed": "The switch did not change. Try again.",
+      "heading": "Public API",
+      "notRegistered": {
+        "body": "Set ADMINIUM_PUBLIC_API_ORIGINS and restart. Until then these switches change nothing.",
+        "title": "Not enabled on this server"
+      }
+    },
     "danger": {
       "deleteCta": "Delete connection",
       "deleteDesc": "Deletes the connection and its generated pages. Your database is not touched. Cannot be undone.",
@@ -2112,9 +2143,9 @@ export default {
       "heading": "Project"
     },
     "publicApiCard": {
-      "body": "Let your own customer- or staff-facing pages read this database, through a scope you define.",
-      "cta": "Open public API",
-      "heading": "Public API"
+      "body": "Create endpoints and the keys that may call them.",
+      "cta": "Open API keys",
+      "heading": "API keys"
     },
     "review": {
       "cancel": "Cancel",
@@ -2433,7 +2464,8 @@ export default {
       "meta": "Meta storage",
       "source": "Source",
       "tables": "Tables",
-      "test": "Analyze"
+      "test": "Analyze",
+      "finish": "Finish"
     },
     "title": "New connection"
   },
@@ -2485,5 +2517,243 @@ export default {
     "valueCount": "{count} values",
     "values": "Values",
     "view": "View"
+  },
+  "apiKeys": {
+    "banner": {
+      "bodyOnce": "Copy it now — you won't be able to see it again. Scoped to {summary}.",
+      "bodyRevealable": "Copy it now — you can reveal it again from the list below. Scoped to {summary}.",
+      "copied": "Copied",
+      "copy": "Copy",
+      "titleNamed": "{name} created"
+    },
+    "builder": {
+      "auth": {
+        "anon": "Anon",
+        "authenticated": "Authenticated",
+        "label": "Auth requirement",
+        "service": "Service role"
+      },
+      "cancel": "Cancel",
+      "columns": {
+        "all": "All",
+        "label": "Exposed columns",
+        "none": "None"
+      },
+      "create": "Create endpoint",
+      "delete": "Delete endpoint",
+      "deleteRefused": "{count, plural, one {# key still uses} other {# keys still use}} this endpoint: {names}.",
+      "filters": {
+        "add": "Add",
+        "empty": "No filters — every row of the source is reachable.",
+        "label": "Default filters",
+        "remove": "Remove filter",
+        "value": "value"
+      },
+      "footer": {
+        "applyFirst": "Apply or revert the edited definition first."
+      },
+      "methodUnsupported": "This source cannot support {method}: it has no primary key.",
+      "methods": "Methods",
+      "op": {
+        "between": "between",
+        "eq": "equals",
+        "gt": "greater than",
+        "gte": "at least",
+        "ilike": "contains (any case)",
+        "in": "in list",
+        "is_null": "is empty",
+        "like": "contains",
+        "lt": "less than",
+        "lte": "at most",
+        "neq": "not equals",
+        "not_null": "is not empty"
+      },
+      "paging": {
+        "asc": "Asc",
+        "defaultLimit": "Default limit",
+        "desc": "Desc",
+        "label": "Pagination & sorting",
+        "maxLimit": "Max limit",
+        "orderBy": "Order by"
+      },
+      "pane": {
+        "apply": "Apply to form",
+        "dirty": "edited — not applied",
+        "format": "Format",
+        "label": "Route definition, JSON",
+        "more": "{first} (+{n} more)",
+        "revert": "Revert",
+        "synced": "synced with form",
+        "title": "Route definition"
+      },
+      "rate": {
+        "hour": "hour",
+        "label": "Rate limit & response",
+        "minute": "minute",
+        "per": "Per",
+        "requests": "Requests",
+        "second": "second"
+      },
+      "refused": {
+        "keys": "Saving this would break {count, plural, one {# key} other {# keys}}: {names}."
+      },
+      "route": "Route",
+      "routePlaceholder": "customers",
+      "routeRename": "Callers must switch to the new path.",
+      "save": "Save changes",
+      "shape": {
+        "array": "Bare array",
+        "label": "Response shape",
+        "single": "Single object",
+        "wrapped": "Wrapped in '{' data '}'"
+      },
+      "source": "Source table or view",
+      "subtitle": "Configure it visually — Adminium writes the route definition for you",
+      "titleEdit": "Edit endpoint",
+      "titleNew": "New endpoint"
+    },
+    "connection": {
+      "label": "Connection"
+    },
+    "create": "Create key",
+    "endpoints": {
+      "col": {
+        "auth": "Auth",
+        "methods": "Methods",
+        "rate": "Rate limit",
+        "route": "Route"
+      },
+      "custom": "CUSTOM",
+      "edit": "Edit endpoint",
+      "explore": "Explore API",
+      "new": "New endpoint",
+      "subtitle": "Generated from your schema. Keys are scoped to these.",
+      "title": "Endpoints",
+      "unavailable": "UNAVAILABLE"
+    },
+    "keys": {
+      "col": {
+        "access": "Access",
+        "actions": "Actions",
+        "key": "Key",
+        "lastUsed": "Last used",
+        "name": "Name"
+      },
+      "count": "{n, plural, one {# key} other {# keys}}",
+      "empty": "No active keys. Create one to get started.",
+      "hide": "Hide key",
+      "kind": {
+        "browser": "BROWSER",
+        "server": "SERVER"
+      },
+      "never": "Never",
+      "reveal": "Reveal key",
+      "revoke": "Revoke",
+      "revokeConfirm": {
+        "body": "Anything using this key stops working at once. This cannot be undone.",
+        "confirm": "Revoke key",
+        "prompt": "Type “{name}” to confirm",
+        "title": "Revoke {name}?"
+      },
+      "revokeFailed": "That key could not be revoked. It is still active.",
+      "title": "Active keys",
+      "untitled": "Untitled key"
+    },
+    "method": {
+      "BATCH": {
+        "desc": "Bulk insert or upsert, up to 500 rows",
+        "title": "Batch"
+      },
+      "DELETE": {
+        "desc": "Remove a row by primary key",
+        "title": "Delete"
+      },
+      "GET": {
+        "desc": "List rows and fetch a single record",
+        "title": "Read"
+      },
+      "PATCH": {
+        "desc": "Partial update of a row by primary key",
+        "title": "Update"
+      },
+      "POST": {
+        "desc": "Insert a new row",
+        "title": "Create"
+      },
+      "PUT": {
+        "desc": "Replace a full row by primary key",
+        "title": "Replace"
+      }
+    },
+    "note": {
+      "notRegistered": "The public API is not enabled on this server. Set ADMINIUM_PUBLIC_API_ORIGINS and restart — keys made here will work from then on.",
+      "off": "The public API is switched off, so no key works right now.",
+      "offLink": "Open Workspace settings"
+    },
+    "quick": {
+      "body": "Authenticate requests with your key in the Authorization header.",
+      "title": "Quick start"
+    },
+    "sheet": {
+      "allMethods": "Select all methods",
+      "app": {
+        "label": "App",
+        "none": "None"
+      },
+      "cancel": "Cancel",
+      "clear": "Clear",
+      "close": "Close",
+      "count": "{permissions, plural, one {permission} other {permissions}} on {endpoints, plural, one {# endpoint} other {# endpoints}}",
+      "deselectAll": "Deselect all",
+      "edit": "Edit endpoint",
+      "expires": {
+        "d30": "30 days",
+        "d90": "90 days",
+        "label": "Expires",
+        "never": "Never"
+      },
+      "filter": "Filter endpoints",
+      "focusMeta": "{source} · {rows} rows · limit {limit}, order {order}",
+      "focusMetaNoRows": "{source} · limit {limit}, order {order}",
+      "footer": {
+        "empty": "Select at least one method to create a key.",
+        "more": "+{n} more",
+        "refused": "This key cannot be created yet: {issue}",
+        "summary": "This key will be able to call {paths}"
+      },
+      "kind": {
+        "browser": "Browser",
+        "label": "Used from",
+        "server": "Server"
+      },
+      "layout": {
+        "label": "Layout",
+        "list": "List",
+        "panes": "Panes"
+      },
+      "name": {
+        "label": "Key name",
+        "placeholder": "e.g. Orders sync worker"
+      },
+      "newEndpoint": "New endpoint",
+      "readOnly": "Read-only preset",
+      "rowMeta": "{source} · {rows} rows",
+      "rowMetaNoRows": "{source}",
+      "selectAll": "Select all",
+      "selectAllShort": "Select all",
+      "submit": "Create key",
+      "subtitle": "Pick the endpoints and methods this key may call",
+      "title": "Create API key",
+      "toggleAll": "Toggle all methods",
+      "unsupported": "{count, plural, one {{methods} is not exposed on this route. Edit the endpoint to enable it.} other {{methods} are not exposed on this route. Edit the endpoint to enable them.}}"
+    },
+    "stats": {
+      "endpoints": "Endpoints",
+      "keys": "Active keys",
+      "requests": "Requests · 24h"
+    },
+    "subtitle": "Manage programmatic access to your workspace",
+    "summary": "{endpoints, plural, one {# endpoint} other {# endpoints}} · {methods, plural, one {# method} other {# methods}}",
+    "title": "API keys & tokens"
   }
 } as const;

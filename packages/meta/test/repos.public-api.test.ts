@@ -5,14 +5,15 @@
  * Two behaviours here are policy rather than plumbing, and both have a comment
  * in the repo explaining why: `findByPrefix` returns EVERY candidate (the caller
  * compares hashes in constant time, so filtering on the hash in SQL would hand
- * the timing signal back to the database), and `remove` refuses while a key
- * still points at the scope (the FK is `restrict`; surfacing it as `false`
- * rather than a driver error is what lets the operator see what they are about
- * to break).
+ * the timing signal back to the database), and `remove` refuses while a LIVE
+ * key still points at the scope (the FK is `restrict`; a typed
+ * `LivePublicKeysError` rather than a driver error is what lets the operator
+ * see what they are about to break). Revoked and expired keys go with it.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  LivePublicKeysError,
   connectionsRepo,
   publicKeysRepo,
   publicScopesRepo,
@@ -193,21 +194,52 @@ for (const dialect of TEST_DIALECTS) {
       expect(await publicScopesRepo(meta()).update('psc_nope', { name: 'x' })).toBe(false);
     });
 
-    it('refuses to delete a scope while a key still points at it', async () => {
+    it('refuses to delete a scope while a live key points at it, and clears it once revoked', async () => {
       const scope = await seedScope();
       const key = await seedKey(scope.id);
 
-      expect(await publicScopesRepo(meta()).remove(scope.id)).toBe(false);
+      const refusal = await publicScopesRepo(meta())
+        .remove(scope.id)
+        .catch((error: unknown) => error);
+      expect(refusal).toBeInstanceOf(LivePublicKeysError);
+      expect((refusal as LivePublicKeysError).keys).toEqual([
+        { id: key.id, name: 'web', prefix: 'adm_pub_aaaaaaaa', scopeId: scope.id },
+      ]);
       expect(await publicScopesRepo(meta()).findById(scope.id)).not.toBeNull();
 
-      // Revoking is not enough — the row still references it. Deleting the key
-      // is, which is the order that makes the operator see the consequence.
-      await publicKeysRepo(meta()).revoke(key.id);
-      expect(await publicScopesRepo(meta()).remove(scope.id)).toBe(false);
-
-      await meta().db.deleteFrom('adminium_public_keys').where('id', '=', key.id).execute();
-      expect(await publicScopesRepo(meta()).remove(scope.id)).toBe(true);
+      // Revoking is enough: the revoked row breaks nothing, and nothing else
+      // can remove it, so it goes with the scope. Before, it kept the scope
+      // undeletable forever.
+      await publicKeysRepo(meta()).revoke(key.id, T0 + 1);
+      expect(await publicScopesRepo(meta()).remove(scope.id, T0 + 2)).toBe(true);
       expect(await publicScopesRepo(meta()).findById(scope.id)).toBeNull();
+      expect(await publicKeysRepo(meta()).findById(key.id)).toBeNull();
+    });
+
+    it('leaves the other scopes\' keys alone when it clears one scope', async () => {
+      const doomed = await seedScope();
+      const kept = await seedScope();
+      const revoked = await seedKey(doomed.id, 'adm_pub_doomed01');
+      await publicKeysRepo(meta()).revoke(revoked.id, T0 + 1);
+      const keptRevoked = await seedKey(kept.id, 'adm_pub_keptrev1');
+      await publicKeysRepo(meta()).revoke(keptRevoked.id, T0 + 1);
+
+      expect(await publicScopesRepo(meta()).remove(doomed.id, T0 + 2)).toBe(true);
+      expect(await publicKeysRepo(meta()).findById(keptRevoked.id)).not.toBeNull();
+      expect(await publicScopesRepo(meta()).findById(kept.id)).not.toBeNull();
+    });
+
+    it('lists the inert keys of a scope or a connection', async () => {
+      const scope = await seedScope();
+      const live = await seedKey(scope.id, 'adm_pub_live0001');
+      const revoked = await seedKey(scope.id, 'adm_pub_revoked2');
+      await publicKeysRepo(meta()).revoke(revoked.id, T0 + 1);
+
+      const byScope = await publicKeysRepo(meta()).listInert({ scopeId: scope.id }, T0 + 2);
+      const byConnection = await publicKeysRepo(meta()).listInert({ connectionId }, T0 + 2);
+      expect(byScope.map((k) => k.id)).toEqual([revoked.id]);
+      expect(byConnection.map((k) => k.id)).toEqual([revoked.id]);
+      expect(byScope.some((k) => k.id === live.id)).toBe(false);
     });
 
     it('creates a key with an empty origin list and a sealed secret', async () => {
@@ -289,15 +321,138 @@ for (const dialect of TEST_DIALECTS) {
       expect((await publicKeysRepo(meta()).findById(key.id))?.lastUsedAt).toBe(T0 + 3);
     });
 
-    it('cascades keys away when the connection goes', async () => {
-      // The scope FK is `cascade` on the connection and the key FK is
-      // `restrict` on the scope — so deleting the connection must still clear
-      // both rather than deadlocking on the restrict.
+    it('never moves lastUsedAt backwards', async () => {
+      // Each replica throttles on its own clock, so a write can arrive carrying
+      // an older time than the one already stored.
       const scope = await seedScope();
-      await seedKey(scope.id);
-      await meta().db.deleteFrom('adminium_public_keys').execute();
-      await meta().db.deleteFrom('adminium_connections').where('id', '=', connectionId).execute();
+      const key = await seedKey(scope.id);
+      await publicKeysRepo(meta()).touchLastUsed(key.id, T0 + 10);
+      await publicKeysRepo(meta()).touchLastUsed(key.id, T0 + 5);
+      expect((await publicKeysRepo(meta()).findById(key.id))?.lastUsedAt).toBe(T0 + 10);
+      await publicKeysRepo(meta()).touchLastUsed(key.id, T0 + 20);
+      expect((await publicKeysRepo(meta()).findById(key.id))?.lastUsedAt).toBe(T0 + 20);
+    });
+
+    it('deletes a connection whose scope once had a key', async () => {
+      // The scope FK is `cascade` on the connection and the key FK is
+      // `restrict` on the scope, so a bare DELETE of the connection dies on the
+      // restrict (a 500 on a Postgres meta store in 0.3.0-rc.0). A revoked key
+      // breaks nothing, and nothing else can remove its row, so the delete
+      // clears it in the same transaction.
+      const scope = await seedScope();
+      const key = await seedKey(scope.id);
+      await publicKeysRepo(meta()).revoke(key.id, T0 + 1);
+
+      expect(await connectionsRepo(meta(), testCrypto).delete(connectionId)).toBe(true);
+      expect(await connectionsRepo(meta(), testCrypto).findById(connectionId)).toBeNull();
       expect(await publicScopesRepo(meta()).findById(scope.id)).toBeNull();
+      expect(await publicKeysRepo(meta()).findById(key.id)).toBeNull();
+    });
+
+    it('treats an expired key as inert too', async () => {
+      const scope = await seedScope();
+      const key = await publicKeysRepo(meta()).create(
+        {
+          name: 'old',
+          prefix: 'adm_pub_expired1',
+          tokenHash: 'h'.repeat(64),
+          tokenEncrypted: 'sealed',
+          scopeId: scope.id,
+          side: 'customer',
+          expiresAt: T0 + 1,
+        },
+        T0,
+      );
+
+      expect(await connectionsRepo(meta(), testCrypto).delete(connectionId, T0 + 2)).toBe(true);
+      expect(await publicKeysRepo(meta()).findById(key.id)).toBeNull();
+    });
+
+    it('refuses to delete a connection while a live key would break', async () => {
+      const scope = await seedScope();
+      const live = await seedKey(scope.id, 'adm_pub_livekey1');
+      const revoked = await seedKey(scope.id, 'adm_pub_revoked1');
+      await publicKeysRepo(meta()).revoke(revoked.id, T0 + 1);
+
+      const refusal = await connectionsRepo(meta(), testCrypto)
+        .delete(connectionId, T0 + 2)
+        .catch((error: unknown) => error);
+      expect(refusal).toBeInstanceOf(LivePublicKeysError);
+      expect((refusal as LivePublicKeysError).keys).toEqual([
+        { id: live.id, name: 'web', prefix: 'adm_pub_livekey1', scopeId: scope.id },
+      ]);
+
+      // Refused as a whole: the revoked row was not purged on the way out.
+      expect(await connectionsRepo(meta(), testCrypto).findById(connectionId)).not.toBeNull();
+      expect(await publicKeysRepo(meta()).findById(revoked.id)).not.toBeNull();
+    });
+
+    it('a hosted app is never served a server key, even the newest one', async () => {
+      const scope = await seedScope();
+      const repo = publicKeysRepo(meta());
+      const browser = await repo.create(
+        { name: 'web', prefix: 'adm_pub_browser1', tokenHash: 'h'.repeat(64), tokenEncrypted: 'sealed', scopeId: scope.id, side: 'customer', appKey: 'shop' },
+        T0,
+      );
+      await repo.create(
+        { name: 'srv', prefix: 'adm_srv_server01', tokenHash: 'i'.repeat(64), tokenEncrypted: '', scopeId: scope.id, side: 'customer', appKey: 'shop', kind: 'server' },
+        T0 + 1,
+      );
+      expect((await repo.newestLiveByApp('shop', 'customer', T0 + 2))?.id).toBe(browser.id);
+      expect((await repo.newestLiveByAppAndConnection('shop', 'customer', connectionId, T0 + 2))?.id).toBe(browser.id);
+    });
+
+    it('listLiveDerived: live keys over DERIVED scopes of this connection, with the document', async () => {
+      const handWritten = await seedScope();
+      await seedKey(handWritten.id, 'adm_pub_handwrit');
+      const derivedDoc = JSON.stringify({ version: 1, side: 'customer', resources: [] });
+      const make = async (id: string, prefix: string, extra: Record<string, unknown> = {}) => {
+        // Written inside one transaction, scope first: the order a key create uses.
+        await meta().db.transaction().execute(async (trx) => {
+          const scope = await publicScopesRepo(meta()).create(
+            { connectionId, side: 'customer', name: id, timezone: 'UTC', document: derivedDoc, derivedForKey: id },
+            T0,
+            trx,
+          );
+          await publicKeysRepo(meta()).create(
+            {
+              id,
+              name: id,
+              prefix,
+              tokenHash: 'h'.repeat(64),
+              tokenEncrypted: 'sealed',
+              scopeId: scope.id,
+              side: 'customer',
+              access: { pep_a: ['GET'] },
+              ...extra,
+            },
+            T0,
+            trx,
+          );
+        });
+      };
+      await make('pbk_live1', 'adm_pub_derived1');
+      await make('pbk_expired', 'adm_pub_derived2', { expiresAt: T0 + 5 });
+      await make('pbk_revoked', 'adm_pub_derived3');
+      await publicKeysRepo(meta()).revoke('pbk_revoked', T0 + 1);
+
+      const live = await publicKeysRepo(meta()).listLiveDerived(connectionId, T0 + 10);
+      expect(live.map((k) => k.id)).toEqual(['pbk_live1']);
+      // Text on every store; key order is the store's (jsonb reorders), so compare parsed.
+      expect(JSON.parse(live[0]?.scopeDocument ?? 'null')).toEqual(JSON.parse(derivedDoc));
+      expect(JSON.parse(live[0]?.access ?? 'null')).toEqual({ pep_a: ['GET'] });
+      // Before the expiry, the expiring key is live too.
+      expect((await publicKeysRepo(meta()).listLiveDerived(connectionId, T0 + 1)).map((k) => k.id).sort()).toEqual([
+        'pbk_expired',
+        'pbk_live1',
+      ]);
+
+      // An update through a transaction lands with it.
+      const scopeId = live[0]?.scopeId ?? '';
+      await meta().db.transaction().execute(async (trx) => {
+        expect(await publicScopesRepo(meta()).update(scopeId, { document: '{"v":2}' }, T0 + 3, trx)).toBe(true);
+      });
+      expect(JSON.parse((await publicScopesRepo(meta()).findById(scopeId))?.document ?? 'null')).toEqual({ v: 2 });
     });
   });
 }

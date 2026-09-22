@@ -20,6 +20,9 @@ import {
   FILES_ADMIN_EMAIL,
   FILES_ADMIN_PASSWORD,
   filesStorageStatePath,
+  PUBLIC_API_ADMIN_EMAIL,
+  PUBLIC_API_ADMIN_PASSWORD,
+  publicApiStorageStatePath,
   storageStatePath,
 } from './constants.js';
 
@@ -46,4 +49,17 @@ setup('sign in the files principal — its own api rate budget', async ({ page }
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
   await page.context().storageState({ path: filesStorageStatePath() });
+});
+
+/**
+ * The public API specs' own session (constants.ts `PUBLIC_API_ADMIN_EMAIL`).
+ * Three logins per run, still inside the 5/min `auth-login` bucket.
+ */
+setup('sign in the public API principal — its own api rate budget', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(PUBLIC_API_ADMIN_EMAIL);
+  await page.getByLabel('Password', { exact: true }).fill(PUBLIC_API_ADMIN_PASSWORD);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
+  await page.context().storageState({ path: publicApiStorageStatePath() });
 });

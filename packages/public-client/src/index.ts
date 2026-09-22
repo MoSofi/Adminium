@@ -102,7 +102,20 @@ export class PublicApiError extends Error {
 /* ---------------------------------------------------------------- types */
 
 export type PublicSide = 'staff' | 'customer';
-export type PublicAction = 'read' | 'create' | 'update';
+/**
+ * What a key may do to a ref. `replace`, `delete` and `batch` arrived with
+ * PUT, DELETE and `POST …/batch`; an older server never sends
+ * them.
+ */
+export type PublicAction = 'read' | 'create' | 'update' | 'replace' | 'delete' | 'batch';
+
+/**
+ * How the LIST route answers for a ref. `wrapped` is the
+ * original `{ data, page, cursor }`; `array` is the bare rows with the next
+ * cursor in `X-Next-Cursor`; `single` is exactly one row. `list()` hands every
+ * one of them back as a {@link ListResult}, so an app never branches on it.
+ */
+export type PublicResponseShape = 'wrapped' | 'array' | 'single';
 
 export interface PublicRefConfig {
   actions: PublicAction[];
@@ -112,6 +125,8 @@ export interface PublicRefConfig {
   orderable: string[];
   writable: string[];
   limit: number;
+  /** Absent from a server that predates response shapes: read it as `wrapped`. */
+  response?: { shape: PublicResponseShape };
 }
 
 export interface PublicConfig {
@@ -132,8 +147,10 @@ export interface PublicConfig {
    *
    * A capability, so a page can decide whether to OFFER "email me a copy"
    * rather than discovering the refusal by being refused. Optional on the type
-   * because a server older than the release that added documents does not send
-   * it, and an app compiled against this client must keep working against one.
+   * because no server up to and including 0.3.0-rc.2 sends it — the reply
+   * schema did not declare it, so the serializer stripped it even on servers
+   * that computed it — and an app compiled against this client must keep
+   * working against one. Treat absent as "not offered".
    */
   documents?: { create: boolean };
   refs: Record<string, PublicRefConfig>;
@@ -236,6 +253,18 @@ export interface PublicClient {
   get: <T = Row>(ref: string, id: string, signal?: AbortSignal) => Promise<T>;
   create: <T = Row>(ref: string, values: Row) => Promise<T>;
   update: <T = Row>(ref: string, id: string, values: Row) => Promise<T>;
+  /**
+   * Replace the row's writable columns — every one of them must be present (a
+   * nullable one may be `null`). PUT, where `update` is PATCH.
+   */
+  replace: <T = Row>(ref: string, id: string, values: Row) => Promise<T>;
+  /** Delete the row with this primary key. A row outside the scope is the same 404 as a missing one. */
+  remove: (ref: string, id: string) => Promise<void>;
+  /**
+   * Write 1–500 rows in one transaction: all of them, or none. A row without
+   * its primary key is inserted; a row with its whole key updates that row.
+   */
+  batch: (ref: string, rows: Row[]) => Promise<{ count: number }>;
   /** Identify the visitor. Returns false when the details did not match. */
   claim: (match: Record<string, unknown>) => Promise<boolean>;
   signOut: () => Promise<void>;
@@ -261,6 +290,28 @@ export interface PublicClient {
   assertRefs: (required: Record<string, string[]>) => Promise<void>;
 }
 
+const WRAPPED_KEYS = new Set(['data', 'page', 'cursor']);
+
+/**
+ * Every list shape as one {@link ListResult}, read off the
+ * reply itself so that it costs no `/config` request and works against a
+ * server that predates shapes:
+ * - a bare array is `array`, its next cursor in `X-Next-Cursor`;
+ * - `{ data: [...] }` with nothing beyond `page` / `cursor` is `wrapped`;
+ * - any other object is the one row of a `single` endpoint.
+ */
+function asListResult<T>(body: unknown, headers: Headers): ListResult<T> {
+  if (Array.isArray(body)) return { data: body as T[], cursor: { next: headers.get('x-next-cursor') } };
+  if (typeof body === 'object' && body !== null) {
+    const record = body as Record<string, unknown>;
+    if (Array.isArray(record['data']) && Object.keys(record).every((k) => WRAPPED_KEYS.has(k))) {
+      return body as ListResult<T>;
+    }
+    return { data: [body as T] };
+  }
+  return { data: [] };
+}
+
 /**
  * Build a client, or `null` when this build has no server to talk to.
  *
@@ -277,7 +328,8 @@ export function createPublicClient(
   let session: string | null = null;
   let cachedConfig: Promise<PublicConfig> | null = null;
 
-  const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
+  /** One request, with the reply's headers — `list()` reads `X-Next-Cursor`. */
+  const send = async <T>(path: string, init: RequestInit = {}): Promise<{ body: T; headers: Headers }> => {
     const headers: Record<string, string> = {
       authorization: `Bearer ${key}`,
       ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
@@ -318,8 +370,10 @@ export function createPublicClient(
         retry === null ? undefined : Number(retry),
       );
     }
-    return (await res.json()) as T;
+    return { body: (await res.json()) as T, headers: res.headers };
   };
+
+  const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => (await send<T>(path, init)).body;
 
   /**
    * Query-string encoder.
@@ -352,7 +406,8 @@ export function createPublicClient(
     async list<T = Row>(ref: string, options?: ListOptions) {
       const init: RequestInit = {};
       if (options?.signal !== undefined) init.signal = options.signal;
-      return request<ListResult<T>>(`/api/v1/public/records/${ref}${encode(options)}`, init);
+      const reply = await send<unknown>(`/api/v1/public/records/${ref}${encode(options)}`, init);
+      return asListResult<T>(reply.body, reply.headers);
     },
 
     async get<T = Row>(ref: string, id: string, signal?: AbortSignal) {
@@ -379,6 +434,28 @@ export function createPublicClient(
         { method: 'PATCH', body: JSON.stringify({ values }) },
       );
       return out.data;
+    },
+
+    async replace<T = Row>(ref: string, id: string, values: Row) {
+      const out = await request<{ data: T }>(
+        `/api/v1/public/records/${ref}/${encodeURIComponent(id)}`,
+        { method: 'PUT', body: JSON.stringify({ values }) },
+      );
+      return out.data;
+    },
+
+    async remove(ref: string, id: string) {
+      await request<{ data: Record<string, never> }>(`/api/v1/public/records/${ref}/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+    },
+
+    async batch(ref: string, rows: Row[]) {
+      const out = await request<{ data: { count: number } }>(`/api/v1/public/records/${ref}/batch`, {
+        method: 'POST',
+        body: JSON.stringify({ rows }),
+      });
+      return { count: out.data.count };
     },
 
     async claim(match: Record<string, unknown>) {

@@ -68,6 +68,10 @@ const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'adminium-e2e-password'
 const FILES_ADMIN_EMAIL = process.env.E2E_FILES_ADMIN_EMAIL ?? 'e2e-files@adminium.local';
 const FILES_ADMIN_NAME = 'E2E Files Admin';
 const FILES_ADMIN_PASSWORD = process.env.E2E_FILES_ADMIN_PASSWORD ?? 'adminium-e2e-password';
+/** A third, for the public API specs: the keys page and its axe sweeps are heavy too. */
+const PUBLIC_API_ADMIN_EMAIL = process.env.E2E_PUBLIC_API_ADMIN_EMAIL ?? 'e2e-public-api@adminium.local';
+const PUBLIC_API_ADMIN_NAME = 'E2E Public API Admin';
+const PUBLIC_API_ADMIN_PASSWORD = process.env.E2E_PUBLIC_API_ADMIN_PASSWORD ?? 'adminium-e2e-password';
 const CONNECTION_NAME = process.env.E2E_CONNECTION_NAME ?? 'northwind';
 const E2E_DATABASE = process.env.E2E_DATABASE ?? 'adminium_e2e';
 /**
@@ -130,9 +134,9 @@ const tempDir = mkdtempSync(join(tmpdir(), 'adminium-e2e-'));
  * The data dir itself stays an mkdtemp: two servers (the shared one and the
  * first-run one) run at once and a fixed path would have them share a store.
  * But a spec sometimes has to put a file INTO it — the app catalogue's cache
- * (48 G8-D3) is written only by a refresh JOB that fetches adminium.dev, and an
- * e2e run must never reach the internet, so the cached document is seeded by
- * hand instead. Same reasoning as `sqliteSourcePath()` in tests/constants.ts:
+ * is written only by a refresh JOB that fetches adminium.dev, and an e2e run
+ * must never reach the internet, so the cached document is seeded by hand
+ * instead. Same reasoning as `sqliteSourcePath()` in tests/constants.ts:
  * one deterministic path both processes compute, rather than a temp path one of
  * them has to guess.
  */
@@ -180,7 +184,7 @@ const SHIPPER_FILE_COLUMN = 'document_url';
 async function prepareSourceDb() {
   if (ENGINE === 'sqlite') {
     // Deterministic path (NOT the mkdtemp dir) so tests/constants.ts can derive
-    // the same DSN for the T15 enrichment wizard leg. Pre-deleted so a leftover
+    // the same DSN for the enrichment wizard leg. Pre-deleted so a leftover
     // file from a crashed run never fails the CREATE TABLEs.
     const file = join(tmpdir(), `adminium-e2e-source-sqlite-${String(PORT)}.db`);
     rmSync(file, { force: true });
@@ -271,13 +275,20 @@ try {
   // meta-store fallback into the temp dir; no ADMINIUM_RUNTIME means every
   // desktop-only door in composeServer stays closed, exactly like self-host.
   const env = loadCliEnv(
-    { ADMINIUM_SECRET: SECRET },
+    {
+      ADMINIUM_SECRET: SECRET,
+      // The public API is registered, answering this instance's own pages
+      // (`self`), so the keys page, `/api-docs` and its playground can be
+      // driven end to end. Registration serves nothing on its
+      // own: `publicApi.enabled` still defaults to off.
+      ADMINIUM_PUBLIC_API_ORIGINS: process.env.E2E_PUBLIC_API_ORIGINS ?? 'self',
+    },
     { port: PORT, host: HOST, dataDir: tempDir },
   );
 
   // openRuntime = all three engine adapters + meta store + ConnectionManager +
   // run/apply services + stats collector + widgets allow-lists (null ⇒ /llm
-  // skipped — the T15 BYO leg would fail loudly, core flow unaffected).
+  // skipped — the BYO leg would fail loudly, core flow unaffected).
   runtime = await openRuntime(env, { blockLoopback: false }); // every e2e database is loopback by design
   if (runtime.promptServiceError !== null) {
     log(`AI assist routes skipped (${runtime.promptServiceError.message})`);
@@ -301,13 +312,20 @@ try {
   if (!FIRST_RUN) {
     const meta = runtime.metaStore.meta;
     const superAdmin = await rolesRepo(meta).findBySlug('super-admin');
-    const user = await usersRepo(meta).create({
-      email: FILES_ADMIN_EMAIL,
-      name: FILES_ADMIN_NAME,
-      passwordHash: await hashPassword(FILES_ADMIN_PASSWORD),
-      status: 'active',
-    });
-    if (superAdmin !== null) await rolesRepo(meta).assignToUser(user.id, superAdmin.id);
+    const extra = [
+      [FILES_ADMIN_EMAIL, FILES_ADMIN_NAME, FILES_ADMIN_PASSWORD],
+      // The public API specs, for the same reason: their own `api` budget.
+      [PUBLIC_API_ADMIN_EMAIL, PUBLIC_API_ADMIN_NAME, PUBLIC_API_ADMIN_PASSWORD],
+    ];
+    for (const [email, name, password] of extra) {
+      const user = await usersRepo(meta).create({
+        email,
+        name,
+        passwordHash: await hashPassword(password),
+        status: 'active',
+      });
+      if (superAdmin !== null) await rolesRepo(meta).assignToUser(user.id, superAdmin.id);
+    }
   }
 
   // --- the SMTP sink: up before the server so a send can never race it -----------

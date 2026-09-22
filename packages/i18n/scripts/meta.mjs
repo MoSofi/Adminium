@@ -61,6 +61,8 @@ const GATE_RELAXED = {
   // The add-on page host's own states. Named here for the reason the note
   // below gives: a namespace in neither gate list is held to nothing.
   addOns: 0.95,
+  // The public API explorer (/api-docs). Named for the same reason.
+  apiDocs: 0.95,
   generated: 0.95,
   email: 0.95,
   // Listed explicitly on the way out of `common`, where they had been held to

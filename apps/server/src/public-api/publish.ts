@@ -48,7 +48,7 @@ import { publishWidgetDataStream } from '../widget-data/stream-publisher.js';
 export interface PublicWriteEvent {
   connectionId: string;
   table: ResolvedTable;
-  action: 'create' | 'update';
+  action: 'create' | 'update' | 'delete';
   /** Primary key of the row just written. Masked by the shared publisher. */
   pk: Row | null;
   /**

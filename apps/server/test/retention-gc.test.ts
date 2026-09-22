@@ -22,10 +22,14 @@ import {
   auditRepo,
   automationRunsRepo,
   automationsRepo,
+  connectionsRepo,
   createSqliteMetaDb,
   firstRun,
   jobsRepo,
   passwordResetsRepo,
+  publicKeysRepo,
+  publicScopesRepo,
+  publicSessionsRepo,
   sessionsRepo,
   settingsRepo,
   usersRepo,
@@ -159,6 +163,41 @@ describe('firing the sweep deletes what the policy says', () => {
     const remaining = await meta.db.selectFrom('adminium_password_resets').selectAll().execute();
     expect(remaining.map((row) => row.id)).toEqual([liveToken.id]);
     expect(remaining.map((row) => row.id)).not.toContain(staleToken.id);
+  });
+
+  it('drops lapsed public-surface sessions and keeps live ones', async () => {
+    // `purgeExpired` shipped with the repo and had no caller, so every claimed
+    // customer's session row stayed forever.
+    const { meta, server } = await compose();
+    const connection = await connectionsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).create({
+      name: 'Shop',
+      engine: 'postgres',
+      introspectDsn: 'postgres://ro@db.internal:5432/shop',
+    });
+    const scope = await publicScopesRepo(meta).create({
+      connectionId: connection.id,
+      side: 'customer',
+      name: 'storefront',
+      timezone: 'UTC',
+      document: '{}',
+    });
+    const key = await publicKeysRepo(meta).create({
+      name: 'web',
+      prefix: 'adm_pub_aaaaaaaa',
+      tokenHash: 'k'.repeat(64),
+      tokenEncrypted: 'sealed',
+      scopeId: scope.id,
+      side: 'customer',
+    });
+    const now = Date.now();
+    const publicSessions = publicSessionsRepo(meta);
+    await publicSessions.create({ keyId: key.id, tokenHash: 'e'.repeat(64), grants: '{}', expiresAt: now - 1 });
+    const live = await publicSessions.create({ keyId: key.id, tokenHash: 'f'.repeat(64), grants: '{}', expiresAt: now + DAY_MS });
+
+    await server.jobs.scheduler.trigger(RETENTION_GC_SCHEDULE_NAME);
+
+    const remaining = await meta.db.selectFrom('adminium_public_sessions').select('id').execute();
+    expect(remaining.map((row) => row.id)).toEqual([live.id]);
   });
 
   it('drops finished jobs past retention.jobsDays and keeps pending ones', async () => {

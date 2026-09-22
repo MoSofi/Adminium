@@ -116,7 +116,6 @@ export default {
     "back": "Zpět",
     "team": "Tým",
     "roles": "Role a oprávnění",
-    "apiKeys": "API klíče",
     "audit": "Auditní log",
     "security": "Heslo a relace",
     "files": "Soubory",
@@ -921,60 +920,6 @@ export default {
       }
     }
   },
-  "apiKeys": {
-    "title": "Klíče API a tokeny",
-    "subtitle": "Spravujte programový přístup ke svému pracovnímu prostoru.",
-    "createButton": "Vytvořit klíč",
-    "copy": "Kopírovat",
-    "copied": "Zkopírováno",
-    "revoke": "Odvolat klíč",
-    "neverUsed": "Nikdy nepoužit",
-    "lastUsed": "Naposledy použit {since}",
-    "scopesOverflow": "+{count} dalších",
-    "status": {
-      "active": "Aktivní",
-      "revoked": "Odvolaný",
-      "expired": "Vypršelý"
-    },
-    "list": {
-      "title": "Klíče",
-      "activeCount": "{count, plural, one {# aktivní klíč} few {# aktivní klíče} many {# aktivního klíče} other {# aktivních klíčů}}"
-    },
-    "empty": {
-      "title": "Zatím žádné klíče API",
-      "body": "Vytvořte si klíč a volejte API Adminia z vlastního kódu."
-    },
-    "revealed": {
-      "title": "Nový klíč vytvořen",
-      "body": "Zkopírujte si ho hned — už ho nikdy neuvidíte."
-    },
-    "rolesUnavailable": {
-      "title": "Role pro vás nejsou viditelné",
-      "body": "Vytvořit klíč znamená zvolit roli, pod kterou jedná, a váš účet nemůže číst seznam rolí. Požádejte správce o oprávnění „Spravovat role“."
-    },
-    "quickStart": {
-      "title": "Rychlý start",
-      "body": "Požadavky ověřujte klíčem v hlavičce Authorization."
-    },
-    "create": {
-      "title": "Vytvořit klíč API",
-      "description": "Klíč jedná s oprávněními role, kterou zvolíte.",
-      "name": "Název",
-      "namePlaceholder": "např. Analytická pipeline",
-      "role": "Role",
-      "roleHelper": "Zvolte roli s nejnižšími oprávněními, která na to stačí.",
-      "expires": "Platnost do",
-      "expiresHelper": "Ponechte prázdné pro klíč bez expirace.",
-      "submit": "Vytvořit klíč",
-      "failed": "Klíč se nepodařilo vytvořit"
-    },
-    "revokeConfirm": {
-      "title": "Odvolat klíč API",
-      "body": "Každý kód, který ještě volá API klíčem „{name}“, začne okamžitě selhávat. Tuto akci nelze vrátit.",
-      "prompt": "Pro potvrzení napište „{name}“",
-      "confirm": "Odvolat klíč"
-    }
-  },
   "changelog": {
     "title": "Seznam změn",
     "subtitle": "Novinky produktu a vydání.",
@@ -1086,6 +1031,14 @@ export default {
       "rest": {
         "title": "Referenční příručka REST API",
         "excerpt": "Každý koncový bod vygenerované aplikace, s tvarem požadavku i odpovědi."
+      },
+      "publicApi": {
+        "title": "Koncové body a klíče pro vaše stránky",
+        "excerpt": "Umožněte stránce nebo jinému serveru volat vybrané tabulky pomocí klíčů omezených na koncové body a metody."
+      },
+      "apiDocsPage": {
+        "title": "Stránka s dokumentací API",
+        "excerpt": "Zveřejněte /api-docs, aby ti, kdo volají vaše API, mohli procházet jeho koncové body a vyzkoušet požadavek."
       },
       "roles": {
         "title": "Role a oprávnění",

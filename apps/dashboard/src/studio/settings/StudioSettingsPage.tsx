@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/studio/settings` — the Studio settings hub, ported from
- * `Settings.dc.html` + `Workspace Settings.dc.html` per the checklist:
+ * `/studio/settings` — the Studio settings hub, ported from the Settings and
+ * Workspace Settings design comps per the checklist:
  * workspace identity (what `adminium_settings` supports and the app actually
  * reads today — registry key `branding.appName`), the three enforced `auth.*`
  * security knobs (`PUT /settings/security`), the review-then-confirm save
@@ -66,6 +66,12 @@ import {
 import { t } from '../../i18n/t.js';
 import { OnboardingEntry } from '../../onboarding/OnboardingEntry.js';
 import { projectOverviewQuery } from '../project/projectOverviewApi.js';
+import {
+  PUBLIC_API_QUERY_KEY,
+  publicApiStateQuery,
+  setPublicApiState,
+  type PublicApiState,
+} from '../api-keys/apiKeysApi.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import type { ConnectionDto } from '../api.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
@@ -1357,6 +1363,109 @@ function DangerZone(): ReactNode {
   );
 }
 
+// --- the public API's two switches (api-keys.manage) --------------------------
+
+/**
+ * "Public API": the on/off switch of the public API and of its
+ * documentation page.
+ *
+ * ── OUTSIDE THE SAVE FORM, ON PURPOSE ──────────────────────────────────────
+ * Each switch applies on the click, with no Save and no review. The first is
+ * the kill switch of the one surface that answers strangers, and a kill
+ * switch that waits for a Save is not one. The form's "one Save" rule governs
+ * the form; these were never in it.
+ *
+ * Level 1 — `ADMINIUM_PUBLIC_API_ORIGINS` unset — is a stated fact with its
+ * remedy, never a control: its remedy is an env var and a restart.
+ */
+function PublicApiCard(): ReactNode {
+  const queryClient = useQueryClient();
+  const toasts = useAppToasts();
+  const state = useQuery(publicApiStateQuery());
+  const [busy, setBusy] = useState<'enabled' | 'docsEnabled' | null>(null);
+
+  if (state.data === undefined) return null;
+  const current = state.data;
+
+  function flip(which: 'enabled' | 'docsEnabled', next: boolean): void {
+    setBusy(which);
+    void (async () => {
+      try {
+        const reply = await setPublicApiState({ [which]: next });
+        queryClient.setQueryData<PublicApiState>(PUBLIC_API_QUERY_KEY, reply);
+      } catch {
+        toasts.push({
+          variant: 'error',
+          title: t('studio:settingsHub.apiCard.failed', 'The switch did not change. Try again.'),
+        });
+      } finally {
+        setBusy(null);
+      }
+    })();
+  }
+
+  const rows = [
+    {
+      key: 'enabled' as const,
+      label: t('studio:settingsHub.apiCard.api.label', 'Public API'),
+      helper: t(
+        'studio:settingsHub.apiCard.api.helper',
+        'Serve the endpoints your keys are scoped to. Off, every key stops working at once; nothing is deleted.',
+      ),
+      checked: current.enabled,
+    },
+    {
+      key: 'docsEnabled' as const,
+      label: t('studio:settingsHub.apiCard.docs.label', 'API documentation page'),
+      helper: t(
+        'studio:settingsHub.apiCard.docs.helper',
+        'A public page at /api-docs listing the endpoints your live keys can call — staff-level ones included — with their paths, methods and column names, to anyone who can reach this server. It shows no data and no keys.',
+      ),
+      checked: current.docsEnabled,
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="flex items-center justify-start gap-3">
+        <IconTile tone="accent" size="md" icon={<Webhook />} />
+        <h3 className="text-section text-fg">{t('studio:settingsHub.apiCard.heading', 'Public API')}</h3>
+      </CardHeader>
+      <CardBody>
+        {current.registered ? null : (
+          <div className="mb-4">
+            <Alert
+              tone="info"
+              title={t('studio:settingsHub.apiCard.notRegistered.title', 'Not enabled on this server')}
+              body={t(
+                'studio:settingsHub.apiCard.notRegistered.body',
+                'Set ADMINIUM_PUBLIC_API_ORIGINS and restart. Until then these switches change nothing.',
+              )}
+            />
+          </div>
+        )}
+        {rows.map((row, i) => (
+          <div
+            key={row.key}
+            className={`flex items-center gap-3${i === 0 ? '' : ' mt-4 border-t border-border pt-4'}`}
+          >
+            <div className="min-w-0 flex-1">
+              <div className="text-body-sm font-bold text-fg">{row.label}</div>
+              <p className="mt-0.5 text-caption text-fg-subtle">{row.helper}</p>
+            </div>
+            <Switch
+              checked={row.checked}
+              disabled={busy !== null}
+              onCheckedChange={(checked) => flip(row.key, checked)}
+              aria-label={row.label}
+            />
+          </div>
+        ))}
+      </CardBody>
+    </Card>
+  );
+}
+
 // --- cross-links ----------------------------------------------------------------
 
 /**
@@ -1463,6 +1572,8 @@ export function StudioSettingsPage({
         />
       )}
 
+      {holds('api-keys.manage') ? <PublicApiCard /> : null}
+
       {/* One card, one row per destination: four separate cards read as four
           unrelated settings groups when they are all the same thing — a link
           out of this hub. `padded={false}` because the rows carry the
@@ -1563,12 +1674,12 @@ export function StudioSettingsPage({
         {holds('api-keys.manage') ? (
           <LinkRow
             icon={<Webhook />}
-            heading={t('studio:settingsHub.publicApiCard.heading', 'Public API')}
+            heading={t('studio:settingsHub.publicApiCard.heading', 'API keys')}
             body={t(
               'studio:settingsHub.publicApiCard.body',
-              'Let your own customer- or staff-facing pages read this database, through a scope you define.',
+              'Create endpoints and the keys that may call them.',
             )}
-            cta={t('studio:settingsHub.publicApiCard.cta', 'Open public API')}
+            cta={t('studio:settingsHub.publicApiCard.cta', 'Open API keys')}
             onOpen={onOpenPublicApi}
           />
         ) : null}

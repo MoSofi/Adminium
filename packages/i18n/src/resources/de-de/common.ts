@@ -116,7 +116,6 @@ export default {
     "back": "Zurück",
     "team": "Team",
     "roles": "Rollen & Berechtigungen",
-    "apiKeys": "API-Schlüssel",
     "audit": "Audit-Log",
     "security": "Passwort & Sitzungen",
     "files": "Dateien",
@@ -921,60 +920,6 @@ export default {
       }
     }
   },
-  "apiKeys": {
-    "title": "API-Schlüssel & Tokens",
-    "subtitle": "Programmatischen Zugriff auf Ihren Workspace verwalten.",
-    "createButton": "Schlüssel erstellen",
-    "copy": "Kopieren",
-    "copied": "Kopiert",
-    "revoke": "Schlüssel widerrufen",
-    "neverUsed": "Nie verwendet",
-    "lastUsed": "Zuletzt verwendet {since}",
-    "scopesOverflow": "+{count} weitere",
-    "status": {
-      "active": "Aktiv",
-      "revoked": "Widerrufen",
-      "expired": "Abgelaufen"
-    },
-    "list": {
-      "title": "Schlüssel",
-      "activeCount": "{count, plural, one {# aktiver Schlüssel} other {# aktive Schlüssel}}"
-    },
-    "empty": {
-      "title": "Noch keine API-Schlüssel",
-      "body": "Erstellen Sie einen, um die Adminium-API aus eigenem Code aufzurufen."
-    },
-    "revealed": {
-      "title": "Neuer Schlüssel erstellt",
-      "body": "Kopieren Sie ihn jetzt — Sie werden ihn nie wieder sehen können."
-    },
-    "rolesUnavailable": {
-      "title": "Rollen sind für Sie nicht sichtbar",
-      "body": "Einen Schlüssel zu erstellen heißt, die Rolle zu wählen, mit der er handelt — und Ihr Konto darf die Rollenliste nicht lesen. Bitten Sie eine Administratorin um die Berechtigung „Rollen verwalten“."
-    },
-    "quickStart": {
-      "title": "Schnellstart",
-      "body": "Authentifizieren Sie Anfragen mit Ihrem Schlüssel im Authorization-Header."
-    },
-    "create": {
-      "title": "API-Schlüssel erstellen",
-      "description": "Der Schlüssel handelt mit den Berechtigungen der gewählten Rolle.",
-      "name": "Name",
-      "namePlaceholder": "z. B. Analytics-Pipeline",
-      "role": "Rolle",
-      "roleHelper": "Wählen Sie die Rolle mit den geringsten Rechten, die ausreicht.",
-      "expires": "Läuft ab",
-      "expiresHelper": "Leer lassen für einen Schlüssel, der nie abläuft.",
-      "submit": "Schlüssel erstellen",
-      "failed": "Schlüssel konnte nicht erstellt werden"
-    },
-    "revokeConfirm": {
-      "title": "API-Schlüssel widerrufen",
-      "body": "Jeder Code, der die API noch mit „{name}“ aufruft, schlägt ab sofort fehl. Das lässt sich nicht rückgängig machen.",
-      "prompt": "Geben Sie „{name}“ ein, um zu bestätigen",
-      "confirm": "Schlüssel widerrufen"
-    }
-  },
   "changelog": {
     "title": "Änderungsprotokoll",
     "subtitle": "Produkt-Updates & Releases.",
@@ -1086,6 +1031,14 @@ export default {
       "rest": {
         "title": "REST-API-Referenz",
         "excerpt": "Jeder Endpunkt der generierten App, mit Request- und Response-Formaten."
+      },
+      "publicApi": {
+        "title": "Endpunkte und Schlüssel für Ihre Seiten",
+        "excerpt": "Lassen Sie eine Seite oder einen anderen Server ausgewählte Tabellen aufrufen – mit Schlüsseln, die auf Endpunkte und Methoden beschränkt sind."
+      },
+      "apiDocsPage": {
+        "title": "Die API-Dokumentationsseite",
+        "excerpt": "Veröffentlichen Sie /api-docs, damit alle, die Ihre API aufrufen, sie durchsuchen und eine Anfrage ausprobieren können."
       },
       "roles": {
         "title": "Rollen & Berechtigungen",

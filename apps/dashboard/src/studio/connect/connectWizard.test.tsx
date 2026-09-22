@@ -143,13 +143,13 @@ function scriptFetch(overrides: Partial<Record<string, (call: Call) => Response>
  * nowhere to land and the action is simply absent, which is not what the shell
  * does.
  */
-function renderWizard(onOpenApp: () => void = () => undefined) {
+function renderWizard(onOpenApp: () => void = () => undefined, onCreatePage?: () => void) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <PageActionsProvider>
         <PageActionsSlot />
-        <ConnectWizard onOpenApp={onOpenApp} lineDelayMs={0} pollIntervalMs={1} />
+        <ConnectWizard onOpenApp={onOpenApp} onCreatePage={onCreatePage} lineDelayMs={0} pollIntervalMs={1} />
       </PageActionsProvider>
     </QueryClientProvider>,
   );
@@ -164,8 +164,10 @@ describe('step navigation + source modes', () => {
     scriptFetch();
     renderWizard();
     expect(screen.getByText('What do you need?')).toBeDefined();
-    // The comps' unimplemented 'split' variant is dropped — exactly 4 cards.
-    expect(screen.getAllByRole('radio')).toHaveLength(4);
+    // The comps' unimplemented 'split' variant is dropped — the 4 intents plus
+    // Blank canvas, which is the default, as in onboarding.
+    expect(screen.getAllByRole('radio')).toHaveLength(5);
+    expect(screen.getByRole('radio', { name: /Blank canvas/ }).getAttribute('data-state')).toBe('checked');
 
     await userEvent.click(continueButton());
     expect(screen.getByText('Connect your database')).toBeDefined();
@@ -558,6 +560,54 @@ describe('full walk: test → include → meta → generate (read-only source)',
  * every Retry, surviving reloads and server restarts, because sessionStorage
  * outlives both. Resumes must therefore be able to heal.
  */
+describe('blank canvas — connect without generating', () => {
+  it('creates the connection with no intent and persists the tables without one', async () => {
+    const { calls, patches } = scriptFetch();
+    renderWizard();
+
+    // No click: Blank canvas is what Continue gets you by default.
+    // The last step stops promising a generation.
+    expect(screen.getByText('Finish')).toBeDefined();
+    expect(screen.queryByText('Generate')).toBeNull();
+    await userEvent.click(continueButton());
+
+    await userEvent.type(screen.getByLabelText(/Connection name/), 'Prod');
+    await userEvent.type(
+      screen.getByPlaceholderText('postgres://user:password@host:5432/database'),
+      'postgres://ava@db.acme.io:5432/prod',
+    );
+    await userEvent.click(continueButton());
+
+    await screen.findByText('Ready');
+    const create = calls.find((call) => call.method === 'POST' && call.url === '/api/v1/connections');
+    expect(create?.body).toEqual({ name: 'Prod', engine: 'postgres', dsn: 'postgres://ava@db.acme.io:5432/prod' });
+    await waitFor(() => expect(continueButton()).toHaveProperty('disabled', false));
+    await userEvent.click(continueButton());
+
+    await screen.findByText('public.customers');
+    await userEvent.click(continueButton());
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]?.body).toEqual({ settings: { includedTables: ['public.customers'] } });
+  });
+
+  it('ends on a finish screen that never calls generate and leads to a new page', async () => {
+    saveWizardState({ ...INITIAL_WIZARD_STATE, step: 'generate', intent: 'blank', connectionId: 'conn_1' });
+    const { calls } = scriptFetch();
+    const onOpenApp = vi.fn();
+    const onCreatePage = vi.fn();
+    renderWizard(onOpenApp, onCreatePage);
+
+    expect(screen.getByText('Your connection is ready')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Generate dashboard' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Create a page' }));
+
+    expect(onCreatePage).toHaveBeenCalledTimes(1);
+    expect(onOpenApp).not.toHaveBeenCalled();
+    expect(calls.some((call) => call.url.endsWith('/generate'))).toBe(false);
+    expect(window.sessionStorage.getItem('adminium-studio-connect')).toBeNull();
+  });
+});
+
 describe('resuming onto a connection that no longer exists', () => {
   const STORAGE_KEY = 'adminium-studio-connect';
 

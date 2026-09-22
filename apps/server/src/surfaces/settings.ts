@@ -229,3 +229,45 @@ export function domainMappingFor(
   }
   return null;
 }
+
+/**
+ * Drops everything the two settings hold for one app key: its placement,
+ * name, connection and instances, and every host mapped to it.
+ *
+ * Called on UNINSTALL. Left behind, a mapping keeps pointing at a surface that
+ * no longer exists, and the domains editor validates the WHOLE map on every
+ * save — so one stale host refuses every later save, including the one that
+ * maps a domain to the app installed in its place. Reads the store directly,
+ * not the cache: a five-second-old map is the wrong thing to write back.
+ *
+ * Returns the hosts it removed, for the caller's audit line.
+ */
+export async function forgetAppSurfaceSettings(
+  meta: MetaDb,
+  appKey: string,
+  updatedBy: string | null,
+): Promise<{ removedHosts: string[]; removedPlacement: boolean }> {
+  const settings = settingsRepo(meta);
+  const [apps, domains] = await Promise.all([
+    settings.get('surfaces.apps'),
+    settings.get('surfaces.domains'),
+  ]);
+
+  const removedPlacement = Object.hasOwn(apps, appKey);
+  if (removedPlacement) {
+    const rest = Object.fromEntries(Object.entries(apps).filter(([key]) => key !== appKey));
+    await settings.set('surfaces.apps', rest, { updatedBy });
+  }
+
+  const removedHosts = Object.entries(domains)
+    .filter(([, target]) => target.appKey === appKey)
+    .map(([host]) => host);
+  if (removedHosts.length > 0) {
+    const kept = Object.fromEntries(
+      Object.entries(domains).filter(([, target]) => target.appKey !== appKey),
+    );
+    await settings.set('surfaces.domains', kept, { updatedBy });
+  }
+
+  return { removedHosts, removedPlacement };
+}

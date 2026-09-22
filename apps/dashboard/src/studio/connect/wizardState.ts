@@ -57,7 +57,30 @@ import { sameDbDisabledCode } from './metaPlacementRule.js';
 export const WIZARD_STEP_IDS = ['intent', 'source', 'test', 'tables', 'meta', 'enrich', 'generate'] as const;
 export type WizardStepId = (typeof WIZARD_STEP_IDS)[number];
 
-export function wizardStepLabel(id: WizardStepId): string {
+/**
+ * Step 1's answer: one of the four generation intents, or `blank` — connect the
+ * database and generate nothing, the Studio's twin of onboarding's "Blank
+ * canvas". `blank` is never sent to the server: it is the ABSENCE of an intent,
+ * which is exactly how onboarding records it (`submitHeldAnswers`'s `intentOf`).
+ */
+export type WizardIntent = 'blank' | GenerateIntent;
+
+/** The intent to record and generate with; `null` for a blank canvas. */
+export function generateIntentOf(intent: WizardIntent): GenerateIntent | null {
+  return intent === 'blank' ? null : intent;
+}
+
+/** The connection settings step 1 contributes — nothing at all for a blank canvas. */
+export function intentSettings(intent: WizardIntent): { intent?: GenerateIntent } {
+  const generate = generateIntentOf(intent);
+  return generate === null ? {} : { intent: generate };
+}
+
+/**
+ * A blank run ends on a finish step, not a generate step — labelling it
+ * "Generate" would promise pages the operator just declined.
+ */
+export function wizardStepLabel(id: WizardStepId, intent?: WizardIntent): string {
   switch (id) {
     case 'intent':
       return t('studio:wizard.step.intent', 'Intent');
@@ -72,7 +95,9 @@ export function wizardStepLabel(id: WizardStepId): string {
     case 'enrich':
       return t('studio:wizard.step.enrich', 'Enrich');
     case 'generate':
-      return t('studio:wizard.step.generate', 'Generate');
+      return intent === 'blank'
+        ? t('studio:wizard.step.finish', 'Finish')
+        : t('studio:wizard.step.generate', 'Generate');
   }
 }
 
@@ -390,7 +415,7 @@ export function hintForErrorCode(code: string): string {
 
 export interface WizardState {
   step: WizardStepId;
-  intent: GenerateIntent;
+  intent: WizardIntent;
   mode: SourceMode;
   /** Picked engine; DSN mode keeps this in sync with the scheme. */
   engine: ConnectionEngine;
@@ -432,7 +457,7 @@ export interface WizardState {
 
 export const INITIAL_WIZARD_STATE: WizardState = {
   step: 'intent',
-  intent: 'full-admin',
+  intent: 'blank',
   mode: 'dsn',
   engine: 'postgres',
   name: '',

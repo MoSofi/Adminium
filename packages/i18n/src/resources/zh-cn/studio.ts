@@ -538,7 +538,10 @@ export default {
     "subtitle": "每个已包含的表一个页面，外加按领域生成的仪表板——意图：",
     "successBody": "{pages} 个页面，分布于 {groups} 个导航组——由你的架构生成，可在 Studio 中编辑。",
     "successTitle": "你的仪表板已就绪",
-    "title": "生成你的应用"
+    "title": "生成你的应用",
+    "blankBody": "按照你的要求，没有生成任何内容。准备好后，即可基于此连接构建你的第一个页面。",
+    "blankTitle": "你的连接已就绪",
+    "createPage": "创建页面"
   },
   "hostedApps": {
     "browse": {
@@ -777,7 +780,11 @@ export default {
       "prompt": "输入 {name} 以确认",
       "success": "连接“{name}”已删除",
       "title": "删除连接",
-      "forbidden": "您的角色不包含管理连接的权限，因此未删除此连接。"
+      "forbidden": "您的角色不包含管理连接的权限，因此未删除此连接。",
+      "liveKeys": {
+        "body": "基于这些密钥构建的页面将无法继续工作。请先在“公共 API”页面撤销它们，然后再删除此连接。",
+        "title": "仍有可发布密钥在使用此连接"
+      }
     },
     "empty": {
       "body": "连接数据库后，Adminium 会根据其架构生成您的管理面板。",
@@ -867,7 +874,11 @@ export default {
       "title": "客服控制台"
     },
     "title": "你需要什么？",
-    "trust": "我们只读取你的架构——设置期间绝不读取行数据。"
+    "trust": "我们只读取你的架构——设置期间绝不读取行数据。",
+    "blank": {
+      "description": "不生成任何内容。连接数据库后，逐个构建你想要的页面。",
+      "title": "空白画布"
+    }
   },
   "llmRuns": {
     "review": {
@@ -1680,7 +1691,6 @@ export default {
       "connectionLabel": "连接 ID",
       "create": "创建作用域",
       "delete": "删除",
-      "deleteBody": "任何使用绑定到此作用域的密钥的页面都会停止加载数据。密钥不会被删除——如果你想删除的是密钥，请先吊销它们。",
       "deleteConfirm": "删除作用域",
       "deletePrompt": "输入作用域名称以确认",
       "deleteTitle": "删除此作用域",
@@ -1693,7 +1703,12 @@ export default {
       "keyCount": "{count, plural, =0 {没有密钥} other {# 个密钥}}",
       "nameLabel": "名称",
       "subtitle": "作用域界定了一个密钥所能触及的全部范围——哪些表、具体哪些列，以及一个调用方只能收窄、绝不能移除的过滤条件。",
-      "title": "作用域"
+      "title": "作用域",
+      "deleteBodyKeys": "仍有有效密钥的作用域无法删除，请先吊销它的密钥。已吊销或已过期的密钥会随作用域一起删除。",
+      "liveKeys": {
+        "body": "基于这些密钥构建的页面将无法继续工作。请先在密钥列表中吊销它们，然后再删除此作用域。",
+        "title": "仍有可发布密钥在使用此作用域"
+      }
     },
     "status": {
       "heading": "状态"
@@ -2008,6 +2023,22 @@ export default {
       "cta": "打开 AI 设置",
       "heading": "AI 增强"
     },
+    "apiCard": {
+      "api": {
+        "helper": "对外提供你的密钥所限定的端点。关闭后，所有密钥会立即失效；不会删除任何内容。",
+        "label": "公开 API"
+      },
+      "docs": {
+        "helper": "位于 /api-docs 的公开页面，向任何能访问此服务器的人列出你的有效密钥可调用的端点（包括员工级端点），以及它们的路径、方法和列名。页面不显示任何数据或密钥。",
+        "label": "API 文档页面"
+      },
+      "failed": "开关未能切换，请重试。",
+      "heading": "公开 API",
+      "notRegistered": {
+        "body": "请设置 ADMINIUM_PUBLIC_API_ORIGINS 并重启。在此之前，这些开关不会产生任何效果。",
+        "title": "此服务器未启用"
+      }
+    },
     "danger": {
       "deleteCta": "删除连接",
       "deleteDesc": "删除该连接及其生成的页面。您的数据库不会被改动。此操作无法撤销。",
@@ -2112,9 +2143,9 @@ export default {
       "heading": "项目"
     },
     "publicApiCard": {
-      "body": "让你自己的面向客户或员工的页面通过你定义的作用域读取这个数据库。",
-      "cta": "打开公开 API",
-      "heading": "公开 API"
+      "body": "创建端点，以及允许调用它们的密钥。",
+      "cta": "打开 API 密钥",
+      "heading": "API 密钥"
     },
     "review": {
       "cancel": "取消",
@@ -2433,7 +2464,8 @@ export default {
       "meta": "元数据存储",
       "source": "来源",
       "tables": "数据表",
-      "test": "分析"
+      "test": "分析",
+      "finish": "完成"
     },
     "title": "新建连接"
   },
@@ -2485,5 +2517,243 @@ export default {
     "valueCount": "{count} 个值",
     "values": "值",
     "view": "查看"
+  },
+  "apiKeys": {
+    "banner": {
+      "bodyOnce": "请立即复制——之后将无法再次查看。适用范围：{summary}。",
+      "bodyRevealable": "请立即复制——之后可在下方列表中再次显示。适用范围：{summary}。",
+      "copied": "已复制",
+      "copy": "复制",
+      "titleNamed": "已创建 {name}"
+    },
+    "builder": {
+      "auth": {
+        "anon": "匿名",
+        "authenticated": "已认证",
+        "label": "认证要求",
+        "service": "服务角色"
+      },
+      "cancel": "取消",
+      "columns": {
+        "all": "全部",
+        "label": "公开的列",
+        "none": "无"
+      },
+      "create": "创建端点",
+      "delete": "删除端点",
+      "deleteRefused": "{count, plural, other {仍有 # 个密钥在使用}}此端点：{names}。",
+      "filters": {
+        "add": "添加",
+        "empty": "无过滤条件——来源中的每一行都可访问。",
+        "label": "默认过滤条件",
+        "remove": "移除过滤条件",
+        "value": "值"
+      },
+      "footer": {
+        "applyFirst": "请先应用或还原已编辑的定义。"
+      },
+      "methodUnsupported": "此来源无法支持 {method}：它没有主键。",
+      "methods": "方法",
+      "op": {
+        "between": "介于",
+        "eq": "等于",
+        "gt": "大于",
+        "gte": "至少",
+        "ilike": "包含（不区分大小写）",
+        "in": "在列表中",
+        "is_null": "为空",
+        "like": "包含",
+        "lt": "小于",
+        "lte": "至多",
+        "neq": "不等于",
+        "not_null": "不为空"
+      },
+      "paging": {
+        "asc": "升序",
+        "defaultLimit": "默认条数限制",
+        "desc": "降序",
+        "label": "分页与排序",
+        "maxLimit": "最大条数限制",
+        "orderBy": "排序依据"
+      },
+      "pane": {
+        "apply": "应用到表单",
+        "dirty": "已编辑——未应用",
+        "format": "格式化",
+        "label": "路由定义，JSON",
+        "more": "{first}（另有 {n} 项）",
+        "revert": "还原",
+        "synced": "已与表单同步",
+        "title": "路由定义"
+      },
+      "rate": {
+        "hour": "小时",
+        "label": "速率限制与响应",
+        "minute": "分钟",
+        "per": "每",
+        "requests": "请求数",
+        "second": "秒"
+      },
+      "refused": {
+        "keys": "保存后将导致 {count, plural, other {# 个密钥}}失效：{names}。"
+      },
+      "route": "路由",
+      "routePlaceholder": "customers",
+      "routeRename": "调用方必须改用新路径。",
+      "save": "保存更改",
+      "shape": {
+        "array": "纯数组",
+        "label": "响应结构",
+        "single": "单个对象",
+        "wrapped": "包裹在 '{' data '}' 中"
+      },
+      "source": "来源表或视图",
+      "subtitle": "以可视化方式配置——Adminium 会为你编写路由定义",
+      "titleEdit": "编辑端点",
+      "titleNew": "新建端点"
+    },
+    "connection": {
+      "label": "连接"
+    },
+    "create": "创建密钥",
+    "endpoints": {
+      "col": {
+        "auth": "认证",
+        "methods": "方法",
+        "rate": "速率限制",
+        "route": "路由"
+      },
+      "custom": "自定义",
+      "edit": "编辑端点",
+      "explore": "浏览 API",
+      "new": "新建端点",
+      "subtitle": "根据你的架构生成。密钥的适用范围限定在这些端点内。",
+      "title": "端点",
+      "unavailable": "不可用"
+    },
+    "keys": {
+      "col": {
+        "access": "访问权限",
+        "actions": "操作",
+        "key": "密钥",
+        "lastUsed": "上次使用",
+        "name": "名称"
+      },
+      "count": "{n, plural, other {# 个密钥}}",
+      "empty": "没有有效的密钥。创建一个即可开始。",
+      "hide": "隐藏密钥",
+      "kind": {
+        "browser": "浏览器",
+        "server": "服务器"
+      },
+      "never": "从未",
+      "reveal": "显示密钥",
+      "revoke": "吊销",
+      "revokeConfirm": {
+        "body": "所有使用此密钥的地方都会立即失效。此操作无法撤消。",
+        "confirm": "吊销密钥",
+        "prompt": "输入“{name}”以确认",
+        "title": "要吊销 {name} 吗？"
+      },
+      "revokeFailed": "无法吊销该密钥，它仍处于有效状态。",
+      "title": "有效密钥",
+      "untitled": "未命名密钥"
+    },
+    "method": {
+      "BATCH": {
+        "desc": "批量插入或 upsert，最多 500 行",
+        "title": "批量"
+      },
+      "DELETE": {
+        "desc": "按主键删除一行",
+        "title": "删除"
+      },
+      "GET": {
+        "desc": "列出多行并获取单条记录",
+        "title": "读取"
+      },
+      "PATCH": {
+        "desc": "按主键部分更新一行",
+        "title": "更新"
+      },
+      "POST": {
+        "desc": "插入新行",
+        "title": "创建"
+      },
+      "PUT": {
+        "desc": "按主键替换整行",
+        "title": "替换"
+      }
+    },
+    "note": {
+      "notRegistered": "此服务器未启用公开 API。请设置 ADMINIUM_PUBLIC_API_ORIGINS 并重启——此后在这里创建的密钥即可使用。",
+      "off": "公开 API 已关闭，因此目前所有密钥都无法使用。",
+      "offLink": "打开工作区设置"
+    },
+    "quick": {
+      "body": "在 Authorization 标头中携带密钥来认证请求。",
+      "title": "快速开始"
+    },
+    "sheet": {
+      "allMethods": "选择所有方法",
+      "app": {
+        "label": "应用",
+        "none": "无"
+      },
+      "cancel": "取消",
+      "clear": "清除",
+      "close": "关闭",
+      "count": "{permissions, plural, other {项权限}}，涉及 {endpoints, plural, other {# 个端点}}",
+      "deselectAll": "全部取消选择",
+      "edit": "编辑端点",
+      "expires": {
+        "d30": "30 天",
+        "d90": "90 天",
+        "label": "过期时间",
+        "never": "永不过期"
+      },
+      "filter": "筛选端点",
+      "focusMeta": "{source} · {rows} 行 · 条数限制 {limit}，排序 {order}",
+      "focusMetaNoRows": "{source} · 条数限制 {limit}，排序 {order}",
+      "footer": {
+        "empty": "至少选择一个方法才能创建密钥。",
+        "more": "另有 {n} 项",
+        "refused": "暂时无法创建此密钥：{issue}",
+        "summary": "此密钥将可以调用 {paths}"
+      },
+      "kind": {
+        "browser": "浏览器",
+        "label": "使用位置",
+        "server": "服务器"
+      },
+      "layout": {
+        "label": "布局",
+        "list": "列表",
+        "panes": "分栏"
+      },
+      "name": {
+        "label": "密钥名称",
+        "placeholder": "例如：订单同步 Worker"
+      },
+      "newEndpoint": "新建端点",
+      "readOnly": "只读预设",
+      "rowMeta": "{source} · {rows} 行",
+      "rowMetaNoRows": "{source}",
+      "selectAll": "全选",
+      "selectAllShort": "全选",
+      "submit": "创建密钥",
+      "subtitle": "选择此密钥可以调用的端点和方法",
+      "title": "创建 API 密钥",
+      "toggleAll": "切换所有方法",
+      "unsupported": "{count, plural, other {此路由未开放 {methods}。请编辑端点以启用。}}"
+    },
+    "stats": {
+      "endpoints": "端点",
+      "keys": "有效密钥",
+      "requests": "请求数 · 24 小时"
+    },
+    "subtitle": "管理对工作区的程序化访问",
+    "summary": "{endpoints, plural, other {# 个端点}} · {methods, plural, other {# 个方法}}",
+    "title": "API 密钥与令牌"
   }
 } as const;

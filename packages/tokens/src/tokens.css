@@ -81,6 +81,16 @@
   --warn-soft-solid: var(--warn-soft);
   --danger-soft-solid: var(--danger-soft);
   --info-soft-solid: var(--info-soft);
+  /* HTTP METHOD TONES. GET, POST, PATCH and DELETE wear info / pos / warn / danger;
+     PUT and BATCH had no tone, and a raw hex is review-rejected, so they get these two pairs,
+     starting from the API Keys comp's own values. They are ordinary tones to the
+     contrast gate — discovered by shape, measured on every surface and on their -soft partner. */
+  --method-put: #7c3aed;
+  --method-put-soft: #f0e9fd;
+  --method-put-soft-solid: var(--method-put-soft);
+  --method-batch: #0f766e;
+  --method-batch-soft: #e2f4f2;
+  --method-batch-soft-solid: var(--method-batch-soft);
   --shadow: 0 1px 2px rgba(20,20,35,.04), 0 1px 3px rgba(20,20,35,.05);
   --shadow-md: 0 4px 14px rgba(20,20,35,.09);
   --shadow-lg: 0 12px 34px rgba(20,20,35,.13);
@@ -130,6 +140,16 @@
   --warn-soft-solid: color-mix(in srgb, var(--warn) 14%, var(--surface));
   --danger-soft-solid: color-mix(in srgb, var(--danger) 14%, var(--surface));
   --info-soft-solid: color-mix(in srgb, var(--info) 14%, var(--surface));
+  /* The comp's dark method tints are 16 %; the semantic softs' 14 % is kept so the six methods
+     read as one family. BATCH is the one exception, at 13 %: teal is the lightest
+     hue here, and at 14 % --fg-subtle on its wash over --surface-3 measured 4.44:1 — the gate's
+     refusal is what moved it, by the smallest step that clears 4.5:1. */
+  --method-put: #c4a0ff;
+  --method-put-soft: rgba(196,160,255,.14);
+  --method-put-soft-solid: color-mix(in srgb, var(--method-put) 14%, var(--surface));
+  --method-batch: #5ed6c8;
+  --method-batch-soft: rgba(94,214,200,.13);
+  --method-batch-soft-solid: color-mix(in srgb, var(--method-batch) 13%, var(--surface));
   --shadow: 0 1px 2px rgba(0,0,0,.4);
   --shadow-md: 0 6px 20px rgba(0,0,0,.5);
   --shadow-lg: 0 16px 40px rgba(0,0,0,.6);

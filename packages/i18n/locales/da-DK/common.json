@@ -106,7 +106,6 @@
     "back": "Tilbage",
     "team": "Team",
     "roles": "Roller og rettigheder",
-    "apiKeys": "API-nøgler",
     "audit": "Auditlog",
     "security": "Adgangskode og sessioner",
     "files": "Filer",
@@ -911,60 +910,6 @@
       }
     }
   },
-  "apiKeys": {
-    "title": "API-nøgler og tokens",
-    "subtitle": "Administrér programmatisk adgang til dit workspace.",
-    "createButton": "Opret nøgle",
-    "copy": "Kopiér",
-    "copied": "Kopieret",
-    "revoke": "Tilbagekald nøgle",
-    "neverUsed": "Aldrig brugt",
-    "lastUsed": "Sidst brugt {since}",
-    "scopesOverflow": "+{count} mere",
-    "status": {
-      "active": "Aktiv",
-      "revoked": "Tilbagekaldt",
-      "expired": "Udløbet"
-    },
-    "list": {
-      "title": "Nøgler",
-      "activeCount": "{count, plural, one {# aktiv nøgle} other {# aktive nøgler}}"
-    },
-    "empty": {
-      "title": "Ingen API-nøgler endnu",
-      "body": "Opret en for at kalde Adminiums API fra din egen kode."
-    },
-    "revealed": {
-      "title": "Ny nøgle oprettet",
-      "body": "Kopiér den nu — du får den aldrig at se igen."
-    },
-    "rolesUnavailable": {
-      "title": "Roller er ikke synlige for dig",
-      "body": "At oprette en nøgle er at vælge den rolle, den handler som, og din konto må ikke læse rollelisten. Bed en administrator om rettigheden „Administrér roller“."
-    },
-    "quickStart": {
-      "title": "Kom hurtigt i gang",
-      "body": "Godkend forespørgsler med din nøgle i Authorization-headeren."
-    },
-    "create": {
-      "title": "Opret API-nøgle",
-      "description": "Nøglen handler med rettighederne fra den rolle, du vælger.",
-      "name": "Navn",
-      "namePlaceholder": "f.eks. Analytics-pipeline",
-      "role": "Rolle",
-      "roleHelper": "Vælg den mindst privilegerede rolle, der kan klare opgaven.",
-      "expires": "Udløber",
-      "expiresHelper": "Lad feltet stå tomt for en nøgle, der aldrig udløber.",
-      "submit": "Opret nøgle",
-      "failed": "Nøglen kunne ikke oprettes"
-    },
-    "revokeConfirm": {
-      "title": "Tilbagekald API-nøgle",
-      "body": "Al kode, der stadig kalder API’et med „{name}“, begynder straks at fejle. Det kan ikke fortrydes.",
-      "prompt": "Skriv „{name}“ for at bekræfte",
-      "confirm": "Tilbagekald nøgle"
-    }
-  },
   "changelog": {
     "title": "Ændringslog",
     "subtitle": "Produktnyheder og udgivelser.",
@@ -1076,6 +1021,14 @@
       "rest": {
         "title": "REST API-reference",
         "excerpt": "Hvert endpoint den genererede app udstiller, med request- og responseformater."
+      },
+      "publicApi": {
+        "title": "Endpoints og nøgler til dine sider",
+        "excerpt": "Lad en side eller en anden server kalde de tabeller, du vælger, med nøgler, der er begrænset til endpoints og metoder."
+      },
+      "apiDocsPage": {
+        "title": "API-dokumentationssiden",
+        "excerpt": "Udgiv /api-docs, så de, der kalder dit API, kan gennemse det og prøve en forespørgsel."
       },
       "roles": {
         "title": "Roller og rettigheder",

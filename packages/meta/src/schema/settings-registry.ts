@@ -231,6 +231,14 @@ export const SETTINGS_REGISTRY = {
    * switches, both of which must be on.
    */
   'publicApi.enabled': def(z.boolean(), false, 'Serve the scoped public API at /api/v1/public'),
+  /*
+   * The public API documentation page, `/api-docs`. It shows anyone
+   * the endpoints that live keys can call. DEFAULT FALSE and NOT portable, for
+   * the reason above: publishing a description of this database is an
+   * instance-level decision, and a config bundle replayed onto a new box must
+   * not make it.
+   */
+  'publicApi.docsEnabled': def(z.boolean(), false, 'Serve the public API documentation page at /api-docs'),
 
   /*
    * WHERE a hosted app's surfaces appear.
@@ -377,6 +385,9 @@ export const SETTINGS_REGISTRY = {
   'retention.notificationsDays': def(z.number().int().min(1), 90, 'Read-notification retention in days', P),
   'retention.llmRunsDays': def(z.number().int().min(1), 90, 'Unapplied LLM run retention in days', P),
   'retention.jobsDays': def(z.number().int().min(1), 30, 'Finished job retention in days', P),
+  // Hourly public API request counts. The keys page shows the last
+  // 24 hours; the rest is kept for this many days.
+  'retention.publicRequestStatsDays': def(z.number().int().min(1).max(365), 30, 'Public API request count retention in days', P),
   // ── the page assistant ────────────────────────────────────────────────────
   //
   // What the assistant is called wherever it introduces itself. Portable: it

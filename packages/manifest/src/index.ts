@@ -70,5 +70,6 @@ export {
   type PlannedReference,
   type PlanProblem,
   type SchemaModelView,
+  type ExistingColumnView,
   type TableAction,
 } from './plan.js';

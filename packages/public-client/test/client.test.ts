@@ -402,3 +402,51 @@ describe('documents', () => {
     });
   });
 });
+
+describe('get, replace, remove and batch', () => {
+  const make = (handler: (url: string, init?: RequestInit) => unknown) => {
+    const s = stub(handler);
+    const client = createPublicClient({ baseUrl: 'https://shop.example', publishableKey: 'adm_pub_x', fetch: s.fetch });
+    if (client === null) throw new Error('expected a client');
+    return { client, calls: s.calls };
+  };
+
+  it('replace is a PUT of {values}; remove is a DELETE; batch POSTs {rows} and returns the count', async () => {
+    const { client, calls } = make((url, init) => {
+      if (init?.method === 'PUT') return { data: { id: 7, name: 'Tea' } };
+      if (init?.method === 'DELETE') return { data: {} };
+      return { data: { count: 2 } };
+    });
+    expect(await client.replace('menu', '7', { name: 'Tea' })).toEqual({ id: 7, name: 'Tea' });
+    await client.remove('menu', 'a/b');
+    expect(await client.batch('menu', [{ name: 'A' }, { name: 'B' }])).toEqual({ count: 2 });
+
+    expect(calls.map((c) => [c.init?.method, c.url])).toEqual([
+      ['PUT', 'https://shop.example/api/v1/public/records/menu/7'],
+      ['DELETE', 'https://shop.example/api/v1/public/records/menu/a%2Fb'],
+      ['POST', 'https://shop.example/api/v1/public/records/menu/batch'],
+    ]);
+    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ values: { name: 'Tea' } });
+    expect(JSON.parse(String(calls[2]?.init?.body))).toEqual({ rows: [{ name: 'A' }, { name: 'B' }] });
+  });
+
+  it('list() answers every response shape as one ListResult, without a /config request', async () => {
+    let reply: Response | unknown = null;
+    const { client, calls } = make(() => reply);
+
+    reply = { data: [{ id: 1 }], page: { limit: 20, offset: 0, total: null }, cursor: { next: 'c2' } };
+    expect(await client.list('menu')).toEqual(reply);
+
+    reply = new Response(JSON.stringify([{ id: 1 }, { id: 2 }]), {
+      status: 200,
+      headers: { 'content-type': 'application/json', 'x-next-cursor': 'c3' },
+    });
+    expect(await client.list('menu')).toEqual({ data: [{ id: 1 }, { id: 2 }], cursor: { next: 'c3' } });
+
+    // `single`: one bare row — even one with a column called `data`.
+    reply = { id: 9, data: 'x' };
+    expect(await client.list('menu')).toEqual({ data: [{ id: 9, data: 'x' }] });
+
+    expect(calls.some((c) => c.url.endsWith('/config'))).toBe(false);
+  });
+});

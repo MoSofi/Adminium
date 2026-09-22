@@ -1,0 +1,100 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/en-US/apiDocs.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "badge": {
+    "anon": "Public read",
+    "authenticated": "Sign-in required",
+    "public": "Public",
+    "service": "Service role"
+  },
+  "code": {
+    "copied": "Copied",
+    "copy": "Copy",
+    "curl": "cURL",
+    "js": "JavaScript",
+    "languages": "Code sample language",
+    "python": "Python"
+  },
+  "copyBase": "Copy base URL",
+  "crumb": "API",
+  "empty": {
+    "body": "This deployment has not published any endpoints.",
+    "title": "No endpoints yet"
+  },
+  "ep": {
+    "batch": {
+      "desc": "Bulk insert or upsert, up to 500 rows.",
+      "title": "Create many {ref}"
+    },
+    "create": {
+      "desc": "Insert one row. Returns the created record.",
+      "title": "Create {article, select, an {an} other {a}} {singular}"
+    },
+    "delete": {
+      "desc": "Remove the row with this primary key.",
+      "title": "Delete {article, select, an {an} other {a}} {singular}"
+    },
+    "list": {
+      "desc": "Return a filtered, ordered, paginated set of rows.",
+      "title": "List {ref}"
+    },
+    "one": {
+      "desc": "Fetch a single row by primary key.",
+      "title": "Retrieve {article, select, an {an} other {a}} {singular}"
+    },
+    "replace": {
+      "desc": "Replace a full row by primary key.",
+      "title": "Replace {article, select, an {an} other {a}} {singular}"
+    },
+    "rowWord": "row",
+    "update": {
+      "desc": "Patch columns on the row with this primary key.",
+      "title": "Update {article, select, an {an} other {a}} {singular}"
+    }
+  },
+  "meta": "{endpoints, plural, one {# endpoint} other {# endpoints}} · limit {limit}, order {order}",
+  "pg": {
+    "auth": "Authorization",
+    "authHelper": "A browser key. It stays in this tab and is gone when you reload.",
+    "authPlaceholder": "Paste a key",
+    "body": "Request body",
+    "needKey": "Paste a key first",
+    "send": "Send request",
+    "sending": "Sending…",
+    "title": "Playground"
+  },
+  "rail": {
+    "empty": "Nothing matches that filter.",
+    "filter": "Filter tables…",
+    "heading": "Resources",
+    "reference": "API reference"
+  },
+  "res": {
+    "idle": "Send a request to see the response.",
+    "ms": "{ms} ms",
+    "network": "The request did not reach the server.",
+    "noBody": "204 No Content — row deleted",
+    "title": "Response"
+  },
+  "schema": {
+    "body": "Body schema",
+    "response": "Response columns"
+  },
+  "status": {
+    "live": "API live",
+    "off": "Disabled"
+  },
+  "tag": {
+    "fk": "FK",
+    "pk": "PK",
+    "unique": "UNIQUE"
+  }
+} as const;

@@ -538,7 +538,10 @@ export default {
     "subtitle": "Jedna stránka na zahrnutou tabulku plus nástěnky podle domény — záměr:",
     "successBody": "{pages} stránek v {groups} navigačních skupinách — vygenerováno z vašeho schématu, upravitelné ve Studiu.",
     "successTitle": "Vaše nástěnka je připravena",
-    "title": "Vygenerujte svou aplikaci"
+    "title": "Vygenerujte svou aplikaci",
+    "blankBody": "Nic se nevygenerovalo, přesně jak jste chtěli. První stránku z tohoto připojení vytvořte, až budete připraveni.",
+    "blankTitle": "Vaše připojení je připraveno",
+    "createPage": "Vytvořit stránku"
   },
   "hostedApps": {
     "browse": {
@@ -777,7 +780,11 @@ export default {
       "prompt": "Potvrďte zadáním {name}",
       "success": "Připojení „{name}“ smazáno",
       "title": "Smazat připojení",
-      "forbidden": "Vaše role nezahrnuje správu připojení, proto toto připojení nebylo smazáno."
+      "forbidden": "Vaše role nezahrnuje správu připojení, proto toto připojení nebylo smazáno.",
+      "liveKeys": {
+        "body": "Stránky postavené na těchto klíčích by přestaly fungovat. Nejprve je zrušte na stránce Veřejné API a potom připojení smažte.",
+        "title": "Toto připojení stále používají publikovatelné klíče"
+      }
     },
     "empty": {
       "body": "Připojte databázi a Adminium z jejího schématu vygeneruje váš administrační panel.",
@@ -867,7 +874,11 @@ export default {
       "title": "Konzole podpory"
     },
     "title": "Co potřebujete?",
-    "trust": "Čteme pouze vaše schéma — během nastavení nikdy vaše řádková data."
+    "trust": "Čteme pouze vaše schéma — během nastavení nikdy vaše řádková data.",
+    "blank": {
+      "description": "Negenerovat nic. Připojte databázi a stavte stránky, které chcete, jednu po druhé.",
+      "title": "Prázdné plátno"
+    }
   },
   "llmRuns": {
     "review": {
@@ -1680,7 +1691,6 @@ export default {
       "connectionLabel": "ID připojení",
       "create": "Vytvořit rozsah",
       "delete": "Smazat",
-      "deleteBody": "Každá stránka, která používá klíč navázaný na tento rozsah, přestane načítat data. Klíče se nemažou — pokud jste chtěli udělat tohle, nejprve je odvolejte.",
       "deleteConfirm": "Smazat rozsah",
       "deletePrompt": "Pro potvrzení napište název rozsahu",
       "deleteTitle": "Smazat tento rozsah",
@@ -1693,7 +1703,12 @@ export default {
       "keyCount": "{count, plural, =0 {žádné klíče} one {# klíč} few {# klíče} many {# klíče} other {# klíčů}}",
       "nameLabel": "Název",
       "subtitle": "Rozsah je vše, k čemu klíč smí sáhnout — tabulky, přesné sloupce a filtr, který volající smí zúžit, ale nikdy odstranit.",
-      "title": "Rozsahy"
+      "title": "Rozsahy",
+      "deleteBodyKeys": "Rozsah s aktivními klíči nelze smazat. Nejprve jeho klíče odvolejte. Klíče, které jsou již odvolané nebo vypršely, se smažou spolu s rozsahem.",
+      "liveKeys": {
+        "body": "Stránky postavené na těchto klíčích by přestaly fungovat. Nejprve je odvolejte v seznamu klíčů a potom rozsah smažte.",
+        "title": "Tento rozsah stále používají publikovatelné klíče"
+      }
     },
     "status": {
       "heading": "Stav"
@@ -2008,6 +2023,22 @@ export default {
       "cta": "Otevřít nastavení AI",
       "heading": "Obohacení pomocí AI"
     },
+    "apiCard": {
+      "api": {
+        "helper": "Obsluhuje koncové body, na které jsou vaše klíče omezeny. Po vypnutí přestanou okamžitě fungovat všechny klíče; nic se nemaže.",
+        "label": "Veřejné API"
+      },
+      "docs": {
+        "helper": "Veřejná stránka na /api-docs, která komukoli, kdo se dostane k tomuto serveru, vypíše koncové body, jež mohou volat vaše aktivní klíče — včetně těch na úrovni zaměstnanců — s jejich cestami, metodami a názvy sloupců. Nezobrazuje žádná data ani klíče.",
+        "label": "Stránka s dokumentací API"
+      },
+      "failed": "Přepínač se nezměnil. Zkuste to znovu.",
+      "heading": "Veřejné API",
+      "notRegistered": {
+        "body": "Nastavte ADMINIUM_PUBLIC_API_ORIGINS a restartujte. Do té doby tyto přepínače nic nezmění.",
+        "title": "Na tomto serveru není zapnuto"
+      }
+    },
     "danger": {
       "deleteCta": "Smazat připojení",
       "deleteDesc": "Smaže připojení a z něj vygenerované stránky. Vaší databáze se to nedotkne. Nelze vzít zpět.",
@@ -2112,9 +2143,9 @@ export default {
       "heading": "Projekt"
     },
     "publicApiCard": {
-      "body": "Umožněte svým zákaznickým nebo zaměstnaneckým stránkám číst tuto databázi prostřednictvím rozsahu, který určíte.",
-      "cta": "Otevřít veřejné API",
-      "heading": "Veřejné API"
+      "body": "Vytvářejte koncové body a klíče, které je smějí volat.",
+      "cta": "Otevřít API klíče",
+      "heading": "API klíče"
     },
     "review": {
       "cancel": "Zrušit",
@@ -2433,7 +2464,8 @@ export default {
       "meta": "Úložiště metadat",
       "source": "Zdroj",
       "tables": "Tabulky",
-      "test": "Analyzovat"
+      "test": "Analyzovat",
+      "finish": "Dokončit"
     },
     "title": "Nové připojení"
   },
@@ -2485,5 +2517,243 @@ export default {
     "valueCount": "{count} hodnot",
     "values": "Hodnoty",
     "view": "Zobrazit"
+  },
+  "apiKeys": {
+    "banner": {
+      "bodyOnce": "Zkopírujte si ho hned — později už ho neuvidíte. Omezen na {summary}.",
+      "bodyRevealable": "Zkopírujte si ho hned — znovu ho můžete zobrazit v seznamu níže. Omezen na {summary}.",
+      "copied": "Zkopírováno",
+      "copy": "Kopírovat",
+      "titleNamed": "{name} vytvořen"
+    },
+    "builder": {
+      "auth": {
+        "anon": "Anon",
+        "authenticated": "Přihlášený",
+        "label": "Požadované ověření",
+        "service": "Servisní role"
+      },
+      "cancel": "Zrušit",
+      "columns": {
+        "all": "Vše",
+        "label": "Zpřístupněné sloupce",
+        "none": "Žádné"
+      },
+      "create": "Vytvořit koncový bod",
+      "delete": "Smazat koncový bod",
+      "deleteRefused": "Tento koncový bod stále {count, plural, one {používá # klíč} few {používají # klíče} many {používá # klíče} other {používá # klíčů}}: {names}.",
+      "filters": {
+        "add": "Přidat",
+        "empty": "Žádné filtry — dostupný je každý řádek zdroje.",
+        "label": "Výchozí filtry",
+        "remove": "Odebrat filtr",
+        "value": "hodnota"
+      },
+      "footer": {
+        "applyFirst": "Nejprve upravenou definici použijte, nebo vraťte zpět."
+      },
+      "methodUnsupported": "Tento zdroj nemůže podporovat {method}: nemá primární klíč.",
+      "methods": "Metody",
+      "op": {
+        "between": "mezi",
+        "eq": "rovná se",
+        "gt": "větší než",
+        "gte": "alespoň",
+        "ilike": "obsahuje (bez ohledu na velikost písmen)",
+        "in": "v seznamu",
+        "is_null": "je prázdné",
+        "like": "obsahuje",
+        "lt": "menší než",
+        "lte": "nejvýše",
+        "neq": "nerovná se",
+        "not_null": "není prázdné"
+      },
+      "paging": {
+        "asc": "Vzestupně",
+        "defaultLimit": "Výchozí limit",
+        "desc": "Sestupně",
+        "label": "Stránkování a řazení",
+        "maxLimit": "Maximální limit",
+        "orderBy": "Řadit podle"
+      },
+      "pane": {
+        "apply": "Použít ve formuláři",
+        "dirty": "upraveno — nepoužito",
+        "format": "Formátovat",
+        "label": "Definice cesty, JSON",
+        "more": "{first} (+{n} dalších)",
+        "revert": "Vrátit zpět",
+        "synced": "synchronizováno s formulářem",
+        "title": "Definice cesty"
+      },
+      "rate": {
+        "hour": "hodinu",
+        "label": "Limit požadavků a odpověď",
+        "minute": "minutu",
+        "per": "Za",
+        "requests": "Požadavky",
+        "second": "sekundu"
+      },
+      "refused": {
+        "keys": "Uložením byste znefunkčnili {count, plural, one {# klíč} few {# klíče} many {# klíče} other {# klíčů}}: {names}."
+      },
+      "route": "Cesta",
+      "routePlaceholder": "customers",
+      "routeRename": "Volající musí přejít na novou cestu.",
+      "save": "Uložit změny",
+      "shape": {
+        "array": "Holé pole",
+        "label": "Tvar odpovědi",
+        "single": "Jeden objekt",
+        "wrapped": "Zabaleno v '{' data '}'"
+      },
+      "source": "Zdrojová tabulka nebo pohled",
+      "subtitle": "Nastavte ho vizuálně — definici cesty za vás napíše Adminium",
+      "titleEdit": "Upravit koncový bod",
+      "titleNew": "Nový koncový bod"
+    },
+    "connection": {
+      "label": "Připojení"
+    },
+    "create": "Vytvořit klíč",
+    "endpoints": {
+      "col": {
+        "auth": "Ověření",
+        "methods": "Metody",
+        "rate": "Limit požadavků",
+        "route": "Cesta"
+      },
+      "custom": "VLASTNÍ",
+      "edit": "Upravit koncový bod",
+      "explore": "Prozkoumat API",
+      "new": "Nový koncový bod",
+      "subtitle": "Vygenerováno z vašeho schématu. Klíče jsou omezeny na tyto koncové body.",
+      "title": "Koncové body",
+      "unavailable": "NEDOSTUPNÉ"
+    },
+    "keys": {
+      "col": {
+        "access": "Přístup",
+        "actions": "Akce",
+        "key": "Klíč",
+        "lastUsed": "Naposledy použit",
+        "name": "Název"
+      },
+      "count": "{n, plural, one {# klíč} few {# klíče} many {# klíče} other {# klíčů}}",
+      "empty": "Žádné aktivní klíče. Začněte vytvořením prvního.",
+      "hide": "Skrýt klíč",
+      "kind": {
+        "browser": "PROHLÍŽEČ",
+        "server": "SERVER"
+      },
+      "never": "Nikdy",
+      "reveal": "Zobrazit klíč",
+      "revoke": "Odvolat",
+      "revokeConfirm": {
+        "body": "Vše, co tento klíč používá, okamžitě přestane fungovat. Tuto akci nelze vrátit zpět.",
+        "confirm": "Odvolat klíč",
+        "prompt": "Pro potvrzení napište „{name}“",
+        "title": "Odvolat {name}?"
+      },
+      "revokeFailed": "Tento klíč se nepodařilo odvolat. Je stále aktivní.",
+      "title": "Aktivní klíče",
+      "untitled": "Klíč bez názvu"
+    },
+    "method": {
+      "BATCH": {
+        "desc": "Hromadné vložení nebo upsert, až 500 řádků",
+        "title": "Dávka"
+      },
+      "DELETE": {
+        "desc": "Odebrání řádku podle primárního klíče",
+        "title": "Smazání"
+      },
+      "GET": {
+        "desc": "Výpis řádků a načtení jednoho záznamu",
+        "title": "Čtení"
+      },
+      "PATCH": {
+        "desc": "Částečná úprava řádku podle primárního klíče",
+        "title": "Úprava"
+      },
+      "POST": {
+        "desc": "Vložení nového řádku",
+        "title": "Vytvoření"
+      },
+      "PUT": {
+        "desc": "Nahrazení celého řádku podle primárního klíče",
+        "title": "Nahrazení"
+      }
+    },
+    "note": {
+      "notRegistered": "Veřejné API není na tomto serveru zapnuto. Nastavte ADMINIUM_PUBLIC_API_ORIGINS a restartujte — klíče vytvořené zde budou od té chvíle fungovat.",
+      "off": "Veřejné API je vypnuté, takže teď nefunguje žádný klíč.",
+      "offLink": "Otevřít nastavení workspace"
+    },
+    "quick": {
+      "body": "Požadavky ověřujte klíčem v hlavičce Authorization.",
+      "title": "Rychlý start"
+    },
+    "sheet": {
+      "allMethods": "Vybrat všechny metody",
+      "app": {
+        "label": "Aplikace",
+        "none": "Žádná"
+      },
+      "cancel": "Zrušit",
+      "clear": "Vymazat",
+      "close": "Zavřít",
+      "count": "{permissions, plural, one {oprávnění} few {oprávnění} many {oprávnění} other {oprávnění}} pro {endpoints, plural, one {# koncový bod} few {# koncové body} many {# koncového bodu} other {# koncových bodů}}",
+      "deselectAll": "Zrušit výběr všech",
+      "edit": "Upravit koncový bod",
+      "expires": {
+        "d30": "30 dní",
+        "d90": "90 dní",
+        "label": "Platnost vyprší",
+        "never": "Nikdy"
+      },
+      "filter": "Filtrovat koncové body",
+      "focusMeta": "{source} · řádky: {rows} · limit {limit}, řazení {order}",
+      "focusMetaNoRows": "{source} · limit {limit}, řazení {order}",
+      "footer": {
+        "empty": "Pro vytvoření klíče vyberte alespoň jednu metodu.",
+        "more": "+{n} dalších",
+        "refused": "Tento klíč zatím nelze vytvořit: {issue}",
+        "summary": "Tento klíč bude moci volat {paths}"
+      },
+      "kind": {
+        "browser": "Prohlížeč",
+        "label": "Používán z",
+        "server": "Server"
+      },
+      "layout": {
+        "label": "Rozvržení",
+        "list": "Seznam",
+        "panes": "Panely"
+      },
+      "name": {
+        "label": "Název klíče",
+        "placeholder": "např. Worker pro synchronizaci objednávek"
+      },
+      "newEndpoint": "Nový koncový bod",
+      "readOnly": "Předvolba jen pro čtení",
+      "rowMeta": "{source} · řádky: {rows}",
+      "rowMetaNoRows": "{source}",
+      "selectAll": "Vybrat vše",
+      "selectAllShort": "Vybrat vše",
+      "submit": "Vytvořit klíč",
+      "subtitle": "Vyberte koncové body a metody, které tento klíč smí volat",
+      "title": "Vytvořit klíč API",
+      "toggleAll": "Přepnout všechny metody",
+      "unsupported": "{count, plural, one {{methods} není na této cestě zpřístupněna. Upravte koncový bod a povolte ji.} few {{methods} nejsou na této cestě zpřístupněny. Upravte koncový bod a povolte je.} many {{methods} nejsou na této cestě zpřístupněny. Upravte koncový bod a povolte je.} other {{methods} nejsou na této cestě zpřístupněny. Upravte koncový bod a povolte je.}}"
+    },
+    "stats": {
+      "endpoints": "Koncové body",
+      "keys": "Aktivní klíče",
+      "requests": "Požadavky · 24 h"
+    },
+    "subtitle": "Spravujte programový přístup ke svému pracovnímu prostoru",
+    "summary": "{endpoints, plural, one {# koncový bod} few {# koncové body} many {# koncového bodu} other {# koncových bodů}} · {methods, plural, one {# metoda} few {# metody} many {# metody} other {# metod}}",
+    "title": "Klíče API a tokeny"
   }
 } as const;

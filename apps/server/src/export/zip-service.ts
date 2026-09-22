@@ -21,7 +21,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
 import { CONFIG_VERSION } from '@adminium/engine/config';
-import { ALL_MIGRATIONS, writeBool, type MetaDb } from '@adminium/meta';
+import { ALL_MIGRATIONS, readJsonFrom, writeBool, type MetaDb } from '@adminium/meta';
 import { strToU8, zipSync, type Zippable } from 'fflate';
 
 import { APP_VERSION } from '../version.js';
@@ -120,7 +120,7 @@ function toBool(value: unknown): boolean {
 }
 
 /**
- * JSON columns arrive parsed (PG jsonb) or as a string (SQLite/MySQL). The
+ * JSON columns arrive parsed (PG jsonb, MySQL json) or as a string (SQLite). The
  * bundle must carry structure, not a dialect artifact, so normalize both ways.
  */
 function toJson(value: unknown): unknown {
@@ -173,8 +173,11 @@ async function readBundle(opts: ReadOptions): Promise<ReadResult> {
     connectionId === null
       ? await db.selectFrom('adminium_settings').select(['key', 'value']).execute()
       : [];
+  // `readJsonFrom`, not `toJson`: a setting can be a bare string (the workspace
+  // name), and on postgres/mysql a name like `2048` would parse into a number,
+  // which the importing instance then skips as an invalid setting.
   const settings = redactSettings(
-    settingRows.map((row) => ({ key: row.key, value: toJson(row.value) })),
+    settingRows.map((row) => ({ key: row.key, value: readJsonFrom(meta, row.value) })),
     includeSecrets,
   );
 

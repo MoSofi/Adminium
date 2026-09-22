@@ -538,7 +538,10 @@ export default {
     "subtitle": "Én side pr. medtaget tabel plus dashboards pr. domæne — formål:",
     "successBody": "{pages} sider i {groups} navigationsgrupper — genereret fra dit skema, redigerbare i Studio.",
     "successTitle": "Dit dashboard er klar",
-    "title": "Generér din app"
+    "title": "Generér din app",
+    "blankBody": "Der blev ikke genereret noget, præcis som du bad om. Byg din første side fra denne forbindelse, når du er klar.",
+    "blankTitle": "Din forbindelse er klar",
+    "createPage": "Opret en side"
   },
   "hostedApps": {
     "browse": {
@@ -777,7 +780,11 @@ export default {
       "prompt": "Skriv {name} for at bekræfte",
       "success": "Forbindelsen “{name}” er slettet",
       "title": "Slet forbindelse",
-      "forbidden": "Din rolle omfatter ikke administration af forbindelser, så denne blev ikke slettet."
+      "forbidden": "Din rolle omfatter ikke administration af forbindelser, så denne blev ikke slettet.",
+      "liveKeys": {
+        "body": "Sider, der bygger på disse nøgler, ville holde op med at virke. Tilbagekald dem først på siden Offentligt API, og slet derefter forbindelsen.",
+        "title": "Publicerbare nøgler bruger stadig denne forbindelse"
+      }
     },
     "empty": {
       "body": "Forbind en database, så genererer Adminium dit adminpanel ud fra dens skema.",
@@ -867,7 +874,11 @@ export default {
       "title": "Supportkonsol"
     },
     "title": "Hvad har du brug for?",
-    "trust": "Vi læser kun dit skema — aldrig dine rækkedata under opsætningen."
+    "trust": "Vi læser kun dit skema — aldrig dine rækkedata under opsætningen.",
+    "blank": {
+      "description": "Generér ingenting. Forbind en database, og byg de sider, du vil have, én ad gangen.",
+      "title": "Blankt lærred"
+    }
   },
   "llmRuns": {
     "review": {
@@ -1680,7 +1691,6 @@ export default {
       "connectionLabel": "Forbindelses-id",
       "create": "Opret scope",
       "delete": "Slet",
-      "deleteBody": "Enhver side, der bruger en nøgle tilknyttet dette scope, holder op med at indlæse data. Nøgler slettes ikke — tilbagekald dem først, hvis det var det, du mente.",
       "deleteConfirm": "Slet scope",
       "deletePrompt": "Skriv scopets navn for at bekræfte",
       "deleteTitle": "Slet dette scope",
@@ -1693,7 +1703,12 @@ export default {
       "keyCount": "{count, plural, =0 {ingen nøgler} one {# nøgle} other {# nøgler}}",
       "nameLabel": "Navn",
       "subtitle": "Et scope er alt det, en nøgle må nå — tabellerne, de præcise kolonner og et filter, som kalderen kan indsnævre, men aldrig fjerne.",
-      "title": "Scopes"
+      "title": "Scopes",
+      "deleteBodyKeys": "Et scope med aktive nøgler kan ikke slettes. Tilbagekald først dets nøgler. Nøgler, der allerede er tilbagekaldt eller udløbet, slettes sammen med scopet.",
+      "liveKeys": {
+        "body": "Sider, der bygger på disse nøgler, ville holde op med at virke. Tilbagekald dem først i nøglelisten, og slet derefter scopet.",
+        "title": "Publicerbare nøgler bruger stadig dette scope"
+      }
     },
     "status": {
       "heading": "Status"
@@ -2008,6 +2023,22 @@ export default {
       "cta": "Åbn AI-indstillinger",
       "heading": "AI-berigelse"
     },
+    "apiCard": {
+      "api": {
+        "helper": "Server de endpoints, dine nøgler er begrænset til. Slået fra holder alle nøgler op med at virke med det samme; intet slettes.",
+        "label": "Offentligt API"
+      },
+      "docs": {
+        "helper": "En offentlig side på /api-docs, der viser alle, som kan nå denne server, de endpoints, dine aktive nøgler kan kalde — også dem på medarbejderniveau — med deres stier, metoder og kolonnenavne. Den viser ingen data og ingen nøgler.",
+        "label": "Side med API-dokumentation"
+      },
+      "failed": "Kontakten blev ikke ændret. Prøv igen.",
+      "heading": "Offentligt API",
+      "notRegistered": {
+        "body": "Sæt ADMINIUM_PUBLIC_API_ORIGINS, og genstart. Indtil da ændrer disse kontakter ingenting.",
+        "title": "Ikke slået til på denne server"
+      }
+    },
     "danger": {
       "deleteCta": "Slet forbindelse",
       "deleteDesc": "Sletter forbindelsen og de genererede sider. Din database røres ikke. Kan ikke fortrydes.",
@@ -2112,9 +2143,9 @@ export default {
       "heading": "Projekt"
     },
     "publicApiCard": {
-      "body": "Lad dine egne kunde- eller medarbejdervendte sider læse denne database gennem et scope, du definerer.",
-      "cta": "Åbn offentligt API",
-      "heading": "Offentligt API"
+      "body": "Opret endpoints og de nøgler, der må kalde dem.",
+      "cta": "Åbn API-nøgler",
+      "heading": "API-nøgler"
     },
     "review": {
       "cancel": "Annuller",
@@ -2433,7 +2464,8 @@ export default {
       "meta": "Metalagring",
       "source": "Kilde",
       "tables": "Tabeller",
-      "test": "Analysér"
+      "test": "Analysér",
+      "finish": "Afslut"
     },
     "title": "Ny forbindelse"
   },
@@ -2485,5 +2517,243 @@ export default {
     "valueCount": "{count} værdier",
     "values": "Værdier",
     "view": "Se"
+  },
+  "apiKeys": {
+    "banner": {
+      "bodyOnce": "Kopiér den nu — du kan ikke se den igen. Begrænset til {summary}.",
+      "bodyRevealable": "Kopiér den nu — du kan vise den igen fra listen nedenfor. Begrænset til {summary}.",
+      "copied": "Kopieret",
+      "copy": "Kopiér",
+      "titleNamed": "{name} er oprettet"
+    },
+    "builder": {
+      "auth": {
+        "anon": "Anon",
+        "authenticated": "Godkendt",
+        "label": "Krav til godkendelse",
+        "service": "Servicerolle"
+      },
+      "cancel": "Annuller",
+      "columns": {
+        "all": "Alle",
+        "label": "Eksponerede kolonner",
+        "none": "Ingen"
+      },
+      "create": "Opret endpoint",
+      "delete": "Slet endpoint",
+      "deleteRefused": "{count, plural, one {# nøgle bruger} other {# nøgler bruger}} stadig dette endpoint: {names}.",
+      "filters": {
+        "add": "Tilføj",
+        "empty": "Ingen filtre — alle rækker i kilden kan nås.",
+        "label": "Standardfiltre",
+        "remove": "Fjern filter",
+        "value": "værdi"
+      },
+      "footer": {
+        "applyFirst": "Anvend eller fortryd den redigerede definition først."
+      },
+      "methodUnsupported": "Denne kilde kan ikke understøtte {method}: den har ingen primærnøgle.",
+      "methods": "Metoder",
+      "op": {
+        "between": "mellem",
+        "eq": "er lig med",
+        "gt": "større end",
+        "gte": "mindst",
+        "ilike": "indeholder (uanset store/små bogstaver)",
+        "in": "i listen",
+        "is_null": "er tom",
+        "like": "indeholder",
+        "lt": "mindre end",
+        "lte": "højst",
+        "neq": "er ikke lig med",
+        "not_null": "er ikke tom"
+      },
+      "paging": {
+        "asc": "Stigende",
+        "defaultLimit": "Standardgrænse",
+        "desc": "Faldende",
+        "label": "Sideinddeling og sortering",
+        "maxLimit": "Maks. grænse",
+        "orderBy": "Sortér efter"
+      },
+      "pane": {
+        "apply": "Anvend på formularen",
+        "dirty": "redigeret — ikke anvendt",
+        "format": "Formatér",
+        "label": "Rutedefinition, JSON",
+        "more": "{first} (+{n} mere)",
+        "revert": "Fortryd",
+        "synced": "synkroniseret med formularen",
+        "title": "Rutedefinition"
+      },
+      "rate": {
+        "hour": "time",
+        "label": "Forespørgselsgrænse og svar",
+        "minute": "minut",
+        "per": "Pr.",
+        "requests": "Forespørgsler",
+        "second": "sekund"
+      },
+      "refused": {
+        "keys": "Hvis du gemmer dette, holder {count, plural, one {# nøgle} other {# nøgler}} op med at virke: {names}."
+      },
+      "route": "Rute",
+      "routePlaceholder": "customers",
+      "routeRename": "Kaldere skal skifte til den nye sti.",
+      "save": "Gem ændringer",
+      "shape": {
+        "array": "Rent array",
+        "label": "Svarets form",
+        "single": "Enkelt objekt",
+        "wrapped": "Pakket ind i '{' data '}'"
+      },
+      "source": "Kildetabel eller -visning",
+      "subtitle": "Konfigurér det visuelt — Adminium skriver rutedefinitionen for dig",
+      "titleEdit": "Redigér endpoint",
+      "titleNew": "Nyt endpoint"
+    },
+    "connection": {
+      "label": "Forbindelse"
+    },
+    "create": "Opret nøgle",
+    "endpoints": {
+      "col": {
+        "auth": "Godkendelse",
+        "methods": "Metoder",
+        "rate": "Forespørgselsgrænse",
+        "route": "Rute"
+      },
+      "custom": "TILPASSET",
+      "edit": "Redigér endpoint",
+      "explore": "Udforsk API",
+      "new": "Nyt endpoint",
+      "subtitle": "Genereret ud fra dit skema. Nøgler begrænses til disse.",
+      "title": "Endpoints",
+      "unavailable": "IKKE TILGÆNGELIG"
+    },
+    "keys": {
+      "col": {
+        "access": "Adgang",
+        "actions": "Handlinger",
+        "key": "Nøgle",
+        "lastUsed": "Sidst brugt",
+        "name": "Navn"
+      },
+      "count": "{n, plural, one {# nøgle} other {# nøgler}}",
+      "empty": "Ingen aktive nøgler. Opret en for at komme i gang.",
+      "hide": "Skjul nøgle",
+      "kind": {
+        "browser": "BROWSER",
+        "server": "SERVER"
+      },
+      "never": "Aldrig",
+      "reveal": "Vis nøgle",
+      "revoke": "Tilbagekald",
+      "revokeConfirm": {
+        "body": "Alt, der bruger denne nøgle, holder op med at virke med det samme. Det kan ikke fortrydes.",
+        "confirm": "Tilbagekald nøgle",
+        "prompt": "Skriv „{name}“ for at bekræfte",
+        "title": "Tilbagekald {name}?"
+      },
+      "revokeFailed": "Nøglen kunne ikke tilbagekaldes. Den er stadig aktiv.",
+      "title": "Aktive nøgler",
+      "untitled": "Unavngivet nøgle"
+    },
+    "method": {
+      "BATCH": {
+        "desc": "Masseindsættelse eller upsert, op til 500 rækker",
+        "title": "Batch"
+      },
+      "DELETE": {
+        "desc": "Fjern en række ud fra primærnøglen",
+        "title": "Slet"
+      },
+      "GET": {
+        "desc": "Vis rækker, og hent en enkelt post",
+        "title": "Læs"
+      },
+      "PATCH": {
+        "desc": "Delvis opdatering af en række ud fra primærnøglen",
+        "title": "Opdatér"
+      },
+      "POST": {
+        "desc": "Indsæt en ny række",
+        "title": "Opret"
+      },
+      "PUT": {
+        "desc": "Erstat en hel række ud fra primærnøglen",
+        "title": "Erstat"
+      }
+    },
+    "note": {
+      "notRegistered": "Det offentlige API er ikke slået til på denne server. Sæt ADMINIUM_PUBLIC_API_ORIGINS, og genstart — nøgler oprettet her virker fra da af.",
+      "off": "Det offentlige API er slået fra, så ingen nøgle virker lige nu.",
+      "offLink": "Åbn arbejdsområdeindstillinger"
+    },
+    "quick": {
+      "body": "Godkend forespørgsler med din nøgle i Authorization-headeren.",
+      "title": "Kom hurtigt i gang"
+    },
+    "sheet": {
+      "allMethods": "Vælg alle metoder",
+      "app": {
+        "label": "App",
+        "none": "Ingen"
+      },
+      "cancel": "Annuller",
+      "clear": "Ryd",
+      "close": "Luk",
+      "count": "{permissions, plural, one {tilladelse} other {tilladelser}} på {endpoints, plural, one {# endpoint} other {# endpoints}}",
+      "deselectAll": "Fravælg alle",
+      "edit": "Redigér endpoint",
+      "expires": {
+        "d30": "30 dage",
+        "d90": "90 dage",
+        "label": "Udløber",
+        "never": "Aldrig"
+      },
+      "filter": "Filtrér endpoints",
+      "focusMeta": "{source} · {rows} rækker · grænse {limit}, sortering {order}",
+      "focusMetaNoRows": "{source} · grænse {limit}, sortering {order}",
+      "footer": {
+        "empty": "Vælg mindst én metode for at oprette en nøgle.",
+        "more": "+{n} mere",
+        "refused": "Nøglen kan ikke oprettes endnu: {issue}",
+        "summary": "Nøglen vil kunne kalde {paths}"
+      },
+      "kind": {
+        "browser": "Browser",
+        "label": "Bruges fra",
+        "server": "Server"
+      },
+      "layout": {
+        "label": "Layout",
+        "list": "Liste",
+        "panes": "Ruder"
+      },
+      "name": {
+        "label": "Nøglens navn",
+        "placeholder": "f.eks. Worker til ordresynkronisering"
+      },
+      "newEndpoint": "Nyt endpoint",
+      "readOnly": "Forvalg: kun læsning",
+      "rowMeta": "{source} · {rows} rækker",
+      "rowMetaNoRows": "{source}",
+      "selectAll": "Vælg alle",
+      "selectAllShort": "Vælg alle",
+      "submit": "Opret nøgle",
+      "subtitle": "Vælg de endpoints og metoder, denne nøgle må kalde",
+      "title": "Opret API-nøgle",
+      "toggleAll": "Slå alle metoder til/fra",
+      "unsupported": "{count, plural, one {{methods} er ikke eksponeret på denne rute. Redigér endpointet for at slå den til.} other {{methods} er ikke eksponeret på denne rute. Redigér endpointet for at slå dem til.}}"
+    },
+    "stats": {
+      "endpoints": "Endpoints",
+      "keys": "Aktive nøgler",
+      "requests": "Forespørgsler · 24 t"
+    },
+    "subtitle": "Administrér programmatisk adgang til dit arbejdsområde",
+    "summary": "{endpoints, plural, one {# endpoint} other {# endpoints}} · {methods, plural, one {# metode} other {# metoder}}",
+    "title": "API-nøgler og tokens"
   }
 } as const;

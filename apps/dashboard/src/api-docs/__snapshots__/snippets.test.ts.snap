@@ -1,0 +1,217 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`code samples > batch × curl 1`] = `
+"curl -X POST 'https://admin.northwind.test/api/v1/public/records/orders/batch' \\
+  -H "Authorization: Bearer $ADMINIUM_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"rows":[{"customer_id":"","ship_name":"","freight":0,"shipped":false,"order_date":null}]}'"
+`;
+
+exports[`code samples > batch × js 1`] = `
+"import { createPublicClient } from '@adminiumjs/public-client'
+
+const client = createPublicClient({
+  baseUrl: 'https://admin.northwind.test',
+  publishableKey: ADMINIUM_KEY,
+})
+
+const { count } = await client.batch('orders', [{ customer_id: '', ship_name: '', freight: 0, shipped: false, order_date: null }])"
+`;
+
+exports[`code samples > batch × python 1`] = `
+"import requests
+
+BASE = "https://admin.northwind.test/api/v1/public/records"
+HEADERS = {"Authorization": f"Bearer {ADMINIUM_KEY}"}
+
+r = requests.post(
+    f"{BASE}/orders/batch",
+    json={"rows": [{"customer_id": "", "ship_name": "", "freight": 0, "shipped": False, "order_date": None}]},
+    headers=HEADERS,
+)
+print(r.json())"
+`;
+
+exports[`code samples > create × curl 1`] = `
+"curl -X POST 'https://admin.northwind.test/api/v1/public/records/orders' \\
+  -H "Authorization: Bearer $ADMINIUM_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"values":{"customer_id":"","ship_name":"","freight":0,"shipped":false,"order_date":null}}'"
+`;
+
+exports[`code samples > create × js 1`] = `
+"import { createPublicClient } from '@adminiumjs/public-client'
+
+const client = createPublicClient({
+  baseUrl: 'https://admin.northwind.test',
+  publishableKey: ADMINIUM_KEY,
+})
+
+const row = await client.create('orders', { customer_id: '', ship_name: '', freight: 0, shipped: false, order_date: null })"
+`;
+
+exports[`code samples > create × python 1`] = `
+"import requests
+
+BASE = "https://admin.northwind.test/api/v1/public/records"
+HEADERS = {"Authorization": f"Bearer {ADMINIUM_KEY}"}
+
+r = requests.post(
+    f"{BASE}/orders",
+    json={"values": {"customer_id": "", "ship_name": "", "freight": 0, "shipped": False, "order_date": None}},
+    headers=HEADERS,
+)
+print(r.json())"
+`;
+
+exports[`code samples > delete × curl 1`] = `
+"curl -X DELETE "https://admin.northwind.test/api/v1/public/records/orders/$ID" \\
+  -H "Authorization: Bearer $ADMINIUM_KEY""
+`;
+
+exports[`code samples > delete × js 1`] = `
+"import { createPublicClient } from '@adminiumjs/public-client'
+
+const client = createPublicClient({
+  baseUrl: 'https://admin.northwind.test',
+  publishableKey: ADMINIUM_KEY,
+})
+
+await client.remove('orders', id)"
+`;
+
+exports[`code samples > delete × python 1`] = `
+"import requests
+
+BASE = "https://admin.northwind.test/api/v1/public/records"
+HEADERS = {"Authorization": f"Bearer {ADMINIUM_KEY}"}
+
+r = requests.delete(
+    f"{BASE}/orders/{id}",
+    headers=HEADERS,
+)
+print(r.json())"
+`;
+
+exports[`code samples > list × curl 1`] = `
+"curl 'https://admin.northwind.test/api/v1/public/records/orders?limit=20' \\
+  -H "Authorization: Bearer $ADMINIUM_KEY""
+`;
+
+exports[`code samples > list × js 1`] = `
+"import { createPublicClient } from '@adminiumjs/public-client'
+
+const client = createPublicClient({
+  baseUrl: 'https://admin.northwind.test',
+  publishableKey: ADMINIUM_KEY,
+})
+
+const { data } = await client.list('orders', { limit: 20 })"
+`;
+
+exports[`code samples > list × python 1`] = `
+"import requests
+
+BASE = "https://admin.northwind.test/api/v1/public/records"
+HEADERS = {"Authorization": f"Bearer {ADMINIUM_KEY}"}
+
+r = requests.get(
+    f"{BASE}/orders",
+    params={"limit": 20},
+    headers=HEADERS,
+)
+print(r.json())"
+`;
+
+exports[`code samples > one × curl 1`] = `
+"curl "https://admin.northwind.test/api/v1/public/records/orders/$ID" \\
+  -H "Authorization: Bearer $ADMINIUM_KEY""
+`;
+
+exports[`code samples > one × js 1`] = `
+"import { createPublicClient } from '@adminiumjs/public-client'
+
+const client = createPublicClient({
+  baseUrl: 'https://admin.northwind.test',
+  publishableKey: ADMINIUM_KEY,
+})
+
+const row = await client.get('orders', id)"
+`;
+
+exports[`code samples > one × python 1`] = `
+"import requests
+
+BASE = "https://admin.northwind.test/api/v1/public/records"
+HEADERS = {"Authorization": f"Bearer {ADMINIUM_KEY}"}
+
+r = requests.get(
+    f"{BASE}/orders/{id}",
+    headers=HEADERS,
+)
+print(r.json())"
+`;
+
+exports[`code samples > replace × curl 1`] = `
+"curl -X PUT "https://admin.northwind.test/api/v1/public/records/orders/$ID" \\
+  -H "Authorization: Bearer $ADMINIUM_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"values":{"customer_id":"","ship_name":"","freight":0,"shipped":false,"order_date":null}}'"
+`;
+
+exports[`code samples > replace × js 1`] = `
+"import { createPublicClient } from '@adminiumjs/public-client'
+
+const client = createPublicClient({
+  baseUrl: 'https://admin.northwind.test',
+  publishableKey: ADMINIUM_KEY,
+})
+
+const row = await client.replace('orders', id, { customer_id: '', ship_name: '', freight: 0, shipped: false, order_date: null })"
+`;
+
+exports[`code samples > replace × python 1`] = `
+"import requests
+
+BASE = "https://admin.northwind.test/api/v1/public/records"
+HEADERS = {"Authorization": f"Bearer {ADMINIUM_KEY}"}
+
+r = requests.put(
+    f"{BASE}/orders/{id}",
+    json={"values": {"customer_id": "", "ship_name": "", "freight": 0, "shipped": False, "order_date": None}},
+    headers=HEADERS,
+)
+print(r.json())"
+`;
+
+exports[`code samples > update × curl 1`] = `
+"curl -X PATCH "https://admin.northwind.test/api/v1/public/records/orders/$ID" \\
+  -H "Authorization: Bearer $ADMINIUM_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"values":{"customer_id":"","ship_name":"","freight":0,"shipped":false,"order_date":null}}'"
+`;
+
+exports[`code samples > update × js 1`] = `
+"import { createPublicClient } from '@adminiumjs/public-client'
+
+const client = createPublicClient({
+  baseUrl: 'https://admin.northwind.test',
+  publishableKey: ADMINIUM_KEY,
+})
+
+const row = await client.update('orders', id, { customer_id: '', ship_name: '', freight: 0, shipped: false, order_date: null })"
+`;
+
+exports[`code samples > update × python 1`] = `
+"import requests
+
+BASE = "https://admin.northwind.test/api/v1/public/records"
+HEADERS = {"Authorization": f"Bearer {ADMINIUM_KEY}"}
+
+r = requests.patch(
+    f"{BASE}/orders/{id}",
+    json={"values": {"customer_id": "", "ship_name": "", "freight": 0, "shipped": False, "order_date": None}},
+    headers=HEADERS,
+)
+print(r.json())"
+`;

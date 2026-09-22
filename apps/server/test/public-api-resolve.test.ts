@@ -218,3 +218,93 @@ describe('origins', () => {
     expect(resolved?.origins).toEqual([]);
   });
 });
+
+/*
+ * A miss awaits the store before it caches. These park that await on a
+ * deferred promise, so each case controls exactly what happens in between.
+ */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+describe('invalidation and in-flight lookups', () => {
+  it('a revoke during a parked lookup is not undone by that lookup caching the key', async () => {
+    const { token } = generatePublishableKey();
+    const { key, scope } = rows(token);
+    let current: PublicKeyRow = key;
+    const parked = deferred<PublicKeyRow[]>();
+    const findKeysByPrefix = vi
+      .fn<(prefix: string) => Promise<PublicKeyRow[]>>()
+      .mockImplementationOnce(() => parked.promise)
+      .mockImplementation(async () => [current]);
+    const resolver = createPublicKeyResolver({ findKeysByPrefix, findScopeById: async () => scope });
+
+    const inFlight = resolver.resolve(token);
+    // The admin revokes while the lookup is still waiting on the store.
+    current = { ...key, revokedAt: 1 };
+    resolver.invalidate(key.id);
+    parked.resolve([key]);
+    // The request that was already in flight is answered from what it read.
+    expect(await inFlight).not.toBeNull();
+
+    // The next one reads the store again, and sees the revoke.
+    expect(await resolver.resolve(token)).toBeNull();
+    expect(findKeysByPrefix).toHaveBeenCalledTimes(2);
+  });
+
+  it('a request after invalidate does not join a lookup that started before it', async () => {
+    const { token } = generatePublishableKey();
+    const { key, scope } = rows(token);
+    const parked = deferred<PublicKeyRow[]>();
+    const findKeysByPrefix = vi
+      .fn<(prefix: string) => Promise<PublicKeyRow[]>>()
+      .mockImplementationOnce(() => parked.promise)
+      .mockImplementation(async () => [{ ...key, revokedAt: 1 }]);
+    const resolver = createPublicKeyResolver({ findKeysByPrefix, findScopeById: async () => scope });
+
+    const before = resolver.resolve(token);
+    resolver.invalidate(key.id);
+    const after = resolver.resolve(token);
+    parked.resolve([key]);
+
+    expect(await before).not.toBeNull();
+    expect(await after).toBeNull();
+  });
+
+  it('concurrent misses on one token share one lookup', async () => {
+    const { token } = generatePublishableKey();
+    const { key, scope } = rows(token);
+    const parked = deferred<PublicKeyRow[]>();
+    const findKeysByPrefix = vi.fn(() => parked.promise);
+    const resolver = createPublicKeyResolver({ findKeysByPrefix, findScopeById: async () => scope });
+
+    const burst = Array.from({ length: 5 }, () => resolver.resolve(token));
+    parked.resolve([key]);
+    const results = await Promise.all(burst);
+
+    expect(findKeysByPrefix).toHaveBeenCalledTimes(1);
+    expect(results.every((r) => r?.keyId === key.id)).toBe(true);
+  });
+
+  it('a cached key stops at its own expiry, not a TTL later', async () => {
+    const { token } = generatePublishableKey();
+    let clock = 1_000_000;
+    const { key, scope } = rows(token, { expiresAt: clock + 5_000 });
+    const findKeysByPrefix = vi.fn(async () => [key]);
+    const resolver = createPublicKeyResolver({
+      findKeysByPrefix,
+      findScopeById: async () => scope,
+      now: () => clock,
+    });
+
+    expect(await resolver.resolve(token)).not.toBeNull();
+    clock += 5_000;
+    // Inside the 30 s TTL, but past `expires_at`: the cache must not answer.
+    expect(await resolver.resolve(token)).toBeNull();
+    expect(findKeysByPrefix).toHaveBeenCalledTimes(2);
+  });
+});

@@ -227,7 +227,7 @@ describe('Studio → Settings → Project', () => {
     cleanup();
 
     renderAt('/studio/settings');
-    await screen.findByRole('button', { name: 'Open public API' });
+    await screen.findByRole('button', { name: 'Open API keys' });
     expect(screen.queryByRole('button', { name: 'Open project' })).toBeNull();
   });
 });

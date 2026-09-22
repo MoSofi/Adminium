@@ -118,6 +118,15 @@ describe('in-app help links resolve to real docs pages', () => {
     }
   });
 
+  it("the API explorer's \"API reference\" links to a route the docs site publishes", () => {
+    // `/api-docs` is read by the people who CALL an instance's API, and this
+    // link is the only way from it to the contract they need.
+    const source = read('apps/dashboard/src/api-docs/ApiDocsPage.tsx');
+    const path = /export const API_REFERENCE_PATH = '([^']+)'/.exec(source)?.[1];
+    expect(path, 'ApiDocsPage.tsx no longer declares API_REFERENCE_PATH').toBeDefined();
+    expect(docsRoutes()).toContain((path ?? '').replace(/\/$/, ''));
+  });
+
   it('does not link to /search — Starlight search is a modal, not a route', () => {
     // The one escape hatch offered at the moment in-app help has already failed
     // the user must not itself 404. `pagefind: true` gives a search MODAL; no

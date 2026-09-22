@@ -34,7 +34,15 @@
  */
 
 import BetterSqlite3 from 'better-sqlite3';
-import { createSqliteMetaDb, firstRun, settingsRepo, type MetaDb } from '@adminium/meta';
+import {
+  connectionsRepo,
+  createSqliteMetaDb,
+  firstRun,
+  publicKeysRepo,
+  publicScopesRepo,
+  settingsRepo,
+  type MetaDb,
+} from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
@@ -45,7 +53,7 @@ import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { generatePublishableKey } from '../src/public-api/keys.js';
 import { isPublicNamespacePath, PUBLIC_NAMESPACE_PREFIX } from '../src/routes/public/index.js';
-import { makeEnv, TEST_SECRET } from './helpers.js';
+import { concreteUrl, makeEnv, routeTable, TEST_SECRET } from './helpers.js';
 
 function memoryStore(meta: MetaDb): MetaStoreHandle {
   return {
@@ -98,12 +106,8 @@ async function composeWidest(
   return composed;
 }
 
-/** Fill `:params` with a value that is syntactically fine and matches nothing. */
-function concreteUrl(url: string): string {
-  return url
-    .replace(/:[A-Za-z0-9_]+\*?/g, 'zzz-isolation-probe')
-    .replace(/\/\*$/, '/zzz-isolation-probe');
-}
+/** What fills every `:param`: syntactically fine, and matches nothing. */
+const PROBE = 'zzz-isolation-probe';
 
 /**
  * Assert the ANONYMOUS namespace is absent, while tolerating the admin routes
@@ -127,8 +131,64 @@ afterEach(async () => {
 });
 
 /**
- * Present an `adm_pub_` token to EVERY registered route and report the ones
- * where it changed the outcome.
+ * A publishable key that WORKS: stored, bound to a scope, on an enabled
+ * surface, and shown to work by reading `/public/config` with it.
+ *
+ * The sweep used to present a generated token that was never stored, with the
+ * surface off. Any path that looked the key up would have refused it for that
+ * reason alone, so a change that honoured REAL keys outside the namespace
+ * would have passed. And a real key is the threat: a storefront ships its key
+ * in its page source.
+ */
+async function liveKey(app: ComposedServer['app'], meta: MetaDb, kind: 'browser' | 'server' = 'browser'): Promise<string> {
+  await settingsRepo(meta).set('publicApi.enabled', true);
+  const connection = await connectionsRepo(meta, dsnCryptoFromSecret(TEST_SECRET)).create({
+    name: 'Shop',
+    engine: 'postgres',
+    introspectDsn: 'postgres://ro@db.internal:5432/shop',
+  });
+  const scope = await publicScopesRepo(meta).create({
+    connectionId: connection.id,
+    side: 'customer',
+    name: 'storefront',
+    timezone: 'Europe/London',
+    document: JSON.stringify({
+      version: 1,
+      side: 'customer',
+      timezone: 'Europe/London',
+      resources: [
+        { ref: 'menu', table: 'public.menu_items', actions: ['read'], expose: ['id', 'name'] },
+      ],
+    }),
+  });
+  const { token, prefix, tokenHash } = generatePublishableKey(kind);
+  await publicKeysRepo(meta).create({
+    name: 'web',
+    prefix,
+    tokenHash,
+    tokenEncrypted: kind === 'server' ? '' : 'sealed',
+    scopeId: scope.id,
+    side: 'customer',
+    kind,
+  });
+
+  // The positive control: where the key IS allowed, it works. A server key
+  // is called as a server calls, with no Origin.
+  const res = await app.inject({
+    method: 'GET',
+    url: '/api/v1/public/config',
+    headers: {
+      ...(kind === 'browser' ? { origin: 'https://shop.example.com' } : {}),
+      authorization: `Bearer ${token}`,
+    },
+  });
+  expect(res.statusCode, res.body).toBe(200);
+  return token;
+}
+
+/**
+ * Present a working `adm_pub_` key to EVERY registered route and report the
+ * ones where it changed the outcome.
  *
  * Extracted so the sweep can be driven twice — once as a plain caller, once
  * wearing same-origin provenance with the `self` sentinel set. The concern
@@ -141,30 +201,44 @@ afterEach(async () => {
  */
 async function sweepWithToken(
   app: ComposedServer['app'],
+  token: string,
   extraHeaders: Record<string, string> = {},
 ): Promise<string[]> {
-  const { token } = generatePublishableKey();
-
   /*
    * The route tree as the SERVER sees it. `printRoutes` is the registration
    * list; parsing it is what makes this test enumerate rather than assume.
    */
-  const tree = app.printRoutes({ commonPrefix: false });
   const urls = new Set<string>();
-  for (const line of tree.split('\n')) {
-    const match = /^[^a-zA-Z/]*(\/\S*)\s+\((.+)\)\s*$/.exec(line);
-    if (match === null) continue;
-    const [, url, methods] = match;
-    if (url === undefined || methods === undefined) continue;
-    for (const method of methods.split(',').map((m) => m.trim())) {
+  for (const [url, methods] of routeTable(app)) {
+    for (const method of methods) {
       if (method === 'HEAD' || method === 'OPTIONS') continue;
       urls.add(`${method} ${url}`);
     }
   }
 
-  // The sweep must actually have seen a real tree; an empty parse would pass
-  // every assertion below and prove nothing.
-  expect(urls.size).toBeGreaterThan(80);
+  /*
+   * The sweep must actually have seen the whole tree. The first version read
+   * each printed line as a whole path, but `printRoutes` nests a child under
+   * its parent and prints only the suffix, so two routes in three were never
+   * reached: the nested ones were probed at URLs that matched nothing, both
+   * calls of each pair answered the same 404, and the differential passed
+   * while blind. A size floor did not catch it. These are the shapes that
+   * parse lost: a nested child, a suffix with no slash (`/auth/session` +
+   * `s`), and a wildcard.
+   */
+  expect(urls).toContain('DELETE /api/v1/files/:id');
+  expect(urls).toContain('DELETE /api/v1/auth/sessions/:id');
+  expect(urls).toContain('GET /api/v1/add-ons/:key/bundle/*');
+  expect(urls.size).toBeGreaterThan(300);
+
+  // And every probe must land on a route rather than the not-found handler,
+  // or the pair compares two 404s again. `findRoute` is the router's own
+  // request-time lookup.
+  const unreached = [...urls].filter((entry) => {
+    const [method, url] = entry.split(' ') as [string, string];
+    return app.findRoute({ method: method as 'GET', url: concreteUrl(url, PROBE) }) === null;
+  });
+  expect(unreached, `these probes reach no route:\n${unreached.join('\n')}`).toEqual([]);
 
   const acted: string[] = [];
   let probe = 0;
@@ -195,21 +269,31 @@ async function sweepWithToken(
 
     const withKey = await app.inject({
       method: method as 'GET',
-      url: concreteUrl(url),
+      url: concreteUrl(url, PROBE),
       remoteAddress,
       ...body,
       headers: { ...extraHeaders, ...(body.headers ?? {}), authorization: `Bearer ${token}` },
     });
     const without = await app.inject({
       method: method as 'GET',
-      url: concreteUrl(url),
+      url: concreteUrl(url, PROBE),
       remoteAddress,
       ...body,
       headers: { ...extraHeaders, ...(body.headers ?? {}) },
     });
 
-    // The token must change NOTHING. A route that is public stays public; a
-    // route that refuses keeps refusing, with the same status.
+    /*
+     * The token must change NOTHING. A route that is public stays public; a
+     * route that refuses keeps refusing, with the same status.
+     *
+     * What a pair can see: about two routes in five (2026-09) refuse the
+     * empty body or query at validation, which Fastify runs before any
+     * `preHandler` guard, so both calls answer 422. That is still enough,
+     * because a principal is resolved earlier yet, in the root `onRequest`
+     * hooks (plugins/auth.ts, plugins/rbac.ts) that every request passes and
+     * the routes answering 401 exercise in full. Outside the namespace nothing
+     * else reads `Authorization` to grant anything.
+     */
     if (withKey.statusCode !== without.statusCode) {
       acted.push(
         `${entry} -> ${String(without.statusCode)} without the key, ${String(withKey.statusCode)} with it`,
@@ -236,8 +320,22 @@ describe('Publishable keys are inert outside /api/v1/public', () => {
       },
     };
 
-    const acted = await sweepWithToken(composed.app);
+    const acted = await sweepWithToken(composed.app, await liveKey(composed.app, meta));
     expect(acted, `an adm_pub_ token CHANGED the outcome on these routes:\n${acted.join('\n')}`).toEqual([]);
+  }, 60_000);
+
+  it('a server key (`adm_srv_`) is refused by every registered route too', async () => {
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    const composed = await composeWidest(meta);
+    open = {
+      close: async () => {
+        await composed.app.close();
+        await meta.db.destroy();
+      },
+    };
+    const acted = await sweepWithToken(composed.app, await liveKey(composed.app, meta, 'server'));
+    expect(acted, `an adm_srv_ token CHANGED the outcome on these routes:\n${acted.join('\n')}`).toEqual([]);
   }, 60_000);
 
   it('is still inert with `self` set and same-origin provenance', async () => {
@@ -259,7 +357,7 @@ describe('Publishable keys are inert outside /api/v1/public', () => {
       },
     };
 
-    const acted = await sweepWithToken(composed.app, {
+    const acted = await sweepWithToken(composed.app, await liveKey(composed.app, meta), {
       host: 'admin.myshop.test',
       'sec-fetch-site': 'same-origin',
     });
