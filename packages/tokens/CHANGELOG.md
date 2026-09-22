@@ -1,5 +1,47 @@
 # @adminium/tokens
 
+## 0.3.0-rc.3
+
+### Patch Changes
+
+- ae41762: **A public API documentation page at `/api-docs`, switched on from Workspace settings.**
+  
+  Workspace settings gains a **Public API** card for holders of `api-keys.manage`, with two
+  switches that apply the moment you click them:
+  
+  - **Public API** turns the public API on or off. It moved here from the old public API page.
+  - **API documentation page** publishes `/api-docs`. It is off by default and does not travel in
+    a config bundle.
+  
+  If `ADMINIUM_PUBLIC_API_ORIGINS` is not set, the card says so and how to fix it.
+  `GET/PUT /api/v1/public-api` report and accept `docsEnabled`, and a PUT may change either
+  switch on its own.
+  
+  `/api-docs` works without signing in. It lists only endpoints that a live key can call, with
+  the methods keys were granted, and for each one its path, auth level, limits and column
+  names and types. It never shows a table name, a filter, a row count or a key. While the page is
+  off, the page and `GET /api/v1/api-docs` answer the ordinary not-found response. On a domain
+  mapped to a hosted app they are not served at all.
+  
+  The page has a playground. Paste a browser key and it sends a real request with that key only.
+  The key is never stored, never put in a URL or code sample, and your session cookie is not
+  sent. The page shows the real status, the time taken and the response body. Code samples in
+  cURL, JavaScript (`@adminiumjs/public-client`) and Python use the real paths and headers.
+- ae41762: **New kit pieces: `MethodBadge`, `Sheet`, `CodePane`, and method colour tokens.**
+  
+  - `MethodBadge` shows GET, POST, PATCH, PUT, DELETE and BATCH in two sizes. PUT and BATCH use
+    the new `--method-put` and `--method-batch` colours, which pass the contrast check in every
+    theme and accent. `METHOD_TONE` holds the colours for chips and dots.
+  - `Sheet` is a full-height dialog up to 1180 px wide, with header, bar, body and footer slots.
+    It supports opening one sheet over another:
+    - the sheet underneath can't be reached while the top one is open;
+    - Escape closes only the top one;
+    - focus goes back to the button that opened it.
+  - `CodePane` is a dark code editor pane with a header, a monospace text area, an error strip and
+    a footer. It uses the existing always-dark colour scope.
+  - The new animations are `nb-veil` and `nb-sheet`. Code colours are now available as Tailwind
+    classes (`text-code-blue` and so on).
+
 ## 0.3.0-rc.2
 
 ## 0.3.0-rc.1

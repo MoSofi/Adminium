@@ -1,5 +1,59 @@
 # @adminium/i18n
 
+## 0.3.0-rc.3
+
+### Patch Changes
+
+- ae41762: **A public API documentation page at `/api-docs`, switched on from Workspace settings.**
+  
+  Workspace settings gains a **Public API** card for holders of `api-keys.manage`, with two
+  switches that apply the moment you click them:
+  
+  - **Public API** turns the public API on or off. It moved here from the old public API page.
+  - **API documentation page** publishes `/api-docs`. It is off by default and does not travel in
+    a config bundle.
+  
+  If `ADMINIUM_PUBLIC_API_ORIGINS` is not set, the card says so and how to fix it.
+  `GET/PUT /api/v1/public-api` report and accept `docsEnabled`, and a PUT may change either
+  switch on its own.
+  
+  `/api-docs` works without signing in. It lists only endpoints that a live key can call, with
+  the methods keys were granted, and for each one its path, auth level, limits and column
+  names and types. It never shows a table name, a filter, a row count or a key. While the page is
+  off, the page and `GET /api/v1/api-docs` answer the ordinary not-found response. On a domain
+  mapped to a hosted app they are not served at all.
+  
+  The page has a playground. Paste a browser key and it sends a real request with that key only.
+  The key is never stored, never put in a URL or code sample, and your session cookie is not
+  sent. The page shows the real status, the time taken and the response body. Code samples in
+  cURL, JavaScript (`@adminiumjs/public-client`) and Python use the real paths and headers.
+- ae41762: **Studio → API keys & tokens is rebuilt around endpoints.**
+  
+  `/studio/public-api` now shows:
+  
+  - your keys, marked browser or server. Each key lists what it can call. A browser key can be
+    revealed, and a key can be revoked after typing its name to confirm.
+  - the endpoints generated from your schema, with their methods, auth and rate limit.
+  - a quick-start `curl`.
+  - the number of requests in the last 24 hours.
+  
+  "Create key" opens a sheet where you pick endpoints and, under each one, the methods the key may
+  use:
+  
+  - select all, deselect all, or a read-only preset, applied to the endpoints the filter shows;
+  - two layouts, which the browser remembers.
+  
+  The new key is shown once in a banner.
+  
+  "New endpoint" and "Edit endpoint" open a builder whose form and JSON definition edit the same
+  document. A key you add by hand in the JSON is never dropped by a form change. While the JSON has
+  unapplied edits, the form is locked and Save waits. A save that would break a live key says which
+  key.
+- ae41762: **The old API keys page at `/api-keys` is gone.** Role-bound keys (`adm_sk_…`) still work and can
+  still be created and revoked through `/api/v1/api-keys`. There is no page for them now.
+  _Guides → Public API → Endpoints and keys_ shows how to create one with `curl`. The sidebar no
+  longer has an "API keys" row. Keys for your own pages are under Workspace settings → API keys.
+
 ## 0.3.0-rc.2
 
 ## 0.3.0-rc.1

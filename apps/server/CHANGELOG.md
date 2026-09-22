@@ -1,5 +1,340 @@
 # @adminium/server
 
+## 0.3.0-rc.3
+
+### Patch Changes
+
+- ae41762: **A public API documentation page at `/api-docs`, switched on from Workspace settings.**
+  
+  Workspace settings gains a **Public API** card for holders of `api-keys.manage`, with two
+  switches that apply the moment you click them:
+  
+  - **Public API** turns the public API on or off. It moved here from the old public API page.
+  - **API documentation page** publishes `/api-docs`. It is off by default and does not travel in
+    a config bundle.
+  
+  If `ADMINIUM_PUBLIC_API_ORIGINS` is not set, the card says so and how to fix it.
+  `GET/PUT /api/v1/public-api` report and accept `docsEnabled`, and a PUT may change either
+  switch on its own.
+  
+  `/api-docs` works without signing in. It lists only endpoints that a live key can call, with
+  the methods keys were granted, and for each one its path, auth level, limits and column
+  names and types. It never shows a table name, a filter, a row count or a key. While the page is
+  off, the page and `GET /api/v1/api-docs` answer the ordinary not-found response. On a domain
+  mapped to a hosted app they are not served at all.
+  
+  The page has a playground. Paste a browser key and it sends a real request with that key only.
+  The key is never stored, never put in a URL or code sample, and your session cookie is not
+  sent. The page shows the real status, the time taken and the response body. Code samples in
+  cURL, JavaScript (`@adminiumjs/public-client`) and Python use the real paths and headers.
+- ae41762: **Uninstalling an app now removes its domains and placement. An install now
+  names a leftover table that belongs to a different app.**
+  
+  Uninstall removed the app's row and its bytes, but left its entries in
+  `surfaces.domains` and `surfaces.apps` in place. The domains editor validates
+  the whole map on every save. So one host still mapped to the removed app
+  refused every later save with `unknown_surface`, including the save that
+  maps that host to the app installed in its place. The only fix was editing
+  the settings row by hand. Uninstall now drops every host mapped to the app,
+  plus its placement, name, connection and instances, and lists the removed
+  hosts in the `app.uninstalled` audit row.
+  
+  Installing an app over a same-named table from another app was refused as
+  `COLUMNS_REQUIRED`, which suggested adding the missing columns. Adding them
+  could not help: a client-portal `payments` table requires `invoice_id`, which
+  the point-of-sale app never writes, so every payment it saved would still be
+  refused. The planner now raises a `FOREIGN_TABLE` problem for an app when a
+  reused table has a NOT NULL column with no default that the app does not
+  declare. The problem names the column and says the table may belong to
+  another app. Add-ons are exempt, because they reuse their host's tables.
+- ae41762: **Deleting a connection or a public scope that ever had a publishable key works now.**
+  
+  A connection's public scopes cascade away with it, but a publishable key is
+  `restrict` on its scope (0014), so the cascade hit the key and the driver
+  error came back as an unhandled 500 — on every meta dialect, not only
+  Postgres. The test that claimed "deleting the connection clears both" deleted
+  the keys by hand first, so it never ran the real path.
+  
+  The delete now looks at the keys first, in one transaction with the delete:
+  
+  - A **live** key (not revoked, not expired) refuses the whole delete with a
+    `409 PUBLIC_KEYS_LIVE` whose `details.keys` names each key. The migration's
+    rule stands: the operator revokes a shipped public surface on purpose, and
+    sees what it breaks. It is not a side effect of deleting something else. The
+    delete dialog names the keys and points at the Public API page. It no longer
+    says "Try again".
+  - **Revoked or expired** keys break nothing, and nothing else in the product
+    can remove their rows, so they are cleared with the connection. Their
+    sessions and challenges cascade with them. The `connection.delete` audit row
+    lists each cleared key's id and prefix. Their `public-key.revoke` rows are
+    unchanged.
+  
+  Deleting a **scope** had the same dead end in a different form. It refused
+  while any key row pointed at it, revoked or not. Nothing in the product
+  removes a key row, so a scope that ever had a key could never be deleted, and
+  the refusal told the operator to revoke, which did not help. It now follows
+  the same rule through the same helper: live keys refuse with
+  `PUBLIC_KEYS_LIVE`, and inert ones go with the scope, named in the
+  `public-scope.delete` audit row. The Public API page names the blocking keys,
+  and its delete dialog no longer says "Keys are not deleted".
+  
+  The FK stays `restrict`, and no migration was needed. The connection's pool is
+  now released after the row is gone, so a refused delete keeps its pool.
+- ae41762: **The data routes now answer a signed-out caller 401 before looking anything
+  up.**
+  
+  `/api/v1/data/<connection>/<table>/…` checked the table grant only after it had
+  found the connection, its schema snapshot and the table, and a caller who was
+  not signed in simply held no grant. So anyone who knew a connection id could
+  learn, without signing in, whether the connection existed, whether it had been
+  introspected, and which tables it had: an unknown table answered 422, a real
+  one 403 naming the table. Rows and column names were never exposed. Each of
+  those 403s also wrote a `permission.denied` entry to the audit log attributed to
+  Adminium itself.
+  
+  Every table route now answers 401 `UNAUTHENTICATED` to a caller with no session
+  and no API key, with the same body whatever exists, and writes nothing to the
+  audit log. A dashboard whose session has expired now gets that 401 from these
+  routes, not a 403 saying the user has no access to the table.
+  
+  Signed-in callers are unaffected.
+- ae41762: **Public API keys can be made from endpoints instead of a hand-written scope.**
+  
+  Every table and view of a connection now has a generated public endpoint:
+  its columns (none marked secret or personal data), its filters, page size,
+  order, rate limit and response shape, and the methods its source supports.
+  An operator can store an edited endpoint or a new custom one, and a key can
+  be given several endpoints with different methods on each. Adminium writes the
+  key's scope from those grants.
+  
+  New admin routes, all behind the API-keys permission:
+  
+  - `GET /api/v1/public-endpoints?connectionId=` lists the endpoints, the
+    source tables and their columns, and any table without a generated endpoint
+    with the reason.
+  - `POST /api/v1/public-endpoints/check` compiles a definition without saving
+    it. It reports every issue, the live keys a save would break, and the
+    browser keys that would gain columns, methods or rows.
+  - `PUT /api/v1/public-endpoints/:connectionId/:ref` saves an endpoint and
+    rewrites the scope of every live key that uses it in the same step. A save
+    that would break one of those keys is refused, and the reply names the key.
+  - `POST …/:ref/rename` and `DELETE …/:ref` are refused while a live key uses
+    the endpoint. Deleting a generated endpoint switches it off instead of
+    removing it, so its default does not come back.
+  - `POST /api/v1/public-keys` also accepts `connectionId` with `access` (the
+    endpoints and methods), next to the existing `scopeId`.
+  
+  `GET /api/v1/public-keys` now returns each key's connection, kind, what it can
+  call on each endpoint (and any method the endpoint no longer offers), and any
+  issue that stops the key from working today.
+  
+  A key's derived scope is not listed by `GET /api/v1/public-scopes` and cannot
+  be edited, deleted or reused by another key.
+  
+  Scopes also gain a default page size (`defaultLimit`), a default order
+  (`defaultOrder`), a per-resource rate (`rate`) and a list response shape
+  (`response`), and the `replace`, `delete` and `batch` actions. All are
+  optional; a scope written before this change behaves as it did. The routes
+  that serve the three new actions come in a later release.
+  `GET /public/config` reports each resource's response shape.
+  
+  With more than one server process, a revoke, rotate, key create or endpoint
+  save now reaches the other processes within 5 seconds (it was 30).
+- ae41762: **The public API gains one-row reads, PUT, DELETE and BATCH, per-endpoint rate limits, list shapes, request counts and server keys.**
+  
+  New public routes, each allowed only when the key was granted that method on the endpoint:
+  
+  - `GET /public/records/:ref/:id` reads one row. It returns the same columns as the list and
+    hides the same personal data. A row that doesn't exist and a row outside the key's scope both
+    answer the same 404.
+  - `PUT /public/records/:ref/:id` replaces a row. The body must include every column the key may
+    write. The scope is part of the UPDATE statement itself.
+  - `DELETE /public/records/:ref/:id` deletes a row. The scope is part of the DELETE statement
+    itself. A row outside the scope answers 404 and is not deleted. When the database refuses a
+    delete because of a foreign key, the caller gets one refusal that names nothing. Each delete
+    writes an audit row showing the removed row, with personal data masked.
+  - `POST /public/records/:ref/batch` takes 1 to 500 rows in one transaction, and either all of
+    them are written or none are.
+    - A row without its primary key is inserted, and the server chooses the key.
+    - A row with its primary key updates that row, and the key must also hold PATCH.
+    - If any keyed row is missing or outside the scope, the whole batch is refused, without saying
+      which case it was.
+  
+  An endpoint's own rate limit now replaces its class limit. For browser keys it counts per
+  visitor, and for server keys it counts across the whole key. A batch uses up one request per row.
+  A request too large to ever fit is refused with 400 rather than 429. Scopes written before this
+  change keep the limits they had.
+  
+  An address whose keys keep failing to match is refused after 30 failures a minute, before the
+  server looks the key up.
+  
+  A list can be returned wrapped (as before), as a bare array with the next cursor in
+  `X-Next-Cursor`, or as exactly one row. `Retry-After` and `X-Next-Cursor` can now be read by
+  pages on other origins.
+  
+  "Requests · 24h" is counted per key, endpoint and hour. The counts are written every minute and
+  when the server shuts down, and kept for `retention.publicRequestStatsDays`. The new admin route
+  `GET /api/v1/public-api/stats` returns the total.
+  
+  **Server keys** (`adm_srv_`) work without an `Origin` header. They are refused when a request
+  comes from a browser, are shown only once, and cannot be revealed. Rotating one gives another
+  server key. Only a server key can be granted a service-role endpoint. A hosted app is never
+  given a server key.
+- ae41762: **`GET /api/v1/public/config` now sends the `documents` capability.**
+  
+  The scope projection has computed `documents: { create }` since 0.2.6, but the
+  route's reply schema never declared it, and the serializer parses through that
+  schema, so the field was stripped from every response. Pages built on
+  `@adminium/public-client` saw every server as one too old to draw documents
+  and never offered "email me a copy".
+  
+  The reply schema and the OpenAPI spec now declare it. A scope that says
+  nothing sends `{ create: false }`, never an absent key. `PublicConfig.documents`
+  stays optional in the client, because every server up to 0.3.0-rc.2 still
+  omits it.
+- ae41762: **A cross-origin `signOut()` now reaches the server, and a page can read
+  `Retry-After`.**
+  
+  `@adminiumjs/public-client`'s `signOut()` sends `DELETE /api/v1/public/session`.
+  From another origin, a browser checks with the server before sending it. That
+  check always failed: `/public/session` answered no such check, and the answer
+  every other public path gave allowed `GET, POST, PATCH` but not `DELETE`. The
+  client forgot the session anyway, but the server kept it until it expired.
+  `/public/session` now answers the check, and every public path allows `DELETE`.
+  
+  No public response let the page read its `Retry-After` header. A browser hides
+  that header from another origin unless the server names it, so the client's
+  `retryAfterSeconds` was always `null` there. Public responses to an allowed
+  origin now name it in `Access-Control-Expose-Headers`.
+  
+  Some errors reached another origin with no CORS headers at all, so the page
+  saw a network error instead of the error code. These were requests the server
+  rejected as malformed (such as `limit=500`), and requests refused by the
+  instance-wide limit of 600 a minute per address. They now carry the same
+  headers as every other public response.
+  
+  That instance-wide limit also answered with the wrong error:
+  503 `PUBLIC_UPSTREAM_UNAVAILABLE`, which reads as "the server is down" rather
+  than "slow down". It now answers 429 `PUBLIC_RATE_LIMITED` with
+  `Retry-After`, the same response the public API's other limits give.
+  These refusals no longer write a warning to the server log each time, so a
+  flood of requests no longer floods the log. The normal request log still
+  records each one.
+  
+  The OpenAPI spec now lists that 429 for `GET /api/v1/public/config` and
+  `DELETE /api/v1/public/session`. Every other public route already did, but
+  these two could always answer it too.
+- ae41762: **On a Postgres or MySQL meta store, a key's allowed origins and a customer's
+  claimed session now work.**
+  
+  Postgres and MySQL return a JSON column already parsed, and SQLite returns
+  the text it stored. The public API read two such columns expecting text, and
+  on the two production stores both reads failed:
+  
+  - **A key limited to certain origins accepted every origin** on the
+    instance's `ADMINIUM_PUBLIC_API_ORIGINS` list. The key's own list was
+    dropped, so it was narrowed by nothing.
+  - **A customer who had claimed their records was treated as not signed in.**
+    Everything behind a claim answered 404 for them.
+  
+  SQLite was never affected, which is why every local test passed. Both
+  columns now read back as text on every store, the same fix the scope document
+  got earlier.
+  
+  This release also adds meta migration `0038_public_endpoints`. It creates
+  three new tables and adds nullable or defaulted columns to publishable keys and
+  scopes, so existing rows are unchanged. Nothing uses them yet; they are for the
+  coming endpoint builder on the API keys page.
+- ae41762: **Revoking a publishable key now stops it on the next request.**
+  
+  The public API keeps each key's compiled scope in memory for up to 30
+  seconds. Revoking or rotating a key, or editing a scope, was meant to clear
+  that memory, but the key pages were connected to a copy the public API never
+  read. So a revoked key, or the old token of a rotated one, kept working for up
+  to 30 seconds, and a scope edit took as long to apply. They now share one, and
+  the change applies to the next request.
+  
+  A revoke that lands while a request for the same key is still being looked up
+  now holds as well. Before, that lookup could put the key back in memory as live
+  for another 30 seconds. The same fix applies to switching the public API off
+  in Studio.
+  
+  With more than one server process, the process that handled the change applies
+  it at once. The others still take up to 30 seconds.
+  
+  Also:
+  
+  - A key with an expiry date stops at that time. It used to keep working for up
+    to 30 seconds past it.
+  - Each key's "last used" time is written at most once a minute, not on every
+    request. A customer's public session is updated the same way.
+  - Expired public sessions are deleted by the nightly clean-up. Nothing deleted
+    them before.
+  - Each public request reads a small record to check whether the schema
+    changed, rather than the whole stored schema.
+- ae41762: **A forged session header no longer resets the public claim limit.**
+  
+  The public API's rate limiter counted each request once, before the key or
+  the session was checked. It named the bucket after the first 16 characters
+  of the token, or after the raw `x-adminium-public-session` header when one
+  was sent. The server checked only the header's `adm_pubs_` prefix. So a
+  random session header on every attempt got a fresh 5-a-minute
+  `POST /public/claim` bucket on every attempt. Claims, the guard on guessing
+  order references, then ran at the 600-a-minute backstop instead. Random
+  tokens did the same to the pre-check bucket, and each one cost a database
+  lookup and a new entry in the limiter's memory.
+  
+  Each request is now counted twice:
+  
+  - **Before the key is checked**, on the caller's address only: 300 requests
+    a minute, any route. An IPv6 caller is counted by its /64.
+  - **After**, on the class limits (120 reads, 20 writes, 5 claims a minute).
+    A session gets its own allowance only after its row is found, and the
+    bucket is keyed by the row. A header that matches nothing counts as an
+    anonymous caller. Claims never use the session bucket.
+  
+  A signed-in customer still has their own read and write allowance, and
+  anonymous traffic on the same key can't use it up.
+- ae41762: **On a Postgres or MySQL meta store, a workspace or assistant name that looks
+  like a number now stays a name.**
+  
+  A name setting whose text is also valid JSON, such as `2048`, `true`, `null`
+  or `[1]`, came back from these stores as a number, boolean, null or array. It
+  then failed its own check on every read:
+  
+  - **An assistant named `42` broke the dashboard.** The first request after
+    sign-in failed, so no page loaded.
+  - **A workspace named `2048` broke every branding read**, including the
+    sign-in page's. Renaming it did not help either, because the rename reads
+    the current name first and failed the same way.
+  - **An exported configuration carried the name as a number**, so the instance
+    importing it skipped the setting.
+  
+  A name in quotes, such as `"Acme"`, silently lost its quotes.
+  
+  SQLite was never affected, which is why every local test passed. Settings
+  now read back exactly as they were written on every store.
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+  - @adminium/i18n@0.3.0-rc.3
+  - @adminium/manifest@0.3.0-rc.3
+  - @adminium/meta@0.3.0-rc.3
+  - @adminium/engine@0.3.0-rc.3
+  - @adminium/llm@0.3.0-rc.3
+  - @adminium/adapter-mysql@0.3.0-rc.3
+  - @adminium/adapter-postgres@0.3.0-rc.3
+  - @adminium/adapter-sqlite@0.3.0-rc.3
+  - @adminium/schema-import@0.3.0-rc.3
+  - @adminium/add-on-contracts@0.3.0-rc.3
+
 ## 0.3.0-rc.2
 
 ### Patch Changes

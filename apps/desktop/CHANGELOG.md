@@ -1,5 +1,26 @@
 # @adminium/desktop
 
+## 0.3.0-rc.3
+
+### Patch Changes
+
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+  - @adminium/server@0.3.0-rc.3
+  - @adminium/adapter-mysql@0.3.0-rc.3
+  - @adminium/adapter-postgres@0.3.0-rc.3
+  - @adminium/adapter-sqlite@0.3.0-rc.3
+
 ## 0.3.0-rc.2
 
 ### Patch Changes
