@@ -46,6 +46,9 @@ import type { Dialect } from '@adminium/engine';
 import type { InstallPlan, RequiredColumn, RequiredTable } from '@adminium/manifest';
 import { sql, type CreateTableBuilder, type Kysely } from 'kysely';
 
+import { AppError } from '../errors.js';
+import { renderDefault } from '../schema-ddl/compile.js';
+
 /** Every way applying a plan can be refused. */
 export type ApplyRefusal =
   | 'UNSUPPORTED_COLUMN_TYPE'
@@ -53,13 +56,19 @@ export type ApplyRefusal =
   | 'NO_PRIMARY_KEY'
   | 'DDL_FAILED';
 
-export class AddOnInstallError extends Error {
+/**
+ * An AppError, so the operator reads what went wrong. It was a
+ * plain Error, which the error handler turns into a 500 whose message is hidden
+ * in production — so a failed CREATE TABLE said "Internal Server Error" and
+ * nothing else. 422: every reason is about THIS schema on THIS database.
+ */
+export class AddOnInstallError extends AppError {
   override readonly name = 'AddOnInstallError';
   readonly reason: ApplyRefusal;
   readonly table: string | undefined;
 
   constructor(reason: ApplyRefusal, message: string, table?: string) {
-    super(message);
+    super(422, reason, message, table === undefined ? { reason } : { reason, table });
     this.reason = reason;
     this.table = table;
   }
@@ -164,6 +173,14 @@ export interface ExistingTable {
     nullable?: boolean;
     hasDefault?: boolean;
     isGenerated?: boolean;
+    /** The engine's logical type, which the planner's type check reads. */
+    logicalType?: string;
+    /** A `varchar`'s width, when it has one. */
+    maxLength?: number | null;
+    /** A key the database numbers itself. */
+    isIdentity?: boolean;
+    /** The values an enum column admits. */
+    enumValues?: readonly string[];
   }[];
 }
 
@@ -176,6 +193,11 @@ export interface ApplyInstallInput {
   db: Kysely<Record<string, Record<string, unknown>>>;
   dialect: Dialect;
   existing: readonly ExistingTable[];
+  /**
+   * Called after each table is created, before the next — so a caller keeping
+   * a record knows exactly what exists when a later create fails.
+   */
+  onCreated?: ((ref: string) => Promise<void>) | undefined;
 }
 
 export interface ApplyInstallResult {
@@ -301,6 +323,14 @@ function declaredTypeOf(
   seen: ReadonlySet<string> = new Set(),
 ): string {
   if (column.type === 'enum' && column.enum !== undefined) return enumTypeFor(column.enum);
+  // Short text is a `varchar(n)` on every dialect: what a form, a unique index
+  // and MySQL's key limit all want. SQLite keeps the declared type and does
+  // not enforce it, which is harmless.
+  if (column.type === 'text' && column.maxLength !== undefined) return `varchar(${String(column.maxLength)})`;
+  // A code is unique, and MySQL cannot index an unbounded TEXT: a code column
+  // is exactly as wide as its codes.
+  const code = column.rules?.code;
+  if (column.type === 'text' && code !== undefined) return `varchar(${String((code.prefix ?? '').length + code.length)})`;
   if (column.type !== 'fk' || column.references === undefined) {
     return columnTypeFor(column.type, dialect, column.role === 'pk');
   }
@@ -322,10 +352,10 @@ function declaredTypeOf(
  * A stable topological sort over the internal references only — a reference to
  * a HOST table needs no ordering, because that table is already there. A cycle
  * is not an error: two tables referencing each other is legal in every dialect
- * that supports deferred or post-hoc constraints, and refusing it here would
- * refuse a schema the operator could write by hand. The leftovers are emitted
- * in declaration order and their constraints simply resolve at creation time or
- * not at all, which is the database's ruling to make rather than this file's.
+ * that supports post-hoc constraints, and refusing it here would refuse a
+ * schema the operator could write by hand. The walk breaks a cycle by emitting
+ * a table before one it references; {@link closesCycle} names those foreign
+ * keys, and `applyInstall` adds them once both tables exist.
  */
 function creationOrder(tables: readonly RequiredTable[]): RequiredTable[] {
   const byRef = new Map(tables.map((table) => [table.ref, table]));
@@ -350,6 +380,42 @@ function creationOrder(tables: readonly RequiredTable[]): RequiredTable[] {
 }
 
 /**
+ * Whether a foreign key points at a table that comes LATER in `order` — the
+ * edge the walk broke to order a cycle (`tickets.reservation_id →
+ * reservations`, `reservations.ticket_id → tickets`).
+ *
+ * It used to be created inline like every other, which SQLite accepts (it
+ * checks the target only when a row is written) and Postgres and MySQL refuse
+ * ("relation … does not exist", "Failed to open the referenced table"): the
+ * install stopped half way on both, with the earlier tables made. A reference
+ * to the table itself is not one: its target exists by the time the CREATE
+ * finishes, on every engine.
+ */
+function closesCycle(position: ReadonlyMap<string, number>, table: string, column: RequiredColumn): boolean {
+  if (column.type !== 'fk' || column.references === undefined) return false;
+  const target = position.get(column.references);
+  return target !== undefined && target > position.get(table)!;
+}
+
+/**
+ * Whether the constraint is already there — so the ALTER that closes a cycle
+ * is as safe to run twice as the `ifNotExists` creates around it.
+ */
+async function hasConstraint(
+  db: ApplyInstallInput['db'],
+  dialect: Dialect,
+  table: string,
+  name: string,
+): Promise<boolean> {
+  const schema = dialect === 'mysql' ? sql`database()` : sql`current_schema()`;
+  const found = await sql<{ one: number }>`
+    select 1 as one from information_schema.table_constraints
+    where table_schema = ${schema} and table_name = ${table} and constraint_name = ${name}
+  `.execute(db);
+  return found.rows.length > 0;
+}
+
+/**
  * Creates the tables a plan says to create.
  *
  * Refuses to run a plan that is not installable — the caller has already been
@@ -367,8 +433,13 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
 
   const toCreate = new Set(plan.create.map((table) => table.ref));
   const created: string[] = [];
+  const order = creationOrder(tables);
+  const position = new Map(order.map((table, at) => [table.ref, at]));
+  // SQLite keeps every FK inline: it accepts a target that does not exist yet,
+  // and it has no ALTER TABLE … ADD CONSTRAINT to do it later with.
+  const postHoc = dialect !== 'sqlite';
 
-  for (const table of creationOrder(tables)) {
+  for (const table of order) {
     if (!toCreate.has(table.ref)) continue;
 
     // `ifNotExists` on every create — see the header. A retry after a partial
@@ -382,12 +453,19 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
 
     for (const column of table.columns) {
       const type = declaredTypeOf(column, table, tables, existing, dialect);
+      const numbered = isNumberedKey(column);
       builder = builder.addColumn(column.ref, sql.raw(type), (col) => {
         let built = col;
         if (column.role === 'pk') built = built.primaryKey();
+        // A key that numbers itself. On SQLite `integer PRIMARY KEY` IS
+        // the rowid alias, so the type above already did it.
+        if (numbered && dialect === 'postgres') built = built.generatedByDefaultAsIdentity();
+        if (numbered && dialect === 'mysql') built = built.autoIncrement();
         // Nullable unless the manifest says otherwise, and a primary key is
         // never nullable whatever it says.
         if (column.nullable !== true && column.role !== 'pk') built = built.notNull();
+        const fill = defaultSqlFor(column, dialect);
+        if (fill !== null) built = built.defaultTo(sql.raw(fill));
         if (column.type === 'enum' && column.enum !== undefined) {
           // The CHECK the introspector reads back as an enum.
           const values = column.enum.map((value) => literal(value, dialect)).join(', ');
@@ -399,6 +477,8 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
 
     for (const column of table.columns) {
       if (column.type !== 'fk' || column.references === undefined) continue;
+      // Its target is not made yet; added below, once it is.
+      if (postHoc && closesCycle(position, table.ref, column)) continue;
       const { column: targetColumn } = keyTarget(column.references, tables, existing, dialect);
       // NAMED and table-level, never an inline column-level `references`: MySQL
       // parses the inline form and silently discards it, which is the 2026-07-20
@@ -411,6 +491,13 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
       );
     }
 
+    // A code's uniqueness is the database's to keep: the write path makes a
+    // fresh code when this refuses one.
+    for (const column of table.columns) {
+      if (column.rules?.code === undefined) continue;
+      builder = builder.addUniqueConstraint(`uq_${table.ref}_${column.ref}`, [column.ref]);
+    }
+
     try {
       await builder.execute();
       created.push(table.ref);
@@ -421,9 +508,106 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
         table.ref,
       );
     }
+    await input.onCreated?.(table.ref);
   }
 
+  if (postHoc) await closeCycles({ ...input, order, position, toCreate });
+
   return { created, reused: plan.reuse.map((table) => table.ref) };
+}
+
+/**
+ * The foreign keys `applyInstall` held back, added now that every table exists.
+ *
+ * On the tables it just created — and on a table an EARLIER, interrupted run of
+ * this install created (`own-leftover`, not adopted), because that run may have
+ * stopped between its CREATE and this ALTER. A resume re-plans such a table as
+ * reused and creates nothing, so without this it would finish without the
+ * constraint while claiming to have finished. Each constraint is looked up
+ * first, so a finished install's constraints are left as they are; a column
+ * the live table lacks (an update adds it afterwards) is left alone.
+ */
+async function closeCycles(
+  input: ApplyInstallInput & {
+    order: readonly RequiredTable[];
+    position: ReadonlyMap<string, number>;
+    toCreate: ReadonlySet<string>;
+  },
+): Promise<void> {
+  const { plan, tables, db, dialect, existing, order, position, toCreate } = input;
+  const ownLeftover = new Set(
+    (plan.tables ?? [])
+      .filter((t) => t.class === 'own-leftover' && t.action === 'reuse' && t.adopted !== true)
+      .map((t) => t.table),
+  );
+  for (const table of order) {
+    const made = toCreate.has(table.ref);
+    if (!made && !ownLeftover.has(table.ref)) continue;
+    const live = existing.find((t) => t.ref === table.ref);
+    for (const column of table.columns) {
+      if (!closesCycle(position, table.ref, column)) continue;
+      if (!made && live?.columns.some((c) => c.ref === column.ref) !== true) continue;
+      const name = `fk_${table.ref}_${column.ref}`;
+      try {
+        if (await hasConstraint(db, dialect, table.ref, name)) continue;
+        const { column: targetColumn } = keyTarget(column.references!, tables, existing, dialect);
+        await db.schema
+          .alterTable(table.ref)
+          .addForeignKeyConstraint(name, [column.ref], column.references!, [targetColumn])
+          .execute();
+      } catch (error) {
+        if (error instanceof AddOnInstallError) throw error;
+        throw new AddOnInstallError(
+          'DDL_FAILED',
+          `linking "${table.ref}" to "${column.references!}" failed: ${String(error)}`,
+          table.ref,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * An `int` or `bigint` primary key numbers itself.
+ *
+ * It used to be a bare `integer PRIMARY KEY`, which SQLite quietly turns into
+ * its rowid alias and Postgres and MySQL do not: every insert that left the id
+ * out — every record an operator adds from a form — failed there with a
+ * not-null violation, and only SQLite's suite could not see it. `BY DEFAULT`,
+ * not `ALWAYS`, so an explicit id (sample data, an import) is still accepted;
+ * whoever writes one moves the sequence past it.
+ */
+export function isNumberedKey(column: RequiredColumn): boolean {
+  return column.role === 'pk' && (column.type === 'int' || column.type === 'bigint');
+}
+
+/**
+ * A column's DEFAULT, rendered for the dialect, or `null` for none.
+ *
+ * The manifest schema has already refused every default that is not the same
+ * on all three engines (`defaultIssue`), so this only spells what is left, with
+ * the schema-authoring compiler's own `renderDefault` so an app's table and a
+ * table an operator designs get the same clause.
+ */
+export function defaultSqlFor(column: RequiredColumn, dialect: Dialect): string | null {
+  const value = column.default;
+  if (value === undefined) return null;
+  if (value === 'now' && column.type === 'timestamptz') {
+    return renderDefault({ default: { kind: 'now' }, logicalType: 'timestamptz' }, dialect);
+  }
+  const logicalType =
+    column.type === 'int'
+      ? 'integer'
+      : column.type === 'bigint'
+        ? 'bigint'
+        : column.type === 'decimal' || column.type === 'money'
+          ? 'decimal'
+          : column.type === 'float'
+            ? 'float'
+            : column.type === 'bool'
+              ? 'boolean'
+              : 'varchar';
+  return renderDefault({ default: { kind: 'literal', text: String(value) }, logicalType }, dialect);
 }
 
 /** Quotes an identifier for the CHECK expression, per dialect. */

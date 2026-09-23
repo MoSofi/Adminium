@@ -9,13 +9,20 @@
  *
  * ─── Ordering is the part that is easy to get wrong ────────────────────────
  *
- * Creation order is a topological sort over foreign keys — `install-ddl.ts`
- * already implements exactly this at `:229-249`, and this is the same walk.
- * The DROP direction is its mirror and is the half that has never existed:
- * constraints before the columns they name, columns before the tables they
- * sit in, and referencing tables before referenced ones. Getting it backwards
- * does not produce a subtly wrong schema — it produces a statement the
- * database rejects, half way through a partial apply.
+ * Creation order is a topological sort over foreign keys — the same walk as
+ * `creationOrder` in the server's `add-ons/install-ddl.ts`, which an app
+ * install uses. The DROP direction is its mirror: constraints before the
+ * columns they name, columns before the tables they sit in, and referencing
+ * tables before referenced ones. Getting it backwards does not produce a
+ * subtly wrong schema — it produces a statement the database rejects, half
+ * way through a partial apply.
+ *
+ * A foreign-key CYCLE has no such order in either direction, and both walks
+ * break it at one link. On Postgres and MySQL that link becomes a step of its
+ * own — an `add-fk` after the creates, a `drop-fk` before the drops. SQLite
+ * keeps it inline on create (it accepts a target that does not exist yet) and
+ * the compiler drops the cycle with enforcement off, because it has no
+ * `ALTER TABLE … ADD/DROP CONSTRAINT` to split it with.
  *
  * ─── One subcommand per statement ──────────────────────────────────────────
  *
@@ -135,13 +142,27 @@ function make(
 }
 
 /**
- * Topological order over the FKs an edit creates — `install-ddl.ts:229-249`'s
- * walk, kept identical including its ruling on cycles: two tables referencing
- * each other is legal in every dialect that supports post-hoc constraints, and
- * refusing it here would refuse a schema the operator could write by hand.
+ * The table a link points at, among `tables`, by id or by bare name.
+ *
+ * A foreign key to a table the SAME edit creates names it bare (`invoices`):
+ * that table has no id until it exists, and the validator resolves it by name.
+ * Looking it up by id alone found nothing, so two new tables were created in
+ * declaration order whatever their links said — a child declared before its
+ * parent failed on Postgres and MySQL with "relation … does not exist".
+ */
+function targetAmong(tables: readonly TableModel[], tableId: string): TableModel | undefined {
+  return tables.find((t) => t.id === tableId) ?? tables.find((t) => t.name === tableId);
+}
+
+/**
+ * Topological order over the FKs an edit creates — the walk `install-ddl.ts`'s
+ * `creationOrder` uses, kept identical including its ruling on cycles: two
+ * tables referencing each other is legal in every dialect that supports
+ * post-hoc constraints, and refusing it here would refuse a schema the
+ * operator could write by hand. The walk breaks a cycle by creating a table
+ * before one it references; `planDdl` adds that link once both exist.
  */
 function creationOrder(tables: readonly TableModel[], relations: readonly Relation[]): TableModel[] {
-  const byId = new Map(tables.map((t) => [t.id, t]));
   const fksOf = new Map<string, string[]>();
   for (const r of relations) {
     if (r.kind !== 'declared-fk') continue;
@@ -155,7 +176,7 @@ function creationOrder(tables: readonly TableModel[], relations: readonly Relati
     if (emitted.has(table.id) || seen.has(table.id)) return;
     seen.add(table.id);
     for (const targetId of fksOf.get(table.id) ?? []) {
-      const target = byId.get(targetId);
+      const target = targetAmong(tables, targetId);
       if (target !== undefined) visit(target, seen);
     }
     if (emitted.has(table.id)) return;
@@ -189,6 +210,23 @@ function dropOrder(ids: readonly string[], relations: readonly Relation[]): stri
   };
   for (const id of ids) visit(id, new Set());
   return order;
+}
+
+/**
+ * The links the drop walk could not honour: a table dropped LATER references
+ * one dropped earlier. Only a cycle among the dropped tables produces one, and
+ * no order avoids it — Postgres refuses the earlier DROP ("other objects
+ * depend on it"), MySQL too ("referenced by a foreign key constraint"), and
+ * SQLite's implicit DELETE fails once rows link the tables both ways.
+ */
+export function dropCycleLinks(order: readonly string[], relations: readonly Relation[]): Relation[] {
+  const at = new Map(order.map((id, index) => [id, index]));
+  return relations.filter((r) => {
+    if (r.kind !== 'declared-fk' || r.from.tableId === r.to.tableId) return false;
+    const from = at.get(r.from.tableId);
+    const to = at.get(r.to.tableId);
+    return from !== undefined && to !== undefined && from > to;
+  });
 }
 
 /**
@@ -275,9 +313,28 @@ export function planDdl(input: PlanInput): Omit<DdlPlan, 'checksum'> {
   // `foreignKeys` entry on a new table was accepted by the route, validated by
   // the coherence checks, and then never planned at all — the table created
   // without the constraint and nothing said so.
+  //
+  // Except the link that closes a CYCLE between two new tables (`orders →
+  // invoices`, `invoices → orders`). Whichever is created first references one
+  // that does not exist yet, which SQLite accepts and Postgres and MySQL
+  // refuse. There it is an `add-fk` after the creates; the compiler leaves it
+  // out of the CREATE because this step exists.
   const creates = input.desired.filter((t) => !actualByIdRaw.has(t.id));
-  for (const table of creationOrder(creates, desiredRelations)) {
-    const links = desiredRelations.filter((r) => r.from.tableId === table.id);
+  const createOrder = creationOrder(creates, desiredRelations);
+  const createdAt = new Map(createOrder.map((t, index) => [t.id, index]));
+  const closing = new Set(
+    input.dialect === 'sqlite'
+      ? []
+      : desiredRelations.filter((r) => {
+          if (r.kind !== 'declared-fk') return false;
+          const from = createdAt.get(r.from.tableId);
+          const target = targetAmong(createOrder, r.to.tableId);
+          const to = target === undefined ? undefined : createdAt.get(target.id);
+          return from !== undefined && to !== undefined && to > from;
+        }),
+  );
+  for (const table of createOrder) {
+    const links = desiredRelations.filter((r) => r.from.tableId === table.id && !closing.has(r));
     const columns = `${table.columns.length} column${table.columns.length === 1 ? '' : 's'}`;
     const linkText =
       links.length === 0
@@ -288,6 +345,26 @@ export function planDdl(input: PlanInput): Omit<DdlPlan, 'checksum'> {
         summary: `Create table ${table.name} with ${columns}${linkText}`,
       }),
     );
+  }
+  for (const link of closing) {
+    const made = make('add-fk', link.from.tableId, ctxFor(link.from.tableId), {
+      column: link.from.columns[0] ?? null,
+      summary:
+        `Link ${link.from.columns.join(', ')} to ${bareTableName(link.to.tableId)}` +
+        `(${link.to.columns.join(', ')}), now that both tables exist`,
+    });
+    // Both tables were created a moment ago and are empty, so none of
+    // `add-fk`'s scan or lock hazards apply — and a `locking` verdict would
+    // send preflight to count the rows of a table that does not exist yet.
+    push({
+      ...made,
+      step: {
+        ...made.step,
+        hazard: 'safe',
+        requiresSuperAdmin: requiresSuperAdmin('safe'),
+        rationale: 'Both tables are created empty by this change, so there are no rows to check.',
+      },
+    });
   }
 
   // --- 3. alters -----------------------------------------------------------
@@ -305,7 +382,21 @@ export function planDdl(input: PlanInput): Omit<DdlPlan, 'checksum'> {
   }
 
   // --- 4. drops, in the mirror order ---------------------------------------
-  for (const id of dropOrder(input.dropTables ?? [], input.actual.relations)) {
+  const doomed = dropOrder(input.dropTables ?? [], input.actual.relations);
+  if (input.dialect !== 'sqlite') {
+    for (const link of dropCycleLinks(doomed, input.actual.relations)) {
+      push(
+        make('drop-fk', link.from.tableId, ctxFor(link.from.tableId), {
+          column: link.from.columns[0] ?? null,
+          constraint: link.constraintName,
+          summary:
+            `Drop foreign key ${link.constraintName ?? link.from.columns.join(', ')} → ` +
+            `${bareTableName(link.to.tableId)}, so tables that reference each other can be dropped`,
+        }),
+      );
+    }
+  }
+  for (const id of doomed) {
     const table = actualByIdRaw.get(id);
     push(
       make('drop-table', id, ctxFor(id), {
@@ -498,6 +589,17 @@ function planAlters(
     emit(make('add-index', id, ctx, { summary: `Index ${i.columns.join(', ')}` }));
   }
   for (const fk of diff.fksAdded) {
+    /*
+     * A link on a column this same change ADDS, nullable with no default, is
+     * part of that column on SQLite: `ADD COLUMN … REFERENCES` is the one
+     * constraint SQLite can add in place (every existing row starts NULL, so
+     * none can break it). The add-column step compiles it; a separate add-fk
+     * here would only be the 12-step rebuild, copying every row to add a link
+     * no row has yet.
+     */
+    const [only] = fk.columns;
+    const added = only === undefined || fk.columns.length !== 1 ? undefined : desired.columns.find((c) => c.name === only);
+    if (lite && added !== undefined && diff.addedColumns.includes(only!) && added.nullable && added.default === null) continue;
     emit(
       make('add-fk', id, ctx, {
         column: fk.columns[0] ?? null,

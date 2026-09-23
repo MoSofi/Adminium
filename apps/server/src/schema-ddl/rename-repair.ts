@@ -37,7 +37,9 @@
  * (`not-repaired` consequence) rather than silently left.
  */
 import type { MetaDb } from '@adminium/meta';
-import { connectionsRepo, pagesRepo, permissionsRepo } from '@adminium/meta';
+import { connectionsRepo, pagesRepo, permissionsRepo, publicApiStateRepo } from '@adminium/meta';
+
+import { isUntouched, stamped } from '../pages/generated-stamp.js';
 
 export interface RenameRepairInput {
   meta: MetaDb;
@@ -60,6 +62,12 @@ export interface RenameRepairResult {
   grants: number;
   pages: number;
   diagramLayout: number;
+  /** Public endpoints whose `source` named the table. */
+  endpoints: number;
+  /** Public scope documents (hand-written or derived) with a resource on it. */
+  scopes: number;
+  /** An installed app's table records naming it. */
+  appTables: number;
 }
 
 /** The bare table name a grant string and `includedTables` use. */
@@ -73,6 +81,15 @@ const bare = (id: string): string => id.slice(id.lastIndexOf('.') + 1);
  * discover it.
  */
 export async function repairAfterRename(input: RenameRepairInput): Promise<RenameRepairResult> {
+  /*
+   * ONE TRANSACTION, as the header has always said and the code never did:
+   * each rewrite below was its own statement, so a failure part way left some
+   * of Adminium's references on the new name and some on the old.
+   */
+  return input.meta.db.transaction().execute((trx) => repairIn({ ...input, meta: { ...input.meta, db: trx } as MetaDb }));
+}
+
+async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
   const { meta, connectionId, renames } = input;
   const result: RenameRepairResult = {
     includedTables: 0,
@@ -80,6 +97,9 @@ export async function repairAfterRename(input: RenameRepairInput): Promise<Renam
     grants: 0,
     pages: 0,
     diagramLayout: 0,
+    endpoints: 0,
+    scopes: 0,
+    appTables: 0,
   };
   const columnRenames = input.columnRenames ?? [];
   if (renames.length === 0 && columnRenames.length === 0) return result;
@@ -173,19 +193,81 @@ export async function repairAfterRename(input: RenameRepairInput): Promise<Renam
     if (summary.connectionId !== connectionId) continue;
     const page = await pages.findById(summary.id);
     if (page === null) continue;
-    const config = page.config as { source?: { table?: unknown } } | null;
-    const table = config?.source?.table;
-    if (typeof table !== 'string') continue;
-    const renamed = byOldId.get(table) ?? (byOldName.has(table) ? byOldName.get(table) : undefined);
-    if (renamed === undefined) continue;
+    const config = page.config as ({ source?: { table?: unknown } } & Record<string, unknown>) | null;
+    if (config === null) continue;
+    const table = config.source?.table;
+    const renamed =
+      typeof table !== 'string'
+        ? undefined
+        : (byOldId.get(table) ?? (byOldName.has(table) ? byOldName.get(table) : undefined));
+    let next: Record<string, unknown> =
+      renamed === undefined ? config : { ...config, source: { ...config.source, table: renamed } };
+    /*
+     * A form's relation fields name their relation by id —
+     * `fk:public.orders(customer_id)->public.customers(id)` — and both ends
+     * carry a table id. Rewritten as text between the two delimiters an id can
+     * sit in, so a table whose name merely CONTAINS the old one is untouched.
+     */
+    const text = JSON.stringify(next);
+    let relinked = text;
+    for (const [from, to] of byOldId) {
+      relinked = relinked.split(`fk:${from}(`).join(`fk:${to}(`).split(`->${from}(`).join(`->${to}(`);
+    }
+    if (relinked !== text) next = JSON.parse(relinked) as Record<string, unknown>;
+    if (next === config) continue;
+    // A generated page nobody edited stays "untouched": the repair is not an edit.
+    if (isUntouched(config)) next = stamped(next);
     await meta.db
       .updateTable('adminium_pages')
-      .set({
-        config: JSON.stringify({ ...config, source: { ...config?.source, table: renamed } }),
-      } as never)
+      .set({ config: JSON.stringify(next) } as never)
       .where('id', '=', summary.id)
       .execute();
     result.pages += 1;
+  }
+
+  // --- public endpoints and scopes ------------------------------------------
+  // An endpoint's `source` and a scope resource's `table` name the table; left
+  // alone, every key granted them stops answering. The endpoint's `ref` — its
+  // public URL segment — is NOT changed: that is a contract with callers.
+  // Rewritten as a targeted text replacement, because a definition is stored
+  // (and shown back) byte for byte.
+  const quoteKey = (key: string, value: string) => new RegExp(`("${key}"\\s*:\\s*)"${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`, 'g');
+  const endpoints = await meta.db
+    .selectFrom('adminium_public_endpoints')
+    .select(['id', 'definition'])
+    .where('connectionId', '=', connectionId)
+    .execute();
+  for (const row of endpoints) {
+    let text = row.definition;
+    for (const [from, to] of [...byOldId, ...byOldName]) text = text.replace(quoteKey('source', from), `$1"${to}"`);
+    if (text === row.definition) continue;
+    await meta.db.updateTable('adminium_public_endpoints').set({ definition: text }).where('id', '=', row.id).execute();
+    result.endpoints += 1;
+  }
+  const scopes = await meta.db
+    .selectFrom('adminium_public_scopes')
+    .select(['id', 'document'])
+    .where('connectionId', '=', connectionId)
+    .execute();
+  for (const row of scopes) {
+    const before = typeof row.document === 'string' ? row.document : JSON.stringify(row.document);
+    let text = before;
+    for (const [from, to] of [...byOldId, ...byOldName]) text = text.replace(quoteKey('table', from), `$1"${to}"`);
+    if (text === before) continue;
+    await meta.db.updateTable('adminium_public_scopes').set({ document: text } as never).where('id', '=', row.id).execute();
+    result.scopes += 1;
+  }
+  if (result.endpoints + result.scopes > 0) await publicApiStateRepo(meta).bump();
+
+  // --- an installed app's table record ----------------------------------------
+  for (const [from, to] of byOldName) {
+    const updated = await meta.db
+      .updateTable('adminium_app_tables')
+      .set({ tableName: to, updatedAt: Date.now() })
+      .where('connectionId', '=', connectionId)
+      .where('tableName', '=', from)
+      .executeTakeFirst();
+    result.appTables += Number(updated.numUpdatedRows ?? 0n);
   }
 
   // --- grant strings --------------------------------------------------------

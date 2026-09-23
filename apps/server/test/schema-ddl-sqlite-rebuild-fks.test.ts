@@ -98,6 +98,7 @@ const editOf = (table: DesiredTable): SchemaEdit => ({
   renames: { tables: [], columns: [] },
   upsertTables: [table],
   addColumns: [],
+  alterColumns: [],
   dropTables: [],
 });
 

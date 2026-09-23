@@ -177,6 +177,18 @@ describe('parseCheckEnum — CHECK (col IN (...)) synthesis', () => {
     });
   });
 
+  it('keeps a value that holds an underscore whole — only an introducer BEFORE a quote goes', () => {
+    // A POS install's own checks: `gift_card` read as `gift` refused every
+    // gift-card payment, and `walk_in` / `no_show` read short made an update
+    // "repair" constraints that were right.
+    expect(parseCheckEnum("(`method` in (_utf8mb4\\'cash\\',_utf8mb4\\'gift_card\\'))")).toEqual({ column: 'method', values: ['cash', 'gift_card'] });
+    expect(parseCheckEnum("(`status` in (_utf8mb4\\'confirmed\\',_utf8mb4\\'no_show\\',_latin1\\'walk_in\\'))")).toEqual({
+      column: 'status',
+      values: ['confirmed', 'no_show', 'walk_in'],
+    });
+    expect(parseCheckEnum("`kind` in ('a_b','_x','y_')")).toEqual({ column: 'kind', values: ['a_b', '_x', 'y_'] });
+  });
+
   it('returns null for non-enum checks', () => {
     expect(parseCheckEnum('(`price` > 0)')).toBeNull();
     expect(parseCheckEnum('(char_length(`name`) > 2)')).toBeNull();

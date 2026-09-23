@@ -174,7 +174,7 @@ describe('default rendering', () => {
   it('renders now() per dialect', () => {
     const d = { logicalType: 'timestamptz' as const, default: { kind: 'now' as const } };
     expect(renderDefault(d, 'postgres')).toBe('CURRENT_TIMESTAMP');
-    expect(renderDefault(d, 'sqlite')).toBe("(datetime('now'))");
+    expect(renderDefault(d, 'sqlite')).toBe("(datetime('now', 'localtime'))");
   });
 
   it('refuses a database-generated uuid off postgres (D31)', () => {
@@ -291,17 +291,31 @@ describe('the session rails, and their reset', () => {
     expect(statements[0]).not.toContain('31536000');
   });
 
-  it('resets lock_wait_timeout on mysql and has nothing to reset elsewhere', () => {
+  it('resets lock_wait_timeout on mysql and has nothing to reset on postgres', () => {
     expect(resetRails('mysql', compilerFor('mysql')).map((q) => q.sql)).toEqual([
       'SET SESSION lock_wait_timeout = DEFAULT',
       'SET SESSION max_execution_time = DEFAULT',
     ]);
     expect(resetRails('postgres', compilerFor('postgres'))).toEqual([]);
-    expect(resetRails('sqlite', compilerFor('sqlite'))).toEqual([]);
   });
 
-  it('sqlite needs none — the adapter already sets busy_timeout', () => {
-    expect(sessionRails('sqlite', compilerFor('sqlite'))).toEqual([]);
+  it('turns foreign keys back on for sqlite, which a failed cycle drop leaves off', () => {
+    // A `drop-table` in a foreign-key cycle runs between `foreign_keys = off`
+    // and `= on`; a DROP that fails never reaches the second.
+    expect(resetRails('sqlite', compilerFor('sqlite')).map((q) => q.sql)).toEqual(['PRAGMA foreign_keys = on']);
+    const drop = { id: 'd', kind: 'drop-table' as const, table: 'main.tickets', column: null, constraint: null, hazard: 'irreversible' as const, requiresSuperAdmin: true, summary: 's', rationale: 'r', consequences: [], dependsOn: [], outsideTransaction: false, refusal: null };
+    const ctx = { db: compilerFor('sqlite'), dialect: 'sqlite' as const, serverVersion: null };
+    expect(compileStep(drop, { ...ctx, withoutForeignKeys: true }).map((q) => q.sql)).toEqual([
+      'PRAGMA foreign_keys = off',
+      'drop table "tickets"',
+      'PRAGMA foreign_keys = on',
+    ]);
+    // Every other drop keeps SQLite's enforcement, cascades and all.
+    expect(compileStep(drop, ctx).map((q) => q.sql)).toEqual(['drop table "tickets"']);
+  });
+
+  it('sqlite sets no timeout (the adapter did) but reads its schema first, to see another program’s change', () => {
+    expect(sessionRails('sqlite', compilerFor('sqlite')).map((q) => q.sql)).toEqual(['SELECT count(*) FROM sqlite_master']);
   });
 });
 

@@ -224,3 +224,27 @@ describe('drop-column tells the truth about disk space', () => {
     expect(classifyStep('drop-column', LITE).rationale).toContain('proportional');
   });
 });
+
+describe('what counts as widening, and what it costs on Postgres', () => {
+  const alter = (typeFrom: Record<string, unknown>, typeTo: Record<string, unknown>) =>
+    classifyStep('alter-column-type', PG, { typeFrom, typeTo } as never).hazard;
+
+  it('an integer widens into a decimal only while the decimal keeps enough integer digits', () => {
+    // decimal(19,4) has 15 integer digits: enough for int32 (10), not for int64 (19).
+    expect(alter({ logicalType: 'integer' }, { logicalType: 'decimal', numericPrecision: 19, numericScale: 4 })).toBe('rewrite');
+    expect(alter({ logicalType: 'bigint' }, { logicalType: 'decimal', numericPrecision: 19, numericScale: 4 })).toBe('lossy');
+    expect(alter({ logicalType: 'bigint' }, { logicalType: 'decimal', numericPrecision: 23, numericScale: 4 })).toBe('rewrite');
+  });
+
+  it('a float never widens into a fixed-point decimal', () => {
+    expect(alter({ logicalType: 'float' }, { logicalType: 'decimal', numericPrecision: 38, numericScale: 10 })).toBe('lossy');
+  });
+
+  it('a widening across types still rewrites on Postgres; one within a type does not', () => {
+    // int → bigint changes the stored width: every row and index is rewritten.
+    expect(alter({ logicalType: 'integer' }, { logicalType: 'bigint' })).toBe('rewrite');
+    expect(alter({ logicalType: 'date' }, { logicalType: 'timestamptz' })).toBe('rewrite');
+    expect(alter({ logicalType: 'varchar', maxLength: 20 }, { logicalType: 'text' })).toBe('safe');
+    expect(alter({ logicalType: 'decimal', numericPrecision: 10, numericScale: 2 }, { logicalType: 'decimal', numericPrecision: 12, numericScale: 2 })).toBe('safe');
+  });
+});

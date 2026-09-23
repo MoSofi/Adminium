@@ -39,6 +39,12 @@ export interface ManifestColumnInput {
   nullable?: boolean | undefined;
   enum?: readonly string[] | undefined;
   references?: string | undefined;
+  /** A literal of the column's type, or `now` on a timestamptz. */
+  default?: string | number | boolean | undefined;
+  /** `text` only: installed as `varchar(maxLength)`. */
+  maxLength?: number | undefined;
+  /** A `code` rule makes a text column exactly as wide as its codes. */
+  rules?: { code?: { prefix?: string | undefined; length: number } | undefined } | undefined;
 }
 
 export interface ManifestPagesInput {
@@ -137,8 +143,20 @@ export function modelFromRequiredSchema(manifest: ManifestPagesInput): DatabaseM
           name: column.ref,
           ordinal: index + 1,
           isPrimaryKey: isPk,
-          nullable: isPk ? false : (column.nullable ?? true),
+          // NOT NULL unless the manifest says `nullable: true` — the installer's
+          // rule. This used to read `?? true` and modelled every undeclared
+          // column as optional, which a required-field check never is.
+          nullable: isPk ? false : column.nullable === true,
         };
+        // What the database fills when an insert leaves the column out: an
+        // int key numbers itself, and a declared default is a default.
+        if (isPk && (column.type === 'int' || column.type === 'bigint')) {
+          base['default'] = { kind: 'autoincrement' };
+        } else if (column.default === 'now' && column.type === 'timestamptz') {
+          base['default'] = { kind: 'now' };
+        } else if (column.default !== undefined) {
+          base['default'] = { kind: 'literal', text: String(column.default) };
+        }
         if (column.type === 'fk' && column.references !== undefined) {
           const target = pkOf(column.references);
           base['logicalType'] = target === undefined ? 'integer' : (LOGICAL[target.type] ?? 'integer');
@@ -149,6 +167,15 @@ export function modelFromRequiredSchema(manifest: ManifestPagesInput): DatabaseM
           return base;
         }
         base['logicalType'] = LOGICAL[column.type] ?? 'text';
+        const code = column.rules?.code;
+        if (column.type === 'text' && column.maxLength !== undefined) {
+          base['logicalType'] = 'varchar';
+          base['maxLength'] = column.maxLength;
+        } else if (column.type === 'text' && code !== undefined) {
+          // As the installer creates it: a unique varchar as wide as the code.
+          base['logicalType'] = 'varchar';
+          base['maxLength'] = (code.prefix ?? '').length + code.length;
+        }
         if (column.type === 'enum' && column.enum !== undefined) {
           // Exactly what the installer creates (`enumTypeFor` in the server's
           // install-ddl): a CHECK-constrained varchar whose width is 32 when

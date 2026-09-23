@@ -244,6 +244,13 @@ export type TableSemantics = z.infer<typeof tableSemanticsSchema>;
 
 export const columnModelSchema = z.strictObject({
   name: z.string().min(1),
+  /**
+   * Effective display label (a `column.label` rename — the operator's, or the
+   * one an app installed). Like `table.label`, never emitted by introspection:
+   * the server overlays it before composing a page, so a heading reads
+   * `column.label ?? humanize(column.name)`. Absent ⇔ heuristic naming.
+   */
+  label: z.string().min(1).optional(),
   /** 1-based position (pg attnum-style); 0 = unspecified (imports). */
   ordinal: z.number().int().nonnegative().default(0),
   /** Verbatim native type, e.g. 'character varying(120)', "enum('a','b')". */

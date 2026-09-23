@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import {
   atLeastVersion,
   ddlTypeFor,
+  dropCycleLinks,
   isWideningChange,
   parseDatabaseModel,
   planDdl,
@@ -155,7 +156,7 @@ describe('Text → integer is rewrite+lossy on all three', () => {
     expect(s, dialect).toBeDefined();
     // Every dialect must classify this as at least a rewrite, and never `safe`.
     expect(['rewrite', 'lossy'], dialect).toContain(plan.hazard);
-    expect(isWideningChange({ logicalType: 'text' }, { logicalType: 'integer' }, dialect)).toBe(false);
+    expect(isWideningChange({ logicalType: 'text' }, { logicalType: 'integer' })).toBe(false);
   });
 
   it('requires Super Admin on postgres and mysql, where it is classified lossy', () => {
@@ -480,13 +481,13 @@ describe('widening', () => {
       false,
     ],
   ])('%o → %o = %s', (from, to, expected) => {
-    expect(isWideningChange(from, to, 'postgres')).toBe(expected);
+    expect(isWideningChange(from, to)).toBe(expected);
   });
 
   it('accepts a display-only type on the FROM side', () => {
     // D30 makes `interval` un-authorable, not unreachable: an existing column
     // can be one, and retyping it away is a real plan.
-    expect(isWideningChange({ logicalType: 'interval' }, { logicalType: 'text' }, 'postgres')).toBe(false);
+    expect(isWideningChange({ logicalType: 'interval' }, { logicalType: 'text' })).toBe(false);
   });
 });
 
@@ -585,5 +586,112 @@ describe('a new table’s foreign keys ride IN the create, not beside it', () =>
     const summary = step(plan, 'create-table')?.summary ?? '';
     expect(summary).toContain('clients');
     expect(summary).toContain('projects');
+  });
+});
+
+describe('a foreign-key cycle', () => {
+  /*
+   * `tickets.reservation_id → reservations` and `reservations.ticket_id →
+   * tickets`: no order creates or drops them one link at a time. Postgres and
+   * MySQL refuse the inline FK to a table that does not exist yet, and refuse
+   * to drop a table another still references — so the link that closes the
+   * cycle is a step of its own there. SQLite accepts the inline create and has
+   * no ADD/DROP CONSTRAINT; its drop is the compiler's (enforcement off).
+   */
+  const linked = (name: string, column: string) =>
+    tbl({
+      name,
+      columns: [
+        col({ name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false }),
+        col({ name: column, logicalType: 'integer' }),
+      ],
+    });
+  const tickets = linked('tickets', 'reservation_id');
+  const reservations = linked('reservations', 'ticket_id');
+  const link = (from: string, column: string, to: string, constraintName: string | null = null): Relation => ({
+    id: `fk:public.${from}(${column})->${to}(id)`,
+    kind: 'declared-fk',
+    cardinality: 'one-to-many',
+    from: { tableId: `public.${from}`, columns: [column] },
+    to: { tableId: to, columns: ['id'] },
+    through: null,
+    onDelete: null,
+    onUpdate: null,
+    selfReferential: false,
+    confidence: 1,
+    constraintName,
+  });
+  const cycle = [
+    link('tickets', 'reservation_id', 'public.reservations', 'fk_tickets_reservation_id'),
+    link('reservations', 'ticket_id', 'public.tickets', 'fk_reservations_ticket_id'),
+  ];
+  const at = (dialect: Dialect) => ({ dialect, serverVersion: VERSIONS[dialect][0] });
+  const order = (plan: { steps: { kind: string; table: string; column: string | null }[] }) =>
+    plan.steps.map((s) => `${s.kind}:${s.table}${s.column === null ? '' : `.${s.column}`}`);
+
+  it.each(['postgres', 'mysql'] as const)('creates both on %s, then adds the link that closes it', (dialect) => {
+    const plan = planDdl({ ...at(dialect), actual: model([]), desired: [tickets, reservations], desiredRelations: cycle });
+    expect(order(plan)).toEqual([
+      'create-table:public.reservations',
+      'create-table:public.tickets',
+      'add-fk:public.reservations.ticket_id',
+    ]);
+    // The first CREATE does not claim the link it cannot make…
+    expect(plan.steps[0]?.summary).not.toContain('tickets');
+    // …and the link on two new, empty tables scans nothing — so nothing asks
+    // preflight to count the rows of a table that does not exist yet.
+    expect(plan.steps[2]).toMatchObject({ hazard: 'safe', requiresSuperAdmin: false });
+    expect(plan.refusals).toEqual([]);
+  });
+
+  it('keeps every link inline on sqlite, which accepts a target that does not exist yet', () => {
+    const plan = planDdl({ ...at('sqlite'), actual: model([]), desired: [tickets, reservations], desiredRelations: cycle });
+    expect(order(plan)).toEqual(['create-table:public.reservations', 'create-table:public.tickets']);
+  });
+
+  it('orders two new tables linked by a BARE name, which is how an edit names a table it creates', () => {
+    // The validator resolves `reservations` to the new table by name; the
+    // planner found no table with that id and kept declaration order.
+    const plan = planDdl({
+      ...base,
+      actual: model([]),
+      desired: [tickets, reservations],
+      desiredRelations: [link('tickets', 'reservation_id', 'reservations')],
+    });
+    expect(order(plan)).toEqual(['create-table:public.reservations', 'create-table:public.tickets']);
+  });
+
+  it.each(['postgres', 'mysql'] as const)('drops the closing link on %s before either table', (dialect) => {
+    const plan = planDdl({
+      ...at(dialect),
+      actual: model([tickets, reservations], cycle),
+      desired: [],
+      dropTables: ['public.tickets', 'public.reservations'],
+    });
+    // `reservations` goes first, so `tickets`' link to it goes before that.
+    expect(order(plan)).toEqual([
+      'drop-fk:public.tickets.reservation_id',
+      'drop-table:public.reservations',
+      'drop-table:public.tickets',
+    ]);
+    // By the name the database gave it, which is what the compiler drops.
+    expect(plan.steps[0]?.constraint).toBe('fk_tickets_reservation_id');
+  });
+
+  it('plans sqlite’s drop as the two tables alone', () => {
+    const plan = planDdl({
+      ...at('sqlite'),
+      actual: model([tickets, reservations], cycle),
+      desired: [],
+      dropTables: ['public.tickets', 'public.reservations'],
+    });
+    expect(order(plan)).toEqual(['drop-table:public.reservations', 'drop-table:public.tickets']);
+  });
+
+  it('leaves a self-reference and an acyclic drop alone', () => {
+    const parent = link('reservations', 'ticket_id', 'public.reservations');
+    expect(dropCycleLinks(['public.reservations'], [parent])).toEqual([]);
+    // Referencing table first: the order already honours the link.
+    expect(dropCycleLinks(['public.tickets', 'public.reservations'], [cycle[0]!])).toEqual([]);
   });
 });

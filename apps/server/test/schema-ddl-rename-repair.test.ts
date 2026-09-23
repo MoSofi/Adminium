@@ -8,6 +8,7 @@
  * and a grant that matches nothing, with no error anywhere.
  */
 import BetterSqlite3 from 'better-sqlite3';
+import { sql } from 'kysely';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   connectionsRepo,
@@ -161,6 +162,78 @@ describe('what a rename repairs (D33)', () => {
       grants: 0,
       pages: 0,
       diagramLayout: 0,
+      endpoints: 0,
+      scopes: 0,
+      appTables: 0,
     });
+  });
+});
+
+describe('what a rename repairs beyond pages and grants', () => {
+  it('moves public endpoints, scope documents, form relations and app records — and keeps a generated page untouched', async () => {
+    const { publicEndpointsRepo, publicScopesRepo, appTablesRepo, publicApiStateRepo } = await import('@adminium/meta');
+    const { stamped, isUntouched } = await import('../src/pages/generated-stamp.js');
+    await publicApiStateRepo(meta).ensure();
+    const endpoint = await publicEndpointsRepo(meta).create({
+      connectionId,
+      ref: 'clients',
+      origin: 'custom',
+      definition: '{\n  "source": "public.clients",\n  "methods": ["GET"]\n}',
+    });
+    const scope = await publicScopesRepo(meta).create({
+      connectionId,
+      side: 'customer',
+      name: 'web',
+      timezone: 'UTC',
+      document: JSON.stringify({ version: 1, resources: [{ ref: 'clients', table: 'public.clients' }] }),
+    });
+    await appTablesRepo(meta).record({ appKey: 'crm', manifestId: null, connectionId, ref: 'clients', tableName: 'clients', owned: true, state: 'created' });
+    const relation = 'fk:public.orders(client_id)->public.clients(id)';
+    const page = await pagesRepo(meta).create({
+      connectionId,
+      slug: 'orders',
+      type: 'page-crud',
+      title: 'Orders',
+      config: stamped({ source: { table: 'public.orders' }, config: { form: { sections: [{ fields: [{ relation }] }] } } }),
+      origin: 'manifest',
+    } as never);
+    const revision = await publicApiStateRepo(meta).read();
+
+    const result = await repairAfterRename({ meta, connectionId, renames: [{ from: 'public.clients', to: 'public.customers' }], crypto });
+    expect(result).toMatchObject({ endpoints: 1, scopes: 1, appTables: 1, pages: 1 });
+
+    // The endpoint's table follows; its public URL segment does not change.
+    const moved = await publicEndpointsRepo(meta).findById(endpoint.id);
+    expect(moved?.definition).toBe('{\n  "source": "public.customers",\n  "methods": ["GET"]\n}');
+    expect(moved?.ref).toBe('clients');
+    expect((await publicScopesRepo(meta).findById(scope.id))?.document).toContain('"table":"public.customers"');
+    expect(await publicApiStateRepo(meta).read()).toBeGreaterThan(revision);
+    expect((await appTablesRepo(meta).find(connectionId, 'crm', 'clients'))?.tableName).toBe('customers');
+
+    const reloaded = await pagesRepo(meta).findById(page.id);
+    expect(JSON.stringify(reloaded?.config)).toContain('fk:public.orders(client_id)->public.customers(id)');
+    // Repaired, not edited: an update would still rebuild it.
+    expect(isUntouched(reloaded?.config)).toBe(true);
+  });
+
+  it('is all or nothing: a failure part way leaves every reference on the old name', async () => {
+    const connections = connectionsRepo(meta, crypto);
+    await connections.update(connectionId, { settings: { includedTables: ['public.clients'] } });
+    await pagesRepo(meta).create({
+      connectionId,
+      slug: 'clients',
+      type: 'page-crud',
+      title: 'Clients',
+      config: { source: { table: 'public.clients' } },
+      origin: 'generated',
+    } as never);
+    // The page rewrite fails AFTER includedTables was rewritten in the same run.
+    await sql.raw(
+      "CREATE TRIGGER fail_page_update BEFORE UPDATE ON adminium_pages BEGIN SELECT RAISE(ABORT, 'disk full'); END",
+    ).execute(meta.db);
+    await expect(
+      repairAfterRename({ meta, connectionId, renames: [{ from: 'public.clients', to: 'public.customers' }], crypto }),
+    ).rejects.toThrow('disk full');
+    expect((await connections.findById(connectionId))?.settings.includedTables).toEqual(['public.clients']);
   });
 });

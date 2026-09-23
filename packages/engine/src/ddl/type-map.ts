@@ -179,7 +179,7 @@ export function ddlTypeForDesired(dialect: Dialect): (column: DesiredColumn) => 
  * will be lost" is unbounded and the cost of an unnecessary confirmation is a
  * click.
  */
-export function isWideningChange(from: TypeShape, to: TypeShape, dialect: Dialect): boolean {
+export function isWideningChange(from: TypeShape, to: TypeShape): boolean {
   if (from.logicalType === to.logicalType) {
     switch (from.logicalType) {
       case 'varchar': {
@@ -199,26 +199,30 @@ export function isWideningChange(from: TypeShape, to: TypeShape, dialect: Dialec
         return true;
     }
   }
-  // Cross-family widenings that every dialect performs without loss.
+  /*
+   * An integer into a decimal widens only when the decimal keeps enough
+   * INTEGER digits. This used to say every integer→decimal was
+   * widening, so `bigint → decimal(19,4)` — fifteen integer digits for a type
+   * that needs nineteen — was offered as a change that cannot lose data.
+   */
+  if (to.logicalType === 'decimal' && (from.logicalType === 'integer' || from.logicalType === 'bigint')) {
+    const precision = to.numericPrecision ?? DEFAULT_DECIMAL_PRECISION;
+    const scale = to.numericScale ?? DEFAULT_DECIMAL_SCALE;
+    // int32 holds 10 digits, int64 19.
+    return precision - scale >= (from.logicalType === 'integer' ? 10 : 19);
+  }
+  // Cross-family widenings that every dialect performs without loss. NOT
+  // `float → decimal`: a float holds values no fixed-point type can (1e300,
+  // and the long binary fractions of 0.1), so that change rounds or refuses.
   const widening: readonly [LogicalType, LogicalType][] = [
     ['varchar', 'text'],
     ['integer', 'bigint'],
-    ['integer', 'decimal'],
     ['integer', 'float'],
-    ['bigint', 'decimal'],
-    ['float', 'decimal'],
     ['date', 'timestamp'],
     ['date', 'timestamptz'],
     ['timestamp', 'timestamptz'],
     ['enum', 'varchar'],
     ['enum', 'text'],
   ];
-  const isWide = widening.some(([a, b]) => a === from.logicalType && b === to.logicalType);
-  if (!isWide) return false;
-  // `float → decimal` is lossless in range but not in representation on
-  // SQLite, whose REAL is the only numeric it has.
-  if (dialect === 'sqlite' && from.logicalType === 'float' && to.logicalType === 'decimal') {
-    return false;
-  }
-  return true;
+  return widening.some(([a, b]) => a === from.logicalType && b === to.logicalType);
 }

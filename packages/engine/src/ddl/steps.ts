@@ -439,7 +439,7 @@ export function classifyStep(
     case 'alter-column-type': {
       const widening =
         detail.typeFrom !== undefined && detail.typeTo !== undefined
-          ? isWideningChange(detail.typeFrom, detail.typeTo, dialect)
+          ? isWideningChange(detail.typeFrom, detail.typeTo)
           : false;
       if (lite) {
         return {
@@ -459,11 +459,30 @@ export function classifyStep(
             : 'MySQL copies the whole table, and under a non-strict sql_mode it silently clips every value that does not fit rather than failing.',
         };
       }
-      if (widening) {
+      /*
+       * Only a length or precision INCREASE within one type, and varchar →
+       * text, are binary-coercible on Postgres. A widening across types
+       * (int → bigint, date → timestamp) still rewrites every row and index:
+       * the stored width changes. This used to call them all safe.
+       */
+      const inPlace =
+        widening &&
+        detail.typeFrom !== undefined &&
+        detail.typeTo !== undefined &&
+        (detail.typeFrom.logicalType === detail.typeTo.logicalType ||
+          (detail.typeFrom.logicalType === 'varchar' && detail.typeTo.logicalType === 'text'));
+      if (inPlace) {
         return {
           hazard: 'safe',
           rationale:
             'Postgres widens this type without rewriting the table (no rewrite for length or precision increases since 9.2).',
+        };
+      }
+      if (widening) {
+        return {
+          hazard: 'rewrite',
+          rationale:
+            'No value is lost, but Postgres rewrites the table and its indexes to change the stored width, holding an exclusive lock while it does.',
         };
       }
       return {

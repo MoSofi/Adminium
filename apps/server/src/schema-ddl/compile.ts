@@ -107,6 +107,15 @@ export interface CompileContext {
    * postgres and sqlite reach the same answer through their own type rules.
    */
   fkColumnTypes?: Readonly<Record<string, string>> | undefined;
+  /**
+   * SQLite `drop-table` only: the table is in a foreign-key cycle with a table
+   * this plan drops after it, so the DROP runs with enforcement off.
+   *
+   * SQLite has no `DROP CONSTRAINT` to break the cycle with, and its DROP TABLE
+   * runs an implicit DELETE that fails once rows link the two tables both ways
+   * — in either order. Postgres and MySQL get a `drop-fk` step instead.
+   */
+  withoutForeignKeys?: boolean | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +200,14 @@ export function renderDefault(
     case 'expression':
       return value.text;
     case 'now':
-      return dialect === 'sqlite' ? "(datetime('now'))" : 'CURRENT_TIMESTAMP';
+      /*
+       * SQLite has no zone: its timestamp is a wall clock, and every value
+       * Adminium writes into one is the SERVER's (`write-values.ts`,
+       * `instants.ts`). A bare `datetime('now')` is UTC's — so a row the
+       * database stamped and a row Adminium wrote sat hours apart in the same
+       * column. `localtime` makes them one clock.
+       */
+      return dialect === 'sqlite' ? "(datetime('now', 'localtime'))" : 'CURRENT_TIMESTAMP';
     case 'uuid':
       // D31: offered on postgres only, and the validator refuses it elsewhere.
       if (dialect !== 'postgres') {
@@ -376,13 +392,32 @@ export function sessionRails(
         sql.raw(`SET SESSION max_execution_time = ${statement}`).compile(db),
       ];
     default:
-      // SQLite's busy_timeout is set by the adapter's data pragmas already.
-      return [];
+      /*
+       * SQLite's busy_timeout is set by the adapter's data pragmas already.
+       *
+       * What SQLite needs instead is a READ before the first DDL. A connection
+       * prepares against the schema it cached, and learns that another
+       * connection changed it only when a statement RUNS and finds the schema
+       * cookie moved. A DML statement re-prepares and never shows it; an
+       * `ALTER TABLE … ADD COLUMN` is refused while it is prepared — "duplicate
+       * column name" for a column another program has since dropped — so it
+       * never runs far enough to find out. Reading the schema table runs, which
+       * makes the connection reload what it cached.
+       */
+      return [sql.raw('SELECT count(*) FROM sqlite_master').compile(db)];
   }
 }
 
-/** Undo {@link sessionRails} on a connection that outlives the apply (D10). */
+/**
+ * Undo {@link sessionRails} on a connection that outlives the apply (D10).
+ *
+ * On SQLite, foreign-key enforcement: a `drop-table` compiled
+ * `withoutForeignKeys` turns it off around its DROP, and a DROP that fails
+ * never reaches the statement that turns it back on. The adapter opens every
+ * data connection with it on, which is the state this restores.
+ */
 export function resetRails(dialect: Dialect, db: Db): CompiledQuery[] {
+  if (dialect === 'sqlite') return [sql.raw(FOREIGN_KEYS_ON).compile(db)];
   return dialect === 'mysql'
     ? [
         sql.raw('SET SESSION lock_wait_timeout = DEFAULT').compile(db),
@@ -390,6 +425,8 @@ export function resetRails(dialect: Dialect, db: Db): CompiledQuery[] {
       ]
     : [];
 }
+
+const FOREIGN_KEYS_ON = 'PRAGMA foreign_keys = on';
 
 // ---------------------------------------------------------------------------
 // Step compilation
@@ -412,8 +449,14 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
     case 'create-table':
       return compileCreateTable(step, ctx);
 
-    case 'drop-table':
-      return [db.schema.dropTable(bareName(step.table)).compile()];
+    case 'drop-table': {
+      const drop = db.schema.dropTable(bareName(step.table)).compile();
+      if (dialect !== 'sqlite' || ctx.withoutForeignKeys !== true) return [drop];
+      // Outside any transaction, where the pragma takes effect: the apply runs
+      // SQLite's statements one by one. `resetRails` turns enforcement back on
+      // if the DROP fails before the last statement does.
+      return [raw('PRAGMA foreign_keys = off'), drop, raw(FOREIGN_KEYS_ON)];
+    }
 
     case 'rename-table': {
       const to = ctx.desired?.name;
@@ -441,11 +484,25 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
       const column = columnOf(ctx.desired, step.column, step);
       const table = ctx.desired!;
       const clause = dialect === 'mysql' ? mysqlAlgorithmClause(step.hazard) : '';
+      /*
+       * SQLite's one in-place constraint: a link on the column being added
+       * (the planner leaves out the add-fk it would otherwise rebuild for).
+       * Postgres and MySQL add it as its own step.
+       */
+      const link =
+        dialect === 'sqlite' &&
+        ctx.relation !== undefined &&
+        ctx.relation.kind === 'declared-fk' &&
+        ctx.relation.from.columns.length === 1 &&
+        ctx.relation.from.columns[0] === column.name
+          ? ` REFERENCES ${tableRef(ctx.relation.to.tableId, dialect)} (${ctx.relation.to.columns.map((c) => quoteIdent(c, dialect)).join(', ')})` +
+            (ctx.relation.onDelete === null ? '' : ` ON DELETE ${fkAction(ctx.relation.onDelete)}`)
+          : '';
       const statements = [
         raw(
           `ALTER TABLE ${t} ADD COLUMN ${columnDefinition(column, table, dialect, {
             typeOverride: ctx.fkColumnTypes?.[column.name],
-          })}${clause}`,
+          })}${link}${clause}`,
         ),
       ];
       // An enum column carries its CHECK (D32) as part of becoming an enum.

@@ -29,6 +29,7 @@ const EDIT = {
   renames: { tables: [], columns: [] },
   upsertTables: [],
   addColumns: [],
+  alterColumns: [],
   dropTables: [],
 };
 

@@ -28,10 +28,14 @@
 import {
   applyRenames,
   ddlTypeForDesired,
+  dropCycleLinks,
   desiredTableToModel,
   isReservedWord,
   planDdl,
+  isWideningChange,
+  parseEnumCheck,
   tableWithAddedColumns,
+  tableWithAlteredColumns,
   validateSchemaEdit,
   type DatabaseModel,
   type DdlPlan,
@@ -119,6 +123,7 @@ async function planWithRelations(
     actual: input.actual.tables,
     metaSharesDatabase: input.metaSharesDatabase,
     isReserved: isReservedWord,
+    isWidening: (from, to) => isWideningChange(from, to),
   });
   if (issues.length > 0) {
     throw new ValidationFailedError('This schema edit cannot be applied.', { issues });
@@ -167,22 +172,8 @@ async function planWithRelations(
    * rename a table and add a column to it in one go, and the client names it
    * by the id it was given.
    */
-  const addedByTable = new Map<string, typeof input.edit.addColumns[number]['column'][]>();
-  for (const entry of input.edit.addColumns ?? []) {
-    const id = renamedIds.get(entry.table) ?? entry.table;
-    const table = renamed.tables.find((t) => t.id === id || t.name === id);
-    // `validateSchemaEdit` has already refused an unknown table; this only
-    // guards the lookup.
-    if (table === undefined) continue;
-    const list = addedByTable.get(table.id);
-    if (list === undefined) addedByTable.set(table.id, [entry.column]);
-    else list.push(entry.column);
-  }
-  for (const [tableId, columns] of addedByTable) {
-    const table = renamed.tables.find((t) => t.id === tableId);
-    if (table === undefined) continue;
-    desired.push(tableWithAddedColumns(table, columns, { dbTypeFor }));
-  }
+  const extended = extendedTables(renamed, renamedIds, input.edit, dbTypeFor);
+  for (const table of extended.values()) desired.push(table);
 
   const desiredRelations: Relation[] = input.edit.upsertTables.flatMap((table) =>
     table.foreignKeys.map((fk) => {
@@ -211,10 +202,41 @@ async function planWithRelations(
    * express, so one nullable column copied every row and tripped the
    * row-count gate.
    */
-  for (const tableId of addedByTable.keys()) {
+  for (const tableId of extended.keys()) {
     desiredRelations.push(
       ...renamed.relations.filter((r) => r.kind === 'declared-fk' && r.from.tableId === tableId),
     );
+  }
+  /*
+   * A column added WITH a link (an app update's `tickets.customer_id`): its
+   * foreign key joins the desired relations, so the diff plans it — an
+   * `add-fk` on postgres and MySQL, and part of the ADD COLUMN on SQLite — and
+   * `fkColumnTypesFor` gives the column its target key's native type.
+   */
+  const tableIdOf = (ref: string): string | undefined => {
+    const id = renamedIds.get(ref) ?? ref;
+    return renamed.tables.find((t) => t.id === id || t.name === id)?.id;
+  };
+  for (const entry of input.edit.addColumns ?? []) {
+    if (entry.foreignKey === undefined) continue;
+    const fromId = tableIdOf(entry.table);
+    const toId = tableIdOf(entry.foreignKey.toTable);
+    // `validateSchemaEdit` has already refused a table that is not there.
+    if (fromId === undefined || toId === undefined) continue;
+    const columns = [entry.column.name];
+    desiredRelations.push({
+      id: `fk:${fromId}(${columns.join(',')})->${toId}(${entry.foreignKey.toColumns.join(',')})`,
+      kind: 'declared-fk' as const,
+      cardinality: 'one-to-many' as const,
+      from: { tableId: fromId, columns },
+      to: { tableId: toId, columns: [...entry.foreignKey.toColumns] },
+      through: null,
+      onDelete: entry.foreignKey.onDelete,
+      onUpdate: null,
+      selfReferential: fromId === toId,
+      confidence: 1,
+      constraintName: null,
+    });
   }
 
   // --- 4. plan --------------------------------------------------------------
@@ -238,12 +260,28 @@ async function planWithRelations(
     ...(input.ceilingDoor === undefined ? {} : { ceilingDoor: input.ceilingDoor }),
   });
 
-  const enumValuesByTable = new Map(
+  const enumValuesByTable = new Map<string, Readonly<Record<string, readonly string[]>>>(
     input.edit.upsertTables.map((t) => [
       t.id ?? `${t.schema ?? renamed.defaultSchema ?? 'public'}.${t.name}`,
       t.enumValues,
     ]),
   );
+  /*
+   * An EXTENDED table's value lists are its own CHECKs, as altered — the same
+   * answer the apply path's `enumValuesFor` gives. Without them an
+   * `enumValues` edit (an app update adding `gift_card` to a payment method)
+   * compiled its re-added CHECK to a "could not render" comment: the plan
+   * dropped the constraint and put nothing back.
+   */
+  for (const [tableId, table] of extended) {
+    const names = table.columns.map((c) => c.name);
+    const lists: Record<string, readonly string[]> = {};
+    for (const check of table.checks) {
+      const parsed = parseEnumCheck(check.expression, names);
+      if (parsed !== null) lists[parsed.column] = parsed.values;
+    }
+    if (Object.keys(lists).length > 0) enumValuesByTable.set(tableId, lists);
+  }
   /*
    * Indexed under BOTH ids when a table is renamed.
    *
@@ -256,8 +294,9 @@ async function planWithRelations(
    * then reported as a failed step. The rename was planned correctly and could
    * not be executed.
    */
-  const desiredById = indexDesired(desired, input.edit);
+  const desiredById = indexDesired(desired, input.edit, renamed);
 
+  const links = linksFor(planned.steps, desiredRelations, renamed.relations, input.dialect);
   const steps: PlannedStep[] = planned.steps.map((step) => {
     const refusal = pre.refusals.get(step.id);
     const withConsequences: DdlStep = {
@@ -267,7 +306,7 @@ async function planWithRelations(
         ? {}
         : { hazard: 'refused' as const, refusal: refusal.code as DdlStep['refusal'], rationale: refusal.message }),
     };
-    return { ...withConsequences, sql: compileFor(withConsequences, input, desiredById, enumValuesByTable, desiredRelations) };
+    return { ...withConsequences, sql: compileFor(withConsequences, input, desiredById, enumValuesByTable, links) };
   });
 
   const refusals = [
@@ -308,12 +347,66 @@ async function planWithRelations(
  * Both callers need the same thing and got it two different ways once; one of
  * them silently produced a plan whose rename step could not compile.
  */
-function indexDesired(desired: readonly TableModel[], edit: SchemaEdit): Map<string, TableModel> {
+/**
+ * The desired model of every table an edit EXTENDS rather than restates:
+ * `addColumns` and `alterColumns`, grouped per table so two changes to one
+ * table are one desired model (and one diff), built from the snapshot's own
+ * table so nothing untouched can read as changed. Alterations first, then the
+ * added columns on top.
+ *
+ * Shared by the plan and the apply paths so the two cannot disagree about
+ * which table is being rebuilt into what.
+ */
+export function extendedTables(
+  actual: DatabaseModel,
+  renamedIds: ReadonlyMap<string, string>,
+  edit: SchemaEdit,
+  dbTypeFor: ReturnType<typeof ddlTypeForDesired>,
+): Map<string, TableModel> {
+  const find = (ref: string) => {
+    const id = renamedIds.get(ref) ?? ref;
+    return actual.tables.find((t) => t.id === id || t.name === id);
+  };
+  const adds = new Map<string, SchemaEdit['addColumns'][number]['column'][]>();
+  for (const entry of edit.addColumns ?? []) {
+    const table = find(entry.table);
+    // `validateSchemaEdit` has already refused an unknown table.
+    if (table === undefined) continue;
+    adds.set(table.id, [...(adds.get(table.id) ?? []), entry.column]);
+  }
+  const alters = new Map<string, SchemaEdit['alterColumns'][number][]>();
+  for (const entry of edit.alterColumns ?? []) {
+    const table = find(entry.table);
+    if (table === undefined) continue;
+    alters.set(table.id, [...(alters.get(table.id) ?? []), entry]);
+  }
+  const out = new Map<string, TableModel>();
+  for (const tableId of new Set([...alters.keys(), ...adds.keys()])) {
+    const table = actual.tables.find((t) => t.id === tableId);
+    if (table === undefined) continue;
+    const altered = tableWithAlteredColumns(table, alters.get(tableId) ?? [], { dbTypeFor });
+    out.set(tableId, tableWithAddedColumns(altered, adds.get(tableId) ?? [], { dbTypeFor }));
+  }
+  return out;
+}
+
+function indexDesired(
+  desired: readonly TableModel[],
+  edit: SchemaEdit,
+  /**
+   * The model after the edit's renames. A table that is ONLY renamed — no
+   * restatement, no added or altered column — has no desired model of its
+   * own, and the compiler needs one to know the new name; the renamed table
+   * is exactly that. (A server-made edit renames a stranger's table out of an
+   * app's way this way.)
+   */
+  renamed?: DatabaseModel,
+): Map<string, TableModel> {
   const byId = new Map(desired.map((t) => [t.id, t]));
   for (const rename of edit.renames.tables) {
     // `from` may be an id or a bare name; the desired table is the one whose
     // name is now `to`, whatever schema it ended up qualified with.
-    const table = desired.find((t) => t.name === rename.to);
+    const table = desired.find((t) => t.name === rename.to) ?? renamed?.tables.find((t) => t.name === rename.to);
     if (table !== undefined && !byId.has(rename.from)) byId.set(rename.from, table);
   }
   return byId;
@@ -362,14 +455,73 @@ function fkColumnTypesFor(
   return types;
 }
 
+/**
+ * The foreign-key facts each step compiles from, beyond the desired links.
+ *
+ * Both halves of a foreign-key cycle are decided by the planner and only READ
+ * here, from the steps it made:
+ *
+ *  - an `add-fk` on a table the same plan CREATES is the link that closes a
+ *    cycle (`planDdl`'s creates); its `create-table` must leave that link out,
+ *    or it names a table that does not exist yet and the step exists for
+ *    nothing;
+ *  - a `drop-fk` on a dropped table names a constraint that exists only in the
+ *    ACTUAL schema — the table is in no desired document — so it is resolved
+ *    there, by the constraint's own name;
+ *  - on SQLite, which gets no `drop-fk`, a table the drop order cannot honour
+ *    (`dropCycleLinks`) is dropped with enforcement off.
+ */
+interface StepLinks {
+  desired: readonly Relation[];
+  actual: readonly Relation[];
+  /** `table:column` of every link a separate `add-fk` makes on a new table. */
+  separate: ReadonlySet<string>;
+  /** SQLite: tables whose DROP must run with foreign keys off. */
+  unenforcedDrops: ReadonlySet<string>;
+}
+
+/** How the preview says a step's statement could not be compiled — which the apply refuses to run. */
+const UNRENDERED = '-- could not render this statement: ';
+
+function linksFor(
+  steps: readonly DdlStep[],
+  desired: readonly Relation[],
+  actual: readonly Relation[],
+  dialect: Dialect,
+): StepLinks {
+  const created = new Set(steps.filter((s) => s.kind === 'create-table').map((s) => s.table));
+  const separate = new Set(
+    steps
+      .filter((s) => s.kind === 'add-fk' && created.has(s.table) && s.column !== null)
+      .map((s) => `${s.table}:${s.column!}`),
+  );
+  const dropped = steps.filter((s) => s.kind === 'drop-table').map((s) => s.table);
+  const unenforcedDrops = new Set(
+    dialect === 'sqlite' ? dropCycleLinks(dropped, actual).map((r) => r.to.tableId) : [],
+  );
+  return { desired, actual, separate, unenforcedDrops };
+}
+
 function compileFor(
   step: DdlStep,
   input: PlanServiceInput,
   desiredById: Map<string, TableModel>,
   enumValues: Map<string, Readonly<Record<string, readonly string[]>>>,
-  relations: readonly Relation[],
+  links: StepLinks,
 ): string[] {
   if (step.refusal !== null) return [];
+  const relations = links.desired;
+  // Match on the STEP'S OWN column, not just the table: a table with two
+  // foreign keys would otherwise compile both steps from whichever relation
+  // happened to be first, and emit the same constraint twice.
+  const onStep = (r: Relation): boolean =>
+    r.from.tableId === step.table && (step.column === null || r.from.columns.includes(step.column));
+  const relation =
+    step.kind === 'drop-fk' && (step.constraint !== null || step.column !== null)
+      ? (links.actual.find(
+          (r) => onStep(r) && (step.constraint === null || r.constraintName === step.constraint),
+        ) ?? relations.find(onStep))
+      : relations.find(onStep);
   try {
     return compileStep(step, {
       db: input.db,
@@ -377,17 +529,16 @@ function compileFor(
       serverVersion: input.serverVersion,
       desired: desiredById.get(step.table),
       enumValues: enumValues.get(step.table),
-      // Match on the STEP'S OWN column, not just the table: a table with two
-      // foreign keys would otherwise compile both steps from whichever
-      // relation happened to be first, and emit the same constraint twice.
-      relation: relations.find(
+      relation,
+      // `create-table` inlines all of them but a cycle's closing link, which
+      // is its own step; every other kind ignores this.
+      relations: relations.filter(
         (r) =>
           r.from.tableId === step.table &&
-          (step.column === null || r.from.columns.includes(step.column)),
+          !r.from.columns.some((c) => links.separate.has(`${step.table}:${c}`)),
       ),
-      // `create-table` inlines all of them; every other kind ignores this.
-      relations: relations.filter((r) => r.from.tableId === step.table),
       fkColumnTypes: fkColumnTypesFor(step.table, relations, input.actual),
+      withoutForeignKeys: links.unenforcedDrops.has(step.table),
     }).map((q) => q.sql);
   } catch (error) {
     // `rebuild-table` is compiled by the SQLite rebuild module, not here, so it
@@ -397,7 +548,7 @@ function compileFor(
     // foreign key on a new table already had once; it does not get a second
     // form. The reason goes on screen.
     if (step.kind === 'rebuild-table') return [];
-    return [`-- could not render this statement: ${error instanceof Error ? error.message : String(error)}`];
+    return [`${UNRENDERED}${error instanceof Error ? error.message : String(error)}`];
   }
 }
 
@@ -561,22 +712,45 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
       .applied.filter((r) => r.kind === 'table')
       .map((r) => [r.tableId, r.newTableId]),
   );
-  const desiredById = indexDesired(
-    input.edit.upsertTables.map((t) =>
-      desiredTableToModel(
-        { ...t, id: t.id === null ? null : (renamedApplyIds.get(t.id) ?? t.id) },
-        { dbTypeFor: dbTypeForApply, defaultSchema },
-      ),
-    ),
+  const renamedApply = applyRenames(input.actual, input.edit.renames).model;
+  const extendedApply = extendedTables(
+    renamedApply,
+    renamedApplyIds,
     input.edit,
+    dbTypeForApply,
+  );
+  const desiredById = indexDesired(
+    [
+      ...input.edit.upsertTables.map((t) =>
+        desiredTableToModel(
+          { ...t, id: t.id === null ? null : (renamedApplyIds.get(t.id) ?? t.id) },
+          { dbTypeFor: dbTypeForApply, defaultSchema },
+        ),
+      ),
+      ...extendedApply.values(),
+    ],
+    input.edit,
+    renamedApply,
   );
   const renameMap: Record<string, string> = Object.fromEntries(
     input.edit.renames.columns.map((r) => [r.from, r.to]),
   );
-  const enumValuesFor = (tableId: string): Readonly<Record<string, readonly string[]>> =>
-    input.edit.upsertTables.find(
+  const enumValuesFor = (tableId: string): Readonly<Record<string, readonly string[]>> => {
+    const upserted = input.edit.upsertTables.find(
       (t) => (t.id ?? `${t.schema ?? defaultSchema}.${t.name}`) === tableId,
-    )?.enumValues ?? {};
+    );
+    if (upserted !== undefined) return upserted.enumValues;
+    // An extended table's value lists are its own CHECKs, as altered.
+    const table = extendedApply.get(tableId);
+    if (table === undefined) return {};
+    const names = table.columns.map((c) => c.name);
+    const out: Record<string, readonly string[]> = {};
+    for (const check of table.checks) {
+      const parsed = parseEnumCheck(check.expression, names);
+      if (parsed !== null) out[parsed.column] = parsed.values;
+    }
+    return out;
+  };
 
   // --- run ------------------------------------------------------------------
   const { db, dialect } = input;
@@ -649,6 +823,14 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
             // the compiler refused and the plan swallowed it — never a success.
             throw new Error(`${step.kind} produced no statement to run`);
           }
+          /*
+           * Nor is a statement the compiler could not render. The preview shows
+           * the reason as a SQL comment, and a comment RUNS — as nothing — so a
+           * dropped CHECK whose re-add could not render was recorded as applied
+           * with the constraint gone.
+           */
+          const unrendered = step.sql.find((text) => text.startsWith(UNRENDERED));
+          if (unrendered !== undefined) throw new Error(unrendered.slice(3));
           for (const sqlText of step.sql) {
             await db.executeQuery({ sql: sqlText, parameters: [], query: { kind: 'RawNode' } } as never);
           }

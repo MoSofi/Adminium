@@ -282,10 +282,48 @@ function str(value: unknown): string | null {
 // (_utf8mb4'…'), and backslash-escaped quotes in CHECK_CLAUSE.
 // ---------------------------------------------------------------------------
 
+/**
+ * The clause with MySQL 8's backslash-escaped delimiters unescaped and its
+ * charset introducers (`_utf8mb4'…'`) dropped.
+ *
+ * Quote-aware on purpose: an introducer only ever stands OUTSIDE a literal,
+ * just before its opening quote. The one regex this replaces also ate the tail
+ * of any value with an underscore — `'gift_card'` read as `'gift'` — so a
+ * value the column allows was refused on every write, and an app update
+ * "repaired" a constraint that was right.
+ */
 function normalizeCheckClause(clause: string): string {
-  return clause
-    .replaceAll("\\'", "'") // MySQL 8 escapes the literal delimiters with backslashes
-    .replace(/_[a-z][a-z0-9]*\s*(?=')/gi, ''); // strip charset introducers (_utf8mb4'…')
+  const text = clause.replaceAll("\\'", "'"); // MySQL 8 escapes the literal delimiters with backslashes
+  let out = '';
+  let inside = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]!;
+    if (inside) {
+      out += ch;
+      if (ch === "'") {
+        // `''` inside a literal is one quote, not its end.
+        if (text[i + 1] === "'") {
+          out += "'";
+          i += 1;
+        } else inside = false;
+      }
+      continue;
+    }
+    if (ch === "'") {
+      inside = true;
+      out += ch;
+      continue;
+    }
+    if (ch === '_' && !/[\w$]/.test(out.at(-1) ?? '')) {
+      const introducer = /^_[a-z][a-z0-9]*\s*(?=')/i.exec(text.slice(i, i + 80));
+      if (introducer !== null) {
+        i += introducer[0].length - 1;
+        continue;
+      }
+    }
+    out += ch;
+  }
+  return out;
 }
 
 /**

@@ -115,6 +115,13 @@ function enumValuesFor(model: DatabaseModel, column: { enumRef: string | null })
  * reproduces the bespoke builder byte-for-byte only when these map exactly
  * (undefined ⇔ the engine's null for `enumValues`; `default?.kind ?? null`).
  */
+/** A column's reference, with what a person calls the table it points at (when it has a name). */
+function referenceOf(model: DatabaseModel, column: TableModel['columns'][number]): CandidateTable['columns'][number]['references'] {
+  if (column.references === null) return null;
+  const label = model.tables.find((t) => t.id === column.references?.tableId)?.label;
+  return label === undefined ? column.references : { ...column.references, label };
+}
+
 function toCandidateTable(model: DatabaseModel, table: TableModel): CandidateTable {
   const activity = table.activity;
   return {
@@ -129,6 +136,7 @@ function toCandidateTable(model: DatabaseModel, table: TableModel): CandidateTab
     primaryKey: table.primaryKey,
     columns: table.columns.map((column) => ({
       name: column.name,
+      ...(column.label === undefined ? {} : { label: column.label }),
       ordinal: column.ordinal,
       logicalType: column.logicalType,
       nullable: column.nullable,
@@ -138,7 +146,7 @@ function toCandidateTable(model: DatabaseModel, table: TableModel): CandidateTab
       defaultKind: column.default?.kind ?? null,
       maxLength: column.maxLength,
       enumValues: enumValuesFor(model, column),
-      references: column.references,
+      references: referenceOf(model, column),
     })),
   };
 }

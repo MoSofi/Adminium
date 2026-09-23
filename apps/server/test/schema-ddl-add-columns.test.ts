@@ -136,6 +136,7 @@ const EMPTY_EDIT: SchemaEdit = {
   renames: { tables: [], columns: [] },
   upsertTables: [],
   addColumns: [],
+  alterColumns: [],
   dropTables: [],
 };
 
@@ -265,6 +266,51 @@ describe.each<Dialect>(['postgres', 'mysql', 'sqlite'])('addColumns on a table w
 
     expect(plan.steps.map((s) => s.kind)).toEqual(['add-column']);
     expect(plan.refusals).toEqual([]);
+  });
+});
+
+/*
+ * A column added WITH a link — an app update's `tickets.customer_id` beside the
+ * `customers` table the same update made. Postgres and MySQL add the column,
+ * then the constraint; SQLite can add both in ONE `ADD COLUMN … REFERENCES`
+ * (the column is nullable, so every existing row starts unlinked) — anything
+ * else there is the 12-step rebuild of a populated table.
+ */
+const LINKED: DatabaseModel = parseDatabaseModel(
+  JSON.stringify({
+    irVersion: 1,
+    dialect: 'postgres',
+    name: 't',
+    // MySQL's usual key is unsigned: the new column must match it to link at all.
+    tables: [{ ...REGION, columns: [col({ name: 'id', logicalType: 'integer', dbType: 'int unsigned', isPrimaryKey: true, nullable: false })] }, TERRITORIES],
+    relations: [],
+    enums: [],
+  }),
+);
+const link = { toTable: 'public.region', toColumns: ['id'], onDelete: null };
+const regionColumn = { ...attachments, name: 'home_region_id', logicalType: 'integer' as const };
+
+describe.each<Dialect>(['postgres', 'mysql', 'sqlite'])('addColumns with a link (%s)', (dialect) => {
+  it(dialect === 'sqlite' ? 'adds the column and its link in one statement, with no rebuild' : 'adds the column, then the link', async () => {
+    const plan = await planSchemaEdit({
+      ...planInput(dialect, { ...EMPTY_EDIT, addColumns: [{ table: 'public.territories', column: regionColumn, foreignKey: link }] }),
+      actual: LINKED,
+      countRows: async () => ({ value: 15, capped: false }),
+    });
+    expect(plan.refusals).toEqual([]);
+    const sqlText = plan.steps.flatMap((s) => s.sql).join('\n');
+    if (dialect === 'sqlite') {
+      expect(plan.steps.map((s) => s.kind)).toEqual(['add-column']);
+      expect(sqlText).toMatch(/ADD COLUMN "home_region_id" .*REFERENCES "region" \("id"\)/);
+    } else {
+      expect(plan.steps.map((s) => [s.kind, s.column])).toEqual([
+        ['add-column', 'home_region_id'],
+        ['add-fk', 'home_region_id'],
+      ]);
+      expect(sqlText).toMatch(/FOREIGN KEY \(.home_region_id.\) REFERENCES/);
+    }
+    // The column takes the key's own type, so the two can link.
+    if (dialect === 'mysql') expect(sqlText).toMatch(/`home_region_id` int unsigned/i);
   });
 });
 
@@ -426,6 +472,25 @@ describe('the refusals only this door can hit', () => {
     expect(issues).toContainEqual(expect.objectContaining({ code: 'ENUM_ON_NON_ENUM_COLUMN' }));
   });
 
+  it('refuses a link column that is required, or that points at no table', () => {
+    const linked = { ...ctx, actual: LINKED.tables };
+    const required = validateSchemaEdit(
+      { ...EMPTY_EDIT, addColumns: [{ table: 'public.territories', column: { ...regionColumn, nullable: false }, foreignKey: link }] },
+      linked,
+    );
+    expect(required).toEqual([expect.objectContaining({ code: 'FK_COLUMN_NOT_NULLABLE', column: 'home_region_id' })]);
+    const nowhere = validateSchemaEdit(
+      { ...EMPTY_EDIT, addColumns: [{ table: 'public.territories', column: regionColumn, foreignKey: { ...link, toTable: 'public.nope' } }] },
+      linked,
+    );
+    expect(nowhere).toEqual([expect.objectContaining({ code: 'UNKNOWN_TABLE', column: 'home_region_id' })]);
+    const noColumn = validateSchemaEdit(
+      { ...EMPTY_EDIT, addColumns: [{ table: 'public.territories', column: regionColumn, foreignKey: { ...link, toColumns: ['code'] } }] },
+      linked,
+    );
+    expect(noColumn).toEqual([expect.objectContaining({ code: 'UNKNOWN_COLUMN', column: 'home_region_id' })]);
+  });
+
   it('refuses an unknown table rather than planning a CREATE of it', () => {
     const issues = validateSchemaEdit(
       { ...EMPTY_EDIT, addColumns: [{ table: 'public.nope', column: attachments }] },
@@ -457,5 +522,93 @@ describe('the plan’s identity covers the added column (D2)', () => {
     const one = await planSchemaEdit(planInput('postgres', edit));
     const two = await planSchemaEdit(planInput('postgres', edit));
     expect(one.checksum).toBe(two.checksum);
+  });
+});
+
+/*
+ * `alterColumns` — the same narrow door for CHANGING a column, which an app
+ * install uses to adapt a table it reuses. Only changes that cannot lose data
+ * pass, and the desired table is still the snapshot's own, so nothing the edit
+ * does not name can read as changed.
+ */
+describe.each<Dialect>(['postgres', 'mysql', 'sqlite'])('alterColumns on %s', (dialect) => {
+  it('widens one varchar and touches nothing else', async () => {
+    const plan = await planSchemaEdit(
+      planInput(dialect, {
+        ...EMPTY_EDIT,
+        alterColumns: [{ table: 'public.invoices', column: 'number', widen: { logicalType: 'varchar', maxLength: 80 } }],
+      }),
+    );
+    expect(plan.refusals).toEqual([]);
+    const kinds = plan.steps.map((s) => s.kind);
+    // SQLite changes a type by rebuilding; the other two alter the one column.
+    expect(kinds).toEqual(dialect === 'sqlite' ? ['rebuild-table'] : ['alter-column-type']);
+    if (dialect !== 'sqlite') expect(plan.steps[0]?.column).toBe('number');
+    // The sequence default and the interval column survive untouched.
+    expect(kinds).not.toContain('drop-default');
+  });
+
+  it('refuses a change that could lose data, by name', () => {
+    const issues = validateSchemaEdit(
+      { ...EMPTY_EDIT, alterColumns: [{ table: 'public.invoices', column: 'number', widen: { logicalType: 'varchar', maxLength: 10 } }] },
+      {
+        dialect,
+        maxIdentifierLength: 63,
+        actual: actual.tables,
+        metaSharesDatabase: false,
+        isReserved: isReservedWord,
+        isWidening: () => false,
+      },
+    );
+    expect(issues.map((i) => i.code)).toEqual(['NOT_WIDENING']);
+  });
+
+  it('adds a value to a choice column and puts its CHECK back with every value', async () => {
+    // The postgres spelling of the CHECK an install writes: the planner reads
+    // it as enum membership whatever the engine hands back.
+    const ORDERS: TableModel = {
+      ...INVOICES,
+      id: 'public.orders',
+      name: 'orders',
+      columns: [
+        col({ name: 'id', logicalType: 'integer', dbType: 'integer', isPrimaryKey: true, nullable: false }),
+        col({ name: 'status', ordinal: 2, logicalType: 'varchar', dbType: 'character varying(32)', maxLength: 32, nullable: false }),
+      ],
+      checks: [
+        {
+          name: 'orders_status_check',
+          expression: "(status)::text = ANY ((ARRAY['draft'::character varying, 'sent'::character varying])::text[])",
+        },
+      ],
+    };
+    const plan = await planSchemaEdit({
+      ...planInput(dialect, { ...EMPTY_EDIT, alterColumns: [{ table: 'public.orders', column: 'status', enumValues: ['paid'] }] }),
+      actual: parseDatabaseModel(JSON.stringify({ irVersion: 1, dialect: 'postgres', name: 't', tables: [ORDERS], relations: [], enums: [] })),
+    });
+    expect(plan.refusals).toEqual([]);
+    if (dialect === 'sqlite') {
+      expect(plan.steps.map((s) => s.kind)).toEqual(['rebuild-table']);
+      return;
+    }
+    expect(plan.steps.map((s) => s.kind)).toEqual(['drop-check', 'add-check']);
+    // The constraint it drops is put back — with the value added — never a
+    // statement that "could not render" and applied as nothing.
+    const added = plan.steps[1]!.sql.join(' ');
+    expect(added).not.toContain('could not render');
+    expect(added).toMatch(/CHECK/i);
+    for (const value of ['draft', 'sent', 'paid']) expect(added).toContain(`'${value}'`);
+  });
+
+  it('gives an integer key its identity, and refuses it on any other column', async () => {
+    const plan = await planSchemaEdit(
+      planInput(dialect, { ...EMPTY_EDIT, alterColumns: [{ table: 'public.invoices', column: 'id', identity: true }] }),
+    );
+    expect(plan.refusals).toEqual([]);
+    expect(plan.steps.map((s) => s.kind)).toEqual(dialect === 'sqlite' ? ['rebuild-table'] : ['set-identity']);
+    const issues = validateSchemaEdit(
+      { ...EMPTY_EDIT, alterColumns: [{ table: 'public.invoices', column: 'number', identity: true }] },
+      { dialect, maxIdentifierLength: 63, actual: actual.tables, metaSharesDatabase: false, isReserved: isReservedWord },
+    );
+    expect(issues.map((i) => i.code)).toEqual(['IDENTITY_NOT_A_KEY']);
   });
 });

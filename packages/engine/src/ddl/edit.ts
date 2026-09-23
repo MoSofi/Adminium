@@ -193,8 +193,52 @@ export const addColumnSchema = z.strictObject({
   /** Table id in the active snapshot (`public.invoices`), or its bare name. */
   table: z.string().min(1),
   column: desiredColumnSchema,
+  /**
+   * The new column links to another table's key — an app update adding
+   * `tickets.customer_id` beside a `customers` table it has just made. The
+   * column must be nullable with no default: every existing row starts
+   * unlinked, which is the one state no row can violate. Its native type is
+   * the target key's (the planner resolves it), so it links on every engine.
+   */
+  foreignKey: z
+    .strictObject({
+      /** Table id (`public.customers`) or bare name of the table it points at. */
+      toTable: z.string().min(1),
+      toColumns: z.array(identifierSchema).min(1),
+      onDelete: fkActionSchema.nullable().default(null),
+    })
+    .optional(),
 });
 export type AddColumn = z.infer<typeof addColumnSchema>;
+
+/**
+ * Change ONE existing column in a way that cannot lose data — the narrow
+ * door an app install adapts a reused table through.
+ *
+ * WHY NOT `upsertTables`. The same reason as {@link addColumnSchema}: restating
+ * a table from a snapshot refuses any column of a display-only type and reads
+ * an unauthorable default as a `drop-default` nobody asked for. So this form
+ * names only what changes, and the planner builds the desired table as the
+ * SNAPSHOT'S OWN MODEL with just those columns touched
+ * ({@link tableWithAlteredColumns}).
+ *
+ * Each change is checked, not trusted: `widen` must be a widening, `identity`
+ * belongs to an integer primary key, and `enumValues` may only ADD values.
+ */
+export const alterColumnSchema = z.strictObject({
+  /** Table id in the active snapshot (`public.payments`), or its bare name. */
+  table: z.string().min(1),
+  column: z.string().min(1),
+  widen: z
+    .strictObject({
+      logicalType: logicalTypeSchema,
+      maxLength: z.number().int().positive().nullable().optional(),
+    })
+    .optional(),
+  identity: z.literal(true).optional(),
+  enumValues: z.array(z.string().min(1)).min(1).max(256).optional(),
+});
+export type AlterColumn = z.infer<typeof alterColumnSchema>;
 
 export const schemaEditSchema = z.strictObject({
   /** What the client was looking at; the apply re-checks it (D2). */
@@ -218,6 +262,8 @@ export const schemaEditSchema = z.strictObject({
   upsertTables: z.array(desiredTableSchema).default([]),
   /** Additive column edits on existing tables — see {@link addColumnSchema}. */
   addColumns: z.array(addColumnSchema).max(50).default([]),
+  /** Safe changes to existing columns — see {@link alterColumnSchema}. */
+  alterColumns: z.array(alterColumnSchema).max(50).default([]),
   /** Table ids. */
   dropTables: z.array(z.string().min(1)).default([]),
 });
@@ -260,6 +306,13 @@ export const EDIT_ISSUE_CODES = [
    * refused here rather than discovered as an engine error after Apply.
    */
   'IDENTITY_NOT_A_KEY',
+  /** An `alterColumns` change that could lose data: not a widening, or a value removed. */
+  'NOT_WIDENING',
+  /**
+   * An `addColumns` link column that is not nullable with no default: every
+   * existing row must start unlinked, the one state no row can violate.
+   */
+  'FK_COLUMN_NOT_NULLABLE',
 ] as const;
 export type EditIssueCode = (typeof EDIT_ISSUE_CODES)[number];
 
@@ -280,7 +333,8 @@ export interface EditValidationContext {
   dialect: Dialect;
   maxIdentifierLength: number;
   /** The active snapshot, already override-applied. */
-  actual: Pick<TableModel, 'id' | 'schema' | 'name' | 'kind' | 'system' | 'columns' | 'primaryKey'>[];
+  actual: (Pick<TableModel, 'id' | 'schema' | 'name' | 'kind' | 'system' | 'columns' | 'primaryKey'> &
+    Partial<Pick<TableModel, 'checks'>>)[];
   /**
    * True when Adminium's own meta tables live in THIS database — the condition
    * that makes the `adminium_` namespace reachable through a source connection
@@ -289,6 +343,15 @@ export interface EditValidationContext {
   metaSharesDatabase: boolean;
   /** Reserved-word predicate; injected so the check is testable in isolation. */
   isReserved: (identifier: string, dialect: Dialect) => boolean;
+  /**
+   * Whether a type change cannot lose data — `isWideningChange` from the type
+   * map, injected because that module already imports this one. Absent, every
+   * `alterColumns` widening is refused.
+   */
+  isWidening?: (
+    from: { logicalType: LogicalType; maxLength: number | null; numericPrecision: number | null; numericScale: number | null },
+    to: { logicalType: LogicalType; maxLength: number | null },
+  ) => boolean;
 }
 
 const META_PREFIX = 'adminium_';
@@ -724,6 +787,62 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
     }
   }
 
+  // --- alterColumns --------------------------------------------------------
+  const restated = new Set(edit.upsertTables.flatMap((t) => (t.id === null ? [t.name] : [t.id, t.name])));
+  for (const entry of edit.alterColumns ?? []) {
+    if (refuseProtected(entry.table)) continue;
+    const table = byId.get(entry.table) ?? byName.get(entry.table);
+    if (table === undefined) continue; // `refuseProtected` already reported it
+    const where = { table: entry.table, column: entry.column };
+    if (restated.has(table.id) || restated.has(table.name)) {
+      push({
+        code: 'DUPLICATE_TABLE',
+        message: `${JSON.stringify(table.id)} is both restated in upsertTables and altered by alterColumns`,
+        table: entry.table,
+      });
+      continue;
+    }
+    const column = table.columns.find((c) => c.name === entry.column);
+    if (column === undefined) {
+      push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(table.id)} has no column ${JSON.stringify(entry.column)}`, ...where });
+      continue;
+    }
+    if (entry.widen !== undefined) {
+      const from = {
+        logicalType: column.logicalType,
+        maxLength: column.maxLength,
+        numericPrecision: column.numericPrecision,
+        numericScale: column.numericScale,
+      };
+      const to = { logicalType: entry.widen.logicalType, maxLength: entry.widen.maxLength ?? null };
+      const widening = ctx.isWidening?.(from, to) ?? false;
+      if (!isAuthorableLogicalType(entry.widen.logicalType) || !widening) {
+        push({ code: 'NOT_WIDENING', message: `${column.logicalType} → ${entry.widen.logicalType} could lose data`, ...where });
+      }
+    }
+    if (entry.identity === true) {
+      const soleKey = table.primaryKey.length === 1 && table.primaryKey[0] === column.name;
+      if (!soleKey || (column.logicalType !== 'integer' && column.logicalType !== 'bigint')) {
+        push({
+          code: 'IDENTITY_NOT_A_KEY',
+          message: 'only a table\'s single integer primary key can number itself',
+          ...where,
+        });
+      }
+    }
+    if (entry.enumValues !== undefined) {
+      const names = table.columns.map((c) => c.name);
+      const holder = (table.checks ?? []).find((check) => enumCheckColumn(check.expression, names) === column.name);
+      if (holder === undefined || parseEnumCheck(holder.expression, names) === null) {
+        push({
+          code: 'ENUM_ON_NON_ENUM_COLUMN',
+          message: `${JSON.stringify(column.name)} has no value list to add to`,
+          ...where,
+        });
+      }
+    }
+  }
+
   // --- addColumns ----------------------------------------------------------
   //
   // The same gates the upsert path applies to a NEW column, and two more that
@@ -794,6 +913,32 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
         message: 'an enum column carries a value list, which belongs to the table — add it in the table designer',
         ...where,
       });
+    }
+
+    if (entry.foreignKey !== undefined) {
+      const fk = entry.foreignKey;
+      /*
+       * Nullable and no default, or refused: an existing row gets NULL, which
+       * links nowhere and so cannot break the constraint. A default would be a
+       * key every existing row points at — one nobody chose.
+       */
+      if (!entry.column.nullable || entry.column.default !== null) {
+        push({
+          code: 'FK_COLUMN_NOT_NULLABLE',
+          message: 'a column that links to another table must be nullable with no default when it is added to a table that exists',
+          ...where,
+        });
+      }
+      const target = byId.get(fk.toTable) ?? byName.get(fk.toTable);
+      if (target === undefined) {
+        push({ code: 'UNKNOWN_TABLE', message: `${JSON.stringify(fk.toTable)} is not a table here`, ...where });
+      } else if (fk.toColumns.length !== 1 || !target.columns.some((c) => c.name === fk.toColumns[0])) {
+        push({
+          code: 'UNKNOWN_COLUMN',
+          message: `${JSON.stringify(fk.toTable)} has no column ${JSON.stringify(fk.toColumns.join(', '))} to link to`,
+          ...where,
+        });
+      }
     }
 
     const def = entry.column.default;
@@ -872,6 +1017,58 @@ export function tableWithAddedColumns(
     semantics: null,
   }));
   return { ...actual, columns: [...actual.columns, ...added] };
+}
+
+/**
+ * The desired model for an `alterColumns` edit: the snapshot's OWN table, with
+ * only the named columns changed. Every other column keeps its native type,
+ * default and generation, so the diff can only see the changes asked for.
+ *
+ * An enum's value list lives in the table's CHECK, so `enumValues` rewrites
+ * that CHECK in the one canonical shape the vocabulary admits, keeping its
+ * name so the drop and the add refer to the same constraint.
+ */
+export function tableWithAlteredColumns(
+  actual: TableModel,
+  alters: readonly AlterColumn[],
+  opts: { dbTypeFor: (column: DesiredColumn) => string },
+): TableModel {
+  const byColumn = new Map(alters.map((a) => [a.column, a]));
+  const columns: ColumnModel[] = actual.columns.map((column) => {
+    const alter = byColumn.get(column.name);
+    if (alter === undefined) return column;
+    let next: ColumnModel = column;
+    if (alter.widen !== undefined) {
+      const maxLength = alter.widen.maxLength ?? null;
+      next = {
+        ...next,
+        logicalType: alter.widen.logicalType,
+        maxLength,
+        dbType: opts.dbTypeFor({
+          name: column.name,
+          logicalType: alter.widen.logicalType as DesiredColumn['logicalType'],
+          nullable: column.nullable,
+          default: null,
+          maxLength,
+          numericPrecision: column.numericPrecision,
+          numericScale: column.numericScale,
+          comment: null,
+        } as DesiredColumn),
+      };
+    }
+    if (alter.identity === true) next = { ...next, default: { kind: 'autoincrement' } };
+    return next;
+  });
+  const names = actual.columns.map((c) => c.name);
+  const checks = actual.checks.map((check) => {
+    const column = enumCheckColumn(check.expression, names);
+    const alter = column === null ? undefined : byColumn.get(column);
+    if (alter?.enumValues === undefined || column === null) return check;
+    const current = parseEnumCheck(check.expression, names)?.values ?? [];
+    const values = [...current, ...alter.enumValues.filter((v) => !current.includes(v))];
+    return { ...check, expression: `${column} in (${values.map((v) => JSON.stringify(v)).join(', ')})` };
+  });
+  return { ...actual, columns, checks };
 }
 
 /**

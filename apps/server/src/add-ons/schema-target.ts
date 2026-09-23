@@ -37,6 +37,7 @@
  * rather than swallowed.
  */
 
+import type { Dialect } from '@adminium/engine';
 import { manifestsRepo, type MetaDb } from '@adminium/meta';
 import type { AddOnManifest, InstallPlan, Manifest, RequiredTable } from '@adminium/manifest';
 
@@ -140,8 +141,79 @@ export async function readExistingTables(
       nullable: column.nullable,
       hasDefault: column.default !== null,
       isGenerated: column.isGenerated,
+      logicalType: column.logicalType,
+      maxLength: column.maxLength,
     })),
   }));
+}
+
+/**
+ * The tables a planner diffs against, read from the LIVE database — never
+ * the saved snapshot.
+ *
+ * The snapshot is whatever the last introspection saw. A table created since
+ * was missing from it, so the plan said "create", `IF NOT EXISTS` silently
+ * skipped the create, and the install reported a table it had not made; a
+ * table dropped since was planned as "reuse" and every page bound to nothing.
+ * The install check is the one screen whose job is to be right about what is
+ * there now.
+ *
+ * `names` narrows the read to the tables the manifest names (its own and the
+ * ones its foreign keys point at), so a database with hundreds of tables costs
+ * a handful of catalogue reads. Nothing is written: no snapshot, no proposals —
+ * which is what keeps `/apps/plan` audit-exempt.
+ *
+ * A name found in more than one schema resolves to the connection's default
+ * schema, where the installer's unqualified `CREATE TABLE` puts it.
+ */
+export interface LiveTables {
+  tables: ExistingTable[];
+  /** The engine they live on; the planner's type check needs it (SQLite reports types loosely). */
+  dialect: Dialect;
+}
+
+export async function readLiveTables(
+  deps: SchemaTargetCoreDeps,
+  connectionId: string,
+  names: ReadonlySet<string>,
+): Promise<LiveTables> {
+  const adapter = await deps.manager.introspectAdapter(connectionId);
+  let model;
+  try {
+    if (names.size === 0) return { tables: [], dialect: adapter.dialect };
+    model = await adapter.introspect({
+      tableFilter: (table) => names.has(table.name),
+      collectRowEstimates: false,
+      collectActivityStats: false,
+    });
+  } finally {
+    await adapter.close().catch(() => undefined);
+  }
+  const byName = new Map<string, (typeof model.tables)[number]>();
+  for (const table of model.tables) {
+    const held = byName.get(table.name);
+    if (held === undefined || (held.schema !== model.defaultSchema && table.schema === model.defaultSchema)) {
+      byName.set(table.name, table);
+    }
+  }
+  const tables = [...byName.values()].map((table) => ({
+    ref: table.name,
+    columns: table.columns.map((column) => ({
+      ref: column.name,
+      isPrimaryKey: column.isPrimaryKey,
+      dbType: column.dbType,
+      nullable: column.nullable,
+      hasDefault: column.default !== null,
+      isGenerated: column.isGenerated,
+      logicalType: column.logicalType,
+      maxLength: column.maxLength,
+      isIdentity: column.default?.kind === 'autoincrement',
+      ...(column.enumRef === undefined || column.enumRef === null
+        ? {}
+        : { enumValues: model.enums.find((e) => e.id === column.enumRef)?.values ?? [] }),
+    })),
+  }));
+  return { tables, dialect: model.dialect };
 }
 
 /**
@@ -156,6 +228,10 @@ export async function applyPlanTo(
   connectionId: string,
   plan: InstallPlan,
   manifest: Manifest,
+  /** The tables the plan was made from. Absent, the snapshot is read (the add-on path). */
+  known?: readonly ExistingTable[],
+  /** Told each table as it is created. */
+  onCreated?: (ref: string) => Promise<void>,
 ): Promise<ApplyInstallResult> {
   // This guard came with the install path — a
   // `create` outcome is "refused when the `data` role is read-only" — and
@@ -179,7 +255,7 @@ export async function applyPlanTo(
   }
 
   const tables: readonly RequiredTable[] = manifest.requiredSchema?.tables ?? [];
-  const existing = await readExistingTables(deps, connectionId);
+  const existing = known ?? (await readExistingTables(deps, connectionId));
   const handle = await deps.manager.data(connectionId);
   const result = await applyInstall({
     plan,
@@ -187,6 +263,7 @@ export async function applyPlanTo(
     db: handle.db,
     dialect: handle.dialect,
     existing,
+    onCreated,
   });
 
   // The snapshot, so the new tables are addressable. AFTER the DDL and in
